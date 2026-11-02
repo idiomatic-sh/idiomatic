@@ -2,9 +2,9 @@
   "schema": "native-standalone-cases/v2",
   "execution_contract": "singleton-per-declared-rule",
   "historical_certification": false,
-  "intent": "Explicit native135 singleton inventory, preserving historical104,114,118,124 source and receipt snapshots. Eleven newly admitted source-bound profiles have independent current-helper singleton executions; the earlier 124 result is not relabeled as a one-shot 135 run.",
+  "intent": "Explicit native138 singleton inventory. Historical native135 receipts remain bound to their former engine and suppression helper; three new current-helper singleton proofs are separately source-bound. A current full inventory execution is required for combined acceptance.",
   "source_profile_file": "benchmark.toml",
-  "source_profile_sha256": "7bc70e6e895b830f7675508fe3a5e8b6f5b77f6bdf77a097c059e4dc699e2e0c",
+  "source_profile_sha256": "cbfb579ee16a5947226cfb887e701d75b243fc68eb18b8adb1c92a6760be3209",
   "source_settings": {
     "defaults": [
       "ASYNC100",
@@ -923,7 +923,7 @@
     "python/ruff/repeated-characters": "fd01cdabb855e30c993e92864f21790e8221ca6af74d8cfd3e100ee4e9aaddd2",
     "python/ruff/simple-stub-defaults": "230a35648a917693061cd3c651f834b66e0bc4170ac39921248a0f07a23a050a",
     "python/ruff/statement-equal": "06f10897d474fd16124ad8fa77d65e366a5a2e3073918fa31acc35f8a7117659",
-    "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+    "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
     "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
     "python/ruff/suppress-unmapped": "d45584ef7d81bc8eff40e64c30d1d841acf679a79e5c1c0fd42fb32e4ed65417",
     "python/ruff/suppress-with-additional-lines": "f20312154da1428bd569273b1ac628c1609d4f8f5cd23c5b7e7682a3bcb72d1a",
@@ -935,8 +935,8 @@
     "python/ruff/without-effect": "ebf2050f8e9314a4964318cc5b0965c8fabd5d237185573e95569d46c550f4a7"
   },
   "phase_registry_sha256": "51f2c210f75d1275cd68369a1c69289a91ca87f83b7c486a2b348edd89c4a8f4",
-  "query_count": 135,
-  "case_count": 3464,
+  "query_count": 138,
+  "case_count": 3504,
   "profiles": [
     {
       "profile_name": "native-ASYNC115",
@@ -1113,7 +1113,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -1986,7 +1986,7 @@
       },
       "module_sha256": {
         "python/ruff/builtin-match-at-visit": "16924880fa94dcdc46be1610ecd520565f4a88496152da125f2a051105f8508d",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
         "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b"
       }
@@ -3227,7 +3227,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -3832,7 +3832,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -3994,7 +3994,7 @@
         "python/ruff/io-base-initializer": "c0886ecd9dab6bbfc91d6a5ce964647fe48e8c05a66bce1918727d96f6143207",
         "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
         "python/ruff/modernization-symbols": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -4187,7 +4187,7 @@
         "python/ruff/io-base-binding": "14e5807210b1b6ff8f7812a34ac621b53298cf1dd498beac62b59130ef7d9deb",
         "python/ruff/io-base-initializer": "c0886ecd9dab6bbfc91d6a5ce964647fe48e8c05a66bce1918727d96f6143207",
         "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -4383,7 +4383,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -4895,7 +4895,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5041,7 +5041,7 @@
       },
       "module_sha256": {
         "python/ruff/python-evaluation-regions": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5124,7 +5124,7 @@
       },
       "module_sha256": {
         "python/ruff/python-evaluation-regions": "3ef1c23b80e5070940ed367d6a269372f0f9486edbafa36e0332f5751a882104",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5238,7 +5238,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5290,7 +5290,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5342,7 +5342,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5394,7 +5394,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5446,7 +5446,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -5720,7 +5720,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -6208,7 +6208,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -6901,7 +6901,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -6957,8 +6957,140 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      }
+    },
+    {
+      "profile_name": "native-RUF012",
+      "rule_id": "RUF012",
+      "selected_rules": [
+        "RUF012"
+      ],
+      "profile_file": "profiles/RUF012/benchmark.toml",
+      "candidate_file": "rules/RUF012/query.ryoql",
+      "query_sha256": "f01c53fa8f19e59c28dbd47a7fa4e46c96940c8aa76fbe8b6fdf8b0e3384ab3e",
+      "cases_file": "rules/RUF012/cases.toml",
+      "cases_sha256": "0be140f5d40c63386a5142ca47048a90864c1d49e1210f40cca0848309706aa5",
+      "case_count": 8,
+      "case_names": [
+        "upstream-RUF012",
+        "upstream-RUF012_deferred",
+        "plain-and-nested",
+        "classvar-import-alias",
+        "dataclass-alias",
+        "ctypes-fields",
+        "future-annotation",
+        "constructor-shadowed"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "RUF012"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF012": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "2dbd111cfb6312b1661e03a635cc3ecd6d1a60c79afed7280301e04781ab4d02",
+      "source_settings": {
+        "defaults": [
+          "RUF012"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF012": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/annotation-origins": "fragments/annotation-origins.ryoql",
+        "python/ruff/dataclass-decorators": "fragments/dataclass-decorators.ryoql",
+        "python/ruff/future-annotation-context": "fragments/future-annotation-context.ryoql",
+        "python/ruff/immutable-annotation": "fragments/immutable-annotation.ryoql",
+        "python/ruff/lookup-symbol-events": "fragments/lookup-symbol-events.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/annotation-evaluation-context": "fragments/annotation-evaluation-context.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/annotation-origins": "6cfa26a97e143633f526c534006c42df872a6bff5da05904d2f5843fc10b9240",
+        "python/ruff/dataclass-decorators": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
+        "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "python/ruff/immutable-annotation": "238eb0e2bc017481d0d78ea74724cd851fa72446ef86badd43b301878598cd76",
+        "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5"
+      }
+    },
+    {
+      "profile_name": "native-RUF013",
+      "rule_id": "RUF013",
+      "selected_rules": [
+        "RUF013"
+      ],
+      "profile_file": "profiles/RUF013/benchmark.toml",
+      "candidate_file": "rules/RUF013/query.ryoql",
+      "query_sha256": "668355a267eb0e85a01bb5ee80d338fa7f360db99cf0d4263f97c7fd65a97b02",
+      "cases_file": "rules/RUF013/cases.toml",
+      "cases_sha256": "73cf52d9e8d7f3fbf5eece4971b2080eada25f028a111c4f90f592bbbd9dee9a",
+      "case_count": 12,
+      "case_names": [
+        "upstream-RUF013_0",
+        "upstream-RUF013_1",
+        "upstream-RUF013_2",
+        "upstream-RUF013_3",
+        "upstream-RUF013_4",
+        "plain-and-optional",
+        "qualified-import-alias",
+        "none-union",
+        "future-annotation",
+        "unknown-alias",
+        "kwonly-posonly",
+        "unknown-alias-in-union"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "RUF013"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF013": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "17ff3da4f08d0ef63f380a5f9102b08d385b913bcc1877f175ae8e444f06e1de",
+      "source_settings": {
+        "defaults": [
+          "RUF013"
+        ],
+        "parser_configuration": "python-target=3.10",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "RUF013": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/annotation-origins": "fragments/annotation-origins.ryoql",
+        "python/ruff/future-annotation-context": "fragments/future-annotation-context.ryoql",
+        "python/ruff/lookup-symbol-events": "fragments/lookup-symbol-events.ryoql",
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql",
+        "python/ruff/annotation-evaluation-context": "fragments/annotation-evaluation-context.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/annotation-origins": "6cfa26a97e143633f526c534006c42df872a6bff5da05904d2f5843fc10b9240",
+        "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5"
       }
     },
     {
@@ -7100,7 +7232,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -7207,7 +7339,7 @@
       },
       "module_sha256": {
         "python/ruff/dataclass-decorators": "6fcb046de35d673b2d06ec669896762ca13a826e39d971663c6ed9a93a14bd1b",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -7443,7 +7575,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -7536,7 +7668,7 @@
         "python/ruff/assigned-values": "fragments/assigned-values.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
         "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86"
       }
@@ -7603,7 +7735,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -8036,7 +8168,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
@@ -8133,7 +8265,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -8315,7 +8447,7 @@
         "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -8434,7 +8566,7 @@
         "python/ruff/unpack-symbols": "fragments/unpack-symbols.ryoql"
       },
       "module_sha256": {
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
         "python/ruff/unpack-symbols": "4594f5c52183ceed86a6a641a575b79322f3a0c2c1f0065b7695b6a97a1218d4"
       }
@@ -8522,7 +8654,7 @@
         "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
         "python/ruff/modernization-symbols": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
         "python/ruff/pep604-candidates": "43f2f3b710aa286bfcf76937171731295562dd0112e1c512d5a0648aad182ee0",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     },
@@ -8588,7 +8720,73 @@
       },
       "module_sha256": {
         "python/ruff/modernization-symbols": "76bbb893f2ddd68018c968fcf8fa9ea15d237a17919c8c898c1144d4c098bf42",
-        "python/ruff/suppress": "a4004a583824dfe9f7d2e98289d7dc6d6afc365c928f5e28d7fab094324fa447",
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+      }
+    },
+    {
+      "profile_name": "native-W605",
+      "rule_id": "W605",
+      "selected_rules": [
+        "W605"
+      ],
+      "profile_file": "profiles/W605/benchmark.toml",
+      "candidate_file": "rules/W605/query.ryoql",
+      "query_sha256": "505b0b6729ec6580f50cdb329f13512d137e1092c8d77aed83903264504e0fde",
+      "cases_file": "rules/W605/cases.toml",
+      "cases_sha256": "dd07a98f5ff53d8e9a2ff8d1c61fea586d8fecd052d06c60ceb774a749cebc80",
+      "case_count": 20,
+      "case_names": [
+        "invalid-simple",
+        "even-run",
+        "odd-three-run",
+        "adjacent-invalid",
+        "valid-escapes",
+        "raw-string",
+        "unicode-invalid",
+        "triple-multiline",
+        "fstring-literal",
+        "fstring-brace-boundary",
+        "fstring-format-spec-boundary",
+        "tstring-literal",
+        "raw-tstring",
+        "comment-outside-string",
+        "same-line-noqa",
+        "closing-line-noqa",
+        "tstring-triple-without-noqa",
+        "tstring-triple-closing-line-noqa",
+        "ruff-0.16.5-W605_0.py",
+        "ruff-0.16.5-W605_1.py"
+      ],
+      "effective_settings": {
+        "defaults": [
+          "W605"
+        ],
+        "parser_configuration": "python-target=3.14",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "W605": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "profile_sha256": "5208368704d86b6c31d28d95cca37a1925c41fa3486518eb4f285fcfc16f2cfa",
+      "source_settings": {
+        "defaults": [
+          "W605"
+        ],
+        "parser_configuration": "python-target=3.14",
+        "project_context_mode": "isolated",
+        "rule_applicability": {
+          "W605": "accepted-syntax"
+        },
+        "flags": {}
+      },
+      "module_registry": {
+        "python/ruff/suppress": "fragments/suppress.ryoql",
+        "python/ruff/suppress-directives": "fragments/suppress-directives.ryoql"
+      },
+      "module_sha256": {
+        "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
         "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
       }
     }

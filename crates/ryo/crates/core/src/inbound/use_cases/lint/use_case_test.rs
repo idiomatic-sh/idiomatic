@@ -393,9 +393,22 @@ fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change(
 }
 
 /// The use case over the fakes `given` stands for.
-fn world(mut given: Given) -> World {
+fn world(given: Given) -> World {
+    world_with_kernel(given, false)
+}
+
+/// Construct either physical backend over the same fake store and query identity.
+fn world_with_kernel(mut given: Given, column_kernel: bool) -> World {
     let scheduler = Arc::new(std::mem::take(&mut given.scheduler));
-    scheduled_world(given, scheduler, WorkerCount(1))
+    let query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort> =
+        Arc::<QueryLanguageFake>::clone(&given.query);
+    scheduled_world_with_query_kernel(
+        given,
+        scheduler,
+        WorkerCount(1),
+        query_language,
+        column_kernel,
+    )
 }
 
 /// The same fixture over an explicitly injected production scheduler.
@@ -411,6 +424,16 @@ fn scheduled_world_with_query(
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
     query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort>,
+) -> World {
+    scheduled_world_with_query_kernel(given, scheduler, workers, query_language, false)
+}
+
+fn scheduled_world_with_query_kernel(
+    given: Given,
+    scheduler: Arc<dyn SchedulerPort>,
+    workers: WorkerCount,
+    query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort>,
+    column_kernel: bool,
 ) -> World {
     let collected = rows::types::Collector::default();
     let kept: Arc<dyn RowsPort> = Arc::new(rows::factory::collect(collected.clone()));
@@ -450,7 +473,8 @@ fn scheduled_world_with_query(
                 Arc::clone(&analysis_language),
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
-            ),
+            )
+            .with_column_kernel(column_kernel),
             crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus)),
             Arc::clone(&analysis_corpus),
             Arc::new(given.facts),
@@ -476,8 +500,12 @@ fn scheduled_world_with_query(
 
 /// One lint over what `given` stands for.
 fn lint(given: Given) -> Lint {
+    lint_with_kernel(given, false)
+}
+
+fn lint_with_kernel(given: Given, column_kernel: bool) -> Lint {
     let asked = request(&given);
-    let world = world(given);
+    let world = world_with_kernel(given, column_kernel);
     let report = world.use_case.lint(asked);
     Lint {
         report: report.map(|answer| answer.unread.len()),
@@ -570,13 +598,50 @@ fn again(
     rule: &'static str,
     store: &Arc<LintStoreFake>,
 ) -> Lint {
-    lint(Given {
-        files: files.to_vec(),
-        store: Arc::clone(store),
-        root,
-        rules: vec![rule],
-        ..violations()
-    })
+    again_with_kernel(files, root, rule, store, false)
+}
+
+fn again_with_kernel(
+    files: &[(&'static str, &'static str)],
+    root: &'static str,
+    rule: &'static str,
+    store: &Arc<LintStoreFake>,
+    column_kernel: bool,
+) -> Lint {
+    lint_with_kernel(
+        Given {
+            files: files.to_vec(),
+            store: Arc::clone(store),
+            root,
+            rules: vec![rule],
+            ..violations()
+        },
+        column_kernel,
+    )
+}
+
+/// A same-binary backend switch invalidates retained findings in both directions.
+#[test]
+fn column_kernel_strategy_is_part_of_stored_rule_identity() {
+    let store = Arc::new(LintStoreFake::default());
+    let run = |kernel| again_with_kernel(&SOURCES, "root", "a rule", &store, kernel);
+    let first = run(false);
+    let candidate = run(true);
+    let switched_back = run(false);
+    let warm = run(false);
+    assert_eq!(first.parses, 3);
+    assert_eq!(
+        candidate.parses, 3,
+        "candidate must not replay baseline records"
+    );
+    assert_eq!(
+        switched_back.parses, 3,
+        "baseline must not replay candidate records"
+    );
+    assert_eq!(warm.parses, 0, "same strategy still reuses exact records");
+    assert_eq!(first.rows, candidate.rows);
+    assert_eq!(first.rows, switched_back.rows);
+    assert_eq!(first.rows, warm.rows);
 }
 
 /// The rows of this part's cases.

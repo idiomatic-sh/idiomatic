@@ -15,7 +15,7 @@ use super::types::{
     BucketSpan, FileOffset, OpenedStore, SectionBytes, SectionLength, SectionSpan, TableOfContents,
 };
 use crate::outbound::lint_store::errors::LintStoreError;
-use crate::outbound::lint_store::interface::{LintStorePort, ReadStore};
+use crate::outbound::lint_store::interface::{LintStorePort, OldRowBatch, ReadStore};
 use crate::outbound::lint_store::types::{Store, StoreKeeping};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{
@@ -45,6 +45,137 @@ struct PostcardRead {
     session: ryo_values::domain::records::types::StagingSession,
     /// Fresh normalized data is staged lazily, outside domain record ownership.
     spool: Mutex<Option<super::types::spool::value::StagingSpool>>,
+}
+
+#[cfg(unix)]
+struct PositionalBucket {
+    file: Arc<std::fs::File>,
+    start: u64,
+    end: u64,
+    at: u64,
+}
+
+#[cfg(unix)]
+impl std::io::Read for PositionalBucket {
+    fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+        use std::os::unix::fs::FileExt as _;
+        let length = into
+            .len()
+            .min(usize::try_from(self.end - self.at).unwrap_or(usize::MAX));
+        let read = self.file.read_at(&mut into[..length], self.at)?;
+        self.at = self
+            .at
+            .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
+            .ok_or_else(|| std::io::Error::other("old bucket position overflows"))?;
+        Ok(read)
+    }
+}
+
+#[cfg(unix)]
+impl std::io::Seek for PositionalBucket {
+    fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
+        let target = match from {
+            SeekFrom::Start(at) => i128::from(at),
+            SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
+            SeekFrom::End(by) => i128::from(self.end) + i128::from(by),
+        };
+        let at = u64::try_from(target).map_err(std::io::Error::other)?;
+        if at < self.start || at > self.end {
+            return Err(std::io::Error::other("old bucket seek exceeds its section"));
+        }
+        self.at = at;
+        Ok(at)
+    }
+}
+
+/// A standard 4 KiB read buffer whose logical seek can reuse prefetched bytes.
+#[cfg(unix)]
+struct BufferedBucket {
+    bucket: Bucket,
+    span: SectionSpan,
+    reader: std::io::BufReader<PositionalBucket>,
+    at: u64,
+}
+
+#[cfg(unix)]
+impl std::io::Read for BufferedBucket {
+    fn read(&mut self, into: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.reader.read(into)?;
+        self.at = self
+            .at
+            .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
+            .ok_or_else(|| std::io::Error::other("old bucket logical position overflows"))?;
+        Ok(read)
+    }
+}
+
+#[cfg(unix)]
+impl std::io::Seek for BufferedBucket {
+    fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
+        let end = self
+            .span
+            .start
+            .0
+            .checked_add(self.span.length.0)
+            .ok_or_else(|| std::io::Error::other("old bucket end overflows"))?;
+        let target = match from {
+            SeekFrom::Start(at) => i128::from(at),
+            SeekFrom::Current(by) => i128::from(self.at) + i128::from(by),
+            SeekFrom::End(by) => i128::from(end) + i128::from(by),
+        };
+        let at = u64::try_from(target).map_err(std::io::Error::other)?;
+        if at < self.span.start.0 || at > end {
+            return Err(std::io::Error::other("old bucket seek exceeds its section"));
+        }
+        let delta = i128::from(at) - i128::from(self.at);
+        if let Ok(delta) = i64::try_from(delta) {
+            self.reader.seek_relative(delta)?;
+        } else {
+            self.reader.seek(SeekFrom::Start(at))?;
+        }
+        self.at = at;
+        Ok(at)
+    }
+}
+
+#[cfg(unix)]
+struct PostcardOldRowBatch {
+    snapshot: StoreSnapshot,
+    held: u64,
+    buckets: Vec<BufferedBucket>,
+    directory: String,
+}
+
+#[cfg(unix)]
+impl OldRowBatch for PostcardOldRowBatch {
+    fn read(
+        &mut self,
+        words: &OldWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError> {
+        into.0.clear();
+        let place = self
+            .buckets
+            .binary_search_by_key(&words.bucket, |row| row.bucket)
+            .map_err(|_| LintStoreError::Unreadable {
+                directory: self.directory.clone(),
+                reason: "old row bucket is absent".into(),
+            })?;
+        let bucket = &mut self.buckets[place];
+        let span = bucket.span;
+        super::types::frames::value::read_old_in(
+            bucket,
+            self.held,
+            self.snapshot,
+            span,
+            words,
+            into,
+        )
+        .map_err(|error| LintStoreError::Unreadable {
+            directory: self.directory.clone(),
+            reason: error.to_string(),
+        })
+    }
 }
 
 impl LintStorePostcardAdapter {
@@ -357,6 +488,9 @@ impl ReadStore for PostcardRead {
                 .unreadable(&"old row belongs to another store snapshot"));
         }
         let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
+        #[cfg(unix)]
+        let opened = locked(opened);
+        #[cfg(not(unix))]
         let mut opened = locked(opened);
         let bucket = self
             .buckets
@@ -397,6 +531,60 @@ impl ReadStore for PostcardRead {
             into,
         );
         read.map_err(|error| self.adapter.unreadable(&error))
+    }
+
+    fn begin_old_rows(
+        &self,
+        wanted: &BucketsWanted,
+    ) -> Result<Option<Box<dyn OldRowBatch>>, LintStoreError> {
+        #[cfg(unix)]
+        {
+            let opened = self.opened.as_ref().ok_or(LintStoreError::NothingRead)?;
+            let opened = locked(opened);
+            let file = Arc::new(
+                opened
+                    .file
+                    .try_clone()
+                    .map_err(|error| self.adapter.unreadable(&error))?,
+            );
+            let mut buckets = Vec::with_capacity(self.buckets.len());
+            for entry in &self.buckets {
+                if let BucketsWanted::These(selected) = wanted
+                    && selected.binary_search(&entry.bucket).is_err()
+                {
+                    continue;
+                }
+                let end = entry
+                    .span
+                    .start
+                    .0
+                    .checked_add(entry.span.length.0)
+                    .ok_or_else(|| self.adapter.unreadable(&"old bucket end overflows"))?;
+                let reader = PositionalBucket {
+                    file: Arc::clone(&file),
+                    start: entry.span.start.0,
+                    end,
+                    at: entry.span.start.0,
+                };
+                buckets.push(BufferedBucket {
+                    bucket: entry.bucket,
+                    span: entry.span,
+                    reader: std::io::BufReader::with_capacity(4 * 1024, reader),
+                    at: entry.span.start.0,
+                });
+            }
+            buckets.sort_by_key(|entry| entry.bucket);
+            Ok(Some(Box::new(PostcardOldRowBatch {
+                snapshot: StoreSnapshot(self.session.0),
+                held: opened.length.0,
+                buckets,
+                directory: self.adapter.store.directory.0.to_string(),
+            })))
+        }
+        #[cfg(not(unix))]
+        {
+            Ok(None)
+        }
     }
 
     fn stage_words(

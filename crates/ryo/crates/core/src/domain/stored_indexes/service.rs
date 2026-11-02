@@ -51,6 +51,7 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
         },
         selectors: Vec::new(),
         selections: Vec::new(),
+        fanouts: Vec::new(),
         discriminator_columns: Vec::new(),
         selection_counts: Default::default(),
         selection_histogram:

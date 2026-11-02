@@ -10,6 +10,9 @@ use crate::domain::table_model::types::{Rows, Table};
 use regex_automata::meta::Regex;
 use ryo_language::domain::relations::constants::NO_SPAN;
 use ryo_language::domain::relations::types::{CellKind, Integer, Offset, Span, Value};
+use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::Operation;
 
@@ -105,11 +108,17 @@ fn occurrences(
     span: ColumnIndex,
     base_line: Option<ColumnIndex>,
     pattern: &str,
+    capture: Option<&str>,
+    capture_text: bool,
+    capture_line: bool,
     context: &mut OperatorContext<'_>,
     local: &mut Option<Regex>,
     joined: &mut Vec<Value>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
+    if (capture_text || capture_line) && capture.is_none() || capture_line && base_line.is_none() {
+        return Err(OperatingError::WrongOperation);
+    }
     let source = context.source.0;
     let Some((base, text)) = source_slice(row, span, source)? else {
         return Ok(());
@@ -127,25 +136,51 @@ fn occurrences(
     };
     let prepared = context.prepared_matchers;
     let regex = ready(pattern, prepared, local)?;
+    if let Some(name) = capture
+        && regex
+            .group_info()
+            .to_index(regex_automata::util::primitives::PatternID::ZERO, name)
+            .is_none()
+    {
+        return Err(OperatingError::InvalidRegex {
+            reason: format!("missing named capture `{name}`"),
+        });
+    }
     let mut cursor = 0;
     let mut pending_cr = false;
-    for found in regex.find_iter(text) {
+    let mut emit_one = |start_at: usize,
+                        end_at: usize,
+                        captured: Option<(usize, usize)>|
+     -> Result<(), OperatingError> {
+        let mut whole_line = None;
         if let Some(current) = line.as_mut() {
             advance_line(
                 text.as_bytes(),
                 source,
                 base,
                 &mut cursor,
-                found.start(),
+                start_at,
                 current,
                 &mut pending_cr,
             )?;
+            whole_line = Some(*current);
+            if capture_line && let Some((capture_start, _)) = captured {
+                advance_line(
+                    text.as_bytes(),
+                    source,
+                    base,
+                    &mut cursor,
+                    capture_start,
+                    current,
+                    &mut pending_cr,
+                )?;
+            }
         }
         let start = base
-            .checked_add(found.start())
+            .checked_add(start_at)
             .ok_or(OperatingError::InvalidSourceMatchSpan)?;
         let end = base
-            .checked_add(found.end())
+            .checked_add(end_at)
             .ok_or(OperatingError::InvalidSourceMatchSpan)?;
         let start = u32::try_from(start).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
         let end = u32::try_from(end).map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
@@ -155,10 +190,60 @@ fn occurrences(
             start: Offset(start),
             end: Offset(end),
         }));
-        if let Some(current) = line {
+        if let Some(current) = whole_line {
             joined.push(Value::Number(Integer(current)));
         }
+        if let Some((capture_start, capture_end)) = captured {
+            let absolute_start = u32::try_from(
+                base.checked_add(capture_start)
+                    .ok_or(OperatingError::InvalidSourceMatchSpan)?,
+            )
+            .map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
+            let absolute_end = u32::try_from(
+                base.checked_add(capture_end)
+                    .ok_or(OperatingError::InvalidSourceMatchSpan)?,
+            )
+            .map_err(|_| OperatingError::InvalidSourceMatchSpan)?;
+            joined.push(Value::Span(Span {
+                start: Offset(absolute_start),
+                end: Offset(absolute_end),
+            }));
+            if capture_text {
+                let captured_text = text
+                    .get(capture_start..capture_end)
+                    .ok_or(OperatingError::InvalidSourceMatchSpan)?;
+                // Query execution follows provider fact reading. A fresh source-backed
+                // symbol would move `sources` past existing derived provider names
+                // (including comments), corrupting their text resolution.
+                joined.push(Value::Symbol(intern_derived(
+                    context.symbols,
+                    ByteSlice(source),
+                    NameText(captured_text),
+                )));
+            }
+            if capture_line {
+                joined.push(Value::Number(Integer(
+                    line.ok_or(OperatingError::InvalidSourceMatchSpan)?,
+                )));
+            }
+        }
         emit.row(context, joined)?;
+        Ok(())
+    };
+    if let Some(name) = capture {
+        for captures in regex.captures_iter(text) {
+            let Some(found) = captures.get_match() else {
+                continue;
+            };
+            let Some(group) = captures.get_group_by_name(name) else {
+                continue;
+            };
+            emit_one(found.start(), found.end(), Some((group.start, group.end)))?;
+        }
+    } else {
+        for found in regex.find_iter(text) {
+            emit_one(found.start(), found.end(), None)?;
+        }
     }
     Ok(())
 }
@@ -178,6 +263,9 @@ impl OperatorsItem for SourceMatchesItem {
             span,
             base_line,
             pattern,
+            capture,
+            capture_text,
+            capture_line,
             ..
         } = operation
         else {
@@ -188,6 +276,15 @@ impl OperatorsItem for SourceMatchesItem {
         out.kinds.push(CellKind::Span);
         if base_line.is_some() {
             out.kinds.push(CellKind::Number);
+        }
+        if capture.is_some() {
+            out.kinds.push(CellKind::Span);
+            if *capture_text {
+                out.kinds.push(CellKind::Symbol);
+            }
+            if *capture_line {
+                out.kinds.push(CellKind::Number);
+            }
         }
         let mut row = Vec::new();
         let mut joined = Vec::new();
@@ -201,6 +298,9 @@ impl OperatorsItem for SourceMatchesItem {
                 *span,
                 *base_line,
                 &pattern.0,
+                capture.as_ref().map(|name| name.0.as_ref()),
+                *capture_text,
+                *capture_line,
                 context,
                 &mut local,
                 &mut joined,
@@ -222,6 +322,9 @@ impl OperatorsItem for SourceMatchesItem {
             span,
             base_line,
             pattern,
+            capture,
+            capture_text,
+            capture_line,
             ..
         } = operation
         else {
@@ -238,6 +341,9 @@ impl OperatorsItem for SourceMatchesItem {
                     *span,
                     *base_line,
                     &pattern.0,
+                    capture.as_ref().map(|name| name.0.as_ref()),
+                    *capture_text,
+                    *capture_line,
                     each,
                     &mut local,
                     &mut joined,

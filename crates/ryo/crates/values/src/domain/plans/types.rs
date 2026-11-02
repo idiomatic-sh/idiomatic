@@ -329,6 +329,12 @@ pub enum Operation {
         base_line: Option<ColumnIndex>,
         /// Authored regular expression.
         pattern: crate::domain::plan_parts::types::LiteralText,
+        /// Optional required named capture; a nonparticipating capture emits no row.
+        capture: Option<crate::domain::plan_parts::types::LiteralText>,
+        /// Append the captured physical text as a source-backed Symbol.
+        capture_text: bool,
+        /// Append the captured start line after any whole-match line output.
+        capture_line: bool,
     },
     /// Append checked byte offsets of an existing physical source span.
     SpanBounds {

@@ -4,6 +4,7 @@
 // ignore: idiomatic.arch/idiomatic-rust/module-cycles - the steps feed on the steps they run: the service runs a step through the `Feed` impl of `Stepper`, which reads its input by running the service's steps again (`run`, `operate`, `deliver`), one ring by design
 use ryo_language::domain::relations::types::{Relation, Value};
 
+use crate::domain::column_kernel::{service as column_kernel, types::KernelStrategy};
 use crate::domain::fragment::service as lowered;
 use crate::domain::fragment::types::FragmentRun;
 use crate::domain::layout::service::layout_of;
@@ -454,6 +455,15 @@ pub(crate) fn evaluate_file<'f>(
             );
         }
         prepared.layouts.push(layout);
+        if prepared.kernel_strategy == KernelStrategy::Column {
+            let kernel = column_kernel::compile(
+                plan,
+                prepared.layouts.last().ok_or(OperatingError::NotRun)?,
+            );
+            prepared.kernel_counts.compiled_chains +=
+                kernel.0.iter().filter(|chain| chain.is_some()).count() as u64;
+            prepared.kernel_plans.push(kernel);
+        }
         prepared.layouts.len() - 1
     };
     if prepared.fed.len() <= place {
@@ -469,6 +479,9 @@ pub(crate) fn evaluate_file<'f>(
     let PreparedPool {
         selection_plans,
         layouts,
+        kernel_strategy,
+        kernel_plans,
+        kernel_counts,
         fed,
         unlowered,
         counting,
@@ -550,6 +563,36 @@ pub(crate) fn evaluate_file<'f>(
                     target,
                     selected[index].as_ref(),
                     readiness.as_ref(),
+                    partial,
+                );
+            }
+            continue;
+        }
+        if *kernel_strategy == KernelStrategy::Column
+            && *counting == Counting::DoesNotCount
+            && let Some(chain) = kernel_plans
+                .get(place)
+                .and_then(|program| program.0.get(index))
+                .and_then(Option::as_ref)
+            && column_kernel::execute(
+                chain,
+                stepper.read,
+                stepper.selected,
+                stepper.partial,
+                context,
+                target,
+                layout.kinds.get(index).ok_or(OperatingError::NotRun)?,
+                kernel_counts,
+            )?
+        {
+            if cut_diagnostic {
+                diagnostic_cut(
+                    identity.0,
+                    tree.map(|tree| tree.file.0),
+                    index,
+                    target,
+                    selected[index].as_ref(),
+                    stepper.made.ready.get(index),
                     partial,
                 );
             }

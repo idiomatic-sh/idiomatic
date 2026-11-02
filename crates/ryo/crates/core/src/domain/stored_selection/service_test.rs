@@ -3,6 +3,7 @@
 use super::service::select;
 use super::types::Selector;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::compute;
@@ -27,6 +28,7 @@ use ryo_values::domain::plan_parts::types::{
     RepeatedRows, Test, WholeNumber,
 };
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::stored_facts::types::PartialCause;
 use std::sync::Arc;
 
 /// One result-sharing, transport or fallback boundary.
@@ -410,6 +412,256 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
         &actual.cells[6..9],
         &actual.cells[9..12],
         "duplicate bag rows"
+    );
+    Ok(())
+}
+
+/// Distinct active literal demands share one physical scan, while each selector
+/// retains the ordinary text-equality bag, order, and caller-owned error path.
+#[test]
+fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<(), Failure> {
+    let mut symbols = Symbols::default();
+    let dynamic_class = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
+    let extras: Vec<_> = (0..7)
+        .map(|number| {
+            intern_derived(
+                &mut symbols,
+                ByteSlice(b""),
+                NameText(&format!("word{number}")),
+            )
+        })
+        .collect();
+    let mut bits = vec![to_bits(Cell::Symbol(term_symbol(DeclarationKind::Method))).0; 128];
+    for row in [1, 4, 8] {
+        bits[row] = to_bits(Cell::Symbol(term_symbol(DeclarationKind::Class))).0;
+    }
+    bits[5] = to_bits(Cell::Symbol(dynamic_class)).0;
+    bits[127] = to_bits(Cell::Symbol(Symbol(u32::MAX))).0;
+    for (number, symbol) in extras.iter().enumerate() {
+        bits[20 + number * 2] = to_bits(Cell::Symbol(*symbol)).0;
+    }
+    let columns = [FactColumn(bits)];
+    let source = ColumnsView {
+        kinds: &[CellKind::Symbol],
+        columns: &columns,
+    };
+    let selector = |text: &str| {
+        Arc::new(Selector {
+            relation: Relation::Defines,
+            identity: Arc::new(crate::domain::table_model::types::SelectionIdentity {
+                comparisons: vec![Comparison {
+                    test: Test::Equal,
+                    left: Operand::Column(ColumnIndex(0)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+                    origin: None,
+                }],
+                bindings: Vec::new(),
+            }),
+            columns: vec![ColumnIndex(0), ColumnIndex(0)],
+            distinct: false,
+        })
+    };
+    let mut selectors = vec![selector("class")];
+    selectors.extend((0..7).map(|number| selector(&format!("word{number}"))));
+    let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    cache.selectors = selectors.clone();
+    crate::domain::stored_indexes::service::candidate_columns(&mut cache);
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut cache),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let inactive = selector("absent");
+    assert!(
+        select(&inactive, source, &mut context)?
+            .expect("ordinary absent-literal fallback")
+            .selection
+            .rows
+            .is_empty()
+    );
+    assert_eq!(
+        context.stored_indexes.as_ref().unwrap().fanouts.capacity(),
+        0
+    );
+    let mut actual = Vec::new();
+    for selector in &selectors {
+        let selected = select(selector, source, &mut context)?.expect("compact selection");
+        let mut table = Table::default();
+        materialize(&Rows::Selected(selected), &mut table, &mut Vec::new());
+        actual.push(table);
+    }
+    let indexes = context.stored_indexes.as_ref().expect("cache");
+    assert_eq!(indexes.fanouts.len(), 1);
+    assert_eq!(indexes.selection_counts.scanned, 128, "one source pass");
+    assert_eq!(indexes.entries.len(), 0, "no whole-column index");
+    assert_eq!(actual[0].count.0, 4);
+    let bad = Comparison {
+        test: Test::Equal,
+        left: Operand::Column(ColumnIndex(0)),
+        right: Operand::Parameter(ParameterId(0)),
+        origin: None,
+    };
+    let mut error_selector = (*selectors[0]).clone();
+    error_selector.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        comparisons: vec![selectors[0].identity.comparisons[0].clone(), bad.clone()],
+        bindings: vec![ParameterBinding::Tables(Vec::new())],
+    });
+    assert!(matches!(
+        select(&Arc::new(error_selector), source, &mut context),
+        Err(OperatingError::WrongBinding)
+    ));
+    let mut absent_then_error = (*selectors[0]).clone();
+    absent_then_error.identity = Arc::new(crate::domain::table_model::types::SelectionIdentity {
+        comparisons: vec![selector("absent").identity.comparisons[0].clone(), bad],
+        bindings: vec![ParameterBinding::Tables(Vec::new())],
+    });
+    assert!(
+        select(&Arc::new(absent_then_error), source, &mut context)?
+            .expect("empty complete")
+            .selection
+            .rows
+            .is_empty()
+    );
+    drop(context);
+    for (selector, result) in selectors.iter().zip(actual) {
+        let mut ordinary = OperatorContext {
+            prepared_kinds: None,
+            prepared_matchers: None,
+            stored_indexes: None,
+            bindings: &selector.identity.bindings,
+            symbols: &mut symbols,
+            source: SourceView(b""),
+            paths: &[],
+            arenas: &[],
+            memo: &mut memo,
+            scratch: &mut scratch,
+        };
+        let mut expected = Table::default();
+        compute(
+            &Operation::Select {
+                from: Source::Relation(Relation::Defines),
+                comparisons: selector.identity.comparisons.clone(),
+                kept: selector.columns.clone(),
+            },
+            &[Rows::Stored(source)],
+            &mut ordinary,
+            &mut expected,
+        )?;
+        assert_eq!(result, expected);
+    }
+    let mut constrained = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    constrained.selectors = selectors.clone();
+    constrained.limit = constrained.bytes;
+    let mut budget_context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut constrained),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    assert_eq!(
+        select(&selectors[0], source, &mut budget_context)?
+            .expect("fallback")
+            .selection
+            .rows
+            .len(),
+        4
+    );
+    assert!(
+        budget_context
+            .stored_indexes
+            .as_ref()
+            .unwrap()
+            .fanouts
+            .is_empty()
+    );
+    drop(budget_context);
+    let empty_columns = [FactColumn(Vec::new())];
+    let empty = ColumnsView {
+        columns: &empty_columns,
+        ..source
+    };
+    let mut complete_empty = new(&[Relation::Defines], &[], LIMIT).expect("generation");
+    let mut empty_context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut complete_empty),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    assert!(
+        select(&selectors[0], empty, &mut empty_context)?
+            .expect("complete empty")
+            .selection
+            .rows
+            .is_empty()
+    );
+    assert!(
+        empty_context
+            .stored_indexes
+            .as_ref()
+            .unwrap()
+            .fanouts
+            .is_empty()
+    );
+    assert!(
+        select(
+            &selectors[0],
+            ColumnsView {
+                columns: &[],
+                ..source
+            },
+            &mut empty_context
+        )?
+        .is_none()
+    );
+    drop(empty_context);
+    let partial = Partial {
+        relation: Relation::Defines,
+        cause: PartialCause("missing syntax".into()),
+        lacking: Lacking::Any,
+        at: None,
+    };
+    let mut incomplete = new(&[Relation::Defines], &[partial], LIMIT).expect("generation");
+    let mut partial_context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: Some(&mut incomplete),
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    assert!(select(&selectors[0], source, &mut partial_context)?.is_none());
+    assert!(
+        partial_context
+            .stored_indexes
+            .as_ref()
+            .unwrap()
+            .fanouts
+            .is_empty()
     );
     Ok(())
 }

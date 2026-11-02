@@ -6,6 +6,7 @@ pub(crate) mod allocation_verdict;
 pub(crate) mod answering;
 pub(crate) mod budget;
 pub(crate) mod choosing;
+pub(crate) mod column_kernel;
 pub(crate) mod comparing;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod corpus_copies;

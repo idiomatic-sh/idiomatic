@@ -32,6 +32,10 @@ enum Question {
     ALeftoverIsNotRead,
     /// The store kept is one file of the cache directory.
     TheStoreIsOneFile,
+    /// Repeated unchanged and edited stores replace their one published file within the first-cycle byte bound.
+    RepeatedKeepsStayBounded,
+    /// An append-only writer fails the same measured file and byte bound.
+    AppendingHistoryFailsBound,
     /// The cache directory is a file: the store cannot be written, and nothing is left behind.
     AnUnwritableDirectory,
     /// What `handed` answers after `stored` read the store back is what it answers alone, once.
@@ -89,6 +93,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Question::TheStoreIsOneFile,
         expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("repeated_unchanged_and_changed_keeps_bound_real_files_and_bytes"),
+        word: Word::Succeeds,
+        input: || Question::RepeatedKeepsStayBounded,
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: CaseName("an_append_only_writer_fails_the_same_retention_bound"),
+        word: Word::Succeeds,
+        input: || Question::AppendingHistoryFailsBound,
+        expect: Expect::Value(false),
     },
     Case {
         name: CaseName("a_cache_directory_that_is_a_file_cannot_be_written"),
@@ -149,6 +165,50 @@ fn names(directory: &std::path::Path) -> Vec<String> {
         .collect();
     names.sort();
     names
+}
+
+/// Run the real store twenty times, retaining the first unchanged/edited cycle as the byte bound.
+fn repeated_keeps_within_first_cycle(
+    directory: &std::path::Path,
+    store: &LintStorePostcardAdapter,
+    append_history: bool,
+) -> Result<bool, Failure> {
+    let mut first_cycle_bytes = 0_u64;
+    let mut first_cycle_files = 0_usize;
+    for round in 0..20_u8 {
+        let expected = stored(1 + (round / 2) % 2);
+        store
+            .stored()?
+            .keep(expected.clone(), &KeptRows::default())?;
+        if append_history {
+            let _copied = std::fs::copy(
+                directory.join("lint.store"),
+                directory.join(format!("history-{round}")),
+            )
+            .expect("an append-only writer retains each old snapshot");
+        }
+        if store.stored()?.tables() != tables(expected) {
+            return Ok(false);
+        }
+        let files = names(directory);
+        let bytes: u64 = std::fs::read_dir(directory)
+            .expect("retained directory")
+            .map(|entry| {
+                entry
+                    .expect("retained entry")
+                    .metadata()
+                    .expect("retained file")
+                    .len()
+            })
+            .sum();
+        if round < 4 {
+            first_cycle_bytes = first_cycle_bytes.max(bytes);
+            first_cycle_files = first_cycle_files.max(files.len());
+        } else if files.len() > first_cycle_files || bytes > first_cycle_bytes {
+            return Ok(false);
+        }
+    }
+    Ok(first_cycle_files == if append_history { 5 } else { 1 })
 }
 
 /// Rewrites the store file of `directory`, kept by `build`, with the table of contents `damage` makes of the one it holds.
@@ -322,6 +382,12 @@ fn subject(question: Input) -> Result<Value, Failure> {
             store.stored()?.keep(stored(1), &KeptRows::default())?;
             store.stored()?.keep(stored(2), &KeptRows::default())?;
             names(&directory) == ["lint.store"]
+        }
+        Question::RepeatedKeepsStayBounded => {
+            repeated_keeps_within_first_cycle(&directory, &store, false)?
+        }
+        Question::AppendingHistoryFailsBound => {
+            repeated_keeps_within_first_cycle(&directory, &store, true)?
         }
         Question::AnUnwritableDirectory => {
             let read = store.stored()?;
@@ -626,4 +692,193 @@ fn an_open_snapshot_refuses_external_payload_truncation() {
         snapshot.read_old(&descriptor, &mut loaded).is_err(),
         "the cached original length must never turn truncated bytes into a successful read"
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
+    use ryo_values::domain::stored_facts::types::PackedWords;
+    use ryo_values::domain::stores::types::ReadWordPayload;
+    use std::io::{Seek as _, SeekFrom, Write as _};
+
+    for change_header in [true, false] {
+        let root = tempfile::tempdir().expect("directory");
+        let store = store_in(root.path(), "bucket-window");
+        let mut source = stored(1);
+        source
+            .handed
+            .frontier
+            .push(source.handed.frontier[0].clone());
+        store
+            .stored()
+            .unwrap()
+            .keep(source.clone(), &KeptRows::default())
+            .unwrap();
+        let snapshot = store.stored().expect("snapshot");
+        let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+        let first = match &rows[0].words {
+            ReadWordPayload::Old(words) => *words,
+            ReadWordPayload::Inline(_) => panic!("old row"),
+        };
+        let second = match &rows[1].words {
+            ReadWordPayload::Old(words) => *words,
+            ReadWordPayload::Inline(_) => panic!("old row"),
+        };
+        let mut batch = snapshot
+            .begin_old_rows(&BucketsWanted::All)
+            .expect("reader")
+            .expect("postcard reader");
+        batch
+            .read(&first, &mut PackedWords::default())
+            .expect("first row");
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(root.path().join("lint.store"))
+            .expect("same inode");
+        file.seek(SeekFrom::Start(if change_header {
+            second.header
+        } else {
+            second.offset
+        }))
+        .expect("second row");
+        file.write_all(&[0x7f]).expect("equal-length edit");
+        drop(file);
+        let mut direct = PackedWords::default();
+        if change_header {
+            assert!(snapshot.read_old(&second, &mut direct).is_err());
+        } else {
+            snapshot
+                .read_old(&second, &mut direct)
+                .expect("direct reread");
+            assert_ne!(direct, source.handed.frontier[0].words);
+        }
+        let mut acquired = PackedWords::default();
+        batch
+            .read(&second, &mut acquired)
+            .expect("already buffered second row");
+        assert_eq!(acquired, source.handed.frontier[0].words);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn bucket_reader_acquires_other_bucket_after_mutation_or_truncation() {
+    use ryo_values::domain::stored_facts::types::PackedWords;
+    use ryo_values::domain::stores::types::ReadWordPayload;
+    use std::io::{Seek as _, SeekFrom, Write as _};
+
+    for truncate in [false, true] {
+        let root = tempfile::tempdir().expect("directory");
+        let store = store_in(root.path(), "bucket-boundary");
+        let mut source = stored(1);
+        let mut other = source.handed.frontier[0].clone();
+        other.bucket = Bucket(17);
+        source.handed.frontier.push(other);
+        store
+            .stored()
+            .unwrap()
+            .keep(source, &KeptRows::default())
+            .unwrap();
+        let snapshot = store.stored().expect("snapshot");
+        let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+        let first = match &rows[0].words {
+            ReadWordPayload::Old(words) => *words,
+            ReadWordPayload::Inline(_) => panic!("old row"),
+        };
+        let second = match &rows[1].words {
+            ReadWordPayload::Old(words) => *words,
+            ReadWordPayload::Inline(_) => panic!("old row"),
+        };
+        let mut batch = snapshot
+            .begin_old_rows(&BucketsWanted::All)
+            .expect("reader")
+            .expect("postcard reader");
+        batch
+            .read(&first, &mut PackedWords::default())
+            .expect("first bucket");
+        let path = root.path().join("lint.store");
+        if truncate {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_len(second.offset + second.length - 1)
+                .expect("truncate second bucket");
+        } else {
+            let mut file = std::fs::OpenOptions::new().write(true).open(path).unwrap();
+            file.seek(SeekFrom::Start(second.header)).unwrap();
+            file.write_all(&[0x7f]).expect("corrupt second header");
+        }
+        assert!(batch.read(&second, &mut PackedWords::default()).is_err());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
+    use ryo_values::domain::stored_facts::types::PackedWords;
+    use ryo_values::domain::stores::types::ReadWordPayload;
+
+    let root = tempfile::tempdir().expect("directory");
+    let store = store_in(root.path(), "parallel-bucket-reader");
+    let original = stored(1);
+    store
+        .stored()
+        .unwrap()
+        .keep(original.clone(), &KeptRows::default())
+        .unwrap();
+    let snapshot = store.stored().expect("snapshot");
+    let rows = snapshot.handed(&BucketsWanted::All).expect("rows").frontier;
+    let descriptor = match &rows[0].words {
+        ReadWordPayload::Old(words) => *words,
+        ReadWordPayload::Inline(_) => panic!("old row"),
+    };
+    let foreign = store.stored().expect("other snapshot");
+    let foreign_rows = foreign
+        .handed(&BucketsWanted::All)
+        .expect("foreign rows")
+        .frontier;
+    let foreign_descriptor = match &foreign_rows[0].words {
+        ReadWordPayload::Old(words) => *words,
+        ReadWordPayload::Inline(_) => panic!("old row"),
+    };
+    let mut batch = snapshot
+        .begin_old_rows(&BucketsWanted::All)
+        .unwrap()
+        .unwrap();
+    assert!(
+        batch
+            .read(&foreign_descriptor, &mut PackedWords::default())
+            .is_err()
+    );
+    snapshot
+        .keep(stored(2), &KeptRows::default())
+        .expect("replace published pathname");
+    let mut retained = PackedWords::default();
+    batch
+        .read(&descriptor, &mut retained)
+        .expect("batch retains original open inode");
+    assert_eq!(retained, original.handed.frontier[0].words);
+    std::thread::scope(|scope| {
+        let threads: Vec<_> = (0..4)
+            .map(|_| {
+                let snapshot = &snapshot;
+                let expected = &original.handed.frontier[0].words;
+                scope.spawn(move || {
+                    let mut reader = snapshot
+                        .begin_old_rows(&BucketsWanted::All)
+                        .unwrap()
+                        .unwrap();
+                    let mut loaded = PackedWords::default();
+                    reader
+                        .read(&descriptor, &mut loaded)
+                        .expect("same snapshot");
+                    assert_eq!(&loaded, expected);
+                })
+            })
+            .collect();
+        for thread in threads {
+            thread.join().unwrap();
+        }
+    });
 }

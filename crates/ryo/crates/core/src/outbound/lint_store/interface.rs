@@ -7,6 +7,18 @@ use super::errors::LintStoreError;
 use super::types::StoreKeeping;
 use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, ReadHanded, Stored};
 
+/// A worker-owned stream of old rows. Postcard may observe a row when its
+/// bounded bucket buffer fills, before the caller asks for that row. The
+/// independent `ReadStore::read_old` contract remains an exact per-call read.
+pub trait OldRowBatch: Send {
+    /// Resolve the next old descriptor in this worker's increasing file order.
+    fn read(
+        &mut self,
+        words: &ryo_values::domain::stores::types::OldWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError>;
+}
+
 /// What every `lint_store` adapter implements.
 pub trait LintStorePort: Send + Sync {
     /// Whether this keeps anything: a run over one that does not makes nothing only a store reads.
@@ -46,6 +58,15 @@ pub trait ReadStore: Send + Sync + std::fmt::Debug {
         _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
     ) -> Result<(), LintStoreError> {
         Err(LintStoreError::NothingRead)
+    }
+
+    /// Open a worker-owned bounded stream over the already-open snapshot.
+    /// `None` retains the direct per-row path for adapters without batching.
+    fn begin_old_rows(
+        &self,
+        _wanted: &BucketsWanted,
+    ) -> Result<Option<Box<dyn OldRowBatch>>, LintStoreError> {
+        Ok(None)
     }
 
     /// Retain successfully normalized fresh words until this run keeps or drops its snapshot.

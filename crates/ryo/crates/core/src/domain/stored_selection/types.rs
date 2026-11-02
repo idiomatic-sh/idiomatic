@@ -47,6 +47,24 @@ pub(crate) struct Matches {
     pub rows: Arc<Vec<u32>>,
 }
 
+/// One complete, immutable physical column routed to only the literal texts requested
+/// by this file's active selectors. Row positions in each posting remain in source order.
+#[derive(Debug)]
+pub(crate) struct LiteralFanout {
+    pub relation: Relation,
+    pub column: ColumnIndex,
+    pub kinds: &'static [CellKind],
+    pub population: usize,
+    pub source_bits: usize,
+    pub literals: Vec<LiteralPostings>,
+}
+
+#[derive(Debug)]
+pub(crate) struct LiteralPostings {
+    pub text: String,
+    pub rows: Arc<Vec<u32>>,
+}
+
 /// One discriminator column used by distinct active predicate programs.
 #[derive(Debug)]
 pub(crate) struct CandidateColumn {
@@ -95,7 +113,7 @@ pub(crate) struct SelectorHistogram {
     pub index_build_rows: u64,
     pub indexed_candidates: u64,
     pub predicate_cells: u64,
-    pub paths: [u64; 7],
+    pub paths: [u64; 9],
     pub admission: [u64; 4],
 }
 
@@ -112,7 +130,7 @@ impl SelectorHistogram {
             index_build_rows: 0,
             indexed_candidates: 0,
             predicate_cells: 0,
-            paths: [0; 7],
+            paths: [0; 9],
             admission: [0; 4],
         }
     }

@@ -17,6 +17,12 @@ pub(crate) enum LoweringError {
     CrossFileSourceMatches { span: QuerySpan },
     #[error("source-matches requires both `base-line` and `line-output`, or neither")]
     SourceMatchesLinePair { span: QuerySpan },
+    #[error(
+        "source-matches requires `capture` with `capture-output`, and capture-line-output requires `base-line`"
+    )]
+    SourceMatchesCapturePair { span: QuerySpan },
+    #[error("source-matches regex has no named capture `{name}`")]
+    SourceMatchesCaptureMissing { name: String, span: QuerySpan },
     /// A span projection has an extra or repeated named argument.
     #[error("span-between has an extra or repeated argument `{name}`")]
     SpanArgument {

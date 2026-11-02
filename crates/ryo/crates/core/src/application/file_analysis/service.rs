@@ -110,6 +110,8 @@ pub(super) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recover
 
 /// Analysis of one file or the project, with resources supplied by the composition.
 pub struct FileAnalysis {
+    /// One request's explicitly selected physical execution strategy.
+    column_kernel: bool,
     /// Reads each file's bytes.
     corpus: Arc<dyn CorpusPort>,
     /// Parses a file into its syntax tree and rows, and names the languages linked.
@@ -185,11 +187,29 @@ impl FileAnalysis {
         memory: Arc<dyn MemoryPort>,
     ) -> Self {
         Self {
+            column_kernel: std::env::var_os("RYO_COLUMN_KERNEL")
+                .is_some_and(|value| value.as_os_str() == std::ffi::OsStr::new("1")),
             corpus,
             language,
             digest,
             memory,
         }
+    }
+
+    /// Pass the strategy to each worker without consulting the environment per file.
+    pub(crate) fn kernel_strategy(&self) -> crate::domain::column_kernel::types::KernelStrategy {
+        if self.column_kernel {
+            crate::domain::column_kernel::types::KernelStrategy::Column
+        } else {
+            crate::domain::column_kernel::types::KernelStrategy::Existing
+        }
+    }
+
+    /// Inject the candidate in exact same-binary differential tests.
+    #[cfg(test)]
+    pub(crate) fn with_column_kernel(mut self, enabled: bool) -> Self {
+        self.column_kernel = enabled;
+        self
     }
     /// Admits what the language `provider` wrote for the file `number`, against the file's length, its table and its number.
     fn admit(
@@ -468,7 +488,7 @@ impl FileAnalysis {
                     let retained = indexes
                         .selections
                         .iter()
-                        .find(|result| std::sync::Arc::ptr_eq(&result.selector, &entry.selector));
+                        .find(|result| Arc::ptr_eq(&result.selector, &entry.selector));
                     tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_histogram", file = file.0,
                         selector_id = std::ptr::from_ref(entry.selector.as_ref()).addr(),
                         relation = ?entry.selector.relation, comparisons = ?entry.selector.identity.comparisons,
@@ -480,7 +500,8 @@ impl FileAnalysis {
                         no_discriminator = entry.paths[0], not_repeated = entry.paths[1],
                         small_population = entry.paths[2], dense_sample = entry.paths[3],
                         index_budget_refused = entry.paths[4], index_built = entry.paths[5],
-                        index_reused = entry.paths[6], admission_not_repeated = entry.admission[0],
+                        index_reused = entry.paths[6], fanout_built = entry.paths[7],
+                        fanout_reused = entry.paths[8], admission_not_repeated = entry.admission[0],
                         admission_allocation_refused = entry.admission[1],
                         admission_budget_refused = entry.admission[2], admission_retained = entry.admission[3],
                         retained_rows = retained.map_or(0, |result| result.rows.len()),
@@ -811,7 +832,14 @@ impl FileAnalysis {
                             let read = visit.store.ok_or(
                                 crate::outbound::lint_store::errors::LintStoreError::NothingRead,
                             )?;
-                            read.read_old(span, &mut loaded)?;
+                            if worker.old_rows.is_none() {
+                                worker.old_rows = read.begin_old_rows(setting.wanted_buckets)?;
+                            }
+                            if let Some(batch) = worker.old_rows.as_mut() {
+                                batch.read(span, &mut loaded)?;
+                            } else {
+                                read.read_old(span, &mut loaded)?;
+                            }
                             &loaded
                         }
                     };

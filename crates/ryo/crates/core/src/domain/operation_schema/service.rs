@@ -182,7 +182,12 @@ pub(crate) fn schema_of(
             appended(input.kinds, &[], CellKind::Span)
         }
         Operation::SourceMatches {
-            span, base_line, ..
+            span,
+            base_line,
+            capture,
+            capture_text,
+            capture_line,
+            ..
         } => {
             let input = first()?;
             if projected(input.kinds, &[*span])? != [CellKind::Span] {
@@ -196,6 +201,15 @@ pub(crate) fn schema_of(
             let mut output = appended(input.kinds, &[], CellKind::Span)?;
             if base_line.is_some() {
                 output.push(CellKind::Number);
+            }
+            if capture.is_some() {
+                output.push(CellKind::Span);
+                if *capture_text {
+                    output.push(CellKind::Symbol);
+                }
+                if *capture_line {
+                    output.push(CellKind::Number);
+                }
             }
             Ok(output)
         }

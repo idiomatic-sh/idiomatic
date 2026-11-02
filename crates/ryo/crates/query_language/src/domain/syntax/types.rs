@@ -36,6 +36,14 @@ pub(crate) enum ArgumentSlot {
     BaseLine,
     /// Optional output name for each occurrence's physical start line.
     LineOutput,
+    /// Named regex group to project from each physical match.
+    CaptureName,
+    /// Output name for the named group's absolute source span.
+    CaptureOutput,
+    /// Optional output name for the group's physical text.
+    CaptureTextOutput,
+    /// Optional output name for the group's start line.
+    CaptureLineOutput,
     /// Constant replacement text.
     Replacement,
     /// Left numeric ordering column.

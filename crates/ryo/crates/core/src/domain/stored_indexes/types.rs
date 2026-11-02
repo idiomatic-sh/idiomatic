@@ -40,6 +40,8 @@ pub(crate) struct FileIndexes {
     pub selectors: Vec<Arc<crate::domain::stored_selection::types::Selector>>,
     /// Successful exact selections admitted under this same byte allowance.
     pub selections: Vec<crate::domain::stored_selection::types::Matches>,
+    /// Bounded text-to-row fanouts owned by this complete physical file generation.
+    pub fanouts: Vec<crate::domain::stored_selection::types::LiteralFanout>,
     /// Candidate indexes are built only for columns shared by distinct active predicates.
     pub discriminator_columns: Vec<crate::domain::stored_selection::types::CandidateColumn>,
     /// Aggregate compact-selection execution counters.

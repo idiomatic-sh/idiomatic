@@ -391,6 +391,15 @@ impl LintUseCaseImpl {
                     )),
                     hosted,
                 ]);
+                // Stored findings from the two physical backends are not interchangeable.
+                let own = if self.file_analysis.kernel_strategy()
+                    == crate::domain::column_kernel::types::KernelStrategy::Column
+                {
+                    self.digest
+                        .combine(&[own, self.digest.digest(DigestBytes(b"column-kernel-v1"))])
+                } else {
+                    own
+                };
                 let reads = reads_project(plan) == PlanReads::Reads;
                 StoredRule {
                     rule: RuleId(rule.id.0.clone()),
@@ -602,13 +611,18 @@ impl LintUseCaseImpl {
         };
         let visit = FileVisit { store, setting };
         let mut worker = Worker {
-            tables: tables_for(
-                WorkerNumber(0),
-                setting.plans,
-                self.unlowered,
-                self.counting,
-            ),
+            tables: {
+                let mut tables = tables_for(
+                    WorkerNumber(0),
+                    setting.plans,
+                    self.unlowered,
+                    self.counting,
+                );
+                tables.pool.kernel_strategy = self.file_analysis.kernel_strategy();
+                tables
+            },
             facts: self.facts.worker()?,
+            old_rows: None,
             failure: None,
         };
         for place in 0..files.len() {
@@ -811,13 +825,18 @@ impl LintUseCaseImpl {
         let mut states = Vec::new();
         for number in 0..self.workers.0 {
             states.push(Worker {
-                tables: tables_for(
-                    WorkerNumber(number),
-                    run.plans,
-                    self.unlowered,
-                    self.counting,
-                ),
+                tables: {
+                    let mut tables = tables_for(
+                        WorkerNumber(number),
+                        run.plans,
+                        self.unlowered,
+                        self.counting,
+                    );
+                    tables.pool.kernel_strategy = self.file_analysis.kernel_strategy();
+                    tables
+                },
                 facts: self.facts.worker()?,
+                old_rows: None,
                 failure: None,
             });
         }

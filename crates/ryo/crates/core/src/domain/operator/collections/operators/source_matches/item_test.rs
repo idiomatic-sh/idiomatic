@@ -72,6 +72,9 @@ fn evaluate(
         span: ColumnIndex(0),
         base_line: None,
         pattern: LiteralText(pattern.into()),
+        capture: None,
+        capture_text: false,
+        capture_line: false,
     };
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
@@ -187,6 +190,9 @@ fn evaluate_lines(
         span: ColumnIndex(0),
         base_line: Some(ColumnIndex(1)),
         pattern: LiteralText(pattern.into()),
+        capture: None,
+        capture_text: false,
+        capture_line: false,
     };
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
@@ -247,5 +253,110 @@ fn optional_line_rejects_zero_and_overflow() {
     assert_eq!(
         evaluate_lines(b"a\nb", span(0, 3), i64::MAX, "b"),
         Err(OperatingError::InvalidSourceMatchSpan)
+    );
+}
+
+fn captured(
+    source: &'static [u8],
+    spans: &[Span],
+    pattern: &'static str,
+) -> Result<Vec<(Span, Span, String)>, OperatingError> {
+    use ryo_language::domain::symbols::service::{intern_derived, text_of};
+    use ryo_language::domain::symbols::types::ByteSlice;
+    use ryo_language::domain::terms::types::NameText;
+    let mut input = Table {
+        kinds: vec![CellKind::Span],
+        ..Table::default()
+    };
+    for &source_span in spans {
+        push_row(&mut input, &[Value::Span(source_span)]);
+    }
+    let operation = Operation::SourceMatches {
+        from: PlanInput::Relation(Relation::Function),
+        span: ColumnIndex(0),
+        base_line: None,
+        pattern: LiteralText(pattern.into()),
+        capture: Some(LiteralText("piece".into())),
+        capture_text: true,
+        capture_line: false,
+    };
+    let mut symbols = Symbols::default();
+    // Provider comment text is derived before query operators run. Capturing
+    // a source substring must not relabel that existing symbol as source-backed.
+    let comment = intern_derived(&mut symbols, ByteSlice(source), NameText(" noqa: W605"));
+    let mut scratch = OperatorScratch::default();
+    let mut memo = Vec::new();
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        stored_indexes: None,
+        bindings: &[],
+        symbols: &mut symbols,
+        source: SourceView(source),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let mut output = Table::default();
+    SourceMatchesItem.compute(
+        &operation,
+        &[Rows::Computed(&input)],
+        &mut context,
+        &mut output,
+    )?;
+    assert_eq!(
+        text_of(&symbols, ByteSlice(source), comment).map(|text| text.0),
+        Some(" noqa: W605")
+    );
+    assert_eq!(
+        output.kinds,
+        vec![
+            CellKind::Span,
+            CellKind::Span,
+            CellKind::Span,
+            CellKind::Symbol
+        ]
+    );
+    Ok(output
+        .cells
+        .chunks_exact(4)
+        .map(|row| {
+            let (Value::Span(whole), Value::Span(piece), Value::Symbol(symbol)) =
+                (row[1], row[2], row[3])
+            else {
+                panic!("typed capture outputs required")
+            };
+            let text = text_of(&symbols, ByteSlice(source), symbol).expect("captured symbol");
+            (whole, piece, text.0.to_string())
+        })
+        .collect())
+}
+
+#[test]
+fn named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches() {
+    assert_eq!(
+        captured(
+            "é\\q\\z".as_bytes(),
+            &[span(2, 6), span(2, 6)],
+            r"(?P<piece>\\.)"
+        ),
+        Ok(vec![
+            (span(2, 4), span(2, 4), "\\q".into()),
+            (span(4, 6), span(4, 6), "\\z".into()),
+            (span(2, 4), span(2, 4), "\\q".into()),
+            (span(4, 6), span(4, 6), "\\z".into()),
+        ])
+    );
+    assert_eq!(
+        captured(b"\\qz", &[span(0, 3)], r"(?P<piece>\\q)|z"),
+        Ok(vec![(span(0, 2), span(0, 2), "\\q".into())])
+    );
+    assert_eq!(
+        captured("é".as_bytes(), &[span(0, 2)], r"(?P<piece>)"),
+        Ok(vec![
+            (span(0, 0), span(0, 0), "".into()),
+            (span(2, 2), span(2, 2), "".into())
+        ])
     );
 }

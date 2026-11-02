@@ -1,7 +1,7 @@
 //! Demand-driven, generation-local compact selection and equality-candidate replay.
 
 use super::types::program::value::SelectionProgram;
-use super::types::{Matches, Selector, SelectorHistogram};
+use super::types::{LiteralFanout, LiteralPostings, Matches, Selector, SelectorHistogram};
 use crate::domain::comparing::service::holds_all;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{NameCount, OperatorContext};
@@ -17,7 +17,7 @@ use crate::domain::table_model::types::{
 };
 use ryo_language::domain::relations::service::from_bits;
 use ryo_language::domain::relations::types::{Bits, CellKind, ColumnsView, Flag, Integer, Value};
-use ryo_language::domain::symbols::service::{find_hashed, hash_of, name_count};
+use ryo_language::domain::symbols::service::{find_hashed, hash_of, name_count, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::terms::service::symbols_with_text;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Operand, QueryLiteral, Test};
@@ -30,6 +30,13 @@ use std::sync::Arc;
 pub(super) const RETAINED_SELECTION_RESERVATION: usize = 4 * 1024 * 1024;
 const MAX_RETAINED_SELECTIONS: usize = 128;
 pub(super) const MAX_RETAINED_POSITION_CAPACITY: usize = 512 * 1024;
+// A single pass can route several authored literals without a whole-column key index.
+// The position and metadata bounds fit inside the existing 4 MiB selection reservation.
+const MAX_FANOUT_POPULATION: usize = 256 * 1024;
+const MAX_FANOUT_LITERALS: usize = 128;
+const MAX_FANOUT_GROUPS: usize = 4;
+const MAX_FANOUT_TEXT_BYTES: usize = 64 * 1024;
+const MIN_FANOUT_LITERALS: usize = 8;
 
 /// Diagnostic reasons are fixed integers so normal selection never formats strings.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -41,6 +48,22 @@ enum SelectionPath {
     BudgetRefused = 4,
     IndexBuilt = 5,
     IndexReused = 6,
+    FanoutBuilt = 7,
+    FanoutReused = 8,
+}
+
+enum CandidateRows {
+    Owned(Vec<u32>),
+    Shared(Arc<Vec<u32>>),
+}
+
+impl CandidateRows {
+    fn as_slice(&self) -> &[u32] {
+        match self {
+            Self::Owned(rows) => rows,
+            Self::Shared(rows) => rows.as_ref().as_slice(),
+        }
+    }
 }
 
 /// An absent authored symbol spelling can rule out every row without building an index.
@@ -309,19 +332,26 @@ pub(super) fn admit(
     {
         return Admission::NotRepeated;
     }
-    let positions = cache
-        .selections
-        .iter()
-        .try_fold(rows.capacity(), |total, entry| {
-            total.checked_add(entry.rows.capacity())
-        });
+    let fanout_positions = cache.fanouts.iter().try_fold(0usize, |total, fanout| {
+        fanout.literals.iter().try_fold(total, |total, posting| {
+            total.checked_add(posting.rows.capacity())
+        })
+    });
+    let positions = fanout_positions.and_then(|fanout| {
+        cache
+            .selections
+            .iter()
+            .try_fold(rows.capacity().checked_add(fanout)?, |total, entry| {
+                total.checked_add(entry.rows.capacity())
+            })
+    });
     if cache.selections.len() >= MAX_RETAINED_SELECTIONS
         || positions.is_none_or(|total| total > MAX_RETAINED_POSITION_CAPACITY)
     {
         cache.selection_counts.refusals += 1;
         return Admission::BudgetRefused;
     }
-    let first = cache.selections.is_empty();
+    let first = cache.selections.is_empty() && cache.fanouts.is_empty();
     let reserved = first.then_some(RETAINED_SELECTION_RESERVATION).unwrap_or(0);
     let Some(bytes) = cache
         .bytes
@@ -387,7 +417,7 @@ fn matches(
     let mut at = 0;
     let positions = std::iter::from_fn(|| {
         let position = match &candidates {
-            Some(rows) => rows.get(at).copied(),
+            Some(rows) => rows.as_slice().get(at).copied(),
             None => (at < population).then(|| u32::try_from(at).unwrap_or(u32::MAX)),
         };
         at += 1;
@@ -427,8 +457,9 @@ fn matches(
         if let Some(entry) = histogram(cache, program) {
             entry.paths[path as usize] += 1;
             if indexed {
-                entry.indexed_candidates += candidates.as_ref().map_or(0, |rows| rows.len()) as u64;
-                if path == SelectionPath::IndexBuilt {
+                entry.indexed_candidates +=
+                    candidates.as_ref().map_or(0, |rows| rows.as_slice().len()) as u64;
+                if matches!(path, SelectionPath::IndexBuilt | SelectionPath::FanoutBuilt) {
                     entry.index_build_rows += population as u64;
                 }
             } else {
@@ -447,15 +478,22 @@ fn candidates(
     program: &Selector,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
-) -> Result<(Option<Vec<u32>>, SelectionPath), OperatingError> {
+) -> Result<(Option<CandidateRows>, SelectionPath), OperatingError> {
     let population = source.columns.first().map_or(0, |column| column.0.len());
+    if let Some((rows, path)) = fanout_candidates(cache, program, source, context) {
+        cache.selection_counts.candidates += rows.len() as u64;
+        return Ok((Some(CandidateRows::Shared(rows)), path));
+    }
     let mut path = SelectionPath::NoDiscriminator;
     for (number, comparison) in program.identity.comparisons.iter().enumerate() {
         let (column, value) = match discriminator(comparison, program, source, context) {
             // holds_all evaluates in order. Only the first impossible comparison
             // may bypass rows without hiding an earlier comparison's error.
             Discriminator::Impossible if number == 0 => {
-                return Ok((Some(Vec::new()), SelectionPath::NoDiscriminator));
+                return Ok((
+                    Some(CandidateRows::Owned(Vec::new())),
+                    SelectionPath::NoDiscriminator,
+                ));
             }
             Discriminator::Indexable(column, value) => (column, value),
             Discriminator::Impossible | Discriminator::Unsupported => continue,
@@ -501,7 +539,7 @@ fn candidates(
             .collect();
         cache.selection_counts.candidates += result.len() as u64;
         return Ok((
-            Some(result),
+            Some(CandidateRows::Owned(result)),
             if acquired.built {
                 SelectionPath::IndexBuilt
             } else {
@@ -510,6 +548,160 @@ fn candidates(
         ));
     }
     Ok((None, path))
+}
+
+/// Only a total, authored, nonempty text equality in the first predicate can
+/// reject rows before any caller-owned comparison or error origin is visited.
+fn first_literal<'a>(selector: &'a Selector, kinds: &[CellKind]) -> Option<(ColumnIndex, &'a str)> {
+    let comparison = selector.identity.comparisons.first()?;
+    if comparison.test != Test::Equal {
+        return None;
+    }
+    let (column, text) = match (&comparison.left, &comparison.right) {
+        (Operand::Column(column), Operand::Literal(QueryLiteral::Text(text)))
+        | (Operand::Literal(QueryLiteral::Text(text)), Operand::Column(column)) => {
+            (column, &text.0)
+        }
+        _ => return None,
+    };
+    (kinds.get(column.0 as usize) == Some(&CellKind::Symbol) && !text.is_empty())
+        .then_some((*column, text.as_ref()))
+}
+
+/// Route all active texts for one physical column in one pass. This is a
+/// file-owned candidate index, never a cached predicate verdict: every owner
+/// still evaluates its ordered comparisons and reports its own error origin.
+fn fanout_candidates(
+    cache: &mut FileIndexes,
+    program: &Selector,
+    source: ColumnsView<'_>,
+    context: &OperatorContext<'_>,
+) -> Option<(Arc<Vec<u32>>, SelectionPath)> {
+    let (column, wanted) = first_literal(program, source.kinds)?;
+    let place = column.0 as usize;
+    let physical = source.columns.get(place)?.0.as_slice();
+    let population = source.columns.first()?.0.len();
+    if population < 32 || population > MAX_FANOUT_POPULATION {
+        return None;
+    }
+    let source_bits = physical.as_ptr().addr();
+    if let Some(entry) = cache.fanouts.iter().find(|entry| {
+        entry.relation == program.relation
+            && entry.column == column
+            && entry.kinds == source.kinds
+            && entry.population == population
+            && entry.source_bits == source_bits
+    }) {
+        let at = entry
+            .literals
+            .binary_search_by(|item| item.text.as_str().cmp(wanted))
+            .ok()?;
+        return Some((
+            Arc::clone(&entry.literals[at].rows),
+            SelectionPath::FanoutReused,
+        ));
+    }
+    if cache.fanouts.len() >= MAX_FANOUT_GROUPS {
+        return None;
+    }
+    let prior_literals: usize = cache.fanouts.iter().map(|entry| entry.literals.len()).sum();
+    let prior_text_bytes: usize = cache
+        .fanouts
+        .iter()
+        .flat_map(|entry| &entry.literals)
+        .map(|entry| entry.text.capacity())
+        .sum();
+    let mut texts = Vec::<String>::new();
+    let mut text_bytes = prior_text_bytes;
+    for selector in &cache.selectors {
+        if selector.relation != program.relation {
+            continue;
+        }
+        let Some((other_column, text)) = first_literal(selector, source.kinds) else {
+            continue;
+        };
+        if other_column != column || texts.iter().any(|item| item.as_str() == text) {
+            continue;
+        }
+        text_bytes = text_bytes.checked_add(text.len())?;
+        if prior_literals + texts.len() >= MAX_FANOUT_LITERALS || text_bytes > MAX_FANOUT_TEXT_BYTES
+        {
+            return None;
+        }
+        texts.push(text.to_owned());
+    }
+    if texts.len() < MIN_FANOUT_LITERALS || !texts.iter().any(|text| text.as_str() == wanted) {
+        return None;
+    }
+    // Vec growth can nearly double retained position capacity. Decline before
+    // allocating if the worst case could exceed the existing selection slice.
+    let prior_positions = cache
+        .selections
+        .iter()
+        .map(|entry| entry.rows.capacity())
+        .chain(
+            cache
+                .fanouts
+                .iter()
+                .flat_map(|entry| &entry.literals)
+                .map(|entry| entry.rows.capacity()),
+        )
+        .try_fold(0usize, |sum, size| sum.checked_add(size))?;
+    if population.checked_mul(2)? > MAX_RETAINED_POSITION_CAPACITY.checked_sub(prior_positions)? {
+        return None;
+    }
+    let first = cache.selections.is_empty() && cache.fanouts.is_empty();
+    let reserved = first.then_some(RETAINED_SELECTION_RESERVATION).unwrap_or(0);
+    let bytes = cache.bytes.checked_add(reserved)?;
+    if bytes > crate::domain::stored_indexes::service::non_graph_limit(cache) {
+        return None;
+    }
+    texts.sort_unstable();
+    let mut postings: Vec<_> = texts
+        .into_iter()
+        .map(|text| (text, Vec::<u32>::new()))
+        .collect();
+    for (row, bits) in physical.iter().enumerate() {
+        let Value::Symbol(symbol) = from_bits(CellKind::Symbol, Bits(*bits)) else {
+            return None;
+        };
+        // Malformed IDs have no nonempty text and cannot satisfy these total equalities.
+        let Some(actual) = text_of(context.symbols, ByteSlice(context.source.0), symbol) else {
+            continue;
+        };
+        if let Ok(at) = postings.binary_search_by(|entry| entry.0.as_str().cmp(actual.0)) {
+            postings[at].1.push(u32::try_from(row).ok()?);
+        }
+    }
+    let capacity = postings.iter().try_fold(prior_positions, |sum, entry| {
+        sum.checked_add(entry.1.capacity())
+    })?;
+    if capacity > MAX_RETAINED_POSITION_CAPACITY || cache.fanouts.try_reserve(1).is_err() {
+        return None;
+    }
+    let literals: Vec<_> = postings
+        .into_iter()
+        .map(|(text, rows)| LiteralPostings {
+            text,
+            rows: Arc::new(rows),
+        })
+        .collect();
+    let at = literals
+        .binary_search_by(|item| item.text.as_str().cmp(wanted))
+        .ok()?;
+    let result = Arc::clone(&literals[at].rows);
+    cache.fanouts.push(LiteralFanout {
+        relation: program.relation,
+        column,
+        kinds: source.kinds,
+        population,
+        source_bits,
+        literals,
+    });
+    cache.bytes = bytes;
+    cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+    cache.selection_counts.scanned += population as u64;
+    Some((result, SelectionPath::FanoutBuilt))
 }
 
 /// A bounded typed sample rejects dense discriminators before allocating an index.

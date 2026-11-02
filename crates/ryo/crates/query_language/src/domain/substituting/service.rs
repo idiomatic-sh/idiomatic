@@ -156,7 +156,16 @@ pub(crate) fn call_source_matches(
     for (at, argument) in call.arguments.iter().enumerate() {
         if !matches!(
             argument.name.0.as_ref(),
-            "from" | "span" | "pattern" | "output" | "base-line" | "line-output"
+            "from"
+                | "span"
+                | "pattern"
+                | "output"
+                | "base-line"
+                | "line-output"
+                | "capture"
+                | "capture-output"
+                | "capture-text-output"
+                | "capture-line-output"
         ) || call
             .arguments
             .iter()
@@ -217,26 +226,74 @@ pub(crate) fn call_source_matches(
     } else {
         None
     };
-    if fields.iter().any(|field| field.name == output) {
-        return Err(LoweringError::DuplicateOutput {
-            name: output.0.to_string(),
-            span: call.span,
-        });
-    }
-    if let Some(line_output) = &line_output
-        && (line_output == &output || fields.iter().any(|field| &field.name == line_output))
+    let present = |name: &str| {
+        call.arguments
+            .iter()
+            .any(|argument| argument.name.0.as_ref() == name)
+    };
+    let capture = present("capture");
+    let capture_output = present("capture-output");
+    let capture_text = present("capture-text-output");
+    let capture_line = present("capture-line-output");
+    if capture != capture_output
+        || (capture_text || capture_line) && !capture
+        || capture_line && !has_base_line
     {
-        return Err(LoweringError::DuplicateOutput {
-            name: line_output.0.to_string(),
-            span: call.span,
-        });
+        return Err(LoweringError::SourceMatchesCapturePair { span: call.span });
     }
-    let _compiled = regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
+    let capture_name = capture
+        .then(|| word_of(call, ArgumentSlot::CaptureName))
+        .transpose()?;
+    let capture_span_output = capture_output
+        .then(|| word_of(call, ArgumentSlot::CaptureOutput))
+        .transpose()?;
+    let capture_text_output = capture_text
+        .then(|| word_of(call, ArgumentSlot::CaptureTextOutput))
+        .transpose()?;
+    let capture_line_output = capture_line
+        .then(|| word_of(call, ArgumentSlot::CaptureLineOutput))
+        .transpose()?;
+    let outputs = [
+        Some(&output),
+        line_output.as_ref(),
+        capture_span_output.as_ref(),
+        capture_text_output.as_ref(),
+        capture_line_output.as_ref(),
+    ];
+    for (index, name) in outputs
+        .iter()
+        .enumerate()
+        .filter_map(|(index, output)| output.map(|name| (index, name)))
+    {
+        if fields.iter().any(|field| &field.name == name)
+            || outputs[..index]
+                .iter()
+                .flatten()
+                .any(|earlier| *earlier == name)
+        {
+            return Err(LoweringError::DuplicateOutput {
+                name: name.0.to_string(),
+                span: call.span,
+            });
+        }
+    }
+    let compiled = regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
         LoweringError::InvalidRegex {
             reason: error.to_string(),
             span: call.span,
         }
     })?;
+    if let Some(name) = &capture_name
+        && compiled
+            .group_info()
+            .to_index(regex_automata::util::primitives::PatternID::ZERO, &name.0)
+            .is_none()
+    {
+        return Err(LoweringError::SourceMatchesCaptureMissing {
+            name: name.0.to_string(),
+            span: call.span,
+        });
+    }
     fields.push(PlannedColumn {
         name: output,
         kind: CellKind::Span,
@@ -251,6 +308,20 @@ pub(crate) fn call_source_matches(
             words: Vocabulary::Open,
         });
     }
+    for (name, kind) in [
+        (capture_span_output, CellKind::Span),
+        (capture_text_output, CellKind::Symbol),
+        (capture_line_output, CellKind::Number),
+    ] {
+        if let Some(name) = name {
+            fields.push(PlannedColumn {
+                name,
+                kind,
+                unique: Uniqueness::Shared,
+                words: Vocabulary::Open,
+            });
+        }
+    }
     push(
         builder,
         Some(name),
@@ -259,6 +330,9 @@ pub(crate) fn call_source_matches(
             span,
             base_line,
             pattern,
+            capture: capture_name.map(|name| LiteralText(name.0)),
+            capture_text,
+            capture_line,
         },
         fields,
     );

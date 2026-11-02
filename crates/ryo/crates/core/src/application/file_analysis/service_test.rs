@@ -482,6 +482,7 @@ fn visited_as(
             Counting::DoesNotCount,
         ),
         facts: FactsFake::default().worker()?,
+        old_rows: None,
         failure: None,
     };
     for index in 0..u32::try_from(files.0.len()).unwrap_or(u32::MAX) {
@@ -900,6 +901,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
             Counting::DoesNotCount,
         ),
         facts: FactsFake::default().worker().expect("facts worker"),
+        old_rows: None,
         failure: None,
     };
     let packed = |value, places: &[NamePlace]| {
@@ -1114,6 +1116,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             Counting::DoesNotCount,
         ),
         facts: FactsFake::default().worker().expect("worker"),
+        old_rows: None,
         failure: None,
     };
     let producer = new_worker();

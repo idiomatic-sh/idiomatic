@@ -4,7 +4,7 @@ param inline-pattern: string;
 param range-pattern: string;
 output relation<id: node, file: file, span: span>;
 let candidate_locations = select id, file, span, line from candidates;
-let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
+let quoted = select id from "syntax-tree" where kind = "f-string-part" or kind = "t-string-part" or kind = "string" and matches(text, "(?i)^[rub]*(?:\x22\x22\x22|'\x27')");
 let continued = select id from "syntax-tree" where kind = "whitespace" and matches(text, "\\(?:\r\n|\r|\n)");
 let mapped_tokens = union(left=quoted, right=continued);
 let mapping_ranges = select l.id as id, r.file as file, r."start-line" as line, r."end-line" as endline from mapped_tokens as l join "source-location" as r on l.id = r.id where r."start-line" < r."end-line";

@@ -2,6 +2,17 @@
 
 use std::cmp::Ordering;
 
+#[cfg(test)]
+thread_local! {
+    /// Actual full-row reads for same-binary kernel differential tests only.
+    static READ_ROW_COUNTS: std::cell::Cell<(u64, u64)> = const { std::cell::Cell::new((0, 0)) };
+}
+
+#[cfg(test)]
+pub(crate) fn take_read_row_counts() -> (u64, u64) {
+    READ_ROW_COUNTS.with(|counts| counts.replace((0, 0)))
+}
+
 use ryo_language::domain::elements::service::real_count;
 use ryo_language::domain::relations::service::from_bits;
 use ryo_language::domain::relations::types::{
@@ -128,7 +139,7 @@ pub(crate) fn read_row<'s>(
     index: RowIndex,
     scratch: &'s mut Vec<Value>,
 ) -> Option<&'s [Value]> {
-    match rows {
+    let found: Option<&[Value]> = match rows {
         Rows::Selected(view) => {
             let physical = RowIndex(usize::try_from(*view.selection.rows.get(index.0)?).ok()?);
             scratch.clear();
@@ -159,7 +170,15 @@ pub(crate) fn read_row<'s>(
             }
             Some(scratch)
         }
+    };
+    #[cfg(test)]
+    if let Some(row) = found {
+        READ_ROW_COUNTS.with(|counts| {
+            let (calls, cells) = counts.get();
+            counts.set((calls + 1, cells + row.len() as u64));
+        });
     }
+    found
 }
 
 /// The rows as a table: the table itself when it was computed, else the rows made into `into`, which keeps its room.

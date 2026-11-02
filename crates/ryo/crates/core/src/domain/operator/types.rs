@@ -30,6 +30,12 @@ pub(crate) struct Pool {
 /// Request-owned immutable schemas/programs, literal matchers and counters; no row payload.
 #[derive(Debug, Default)]
 pub(crate) struct PreparedPool {
+    /// Opt-in execution strategy selected once for this request's workers.
+    pub kernel_strategy: crate::domain::column_kernel::types::KernelStrategy,
+    /// Immutable fused chains aligned with `layouts` by plan identity.
+    pub kernel_plans: Vec<crate::domain::column_kernel::types::KernelPlan>,
+    /// Actual successful physical-column work for this worker.
+    pub kernel_counts: crate::domain::column_kernel::types::KernelCounts,
     /// Finite authored literal matcher slots shared by this worker's rule/file invocations.
     pub matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// One exact active vocabulary and immutable literal-kind metadata; replaced on vocabulary change.

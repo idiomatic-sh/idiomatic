@@ -336,6 +336,39 @@ emit a subject file key(hit);"#;
 }
 
 #[test]
+fn source_matches_named_capture_is_typed_and_validated() {
+    let valid = r#"let a = source-matches(from="function", span="span", pattern="(?P<run>\\\\+)", output="hit", capture="run", capture-output="run_span", capture-text-output="run_text"); emit a subject file key(hit);"#;
+    let plan = span_plan(valid, None, &[]).expect("named capture lowers");
+    assert!(plan.steps.iter().any(|step| matches!(
+        step.operation,
+        Operation::SourceMatches {
+            capture: Some(_),
+            capture_text: true,
+            capture_line: false,
+            ..
+        }
+    )));
+    for (bad, expected) in [
+        (
+            valid.replace(", capture-output=\"run_span\"", ""),
+            "requires `capture`",
+        ),
+        (
+            valid.replace("capture=\"run\"", "capture=\"absent\""),
+            "no named capture",
+        ),
+        (
+            valid.replace("capture-output=\"run_span\"", "capture-output=\"span\""),
+            "already exists",
+        ),
+        (valid.replace("capture=\"run\", ", ""), "requires `capture`"),
+    ] {
+        let error = span_plan(&bad, None, &[]).expect_err("invalid named capture must fail");
+        assert!(error.contains(expected), "{bad}: {error}");
+    }
+}
+
+#[test]
 fn span_bounds_types_outputs_and_file_scope() {
     use ryo_language::domain::relations::types::CellKind;
     use ryo_values::domain::hosted::types::{

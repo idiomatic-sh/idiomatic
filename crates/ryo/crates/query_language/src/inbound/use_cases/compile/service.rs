@@ -51,6 +51,8 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
         },
         LoweringError::SpanBoundsArgument { span, .. }
         | LoweringError::SourceMatchesArgument { span, .. }
+        | LoweringError::SourceMatchesCapturePair { span, .. }
+        | LoweringError::SourceMatchesCaptureMissing { span, .. }
         | LoweringError::CrossFileSourceMatches { span }
         | LoweringError::SourceMatchesLinePair { span }
         | LoweringError::CrossFileSpan { span }

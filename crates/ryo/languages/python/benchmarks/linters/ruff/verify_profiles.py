@@ -533,7 +533,7 @@ def prepared_profile_path(profile_name: str, recorded: dict[str, object]) -> Pat
     return resolved
 
 
-def module_path(value: object) -> str:
+def module_path(value: object, source_root: Path | None = None) -> str:
     if not isinstance(value, str):
         raise ValueError("query module paths must be strings")
     path = Path(value)
@@ -543,15 +543,16 @@ def module_path(value: object) -> str:
         or any(part in (".", "..") for part in path.parts)
     ):
         raise ValueError(f"unsafe query module path: {value}")
-    source = RUFF_DIR
+    root = source_root or RUFF_DIR
+    source = root
     for part in path.parts:
         source = source / part
         if source.is_symlink():
             raise ValueError(f"query module path traverses a symlink: {value}")
     resolved = source.resolve(strict=True)
-    if not resolved.is_file() or not resolved.is_relative_to(RUFF_DIR.resolve()):
+    if not resolved.is_file() or not resolved.is_relative_to(root.resolve()):
         raise ValueError(f"query module is outside the Ruff profile: {value}")
-    return resolved.relative_to(REPOSITORY).as_posix()
+    return resolved.relative_to(REPOSITORY if source_root is None else root).as_posix()
 
 
 def prepared_case_path(rule: str, recorded: dict[str, object]) -> Path:
@@ -608,7 +609,7 @@ def prepared_candidate_path(rule: str, recorded: dict[str, object]) -> Path:
     return resolved
 
 
-def profile_modules(profile_data: dict[str, object]) -> dict[str, str]:
+def profile_modules(profile_data: dict[str, object], source_root: Path | None = None) -> dict[str, str]:
     registry = profile_data.get("query-modules", {})
     if not isinstance(registry, dict):
         raise ValueError("query-modules must be a table")
@@ -616,7 +617,7 @@ def profile_modules(profile_data: dict[str, object]) -> dict[str, str]:
     for logical_id, path in registry.items():
         if not isinstance(logical_id, str) or not logical_id.strip():
             raise ValueError("query module IDs must be nonblank")
-        module_path(path)
+        module_path(path, source_root)
         result[logical_id] = path
     return result
 
@@ -628,6 +629,7 @@ def write_staged_profile(
     parser_configuration: str = "python-target=3.10",
     rule_applicability: dict[str, str] | None = None,
     selected_rules: list[str] | None = None,
+    module_root: Path | None = None,
 ) -> None:
     """Serialize the supported profile fields, replacing any existing module table."""
     parsed = tomllib.loads(source.read_text(encoding="utf-8"))
@@ -651,8 +653,8 @@ def write_staged_profile(
                 parsed[disposition] = chosen
             else:
                 parsed.pop(disposition)
-    current = profile_modules(parsed)
-    registry = profile_modules({"query-modules": registry})
+    current = profile_modules(parsed, module_root)
+    registry = profile_modules({"query-modules": registry}, module_root)
     if any(
         key in registry and registry[key] != value for key, value in current.items()
     ):
@@ -676,6 +678,36 @@ def write_staged_profile(
         f"{key} = {toml_value(value)}\n" for key, value in parsed.items()
     )
     destination.write_text(rendered, encoding="utf-8")
+
+
+def assert_staged_profile_fixed_point(profile_root: Path) -> None:
+    """Refuse authored certificate identities that admission would normalize away.
+
+    This invokes the same serializer as `stage_binding`, with the author's
+    profile root for module resolution, before any contestant can run.
+    """
+    profile = profile_root / "benchmark.toml"
+    parsed = tomllib.loads(profile.read_text(encoding="utf-8"))
+    parser_target = parsed.get("parser-configuration")
+    if parser_target not in PARSER_CONFIGURATIONS.values():
+        raise ValueError("authoring profile needs a pinned parser configuration")
+    registry = parsed.get("query-modules", {})
+    applicability = parsed.get("rule-applicability", {})
+    with tempfile.TemporaryDirectory(prefix="ryo-authoring-profile-") as temporary:
+        normalized = Path(temporary) / "benchmark.toml"
+        write_staged_profile(
+            profile,
+            normalized,
+            registry,
+            parser_target,
+            applicability,
+            module_root=profile_root,
+        )
+        if profile.read_bytes() != normalized.read_bytes():
+            raise ValueError(
+                "authoring profile differs from admission normalization; "
+                f"authored={sha256(profile)} staged={sha256(normalized)}"
+            )
 
 
 def parser_configuration(target_version: object) -> str:
@@ -2702,6 +2734,18 @@ def verify_profile(
     *,
     runner=subprocess.run,
 ) -> int:
+    case_files = (profile_root / "rules").glob("*/cases.toml")
+    if any(
+        any("reference-discrepancy" in case for case in tomllib.loads(path.read_text(encoding="utf-8")).get("cases", []))
+        for path in case_files
+    ):
+        try:
+            assert_staged_profile_fixed_point(profile_root)
+        except (OSError, ValueError, TypeError) as error:
+            return persist_run_record(
+                output_directory, name, command, profile_root, None,
+                error=f"authoring profile preflight: {error}", identities=identities,
+            )
     case_results_path = None
     environment = os.environ.copy()
     if output_directory is not None and command[1] != "verify-reference-cases":
@@ -4815,6 +4859,47 @@ def parser_target_configuration_self_test() -> None:
             raise AssertionError("unsupported staged target was accepted")
 
 
+def authoring_profile_fixed_point_self_test() -> None:
+    with tempfile.TemporaryDirectory(prefix="ryo-authoring-fixed-point-") as temporary:
+        root = Path(temporary)
+        profile = root / "benchmark.toml"
+        profile.write_text(
+            'tool = "ruff"\nversion = "0.16.5"\nsha256 = ["pin"]\n'
+            'defaults = ["F"]\nparser-configuration = "python-target=3.10"\n'
+            '[rule-applicability]\nF = "accepted-syntax"\n',
+            encoding="utf-8",
+        )
+        normalized = root / "normalized.toml"
+        write_staged_profile(
+            profile, normalized, {}, "python-target=3.10",
+            {"F": "accepted-syntax"}, module_root=root,
+        )
+        assert profile.read_bytes() != normalized.read_bytes()
+        try:
+            assert_staged_profile_fixed_point(root)
+        except ValueError as error:
+            assert "admission normalization" in str(error)
+        else:
+            raise AssertionError("nonfixed authoring profile was accepted")
+        cases = root / "rules" / "F" / "cases.toml"
+        cases.parent.mkdir(parents=True)
+        cases.write_text(
+            '[[cases]]\nname = "one"\nfiles = { "case.py" = "x=1\\n" }\n'
+            'expected = []\nreference-discrepancy = {}\n', encoding="utf-8",
+        )
+        output = root / "output"
+        output.mkdir()
+        called = []
+        status = verify_profile(
+            "F", root, ["worker", "verify-cases", "ruff", str(root)], output,
+            {}, runner=lambda *_args, **_kwargs: called.append(True),
+        )
+        receipt = json.loads((output / "profiles" / "F" / "result.json").read_text())
+        assert status != 0 and not called and "normalization" in receipt["error"]
+        profile.write_bytes(normalized.read_bytes())
+        assert_staged_profile_fixed_point(root)
+
+
 def profile_accounting_projection_self_test() -> None:
     with tempfile.TemporaryDirectory(prefix="profile-accounting-guards-") as temporary:
         source = Path(temporary) / "source.toml"
@@ -4833,6 +4918,7 @@ def profile_accounting_projection_self_test() -> None:
 
 def self_test() -> int:
     output_directory_self_test()
+    authoring_profile_fixed_point_self_test()
     execution_metadata_self_test()
     profile_accounting_projection_self_test()
     """Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo."""

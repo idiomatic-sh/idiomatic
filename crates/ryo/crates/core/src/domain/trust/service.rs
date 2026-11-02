@@ -154,10 +154,25 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
                 provenance.extend(values.iter().map(|_| None));
             }
             Operation::SpanBetween { .. } => provenance.push(None),
-            Operation::SourceMatches { base_line, .. } => {
+            Operation::SourceMatches {
+                base_line,
+                capture,
+                capture_text,
+                capture_line,
+                ..
+            } => {
                 provenance.push(None);
                 if base_line.is_some() {
                     provenance.push(None);
+                }
+                if capture.is_some() {
+                    provenance.push(None);
+                    if *capture_text {
+                        provenance.push(None);
+                    }
+                    if *capture_line {
+                        provenance.push(None);
+                    }
                 }
             }
             Operation::SpanBounds { .. } => provenance.extend([None, None]),
