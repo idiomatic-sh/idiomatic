@@ -212,7 +212,7 @@ fn evaluate(plan: Plan) -> Result<Value, Failure> {
     tables.bytes = FileBytes(SOURCE.to_vec());
     let (ids, bindings) = ([RuleId("rule".into())], [Vec::new()]);
     let setting = setting(&placed, &plans, &[], &ids, &bindings);
-    evaluate_rule(
+    drop(evaluate_rule(
         &mut tables,
         &setting,
         RuleIndex(0),
@@ -220,7 +220,7 @@ fn evaluate(plan: Plan) -> Result<Value, Failure> {
         None,
         &relations,
         &Default::default(),
-    )?;
+    )?);
     Ok(count(tables.rendered.order.len()) * 10
         + u64::from(tables.rendered.text.starts_with("rule")))
 }

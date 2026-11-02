@@ -50,13 +50,19 @@ impl OperatorsItem for GroupDigestItem {
         } = context;
         let OperatorScratch {
             row,
-            key,
-            order,
-            groups,
-            right: grouped,
-            hashes,
+            join_scratch,
+            groups_scratch,
             ..
         } = &mut **scratch;
+        let crate::domain::table_scratch::types::JoinScratch {
+            key,
+            order,
+            right: grouped,
+            ..
+        } = &mut **join_scratch;
+        let crate::domain::table_scratch::types::GroupsScratch { groups, hashes, .. } =
+            &mut **groups_scratch;
+
         let grouped = table_in(rows, grouped, row);
         let texts = Texts {
             symbols,
@@ -112,10 +118,11 @@ impl OperatorsItem for GroupDigestItem {
         let StepRoom {
             scratch,
             out,
-            hashed,
             kinds,
             ..
         } = room;
+        let crate::domain::table_scratch::types::GroupsScratch { hashed, .. } =
+            &mut *scratch.groups_scratch;
         kinds.clear();
         kinds.extend_from_slice(ins.kinds(InputPlace(0))?);
         if usize::try_from(over.0).map_or(true, |place| place >= kinds.len()) {
@@ -129,9 +136,9 @@ impl OperatorsItem for GroupDigestItem {
             );
         }
         hashed.clear();
-        scratch.seen.clear();
+        scratch.join_scratch.seen.clear();
         let mut probe = std::mem::take(&mut scratch.other);
-        let seen = &mut scratch.seen;
+        let seen = &mut scratch.join_scratch.seen;
         let outcome = ins.stream(
             InputPlace(0),
             context,

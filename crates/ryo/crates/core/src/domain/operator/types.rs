@@ -30,6 +30,9 @@ pub(crate) struct Pool {
 /// Request-owned immutable schemas/programs and cumulative counters; no execution payload.
 #[derive(Debug, Default)]
 pub(crate) struct PreparedPool {
+    /// One exact active vocabulary and immutable literal-kind metadata; replaced on vocabulary change.
+    pub kind_vocabulary:
+        Option<std::sync::Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
     /// Pure stored selector programs, compiled once under this worker's request bindings.
     pub selection_plans: Vec<crate::domain::stored_selection::types::PreparedPlan>,
     /// How each plan this pool has run is laid out.

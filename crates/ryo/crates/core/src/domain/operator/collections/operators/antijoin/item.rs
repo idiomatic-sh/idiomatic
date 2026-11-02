@@ -38,12 +38,15 @@ impl OperatorsItem for AntijoinItem {
         };
         let (left, right) = (first(inputs)?, second(inputs)?);
         let OperatorScratch {
-            row,
+            row, join_scratch, ..
+        } = &mut *context.scratch;
+        let crate::domain::table_scratch::types::JoinScratch {
             key,
             order,
             right: looked_up,
             ..
-        } = &mut *context.scratch;
+        } = &mut **join_scratch;
+
         reset(out, kinds_of(left));
         // Nothing on the left stays nothing; nothing on the right matches nothing, so the left stays as it is.
         if count_of(left).0 == 0 {
@@ -103,12 +106,15 @@ impl OperatorsItem for AntijoinItem {
         }
         let right = ins.hold(InputPlace(1), context, right_held)?;
         let OperatorScratch {
-            row,
+            row, join_scratch, ..
+        } = scratch;
+        let crate::domain::table_scratch::types::JoinScratch {
             key,
             order,
             right: looked_up,
             ..
-        } = scratch;
+        } = &mut **join_scratch;
+
         let looked_up = table_in(&right, looked_up, row);
         index(looked_up, On::Columns(right_on), order)?;
         let mut buffer = std::mem::take(&mut scratch.other);

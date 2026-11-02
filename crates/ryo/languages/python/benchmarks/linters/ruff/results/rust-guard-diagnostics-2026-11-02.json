@@ -2745,5 +2745,1367 @@
       "Current full quality/API/platform checks remain pending; native warm memory still fails.",
       "New no-heap guard detects documented source-connected patterns, not all custom memory management."
     ]
+  },
+  "lazy_workspace_followup": {
+    "comparison": {
+      "manifest_sha256": "a69bbd05b7228f7df0e98ecad8a76bd8463e7897c2316aad06a447b1a9b8eb0f",
+      "samples": [
+        {
+          "pair": 0,
+          "variant": "base",
+          "exit_code": 0,
+          "wall_seconds": 46.196273671113886,
+          "load_before": [
+            1.67333984375,
+            2.24169921875,
+            1.83447265625
+          ],
+          "stdout_sha256": "be623c18e862a3bf450fc07eb28139035a937379daf5809778b97493efa1c5ce",
+          "stderr_sha256": "b40a78f84169e066622a63f4a50354e7c1bf8ef33c54f3ba2c29864ddced0924",
+          "bmf": {
+            "ruff": {
+              "cold-cpu-milliseconds": {
+                "lower_value": 4456,
+                "upper_value": 4696,
+                "value": 4538
+              },
+              "cold-milliseconds": {
+                "lower_value": 700,
+                "upper_value": 772,
+                "value": 729
+              },
+              "edit-milliseconds": {
+                "lower_value": 392,
+                "upper_value": 392,
+                "value": 392
+              },
+              "peak-megabytes": {
+                "lower_value": 653,
+                "upper_value": 653,
+                "value": 653
+              },
+              "spike-cpu-milliseconds": {
+                "lower_value": 1452,
+                "upper_value": 1484,
+                "value": 1457
+              },
+              "store-files": {
+                "lower_value": 1,
+                "upper_value": 1,
+                "value": 1
+              },
+              "store-megabytes": {
+                "lower_value": 67,
+                "upper_value": 67,
+                "value": 67
+              },
+              "warm-milliseconds": {
+                "lower_value": 66,
+                "upper_value": 66,
+                "value": 66
+              }
+            }
+          },
+          "internal_rounds": {
+            "cold-milliseconds": [
+              700,
+              701,
+              729,
+              753,
+              772
+            ],
+            "cold-cpu-milliseconds": [
+              4456,
+              4515,
+              4538,
+              4696,
+              4632
+            ],
+            "spike-cpu-milliseconds": [
+              1484,
+              1452,
+              1457
+            ]
+          }
+        },
+        {
+          "pair": 0,
+          "variant": "candidate",
+          "exit_code": 0,
+          "wall_seconds": 47.44362325803377,
+          "load_before": [
+            2.71875,
+            2.453125,
+            1.9267578125
+          ],
+          "stdout_sha256": "8ef167fbddac978753701ba378f62438af2430f51f3a0d7ac33fb6c69d21365f",
+          "stderr_sha256": "6d12d09913e1ff033531d29cb14b0e2006ee5242b2fc56c09723dfe613f911a0",
+          "bmf": {
+            "ruff": {
+              "cold-cpu-milliseconds": {
+                "lower_value": 6119,
+                "upper_value": 6313,
+                "value": 6185
+              },
+              "cold-milliseconds": {
+                "lower_value": 863,
+                "upper_value": 907,
+                "value": 872
+              },
+              "edit-milliseconds": {
+                "lower_value": 328,
+                "upper_value": 328,
+                "value": 328
+              },
+              "peak-megabytes": {
+                "lower_value": 506,
+                "upper_value": 506,
+                "value": 506
+              },
+              "spike-cpu-milliseconds": {
+                "lower_value": 1517,
+                "upper_value": 1550,
+                "value": 1524
+              },
+              "store-files": {
+                "lower_value": 1,
+                "upper_value": 1,
+                "value": 1
+              },
+              "store-megabytes": {
+                "lower_value": 67,
+                "upper_value": 67,
+                "value": 67
+              },
+              "warm-milliseconds": {
+                "lower_value": 88,
+                "upper_value": 88,
+                "value": 88
+              }
+            }
+          },
+          "internal_rounds": {
+            "cold-milliseconds": [
+              866,
+              863,
+              890,
+              872,
+              907
+            ],
+            "cold-cpu-milliseconds": [
+              6119,
+              6137,
+              6189,
+              6185,
+              6313
+            ],
+            "spike-cpu-milliseconds": [
+              1550,
+              1524,
+              1517
+            ]
+          }
+        }
+      ],
+      "latest_pair_ratios": {
+        "cold-milliseconds": 1.196159122085048,
+        "cold-cpu-milliseconds": 1.3629352137505508,
+        "spike-cpu-milliseconds": 1.0459849004804394
+      },
+      "cold_spike_within_threshold": false,
+      "all_established_language_gates_passed": false,
+      "scope_limit": "Only Rust cold/spike compared here; full cached phase CI and other language gates remain separate."
+    },
+    "profile": {
+      "schema": "existing-sealed-cold-cpu-profile/v1",
+      "measurement": false,
+      "variant": "candidate",
+      "executable": "/tmp/lazy-workspace-artifacts-3-20261102/rust-candidate-release",
+      "binary_sha256": "ba3f7fcee4a85de95e475d31d772479c26508f953046fc80407c6b333db1b769",
+      "command": [
+        "/tmp/lazy-workspace-artifacts-3-20261102/rust-candidate-release",
+        "--bench",
+        "--rounds",
+        "1"
+      ],
+      "bench_status": 0,
+      "perf_status": -2,
+      "profiled_scope": "47-rule cold5 and8-rule spike3 only; attached after47rules marker, stopped at cache marker; no individual-rule-prefix or cache phases sampled",
+      "start_seconds_after_invocation": 28.81725644308608,
+      "stop_seconds_after_invocation": 34.760280971066095,
+      "whole_invocation_seconds": 47.18201097904239,
+      "perf_data_sha256": "705a9be6692fbd6eb00ed6df74142afdc6bf2585652fcc80d31ebf38e4c14099"
+    },
+    "profile_top_symbols": {
+      "self": [
+        {
+          "percentages": [
+            4.45
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::select::item::tree_each"
+        },
+        {
+          "percentages": [
+            3.29
+          ],
+          "symbol": "ryo_core::domain::walks::service::admits"
+        },
+        {
+          "percentages": [
+            3.13
+          ],
+          "symbol": "ryo_core::domain::table_dedup::service::find_or_add"
+        },
+        {
+          "percentages": [
+            2.76
+          ],
+          "symbol": "core::str::converts::from_utf8"
+        },
+        {
+          "percentages": [
+            2.48
+          ],
+          "symbol": "ryo_core::domain::fragment::service::make_rows"
+        },
+        {
+          "percentages": [
+            2.19
+          ],
+          "symbol": "ryo_core::domain::comparing::service::holds_one"
+        },
+        {
+          "percentages": [
+            2.01
+          ],
+          "symbol": "ryo_core::domain::globbing::service::matches"
+        },
+        {
+          "percentages": [
+            1.75
+          ],
+          "symbol": "_rjem_malloc"
+        },
+        {
+          "percentages": [
+            1.69
+          ],
+          "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read::{closure#0}"
+        },
+        {
+          "percentages": [
+            1.69
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            1.5
+          ],
+          "symbol": "<ra_ap_parser::lexed_str::LexedStr>::intersperse_trivia"
+        },
+        {
+          "percentages": [
+            1.47
+          ],
+          "symbol": "ryo_language::domain::symbols::service::intern"
+        },
+        {
+          "percentages": [
+            1.38
+          ],
+          "symbol": "ryo_core::domain::reading::service::evaluate_rule"
+        },
+        {
+          "percentages": [
+            1.35
+          ],
+          "symbol": "<ra_ap_parser::TopEntryPoint>::parse"
+        },
+        {
+          "percentages": [
+            1.35
+          ],
+          "symbol": "ryo_core::domain::comparing::service::holds"
+        },
+        {
+          "percentages": [
+            1.35
+          ],
+          "symbol": "ryo_core::domain::tree_walk::service::walk_row"
+        },
+        {
+          "percentages": [
+            1.35
+          ],
+          "symbol": "ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::emit"
+        },
+        {
+          "percentages": [
+            1.32
+          ],
+          "symbol": "0x00000000000a3180"
+        },
+        {
+          "percentages": [
+            1.32
+          ],
+          "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::map::Map<core::iter::sources::successors::Successors<ryo_language::domain::relations::types::Position, ryo_core::domain::walks::service::axis::{closure#3}>, ryo_core::domain::walks::service::axis::{closure#4}>>"
+        },
+        {
+          "percentages": [
+            1.28
+          ],
+          "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::read_file"
+        },
+        {
+          "percentages": [
+            1.28
+          ],
+          "symbol": "_rjem_sdallocx"
+        },
+        {
+          "percentages": [
+            1.19
+          ],
+          "symbol": "<ra_ap_rustc_lexer::Cursor>::advance_token"
+        },
+        {
+          "percentages": [
+            1.13
+          ],
+          "symbol": "core::slice::sort::shared::smallsort::small_sort_network::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+        },
+        {
+          "percentages": [
+            1.1
+          ],
+          "symbol": "memcmp"
+        },
+        {
+          "percentages": [
+            1.07
+          ],
+          "symbol": "ryo_language::domain::elements::service::push"
+        },
+        {
+          "percentages": [
+            1.07
+          ],
+          "symbol": "ryo_core::domain::tree_join::service::probe"
+        },
+        {
+          "percentages": [
+            1.0
+          ],
+          "symbol": "<hashbrown::raw::RawTable<ryo_core::domain::table_cells::types::RowIndex>>::reserve_rehash::<ryo_core::domain::table_dedup::service::find_or_add::{closure#3}>"
+        },
+        {
+          "percentages": [
+            1.0
+          ],
+          "symbol": "_rjem_je_arena_ralloc"
+        },
+        {
+          "percentages": [
+            0.97
+          ],
+          "symbol": "ryo_core::domain::table_model::service::read_row"
+        },
+        {
+          "percentages": [
+            0.94
+          ],
+          "symbol": "regex_automata::hybrid::search::find_fwd"
+        },
+        {
+          "percentages": [
+            0.94
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::capture::item::matches"
+        },
+        {
+          "percentages": [
+            0.88
+          ],
+          "symbol": "ryo_core::domain::globbing::service::matches::{closure#1}"
+        },
+        {
+          "percentages": [
+            0.88
+          ],
+          "symbol": "<regex_automata::hybrid::dfa::Lazy>::cache_next_state"
+        },
+        {
+          "percentages": [
+            0.88
+          ],
+          "symbol": "ryo_core::domain::pipeline::service::pass_on_inner"
+        },
+        {
+          "percentages": [
+            0.75
+          ],
+          "symbol": "<regex_automata::nfa::thompson::compiler::Compiler>::c"
+        },
+        {
+          "percentages": [
+            0.75
+          ],
+          "symbol": "ryo_core::domain::positions::service::hits"
+        },
+        {
+          "percentages": [
+            0.72
+          ],
+          "symbol": "<ra_ap_parser::lexed_str::LexedStr>::to_input"
+        },
+        {
+          "percentages": [
+            0.69
+          ],
+          "symbol": "<regex_automata::nfa::thompson::compiler::Compiler>::build_many_from_hir::<&regex_syntax::hir::Hir>"
+        },
+        {
+          "percentages": [
+            0.69
+          ],
+          "symbol": "<hashbrown::raw::RawTable<(ryo_core::domain::table_scratch::types::VerdictKey, ryo_core::domain::table_model::types::Verdict)>>::reserve_rehash::<hashbrown::map::make_hasher<ryo_core::domain::table_scratch::types::VerdictKey, ryo_core::domain::table_model::types::Verdict, hashbrown::hasher::DefaultHashBuilder>::{closure#0}>"
+        },
+        {
+          "percentages": [
+            0.66
+          ],
+          "symbol": "<hashbrown::map::HashMap<ryo_core::domain::table_scratch::types::VerdictKey, ryo_core::domain::table_model::types::Verdict>>::insert"
+        },
+        {
+          "percentages": [
+            0.66
+          ],
+          "symbol": "<regex_automata::hybrid::dfa::Lazy>::init_cache"
+        },
+        {
+          "percentages": [
+            0.63
+          ],
+          "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::filter::Filter<core::ops::range::RangeInclusive<u32>, ryo_core::domain::walks::service::axis::{closure#5}>>"
+        },
+        {
+          "percentages": [
+            0.63
+          ],
+          "symbol": "ryo_core::domain::shared_walk::service::consider"
+        },
+        {
+          "percentages": [
+            0.6
+          ],
+          "symbol": "ryo_language::inbound::use_cases::parse::service::walk_in::<ryo_rust::inbound::contracts::parse::contract::ParseContract>"
+        },
+        {
+          "percentages": [
+            0.6
+          ],
+          "symbol": "<ryo_language::domain::relations::types::Value as core::hash::Hash>::hash::<hashbrown::hasher::DefaultHasher>"
+        },
+        {
+          "percentages": [
+            0.6
+          ],
+          "symbol": "<ra_ap_parser::lexed_str::LexedStr>::new"
+        },
+        {
+          "percentages": [
+            0.6
+          ],
+          "symbol": "ryo_core::domain::positions::service::key_into"
+        },
+        {
+          "percentages": [
+            0.6
+          ],
+          "symbol": "<core::str::pattern::CharSearcher as core::str::pattern::Searcher>::next_match"
+        },
+        {
+          "percentages": [
+            0.56
+          ],
+          "symbol": "<alloc::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc::alloc::Global>"
+        },
+        {
+          "percentages": [
+            0.53
+          ],
+          "symbol": "core::slice::sort::unstable::quicksort::quicksort::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+        },
+        {
+          "percentages": [
+            0.53
+          ],
+          "symbol": "ryo_core::domain::fragment::service::make"
+        },
+        {
+          "percentages": [
+            0.53
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            0.5
+          ],
+          "symbol": "<alloc::raw_vec::RawVecInner>::finish_grow"
+        },
+        {
+          "percentages": [
+            0.5
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Collect as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            0.5
+          ],
+          "symbol": "do_rallocx"
+        }
+      ],
+      "inclusive": [
+        {
+          "percentages": [
+            89.38,
+            0.47
+          ],
+          "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::visit_file"
+        },
+        {
+          "percentages": [
+            81.42,
+            0.06
+          ],
+          "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::visited::{closure#0}"
+        },
+        {
+          "percentages": [
+            72.7,
+            0.0
+          ],
+          "symbol": "<rayon_core::job::HeapJob<<rayon_core::scope::Scope>::spawn<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}::{closure#0}>::{closure#0}> as rayon_core::job::Job>::execute"
+        },
+        {
+          "percentages": [
+            71.8,
+            0.0
+          ],
+          "symbol": "<rayon_core::registry::WorkerThread>::wait_until_cold"
+        },
+        {
+          "percentages": [
+            71.29,
+            0.0
+          ],
+          "symbol": "std::sys::backtrace::__rust_begin_short_backtrace::<<rayon_core::registry::DefaultSpawn as rayon_core::registry::ThreadSpawn>::spawn::{closure#0}, ()>"
+        },
+        {
+          "percentages": [
+            70.6,
+            1.28
+          ],
+          "symbol": "<ryo_core::application::file_analysis::service::FileAnalysis>::read_file"
+        },
+        {
+          "percentages": [
+            69.04,
+            0.0
+          ],
+          "symbol": "<std::thread::lifecycle::spawn_unchecked<<rayon_core::registry::DefaultSpawn as rayon_core::registry::ThreadSpawn>::spawn::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}"
+        },
+        {
+          "percentages": [
+            67.94,
+            0.0
+          ],
+          "symbol": "<std::sys::thread::unix::Thread>::new::thread_start"
+        },
+        {
+          "percentages": [
+            67.38,
+            1.38
+          ],
+          "symbol": "ryo_core::domain::reading::service::evaluate_rule"
+        },
+        {
+          "percentages": [
+            67.13,
+            0.0
+          ],
+          "symbol": "0x0000ffff90ef5f37"
+        },
+        {
+          "percentages": [
+            63.33,
+            0.88
+          ],
+          "symbol": "ryo_core::domain::pipeline::service::pass_on_inner"
+        },
+        {
+          "percentages": [
+            42.75,
+            0.28
+          ],
+          "symbol": "ryo_core::domain::pipeline::service::deliver"
+        },
+        {
+          "percentages": [
+            25.2,
+            0.53
+          ],
+          "symbol": "ryo_core::domain::fragment::service::make"
+        },
+        {
+          "percentages": [
+            24.66,
+            2.48
+          ],
+          "symbol": "ryo_core::domain::fragment::service::make_rows"
+        },
+        {
+          "percentages": [
+            21.81,
+            0.19
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::select::item::SelectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            21.5,
+            0.03
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::union::item::UnionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            20.84,
+            2.19
+          ],
+          "symbol": "ryo_core::domain::comparing::service::holds_one"
+        },
+        {
+          "percentages": [
+            17.46,
+            0.0
+          ],
+          "symbol": "<ryo_core::outbound::language::adapters::use_case::adapter::LanguageUseCaseAdapter as ryo_core::outbound::language::interface::LanguagePort>::parse"
+        },
+        {
+          "percentages": [
+            17.46,
+            0.0
+          ],
+          "symbol": "<ryo_rust::inbound::contracts::parse::contract::ParseContract as ryo_language::inbound::use_cases::parse::types::ParseEngine>::read_file"
+        },
+        {
+          "percentages": [
+            16.95,
+            1.35
+          ],
+          "symbol": "ryo_core::domain::comparing::service::holds"
+        },
+        {
+          "percentages": [
+            16.86,
+            0.09
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::join::item::JoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            15.89,
+            0.19
+          ],
+          "symbol": "ryo_core::domain::replay::service::scan"
+        },
+        {
+          "percentages": [
+            15.48,
+            0.0
+          ],
+          "symbol": "ryo_language::inbound::use_cases::parse::service::build_in::<ryo_rust::inbound::contracts::parse::contract::ParseContract>"
+        },
+        {
+          "percentages": [
+            14.32,
+            0.0
+          ],
+          "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read"
+        },
+        {
+          "percentages": [
+            13.38,
+            0.13
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            12.79,
+            0.13
+          ],
+          "symbol": "ryo_core::domain::pipeline::service::keep"
+        },
+        {
+          "percentages": [
+            12.5,
+            4.45
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::select::item::tree_each"
+        },
+        {
+          "percentages": [
+            8.52,
+            0.16
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::select::item::select_rows"
+        },
+        {
+          "percentages": [
+            8.37,
+            1.5
+          ],
+          "symbol": "<ra_ap_parser::lexed_str::LexedStr>::intersperse_trivia"
+        },
+        {
+          "percentages": [
+            7.8,
+            0.06
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::join::item::join_rows"
+        },
+        {
+          "percentages": [
+            7.18,
+            0.03
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::axis::item::AxisItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            7.11,
+            0.16
+          ],
+          "symbol": "ryo_core::domain::globbing::service::compile"
+        },
+        {
+          "percentages": [
+            6.96,
+            0.0
+          ],
+          "symbol": "rayon_core::scope::scope::<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}, ()>::{closure#0}"
+        },
+        {
+          "percentages": [
+            6.86,
+            1.07
+          ],
+          "symbol": "ryo_core::domain::tree_join::service::probe"
+        },
+        {
+          "percentages": [
+            6.83,
+            0.0
+          ],
+          "symbol": "<rayon_core::job::StackJob<rayon_core::latch::LatchRef<rayon_core::latch::LockLatch>, <rayon_core::registry::Registry>::in_worker_cold<<rayon_core::thread_pool::ThreadPool>::install<<rayon_core::thread_pool::ThreadPool>::scope<<ryo_core::outbound::scheduler::adapters::rayon::adapter::SchedulerRayonAdapter as ryo_core::outbound::scheduler::interface::SchedulerPort>::run::{closure#0}, ()>::{closure#0}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()> as rayon_core::job::Job>::execute"
+        },
+        {
+          "percentages": [
+            6.33,
+            1.69
+          ],
+          "symbol": "<ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter as ryo_rust::outbound::syntax::interface::SyntaxPort>::read::{closure#0}"
+        },
+        {
+          "percentages": [
+            5.36,
+            0.06
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::axis::item::AxisItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            5.26,
+            1.35
+          ],
+          "symbol": "ryo_core::domain::tree_walk::service::walk_row"
+        },
+        {
+          "percentages": [
+            4.95,
+            3.13
+          ],
+          "symbol": "ryo_core::domain::table_dedup::service::find_or_add"
+        },
+        {
+          "percentages": [
+            4.7,
+            3.29
+          ],
+          "symbol": "ryo_core::domain::walks::service::admits"
+        },
+        {
+          "percentages": [
+            4.7,
+            0.19
+          ],
+          "symbol": "regex_automata::meta::strategy::new"
+        },
+        {
+          "percentages": [
+            4.67,
+            0.03
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::extend::item::ExtendItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            4.58,
+            0.06
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::select::item::SelectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            4.26,
+            0.06
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            4.14,
+            1.35
+          ],
+          "symbol": "ryo_rust::outbound::syntax::adapters::ra_ap_syntax::adapter::emit"
+        },
+        {
+          "percentages": [
+            4.11,
+            0.09
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::capture::item::CaptureItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            3.73,
+            0.5
+          ],
+          "symbol": "do_rallocx"
+        },
+        {
+          "percentages": [
+            3.51,
+            0.69
+          ],
+          "symbol": "<regex_automata::nfa::thompson::compiler::Compiler>::build_many_from_hir::<&regex_syntax::hir::Hir>"
+        },
+        {
+          "percentages": [
+            3.45,
+            0.53
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::project::item::ProjectItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            3.29,
+            2.01
+          ],
+          "symbol": "ryo_core::domain::globbing::service::matches"
+        },
+        {
+          "percentages": [
+            3.29,
+            1.69
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::group_count::item::GroupCountItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#1}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            3.2,
+            0.0
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::group_digest::item::GroupDigestItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            3.04,
+            0.09
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::capture::item::CaptureItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            3.01,
+            0.31
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::capture::item::capture_row"
+        },
+        {
+          "percentages": [
+            2.95,
+            0.0
+          ],
+          "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::drain::<ryo_core::domain::answering::types::Todo, core::result::Result<ryo_core::domain::answering::types::Crossed, ryo_core::inbound::use_cases::lint::errors::LintError>, <ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::crossed::{closure#1}>::{closure#1}"
+        },
+        {
+          "percentages": [
+            2.95,
+            0.28
+          ],
+          "symbol": "<ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl>::crossed::{closure#1}"
+        },
+        {
+          "percentages": [
+            2.79,
+            0.56
+          ],
+          "symbol": "<alloc::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc::alloc::Global>"
+        },
+        {
+          "percentages": [
+            2.76,
+            2.76
+          ],
+          "symbol": "core::str::converts::from_utf8"
+        },
+        {
+          "percentages": [
+            2.7,
+            0.0
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::antijoin::item::AntijoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            2.66,
+            0.6
+          ],
+          "symbol": "<ra_ap_parser::lexed_str::LexedStr>::new"
+        },
+        {
+          "percentages": [
+            2.63,
+            1.35
+          ],
+          "symbol": "<ra_ap_parser::TopEntryPoint>::parse"
+        },
+        {
+          "percentages": [
+            2.63,
+            0.16
+          ],
+          "symbol": "ryo_core::domain::fragment::service::emit_counts"
+        },
+        {
+          "percentages": [
+            2.44,
+            0.5
+          ],
+          "symbol": "<alloc::raw_vec::RawVecInner>::finish_grow"
+        },
+        {
+          "percentages": [
+            2.44,
+            0.06
+          ],
+          "symbol": "<regex_automata::meta::strategy::Core as regex_automata::meta::strategy::Strategy>::is_match"
+        },
+        {
+          "percentages": [
+            2.38,
+            1.0
+          ],
+          "symbol": "_rjem_je_arena_ralloc"
+        },
+        {
+          "percentages": [
+            2.38,
+            0.94
+          ],
+          "symbol": "regex_automata::hybrid::search::find_fwd"
+        },
+        {
+          "percentages": [
+            2.19,
+            0.41
+          ],
+          "symbol": "ryo_core::domain::table_texts::service::datum"
+        },
+        {
+          "percentages": [
+            2.13,
+            0.31
+          ],
+          "symbol": "ryo_core::domain::operands::service::resolve"
+        },
+        {
+          "percentages": [
+            2.1,
+            0.94
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::capture::item::matches"
+        },
+        {
+          "percentages": [
+            2.01,
+            0.0
+          ],
+          "symbol": "ryo_core::domain::positions::service::sorted"
+        },
+        {
+          "percentages": [
+            1.97,
+            0.6
+          ],
+          "symbol": "ryo_language::inbound::use_cases::parse::service::walk_in::<ryo_rust::inbound::contracts::parse::contract::ParseContract>"
+        },
+        {
+          "percentages": [
+            1.97,
+            0.06
+          ],
+          "symbol": "ryo_core::domain::positions::service::firsts"
+        },
+        {
+          "percentages": [
+            1.94,
+            0.0
+          ],
+          "symbol": "<core::iter::adapters::map::Map<core::slice::iter::Iter<&regex_syntax::hir::Hir>, <regex_automata::nfa::thompson::compiler::Compiler>::compile<&regex_syntax::hir::Hir>::{closure#1}> as core::iter::traits::iterator::Iterator>::next"
+        },
+        {
+          "percentages": [
+            1.88,
+            0.75
+          ],
+          "symbol": "<regex_automata::nfa::thompson::compiler::Compiler>::c"
+        },
+        {
+          "percentages": [
+            1.85,
+            0.53
+          ],
+          "symbol": "core::slice::sort::unstable::quicksort::quicksort::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+        },
+        {
+          "percentages": [
+            1.82,
+            1.19
+          ],
+          "symbol": "<ra_ap_rustc_lexer::Cursor>::advance_token"
+        },
+        {
+          "percentages": [
+            1.82,
+            0.28
+          ],
+          "symbol": "<globset::glob::GlobBuilder>::build"
+        },
+        {
+          "percentages": [
+            1.79,
+            0.31
+          ],
+          "symbol": "<regex_syntax::ast::parse::Parser>::parse"
+        },
+        {
+          "percentages": [
+            1.75,
+            1.75
+          ],
+          "symbol": "_rjem_malloc"
+        },
+        {
+          "percentages": [
+            1.75,
+            0.22
+          ],
+          "symbol": "<regex_syntax::hir::translate::Translator>::translate"
+        },
+        {
+          "percentages": [
+            1.75,
+            0.16
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::join::item::JoinItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            1.72,
+            0.0
+          ],
+          "symbol": "core::ptr::drop_glue::<ryo_core::domain::operator::types::RuleWorkspace>"
+        },
+        {
+          "percentages": [
+            1.69,
+            0.03
+          ],
+          "symbol": "ryo_core::domain::crossing::service::cross_rule"
+        },
+        {
+          "percentages": [
+            1.66,
+            1.47
+          ],
+          "symbol": "ryo_language::domain::symbols::service::intern"
+        },
+        {
+          "percentages": [
+            1.66,
+            0.41
+          ],
+          "symbol": "ryo_core::domain::fragment::service::emit"
+        },
+        {
+          "percentages": [
+            1.66,
+            0.0
+          ],
+          "symbol": "<ryo_core::domain::operator::collections::operators::intersection::item::IntersectionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream"
+        },
+        {
+          "percentages": [
+            1.6,
+            0.5
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Collect as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            1.6,
+            0.31
+          ],
+          "symbol": "core::ptr::drop_glue::<ryo_core::domain::operator::types::Pool>"
+        },
+        {
+          "percentages": [
+            1.47,
+            0.66
+          ],
+          "symbol": "<hashbrown::map::HashMap<ryo_core::domain::table_scratch::types::VerdictKey, ryo_core::domain::table_model::types::Verdict>>::insert"
+        },
+        {
+          "percentages": [
+            1.47,
+            0.38
+          ],
+          "symbol": "<regex_syntax::hir::translate::TranslatorI as regex_syntax::ast::visitor::Visitor>::visit_post"
+        },
+        {
+          "percentages": [
+            1.41,
+            0.25
+          ],
+          "symbol": "_rjem_je_malloc_default"
+        },
+        {
+          "percentages": [
+            1.38,
+            0.88
+          ],
+          "symbol": "<regex_automata::hybrid::dfa::Lazy>::cache_next_state"
+        },
+        {
+          "percentages": [
+            1.32,
+            1.32
+          ],
+          "symbol": "0x00000000000a3180"
+        },
+        {
+          "percentages": [
+            1.32,
+            1.32
+          ],
+          "symbol": "<alloc::vec::Vec<u32>>::extend_desugared::<core::iter::adapters::map::Map<core::iter::sources::successors::Successors<ryo_language::domain::relations::types::Position, ryo_core::domain::walks::service::axis::{closure#3}>, ryo_core::domain::walks::service::axis::{closure#4}>>"
+        },
+        {
+          "percentages": [
+            1.32,
+            1.13
+          ],
+          "symbol": "core::slice::sort::shared::smallsort::small_sort_network::<usize, <[usize]>::sort_unstable_by<ryo_core::domain::positions::service::sorted::{closure#1}>::{closure#0}>"
+        },
+        {
+          "percentages": [
+            1.32,
+            0.0
+          ],
+          "symbol": "0x0000ffff90f13180"
+        },
+        {
+          "percentages": [
+            1.28,
+            1.28
+          ],
+          "symbol": "_rjem_sdallocx"
+        },
+        {
+          "percentages": [
+            1.19,
+            1.0
+          ],
+          "symbol": "<hashbrown::raw::RawTable<ryo_core::domain::table_cells::types::RowIndex>>::reserve_rehash::<ryo_core::domain::table_dedup::service::find_or_add::{closure#3}>"
+        },
+        {
+          "percentages": [
+            1.19,
+            0.88
+          ],
+          "symbol": "ryo_core::domain::globbing::service::matches::{closure#1}"
+        },
+        {
+          "percentages": [
+            1.16,
+            0.13
+          ],
+          "symbol": "core::ptr::drop_glue::<alloc::vec::Vec<core::option::Option<alloc::boxed::Box<ryo_core::domain::operating::types::Room>>>>"
+        },
+        {
+          "percentages": [
+            1.16,
+            0.0
+          ],
+          "symbol": "<regex_automata::util::pool::inner::Pool<regex_automata::meta::regex::Cache, alloc::boxed::Box<dyn core::ops::function::Fn<(), Output = regex_automata::meta::regex::Cache> + core::marker::Send + core::panic::unwind_safe::UnwindSafe + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe>>>::get_slow"
+        },
+        {
+          "percentages": [
+            1.13,
+            0.25
+          ],
+          "symbol": "<ra_ap_parser::shortcuts::Builder>::eat_n_trivias"
+        },
+        {
+          "percentages": [
+            1.13,
+            0.0
+          ],
+          "symbol": "ra_ap_parser::grammar::entry::top::source_file"
+        },
+        {
+          "percentages": [
+            1.13,
+            0.0
+          ],
+          "symbol": "ra_ap_parser::grammar::items::mod_contents"
+        },
+        {
+          "percentages": [
+            1.13,
+            0.0
+          ],
+          "symbol": "ra_ap_parser::grammar::items::item_or_macro"
+        },
+        {
+          "percentages": [
+            1.13,
+            0.03
+          ],
+          "symbol": "ra_ap_parser::grammar::items::opt_item"
+        },
+        {
+          "percentages": [
+            1.13,
+            0.31
+          ],
+          "symbol": "<alloc::raw_vec::RawVecInner>::finish_grow"
+        },
+        {
+          "percentages": [
+            1.13,
+            0.0
+          ],
+          "symbol": "<regex_automata::meta::strategy::Core as regex_automata::meta::strategy::Strategy>::create_cache"
+        },
+        {
+          "percentages": [
+            1.1,
+            1.1
+          ],
+          "symbol": "memcmp"
+        },
+        {
+          "percentages": [
+            1.1,
+            0.22
+          ],
+          "symbol": "<ryo_rust::inbound::contracts::parse::contract::ParseContract as ryo_language::inbound::use_cases::parse::interface::ParseUseCase>::complete"
+        },
+        {
+          "percentages": [
+            1.1,
+            0.06
+          ],
+          "symbol": "<ryo_core::domain::replay::types::Pipe<<ryo_core::domain::operator::collections::operators::union::item::UnionItem as ryo_core::domain::operator::collections::operators::interface::OperatorsItem>::stream::{closure#0}> as ryo_core::domain::operating::types::Emit>::row"
+        },
+        {
+          "percentages": [
+            1.1,
+            0.03
+          ],
+          "symbol": "<regex_automata::hybrid::dfa::Cache>::new"
+        },
+        {
+          "percentages": [
+            1.1,
+            0.03
+          ],
+          "symbol": "<globset::glob::Tokens>::to_regex_with"
+        },
+        {
+          "percentages": [
+            1.1,
+            0.03
+          ],
+          "symbol": "ryo_core::domain::operator::collections::operators::join::item::stream_lookup"
+        },
+        {
+          "percentages": [
+            1.07,
+            1.07
+          ],
+          "symbol": "ryo_language::domain::elements::service::push"
+        },
+        {
+          "percentages": [
+            1.07,
+            0.28
+          ],
+          "symbol": "<globset::glob::Tokens>::tokens_to_regex"
+        },
+        {
+          "percentages": [
+            1.07,
+            0.03
+          ],
+          "symbol": "_rjem_je_tcache_alloc_small_hard"
+        },
+        {
+          "percentages": [
+            1.03,
+            0.38
+          ],
+          "symbol": "_rjem_je_arena_cache_bin_fill_small"
+        },
+        {
+          "percentages": [
+            1.0,
+            0.97
+          ],
+          "symbol": "ryo_core::domain::table_model::service::read_row"
+        }
+      ]
+    },
+    "status": "failed unchanged1.15 coldwall/CPU gate; spikepasses; secondpairnotrun",
+    "limits": "Original47-ruleDiscard10workers,5internalcold/3spikerounds,notallcache-languageCIcertification. OperatorScratchdefault/kind_setsno longerabove0.5%self; remainingglobbingcompile7.11%inclusive. No percomponent speed claim."
   }
 }

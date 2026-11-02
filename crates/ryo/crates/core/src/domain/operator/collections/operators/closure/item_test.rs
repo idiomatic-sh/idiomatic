@@ -67,6 +67,7 @@ fn compute_with_scratch(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings,
         symbols: &mut symbols,
@@ -362,7 +363,7 @@ fn partitioned_and_old_paths_reuse_scratch() -> Result<Value, OperatingError> {
     let empty_output = grouped(&empty, &[2], &mut scratch)?;
     assert_rows(&empty_output, 3, &[]);
     assert!(scratch.other.is_empty());
-    assert_eq!(scratch.domain.count.0, 0);
+    assert_eq!(scratch.join_scratch.domain.count.0, 0);
     let later_partition = grouped(&numbers(&[&[8, 9, 30]]), &[2], &mut scratch)?;
     assert_rows(&later_partition, 3, &[&[30, 8, 9]]);
     let unpartitioned = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[], &mut scratch)?;
@@ -444,10 +445,10 @@ fn many_tiny_partitions_bound_working_graph_and_output() -> Result<Value, Operat
         out.count.0,
         4 * usize::try_from(n).expect("positive partition count")
     );
-    assert_eq!(scratch.domain.count.0, 3);
+    assert_eq!(scratch.join_scratch.domain.count.0, 3);
     assert_eq!(scratch.other.len(), 2);
-    assert!(scratch.domain.cells.capacity() < 64);
-    assert!(scratch.walk.visited.len() <= 4);
+    assert!(scratch.join_scratch.domain.cells.capacity() < 64);
+    assert!(scratch.walk_scratch.walk.visited.len() <= 4);
     let mut rows: Vec<_> = out.cells.chunks_exact(3).collect();
     rows.sort_unstable();
     rows.dedup();

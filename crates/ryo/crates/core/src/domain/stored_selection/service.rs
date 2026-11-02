@@ -240,6 +240,7 @@ fn matches(
     let mut selected = Vec::new();
     let names = NameCount(name_count(context.symbols).0);
     let mut own = OperatorContext {
+        prepared_kinds: context.prepared_kinds,
         stored_indexes: None,
         bindings: &program.identity.bindings,
         symbols: context.symbols,

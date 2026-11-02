@@ -74,6 +74,7 @@ fn program(value: i64) -> Arc<Selector> {
 fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failure> {
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &program.identity.bindings,
         symbols: &mut symbols,
@@ -127,6 +128,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: Some(&mut cache),
         bindings: &[],
         symbols: &mut symbols,
@@ -240,6 +242,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         ];
         let mut fresh = new(&[Relation::Function], &[], LIMIT).unwrap();
         let mut fresh_context = OperatorContext {
+            prepared_kinds: None,
             stored_indexes: Some(&mut fresh),
             bindings: &[],
             symbols: context.symbols,

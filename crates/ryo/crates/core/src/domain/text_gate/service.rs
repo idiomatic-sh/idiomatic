@@ -217,17 +217,18 @@ pub(crate) fn text_candidates(
         file: tree.file,
         elements: TreeSize(total),
     };
-    if context.scratch.text_file != TextGrouping::Made(key) {
+    if context.scratch.select_scratch.text_file != TextGrouping::Made(key) {
+        let select = &mut *context.scratch.select_scratch;
         group_by_text(
             elements,
             names,
-            &mut context.scratch.text_starts,
-            &mut context.scratch.text_order,
+            &mut select.text_starts,
+            &mut select.text_order,
         );
-        context.scratch.text_file = TextGrouping::Made(key);
+        context.scratch.select_scratch.text_file = TextGrouping::Made(key);
     }
-    let starts = std::mem::take(&mut context.scratch.text_starts.0);
-    let order = std::mem::take(&mut context.scratch.text_order.0);
+    let starts = std::mem::take(&mut context.scratch.select_scratch.text_starts.0);
+    let order = std::mem::take(&mut context.scratch.select_scratch.text_order.0);
     let built = starts.len().saturating_sub(2);
     let span = |pair: &[_]| match pair {
         [from, to] => (
@@ -288,8 +289,8 @@ pub(crate) fn text_candidates(
         }
         Ok(KindNarrowing::Narrowed)
     })();
-    context.scratch.text_starts.0 = starts;
-    context.scratch.text_order.0 = order;
+    context.scratch.select_scratch.text_starts.0 = starts;
+    context.scratch.select_scratch.text_order.0 = order;
     outcome
 }
 

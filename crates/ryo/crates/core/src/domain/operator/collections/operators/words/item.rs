@@ -80,11 +80,15 @@ fn words_row(
             AfterTheFiles::After
         };
         let OperatorScratch {
+            capture_scratch, ..
+        } = &mut **scratch;
+        let crate::domain::table_scratch::types::CaptureScratch {
             text: holder,
             word,
             captured,
             ..
-        } = &mut **scratch;
+        } = &mut **capture_scratch;
+
         holder.clear();
         captured.clear();
         let texts = Texts {
@@ -102,8 +106,8 @@ fn words_row(
             captured.push(minted(symbols, made, after));
         });
     }
-    for place in 0..context.scratch.captured.len() {
-        let Some(&word) = context.scratch.captured.get(place) else {
+    for place in 0..context.scratch.capture_scratch.captured.len() {
+        let Some(&word) = context.scratch.capture_scratch.captured.get(place) else {
             break;
         };
         joined.clear();

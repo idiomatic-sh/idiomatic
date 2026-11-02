@@ -35,8 +35,12 @@ impl OperatorsItem for UnionItem {
         }
         reset(out, kinds_of(left));
         let OperatorScratch {
-            row: buffer, seen, ..
+            row: buffer,
+            join_scratch,
+            ..
         } = &mut *context.scratch;
+        let crate::domain::table_scratch::types::JoinScratch { seen, .. } = &mut **join_scratch;
+
         for side in [left, right] {
             for position in positions(count_of(side)) {
                 if let Some(row) = read_row(side, position, buffer) {
@@ -64,8 +68,8 @@ impl OperatorsItem for UnionItem {
         }
         let Room { scratch, out, .. } = room;
         reset(out, ins.kinds(InputPlace(0))?);
-        scratch.seen.clear();
-        let seen = &mut scratch.seen;
+        scratch.join_scratch.seen.clear();
+        let seen = &mut scratch.join_scratch.seen;
         // Each row passes once, from whichever side it first comes.
         for which in 0..2 {
             ins.stream(

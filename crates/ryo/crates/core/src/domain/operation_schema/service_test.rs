@@ -57,6 +57,7 @@ fn subject(populated: Input) -> Result<Value, Failure> {
         let rows: Vec<_> = tables.iter().map(Rows::Computed).collect();
         let mut output = Table::default();
         let mut context = OperatorContext {
+            prepared_kinds: None,
             stored_indexes: None,
             bindings: &bindings,
             symbols: &mut symbols,

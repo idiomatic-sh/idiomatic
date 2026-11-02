@@ -75,7 +75,7 @@ pub(crate) fn take_walk<'x, 'o>(
         comparisons,
         output,
     } = shape;
-    let marks = std::mem::take(&mut context.scratch.marks);
+    let marks = std::mem::take(&mut context.scratch.walk_scratch.marks);
     let among = if let Rows::Tree(
         each @ TreeRows {
             form: TreeForm::Elements,
@@ -107,7 +107,7 @@ pub(crate) fn take_walk<'x, 'o>(
         undecided(comparisons, &filter.gate, kinds_by, &mut filter.rest);
         needed_of_rest(comparisons, &filter.rest, &mut filter.needed);
     }
-    let mut nearest = std::mem::take(&mut context.scratch.nearest);
+    let mut nearest = std::mem::take(&mut context.scratch.walk_scratch.nearest);
     let remembering = if direction == Direction::NearestAncestor
         && starts.is_none_or(|count| count.0.saturating_mul(8) > elements_len(tree).0)
     {
@@ -127,9 +127,9 @@ pub(crate) fn take_walk<'x, 'o>(
         output,
         remembering,
         marks,
-        found: std::mem::take(&mut context.scratch.candidates),
+        found: std::mem::take(&mut context.scratch.select_scratch.candidates),
         nearest,
-        climbing: std::mem::take(&mut context.scratch.climbing),
+        climbing: std::mem::take(&mut context.scratch.walk_scratch.climbing),
         filter,
     }
 }
@@ -156,10 +156,10 @@ pub(crate) fn mark_domain(
 
 /// Gives back what the walk took.
 pub(crate) fn give_walk(walk: TreeWalk<'_, '_>, context: &mut OperatorContext<'_>) {
-    context.scratch.marks = walk.marks;
-    context.scratch.candidates = walk.found;
-    context.scratch.nearest = walk.nearest;
-    context.scratch.climbing = walk.climbing;
+    context.scratch.walk_scratch.marks = walk.marks;
+    context.scratch.select_scratch.candidates = walk.found;
+    context.scratch.walk_scratch.nearest = walk.nearest;
+    context.scratch.walk_scratch.climbing = walk.climbing;
     give_filter(walk.filter, context);
 }
 

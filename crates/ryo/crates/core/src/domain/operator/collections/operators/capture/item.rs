@@ -108,7 +108,12 @@ fn capture_row(
     };
     let width = slots_of(SlotPattern(&pattern.0)).0;
     let named = cell(row, *path)?;
-    let hit = context.scratch.captures.get(&named).copied();
+    let hit = context
+        .scratch
+        .capture_scratch
+        .captures
+        .get(&named)
+        .copied();
     let (from, ways) = if let Some(Captured {
         begin: CapturedPlace(begin),
         ways: WayCount(ways),
@@ -130,12 +135,16 @@ fn capture_row(
             AfterTheFiles::After
         };
         let OperatorScratch {
+            capture_scratch, ..
+        } = &mut **scratch;
+        let crate::domain::table_scratch::types::CaptureScratch {
             text,
             places,
             captures,
             captured,
             ..
-        } = &mut **scratch;
+        } = &mut **capture_scratch;
+
         let from = captured.len();
         let mut ways = 0;
         text.clear();
@@ -182,6 +191,7 @@ fn capture_row(
         joined.extend_from_slice(
             context
                 .scratch
+                .capture_scratch
                 .captured
                 .get(from + way * width..from + (way + 1) * width)
                 .unwrap_or_default(),
@@ -208,8 +218,8 @@ impl OperatorsItem for CaptureItem {
             CellKind::Symbol,
             slots_of(SlotPattern(&pattern.0)).0,
         ));
-        context.scratch.captures.clear();
-        context.scratch.captured.clear();
+        context.scratch.capture_scratch.captures.clear();
+        context.scratch.capture_scratch.captured.clear();
         let mut buffer = std::mem::take(&mut context.scratch.row);
         let mut joined = std::mem::take(&mut context.scratch.other);
         let outcome = (|| {
@@ -236,8 +246,8 @@ impl OperatorsItem for CaptureItem {
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
         let Room { memo, scratch, .. } = room;
-        scratch.captures.clear();
-        scratch.captured.clear();
+        scratch.capture_scratch.captures.clear();
+        scratch.capture_scratch.captured.clear();
         let mut joined = std::mem::take(&mut scratch.other);
         let outcome = ins.stream(
             InputPlace(0),

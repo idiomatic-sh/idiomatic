@@ -31,15 +31,21 @@ fn partitioned(
 ) -> Result<(), OperatingError> {
     let OperatorScratch {
         row,
+        other,
+        join_scratch,
+        walk_scratch,
+        ..
+    } = scratch;
+    let crate::domain::table_scratch::types::JoinScratch {
         order,
         right,
-        walk,
-        other,
         key,
         domain,
         domain_order,
         ..
-    } = scratch;
+    } = &mut **join_scratch;
+    let crate::domain::table_scratch::types::WalkScratch { walk, .. } = &mut **walk_scratch;
+
     let right = table_in(edges, right, row);
     check_columns(&right.kinds, &[source, destination])?;
     check_columns(&right.kinds, keys)?;
@@ -146,12 +152,15 @@ impl OperatorsItem for ClosureItem {
         }
         let OperatorScratch {
             row,
-            order,
-            right,
-            walk,
             other,
+            join_scratch,
+            walk_scratch,
             ..
         } = &mut *context.scratch;
+        let crate::domain::table_scratch::types::JoinScratch { order, right, .. } =
+            &mut **join_scratch;
+        let crate::domain::table_scratch::types::WalkScratch { walk, .. } = &mut **walk_scratch;
+
         let right = table_in(edges, right, row);
         check_columns(&right.kinds, &[*source, *destination])?;
         check_columns(&right.kinds, keys)?;

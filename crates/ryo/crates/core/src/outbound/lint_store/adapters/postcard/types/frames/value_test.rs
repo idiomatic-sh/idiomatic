@@ -43,7 +43,7 @@ fn inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries() {
         let groups = fresh(&inline, &staged).expect("mixed order");
         let mut bytes = Vec::new();
         let mut at = FileOffset(0);
-        write_bucket(
+        let _section = write_bucket(
             &mut bytes,
             &mut at,
             &groups[&Bucket(3)],
@@ -56,7 +56,7 @@ fn inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries() {
     }
     let mut bytes = Vec::new();
     let mut at = FileOffset(0);
-    write_bucket(&mut bytes, &mut at, &[], None, None).expect("empty bucket");
+    let _empty_section = write_bucket(&mut bytes, &mut at, &[], None, None).expect("empty bucket");
     assert_eq!(bytes, bucket_bytes(&[]).expect("empty legacy"));
 }
 
@@ -91,7 +91,8 @@ fn old_spans_and_fresh_rows_preserve_selected_file_remapping_and_tie_order() {
     rows.sort_by_key(|row| row.file);
     let mut actual = Vec::new();
     let mut at = FileOffset(0);
-    write_bucket(&mut actual, &mut at, rows, Some(&mut file), None).expect("bounded copy");
+    let _copied_section =
+        write_bucket(&mut actual, &mut at, rows, Some(&mut file), None).expect("bounded copy");
     assert_eq!(
         Some(actual),
         rebuilt_bucket_bytes(
@@ -189,7 +190,7 @@ fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure
         bytes: 0,
         fail_after: usize::MAX,
     };
-    write_bucket(
+    let _streamed_section = write_bucket(
         &mut output,
         &mut FileOffset(0),
         &rows,

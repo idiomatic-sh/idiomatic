@@ -208,22 +208,22 @@ pub(crate) fn tree_each(
     context
         .memo
         .resize(comparisons.len() * names.0, Memo::Unknown);
-    let mut candidates = std::mem::take(&mut context.scratch.candidates);
-    let mut gate = std::mem::take(&mut context.scratch.gate);
-    let mut text_ok = std::mem::take(&mut context.scratch.text_ok);
+    let mut candidates = std::mem::take(&mut context.scratch.select_scratch.candidates);
+    let mut gate = std::mem::take(&mut context.scratch.select_scratch.gate);
+    let mut text_ok = std::mem::take(&mut context.scratch.select_scratch.text_ok);
     text_gate(tree, comparisons, &mut gate);
     text_ok.0.clear();
     if !gate.0.is_empty() {
         text_ok.0.resize(names.0 + 1, 0);
     }
     let mut kinds = KindScratch {
-        names: std::mem::take(&mut context.scratch.kind_names),
-        sets: std::mem::take(&mut context.scratch.kind_sets),
-        tests: std::mem::take(&mut context.scratch.kind_tests),
+        names: std::mem::take(&mut context.scratch.select_scratch.kind_names),
+        sets: std::mem::take(&mut context.scratch.select_scratch.kind_sets),
+        tests: std::mem::take(&mut context.scratch.select_scratch.kind_tests),
     };
     kind_tests(tree, comparisons, context, &mut kinds);
     // What the kind sets and the text gate decided for an element is not asked of it again.
-    let mut rest = std::mem::take(&mut context.scratch.rest);
+    let mut rest = std::mem::take(&mut context.scratch.select_scratch.rest);
     undecided(comparisons, &gate, kinds_by(tree), &mut rest);
     needed_of_rest(comparisons, &rest, &mut needed);
     let mut narrowed = candidates_of(tree, &kinds, &mut candidates) == KindNarrowing::Narrowed;
@@ -282,14 +282,14 @@ pub(crate) fn tree_each(
         }
         Ok(())
     })();
-    context.scratch.rest = rest;
-    context.scratch.gate = gate;
-    context.scratch.text_ok = text_ok;
+    context.scratch.select_scratch.rest = rest;
+    context.scratch.select_scratch.gate = gate;
+    context.scratch.select_scratch.text_ok = text_ok;
     context.scratch.needed = needed;
-    context.scratch.candidates = candidates;
-    context.scratch.kind_names = kinds.names;
-    context.scratch.kind_sets = kinds.sets;
-    context.scratch.kind_tests = kinds.tests;
+    context.scratch.select_scratch.candidates = candidates;
+    context.scratch.select_scratch.kind_names = kinds.names;
+    context.scratch.select_scratch.kind_sets = kinds.sets;
+    context.scratch.select_scratch.kind_tests = kinds.tests;
     outcome
 }
 

@@ -68,6 +68,7 @@ fn consider(
     let comparisons = class.comparisons.as_slice();
     let index = usize::try_from(position.0).unwrap_or(usize::MAX);
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: bound,
         symbols: &mut *pass.symbols,
@@ -162,7 +163,8 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
         shared.merge = merge(plans, bindings);
         shared.made = Merging::Done;
     }
-    *room = SharedClasses::default();
+    room.classes = Vec::new();
+    room.merged = Vec::new();
     let kinds_in_file = kind_names(elements).len();
     if steps != TreeSteps::Lowered || kinds_in_file == 0 || shared.merge.classes.is_empty() {
         return;
@@ -189,9 +191,9 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
     };
     let names = NameCount(name_count(symbols).0);
     let mut kinds = KindScratch {
-        names: std::mem::take(&mut scratch.kind_names),
-        sets: std::mem::take(&mut scratch.kind_sets),
-        tests: std::mem::take(&mut scratch.kind_tests),
+        names: std::mem::take(&mut scratch.select_scratch.kind_names),
+        sets: std::mem::take(&mut scratch.select_scratch.kind_sets),
+        tests: std::mem::take(&mut scratch.select_scratch.kind_tests),
     };
     // Ready each class a rule that governs the file has a step of.
     for (place, class) in merge.classes.iter().enumerate() {
@@ -216,6 +218,7 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
             continue;
         };
         let mut context = OperatorContext {
+            prepared_kinds: room.kind_vocabulary.as_deref(),
             stored_indexes: None,
             bindings: bound,
             symbols: &mut *symbols,
@@ -264,9 +267,9 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
         }
         each.merged = Merged::Together;
     }
-    scratch.kind_names = kinds.names;
-    scratch.kind_sets = kinds.sets;
-    scratch.kind_tests = kinds.tests;
+    scratch.select_scratch.kind_names = kinds.names;
+    scratch.select_scratch.kind_sets = kinds.sets;
+    scratch.select_scratch.kind_tests = kinds.tests;
     let tree_rows = Rows::Tree(tree);
     let element_kinds = kinds_of(&tree_rows);
     let mut pass = Pass {

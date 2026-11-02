@@ -47,9 +47,10 @@ impl OperatorsItem for ProjectItem {
         let OperatorScratch {
             row: buffer,
             other: projected,
-            seen,
+            join_scratch,
             ..
         } = &mut *context.scratch;
+
         for position in positions(count_of(rows)) {
             let Some(row) = read_row(rows, position, buffer) else {
                 continue;
@@ -61,7 +62,7 @@ impl OperatorsItem for ProjectItem {
             push_row(out, projected);
         }
         if *drops == RepeatedRows::Dropped {
-            distinct(out, seen);
+            distinct(out, &mut join_scratch.seen);
         }
         Ok(())
     }
@@ -88,9 +89,9 @@ impl OperatorsItem for ProjectItem {
             // The rows already passed on are kept, to pass each on once.
             reset(out, &[]);
             out.kinds.resize(columns.len(), CellKind::Number);
-            scratch.seen.clear();
+            scratch.join_scratch.seen.clear();
         }
-        let seen = &mut scratch.seen;
+        let mut seen = (*drops == RepeatedRows::Dropped).then(|| &mut scratch.join_scratch.seen);
         let outcome = ins.stream(
             InputPlace(0),
             context,
@@ -99,7 +100,7 @@ impl OperatorsItem for ProjectItem {
                 for index in columns {
                     projected.push(cell(row, *index)?);
                 }
-                if *drops == RepeatedRows::Dropped
+                if let Some(seen) = seen.as_deref_mut()
                     && first_time(out, seen, &projected) == Addition::Existing
                 {
                     return Ok(());

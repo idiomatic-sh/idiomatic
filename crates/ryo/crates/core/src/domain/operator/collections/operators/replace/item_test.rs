@@ -43,6 +43,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         replacement: LiteralText(input.replacement.into()),
     };
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

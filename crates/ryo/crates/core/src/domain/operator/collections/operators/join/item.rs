@@ -433,9 +433,9 @@ pub(crate) fn join_rows(
     let mut buffers = JoinBuffers {
         row: std::mem::take(&mut context.scratch.row),
         other: std::mem::take(&mut context.scratch.other),
-        key: std::mem::take(&mut context.scratch.key),
-        order: std::mem::take(&mut context.scratch.order),
-        built: std::mem::take(&mut context.scratch.right),
+        key: std::mem::take(&mut context.scratch.join_scratch.key),
+        order: std::mem::take(&mut context.scratch.join_scratch.order),
+        built: std::mem::take(&mut context.scratch.join_scratch.right),
     };
     let mut state = LookupState {
         enabled: !matches!(left, Rows::Tree(_))
@@ -485,9 +485,9 @@ pub(crate) fn join_rows(
     }
     context.scratch.row = buffers.row;
     context.scratch.other = buffers.other;
-    context.scratch.key = buffers.key;
-    context.scratch.order = buffers.order;
-    context.scratch.right = buffers.built;
+    context.scratch.join_scratch.key = buffers.key;
+    context.scratch.join_scratch.order = buffers.order;
+    context.scratch.join_scratch.right = buffers.built;
     outcome
 }
 
@@ -641,11 +641,16 @@ fn stream_lookup_row(
     let OperatorScratch {
         row,
         other,
+        join_scratch,
+        ..
+    } = scratch;
+    let crate::domain::table_scratch::types::JoinScratch {
         key,
         order,
         right: built,
         ..
-    } = scratch;
+    } = &mut **join_scratch;
+
     if let Rows::Selected(view) = right {
         if !state.indexed {
             crate::domain::table_model::service::index_selected(view, right_on, order)?;

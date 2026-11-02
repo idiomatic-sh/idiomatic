@@ -95,6 +95,7 @@ fn made(
 ) -> Result<Table, OperatingError> {
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols,
@@ -458,6 +459,7 @@ fn stream_with_indexes(
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes,
         bindings: &[],
         symbols: &mut symbols,
@@ -482,7 +484,7 @@ fn empty_left_does_not_materialize_stored_right() -> Result<Value, OperatingErro
         });
         let mut room = Room::default();
         let (rows, holds) = stream_lookup(&mut room, &left, right.clone(), false, false, false)?;
-        if !rows.is_empty() || holds != 1 || room.scratch.right != Table::default() {
+        if !rows.is_empty() || holds != 1 || room.scratch.join_scratch.right != Table::default() {
             return Ok(0);
         }
     }
@@ -533,9 +535,9 @@ fn a_reused_room_skips_then_replaces_its_right_table() -> Result<Value, Operatin
     });
     let mut room = Room::default();
     let first = stream_lookup(&mut room, &first_left, first_right, false, false, false)?.0;
-    let retained = room.scratch.right.clone();
+    let retained = room.scratch.join_scratch.right.clone();
     let skipped = stream_lookup(&mut room, &empty_left, middle_right, false, false, false)?.0;
-    let unchanged = room.scratch.right == retained;
+    let unchanged = room.scratch.join_scratch.right == retained;
     let last = stream_lookup(&mut room, &last_left, last_right, false, false, false)?.0;
     Ok(Value::from(
         first == [vec![number(11)], vec![number(12)]]
@@ -556,7 +558,9 @@ fn a_left_failure_before_its_first_row_does_not_materialize_the_right()
     });
     let mut room = Room::default();
     let result = stream_lookup(&mut room, &left, right.clone(), true, false, false);
-    if room.scratch.right.count == RowCount(0) && room.scratch.right.cells.is_empty() {
+    if room.scratch.join_scratch.right.count == RowCount(0)
+        && room.scratch.join_scratch.right.cells.is_empty()
+    {
         result.map(|_| 1)
     } else {
         Ok(0)
@@ -573,7 +577,7 @@ fn an_emit_failure_propagates_after_the_right_is_indexed() -> Result<Value, Oper
     });
     let mut room = Room::default();
     let result = stream_lookup(&mut room, &left, right.clone(), false, false, true);
-    if room.scratch.right.count == RowCount(1) {
+    if room.scratch.join_scratch.right.count == RowCount(1) {
         result.map(|_| 1)
     } else {
         Ok(0)
@@ -732,10 +736,10 @@ fn assert_stored_join_shape(
         .0;
     assert_eq!(stored_rows, expected_rows);
     assert!(
-        room.scratch.right.count.0 <= 1,
+        room.scratch.join_scratch.right.count.0 <= 1,
         "only a matched RHS row is decoded, never the full stored table"
     );
-    assert!(room.scratch.right.cells.len() <= computed.kinds.len());
+    assert!(room.scratch.join_scratch.right.cells.len() <= computed.kinds.len());
     let computed_rows = stream_operation(
         operation,
         room,
@@ -1303,6 +1307,7 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: Some(&mut cache),
         bindings: &[],
         symbols: &mut symbols,
@@ -1496,5 +1501,5 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
         ),
         Err(OperatingError::NotRead)
     ));
-    assert!(room.scratch.graph_walk.queue.is_empty());
+    assert!(room.scratch.walk_scratch.graph_walk.queue.is_empty());
 }

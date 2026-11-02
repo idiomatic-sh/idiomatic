@@ -383,7 +383,15 @@ impl FileAnalysis {
         let execution_diagnostics =
             tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE);
         let shared_started = execution_diagnostics.then(Instant::now);
-        let mut classes = crate::domain::shared_walk::types::SharedClasses::default();
+        let mut classes = crate::domain::shared_walk::types::SharedClasses {
+            kind_vocabulary: crate::domain::kind_sets::service::prepare_vocabulary(
+                &mut tables.pool.kind_vocabulary,
+                &tables.elements,
+                &tables.symbols,
+                SourceView(&tables.bytes.0),
+            ),
+            ..crate::domain::shared_walk::types::SharedClasses::default()
+        };
         {
             let mut native_scratch =
                 crate::domain::table_scratch::types::OperatorScratch::default();

@@ -86,6 +86,10 @@ pub(crate) struct WalkWork {
 /// File-live outputs of the native pass, borrowed by each independent rule invocation.
 #[derive(Debug, Default)]
 pub(crate) struct SharedClasses {
+    /// Prepared literal masks for this file's exact vocabulary, without provider references.
+    pub kind_vocabulary:
+        Option<std::sync::Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
+
     /// Positions selected for each class, preserving their existing order and multiplicity.
     pub classes: Vec<Slots>,
     /// Which classes the pass successfully decided.

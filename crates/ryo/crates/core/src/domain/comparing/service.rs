@@ -213,6 +213,7 @@ fn holds_one(
         scratch,
         ..
     } = context;
+    let select = &mut *scratch.select_scratch;
     let texts = Texts {
         symbols,
         source: *source,
@@ -234,7 +235,7 @@ fn holds_one(
             comparison: ComparisonSlot(std::ptr::from_ref(comparison).addr() | tag),
             text: TextHash(hash.0),
         };
-        if let Some(verdict) = scratch.verdicts.get(&key) {
+        if let Some(verdict) = select.verdicts.get(&key) {
             return Ok(*verdict);
         }
         let verdict = holds(
@@ -242,13 +243,13 @@ fn holds_one(
             row,
             bindings,
             &texts,
-            &mut scratch.compiled_globs,
-            &mut scratch.compiled_regexes,
+            &mut select.compiled_globs,
+            &mut select.compiled_regexes,
         )?;
-        if scratch.verdicts.len() >= VERDICTS {
-            scratch.verdicts.clear();
+        if select.verdicts.len() >= VERDICTS {
+            select.verdicts.clear();
         }
-        let _: Option<Verdict> = scratch.verdicts.insert(key, verdict);
+        let _: Option<Verdict> = select.verdicts.insert(key, verdict);
         return Ok(verdict);
     }
     let place = memo_place(number, comparison, row, kinds, names);
@@ -267,7 +268,7 @@ fn holds_one(
                     text: hash,
                 });
             let decided =
-                if let Some(verdict) = known.and_then(|key| scratch.verdicts.get(&key).copied()) {
+                if let Some(verdict) = known.and_then(|key| select.verdicts.get(&key).copied()) {
                     verdict
                 } else {
                     let verdict = holds(
@@ -275,16 +276,16 @@ fn holds_one(
                         row,
                         bindings,
                         &texts,
-                        &mut scratch.compiled_globs,
-                        &mut scratch.compiled_regexes,
+                        &mut select.compiled_globs,
+                        &mut select.compiled_regexes,
                     )?;
                     if let Some(key) = known {
                         // The verdicts of the texts met so far are kept for the next file; a run with more texts
                         // than this forgets them, and decides again the texts that come back.
-                        if scratch.verdicts.len() >= VERDICTS {
-                            scratch.verdicts.clear();
+                        if select.verdicts.len() >= VERDICTS {
+                            select.verdicts.clear();
                         }
-                        let _: Option<Verdict> = scratch.verdicts.insert(key, verdict);
+                        let _: Option<Verdict> = select.verdicts.insert(key, verdict);
                     }
                     verdict
                 };

@@ -27,3 +27,45 @@ fn retains_the_explicit_inline_json_debug_protocol() -> Result<(), Box<dyn std::
     assert!(arguments.next().is_none());
     Ok(())
 }
+
+#[test]
+fn worker_execution_requires_the_actual_target_and_canonical_phase()
+-> Result<(), Box<dyn std::error::Error>> {
+    let request = serde_json::json!({
+        "parser_configuration": "python-target=3.10",
+        "rule_applicability": {"UP045": "accepted-syntax", "EXE004": "always"}
+    });
+    let configuration = Some("python-target=3.10");
+    request_input::checked_worker_identity(&request.to_string(), configuration)?;
+    for missing_or_wrong in [None, Some("python-target=3.11"), Some("python-target=3.9")] {
+        assert!(
+            request_input::checked_worker_identity(&request.to_string(), missing_or_wrong).is_err()
+        );
+    }
+    let mut missing = request.clone();
+    missing
+        .as_object_mut()
+        .ok_or("request must be an object")?
+        .remove("parser_configuration");
+    assert!(request_input::checked_worker_identity(&missing.to_string(), configuration).is_err());
+    for phases in [
+        serde_json::Value::Null,
+        serde_json::json!({}),
+        serde_json::json!({"UP045": "always"}),
+        serde_json::json!({"EXE004": "accepted-syntax"}),
+        serde_json::json!({"UP045": "unreviewed"}),
+    ] {
+        let mut changed = request.clone();
+        changed["rule_applicability"] = phases;
+        assert!(
+            request_input::checked_worker_identity(&changed.to_string(), configuration).is_err()
+        );
+    }
+    let mut absent = request;
+    absent
+        .as_object_mut()
+        .ok_or("request must be an object")?
+        .remove("rule_applicability");
+    assert!(request_input::checked_worker_identity(&absent.to_string(), configuration).is_err());
+    Ok(())
+}

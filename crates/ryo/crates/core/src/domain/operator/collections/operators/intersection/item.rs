@@ -36,13 +36,16 @@ impl OperatorsItem for IntersectionItem {
             return Err(OperatingError::ShapeMismatch);
         }
         let OperatorScratch {
-            row,
+            row, join_scratch, ..
+        } = &mut *context.scratch;
+        let crate::domain::table_scratch::types::JoinScratch {
             key,
             order,
             seen,
             right: looked_up,
             ..
-        } = &mut *context.scratch;
+        } = &mut **join_scratch;
+
         let looked_up = table_in(right, looked_up, row);
         index(looked_up, On::Whole, order)?;
         reset(out, kinds_of(left));
@@ -85,13 +88,16 @@ impl OperatorsItem for IntersectionItem {
         }
         let right = ins.hold(InputPlace(1), context, right_held)?;
         let OperatorScratch {
-            row,
+            row, join_scratch, ..
+        } = scratch;
+        let crate::domain::table_scratch::types::JoinScratch {
             key,
             order,
             seen,
             right: looked_up,
             ..
-        } = scratch;
+        } = &mut **join_scratch;
+
         let looked_up = table_in(&right, looked_up, row);
         index(looked_up, On::Whole, order)?;
         reset(out, ins.kinds(InputPlace(0))?);

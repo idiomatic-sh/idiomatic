@@ -214,6 +214,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
         let mut memo = Vec::new();
         let mut output = Table::default();
         let mut context = OperatorContext {
+            prepared_kinds: None,
             stored_indexes: None,
             bindings: &[],
             symbols: &mut symbols,

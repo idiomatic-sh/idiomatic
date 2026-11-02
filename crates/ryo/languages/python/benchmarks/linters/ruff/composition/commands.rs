@@ -39,19 +39,10 @@ pub(super) fn worker(
         }
         None => (None, None),
     };
-    if let Some(configuration) = parser_configuration.as_deref() {
-        let request: serde_json::Value =
-            serde_json::from_str(&input).map_err(|error| Error::Invalid(error.to_string()))?;
-        if request
-            .get("parser_configuration")
-            .and_then(serde_json::Value::as_str)
-            != Some(configuration)
-        {
-            return Err(Error::Invalid(
-                "worker parser configuration differs from its profile identity".into(),
-            ));
-        }
+    if args.next().is_some() {
+        return Err(Error::Invalid("unexpected trailing worker argument".into()));
     }
+    super::request_input::checked_worker_identity(&input, parser_configuration.as_deref())?;
     let target_version = parser_target(parser_configuration.as_deref())?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked_with_settings(
         ryo_python::settings::PythonParserSettings::new(target_version),
@@ -243,10 +234,10 @@ fn parser_target(
     configuration: Option<&str>,
 ) -> Result<ryo_python::settings::PythonTargetVersion, Error> {
     match configuration {
-        None | Some("python-target=3.10") => Ok(ryo_python::settings::PythonTargetVersion::Py310),
+        Some("python-target=3.10") => Ok(ryo_python::settings::PythonTargetVersion::Py310),
         Some("python-target=3.11") => Ok(ryo_python::settings::PythonTargetVersion::Py311),
-        Some(_) => Err(Error::Invalid(
-            "unsupported Ruff parser configuration".into(),
+        None | Some(_) => Err(Error::Invalid(
+            "unsupported or missing Ruff parser configuration".into(),
         )),
     }
 }

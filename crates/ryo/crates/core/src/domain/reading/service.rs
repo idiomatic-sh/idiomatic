@@ -137,6 +137,7 @@ pub(crate) fn evaluate_rule<'f>(
     let _entered = rule_span.enter();
     {
         let mut context = OperatorContext {
+            prepared_kinds: classes.kind_vocabulary.as_deref(),
             stored_indexes,
             bindings: bound,
             symbols: &mut tables.symbols,

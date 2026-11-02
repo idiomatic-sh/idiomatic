@@ -270,13 +270,19 @@ fn walk_table(
     }
     let OperatorScratch {
         row,
+        join_scratch,
+        walk_scratch,
+        ..
+    } = &mut *context.scratch;
+    let crate::domain::table_scratch::types::JoinScratch {
         order,
         right,
         domain: domain_table,
         domain_order,
-        walk,
         ..
-    } = &mut *context.scratch;
+    } = &mut **join_scratch;
+    let crate::domain::table_scratch::types::WalkScratch { walk, .. } = &mut **walk_scratch;
+
     let right = table_in(edges, right, row);
     let domain_table = table_in(domain, domain_table, row);
     // Walking up follows an edge from its child to its parent; walking down, the other way.
@@ -372,7 +378,7 @@ fn walk_compact(
     reset(out, kinds_of(from));
     out.kinds.push(CellKind::Node);
     let mut row = std::mem::take(&mut context.scratch.row);
-    let mut walk = std::mem::take(&mut context.scratch.graph_walk);
+    let mut walk = std::mem::take(&mut context.scratch.walk_scratch.graph_walk);
     let mut answers = std::mem::take(&mut walk.answers);
     answers.clear();
     let outcome = (|| {
@@ -427,7 +433,7 @@ fn walk_compact(
         Ok(())
     })();
     walk.answers = answers;
-    context.scratch.graph_walk = walk;
+    context.scratch.walk_scratch.graph_walk = walk;
     context.scratch.row = row;
     outcome
 }

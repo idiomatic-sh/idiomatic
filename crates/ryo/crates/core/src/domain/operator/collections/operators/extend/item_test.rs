@@ -57,6 +57,7 @@ fn compute(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings,
         symbols: &mut symbols,
@@ -102,6 +103,7 @@ fn appends_a_text_and_a_text_parameter() -> Result<Value, OperatingError> {
     let bindings = [ParameterBinding::Text(LiteralText("here".into()))];
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &bindings,
         symbols: &mut symbols,
@@ -149,6 +151,7 @@ fn appends_a_name_that_compares_with_the_names_of_the_files() -> Result<Value, O
     )];
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

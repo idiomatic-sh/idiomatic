@@ -97,14 +97,14 @@ pub(crate) struct CycleRoom {
 
 /// Which kinds a test asked of their names is about: the vocabulary of kinds it asked of, the test, and the hash of the text it is
 /// against.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct KindTest {
     /// The names of the kinds of the file it was asked of: a set of kinds is only as good as the numbering of the language that made it.
     pub vocabulary: KindSum,
     /// How the name is compared, by its place among the tests that can name a kind.
     pub test: NamingTest,
-    /// The hash of the text the name is compared with.
-    pub text: TextHash,
+    /// The exact literal text the name is compared with.
+    pub text: Box<str>,
 }
 
 /// The kinds of a language that have one name: as a set to ask of, and as a list to walk.
@@ -311,86 +311,190 @@ pub(crate) enum TextGrouping {
     Made(TextedFile),
 }
 
-/// The room the operators work in, kept from step to step and from file to file so that working
-/// allocates nothing once it has grown to the largest file.
+/// A heavy operator group, constructed only when an operation first accesses it.
+/// Its box and every payload are owned by the enclosing rule invocation.
+#[derive(Debug, Default)]
+pub(crate) struct LazyScratch<T>(pub std::cell::OnceCell<Box<T>>);
+
+impl<T: Default> std::ops::Deref for LazyScratch<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.0.get_or_init(Box::default)
+    }
+}
+
+impl<T: Default> std::ops::DerefMut for LazyScratch<T> {
+    #[expect(
+        clippy::expect_used,
+        reason = "get_or_init installs the group before this exclusive mutable read; absence would violate OnceCell's contract"
+    )]
+    fn deref_mut(&mut self) -> &mut T {
+        let _initialized = self.0.get_or_init(Box::default);
+        self.0
+            .get_mut()
+            .expect("operator scratch group was initialized")
+    }
+}
+
+/// Cheap row buffers and lazy heavy groups owned only by the current rule.
 #[derive(Debug, Default)]
 pub(crate) struct OperatorScratch {
-    /// A row read from the columns of a relation.
-    pub row: Vec<Value>,
-    /// A second row, for the operators that read two at once.
-    pub other: Vec<Value>,
-    /// The rows already kept, found by what they hold.
-    pub seen: hashbrown::HashTable<RowIndex>,
-    /// The cells of a row that say which rows it is alike.
-    pub key: Vec<Value>,
-    /// The rows of the table at `right`, in the order of their keys.
-    pub order: KeyIndex,
-    /// An input read whole, for the operators that look rows up in it.
-    pub right: Table,
-    /// The groups a count found.
-    pub groups: Vec<Group>,
-    /// A second input read whole, and the rows of it in the order of their keys.
-    pub domain: Table,
-    /// The rows of `domain` in the order of their keys.
-    pub domain_order: KeyIndex,
-    /// The room a walk along edges works in.
-    pub walk: Walk,
-    /// Compact graph visitation/frontier state, reused without provider references.
-    pub graph_walk: crate::domain::stored_graph::types::GraphWalk,
-    /// Prepared adjacency ranges of the ordered DFS operator.
-    pub dfs_graph: crate::domain::table_reach::types::OrderedGraph,
-    /// Iterative ordered DFS frames and exact visited values.
-    pub dfs_walk: crate::domain::table_reach::types::OrderedWalk,
-    /// Where each group begins and ends in `members`, or where each captured text is in `text`.
-    pub places: Stretches,
-    /// Text being made: a path read for a capture, the name of a group.
-    pub text: ScratchText,
-    /// The word being read out of a text.
-    pub word: ScratchWord,
-    /// The hashes of the values of a group, to digest the distinct ones.
-    pub hashes: Hashes,
     /// The cells of a row that a comparison reads, by their place in the row.
     pub needed: ColumnPlaces,
+
+    /// A row read from the columns of a relation.
+    pub row: Vec<Value>,
+
+    /// A second row, for the operators that read two at once.
+    pub other: Vec<Value>,
+    /// Lazily constructed join work for this invocation.
+    pub join_scratch: LazyScratch<JoinScratch>,
+    /// Lazily constructed groups work for this invocation.
+    pub groups_scratch: LazyScratch<GroupsScratch>,
+    /// Lazily constructed walk work for this invocation.
+    pub walk_scratch: LazyScratch<WalkScratch>,
+    /// Lazily constructed capture work for this invocation.
+    pub capture_scratch: LazyScratch<CaptureScratch>,
+    /// Lazily constructed select work for this invocation.
+    pub select_scratch: LazyScratch<SelectScratch>,
+    /// Lazily constructed cycle work for this invocation.
+    pub cycle_scratch: LazyScratch<CycleScratch>,
+}
+
+/// Mutable join work, allocated only by operators that use it.
+#[derive(Debug, Default)]
+pub(crate) struct JoinScratch {
+    /// The rows already kept, found by what they hold.
+    pub seen: hashbrown::HashTable<RowIndex>,
+
+    /// The cells of a row that say which rows it is alike.
+    pub key: Vec<Value>,
+
+    /// The rows of the table at `right`, in the order of their keys.
+    pub order: KeyIndex,
+
+    /// An input read whole, for the operators that look rows up in it.
+    pub right: Table,
+
+    /// A second input read whole, and the rows of it in the order of their keys.
+    pub domain: Table,
+
+    /// The rows of `domain` in the order of their keys.
+    pub domain_order: KeyIndex,
+}
+
+/// Mutable groups work, allocated only by operators that use it.
+#[derive(Debug, Default)]
+pub(crate) struct GroupsScratch {
+    /// What a group has counted, group by group.
+    pub counts: crate::domain::operating::types::GroupCounts,
+    /// The values already counted for a group, by the group.
+    pub pairs: hashbrown::HashSet<crate::domain::operating::types::GroupValue>,
+    /// The hash of each value of a group, by the group.
+    pub hashed: Vec<crate::domain::operating::types::GroupHash>,
+
+    /// The groups a count found.
+    pub groups: Vec<Group>,
+
+    /// The hashes of the values of a group, to digest the distinct ones.
+    pub hashes: Hashes,
+}
+
+/// Mutable walk work, allocated only by operators that use it.
+#[derive(Debug, Default)]
+pub(crate) struct WalkScratch {
+    /// The room a walk along edges works in.
+    pub walk: Walk,
+
+    /// Compact graph visitation/frontier state, reused without provider references.
+    pub graph_walk: crate::domain::stored_graph::types::GraphWalk,
+
+    /// Prepared adjacency ranges of the ordered DFS operator.
+    pub dfs_graph: crate::domain::table_reach::types::OrderedGraph,
+
+    /// Iterative ordered DFS frames and exact visited values.
+    pub dfs_walk: crate::domain::table_reach::types::OrderedWalk,
+
     /// Which elements of a tree a domain admits, by their place.
     pub marks: Marks,
+
+    /// For each element of a tree, its nearest ancestor a walk admits, once it is known.
+    pub nearest: ElementPlaces,
+
+    /// The elements whose nearest ancestor is being found, from the one asked about up.
+    pub climbing: ElementPlaces,
+}
+
+/// Mutable capture work, allocated only by operators that use it.
+#[derive(Debug, Default)]
+pub(crate) struct CaptureScratch {
+    /// Where each group begins and ends in `members`, or where each captured text is in `text`.
+    pub places: Stretches,
+
+    /// Text being made: a path read for a capture, the name of a group.
+    pub text: ScratchText,
+
+    /// The word being read out of a text.
+    pub word: ScratchWord,
+
+    /// For each path a capture has read, where in `captured` what its slots matched begins, and how many ways it matched.
+    pub captures: hashbrown::HashMap<Value, Captured>,
+
+    /// What the slots matched, for every path of `captures`, a way after a way.
+    pub captured: Vec<Value>,
+}
+
+/// Mutable select work, allocated only by operators that use it.
+#[derive(Debug, Default)]
+pub(crate) struct SelectScratch {
     /// What a comparison decided about a text, by the comparison and the hash of the text: the same text
     /// is decided once for the run, not once for each file that has it.
     pub verdicts: hashbrown::HashMap<VerdictKey, Verdict>,
+
     /// Fixed glob operands made ready once for each comparison, for this run's bindings.
     pub compiled_globs:
         hashbrown::HashMap<ComparisonSlot, crate::domain::globbing::types::CompiledGlobs>,
+
     /// Compiled regular expressions reused across rows, bounded by the matching service.
     pub compiled_regexes: Patterns,
+
     /// The kinds of a language by the name they are given: a name is the same kind in every file.
     pub kind_names: hashbrown::HashMap<KindTest, KindSetPlace>,
+
     /// The kinds each name stands for, as the sets `kind_names` numbers.
-    pub kind_sets: Vec<KindSet>,
+    pub kind_sets: Vec<std::sync::Arc<KindSet>>,
+
     /// The comparisons of a filter that name a kind: the set of kinds that satisfy each.
     pub kind_tests: ComparisonNumbers,
+
     /// The comparisons of a filter that ask of the text of an element something fixed.
     pub gate: ComparisonNumbers,
+
     /// For each text of the file, whether those comparisons hold for it: zero not decided, one yes, two no.
     pub text_ok: TextVerdicts,
+
     /// The places of the elements of a tree that a filter on their kind leaves to be looked at.
     pub candidates: Candidates,
+
     /// Where the elements with each text of the file begin in `text_order`, one more than there are texts, for the file `text_file`.
     pub text_starts: TextStarts,
+
     /// The places of the elements, grouped by their text and in order within a text.
     pub text_order: ElementPlaces,
+
     /// The file and the number of elements `text_starts` and `text_order` were made for.
     pub text_file: TextGrouping,
+
     /// The comparisons of a filter that the kind sets and the text gate have not decided already.
     pub rest: ComparisonNumbers,
-    /// For each element of a tree, its nearest ancestor a walk admits, once it is known.
-    pub nearest: ElementPlaces,
-    /// The elements whose nearest ancestor is being found, from the one asked about up.
-    pub climbing: ElementPlaces,
+}
+
+/// Mutable cycle work, allocated only by operators that use it.
+#[derive(Debug, Default)]
+pub(crate) struct CycleScratch {
     /// The room a search for cycles works in.
     pub cycles: CycleRoom,
-    /// For each path a capture has read, where in `captured` what its slots matched begins, and how many ways it matched.
-    pub captures: hashbrown::HashMap<Value, Captured>,
-    /// What the slots matched, for every path of `captures`, a way after a way.
-    pub captured: Vec<Value>,
 }
 
 /// Compiled patterns, indexed by their exact source text.

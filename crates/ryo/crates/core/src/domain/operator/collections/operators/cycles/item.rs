@@ -203,9 +203,12 @@ impl OperatorsItem for CyclesItem {
         let wanted = [kind(*source)?, kind(*destination)?];
         let OperatorScratch {
             row: buffer,
-            cycles: room,
+            cycle_scratch,
             ..
         } = &mut *context.scratch;
+        let crate::domain::table_scratch::types::CycleScratch { cycles: room, .. } =
+            &mut **cycle_scratch;
+
         room.numbers.clear();
         room.values.clear();
         room.pairs.clear();

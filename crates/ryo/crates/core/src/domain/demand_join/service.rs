@@ -22,8 +22,8 @@ pub(crate) fn emit(
     let mut lookup = ReachJoin::new(
         operation,
         right,
-        std::mem::take(&mut context.scratch.graph_walk),
-        std::mem::take(&mut context.scratch.key),
+        std::mem::take(&mut context.scratch.walk_scratch.graph_walk),
+        std::mem::take(&mut context.scratch.join_scratch.key),
         std::mem::take(&mut context.scratch.other),
     )?;
     let result = positions(count_of(left)).try_for_each(|position| {
@@ -34,8 +34,8 @@ pub(crate) fn emit(
     });
     let (walk, key, output) = lookup.finish();
     context.scratch.row = row;
-    context.scratch.graph_walk = walk;
-    context.scratch.key = key;
+    context.scratch.walk_scratch.graph_walk = walk;
+    context.scratch.join_scratch.key = key;
     context.scratch.other = output;
     result
 }
@@ -52,8 +52,8 @@ pub(crate) fn stream(
     let mut lookup = ReachJoin::new(
         operation,
         right,
-        std::mem::take(&mut scratch.graph_walk),
-        std::mem::take(&mut scratch.key),
+        std::mem::take(&mut scratch.walk_scratch.graph_walk),
+        std::mem::take(&mut scratch.join_scratch.key),
         std::mem::take(&mut scratch.other),
     )?;
     let result = inputs.stream(
@@ -64,8 +64,8 @@ pub(crate) fn stream(
         }),
     );
     let (walk, key, output) = lookup.finish();
-    scratch.graph_walk = walk;
-    scratch.key = key;
+    scratch.walk_scratch.graph_walk = walk;
+    scratch.join_scratch.key = key;
     scratch.other = output;
     result
 }

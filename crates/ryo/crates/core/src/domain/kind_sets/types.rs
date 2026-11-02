@@ -7,7 +7,11 @@ pub(crate) struct KindScratch {
     /// For each test, the sets by the text the kind is tested against.
     pub names: hashbrown::HashMap<KindTest, KindSetPlace>,
     /// The sets of kinds made so far.
-    pub sets: Vec<KindSet>,
+    pub sets: Vec<std::sync::Arc<KindSet>>,
     /// For each comparison that names a kind, the place of its set.
     pub tests: ComparisonNumbers,
 }
+
+pub(crate) mod vocabulary;
+
+pub(crate) use vocabulary::value::{PreparedKindTest, PreparedVocabulary};

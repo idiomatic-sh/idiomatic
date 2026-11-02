@@ -128,6 +128,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let (mut memo, mut scratch) = (Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

@@ -4,6 +4,21 @@
 
 ## Current Rust regression and staging diagnostics (2026-11-02)
 
+The [later lazy-workspace checkpoint](lazy-workspace-measurements-2026-11-02.json) passes 322 core tests and 20 Python SDK/worker-identity tests. It constructs six operator scratch groups only when used and retains finite literal-kind masks against an exact ordered vocabulary. A deliberate KindSum collision test prevents checksum-only reuse; dynamic predicates remain local, and the existing generation-drop assertion remains intact. The worker CLI now requires its explicit supported target to match the actual request and refuses missing or noncanonical known-rule phases. New rule source batches remain unadmitted pending canonical execution.
+
+The original Rust comparison still **fails**: wall **729→872 ms (1.196×)** and CPU **4,538→6,185 ms (1.363×)**; spike CPU is **1,457→1,524 ms (1.046×)**. The unchanged 1.15 gate stopped the second outer pair. The separate prior candidate observation was 1,249 ms wall / 9,766 ms CPU; this shows direction, not a paired component attribution. Current CPU sampling has zero lost samples; eager scratch defaults and kind-set work no longer appear above 0.5% self samples, while glob compilation accounts for 7.11% inclusive samples. The native warm-memory failure remains open. Catalog stress now runs but finds zero module-identity witnesses in its standalone fixture context; no counts or expectations were relaxed.
+
+The [full-Django diagnostic](lazy-workspace-manifest-2026-11-02.json), on the same 2,875 files and frozen 310 policies, completed every lifecycle mode on one worker/RAYON1:
+
+| Mode | Wall | CPU | Peak RSS |
+|---|---:|---:|---:|
+| Cold | 318.006 s | 317.883 s | 2.298 GB |
+| Retained CLI cache | 1.894 s | 1.894 s | 238 MB |
+| Edited, retained cache | 12.740 s | 12.737 s | 2.909 GB |
+| Edited, fresh cache | 318.391 s | 318.236 s | 2.248 GB |
+
+All complete reports match their prior canonical outputs, including edited-cache equality with fresh recomputation. Every mode accounts for 891,250 selected pairs, 890,943 evaluated, 307 explicit syntax skips and zero unknowns; none hit the 600-second cap. Python provider production bytes are unchanged from the earlier 88ea worker. The prior separate cold observation was 373.261 s / 3.172 GB; these are unpaired full observations, and edit memory is essentially unchanged. This run is explicitly diagnostic learning while Rust remains regressed, not overall acceptance or subsecond success. No new full corpus baseline was run.
+
 The later scoped-workspace candidate `50bf4ae1` removes the previous deep-accounting/retirement framework and keeps mutable scratch inside each rule invocation. Its source-bound checks pass 314 core tests, full Python conformance (including all 67 target-declared suite sources) and the unchanged zero-extra allocation guard. The native CLI replay had 76 passes and two failures: the warm-memory guard measured **109,039,616 > 100,000,000 bytes**, and new catalog queries contained unsupported comment syntax. All 28 corrected catalog queries now compile/typecheck; their full 1,000-occurrence stress run remains pending. No threshold or stress count changed.
 
 The original Rust cold path still fails: the first matched outer pair measured wall **751 → 1,249 ms (1.663×)**, CPU **4,601 → 9,766 ms (2.123×)** and spike CPU **1,406 → 2,246 ms (1.597×)**. The second pair was correctly stopped by the unchanged 1.15 gate. These use the same 244 recording assets, 47 rules, 10 workers, cold Discard path, five internal cold rounds and three spike rounds. Ancillary single-round cached edit was 363 ms versus the earlier unbuffered staging observation of 9,820 ms; that observation alone is not cache certification. No new full-Django run was made while Rust remains regressed.

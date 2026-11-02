@@ -61,6 +61,7 @@ fn compute(
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -124,8 +125,8 @@ fn numeric_order_and_diamond() -> Result<usize, OperatingError> {
             &[1, 2, 4, 24, 3],
         ],
     );
-    assert_eq!(scratch.dfs_graph.expanded, 4);
-    assert_eq!(scratch.dfs_graph.examined, 4);
+    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 4);
+    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 4);
     Ok(out.count.0)
 }
 fn cycles_preserve_every_edge_visit() -> Result<usize, OperatingError> {
@@ -154,8 +155,8 @@ fn cycles_preserve_every_edge_visit() -> Result<usize, OperatingError> {
             &[1, 2, 2, 22, 3],
         ],
     );
-    assert_eq!(scratch.dfs_graph.expanded, 2);
-    assert_eq!(scratch.dfs_graph.examined, 4);
+    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 2);
+    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 4);
     Ok(out.count.0)
 }
 fn parallel_distinct_orders_preserve_multiplicity() -> Result<usize, OperatingError> {
@@ -181,7 +182,7 @@ fn roots_are_independent_and_duplicates_are_deduplicated() -> Result<usize, Oper
         5,
         &[&[1, 1, 2, 12, 0], &[1, 2, 3, 23, 1], &[2, 2, 3, 23, 0]],
     );
-    assert_eq!(scratch.dfs_graph.expanded, 5);
+    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 5);
     Ok(out.count.0)
 }
 fn partitions_and_multiple_keys_are_exact() -> Result<usize, OperatingError> {
@@ -212,7 +213,7 @@ fn partitions_and_multiple_keys_are_exact() -> Result<usize, OperatingError> {
             &[200, 10, 1, 1, 5, 15, 0],
         ],
     );
-    assert_eq!(scratch.dfs_graph.examined, 3);
+    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 3);
     Ok(out.count.0)
 }
 fn entry_node_encodes_initial_empty_class_seen() -> Result<usize, OperatingError> {
@@ -304,8 +305,9 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     let edges = numbers(4, &[&[1, 2, 0, 12], &[2, 3, 0, 23]]);
     let first = compute(&operation(&[], &[]), &roots, &edges, &mut scratch)?;
     assert_eq!(first.count.0, 2);
-    let capacity = scratch.dfs_graph.adjacency.capacity();
+    let capacity = scratch.walk_scratch.dfs_graph.adjacency.capacity();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut Symbols::default(),
@@ -333,10 +335,13 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
         &mut scratch,
     )?;
     assert_eq!(empty.count.0, 0);
-    assert!(scratch.dfs_walk.visited.is_empty());
-    assert!(scratch.dfs_walk.frames.is_empty());
-    assert!(scratch.dfs_graph.adjacency.is_empty());
-    assert_eq!(scratch.dfs_graph.adjacency.capacity(), capacity);
+    assert!(scratch.walk_scratch.dfs_walk.visited.is_empty());
+    assert!(scratch.walk_scratch.dfs_walk.frames.is_empty());
+    assert!(scratch.walk_scratch.dfs_graph.adjacency.is_empty());
+    assert_eq!(
+        scratch.walk_scratch.dfs_graph.adjacency.capacity(),
+        capacity
+    );
     let next = compute(
         &operation(&[], &[]),
         &numbers(1, &[&[9]]),
@@ -369,9 +374,9 @@ fn deep_chain_and_work_are_bounded() -> Result<usize, OperatingError> {
     )?;
     let expected_count = usize::try_from(n).expect("positive chain length");
     assert_eq!(out.count.0, expected_count);
-    assert_eq!(scratch.dfs_graph.examined, expected_count);
-    assert_eq!(scratch.dfs_graph.expanded, expected_count + 1);
-    assert_eq!(scratch.dfs_walk.frames.len(), 0);
+    assert_eq!(scratch.walk_scratch.dfs_graph.examined, expected_count);
+    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, expected_count + 1);
+    assert_eq!(scratch.walk_scratch.dfs_walk.frames.len(), 0);
     Ok(out.count.0)
 }
 fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingError> {
@@ -402,9 +407,9 @@ fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingErro
     let out = compute(&operation(&[1], &[4]), &roots, &edges, &mut scratch)?;
     let expected_count = 4 * usize::try_from(n).expect("positive partition count");
     assert_eq!(out.count.0, expected_count);
-    assert_eq!(scratch.dfs_graph.examined, out.count.0);
-    assert_eq!(scratch.dfs_graph.expanded, expected_count);
-    assert!(scratch.dfs_walk.visited.len() <= 4);
+    assert_eq!(scratch.walk_scratch.dfs_graph.examined, out.count.0);
+    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, expected_count);
+    assert!(scratch.walk_scratch.dfs_walk.visited.len() <= 4);
     Ok(out.count.0)
 }
 fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<usize, OperatingError>
@@ -538,6 +543,7 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
     let mut scratch = OperatorScratch::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -581,8 +587,8 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
             })
         ));
     }
-    assert_eq!(scratch.dfs_graph.expanded, 6);
-    assert_eq!(scratch.dfs_graph.examined, 6);
+    assert_eq!(scratch.walk_scratch.dfs_graph.expanded, 6);
+    assert_eq!(scratch.walk_scratch.dfs_graph.examined, 6);
     Ok(out.count.0)
 }
 fn file_keys_keep_reused_nodes_separate() -> Result<usize, OperatingError> {
@@ -704,6 +710,7 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
         ..Table::default()
     };
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut Symbols::default(),

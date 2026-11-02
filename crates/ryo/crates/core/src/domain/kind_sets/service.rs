@@ -1,16 +1,14 @@
 //! The `kind_sets` service: the comparisons that name a kind, as sets of kinds, with no IO and no ports.
 
-use std::hash::BuildHasher as _;
-
 use ryo_language::domain::elements::service::{kind_names, kind_vocabulary};
 use ryo_language::domain::kind_index::service::of_kind;
 use ryo_language::domain::relations::constants::NO_SYMBOL;
-use ryo_language::domain::relations::types::{KindBits, TextHash};
+use ryo_language::domain::relations::types::KindBits;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 
 use super::constants::{NO_NAME, SET_OF_TEST};
-use super::types::KindScratch;
+use super::types::{KindScratch, PreparedKindTest, PreparedVocabulary};
 use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use crate::domain::comparing::collections::comparisons::equality::item::EqualityItem;
 use crate::domain::comparing::collections::comparisons::glob::item::GlobItem;
@@ -105,7 +103,7 @@ pub(crate) fn kind_tests(
     // A kind has the same name in every file of a language, and another language numbers its kinds otherwise: the sets are the
     // language's, found by what its kinds are called.
     let vocabulary = kind_vocabulary(tree.elements);
-    for comparison in comparisons {
+    for (ordinal, comparison) in comparisons.iter().enumerate() {
         let (
             Some(which),
             Operand::Column(ColumnIndex(1)),
@@ -117,31 +115,37 @@ pub(crate) fn kind_tests(
         let asked = KindTest {
             vocabulary,
             test: NamingTest(u8::try_from(which.0).unwrap_or(u8::MAX)),
-            text: TextHash(rustc_hash::FxBuildHasher.hash_one(&*named.0)),
+            text: named.0.clone(),
         };
         let set = if let Some(set) = scratch.names.get(&asked) {
             *set
         } else {
-            let mut made = KindSet::default();
-            made.bits
-                .0
-                .resize(kind_names(tree.elements).len().div_ceil(64), 0);
-            for (bits, symbol) in kind_names(tree.elements).iter().enumerate() {
-                let name = if *symbol == NO_SYMBOL {
-                    Some(NO_NAME)
-                } else {
-                    text_of(context.symbols, ByteSlice(context.source.0), *symbol)
-                        .map(|found| found.0)
-                };
-                if name.is_some_and(|name| {
-                    satisfies(comparison.test, TextView(name), TextView(&named.0)) == Verdict::Holds
-                }) {
-                    if let Some(word) = made.bits.0.get_mut(bits / 64) {
-                        *word |= 1 << (bits % 64);
-                    }
-                    made.kinds.extend(u16::try_from(bits).map(KindBits));
-                }
-            }
+            let key = PreparedKindTest {
+                comparisons: comparisons.as_ptr().addr(),
+                ordinal,
+                test: comparison.test,
+                text: named.0.clone(),
+            };
+            let made = if let Some(prepared) = context.prepared_kinds {
+                #[cfg(test)]
+                let _previous = prepared
+                    .lookups
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let mut masks = prepared
+                    .masks
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                std::sync::Arc::clone(masks.entry(key).or_insert_with(|| {
+                    #[cfg(test)]
+                    let _previous = prepared
+                        .builds
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, &named.0))
+                }))
+            } else {
+                let names = vocabulary_names(tree.elements, context.symbols, context.source);
+                std::sync::Arc::new(make_set(&names, comparison.test, &named.0))
+            };
             scratch.sets.push(made);
             let _: Option<KindSetPlace> = scratch
                 .names
@@ -223,4 +227,66 @@ pub(crate) fn named_kinds(scratch: &KindScratch) -> Option<&[KindBits]> {
         .map(|set| set_at(scratch, KindSetPlace(*set)))
         .min_by_key(|named| named.kinds.len())
         .map(|named| named.kinds.as_slice())
+}
+
+/// Resolve ordered names once at the file boundary; an absent spelling retains the old nonmatching behavior.
+fn vocabulary_names(
+    elements: &ryo_language::domain::elements::types::Elements,
+    symbols: &ryo_language::domain::symbols::types::Symbols,
+    source: crate::domain::table_texts::types::SourceView<'_>,
+) -> Vec<Option<Box<str>>> {
+    kind_names(elements)
+        .iter()
+        .map(|symbol| {
+            if *symbol == NO_SYMBOL {
+                Some(NO_NAME.into())
+            } else {
+                text_of(symbols, ByteSlice(source.0), *symbol).map(|text| text.0.into())
+            }
+        })
+        .collect()
+}
+
+/// Select one exact vocabulary generation. Replacing a generation drops all old literal metadata
+/// once the previous file's own handle ends; distinct file vocabularies cannot accumulate indefinitely.
+pub(crate) fn prepare_vocabulary(
+    previous: &mut Option<std::sync::Arc<PreparedVocabulary>>,
+    elements: &ryo_language::domain::elements::types::Elements,
+    symbols: &ryo_language::domain::symbols::types::Symbols,
+    source: crate::domain::table_texts::types::SourceView<'_>,
+) -> Option<std::sync::Arc<PreparedVocabulary>> {
+    if kind_names(elements).is_empty() {
+        return None;
+    }
+    let names = vocabulary_names(elements, symbols, source);
+    if let Some(prepared) = previous.as_ref().filter(|prepared| prepared.names == names) {
+        return Some(std::sync::Arc::clone(prepared));
+    }
+    let prepared = std::sync::Arc::new(PreparedVocabulary {
+        names,
+        masks: std::sync::Mutex::default(),
+        #[cfg(test)]
+        lookups: std::sync::atomic::AtomicUsize::new(0),
+        #[cfg(test)]
+        builds: std::sync::atomic::AtomicUsize::new(0),
+    });
+    *previous = Some(std::sync::Arc::clone(&prepared));
+    Some(prepared)
+}
+
+/// Evaluate a literal predicate once over a vocabulary, never over source rows.
+fn make_set(names: &[Option<Box<str>>], test: Test, literal: &str) -> KindSet {
+    let mut made = KindSet::default();
+    made.bits.0.resize(names.len().div_ceil(64), 0);
+    for (bits, name) in names.iter().enumerate() {
+        if name.as_ref().is_some_and(|name| {
+            satisfies(test, TextView(name), TextView(literal)) == Verdict::Holds
+        }) {
+            if let Some(word) = made.bits.0.get_mut(bits / 64) {
+                *word |= 1 << (bits % 64);
+            }
+            made.kinds.extend(u16::try_from(bits).map(KindBits));
+        }
+    }
+    made
 }

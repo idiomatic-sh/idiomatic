@@ -36,17 +36,17 @@ pub(crate) fn filter_of<'x>(
 ) -> FilterScratch<'x> {
     FilterScratch {
         kinds: KindScratch {
-            names: std::mem::take(&mut context.scratch.kind_names),
-            sets: std::mem::take(&mut context.scratch.kind_sets),
-            tests: std::mem::take(&mut context.scratch.kind_tests),
+            names: std::mem::take(&mut context.scratch.select_scratch.kind_names),
+            sets: std::mem::take(&mut context.scratch.select_scratch.kind_sets),
+            tests: std::mem::take(&mut context.scratch.select_scratch.kind_tests),
         },
         needed: std::mem::take(&mut context.scratch.needed),
         cells: [Value::Flag(Flag::Lowered); 5],
         names: NameCount(name_count(context.symbols).0),
         comparisons,
-        gate: std::mem::take(&mut context.scratch.gate),
-        text_ok: std::mem::take(&mut context.scratch.text_ok),
-        rest: std::mem::take(&mut context.scratch.rest),
+        gate: std::mem::take(&mut context.scratch.select_scratch.gate),
+        text_ok: std::mem::take(&mut context.scratch.select_scratch.text_ok),
+        rest: std::mem::take(&mut context.scratch.select_scratch.rest),
     }
 }
 
@@ -80,13 +80,13 @@ pub(crate) fn take_filter<'x>(
 
 /// Gives back what a filter took.
 pub(crate) fn give_filter(filter: FilterScratch<'_>, context: &mut OperatorContext<'_>) {
-    context.scratch.kind_names = filter.kinds.names;
-    context.scratch.kind_sets = filter.kinds.sets;
-    context.scratch.kind_tests = filter.kinds.tests;
+    context.scratch.select_scratch.kind_names = filter.kinds.names;
+    context.scratch.select_scratch.kind_sets = filter.kinds.sets;
+    context.scratch.select_scratch.kind_tests = filter.kinds.tests;
     context.scratch.needed = filter.needed;
-    context.scratch.gate = filter.gate;
-    context.scratch.text_ok = filter.text_ok;
-    context.scratch.rest = filter.rest;
+    context.scratch.select_scratch.gate = filter.gate;
+    context.scratch.select_scratch.text_ok = filter.text_ok;
+    context.scratch.select_scratch.rest = filter.rest;
 }
 
 /// Whether the element at `found` is an answer.

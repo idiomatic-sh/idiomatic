@@ -65,6 +65,7 @@ fn subject((names, binding): Input) -> Result<Value, Failure> {
     let bound: Vec<ParameterBinding> = binding.into_iter().collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &bound,
         symbols: &mut symbols,

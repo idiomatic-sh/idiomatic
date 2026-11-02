@@ -109,9 +109,9 @@ pub(crate) fn take_state(
     other.clear();
     let mut needed = std::mem::take(&mut context.scratch.needed);
     let mut kinds = KindScratch {
-        names: std::mem::take(&mut context.scratch.kind_names),
-        sets: std::mem::take(&mut context.scratch.kind_sets),
-        tests: std::mem::take(&mut context.scratch.kind_tests),
+        names: std::mem::take(&mut context.scratch.select_scratch.kind_names),
+        sets: std::mem::take(&mut context.scratch.select_scratch.kind_sets),
+        tests: std::mem::take(&mut context.scratch.select_scratch.kind_tests),
     };
     needed_of(comparisons, &mut needed);
     kind_tests(tree, comparisons, context, &mut kinds);
@@ -131,14 +131,14 @@ pub(crate) fn take_state(
     } else {
         KindsBy::Nothing
     };
-    let mut gate = std::mem::take(&mut context.scratch.gate);
-    let mut text_ok = std::mem::take(&mut context.scratch.text_ok);
+    let mut gate = std::mem::take(&mut context.scratch.select_scratch.gate);
+    let mut text_ok = std::mem::take(&mut context.scratch.select_scratch.text_ok);
     text_gate(tree, comparisons, &mut gate);
     text_ok.0.clear();
     if !gate.0.is_empty() {
         text_ok.0.resize(names.0 + 1, 0);
     }
-    let mut rest = std::mem::take(&mut context.scratch.rest);
+    let mut rest = std::mem::take(&mut context.scratch.select_scratch.rest);
     undecided(comparisons, &gate, kinds_by, &mut rest);
     needed_of_rest(comparisons, &rest, &mut needed);
     TreeState {
@@ -150,7 +150,7 @@ pub(crate) fn take_state(
         text_ok,
         rest,
         stretched: Vec::new(),
-        candidates: std::mem::take(&mut context.scratch.candidates),
+        candidates: std::mem::take(&mut context.scratch.select_scratch.candidates),
         cells: [Value::Flag(Flag::Lowered); 5],
         missing,
     }
@@ -158,15 +158,15 @@ pub(crate) fn take_state(
 
 /// Gives back what was taken.
 pub(crate) fn give_back(state: TreeState, context: &mut OperatorContext<'_>) {
-    context.scratch.gate = state.gate;
-    context.scratch.text_ok = state.text_ok;
+    context.scratch.select_scratch.gate = state.gate;
+    context.scratch.select_scratch.text_ok = state.text_ok;
     context.scratch.other = state.other;
     context.scratch.needed = state.needed;
-    context.scratch.rest = state.rest;
-    context.scratch.candidates = state.candidates;
-    context.scratch.kind_names = state.kinds.names;
-    context.scratch.kind_sets = state.kinds.sets;
-    context.scratch.kind_tests = state.kinds.tests;
+    context.scratch.select_scratch.rest = state.rest;
+    context.scratch.select_scratch.candidates = state.candidates;
+    context.scratch.select_scratch.kind_names = state.kinds.names;
+    context.scratch.select_scratch.kind_sets = state.kinds.sets;
+    context.scratch.select_scratch.kind_tests = state.kinds.tests;
 }
 
 /// Passes on the rows that the row `left_row` of the left input finds in the tree, and the filter admits.

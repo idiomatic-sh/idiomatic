@@ -49,6 +49,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -165,15 +166,16 @@ fn metadata_only() -> Result<Value, Failure> {
     let mut scratch = OperatorScratch::default();
     let sentinel = Cell::Number(Integer(99));
     scratch.row.push(sentinel);
-    scratch.right.kinds.push(CellKind::Number);
-    scratch.right.cells.push(sentinel);
-    scratch.right.count.0 = 1;
-    let _inserted = scratch.walk.visited.insert(sentinel);
+    scratch.join_scratch.right.kinds.push(CellKind::Number);
+    scratch.join_scratch.right.cells.push(sentinel);
+    scratch.join_scratch.right.count.0 = 1;
+    let _inserted = scratch.walk_scratch.walk.visited.insert(sentinel);
     let row_before = scratch.row.clone();
-    let right_before = scratch.right.clone();
+    let right_before = scratch.join_scratch.right.clone();
     let row_capacity = scratch.row.capacity();
     let mut memo = vec![crate::domain::operating::types::Memo::Unknown];
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -215,9 +217,16 @@ fn metadata_only() -> Result<Value, Failure> {
     assert_eq!(context.source.0, SOURCE);
     assert_eq!(context.scratch.row, row_before);
     assert_eq!(context.scratch.row.capacity(), row_capacity);
-    assert_eq!(context.scratch.right, right_before);
-    assert_eq!(context.scratch.walk.visited.len(), 1);
-    assert!(context.scratch.walk.visited.contains(&sentinel));
+    assert_eq!(context.scratch.join_scratch.right, right_before);
+    assert_eq!(context.scratch.walk_scratch.walk.visited.len(), 1);
+    assert!(
+        context
+            .scratch
+            .walk_scratch
+            .walk
+            .visited
+            .contains(&sentinel)
+    );
     assert_eq!(context.memo.len(), 1);
     assert_eq!(
         layout.kinds,
@@ -239,6 +248,7 @@ fn probe_order() -> Result<Value, Failure> {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -295,6 +305,7 @@ fn native_frontier() -> Result<Value, Failure> {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -342,6 +353,7 @@ fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -425,6 +437,7 @@ fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,

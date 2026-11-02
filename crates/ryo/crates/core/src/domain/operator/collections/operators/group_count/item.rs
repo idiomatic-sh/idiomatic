@@ -43,12 +43,19 @@ impl OperatorsItem for GroupCountItem {
         let rows = first(inputs)?;
         let OperatorScratch {
             row,
-            key,
-            order,
-            groups,
-            right: counted,
+            join_scratch,
+            groups_scratch,
             ..
         } = &mut *context.scratch;
+        let crate::domain::table_scratch::types::JoinScratch {
+            key,
+            order,
+            right: counted,
+            ..
+        } = &mut **join_scratch;
+        let crate::domain::table_scratch::types::GroupsScratch { groups, .. } =
+            &mut **groups_scratch;
+
         let counted = table_in(rows, counted, row);
         count_groups(
             counted,
@@ -100,11 +107,11 @@ impl OperatorsItem for GroupCountItem {
         let StepRoom {
             scratch,
             out,
-            counts,
-            pairs,
             kinds,
             ..
         } = room;
+        let crate::domain::table_scratch::types::GroupsScratch { counts, pairs, .. } =
+            &mut *scratch.groups_scratch;
         // The groups are found as the rows come, each by its keys, in the order they first appear.
         kinds.clear();
         kinds.extend_from_slice(ins.kinds(InputPlace(0))?);
@@ -122,9 +129,9 @@ impl OperatorsItem for GroupCountItem {
         }
         counts.0.clear();
         pairs.clear();
-        scratch.seen.clear();
+        scratch.join_scratch.seen.clear();
         let mut probe = std::mem::take(&mut scratch.other);
-        let seen = &mut scratch.seen;
+        let seen = &mut scratch.join_scratch.seen;
         let outcome = ins.stream(
             InputPlace(0),
             context,

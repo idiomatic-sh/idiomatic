@@ -43,6 +43,8 @@ pub(crate) enum Family {
 /// makes to the file's names.
 #[derive(Debug)]
 pub(crate) struct OperatorContext<'a> {
+    /// Finite prepared literal-kind metadata for the current exact vocabulary.
+    pub prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
     /// Complete stable stored indexes owned only by the current physical file read.
     pub stored_indexes: Option<&'a mut crate::domain::stored_indexes::types::FileIndexes>,
 
@@ -88,12 +90,6 @@ pub(crate) struct Room {
     pub out: Table,
     /// The columns of the input the step is reading one row at a time.
     pub kinds: Vec<CellKind>,
-    /// What a group has counted, group by group.
-    pub counts: GroupCounts,
-    /// The values already counted for a group, by the group.
-    pub pairs: hashbrown::HashSet<GroupValue>,
-    /// The hash of each value of a group, by the group.
-    pub hashed: Vec<GroupHash>,
 }
 
 /// Where the rows of a step go as they are made, one at a time. The context is the one of the step that makes them; the

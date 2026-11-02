@@ -140,6 +140,7 @@ fn subject(_input: Input) -> Result<Value, Failure> {
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        prepared_kinds: None,
         stored_indexes: None,
         bindings: &[],
         symbols: &mut symbols,
@@ -161,6 +162,7 @@ fn subject(_input: Input) -> Result<Value, Failure> {
         )?;
         {
             let mut actual = OperatorContext {
+                prepared_kinds: None,
                 stored_indexes: Some(&mut cache),
                 bindings: context.bindings,
                 symbols: &mut *context.symbols,
@@ -206,6 +208,7 @@ fn subject(_input: Input) -> Result<Value, Failure> {
     readable.set(false);
     let refused = {
         let mut actual = OperatorContext {
+            prepared_kinds: None,
             stored_indexes: Some(&mut cache),
             bindings: context.bindings,
             symbols: &mut *context.symbols,
