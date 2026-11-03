@@ -28,6 +28,8 @@ macro_rules! module_identity {
                 module_name ModuleName: Symbol => Symbol;
                 /// Raw containing package directory basename, preserving punctuation and case.
                 package_name PackageName: Symbol => Symbol;
+                /// Raw highest contiguous package directory basename, preserving punctuation and case.
+                package_root_name PackageRootName: Symbol => Symbol;
             }
         }
     };

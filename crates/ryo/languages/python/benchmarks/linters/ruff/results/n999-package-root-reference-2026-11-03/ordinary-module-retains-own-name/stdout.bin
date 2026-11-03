@@ -1,0 +1,21 @@
+[
+  {
+    "cell": null,
+    "code": "N999",
+    "end_location": {
+      "column": 1,
+      "row": 1
+    },
+    "filename": "/tmp/tmpv89bimt7/inventory/outer/child/BadModule.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Invalid module name: 'BadModule'",
+    "name": "invalid-module-name",
+    "noqa_row": 1,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-module-name"
+  }
+]

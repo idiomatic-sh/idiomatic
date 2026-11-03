@@ -19,12 +19,14 @@ pub(super) fn expected() -> ManifestExpected {
                 path: name("lib_one.__init__"),
                 module_name: name("__init__"),
                 package_name: name("lib_one"),
+                package_root_name: name("lib_one"),
             },
             ModuleIdentityExpectedRow {
                 file: file("packages/lib_one/src/lib_one/workers.py"),
                 path: name("lib_one.workers"),
                 module_name: name("workers"),
                 package_name: name("lib_one"),
+                package_root_name: name("lib_one"),
             },
         ])
         .rows(&[

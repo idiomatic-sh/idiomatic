@@ -13,7 +13,8 @@ fn row_words_preserve_column_order() {
             path: Symbol(5),
             module_name: Symbol(7),
             package_name: Symbol(9),
+            package_root_name: Symbol(11),
         }),
-        [Bits(3), Bits(5), Bits(7), Bits(9)]
+        [Bits(3), Bits(5), Bits(7), Bits(9), Bits(11)]
     );
 }
