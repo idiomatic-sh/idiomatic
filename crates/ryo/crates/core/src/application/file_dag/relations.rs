@@ -385,6 +385,10 @@ impl RelationOwner {
     ) -> Result<(), OperatingError> {
         self.generation(result)?;
         if matches!(result.body, RelationBody::Source(_)) || result.producer.get().is_some() {
+            self.producer_populations
+                .borrow_mut()
+                .entry(node.0)
+                .or_insert(self.result_population(result).0);
             return Ok(());
         }
         let mut known = self.producer_populations.borrow_mut();
@@ -397,6 +401,16 @@ impl RelationOwner {
     }
     pub(super) fn pin_derived(&self, result: &RelationResult) {
         self.derived.pin(self.result_population(result));
+    }
+    /// Global consumer cancellation need not retain the producer payload.
+    /// A generation clear has already released all pins and removed this map.
+    pub(super) fn release_derived_producer(
+        &self,
+        node: crate::domain::file_program::types::NodeId,
+    ) {
+        if let Some(population) = self.producer_populations.borrow().get(&node.0).copied() {
+            self.derived.release(PopulationId(population));
+        }
     }
     pub(super) fn release_derived(&self, result: &RelationResult) {
         self.derived.release(self.result_population(result));

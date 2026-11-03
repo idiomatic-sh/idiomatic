@@ -108,12 +108,27 @@ impl RelationOwner {
     ) -> Result<PublishedInput, OperatingError> {
         self.leased_publication(Arc::clone(retained.record()), retained.resources.clone())
     }
+    fn finalized_backings(record: &RelationResult) -> bool {
+        match &record.body {
+            RelationBody::Computed(_) => true,
+            RelationBody::Selected { source, .. } => Self::finalized_backings(source),
+            RelationBody::Source(_) => {
+                record.normalized.get().is_some()
+                    || matches!(record.inspected.get(), Some(Ok(PhysicalShape::Complete)))
+            }
+        }
+    }
     pub(in crate::application::file_dag) fn retain_publication(
         &self,
         input: &PublishedInput,
         limit: usize,
     ) -> Result<Option<RetainedPublication>, OperatingError> {
         let record = Arc::clone(input.record());
+        // Optional records must have an immutable backing set. Source shape is
+        // still lazy: declining retention must not inspect or normalize it.
+        if !Self::finalized_backings(&record) {
+            return Ok(None);
+        }
         let mut backings = self.backings(&record);
         Self::resource_backings(&input.resources, &mut backings);
         let Some(lease) = self.derived.node_optional_lease(&backings, limit)? else {

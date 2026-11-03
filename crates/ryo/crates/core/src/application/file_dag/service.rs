@@ -119,10 +119,10 @@ impl FileDagExecution {
         if self.remaining[node.0] != 0 {
             return;
         }
+        if self.executions[node.0] > 0 && self.graph.derived_sources[node.0] {
+            self.relations.release_derived_producer(node);
+        }
         if let Some(table) = self.ready[node.0].take() {
-            if self.graph.derived_sources[node.0] {
-                self.relations.release_derived(table.as_ref());
-            }
             let size = bytes(&table);
             self.retained_bytes = self.retained_bytes.saturating_sub(size);
             if self.required[node.0].is_some() {
@@ -238,6 +238,12 @@ impl FileDagExecution {
             }
         }
         self.pin_required(id, (table).clone());
+        // Global consumers own the derived population independently of whether
+        // this producer's Table fits the optional result cache. Rule-local
+        // required pins remain a separate, symmetric lifetime.
+        if first_global_execution && self.remaining[id.0] > 0 && self.graph.derived_sources[id.0] {
+            self.relations.pin_derived(table.as_ref());
+        }
         let size = bytes(&table);
         let retained = if self.remaining[id.0] > 0 {
             self.relations.retain_publication(&table, self.limit)?
@@ -247,9 +253,6 @@ impl FileDagExecution {
         if let Some(retained) = retained {
             self.retained_bytes += size;
             self.peak_bytes = self.peak_bytes.max(self.retained_bytes);
-            if self.graph.derived_sources[id.0] {
-                self.relations.pin_derived(table.as_ref());
-            }
             self.ready[id.0] = Some(retained);
             if self.required[id.0].is_some() {
                 self.overlap_bytes = self.overlap_bytes.saturating_add(size);

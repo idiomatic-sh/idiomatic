@@ -389,7 +389,10 @@ where
                 return Ok(table);
             }
 
-            if let Some(selected) = CompactInput::new(stepper).selected(StepPlace(id), context)? {
+            if stepper.counting == Counting::DoesNotCount
+                && let Some(selected) =
+                    CompactInput::new(stepper).selected(StepPlace(id), context)?
+            {
                 return Ok(selected);
             }
             if stepper.layout.kept.0.get(id) == Some(&true)

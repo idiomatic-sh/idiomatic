@@ -388,3 +388,5 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
 }
 
 mod reuse;
+
+mod normalization_retention;

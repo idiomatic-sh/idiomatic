@@ -97,12 +97,17 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         "different output semantics must execute both consumers"
     );
     let roots = [graph.cuts[0][2].unwrap(), graph.cuts[1][2].unwrap()];
-    for retained_budget in [0, LIMIT] {
+    for (retained_budget, result_budget) in
+        [(0, None), (LIMIT, None), (0, Some(0)), (LIMIT, Some(0))]
+    {
         let dag = std::cell::RefCell::new(FileDagExecution::new(
             (graph).clone(),
             |_| true,
             &[Relation::LanguageTarget],
         ));
+        if let Some(limit) = result_budget {
+            dag.borrow_mut().limit = limit;
+        }
         let columns = [
             FactColumn(vec![to_bits(Value::File(FileId(1))).0; 2]),
             FactColumn(vec![to_bits(number(2)).0, to_bits(number(3)).0]),
@@ -160,10 +165,17 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
             let mut table = Table::default();
             crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());
             outputs.push(table);
+            dag.borrow_mut().finish_rule(rule);
+            if result_budget == Some(0) {
+                assert!(
+                    dag.borrow().ready.iter().all(Option::is_none),
+                    "zero node budget never retains producer payloads"
+                );
+            }
             if rule == 0 {
                 assert!(
                     dag.relation_owner().derived.working_bytes() > 0,
-                    "future live consumer owns the required index even without optional payload budget"
+                    "future live consumer owns required index: view budget={retained_budget}, node budget={result_budget:?}"
                 );
             }
         }
@@ -190,3 +202,5 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         assert_eq!(dag.relation_owner().derived.owned_bytes(), 0);
     }
 }
+
+mod cancellation;

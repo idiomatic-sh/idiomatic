@@ -32,6 +32,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Real Feed/hold and exported/frontier boundaries, with two distinct plans sharing one generation.
 fn subject(distinct: Input) -> Result<Value, Failure> {
+    subject_with_counting(
+        distinct,
+        crate::domain::lowering::types::Counting::DoesNotCount,
+    )
+}
+
+/// Exercise the same real selected-input fixture with explicit work accounting.
+fn subject_with_counting(
+    distinct: Input,
+    counting: crate::domain::lowering::types::Counting,
+) -> Result<Value, Failure> {
     use crate::application::file_dag::derived::selection::prepare_request;
     use crate::application::file_dag::pipeline::service::{
         evaluate_file, evaluate_file_with_executor,
@@ -148,6 +159,8 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
     let mut compact = pool_for(&plans);
     let mut baseline_prepared = crate::domain::operator::types::PreparedPool::default();
     let mut prepared = crate::domain::operator::types::PreparedPool::default();
+    baseline_prepared.counting = counting;
+    prepared.counting = counting;
     let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
         &plans,
         &[vec![], vec![]],
@@ -232,6 +245,20 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
         assert_eq!(compact.frontier, baseline.frontier);
         assert_eq!(compact.steps[2].count.0, 8);
         assert!(compact.selected[0].is_some());
+        if counting == crate::domain::lowering::types::Counting::Counts {
+            assert_eq!(
+                prepared.fed, baseline_prepared.fed,
+                "selected-input work is counted exactly once"
+            );
+            assert!(
+                prepared
+                    .fed
+                    .iter()
+                    .flatten()
+                    .any(|rows| rows.0.iter().any(|count| *count > 0)),
+                "the counted path must record actual fed rows"
+            );
+        }
         assert!(compact.steps[0].cells.is_empty());
         assert!(compact.steps[1].cells.is_empty());
         assert_eq!(
@@ -315,3 +342,6 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[path = "counting_test.rs"]
+mod counting_test;

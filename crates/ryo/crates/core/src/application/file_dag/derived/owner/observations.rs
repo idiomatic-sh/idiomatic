@@ -111,4 +111,27 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn shared_index_backings(&self) -> usize {
         self.ledger.borrow().backing_count(11)
     }
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn publication_ownership_bytes(
+        &self,
+    ) -> (usize, usize, usize) {
+        let state = self.ledger.borrow().snapshot();
+        (
+            state.required_bytes,
+            state.node_optional_bytes,
+            state.unique_bytes,
+        )
+    }
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn view_weak(
+        &self,
+        kind: DerivedKind,
+    ) -> Option<std::sync::Weak<DerivedStorage>> {
+        self.state
+            .borrow()
+            .entries
+            .values()
+            .find(|entry| entry._plan.kind == kind)
+            .map(|entry| entry.weak.clone())
+    }
 }
