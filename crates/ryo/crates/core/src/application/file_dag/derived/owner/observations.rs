@@ -9,6 +9,23 @@ pub(in crate::application::file_dag) struct IndexObservation {
     pub reuses: u64,
 }
 impl DerivedOwner {
+    #[cfg(test)]
+    pub(crate) fn index_fixture_state(&self) -> (u64, u64, usize, bool) {
+        self.backend
+            .borrow()
+            .as_ref()
+            .map_or((0, 0, 0, true), |cache| {
+                (
+                    cache.builds,
+                    cache.reuses,
+                    cache.entries.len(),
+                    cache
+                        .entries
+                        .iter()
+                        .all(|entry| Arc::strong_count(&entry.index) == 1),
+                )
+            })
+    }
     pub(in crate::application::file_dag) fn index_observation(&self) -> IndexObservation {
         self.backend
             .borrow()

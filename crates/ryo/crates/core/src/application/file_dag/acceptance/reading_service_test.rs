@@ -1,5 +1,34 @@
 //! The `reading` service's cases, on values alone.
-use crate::application::file_dag::rule_execution::evaluate_rule_with_graph as evaluate_rule;
+use crate::application::file_dag::rule_execution::{evaluate_rule, evaluate_rule_with_dag};
+
+fn prepared_dag(
+    plans: &[Plan],
+    setting: &VisitSetting<'_>,
+    pool: &crate::domain::operator::types::PreparedPool,
+) -> std::cell::RefCell<crate::application::file_dag::types::FileDagExecution> {
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        plans,
+        &setting.operators,
+    ));
+    let mut dag = crate::application::file_dag::types::FileDagExecution::new_for_population(
+        graph,
+        |_| true,
+        &[Relation::Function],
+        true,
+    );
+    // Keep physical index reuse while declining optional whole-node retention.
+    dag.limit = 0;
+    dag.prepare_resources(
+        true,
+        &[Relation::Function],
+        &[],
+        &[Relation::Function],
+        plans,
+        pool,
+        |_| true,
+    );
+    std::cell::RefCell::new(dag)
+}
 
 use crate::domain::table_words::service::pack;
 use crate::domain::table_words::types::WordSlice;
@@ -238,7 +267,6 @@ fn evaluate(plan: Plan) -> Result<Value, Failure> {
         &setting,
         RuleIndex(0),
         FileId(10),
-        None,
         &relations,
         &Default::default(),
     )?);
@@ -461,7 +489,6 @@ fn duplicate_resident_join_plan() -> Plan {
 
 #[test]
 fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_rows() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let mut join = duplicate_resident_join_plan();
     // Capture the same emitted multiset at its explicit cross-file ownership boundary.
     join.frontier = vec![PlanInput::Step(StepId(0))];
@@ -483,13 +510,12 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
     let ids = [RuleId("first".into()), RuleId("second".into())];
     let bindings = [Vec::new(), Vec::new()];
     let setting = setting(&placed, &plans, &[], &ids, &bindings);
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("audited physical generation");
-    let first_frontier = evaluate_rule(
+    let dag = prepared_dag(&plans, &setting, &tables.pool);
+    let first_frontier = evaluate_rule_with_dag(
         &mut tables,
         &setting,
         RuleIndex(0),
         FileId(10),
-        Some(&mut cache),
         &|relation| {
             reads.set(reads.get() + 1);
             (relation == Relation::Function).then_some(ColumnsView {
@@ -498,30 +524,31 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
             })
         },
         &Default::default(),
+        None,
+        Some(&dag),
     )
     .expect("first rule");
     // Pure metadata layout acquires no index; only the actual rule execution does.
     assert_eq!(
-        (cache.builds, cache.reuses),
+        (
+            dag.borrow().index_fixture_state().0,
+            dag.borrow().index_fixture_state().1
+        ),
         (1, 0),
         "one real execution, no schema-stage acquisition"
     );
     let first = first_frontier.first().expect("owned emitted frontier");
     let first_pointer = first.cells.as_ptr();
     assert!(
-        cache
-            .entries
-            .iter()
-            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1),
+        dag.borrow().index_fixture_state().3,
         "local room handles are dropped before frontier retention"
     );
     let reads_after_first = reads.get();
-    let second_frontier = evaluate_rule(
+    let second_frontier = evaluate_rule_with_dag(
         &mut tables,
         &setting,
         RuleIndex(1),
         FileId(10),
-        Some(&mut cache),
         &|relation| {
             reads.set(reads.get() + 1);
             (relation == Relation::Function).then_some(ColumnsView {
@@ -530,6 +557,8 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
             })
         },
         &Default::default(),
+        None,
+        Some(&dag),
     )
     .expect("second rule");
     assert_eq!(second_frontier.first(), Some(first));
@@ -538,12 +567,7 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
         first_pointer,
         "application-owned frontier survives the next rule without cloning"
     );
-    assert!(
-        cache
-            .entries
-            .iter()
-            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1)
-    );
+    assert!(dag.borrow().index_fixture_state().3);
     assert_eq!(tables.rendered.total.0, 10);
     let displayed = |row| {
         crate::domain::render::service::lent_row(
@@ -566,7 +590,10 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
         "duplicate keys preserve the ordered join multiset"
     );
     assert_eq!(
-        (cache.builds, cache.reuses),
+        (
+            dag.borrow().index_fixture_state().0,
+            dag.borrow().index_fixture_state().1
+        ),
         (1, 1),
         "two real executions share one physical index; layouts do not execute"
     );
@@ -602,7 +629,6 @@ fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
             &setting,
             RuleIndex(0),
             FileId(10),
-            None,
             &|relation| {
                 (relation == Relation::Function).then_some(ColumnsView {
                     kinds: KINDS,
@@ -677,7 +703,6 @@ fn evaluation_and_render_errors_do_not_leave_mutable_state_in_the_next_rule() {
             &setting,
             RuleIndex(0),
             FileId(10),
-            None,
             &|relation| {
                 (relation == Relation::Function).then_some(ColumnsView {
                     kinds: KINDS,
@@ -694,7 +719,6 @@ fn evaluation_and_render_errors_do_not_leave_mutable_state_in_the_next_rule() {
             &setting,
             RuleIndex(1),
             FileId(10),
-            None,
             &|relation| {
                 (relation == Relation::Function).then_some(ColumnsView {
                     kinds: KINDS,
@@ -710,7 +734,6 @@ fn evaluation_and_render_errors_do_not_leave_mutable_state_in_the_next_rule() {
         &setting,
         RuleIndex(2),
         FileId(10),
-        None,
         &|relation| {
             (relation == Relation::Function).then_some(ColumnsView {
                 kinds: KINDS,
@@ -762,7 +785,6 @@ fn local_matcher_caches_preserve_empty_and_executed_bound_pattern_errors() {
             &setting,
             RuleIndex(0),
             FileId(10),
-            None,
             &|relation| {
                 (relation == Relation::Function).then_some(ColumnsView {
                     kinds: KINDS,
@@ -788,7 +810,6 @@ fn local_matcher_caches_preserve_empty_and_executed_bound_pattern_errors() {
             &setting,
             RuleIndex(0),
             FileId(10),
-            None,
             &|_| None,
             &Default::default()
         )
@@ -799,7 +820,6 @@ fn local_matcher_caches_preserve_empty_and_executed_bound_pattern_errors() {
 
 #[test]
 fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
     let mut good = duplicate_resident_join_plan();
     good.frontier = vec![PlanInput::Step(StepId(0))];
     let mut bad = good.clone();
@@ -819,38 +839,35 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
     )))
     .0;
     let columns = [FactColumn(vec![main; 2]), FactColumn(vec![10, 11])];
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("file-owned cache");
+    let dag = prepared_dag(&plans, &setting, &tables.pool);
     assert!(
-        evaluate_rule(
+        evaluate_rule_with_dag(
             &mut tables,
             &setting,
             RuleIndex(0),
             FileId(10),
-            Some(&mut cache),
             &|relation| {
                 (relation == Relation::Function).then_some(ColumnsView {
                     kinds: KINDS,
                     columns: &columns,
                 })
             },
-            &Default::default()
+            &Default::default(),
+            None,
+            Some(&dag),
         )
         .is_err()
     );
-    assert!(!cache.entries.is_empty());
+    assert!(dag.borrow().index_fixture_state().2 > 0);
     assert!(
-        cache
-            .entries
-            .iter()
-            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1),
+        dag.borrow().index_fixture_state().3,
         "error drops every invocation-owned index handle"
     );
-    let frontier = evaluate_rule(
+    let frontier = evaluate_rule_with_dag(
         &mut tables,
         &setting,
         RuleIndex(1),
         FileId(10),
-        Some(&mut cache),
         &|relation| {
             (relation == Relation::Function).then_some(ColumnsView {
                 kinds: KINDS,
@@ -858,13 +875,10 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
             })
         },
         &Default::default(),
+        None,
+        Some(&dag),
     )
     .expect("fresh invocation");
     assert_eq!(frontier[0].count.0, 4);
-    assert!(
-        cache
-            .entries
-            .iter()
-            .all(|entry| std::sync::Arc::strong_count(&entry.index) == 1)
-    );
+    assert!(dag.borrow().index_fixture_state().3);
 }

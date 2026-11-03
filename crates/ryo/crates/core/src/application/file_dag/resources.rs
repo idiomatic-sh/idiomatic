@@ -67,6 +67,10 @@ pub(crate) fn appended_values(
 
 impl super::types::FileDagExecution {
     #[cfg(test)]
+    pub(crate) fn index_fixture_state(&self) -> (u64, u64, usize, bool) {
+        self.relations.derived.index_fixture_state()
+    }
+    #[cfg(test)]
     pub(crate) fn resource_eligibility(
         &self,
         relation: ryo_language::domain::relations::types::Relation,

@@ -801,8 +801,7 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
     });
 
     let facts = FactsFake::default().worker().expect("facts");
-    let enabled = tables.language.is_some()
-        && facts.resident_stability() == crate::outbound::facts::types::ResidentStability::Stable;
+    let enabled = FileAnalysis::resource_generation_enabled(&tables, facts.as_ref());
     let findings = prepared_resource_state(enabled, &tables.partials);
     let rows = prepared_resource_state(enabled, &tables.partials);
     assert_eq!(findings, rows);
@@ -813,7 +812,10 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
     );
     tables.language = None;
     assert_eq!(
-        prepared_resource_state(tables.language.is_some(), &[]),
+        prepared_resource_state(
+            FileAnalysis::resource_generation_enabled(&tables, facts.as_ref()),
+            &[]
+        ),
         (false, false)
     );
 }
@@ -856,8 +858,7 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
         .expect("first column")
         .0
         .clone();
-    let enabled = tables.language.is_some()
-        && facts.resident_stability() == crate::outbound::facts::types::ResidentStability::Stable;
+    let enabled = FileAnalysis::resource_generation_enabled(&tables, &facts);
     assert_eq!(prepared_resource_state(enabled, &[]), (false, false));
     let second = facts
         .rows(Relation::Function)

@@ -131,6 +131,9 @@ impl std::fmt::Debug for FileAnalysis {
 }
 
 impl FileAnalysis {
+    fn resource_generation_enabled(tables: &Tables, facts: &dyn FactsWorker) -> bool {
+        tables.language.is_some() && facts.resident_stability() == ResidentStability::Stable
+    }
     /// Admit one exact linked-provider selection before parsing or retained-data reuse.
     pub(crate) fn validate_source_language(
         &self,
@@ -459,8 +462,7 @@ impl FileAnalysis {
         });
         if let Some(dag) = &file_dag {
             dag.borrow().prepare_resources(
-                tables.language.is_some()
-                    && facts.resident_stability() == ResidentStability::Stable,
+                Self::resource_generation_enabled(tables, facts),
                 active_wanted.as_ref(),
                 &physical_partials,
                 &selectable,
