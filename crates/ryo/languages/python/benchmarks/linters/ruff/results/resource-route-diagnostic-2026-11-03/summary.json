@@ -87,6 +87,8 @@
     "source": "frozen Django310 django/contrib/admin/options.py",
     "thread_count": 1
   },
+  "review_sha256": "62bc6605402e57d4da8b0aba46959f64ec003c3f3001ebab3a702e61213cd3bd",
+  "review_verdict": "pass; nonblocking coverage gaps retained in epic",
   "routes": {
     "admission_request": {
       "calls": 1405,
@@ -221,6 +223,7 @@
       "successes": 0
     }
   },
+  "rust_language_runtime_verified": false,
   "schema": "resource-route-diagnostic/v1",
   "source_fix_sha256": "9cb444dd2b25d88fd25c24012fb3d3dd88fd812afa91b72a682f0851104232ce",
   "source_patch_sha256": "07989e4e17af4eef995dae526f684e6e96f5f2563c9e3f112f29cb29b37b3d13",
