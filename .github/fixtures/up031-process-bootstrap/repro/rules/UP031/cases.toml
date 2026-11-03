@@ -1,0 +1,17 @@
+[[cases]]
+name = "escaped-annotation-modulo"
+comparison = "full"
+files = { "case.py" = "x: \"\\\"%s\\\" % value\"\n" }
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 3, "end" = 19 }]
+
+[[cases]]
+name = "backslash-annotation-modulo"
+comparison = "full"
+files = { "case.py" = "x: \"'%s\\\\path' % value\"\n" }
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 3, "end" = 23 }]
+
+[[cases]]
+name = "annotation-addition-negative"
+comparison = "rule"
+files = { "case.py" = "x: \"'%s' + value\"\n" }
+expected = []

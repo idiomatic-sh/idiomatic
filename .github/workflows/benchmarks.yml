@@ -1,17 +1,14 @@
-# The weekly record of the whole-project benchmarks on main, on Linux: the `benchmarks` group of the root asymptote.toml, each
-# product's `distribution` bench and ryo's `lint` bench (ryo's cost over ruff) run once, their Bencher Metric Format documents
-# uploaded as the run's artifact. It judges nothing and gates no pull request; the speed of a change is the `check` workflow's
-# `speed` job.
+# Temporary compute-ref capture of exact UP031 process failures on Linux x86.
+# The public benchmarks workflow is unchanged; this file exists only on this ref.
 name: benchmarks
 on:
-  schedule:
-    - cron: "0 3 * * 0"
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   benchmarks:
     runs-on: ubuntu-26.04
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -21,44 +18,77 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.26.5"
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      - name: Rust toolchain (rust-toolchain.toml)
+      - name: Rust toolchain
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
-          shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          save-if: false
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
-      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
-      # version as it is.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
-          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
-      - name: The tools the checks run, each at the version declared for it
-        run: uv run --script tools/install.py
-        env:
-          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
-          GH_TOKEN: ${{ github.token }}
-      - run: asymptote check --groups benchmarks
+          shared-key: ubuntu-26.04-up031-process-capture-ryo
+          save-if: true
+          workspaces: crates/ryo -> ../../target
+      - name: Install exact Ruff reference
+        run: |
+          uv tool install --force ruff==0.16.5
+          test "$(ruff --version)" = 'ruff 0.16.5'
+      - name: Build and seal Ruff benchmark consumer
+        run: |
+          set -euo pipefail
+          mkdir -p target/checks/up031-process
+          cd crates/ryo
+          CARGO_BUILD_JOBS=6 cargo bench --locked -j6 --no-run -p idiomatic-sh-ryo-python --bench ruff --message-format=json \
+            > ../../target/checks/up031-process/worker-build.jsonl \
+            2> ../../target/checks/up031-process/worker-build.stderr
+          python3 ../../.github/scripts/seal_cargo_artifact.py \
+            ../../target/checks/up031-process/worker-build.jsonl \
+            ruff bench /languages/python/benchmarks/linters/ruff/bench.rs true \
+            ../../target/checks/up031-process/worker
+      - name: Capture two independent process observations per source
+        run: |
+          set -euo pipefail
+          root="$PWD/target/checks/up031-process"
+          profile="$PWD/.github/fixtures/up031-process-bootstrap/repro"
+          worker="$root/worker"
+          reference="$(command -v ruff)"
+          sha256sum "$worker" "$reference" > "$root/executable-sha256.txt"
+          ruff --version > "$root/ruff-version.txt"
+          uname -m > "$root/architecture.txt"
+          git rev-parse HEAD > "$root/source-head.txt"
+          for attempt in 1 2; do
+            output="$root/attempt-$attempt"
+            mkdir -p "$output"
+            set +e
+            RYO_VERIFY_CASE_RESULTS="$output/cases.jsonl" "$worker" verify-reference-cases \
+              "$reference" "$profile" > "$output/stdout.txt" 2> "$output/stderr.txt"
+            status=$?
+            set -e
+            echo "$status" > "$output/status.txt"
+            test "$status" -eq 1
+            python3 - "$output" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          root = Path(sys.argv[1])
+          rows = [json.loads(line) for line in (root / 'cases.jsonl').read_text().splitlines()]
+          assert len(rows) == 3, len(rows)
+          assert {row['name'] for row in rows} == {
+              'escaped-annotation-modulo', 'backslash-annotation-modulo', 'annotation-addition-negative'
+          }
+          for row in rows:
+              if row['name'] == 'annotation-addition-negative':
+                  assert row['case_passed'] is True
+                  continue
+              observed = row['process_observation']
+              assert observed['kind'] == 'process-failure' and observed['exit'] == 2
+              for artifact in observed['artifacts'].values():
+                  assert (root / artifact['path']).is_file(), artifact
+          PY
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: benchmarks
-          path: target/benchmarks
+          name: up031-x86-process-capture
+          path: target/checks/up031-process/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
