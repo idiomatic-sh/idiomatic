@@ -350,7 +350,11 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         let _route_counts =
             crate::application::file_dag::route_counts::FileScope::begin(file.0 as usize);
-        let (tables, facts) = (&mut worker.tables, &mut worker.facts);
+        let (tables, facts, activation) = (
+            &mut worker.tables,
+            &mut worker.facts,
+            &mut worker.activation,
+        );
         crate::application::file_dag::derived::selection::prepare_request(
             &mut tables.pool,
             &visit.setting.operators,
@@ -461,18 +465,21 @@ impl FileAnalysis {
             std::rc::Rc::clone(&owner),
         )?;
         let file_dag = tables.pool.file_graph.as_ref().map(|graph| {
+            let schedule = activation.activate(
+                graph,
+                |index| {
+                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                        && !skipped
+                            .as_ref()
+                            .and_then(|skipped| skipped.get(index))
+                            .copied()
+                            .unwrap_or(false)
+                },
+                &complete,
+            );
             let mut execution =
-                crate::application::file_dag::types::FileDagExecution::new_for_population(
-                    Arc::clone(graph),
-                    |index| {
-                        governs_rule(tables, RuleIndex(index)) == Governing::Governs
-                            && !skipped
-                                .as_ref()
-                                .and_then(|skipped| skipped.get(index))
-                                .copied()
-                                .unwrap_or(false)
-                    },
-                    &complete,
+                crate::application::file_dag::types::FileDagExecution::new_for_schedule(
+                    &schedule,
                     std::rc::Rc::clone(&owner),
                 );
             if !crate::domain::file_program::service::enabled() {

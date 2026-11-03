@@ -39,51 +39,24 @@ impl FileDagExecution {
         ));
         Self::new_for_population(graph, active, complete, owner)
     }
+    #[cfg(test)]
     pub(crate) fn new_for_population(
         graph: Arc<RequestGraph>,
         active: impl Fn(usize) -> bool,
         complete: &[Relation],
         owner: std::rc::Rc<super::relations::RelationOwner>,
     ) -> Self {
-        let active = graph
-            .cuts
-            .iter()
-            .enumerate()
-            .map(|(rule, cuts)| {
-                active(rule)
-                    && cuts.iter().flatten().all(|node| {
-                        graph.nodes[node.0].schema_valid
-                            && graph.nodes[node.0]
-                                .relations
-                                .iter()
-                                .all(|relation| complete.contains(relation))
-                    })
-            })
-            .collect::<Vec<_>>();
-        let mut needed = vec![false; graph.nodes.len()];
-        let mut remaining = vec![0_usize; graph.nodes.len()];
-        let mut pending = Vec::new();
-        for (rule, roots) in graph.boundaries.iter().enumerate() {
-            if !active[rule] {
-                continue;
-            }
-            for (_, root) in roots {
-                remaining[root.0] += 1;
-                pending.push(*root);
-            }
-        }
-        while let Some(node) = pending.pop() {
-            if needed[node.0] {
-                continue;
-            }
-            needed[node.0] = true;
-            for input in &graph.nodes[node.0].inputs {
-                if let NodeInput::Node(child) = input {
-                    remaining[child.0] += 1;
-                    pending.push(*child);
-                }
-            }
-        }
+        let schedule =
+            super::activation::types::ActivationCache::default().activate(&graph, active, complete);
+        Self::new_for_schedule(&schedule, owner)
+    }
+    pub(in crate::application) fn new_for_schedule(
+        schedule: &super::activation::types::ActivatedSchedule,
+        owner: std::rc::Rc<super::relations::RelationOwner>,
+    ) -> Self {
+        let graph = Arc::clone(&schedule.graph);
+        let active = schedule.active.clone();
+        let remaining = schedule.remaining.clone();
         let count = graph.nodes.len();
         Self {
             relations: owner,

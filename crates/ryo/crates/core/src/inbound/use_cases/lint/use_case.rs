@@ -659,6 +659,7 @@ impl LintUseCaseImpl {
             },
             facts: self.facts.worker()?,
             old_rows: None,
+            activation: Default::default(),
             failure: None,
         };
         for place in 0..files.len() {
@@ -873,6 +874,7 @@ impl LintUseCaseImpl {
                 },
                 facts: self.facts.worker()?,
                 old_rows: None,
+                activation: Default::default(),
                 failure: None,
             });
         }

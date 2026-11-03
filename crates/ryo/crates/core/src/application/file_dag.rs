@@ -50,3 +50,5 @@ pub(crate) mod derived;
 pub(crate) mod route_counts;
 
 mod equality_join;
+
+pub(in crate::application) mod activation;
