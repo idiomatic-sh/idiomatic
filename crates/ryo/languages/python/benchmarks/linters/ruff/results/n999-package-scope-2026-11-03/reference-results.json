@@ -1,0 +1,153 @@
+{
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "observations": [
+    {
+      "case": "explicit-txt-parser",
+      "files": {
+        "test.txt": "x= (\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--select",
+        "N999",
+        "--target-version",
+        "py310",
+        "--output-format",
+        "json",
+        "--",
+        "test.txt"
+      ],
+      "returncode": 1,
+      "findings": [
+        {
+          "cell": null,
+          "code": "invalid-syntax",
+          "end_location": {
+            "column": 1,
+            "row": 2
+          },
+          "filename": "test.txt",
+          "fix": null,
+          "location": {
+            "column": 1,
+            "row": 2
+          },
+          "message": "unexpected EOF while parsing",
+          "name": "invalid-syntax",
+          "noqa_row": null,
+          "severity": "error",
+          "url": null
+        }
+      ]
+    },
+    {
+      "case": "explicit-extensionless-parser",
+      "files": {
+        "file-with-dashes": "x= (\n"
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--select",
+        "N999",
+        "--target-version",
+        "py310",
+        "--output-format",
+        "json",
+        "--",
+        "file-with-dashes"
+      ],
+      "returncode": 1,
+      "findings": [
+        {
+          "cell": null,
+          "code": "invalid-syntax",
+          "end_location": {
+            "column": 1,
+            "row": 2
+          },
+          "filename": "file-with-dashes",
+          "fix": null,
+          "location": {
+            "column": 1,
+            "row": 2
+          },
+          "message": "unexpected EOF while parsing",
+          "name": "invalid-syntax",
+          "noqa_row": null,
+          "severity": "error",
+          "url": null
+        }
+      ]
+    },
+    {
+      "case": "original-nested-dotted",
+      "files": {
+        "outer/__init__.py": "",
+        "outer/inner.name/__init__.py": ""
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--select",
+        "N999",
+        "--target-version",
+        "py310",
+        "--output-format",
+        "json",
+        "--",
+        "outer/inner.name/__init__.py"
+      ],
+      "returncode": 0,
+      "findings": []
+    },
+    {
+      "case": "valid-identifier-control",
+      "files": {
+        "outer/__init__.py": "",
+        "outer/inner_name/__init__.py": ""
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--select",
+        "N999",
+        "--target-version",
+        "py310",
+        "--output-format",
+        "json",
+        "--",
+        "outer/inner_name/__init__.py"
+      ],
+      "returncode": 0,
+      "findings": []
+    },
+    {
+      "case": "uppercase-style-control",
+      "files": {
+        "outer/__init__.py": "",
+        "outer/BadName/__init__.py": ""
+      },
+      "command": [
+        "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+        "check",
+        "--isolated",
+        "--select",
+        "N999",
+        "--target-version",
+        "py310",
+        "--output-format",
+        "json",
+        "--",
+        "outer/BadName/__init__.py"
+      ],
+      "returncode": 0,
+      "findings": []
+    }
+  ]
+}

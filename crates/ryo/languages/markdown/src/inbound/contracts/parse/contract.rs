@@ -263,6 +263,10 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }

@@ -180,6 +180,7 @@ pub(super) fn expected() -> Vec<Expected> {
         expression_shape::expected(),
         literal_properties::expected(),
         numeric_literal::expected(),
+        token_link::expected(),
         literal_expression_parse::expected(),
         expression_type::expected(),
         function_terminal::expected(),
@@ -329,4 +330,9 @@ mod brace_format_parse {
 /// Canonical positive fixture for `brace_format_field`.
 mod brace_format_field {
     include!("../../tests/fixtures/relations/brace_format_field/expected.rs");
+}
+
+/// Optional physical lexical edges over existing token IDs.
+mod token_link {
+    include!("../../tests/fixtures/relations/token_link/expected.rs");
 }

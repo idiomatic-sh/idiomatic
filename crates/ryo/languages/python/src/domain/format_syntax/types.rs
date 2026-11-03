@@ -53,6 +53,22 @@ pub(crate) enum FormatQuantityMode {
     Dot,
 }
 
+/// Standard percent-format flags, retained independently of conversion policy.
+/// Repetition is idempotent; conflicting flags remain present without applying precedence.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FormatFlags {
+    /// Prefix nonnegative numbers with a blank.
+    pub space_sign: bool,
+    /// Alternate numeric conversion form.
+    pub alternate_form: bool,
+    /// Prefix nonnegative numbers with a plus sign.
+    pub sign: bool,
+    /// Left adjustment.
+    pub left_adjust: bool,
+    /// Zero padding.
+    pub zero_pad: bool,
+}
+
 /// One parsed conversion field.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct FormatFieldValue {
@@ -66,6 +82,8 @@ pub(crate) struct FormatFieldValue {
     pub width: FormatQuantityMode,
     /// Precision consumption.
     pub precision: FormatQuantityMode,
+    /// Parsed flags, without presentation-type precedence or lint policy.
+    pub flags: FormatFlags,
 }
 
 /// Compact consumption facts used beside the individual format fields.

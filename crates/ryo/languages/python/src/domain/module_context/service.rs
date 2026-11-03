@@ -1,5 +1,5 @@
 //! Module identity preserves raw package directories and strips only the source extension.
-use super::types::{Decision, Markers};
+use super::types::{Decision, Markers, PackageModule};
 use std::{
     collections::BTreeSet,
     path::{Component, Path, PathBuf},
@@ -30,7 +30,13 @@ fn module_path(file: &Path, package: Option<&Path>) -> Decision {
         return Decision::Unknown;
     };
     parts.push(module);
-    Decision::Known(Some(parts.join(".")))
+    let Some(root_name) = package.file_name().and_then(|name| name.to_str()) else {
+        return Decision::Unknown;
+    };
+    Decision::Known(Some(PackageModule {
+        path: parts.join("."),
+        package_root_name: root_name.to_owned(),
+    }))
 }
 
 /// Raw names are separate from dotted qualified identity; no absolute path is exposed.

@@ -142,6 +142,16 @@ mod schema_identity_tests {
                 .collect::<Vec<_>>(),
         )];
         assert_ne!(schema_bytes(&legacy), schema_bytes(&current));
+        let previous = [(
+            "module-identity",
+            vec![
+                ("file", CellKind::File),
+                ("path", CellKind::Symbol),
+                ("module-name", CellKind::Symbol),
+                ("package-name", CellKind::Symbol),
+            ],
+        )];
+        assert_ne!(schema_bytes(&previous), schema_bytes(&current));
     }
     #[test]
     fn frames_distinguish_adjacent_names_and_real_catalog_is_stable() {

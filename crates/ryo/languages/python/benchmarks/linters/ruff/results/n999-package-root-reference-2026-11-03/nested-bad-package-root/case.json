@@ -1,0 +1,25 @@
+{
+  "name": "nested-bad-package-root",
+  "comparison": "full",
+  "files": {
+    "BadRoot/child/__init__.py": ""
+  },
+  "context": {
+    "logical-root": "inventory",
+    "auxiliary-files": {
+      "inventory/BadRoot/__init__.py": ""
+    },
+    "missing": [
+      "__init__.py",
+      "inventory/__init__.py"
+    ]
+  },
+  "expected": [
+    {
+      "rule": "N999",
+      "file": "BadRoot/child/__init__.py",
+      "start": 0,
+      "end": 0
+    }
+  ]
+}

@@ -168,3 +168,29 @@ fn raw_error_characters_preserve_two_and_four_byte_unicode_scalars() {
     let fields = reading::<RawFormatFieldItem>("a = '%s'\n");
     assert_eq!(fields.rows[0][7], Want::Name("s"));
 }
+
+#[test]
+fn raw_flags_append_to_the_schema_and_preserve_normalized_parse_metadata() {
+    let report = reading::<RawFormatFieldItem>("'%s' '%0- +#10r' '%##00--++  r' '%0s' '%%'\n");
+    assert!(report.causes.is_empty(), "{:?}", report.causes);
+    assert_eq!(report.rows.len(), 4);
+    assert!(report.rows.iter().all(|row| row.len() == 13));
+    assert_eq!(report.rows[0][7], Want::Name("s"));
+    assert_eq!(report.rows[0][12], Want::Name(""));
+    assert_eq!(report.rows[1][8], Want::Name("fixed"));
+    assert_eq!(report.rows[1][12], Want::Name(" #+-0"));
+    assert_eq!(report.rows[2][8], Want::Name("none"));
+    assert_eq!(report.rows[2][12], Want::Name(" #+-0"));
+    assert_eq!(report.rows[3][8], Want::Name("none"));
+    assert_eq!(report.rows[3][12], Want::Name("0"));
+}
+
+#[test]
+fn raw_flags_do_not_decode_escaped_flags_or_invent_fields_from_percent_escapes() {
+    let report = reading::<RawFormatFieldItem>("'\\x25+r' '%\\x2br' '%%' '%+r'\n");
+    assert!(report.causes.is_empty(), "{:?}", report.causes);
+    assert_eq!(report.rows.len(), 1);
+    assert_eq!(report.rows[0][2], Want::Number(3));
+    assert_eq!(report.rows[0][7], Want::Name("r"));
+    assert_eq!(report.rows[0][12], Want::Name("+"));
+}

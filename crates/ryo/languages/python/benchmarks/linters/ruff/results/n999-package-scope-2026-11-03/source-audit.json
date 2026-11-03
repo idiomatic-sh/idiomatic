@@ -1,0 +1,15 @@
+{
+  "status": "N999 FAIL; source-gap diagnosis, no expectation/provider/engine changes",
+  "native_case_receipts": "/tmp/all24-n999-replay-20261102/cases.jsonl",
+  "native_case_receipts_sha256": "43da5fab0cb0e24f2ad3c5951a5cbadfb45463d96f2bf6b7682ab1ee88efa69f",
+  "independent_controls_status": "source prepared, execution pending integration runtime slot",
+  "probe_sha256": {
+    "import_probe.py": "e20773ea74f26745f006a203846430dc88b9e88cf53c77f01a7181ff509a141e",
+    "reference_probe.py": "7fe60583a14b4a68347d3010208609ee6b1e0b07aa6101d1d0b58e1e24d28a54"
+  },
+  "issues": {
+    "invalid-syntax": "comment+indent-region absence uncertainty; module identity itself remains complete. Inspect generic lexical recovery/readiness before a fix.",
+    "nested-dotted-initializer": "exact pinnedreference[]; intended import/module-name semantics pending independent original-fixture+positive controls, not yet a confirmed reference quirk.",
+    "nonstandard-source-paths": "NoLanguage on exact.txt/extensionless cases; no existing request/provider hint found. Preserve filenames/cases; explicit generic inbound provider selection proposal, no suffixheuristics."
+  }
+}

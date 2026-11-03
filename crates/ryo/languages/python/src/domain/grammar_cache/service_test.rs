@@ -274,6 +274,7 @@ fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
                         ordinal: 0,
                         argument: FormatArgument::Mapping("x".repeat(3000)),
                         conversion: 's',
+                        flags: Default::default(),
                         width: FormatQuantityMode::None,
                         precision: FormatQuantityMode::None,
                     }],

@@ -105,7 +105,7 @@ impl ModuleContextPort for ModuleContextFilesystem {
                 service::given(file_path, &inventory)
             };
             match decision {
-                Decision::Known(Some(path)) => {
+                Decision::Known(Some(module)) => {
                     let source = match &root {
                         Some(root) => absolute(&root.join(file_path))?,
                         None => file_path.to_path_buf(),
@@ -116,9 +116,10 @@ impl ModuleContextPort for ModuleContextFilesystem {
                         })?;
                     result.rows.push(ModuleIdentity {
                         file: file_id,
-                        path,
+                        path: module.path,
                         module_name: module_name.to_owned(),
                         package_name: package_name.to_owned(),
+                        package_root_name: module.package_root_name,
                     });
                 }
                 Decision::Known(None) => {}

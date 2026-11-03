@@ -12,6 +12,8 @@ Canonical finding multisets retain duplicate occurrences, exact paths and byte l
 
 Process observations separate measured wall time from decoded reports.
 
+For Rust recordings, check `cargo metadata --locked --no-deps --format-version 1` for the `idiomatic-sh-ryo` target `lint` (`bench`, `cli/benches/lint.rs`, `harness = false`). Build with `cargo bench --locked --no-run -p idiomatic-sh-ryo --bench lint`; run that sealed executable with `--bench --rounds 1`.
+
 ### suite
 
 Pinned profiles, authored cases and shared project inputs define the benchmark contract.

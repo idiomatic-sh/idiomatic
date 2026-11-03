@@ -1,8 +1,8 @@
 import suppress from "python/ruff/suppress";
-let identities = select file, "module-name" as module_name, "package-name" as package_name from "module-identity";
-let python_sources = select file, module_name, package_name from identities where matches(file, "[.]pyi?$");
+let identities = select file, "module-name" as module_name, "package-name" as package_name, "package-root-name" as root_name from "module-identity";
+let python_sources = select file, module_name, package_name, root_name from identities where matches(file, "[.]pyi?$");
 let ordinary = select file, module_name as name from python_sources where module_name != "__init__" and module_name != "__main__";
-let package_files = select file, package_name as name from python_sources where module_name = "__init__" or module_name = "__main__";
+let package_files = select file, root_name as name from python_sources where module_name = "__init__" or module_name = "__main__";
 let names = union(left=ordinary, right=package_files);
 let migration_files = select file from python_sources where package_name = "migrations" or package_name = "versions";
 let migrations = select l.file as file, l.name as name from names as l join migration_files as r on l.file = r.file;
