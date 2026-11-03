@@ -1,14 +1,13 @@
 //! The common owner preserves the existing graph retention/memo backend and its single budget.
 use super::graph_cache::service::{replace, room, slot};
+use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::graph_cache::types::footprint::value::GraphFootprint;
 use crate::domain::{
     operating::errors::OperatingError,
     stored_graph::{
         service::{domain_identity, source},
-        types::{
-            DomainEntry, GraphAccess, GraphDomain, GraphEntry, footprint::value::GraphFootprint,
-        },
+        types::{DomainEntry, GraphAccess, GraphDomain, GraphEntry},
     },
-    stored_indexes::types::FileIndexes,
     table_model::{
         service::{check_columns, count_of, kinds_of},
         types::Rows,
@@ -21,7 +20,7 @@ pub(in crate::application::file_dag) fn acquire(
     admission: Option<&crate::application::file_dag::workspace::InvocationWorkspace>,
     input: Input,
     rows: &Rows<'_>,
-    cache: Option<&mut FileIndexes>,
+    cache: Option<&mut CacheBackend>,
 ) -> Result<Option<GraphAccess>, OperatingError> {
     let crate::domain::derived_views::types::ViewRequest::Adjacency { endpoints, keys } =
         &plan.request
@@ -43,7 +42,7 @@ pub(in crate::application::file_dag) fn acquire(
     {
         cache.graph_counts.reuses += 1;
         return Ok(Some(GraphAccess {
-            graph: Arc::clone(&entry.graph),
+            graph: (entry.graph).clone(),
             orientation: source.orientation,
             shared: true,
         }));
@@ -80,7 +79,7 @@ pub(in crate::application::file_dag) fn acquire(
         return Err(OperatingError::WrongOperation);
     };
     cache.graph_counts.builds += 1;
-    let graph = Arc::new(graph);
+    let graph = graph;
     let mut shared = false;
     if let (Some(cost), Some((replacement, metadata))) = (
         GraphFootprint::new(cache).graph(&graph),
@@ -92,7 +91,7 @@ pub(in crate::application::file_dag) fn acquire(
         {
             replace(&mut cache.graphs, replacement);
             cache.graphs.push(GraphEntry {
-                graph: Arc::clone(&graph),
+                graph: (graph).clone(),
                 roots: Vec::new(),
             });
             cache.graph_bytes += bytes - cache.bytes;
@@ -119,7 +118,7 @@ pub(in crate::application::file_dag) fn domain(
     access: &GraphAccess,
     input: Input,
     rows: &Rows<'_>,
-    mut cache: Option<&mut FileIndexes>,
+    mut cache: Option<&mut CacheBackend>,
 ) -> Result<Arc<GraphDomain>, OperatingError> {
     let crate::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
     else {
@@ -137,7 +136,7 @@ pub(in crate::application::file_dag) fn domain(
                 && entry.domain.identity.as_ref() == Some(identity)
         })
     {
-        return Ok(Arc::clone(&entry.domain));
+        return Ok((entry.domain).clone());
     }
     let mut storage = crate::domain::derived_views::types::DerivedStorage::Unbuilt;
     super::super::route_counts::observe(
@@ -188,8 +187,8 @@ pub(in crate::application::file_dag) fn domain(
     {
         replace(&mut cache.graph_domains, replacement);
         cache.graph_domains.push(DomainEntry {
-            graph: Arc::clone(&access.graph),
-            domain: Arc::clone(&domain),
+            graph: (access.graph).clone(),
+            domain: (domain).clone(),
         });
         cache.graph_bytes += bytes - cache.bytes;
         cache.bytes = bytes;
@@ -200,7 +199,7 @@ pub(in crate::application::file_dag) fn domain(
 }
 
 fn prepare_graph(
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
     cost: usize,
     admission: Option<&crate::application::file_dag::workspace::InvocationWorkspace>,
 ) -> bool {

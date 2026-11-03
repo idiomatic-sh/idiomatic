@@ -41,7 +41,7 @@ pub(super) fn acquired_index(
     if let Some(before) = before {
         counts.derived(before, admission.derived_counts(), eligible);
     }
-    let acquired = AcquiredView::new(&use_.plan, storage);
+    let acquired = storage;
     if !matches!(
         acquired.view()?,
         crate::domain::derived_views::types::DerivedView::Equality(_)

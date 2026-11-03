@@ -139,6 +139,7 @@ impl domain::operator::collections::operators::interface::OperatorsItem for Legi
     );
     for (name, body, code) in [
         ("file_cache", "lease.views.stored_indexes;", "E0609"),
+        ("backend", "lease.views.backend;", "E0609"),
         ("memo_policy", "lease.memo;", "E0609"),
         ("input_schedule", "lease.hold();", "E0599"),
         ("predicate_rebinding", "lease.predicate;", "E0616"),

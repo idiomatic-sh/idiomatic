@@ -1,5 +1,5 @@
 //! Independent rules share one computed producer's equality view through real DAG execution.
-use super::indexes::{LIMIT, new};
+use super::indexes::LIMIT;
 use super::*;
 use crate::application::file_dag::{interface::DagExecution, types::FileDagExecution};
 use crate::domain::{
@@ -99,7 +99,7 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
     let roots = [graph.cuts[0][2].unwrap(), graph.cuts[1][2].unwrap()];
     for retained_budget in [0, LIMIT] {
         let dag = std::cell::RefCell::new(FileDagExecution::new(
-            Arc::clone(&graph),
+            (graph).clone(),
             |_| true,
             &[Relation::LanguageTarget],
         ));
@@ -120,12 +120,20 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         };
         let (mut symbols, mut scratch, mut memo) =
             (Symbols::default(), OperatorScratch::default(), vec![]);
-        let mut cache = new(&[Relation::LanguageTarget], &[], LIMIT).unwrap();
-        cache.limit = retained_budget;
+        let owner = dag.relation_owner();
+        owner.derived.prepare_file(
+            true,
+            &[Relation::LanguageTarget],
+            &[],
+            &[],
+            &plans,
+            &crate::domain::operator::types::PreparedPool::default(),
+            |_| true,
+        );
+        owner.derived.set_optional_limit(retained_budget).unwrap();
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: Some(&mut cache),
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(&[]),
@@ -136,8 +144,15 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         };
         let mut outputs = Vec::<Table>::new();
         for (rule, root) in roots.into_iter().enumerate() {
-            dag.begin_rule(rule);
-            let result = dag.demand(root, &read, &mut context).unwrap();
+            dag.begin_rule(rule).unwrap();
+            let result = dag
+                .demand(
+                    root,
+                    &read,
+                    &crate::application::file_dag::execution::CommonOperatorEngine,
+                    &mut context,
+                )
+                .unwrap();
             let rows = dag
                 .relation_owner()
                 .resolve(result.as_ref(), &read)

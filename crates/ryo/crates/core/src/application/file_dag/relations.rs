@@ -17,9 +17,15 @@ use std::{
     collections::HashMap,
     sync::{Arc, OnceLock},
 };
+mod accounting;
 mod admission;
+mod external;
+mod handle;
+pub(crate) use handle::{PublishedInput, RetainedPublication};
 mod identity;
 mod produced;
+mod selected_access;
+mod selected_delivery;
 pub(super) use {admission::AdmittedInput, produced::ProducedSelection};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -46,7 +52,7 @@ pub(crate) use record::RelationResult;
 
 struct SourceViews {
     population: SourceDescriptor,
-    views: HashMap<SourceDescriptor, Arc<RelationResult>>,
+    views: HashMap<SourceDescriptor, PublishedInput>,
 }
 
 pub(crate) struct RelationOwner {
@@ -92,8 +98,14 @@ impl RelationOwner {
         &self,
         relation: Relation,
         rows: &Rows<'_>,
-    ) -> Result<Arc<RelationResult>, OperatingError> {
-        let raw = BorrowedRows::from(rows);
+    ) -> Result<PublishedInput, OperatingError> {
+        self.source_borrowed(relation, BorrowedRows::from(rows))
+    }
+    fn source_borrowed(
+        &self,
+        relation: Relation,
+        raw: BorrowedRows<'_>,
+    ) -> Result<PublishedInput, OperatingError> {
         let population = match raw {
             BorrowedRows::Selected { source, .. } => BorrowedRows::Stored(source),
             other => other,
@@ -103,7 +115,7 @@ impl RelationOwner {
                 return Err(OperatingError::NotRead);
             }
             if let Some(view) = found.views.get(&identity::describe(relation, raw)) {
-                return Ok(Arc::clone(view));
+                return Ok(view.clone());
             }
         }
         let result = Arc::new(RelationResult {
@@ -115,6 +127,7 @@ impl RelationOwner {
             inspected: OnceLock::new(),
             normalized: OnceLock::new(),
         });
+        let result = self.publication(result)?;
         if self.stable && self.views.get() < self.max_views {
             let mut sources = self.sources.borrow_mut();
             let entry = sources.entry(relation).or_insert_with(|| SourceViews {
@@ -123,20 +136,16 @@ impl RelationOwner {
             });
             entry
                 .views
-                .insert(identity::describe(relation, raw), Arc::clone(&result));
+                .insert(identity::describe(relation, raw), result.clone());
             self.views.set(self.views.get() + 1);
         }
         Ok(result)
     }
-    pub(super) fn computed(&self, table: Table) -> Result<Arc<RelationResult>, OperatingError> {
+    pub(super) fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
         let input = BorrowedRows::Computed(&table);
         let contract = input.contract()?;
-        super::route_counts::observe(
-            "representation_inspect",
-            super::route_counts::representation(contract.kind),
-            || registered(contract.kind).inspect(&contract),
-        )?;
-        Ok(Arc::new(RelationResult {
+        registered(contract.kind).inspect(&contract)?;
+        self.publication(Arc::new(RelationResult {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
@@ -148,19 +157,30 @@ impl RelationOwner {
     }
     pub(super) fn publish_selection(
         &self,
-        produced: ProducedSelection,
-    ) -> Result<Arc<RelationResult>, OperatingError> {
-        let ProducedSelection { source, selection } = produced;
+        produced: ProducedSelection<'_>,
+    ) -> Result<PublishedInput, OperatingError> {
+        let ProducedSelection {
+            source,
+            selection,
+            resources,
+            ..
+        } = produced;
         self.generation(&source)?;
-        Ok(Arc::new(RelationResult {
-            population: self.allocate_population()?,
-            producer: OnceLock::new(),
-            generation: Arc::clone(&self.generation.borrow()),
-            kind: RepresentationKind::Selected,
-            body: RelationBody::Selected { source, selection },
-            inspected: OnceLock::from(Ok(PhysicalShape::Complete)),
-            normalized: OnceLock::new(),
-        }))
+        self.publication_with_resources(
+            Arc::new(RelationResult {
+                population: self.allocate_population()?,
+                producer: OnceLock::new(),
+                generation: Arc::clone(&self.generation.borrow()),
+                kind: RepresentationKind::Selected,
+                body: RelationBody::Selected {
+                    source: Arc::clone(source.record()),
+                    selection,
+                },
+                inspected: OnceLock::from(Ok(PhysicalShape::Complete)),
+                normalized: OnceLock::new(),
+            }),
+            resources,
+        )
     }
     pub(super) fn stable(&self) -> bool {
         self.stable
@@ -170,7 +190,7 @@ impl RelationOwner {
         program: &Arc<crate::domain::stored_selection::types::Selector>,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
-    ) -> Result<Option<ProducedSelection>, OperatingError> {
+    ) -> Result<Option<ProducedSelection<'f>>, OperatingError> {
         produced::select(self, program, read, context)
     }
     /// Explicitly ends the immutable resident-population lease before release or refill.
@@ -242,11 +262,11 @@ impl RelationOwner {
     }
     pub(super) fn normalized(
         &self,
-        result: &dyn PublishedRelation,
+        result: &PublishedInput,
         rows: Rows<'_>,
     ) -> Result<Option<Arc<Table>>, OperatingError> {
         let _checked = self.normalize(result, rows)?;
-        Ok(self.private(result)?.normalized.get().cloned())
+        Ok(self.private(result.as_ref())?.normalized.get().cloned())
     }
     /// The caller invokes this only at its already declared physical demand gate.
     pub(super) fn inspect(
@@ -254,12 +274,6 @@ impl RelationOwner {
         result: &dyn PublishedRelation,
         input: BorrowedRows<'_>,
     ) -> Result<PhysicalShape, OperatingError> {
-        super::route_counts::event(
-            "inspection_request",
-            super::route_counts::representation(
-                crate::domain::table_model::collections::representations::service::kind(input),
-            ),
-        );
         let result = self.private(result)?;
         if !self.matches_current(result, input) {
             return Err(OperatingError::NotRead);
@@ -271,12 +285,6 @@ impl RelationOwner {
         result: &dyn PublishedRelation,
         input: BorrowedRows<'a>,
     ) -> Result<AdmittedInput<'a>, OperatingError> {
-        super::route_counts::event(
-            "admission_request",
-            super::route_counts::representation(
-                crate::domain::table_model::collections::representations::service::kind(input),
-            ),
-        );
         let result = self.private(result)?;
         if !self.matches_current(result, input) {
             return Err(OperatingError::NotRead);
@@ -285,14 +293,14 @@ impl RelationOwner {
         Ok(AdmittedInput {
             rows: input,
             shape,
-            origin: Some((
+            origin: (
                 self.result_population(result),
                 match &result.body {
                     RelationBody::Source(source) => Some(source.relation),
                     _ => None,
                 },
                 Arc::clone(&result.generation),
-            )),
+            ),
         })
     }
 
@@ -310,9 +318,9 @@ impl RelationOwner {
             .get_or_init(|| {
                 self.checks.set(self.checks.get() + 1);
                 let contract = input.contract()?;
-                super::route_counts::observe(
+                crate::application::file_dag::route_counts::observe(
                     "representation_inspect",
-                    super::route_counts::representation(contract.kind),
+                    crate::application::file_dag::route_counts::representation(contract.kind),
                     || registered(contract.kind).inspect(&contract),
                 )
             })
@@ -333,56 +341,31 @@ impl RelationOwner {
     }
     pub(super) fn normalize<'r, 'f>(
         &self,
-        result: &'r dyn PublishedRelation,
+        publication: &'r PublishedInput,
         rows: Rows<'f>,
     ) -> Result<Rows<'r>, OperatingError>
     where
         'f: 'r,
     {
-        let result = self.private(result)?;
+        let result = self.private(publication.as_ref())?;
         match self.inspect(result, BorrowedRows::from(&rows))? {
             PhysicalShape::Complete => Ok(rows),
             PhysicalShape::ReadablePhysicalFallback => {
                 let table = result.normalized.get_or_init(|| {
                     let mut table = Table::default();
-                    super::route_counts::event("normalization_materialize", "population");
                     materialize(&rows, &mut table, &mut Vec::new());
                     Arc::new(table)
                 });
+                if !publication.normalization_charged() {
+                    let lease = self.derived.required_lease(&[Self::table_backing(table)])?;
+                    publication.hold_normalization(lease);
+                }
                 Ok(Rows::Computed(table))
             }
         }
     }
 }
-pub(super) fn bytes(result: &RelationResult) -> usize {
-    let owned = match &result.body {
-        RelationBody::Computed(table) => super::service::table_bytes(table),
-        RelationBody::Source(source) => {
-            source.storage.capacity() * size_of::<(usize, usize)>()
-                + source.kinds.capacity()
-                    * size_of::<ryo_language::domain::relations::types::CellKind>()
-                + source.projection.capacity()
-                    * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
-                + source.source_kinds.capacity()
-                    * size_of::<ryo_language::domain::relations::types::CellKind>()
-        }
-        RelationBody::Selected { selection, .. } => {
-            selection.rows.capacity() * size_of::<u32>()
-                + selection.columns.capacity()
-                    * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
-                + selection.kinds.capacity()
-                    * size_of::<ryo_language::domain::relations::types::CellKind>()
-                + size_of::<StoredSelection>()
-        }
-    };
-    owned
-        + result
-            .normalized
-            .get()
-            .map_or(0, |table| super::service::table_bytes(table))
-        + size_of::<RelationResult>()
-        + 2 * size_of::<usize>()
-}
+pub(super) use accounting::bytes;
 
 #[cfg(test)]
 mod owner_test;

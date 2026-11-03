@@ -52,9 +52,8 @@ pub(crate) struct Stepper<'a, 'f> {
     pub dag: Option<&'a dyn crate::application::file_dag::interface::DagExecution>,
     /// Invocation leases pin a demanded graph handle without copying its cells.
     pub relation_owner: Option<std::rc::Rc<crate::application::file_dag::relations::RelationOwner>>,
-    pub dag_shared: &'a [std::cell::OnceCell<
-        std::sync::Arc<crate::application::file_dag::relations::RelationResult>,
-    >],
+    pub dag_shared:
+        &'a [std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     /// Ordered terminal identity; graph computation itself is shared across rules.
     pub rule: usize,
     /// Steps made at a global DAG cut even when this rule has one local reader.
@@ -91,22 +90,28 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
     ) -> Option<std::rc::Rc<crate::application::file_dag::relations::RelationOwner>> {
         self.relation_owner.as_ref().map(std::rc::Rc::clone)
     }
+    fn origin(&self, which: InputPlace) -> Result<super::super::feed::InputOrigin, OperatingError> {
+        Ok(match input(self, which)? {
+            Input::Relation(relation) => super::super::feed::InputOrigin::Relation(relation),
+            Input::Step(_) => super::super::feed::InputOrigin::Internal,
+        })
+    }
     fn publication(
         &self,
         which: InputPlace,
-    ) -> Option<std::sync::Arc<crate::application::file_dag::relations::RelationResult>> {
-        match input(self, which).ok()? {
+    ) -> Result<Option<super::super::relations::PublishedInput>, OperatingError> {
+        Ok(match input(self, which)? {
             Input::Step(id) => self
                 .dag_shared
-                .get(id.0 as usize)?
+                .get(id.0 as usize)
+                .ok_or(OperatingError::NotRun)?
                 .get()
-                .map(std::sync::Arc::clone),
+                .map(Clone::clone),
             Input::Relation(relation) => self
                 .relation_owner
-                .as_ref()?
-                .source(relation, &self.read.rows(relation).ok()?)
-                .ok(),
-        }
+                .as_ref()
+                .and_then(|owner| owner.lookup_source(relation)),
+        })
     }
 
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {

@@ -43,20 +43,10 @@ pub(crate) fn evaluate_rule<'f>(
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     file: FileId,
-    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
 ) -> Result<Vec<Table>, RulesError> {
-    evaluate_rule_with_graph(
-        tables,
-        setting,
-        rule,
-        file,
-        stored_indexes,
-        relations,
-        classes,
-        None,
-    )
+    evaluate_rule_with_graph(tables, setting, rule, file, relations, classes, None)
 }
 
 /// Evaluate one rule with optional successful cut handles from the request graph.
@@ -66,7 +56,6 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     file: FileId,
-    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
@@ -76,7 +65,6 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
         setting,
         rule,
         file,
-        stored_indexes,
         relations,
         classes,
         file_program,
@@ -89,7 +77,6 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     file: FileId,
-    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
@@ -146,7 +133,6 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
         let mut context = OperatorContext {
             prepared_kinds: classes.kind_vocabulary.as_deref(),
             prepared_matchers: classes.matchers.as_deref(),
-            stored_indexes,
             bindings: bound,
             symbols: (&mut tables.symbols).into(),
             source: SourceView(&tables.bytes.0),

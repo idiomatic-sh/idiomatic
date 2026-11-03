@@ -165,7 +165,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let ops = RequestOperators::prepare(std::slice::from_ref(&plan), &[vec![]], &[]).unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &ops));
     let child = graph.cuts[0][0].unwrap();
-    let mut dag = FileDagExecution::new(Arc::clone(&graph), |_| true, &[Relation::LanguageTarget]);
+    let mut dag = FileDagExecution::new((graph).clone(), |_| true, &[Relation::LanguageTarget]);
     dag.limit = 0;
     dag.begin_rule(0);
     let columns = [

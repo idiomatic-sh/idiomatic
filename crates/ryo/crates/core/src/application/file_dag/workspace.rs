@@ -1,10 +1,10 @@
 //! The application owns each invocation's mutable allocations and release boundary.
 use super::relations::AdmittedInput;
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::{
     derived_views::types::{DerivedStorage, PreparedViewUse},
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
-    stored_indexes::types::FileIndexes,
 };
 use std::sync::Arc;
 
@@ -19,10 +19,11 @@ use crate::domain::table_scratch::types::{ScratchWord, Stretches};
 use ryo_language::domain::relations::types::{Position, Value};
 #[derive(Default)]
 pub(crate) struct InvocationWorkspace {
-    pub derived_local: super::derived::owner::DerivedOwner,
+    external_owner: std::cell::OnceCell<std::rc::Rc<super::relations::RelationOwner>>,
+    origins: Vec<super::feed::InputOrigin>,
     pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
     pub relation_owner: Option<std::rc::Rc<super::relations::RelationOwner>>,
-    pub publications: Vec<Option<Arc<super::relations::RelationResult>>>,
+    pub publications: Vec<Option<crate::application::file_dag::relations::PublishedInput>>,
     #[cfg(test)]
     pub observation: crate::domain::operating::types::ExecutionObservation,
     pub downstream_scratch: crate::domain::table_scratch::types::OperatorScratch,
@@ -49,19 +50,11 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(super) fn reclaim_derived(&self, cache: &mut FileIndexes, cost: usize) {
-        self.derived_local.reclaim_optional(cache, cost);
-        if let Some(owner) = &self.relation_owner {
-            owner.derived.reclaim_optional(cache, cost);
-        }
+    pub(super) fn reclaim_derived(&self, cache: &mut CacheBackend, cost: usize) {
+        self.owner().derived.reclaim_optional(cache, cost);
     }
     pub(super) fn derived_counts(&self) -> (u64, u64) {
-        let (mut builds, mut hits, _) = self.derived_local.counts();
-        if let Some(owner) = &self.relation_owner {
-            let (shared_builds, shared_hits, _) = owner.derived.counts();
-            builds += shared_builds;
-            hits += shared_hits;
-        }
+        let (builds, hits, _) = self.owner().derived.counts();
         (builds, hits)
     }
 
@@ -91,13 +84,35 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(super) fn capture(&mut self, feed: &dyn super::feed::Feed<'_>, count: usize) {
-        self.derived_local.clear();
+    pub(super) fn capture(
+        &mut self,
+        feed: &dyn super::feed::Feed<'_>,
+        count: usize,
+    ) -> Result<(), OperatingError> {
+        self.external_owner.take();
         self.relation_owner = feed.relation_owner();
         self.publications.clear();
-        self.publications.extend(
-            (0..count).map(|at| feed.publication(crate::domain::operating::types::InputPlace(at))),
-        );
+        self.origins.clear();
+        for at in 0..count {
+            let which = crate::domain::operating::types::InputPlace(at);
+            self.origins.push(feed.origin(which)?);
+            self.publications.push(feed.publication(which)?);
+        }
+        Ok(())
+    }
+    pub(super) fn owner(&self) -> &super::relations::RelationOwner {
+        self.relation_owner.as_deref().unwrap_or_else(|| {
+            self.external_owner
+                .get_or_init(|| std::rc::Rc::new(super::relations::RelationOwner::new(false)))
+                .as_ref()
+        })
+    }
+    pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
+        self.relation_owner.as_ref().cloned().unwrap_or_else(|| {
+            self.external_owner
+                .get_or_init(|| std::rc::Rc::new(super::relations::RelationOwner::new(false)))
+                .clone()
+        })
     }
     pub(super) fn normalization(
         &self,
@@ -108,7 +123,7 @@ impl InvocationWorkspace {
             .relation_owner
             .as_ref()
             .zip(self.publications.get(place)?.as_ref())?;
-        Some(owner.normalized(record.as_ref(), rows))
+        Some(owner.normalized(record, rows))
     }
     pub(super) fn proven(
         &self,
@@ -158,6 +173,9 @@ pub(super) struct InputAdmissions<'a, 'f> {
     proofs: [std::cell::OnceCell<AdmittedInput<'f>>; 3],
 }
 impl<'a, 'f> InputAdmissions<'a, 'f> {
+    pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
+        self.workspace.owner_handle()
+    }
     pub(super) fn input(&self, place: usize) -> Result<BorrowedRows<'f>, OperatingError> {
         self.inputs
             .get(place)
@@ -188,12 +206,11 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         &self,
         use_: &PreparedViewUse,
         context: &mut OperatorContext<'_>,
-    ) -> Result<Arc<DerivedStorage>, OperatingError> {
+    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
         self.acquire_derived(
             use_,
             super::derived::owner::ViewContext::default(),
             ViewInputs::Rows,
-            context.stored_indexes.as_deref_mut(),
         )
     }
     pub(super) fn acquire_derived(
@@ -201,10 +218,9 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         use_: &PreparedViewUse,
         identity: super::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-        cache: Option<&mut FileIndexes>,
-    ) -> Result<Arc<DerivedStorage>, OperatingError> {
+    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
         self.workspace
-            .acquire_admitted(use_, self, identity, supplied, cache)
+            .acquire_admitted(use_, self, identity, supplied)
     }
 }
 impl InvocationWorkspace {
@@ -223,14 +239,19 @@ impl InvocationWorkspace {
         place: usize,
         rows: BorrowedRows<'a>,
     ) -> Result<AdmittedInput<'a>, OperatingError> {
-        if let Some((owner, record)) = self
-            .relation_owner
-            .as_ref()
-            .zip(self.publications.get(place).and_then(Option::as_ref))
+        let owner = self.owner();
+        if let Some(record) = self.publications.get(place).and_then(Option::as_ref) {
+            return owner.admit(record.as_ref(), rows);
+        }
+        match self
+            .origins
+            .get(place)
+            .copied()
+            .unwrap_or(super::feed::InputOrigin::External)
         {
-            owner.admit(record.as_ref(), rows)
-        } else {
-            AdmittedInput::invocation(rows)
+            super::feed::InputOrigin::Relation(relation) => owner.admit_relation(relation, rows),
+            super::feed::InputOrigin::External => owner.admit_external(rows),
+            super::feed::InputOrigin::Internal => Err(OperatingError::NotRun),
         }
     }
     pub(super) fn acquire_rows(
@@ -238,7 +259,7 @@ impl InvocationWorkspace {
         use_: &PreparedViewUse,
         inputs: &[BorrowedRows<'_>],
         context: &mut OperatorContext<'_>,
-    ) -> Result<Arc<DerivedStorage>, OperatingError> {
+    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
         self.inputs(inputs).acquire_rows(use_, context)
     }
     fn acquire_admitted(
@@ -247,8 +268,7 @@ impl InvocationWorkspace {
         inputs: &InputAdmissions<'_, '_>,
         identity: super::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-        cache: Option<&mut FileIndexes>,
-    ) -> Result<Arc<DerivedStorage>, OperatingError> {
+    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
         use super::derived::owner::PopulationId;
         use crate::domain::{
             derived_views::types::{DerivedInputs, DerivedKind, MembershipSpace},
@@ -270,29 +290,12 @@ impl InvocationWorkspace {
         let mut proofs: [Option<&AdmittedInput<'_>>; 2] = [None, None];
         let mut populations = [PopulationId(0); 2];
         let mut relations = [None; 2];
-        let mut shared = self.relation_owner.is_some();
         for at in 0..count {
-            let place = use_.inputs[at];
-            let proof = inputs.proof(place)?;
-            let identity = self
-                .relation_owner
-                .as_ref()
-                .map(|owner| proof.identity(owner))
-                .transpose()?
-                .flatten();
-            if let Some((population, relation)) = identity {
-                populations[at] = population;
-                relations[at] = relation;
-            } else {
-                shared = false;
-            }
+            let proof = inputs.proof(use_.inputs[at])?;
+            let (population, relation) = proof.identity(self.owner())?;
+            populations[at] = population;
+            relations[at] = relation;
             proofs[at] = Some(proof);
-        }
-        // An invocation-local acquisition never mixes canonical IDs with slot IDs.
-        if !shared {
-            for at in 0..count {
-                populations[at] = PopulationId(use_.inputs[at]);
-            }
         }
         let rows = [
             proofs[0].as_ref().expect("first admitted input").rows(),
@@ -345,15 +348,7 @@ impl InvocationWorkspace {
         } else {
             None
         };
-        let owner = if shared {
-            &self
-                .relation_owner
-                .as_ref()
-                .expect("admitted shared owner")
-                .derived
-        } else {
-            &self.derived_local
-        };
+        let owner = &self.owner().derived;
         owner.acquire_stored(
             &use_.plan,
             &populations[..count],
@@ -361,7 +356,6 @@ impl InvocationWorkspace {
             supplied,
             &mut self.derived_scratch.borrow_mut(),
             stored,
-            cache,
         )
     }
 }

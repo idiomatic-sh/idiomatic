@@ -18,7 +18,6 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 /// The source remains borrowed from this physical file; metadata is an Arc clone.
 pub(crate) struct SelectedInput<'f> {
     original: SelectedRows<'f>,
-    plan: std::sync::Arc<crate::domain::derived_views::types::DerivedContract>,
     index: AcquiredView,
 }
 impl<'f> SelectedInput<'f> {
@@ -46,35 +45,37 @@ impl<'f> SelectedInput<'f> {
                 tree: None,
             }],
         )?);
-        let mut storage = DerivedStorage::Unbuilt;
-        super::derived::owner::build_scoped(
-            crate::application::file_dag::route_counts::BuildRoute::Fixture,
+        let owner = super::relations::RelationOwner::new(false);
+        let proof = owner.admit_external(rows)?;
+        let (population, _) = proof.identity(&owner)?;
+        let index = owner.derived.acquire_stored(
             &plan,
-            DerivedInputs::Rows(&[rows]),
-            &mut storage,
+            &[population],
+            Default::default(),
+            DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
+            None,
         )?;
-        Self::from_derived(original, plan, std::sync::Arc::new(storage))
+        Self::from_derived(original, index)
     }
     pub(super) fn from_derived(
         original: &SelectedRows<'f>,
-        plan: std::sync::Arc<crate::domain::derived_views::types::DerivedContract>,
-        storage: std::sync::Arc<crate::domain::derived_views::types::DerivedStorage>,
+        index: AcquiredView,
     ) -> Result<Self, OperatingError> {
-        use crate::domain::derived_views::types::DerivedView;
-        let index = AcquiredView::new(&plan, storage);
-        if !matches!(index.view()?, DerivedView::Equality(_)) {
+        if !matches!(
+            index.view()?,
+            crate::domain::derived_views::types::DerivedView::Equality(_)
+        ) {
             return Err(OperatingError::WrongOperation);
         }
         Ok(Self {
             original: original.clone(),
-            plan,
             index,
         })
     }
     fn columns(&self) -> &[ColumnIndex] {
         let crate::domain::derived_views::types::ViewRequest::Equality { columns } =
-            &self.plan.request
+            &self.index.contract().request
         else {
             unreachable!("prepared equality")
         };

@@ -50,8 +50,6 @@ pub(crate) struct OperatorContext<'a> {
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// Finite prepared literal-kind metadata for the current exact vocabulary.
     pub prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
-    /// Complete stable stored indexes owned only by the current physical file read.
-    pub stored_indexes: Option<&'a mut crate::domain::stored_indexes::types::FileIndexes>,
 
     /// What each parameter is bound to, by the parameter's place.
     pub bindings: &'a [ParameterBinding],

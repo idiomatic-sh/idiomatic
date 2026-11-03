@@ -36,19 +36,35 @@ fn prepare_cycles(
     };
     Ok(graph)
 }
+struct PreparedClosure {
+    parts: Vec<crate::domain::operator::contract::graph::ClosurePartition>,
+    _leases: Vec<std::sync::Arc<super::derived::ledger::ResourceLease>>,
+}
+impl std::ops::Deref for PreparedClosure {
+    type Target = [crate::domain::operator::contract::graph::ClosurePartition];
+    fn deref(&self) -> &Self::Target {
+        &self.parts
+    }
+}
 fn prepare_closure(
     input: BorrowedRows<'_>,
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<Vec<crate::domain::operator::contract::graph::ClosurePartition>, OperatingError> {
+) -> Result<PreparedClosure, OperatingError> {
     let mut cursor =
         super::closure_partitions::PartitionedClosure::prepare(input, keys, source, destination)?;
     let mut parts = Vec::new();
+    let mut leases = Vec::new();
     while cursor.advance()? {
-        parts.push(cursor.take_current()?);
+        let (part, lease) = cursor.take_current()?;
+        parts.push(part);
+        leases.push(lease);
     }
-    Ok(parts)
+    Ok(PreparedClosure {
+        parts,
+        _leases: leases,
+    })
 }
 #[cfg(test)]
 mod tests {

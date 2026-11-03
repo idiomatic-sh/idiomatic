@@ -41,12 +41,12 @@ impl DerivedViewsItem for MembershipItem {
         }
         let membership = match space {
             MembershipSpace::Values => MembershipData::Values(values),
-            MembershipSpace::Dense(vertices) => MembershipData::Dense(
+            MembershipSpace::Dense(vertices) => MembershipData::Dense(std::sync::Arc::new(
                 vertices
                     .iter()
                     .map(|vertex| values.contains(vertex))
                     .collect(),
-            ),
+            )),
             MembershipSpace::Native(tree) => {
                 let mut marks = vec![false; tree.elements.kind.len()];
                 for value in values {
@@ -58,7 +58,7 @@ impl DerivedViewsItem for MembershipItem {
                         }
                     }
                 }
-                MembershipData::Dense(marks)
+                MembershipData::Dense(std::sync::Arc::new(marks))
             }
         };
         *storage = DerivedStorage::Membership(membership);

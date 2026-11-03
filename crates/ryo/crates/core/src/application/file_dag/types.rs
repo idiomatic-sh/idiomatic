@@ -12,9 +12,9 @@ pub(crate) struct FileDagExecution {
     /// Root and dependency consumers, not occurrences in individual rule plans.
     pub remaining: Vec<usize>,
     /// Optional cross-rule retained results, subject to the existing cache allowance.
-    pub(super) ready: Vec<Option<Arc<RelationResult>>>,
+    pub(super) ready: Vec<Option<crate::application::file_dag::relations::RetainedPublication>>,
     /// Required live results for the current rule, independent of that allowance.
-    pub(super) required: Vec<Option<Arc<RelationResult>>>,
+    pub(super) required: Vec<Option<crate::application::file_dag::relations::PublishedInput>>,
     pub required_remaining: Vec<usize>,
     pub required_executed: Vec<bool>,
     pub required_inputs: Vec<bool>,

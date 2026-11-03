@@ -92,7 +92,7 @@ impl DerivedViewsItem for PredicateMatchesItem {
         }
         *storage = DerivedStorage::RowIds {
             kind: DerivedKind::PredicateMatches,
-            rows: output,
+            rows: Arc::new(output),
         };
         Ok(())
     }
@@ -184,7 +184,7 @@ impl DerivedViewsItem for CandidatePostingsItem {
                     .push(u32::try_from(at).map_err(|_| OperatingError::ShapeMismatch)?);
             }
         }
-        *storage = DerivedStorage::Postings(output);
+        *storage = DerivedStorage::Postings(Arc::new(output));
         Ok(())
     }
     fn view<'a>(
@@ -229,7 +229,7 @@ impl DerivedViewsItem for DistinctRepresentativesItem {
             .ok_or(OperatingError::ShapeMismatch)?;
             *storage = DerivedStorage::RowIds {
                 kind: DerivedKind::DistinctRepresentatives,
-                rows: output,
+                rows: Arc::new(output),
             };
             return Ok(());
         }
@@ -258,7 +258,7 @@ impl DerivedViewsItem for DistinctRepresentativesItem {
         }
         *storage = DerivedStorage::RowIds {
             kind: DerivedKind::DistinctRepresentatives,
-            rows: output,
+            rows: Arc::new(output),
         };
         Ok(())
     }

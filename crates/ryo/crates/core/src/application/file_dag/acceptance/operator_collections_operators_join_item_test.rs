@@ -443,7 +443,7 @@ fn stream_with_indexes(
     left: &Table,
     right: Rows<'_>,
     failures: (bool, bool, bool),
-    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+    stored_indexes: Option<&mut crate::application::file_dag::derived::backend::CacheBackend>,
 ) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
     let (left_fails, right_fails, emit_fails) = failures;
     let mut feed = ControlledFeed {
@@ -1001,7 +1001,7 @@ fn made_with_indexes(
     operation: &Operation,
     left: Rows<'_>,
     right: Rows<'_>,
-    cache: &mut crate::domain::stored_indexes::types::FileIndexes,
+    cache: &mut crate::application::file_dag::derived::backend::CacheBackend,
 ) -> Result<Table, OperatingError> {
     let mut symbols = Symbols::default();
     let mut memo = Vec::new();
@@ -1263,7 +1263,7 @@ fn stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocat
         return;
     }
     let diagnostics = JoinDiagnostics::default();
-    let captured = std::sync::Arc::clone(&diagnostics.events);
+    let captured = (diagnostics.events).clone();
     let columns = [fact_column(&[1, 1, 2]), fact_column(&[10, 11, 20])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,

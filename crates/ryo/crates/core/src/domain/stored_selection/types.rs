@@ -40,10 +40,6 @@ pub(crate) struct SelectionPlanId(pub usize);
 pub(crate) struct Matches {
     /// The pure program that established this result.
     pub selector: Arc<Selector>,
-    /// Actual provider schema, compared on every lookup.
-    pub kinds: &'static [CellKind],
-    /// Physical row population, compared on every lookup.
-    pub population: usize,
     /// Original positions in ascending source order.
     pub rows: Arc<Vec<u32>>,
 }
@@ -57,7 +53,7 @@ pub(crate) struct LiteralFanout {
     pub kinds: &'static [CellKind],
     pub population: usize,
     pub source_bits: usize,
-    pub literals: Vec<LiteralPostings>,
+    pub literals: Arc<Vec<LiteralPostings>>,
 }
 
 #[derive(Debug)]

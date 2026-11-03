@@ -1,10 +1,10 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use super::footprint::storage_bytes;
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{
     derived_views::{collections::views::registration::registered, types::*},
     operating::errors::OperatingError,
-    stored_indexes::types::FileIndexes,
 };
 use std::{
     cell::RefCell,
@@ -12,8 +12,20 @@ use std::{
     sync::{Arc, Weak},
 };
 
+mod diagnostics;
 #[path = "owner/lifetime.rs"]
 mod lifetime;
+mod observations;
+pub(super) mod selection;
+pub(in crate::application::file_dag) use observations::IndexObservation;
+mod acquisition;
+mod backings;
+mod graph;
+mod leases;
+mod scoped;
+#[cfg(test)]
+pub(crate) mod selection_fixture;
+mod setup;
 
 /// Assigned only after application admission; canonical DAG producers keep one ID across rules.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -33,11 +45,17 @@ struct Key {
     len: u8,
     context: ViewContext,
 }
+struct RetainedView {
+    storage: Arc<DerivedStorage>,
+    _lease: Arc<super::ledger::ResourceLease>,
+}
 struct Entry {
     _plan: Arc<DerivedContract>,
     weak: Weak<DerivedStorage>,
-    required: Option<Arc<DerivedStorage>>,
-    retained: Option<Arc<DerivedStorage>>,
+    required: Option<super::view::AcquiredView>,
+    retained: Option<RetainedView>,
+    backings: Arc<[super::ledger::Backing]>,
+    lease: Weak<super::ledger::ResourceLease>,
     bytes: usize,
     working: usize,
     backend: usize,
@@ -55,19 +73,26 @@ struct State {
     required_bytes: usize,
     peak_required_bytes: usize,
     retained_bytes: usize,
+    retained_predicates: usize,
     overlap_bytes: usize,
     required_views: usize,
     peak_required_views: usize,
     required_backend_bytes: usize,
 }
 pub(crate) struct DerivedOwner {
+    next_scope: std::cell::Cell<usize>,
+    ledger: std::rc::Rc<RefCell<super::ledger::Ledger>>,
+    backend: RefCell<Option<CacheBackend>>,
     state: RefCell<State>,
     max_entries: usize,
 }
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn new(max_entries: usize) -> Self {
         Self {
+            next_scope: std::cell::Cell::new(0),
+            ledger: std::rc::Rc::new(RefCell::new(super::ledger::Ledger::default())),
             state: RefCell::new(State::default()),
+            backend: RefCell::new(None),
             max_entries,
         }
     }
@@ -79,193 +104,20 @@ impl DerivedOwner {
         identity: ViewContext,
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
-        cache: Option<&mut FileIndexes>,
-    ) -> Result<Arc<DerivedStorage>, OperatingError> {
-        self.acquire_stored(plan, populations, identity, inputs, scratch, None, cache)
-    }
-    pub(in crate::application::file_dag) fn acquire_stored(
-        &self,
-        plan: &Arc<DerivedContract>,
-        populations: &[PopulationId],
-        context: ViewContext,
-        inputs: DerivedInputs<'_, '_>,
-        scratch: &mut DerivedScratch,
-        stored: Option<(
-            ryo_language::domain::relations::types::Relation,
-            ryo_language::domain::relations::types::ColumnsView<'_>,
-        )>,
-        mut cache: Option<&mut FileIndexes>,
-    ) -> Result<Arc<DerivedStorage>, OperatingError> {
-        let _route_owner = super::super::route_counts::owner(std::ptr::from_ref(self).addr());
-        if populations.is_empty() || populations.len() > 2 {
-            return Err(OperatingError::ShapeMismatch);
-        }
-        let mut ids = [PopulationId(usize::MAX); 2];
-        ids[..populations.len()].copy_from_slice(populations);
-        let _route_identity = super::super::route_counts::identity(
-            Arc::as_ptr(plan) as usize,
-            [
-                populations.first().map(|id| id.0),
-                populations.get(1).map(|id| id.0),
-            ],
-        );
-        super::super::route_counts::event(
-            "owner_request",
-            super::super::route_counts::derived(plan.kind),
-        );
-        let key = Key {
-            plan: Arc::as_ptr(plan) as usize,
-            populations: ids,
-            len: populations.len() as u8,
-            context,
-        };
-        {
-            let mut state = self.state.borrow_mut();
-            let required = populations
-                .iter()
-                .any(|id| state.pins.get(id).is_some_and(|count| *count > 0));
-            if let Some(storage) = state
-                .entries
-                .get(&key)
-                .and_then(|entry| entry.weak.upgrade())
-            {
-                let promote = required
-                    && state
-                        .entries
-                        .get(&key)
-                        .is_some_and(|entry| entry.required.is_none());
-                if promote {
-                    let entry = state.entries.get_mut(&key).expect("existing hit");
-                    entry.required = Some(Arc::clone(&storage));
-                    let bytes = entry.working;
-                    let backend = entry.backend;
-                    let overlap = usize::from(entry.retained.is_some()) * entry.bytes;
-                    state.required_backend_bytes += backend;
-                    state.overlap_bytes += overlap;
-                    state.required_views += 1;
-                    state.peak_required_views = state.peak_required_views.max(state.required_views);
-                    state.required_bytes += bytes;
-                    state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
-                }
-                state.hits += 1;
-                super::super::route_counts::event(
-                    "owner_hit",
-                    super::super::route_counts::derived(plan.kind),
-                );
-                if stored.is_some() && plan.kind == DerivedKind::Equality {
-                    if let Some(cache) = cache.as_deref_mut() {
-                        cache.reuses = cache.reuses.saturating_add(1);
-                    }
-                }
-                return Ok(storage);
-            }
-        }
-        let mut storage = DerivedStorage::Unbuilt;
-        let mut built = true;
-        let mut backend = false;
-        if let (DerivedKind::Equality, Some((relation, source)), Some(cache)) =
-            (plan.kind, stored, cache.as_deref_mut())
-        {
-            let ViewRequest::Equality { columns } = &plan.request else {
-                return Err(OperatingError::WrongOperation);
-            };
-            let mut index = crate::domain::table_model::types::KeyIndex::default();
-            let acquired = super::indexes::acquire(
-                BuildRoute::OwnerAcquire,
-                plan,
-                cache,
-                relation,
-                source,
-                columns,
-                &mut index,
-            )?;
-            built = acquired.built;
-            backend = true;
-            storage = acquired.shared.map_or(
-                DerivedStorage::Equality(index),
-                DerivedStorage::EqualityShared,
-            );
-        } else {
-            super::super::route_counts::observe(
-                BuildRoute::OwnerAcquire.label(),
-                super::super::route_counts::derived(plan.kind),
-                || registered(plan.kind).build(plan, inputs, &mut storage, scratch),
-            )?;
-        }
-        // A family implementation cannot publish an unbuilt or different-kind object.
-        let _checked = registered(plan.kind).view(plan, &storage)?;
-        let bytes = storage_bytes(&storage)?;
-        let backend_bytes = if let DerivedStorage::EqualityShared(index) = &storage {
-            crate::domain::stored_indexes::service::index_bytes(index)
-                .ok_or(OperatingError::ShapeMismatch)?
-        } else {
-            0
-        };
-        let working = bytes.saturating_add(backend_bytes);
-        let storage = Arc::new(storage);
-        let mut state = self.state.borrow_mut();
-        state.builds += u64::from(built);
-        state.hits += u64::from(!built);
-        let required = populations
-            .iter()
-            .any(|id| state.pins.get(id).is_some_and(|count| *count > 0));
-        let known = state.entries.contains_key(&key);
-        let optional_room = known || state.entries.len() < self.max_entries;
-        if !required && !optional_room {
-            state.refusals += 1;
-            return Ok(storage);
-        }
-        let retained = cache.as_deref_mut().filter(|cache| {
-            optional_room
-                && (!backend || matches!(storage.as_ref(), DerivedStorage::EqualityShared(_)))
-                && cache
-                    .bytes
-                    .checked_add(bytes)
-                    .is_some_and(|after| after <= cache.limit)
-        });
-        let retained = if let Some(cache) = retained {
-            cache.bytes += bytes;
-            cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
-            state.retained_bytes += bytes;
-            Some(Arc::clone(&storage))
-        } else {
-            state.refusals += 1;
-            None
-        };
-        if required {
-            state.overlap_bytes += usize::from(retained.is_some()) * bytes;
-            state.required_views += 1;
-            state.peak_required_views = state.peak_required_views.max(state.required_views);
-            state.required_backend_bytes += backend_bytes;
-            state.required_bytes += working;
-            state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
-        }
-        if !known {
-            link(&mut state, key, populations);
-        }
-        state.entries.insert(
-            key,
-            Entry {
-                _plan: Arc::clone(plan),
-                weak: Arc::downgrade(&storage),
-                required: required.then(|| Arc::clone(&storage)),
-                retained,
-                bytes,
-                working,
-                backend: backend_bytes,
-            },
-        );
-        Ok(storage)
+        cache: Option<&mut CacheBackend>,
+    ) -> Result<super::view::AcquiredView, OperatingError> {
+        self.acquire_stored(plan, populations, identity, inputs, scratch, None)
     }
     /// A graph's existing priority can reclaim optional wrappers, but never a
-    /// required or borrowed view. Payload retained in FileIndexes remains charged there.
+    /// required or borrowed view. Payload retained in CacheBackend remains charged there.
     pub(in crate::application::file_dag) fn reclaim_optional(
         &self,
-        cache: &mut FileIndexes,
+        cache: &mut CacheBackend,
         cost: usize,
     ) {
         let mut state = self.state.borrow_mut();
         let mut released = 0;
+        let mut released_predicates = 0;
         for entry in state.entries.values_mut() {
             if cache
                 .bytes
@@ -279,13 +131,18 @@ impl DerivedOwner {
                 && entry
                     .retained
                     .as_ref()
-                    .is_some_and(|storage| Arc::strong_count(storage) == 1)
+                    .is_some_and(|storage| Arc::strong_count(&storage.storage) == 1)
             {
-                entry.retained.take();
+                let _released = entry.retained.take();
+                released_predicates +=
+                    usize::from(entry._plan.kind == DerivedKind::PredicateMatches);
                 released += entry.bytes;
             }
         }
         state.retained_bytes = state.retained_bytes.saturating_sub(released);
+        state.retained_predicates = state
+            .retained_predicates
+            .saturating_sub(released_predicates);
         cache.bytes = cache.bytes.saturating_sub(released);
     }
     pub(in crate::application::file_dag) fn counts(&self) -> (u64, u64, u64) {

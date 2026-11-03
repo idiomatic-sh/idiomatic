@@ -1,9 +1,11 @@
 //! Preflight graph priority without evicting live consumers or recrediting retained metadata.
 
+use crate::application::file_dag::derived::backend::{CacheBackend, Entry};
 use crate::application::file_dag::derived::graph_cache::service::room;
+use crate::application::file_dag::derived::graph_cache::types::footprint::value::{
+    arc_bytes, vector,
+};
 use crate::application::file_dag::derived::indexes::index_bytes;
-use crate::domain::stored_graph::types::footprint::value::{arc_bytes, vector};
-use crate::domain::stored_indexes::types::{Entry, FileIndexes};
 use crate::domain::stored_selection::types::Matches;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -11,12 +13,12 @@ use std::sync::Arc;
 /// One generation's ordinary payload may yield to a newly demanded adjacency.
 pub(crate) struct GraphAdmission<'a> {
     /// Shared total byte owner; every surviving capacity remains charged.
-    cache: &'a mut FileIndexes,
+    cache: &'a mut CacheBackend,
 }
 
 impl<'a> GraphAdmission<'a> {
     /// The new graph already pins any selected source row IDs before this borrow.
-    pub(crate) fn new(cache: &'a mut FileIndexes) -> Self {
+    pub(in crate::application::file_dag::derived) fn new(cache: &'a mut CacheBackend) -> Self {
         Self { cache }
     }
 
@@ -97,7 +99,7 @@ impl<'a> GraphAdmission<'a> {
 }
 
 /// Inline Entry metadata remains charged through the vector's unchanged capacity.
-pub(crate) fn index_payload(entry: &Entry) -> Option<usize> {
+pub(in crate::application::file_dag::derived) fn index_payload(entry: &Entry) -> Option<usize> {
     index_bytes(&entry.index)?.checked_add(
         entry
             .columns

@@ -447,6 +447,17 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
     {
         CommonOperatorEngine::keep_step(self, contract, stepper, id, context, room, target)
     }
+
+    fn keep_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut super::service::GraphInputs<'_, '_>,
+        owner: &super::relations::RelationOwner,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        CommonOperatorEngine::keep_representation(self, contract, physical, feed, owner, context)
+    }
 }
 
 #[cfg(test)]
@@ -460,7 +471,7 @@ impl CommonOperatorEngine {
         feed: &mut super::service::GraphInputs<'_, '_>,
         owner: &super::relations::RelationOwner,
         context: &mut OperatorContext<'_>,
-    ) -> Result<std::sync::Arc<super::relations::RelationResult>, OperatingError> {
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         if let Some(which) = physical.alias.filter(|_| owner.stable()) {
             let result = feed.publication(which, context)?;
             feed.inspect_publication(result.as_ref(), owner)?;

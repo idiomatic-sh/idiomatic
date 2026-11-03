@@ -62,10 +62,9 @@ fn acquire_pair_membership(
     source: &Table,
     populations: [PopulationId; 2],
     scratch: &mut DerivedScratch,
-    cache: &mut FileIndexes,
-) -> Arc<DerivedStorage> {
+) -> super::super::view::AcquiredView {
     owner
-        .acquire(
+        .acquire_stored(
             plan,
             &populations,
             ViewContext::default(),
@@ -74,7 +73,7 @@ fn acquire_pair_membership(
                 space: MembershipSpace::Values,
             },
             scratch,
-            Some(cache),
+            None,
         )
         .unwrap()
 }
@@ -86,17 +85,16 @@ fn acquire(
     population: PopulationId,
     context: ViewContext,
     scratch: &mut DerivedScratch,
-    cache: Option<&mut FileIndexes>,
-) -> Arc<DerivedStorage> {
+) -> super::super::view::AcquiredView {
     let rows = [BorrowedRows::Computed(source)];
     owner
-        .acquire(
+        .acquire_stored(
             plan,
             &[population],
             context,
             DerivedInputs::Rows(&rows),
             scratch,
-            cache,
+            None,
         )
         .unwrap()
 }
@@ -111,6 +109,7 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
     let mut scratch = DerivedScratch::default();
     let mut cache = indexes::new(&[], &[], 4096).unwrap();
     cache.limit = 0;
+    owner.backend.borrow_mut().replace(cache);
 
     let first = acquire(
         &owner,
@@ -119,7 +118,6 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
         population,
         ViewContext::default(),
         &mut scratch,
-        Some(&mut cache),
     );
     let second = acquire(
         &owner,
@@ -128,9 +126,12 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
         population,
         ViewContext::default(),
         &mut scratch,
-        Some(&mut cache),
     );
-    assert!(Arc::ptr_eq(&first, &second));
+    assert!(first.same_storage(&second));
+    let DerivedView::PartitionOrder(rows) = first.view().unwrap() else {
+        panic!("prepared ordering view")
+    };
+    assert_eq!(rows.iter().map(|row| row.0).collect::<Vec<_>>(), [1, 0, 2]);
     assert_eq!(owner.counts().0, 1);
     assert_eq!(owner.counts().1, 1);
     assert_eq!(owner.retained_bytes(), 0);
@@ -154,9 +155,8 @@ fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
         PopulationId(1),
         ViewContext::default(),
         &mut scratch,
-        None,
     );
-    let weak = Arc::downgrade(&first);
+    let weak = Arc::downgrade(&first.storage);
     drop(first);
     assert!(weak.upgrade().is_none());
     let second = acquire(
@@ -166,7 +166,6 @@ fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
         PopulationId(1),
         ViewContext::default(),
         &mut scratch,
-        None,
     );
     assert!(weak.upgrade().is_none());
     assert_eq!(owner.counts().0, 2);
@@ -190,7 +189,6 @@ fn optional_misses_do_not_accumulate_identity_metadata() {
             PopulationId(identity),
             ViewContext::default(),
             &mut scratch,
-            None,
         ));
     }
     assert_eq!(owner.state.borrow().entries.len(), 0);
@@ -216,7 +214,6 @@ fn release_drops_only_the_dependent_required_view() {
         first_population,
         ViewContext::default(),
         &mut scratch,
-        None,
     );
     let second = acquire(
         &owner,
@@ -225,9 +222,8 @@ fn release_drops_only_the_dependent_required_view() {
         second_population,
         ViewContext::default(),
         &mut scratch,
-        None,
     );
-    assert!(!Arc::ptr_eq(&first, &second));
+    assert!(!first.same_storage(&second));
     let one_view_bytes = owner.working_bytes() / 2;
     owner.release(first_population);
     assert_eq!(owner.released_entries(), 1);
@@ -239,9 +235,8 @@ fn release_drops_only_the_dependent_required_view() {
         second_population,
         ViewContext::default(),
         &mut scratch,
-        None,
     );
-    assert!(Arc::ptr_eq(&second, &again));
+    assert!(second.same_storage(&again));
     assert_eq!(owner.counts(), (2, 1, 2));
     owner.release(second_population);
     assert_eq!(owner.working_bytes(), 0);
@@ -258,55 +253,38 @@ fn two_population_view_survives_either_release_and_repin_without_duplicate_depen
     let mut cache = indexes::new(&[], &[], 4096).unwrap();
     let metadata_charge = cache.bytes;
     cache.limit = 0;
+    owner.backend.borrow_mut().replace(cache);
     let mut stable_metadata = None;
 
     for _ in 0..64 {
         owner.pin(populations[0]);
         owner.pin(populations[1]);
-        let first = acquire_pair_membership(
-            &owner,
-            &plan,
-            &source,
-            populations,
-            &mut scratch,
-            &mut cache,
-        );
-        let weak = Arc::downgrade(&first);
+        let first = acquire_pair_membership(&owner, &plan, &source, populations, &mut scratch);
+        let weak = Arc::downgrade(&first.storage);
         drop(first);
 
         owner.release(populations[0]);
         assert!(weak.upgrade().is_some());
         assert!(owner.working_bytes() > 0);
         owner.pin(populations[0]);
-        let after_first = acquire_pair_membership(
-            &owner,
-            &plan,
-            &source,
-            populations,
-            &mut scratch,
-            &mut cache,
-        );
-        assert!(Arc::ptr_eq(&after_first, &weak.upgrade().unwrap()));
+        let after_first =
+            acquire_pair_membership(&owner, &plan, &source, populations, &mut scratch);
+        assert!(Arc::ptr_eq(&after_first.storage, &weak.upgrade().unwrap()));
         drop(after_first);
 
         owner.release(populations[1]);
         assert!(weak.upgrade().is_some());
-        let after_second = acquire_pair_membership(
-            &owner,
-            &plan,
-            &source,
-            populations,
-            &mut scratch,
-            &mut cache,
-        );
-        assert!(Arc::ptr_eq(&after_second, &weak.upgrade().unwrap()));
+        let after_second =
+            acquire_pair_membership(&owner, &plan, &source, populations, &mut scratch);
+        assert!(Arc::ptr_eq(&after_second.storage, &weak.upgrade().unwrap()));
         drop(after_second);
 
         owner.release(populations[0]);
         assert!(weak.upgrade().is_none());
         assert_eq!(owner.working_bytes(), 0);
         assert_eq!(
-            cache.bytes, metadata_charge,
+            owner.backend.borrow().as_ref().unwrap().bytes,
+            metadata_charge,
             "zero payload budget never removes existing owner metadata"
         );
         let state = owner.state.borrow();
@@ -339,7 +317,6 @@ fn population_and_semantic_context_are_part_of_the_view_identity() {
         first_population,
         ViewContext::default(),
         &mut scratch,
-        None,
     );
     let other_population = acquire(
         &owner,
@@ -348,7 +325,6 @@ fn population_and_semantic_context_are_part_of_the_view_identity() {
         second_population,
         ViewContext::default(),
         &mut scratch,
-        None,
     );
     let other_context = acquire(
         &owner,
@@ -360,10 +336,9 @@ fn population_and_semantic_context_are_part_of_the_view_identity() {
             membership_order: Some(2),
         },
         &mut scratch,
-        None,
     );
-    assert!(!Arc::ptr_eq(&first, &other_population));
-    assert!(!Arc::ptr_eq(&first, &other_context));
-    assert!(!Arc::ptr_eq(&other_population, &other_context));
+    assert!(!first.same_storage(&other_population));
+    assert!(!first.same_storage(&other_context));
+    assert!(!other_population.same_storage(&other_context));
     assert_eq!(owner.counts(), (3, 0, 3));
 }

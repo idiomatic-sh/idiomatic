@@ -1,0 +1,157 @@
+//! Describe immutable allocation identity once when publishing, never by hashing rows.
+use super::*;
+use crate::application::file_dag::derived::ledger::Backing;
+impl RelationOwner {
+    fn backings(&self, record: &Arc<RelationResult>) -> Vec<Backing> {
+        let mut output = Vec::new();
+        Self::record_backings(record, &mut output);
+        output
+    }
+    fn record_backings(record: &Arc<RelationResult>, output: &mut Vec<Backing>) {
+        let mut metadata = size_of::<RelationResult>() + 2 * size_of::<usize>();
+        match &record.body {
+            RelationBody::Source(source) => {
+                metadata += source.storage.capacity() * size_of::<(usize, usize)>()
+                    + source.kinds.capacity() * size_of::<CellKind>()
+                    + source.projection.capacity()
+                        * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
+                    + source.source_kinds.capacity() * size_of::<CellKind>();
+            }
+            RelationBody::Computed(table) => output.push(Self::table_backing(table)),
+            RelationBody::Selected { source, selection } => {
+                Self::record_backings(source, output);
+                output.push(Backing {
+                    key: (6, Arc::as_ptr(selection) as usize),
+                    retention_units: 0,
+                    bytes: size_of::<StoredSelection>()
+                        + 2 * size_of::<usize>()
+                        + selection.columns.capacity()
+                            * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
+                        + selection.kinds.capacity() * size_of::<CellKind>(),
+                });
+                output.push(Self::rows_backing(&selection.rows));
+            }
+        }
+        output.push(Backing {
+            key: (7, Arc::as_ptr(record) as usize),
+            retention_units: 0,
+            bytes: metadata,
+        });
+        if let Some(table) = record.normalized.get() {
+            output.push(Self::table_backing(table));
+        }
+    }
+    pub(super) fn rows_backing(rows: &Arc<Vec<u32>>) -> Backing {
+        Backing {
+            key: (1, Arc::as_ptr(rows) as usize),
+            retention_units: rows.capacity(),
+            bytes: size_of::<Vec<u32>>()
+                + 2 * size_of::<usize>()
+                + rows.capacity() * size_of::<u32>(),
+        }
+    }
+    pub(super) fn table_backing(table: &Arc<Table>) -> Backing {
+        Backing {
+            key: (0, Arc::as_ptr(table) as usize),
+            retention_units: 0,
+            bytes: super::super::service::table_bytes(table),
+        }
+    }
+    fn resource_backings(
+        resources: &Option<Arc<[super::super::derived::view::ResourceDependency]>>,
+        output: &mut Vec<Backing>,
+    ) {
+        let Some(resources) = resources else {
+            return;
+        };
+        output.push(Backing {
+            key: (17, resources.as_ptr() as usize),
+            retention_units: 0,
+            bytes: 2 * size_of::<usize>() + std::mem::size_of_val(resources.as_ref()),
+        });
+        for resource in resources.iter() {
+            output.extend(resource.backings.iter().copied());
+        }
+    }
+    pub(super) fn publication(
+        &self,
+        record: Arc<RelationResult>,
+    ) -> Result<PublishedInput, OperatingError> {
+        self.leased_publication(record, None)
+    }
+    pub(super) fn publication_with_resources(
+        &self,
+        record: Arc<RelationResult>,
+        resources: [Option<super::super::derived::view::AcquiredView>; 2],
+    ) -> Result<PublishedInput, OperatingError> {
+        let dependencies = resources
+            .iter()
+            .flatten()
+            .map(|view| view.dependency())
+            .collect::<Vec<_>>();
+        let dependencies = (!dependencies.is_empty()).then(|| Arc::from(dependencies));
+        self.leased_publication(record, dependencies)
+    }
+    fn leased_publication(
+        &self,
+        record: Arc<RelationResult>,
+        resources: Option<Arc<[super::super::derived::view::ResourceDependency]>>,
+    ) -> Result<PublishedInput, OperatingError> {
+        let mut backings = self.backings(&record);
+        Self::resource_backings(&resources, &mut backings);
+        let lease = self.derived.required_lease(&backings)?;
+        Ok(PublishedInput::new(record, lease, resources))
+    }
+    pub(in crate::application::file_dag) fn required_publication(
+        &self,
+        retained: &RetainedPublication,
+    ) -> Result<PublishedInput, OperatingError> {
+        self.leased_publication(Arc::clone(retained.record()), retained.resources.clone())
+    }
+    pub(in crate::application::file_dag) fn retain_publication(
+        &self,
+        input: &PublishedInput,
+        limit: usize,
+    ) -> Result<Option<RetainedPublication>, OperatingError> {
+        let record = Arc::clone(input.record());
+        let mut backings = self.backings(&record);
+        Self::resource_backings(&input.resources, &mut backings);
+        let Some(lease) = self.derived.node_optional_lease(&backings, limit)? else {
+            return Ok(None);
+        };
+        Ok(Some(RetainedPublication::new(
+            record,
+            lease,
+            input.resources.clone(),
+        )))
+    }
+}
+
+pub(in crate::application::file_dag) fn bytes(result: &RelationResult) -> usize {
+    let owned = match &result.body {
+        RelationBody::Computed(table) => crate::application::file_dag::service::table_bytes(table),
+        RelationBody::Source(source) => {
+            source.storage.capacity() * size_of::<(usize, usize)>()
+                + source.kinds.capacity()
+                    * size_of::<ryo_language::domain::relations::types::CellKind>()
+                + source.projection.capacity()
+                    * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
+                + source.source_kinds.capacity()
+                    * size_of::<ryo_language::domain::relations::types::CellKind>()
+        }
+        RelationBody::Selected { selection, .. } => {
+            selection.rows.capacity() * size_of::<u32>()
+                + selection.columns.capacity()
+                    * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
+                + selection.kinds.capacity()
+                    * size_of::<ryo_language::domain::relations::types::CellKind>()
+                + size_of::<StoredSelection>()
+        }
+    };
+    owned
+        + result.normalized.get().map_or(0, |table| {
+            crate::application::file_dag::service::table_bytes(table)
+        })
+        + size_of::<RelationResult>()
+        + 2 * size_of::<usize>()
+}

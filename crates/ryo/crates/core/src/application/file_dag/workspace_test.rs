@@ -71,7 +71,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         .unwrap();
     let mut workspace = InvocationWorkspace::default();
     workspace.relation_owner = Some(Rc::clone(&owner));
-    workspace.publications = vec![Some(Arc::clone(&published))];
+    workspace.publications = vec![Some((published).clone())];
     let equality = use_(
         DerivedKind::Equality,
         ViewRequest::Equality {
@@ -141,7 +141,7 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
         .unwrap();
     let mut workspace = InvocationWorkspace::default();
     workspace.relation_owner = Some(Rc::clone(&owner));
-    workspace.publications = vec![Some(Arc::clone(&published)), None];
+    workspace.publications = vec![Some((published).clone()), None];
     let use_ = use_(
         DerivedKind::OrderedKeys,
         ViewRequest::OrderedKeys {
@@ -204,7 +204,7 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
     ));
     assert_eq!(workspace.derived_local.counts().0, 2);
     assert_eq!(owner.derived.counts().0, 0);
-    workspace.publications[1] = Some(Arc::clone(&published));
+    workspace.publications[1] = Some((published).clone());
     let inputs = [BorrowedRows::from(&left), BorrowedRows::Computed(&right)];
     let texts = crate::domain::table_texts::types::Texts {
         symbols: context.symbols.as_ref(),
@@ -234,7 +234,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     let normalized = owner.normalized(published.as_ref(), raw).unwrap().unwrap();
     let mut workspace = InvocationWorkspace::default();
     workspace.relation_owner = Some(owner);
-    workspace.publications = vec![Some(Arc::clone(&published))];
+    workspace.publications = vec![Some((published).clone())];
     let use_ = use_(
         DerivedKind::Equality,
         ViewRequest::Equality {

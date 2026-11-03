@@ -1,17 +1,17 @@
 //! Application policy for prepared compact selections and their shared file backend.
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::{
     derived_views::types::{
-        DerivedContract, DerivedInputs, DerivedKind, DerivedScratch, DerivedStorage, ViewRequest,
+        DerivedContract, DerivedInputs, DerivedKind, DerivedScratch, DerivedStorage, DerivedView,
+        ViewRequest,
     },
     operating::{
         errors::OperatingError,
         types::{NameCount, OperatorContext},
     },
     operator::{contract::views::BorrowedRows, types::PreparedPool},
-    stored_indexes::types::FileIndexes,
     stored_selection::types::{
-        LiteralFanout, Matches, PreparedSelectionViews, PreparedSelectorViews, Selector,
-        SelectorHistogram,
+        LiteralFanout, PreparedSelectionViews, PreparedSelectorViews, Selector, SelectorHistogram,
     },
     table_model::{
         service::{check_columns, matching_stored, rectangular},
@@ -38,25 +38,23 @@ mod candidates;
 mod fanout;
 mod predicate;
 mod preparation;
-mod retention;
 #[cfg(test)]
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use candidates::{candidates, first_literal};
 use fanout::fanout_candidates;
 use predicate::matches;
-pub(crate) use preparation::{
-    activate, install_views, prepare_request, prepare_views_with_schemas,
-};
+pub(crate) use preparation::prepare_request;
+pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas;
+pub(in crate::application::file_dag::derived) use preparation::{activate, install_views};
 #[cfg(test)]
 pub(crate) use preparation::{prepare, prepare_views};
-use retention::admit;
 #[cfg(test)]
 use ryo_values::domain::plans::types::Plan;
 // One file owns this cache and drops it after the file. Reserve a fixed, conservative
 // slice of its existing limit for at most this many retained match positions and
 // entries; no allocation-size estimate is maintained for individual entries.
 pub(super) const RETAINED_SELECTION_RESERVATION: usize = 4 * 1024 * 1024;
-const MAX_RETAINED_SELECTIONS: usize = 128;
+pub(super) const MAX_RETAINED_SELECTIONS: usize = 128;
 pub(super) const MAX_RETAINED_POSITION_CAPACITY: usize = 512 * 1024;
 // A single pass can route several authored literals without a whole-column key index.
 // The position and metadata bounds fit inside the existing 4 MiB selection reservation.
@@ -102,16 +100,8 @@ enum Discriminator {
     Indexable(ColumnIndex, Value),
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum Admission {
-    NotRepeated = 0,
-    AllocationRefused = 1,
-    BudgetRefused = 2,
-    Retained = 3,
-}
-
 fn histogram<'a>(
-    cache: &'a mut FileIndexes,
+    cache: &'a mut CacheBackend,
     program: &Arc<Selector>,
 ) -> Option<&'a mut SelectorHistogram> {
     let entries = cache.selection_histogram.as_mut()?;
@@ -133,12 +123,18 @@ fn same(left: &Selector, right: &Selector) -> bool {
         && left.identity.bindings == right.identity.bindings
 }
 
+pub(in crate::application::file_dag) struct SelectionOutput<'a> {
+    pub rows: SelectedRows<'a>,
+    pub resources: [Option<super::view::AcquiredView>; 2],
+}
 /// Produce a compact handle only after the provider has been read successfully by the caller.
-pub(crate) fn select<'a>(
+pub(in crate::application::file_dag::derived) fn select<'a>(
+    cache: &mut CacheBackend,
+    resources: super::owner::selection::SelectionSource<'_>,
     program: &Arc<Selector>,
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
-) -> Result<Option<SelectedRows<'a>>, OperatingError> {
+) -> Result<Option<SelectionOutput<'a>>, OperatingError> {
     if !rectangular(source)
         || source
             .columns
@@ -147,25 +143,21 @@ pub(crate) fn select<'a>(
     {
         return Ok(None);
     }
-    let Some(cache) = context.stored_indexes.take() else {
-        return Ok(None);
-    };
-    let result = if cache.eligible.contains(&program.relation) {
-        make(cache, program, source, context)
+    if cache.eligible.contains(&program.relation) {
+        make(cache, resources, program, source, context)
     } else {
         Ok(None)
-    };
-    context.stored_indexes = Some(cache);
-    result
+    }
 }
 
 /// Validate projected columns before cache acquisition and leave matching ownership independent of projection.
 fn make<'a>(
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
+    resources: super::owner::selection::SelectionSource<'_>,
     program: &Arc<Selector>,
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
-) -> Result<Option<SelectedRows<'a>>, OperatingError> {
+) -> Result<Option<SelectionOutput<'a>>, OperatingError> {
     check_columns(source.kinds, &program.columns)?;
     if let Some(entry) = histogram(cache, program) {
         entry.calls += 1;
@@ -191,48 +183,30 @@ fn make<'a>(
     {
         return Ok(None);
     }
-    let rows = if let Some(found) = cache.selections.iter().find(|entry| {
-        same(&entry.selector, program)
-            && entry.kinds == source.kinds
-            && entry.population == population
-    }) {
-        let rows = Arc::clone(&found.rows);
-        cache.selection_counts.reuses += 1;
-        if let Some(entry) = histogram(cache, program) {
-            entry.reuses += 1;
-        }
-        rows
-    } else {
-        let rows = Arc::new(matches(cache, program, &views, source, context)?);
-        cache.selection_counts.builds += 1;
-        let admission = admit(cache, program, &views, source, population, &rows)?;
-        if let Some(entry) = histogram(cache, program) {
-            entry.builds += 1;
-            entry.matched_rows += rows.len() as u64;
-            entry.admission[admission as usize] += 1;
-        }
-        rows
-    };
+    let predicate = matches(cache, resources, program, &views, source, context)?;
+    let rows = shared_positions(&predicate, population, population)?;
+    let mut dependencies = [Some(predicate), None];
     // The shared result above always contains predicate matches, never distinct representatives.
     // Each terminal projection owns its representative IDs independently of other output maps.
     let rows = if program.distinct {
-        let mut storage = DerivedStorage::Unbuilt;
-        super::owner::build_scoped(
+        let acquired = resources.acquire(
             crate::application::file_dag::route_counts::BuildRoute::SelectorDistinct,
+            cache,
             &views.distinct,
+            super::owner::ViewContext {
+                candidate: Some(Arc::as_ptr(&views.predicate) as usize),
+                ..Default::default()
+            },
             DerivedInputs::Distinct {
                 rows: BorrowedRows::Stored(source),
                 positions: &rows,
             },
-            &mut storage,
             &mut DerivedScratch::default(),
+            None,
         )?;
-        Arc::new(take_positions(
-            &views.distinct,
-            &mut storage,
-            population,
-            rows.len(),
-        )?)
+        let result = shared_positions(&acquired, population, rows.len())?;
+        dependencies[1] = Some(acquired);
+        result
     } else {
         rows
     };
@@ -241,15 +215,18 @@ fn make<'a>(
         .iter()
         .map(|column| source.kinds[column.0 as usize])
         .collect();
-    Ok(Some(SelectedRows {
-        source,
-        selection: Arc::new(StoredSelection {
-            relation: program.relation,
-            rows,
-            columns: program.columns.clone(),
-            kinds,
-            identity: Arc::clone(&program.identity),
-        }),
+    Ok(Some(SelectionOutput {
+        resources: dependencies,
+        rows: SelectedRows {
+            source,
+            selection: Arc::new(StoredSelection {
+                relation: program.relation,
+                rows,
+                columns: program.columns.clone(),
+                kinds,
+                identity: (program.identity).clone(),
+            }),
+        },
     }))
 }
 
@@ -261,16 +238,12 @@ mod retention_test;
 /// to the legacy compact handle. Registered predicate/distinct kernels establish
 /// the ordered admitted-position invariant; first/last checks here are constant-time
 /// cardinality/edge guards, not validation of arbitrary untrusted position vectors.
-fn take_positions(
-    plan: &DerivedContract,
-    storage: &mut DerivedStorage,
+fn shared_positions(
+    acquired: &super::view::AcquiredView,
     population: usize,
     maximum: usize,
-) -> Result<Vec<u32>, OperatingError> {
-    let crate::domain::derived_views::types::DerivedView::RowIds(rows) =
-        crate::domain::derived_views::collections::views::registration::registered(plan.kind)
-            .view(plan, storage)?
-    else {
+) -> Result<Arc<Vec<u32>>, OperatingError> {
+    let DerivedView::RowIds(rows) = acquired.view()? else {
         return Err(OperatingError::WrongOperation);
     };
     if rows.len() > maximum
@@ -279,8 +252,8 @@ fn take_positions(
     {
         return Err(OperatingError::ShapeMismatch);
     }
-    let DerivedStorage::RowIds { rows, .. } = std::mem::take(storage) else {
+    let DerivedStorage::RowIds { rows, .. } = acquired.storage.as_ref() else {
         return Err(OperatingError::WrongOperation);
     };
-    Ok(rows)
+    Ok(Arc::clone(rows))
 }

@@ -5,7 +5,6 @@ use ryo_language::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
-pub(crate) mod footprint;
 pub(crate) mod traversal;
 
 /// Exact immutable relation population within one file-generation owner.
@@ -133,7 +132,7 @@ pub(crate) struct GraphDomain {
     /// Exact domain identity when shared, absent for invocation-local computed rows.
     pub identity: Option<DomainIdentity>,
     /// Membership by dense vertex ID.
-    pub members: Vec<bool>,
+    pub members: Arc<Vec<bool>>,
 }
 
 /// One domain-specific nearest context; mutable answers remain under the generation owner.

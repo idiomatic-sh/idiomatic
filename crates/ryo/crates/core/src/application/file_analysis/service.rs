@@ -334,23 +334,6 @@ impl FileAnalysis {
         skipped
     }
 
-    /// Admit sharing only for an audited provider's complete physical read of an active relation.
-    pub(super) fn indexes_for(
-        tables: &Tables,
-        facts: &dyn FactsWorker,
-        wanted: &[Relation],
-        physical_partials: &[crate::domain::coverage::types::Partial],
-    ) -> Option<crate::domain::stored_indexes::types::FileIndexes> {
-        if tables.language.is_none() || facts.resident_stability() != ResidentStability::Stable {
-            return None;
-        }
-        crate::application::file_dag::derived::indexes::new(
-            wanted,
-            physical_partials,
-            crate::application::file_dag::derived::indexes::LIMIT,
-        )
-    }
-
     /// The rest of a visit of a file the language read: the per-file steps of the rules that govern it run on its rows, the words of
     /// what leaves it wait in the buckets, and the rows are released.
     fn read_file(
@@ -421,12 +404,6 @@ impl FileAnalysis {
                 }
             }
         }
-        let mut stored_indexes = Self::indexes_for(
-            tables,
-            facts.as_ref(),
-            active_wanted.as_ref(),
-            &physical_partials,
-        );
         if graph_enabled
             && tables.language.is_some()
             && facts.resident_stability() == ResidentStability::Stable
@@ -480,9 +457,13 @@ impl FileAnalysis {
             }
             std::cell::RefCell::new(execution)
         });
-        if let Some(indexes) = stored_indexes.as_mut() {
-            crate::application::file_dag::derived::graph_cache::service::reserve(
-                indexes,
+        if let Some(dag) = &file_dag {
+            dag.borrow().prepare_resources(
+                tables.language.is_some()
+                    && facts.resident_stability() == ResidentStability::Stable,
+                active_wanted.as_ref(),
+                &physical_partials,
+                &selectable,
                 visit.setting.plans,
                 &tables.pool,
                 |index| {
@@ -494,20 +475,8 @@ impl FileAnalysis {
                             .unwrap_or(false)
                 },
             );
-            crate::application::file_dag::derived::selection::activate(
-                indexes,
-                &tables.pool,
-                &selectable,
-                |index| {
-                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
-                        && !skipped
-                            .as_ref()
-                            .and_then(|skipped| skipped.get(index))
-                            .copied()
-                            .unwrap_or(false)
-                },
-            );
         }
+
         // The steps of the rules that select from the elements are decided in one pass over them.
         let execution_diagnostics =
             tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE);
@@ -574,7 +543,6 @@ impl FileAnalysis {
             visit,
             file,
             skipped.as_deref(),
-            stored_indexes.as_mut(),
             None,
             file_dag.as_ref(),
             &classes,
@@ -594,56 +562,11 @@ impl FileAnalysis {
                 required_releases=dag.required_releases,
                 required_metadata_bytes=dag.required_metadata_bytes());
         }
-        if let Some(indexes) = stored_indexes.as_ref() {
-            tracing::trace!(target: "ryo::diagnostic::graph", event = "file_graphs", file = file.0,
-                builds = indexes.graph_counts.builds, reuses = indexes.graph_counts.reuses, refusals = indexes.graph_counts.refusals,
-                roots = indexes.graph_counts.roots, traversals = indexes.graph_counts.traversals, memo_hits = indexes.graph_counts.memo_hits,
-                vertices_expanded = indexes.graph_counts.expanded, edges_examined = indexes.graph_counts.examined,
-                nearest_early_stops = indexes.graph_counts.early_stops, forest_hits = indexes.graph_counts.forest_hits,
-                graph_bytes = indexes.graph_bytes, memo_bytes = indexes.memo_bytes, graph_enabled = indexes.graph_enabled,
-                cache_bytes = indexes.bytes, cache_limit = indexes.limit, cache_peak_bytes = indexes.graph_counts.peak_bytes,
-                reclaimed_indexes = indexes.graph_counts.reclaimed_indexes, reclaimed_selections = indexes.graph_counts.reclaimed_selections,
-                reclaimed_bytes = indexes.graph_counts.reclaimed_bytes, pinned_refusals = indexes.graph_counts.pinned_refusals, index_refusals = indexes.refusals,
-                selector_refusals = indexes.selection_counts.refusals);
-            tracing::trace!(target: "ryo::diagnostic::selection", event = "file_selections", file = file.0,
-                source_rows_scanned = indexes.selection_counts.scanned, indexed_candidates = indexes.selection_counts.candidates,
-                predicate_cells_decoded = indexes.selection_counts.predicate_cells, output_cells_decoded = indexes.selection_counts.output_cells,
-                selections_built = indexes.selection_counts.builds, selections_reused = indexes.selection_counts.reuses,
-                selections_refused = indexes.selection_counts.refusals, cache_bytes = indexes.bytes,
-                collected_cell_bytes = indexes.selection_counts.collected_cells.saturating_mul(size_of::<ryo_language::domain::relations::types::Value>() as u64),
-                compact_id_bytes = indexes.selections.iter().map(|entry| entry.rows.capacity().saturating_mul(size_of::<u32>())).sum::<usize>());
-            tracing::trace!(target: "ryo::diagnostic::stored_join", event = "file_indexes", file = file.0,
-                entries = indexes.entries.len(), eligible_relations = indexes.eligible.len(),
-                retained_bytes = indexes.bytes, physical_builds = indexes.builds,
-                reuses = indexes.reuses, refusals = indexes.refusals);
-            if let Some(entries) = &indexes.selection_histogram {
-                for entry in entries {
-                    let retained = indexes
-                        .selections
-                        .iter()
-                        .find(|result| Arc::ptr_eq(&result.selector, &entry.selector));
-                    tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_histogram", file = file.0,
-                        selector_id = std::ptr::from_ref(entry.selector.as_ref()).addr(),
-                        relation = ?entry.selector.relation, comparisons = ?entry.selector.identity.comparisons,
-                        bindings = ?entry.selector.identity.bindings, columns = ?entry.selector.columns,
-                        distinct = entry.selector.distinct, calls = entry.calls, builds = entry.builds,
-                        reuses = entry.reuses, errors = entry.errors, matched_rows = entry.matched_rows,
-                        full_scan_rows = entry.full_scan_rows, index_build_rows = entry.index_build_rows,
-                        indexed_candidates = entry.indexed_candidates, predicate_cells = entry.predicate_cells,
-                        no_discriminator = entry.paths[0], not_repeated = entry.paths[1],
-                        small_population = entry.paths[2], dense_sample = entry.paths[3],
-                        index_budget_refused = entry.paths[4], index_built = entry.paths[5],
-                        index_reused = entry.paths[6], fanout_built = entry.paths[7],
-                        fanout_reused = entry.paths[8], admission_not_repeated = entry.admission[0],
-                        admission_allocation_refused = entry.admission[1],
-                        admission_budget_refused = entry.admission[2], admission_retained = entry.admission[3],
-                        retained_rows = retained.map_or(0, |result| result.rows.len()),
-                        retained_slots = retained.map_or(0, |result| result.rows.capacity()));
-                }
-            }
+        if let Some(dag) = &file_dag {
+            dag.borrow().report_resources(file);
         }
+
         // No index handle or allocation survives release or the next visit, even for the same FileId.
-        drop(stored_indexes);
         let settle_started = execution_diagnostics.then(Instant::now);
         evaluated?;
         settle_file(tables, visit.setting.answering);
@@ -664,7 +587,6 @@ impl FileAnalysis {
         visit: &FileVisit<'_>,
         file: FileId,
         skipped: Option<&[bool]>,
-        mut stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
         mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
         file_dag: Option<
             &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
@@ -717,7 +639,6 @@ impl FileAnalysis {
                 &visit.setting,
                 rule,
                 file,
-                stored_indexes.as_deref_mut(),
                 &|relation| match rows.rows(relation) {
                     Ok(view) => Some(view),
                     Err(error) => {

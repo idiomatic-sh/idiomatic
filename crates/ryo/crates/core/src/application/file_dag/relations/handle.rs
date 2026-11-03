@@ -1,0 +1,88 @@
+//! Worker-local lease capabilities wrap thread-safe immutable publication records.
+use super::RelationResult;
+use crate::application::file_dag::derived::{ledger::ResourceLease, view::ResourceDependency};
+use std::{cell::RefCell, sync::Arc};
+#[derive(Debug)]
+struct RequiredLeases {
+    _initial: Arc<ResourceLease>,
+    normalized: RefCell<Option<Arc<ResourceLease>>>,
+    normalized_in_initial: bool,
+}
+#[derive(Clone, Debug)]
+pub(crate) struct PublishedInput {
+    record: Arc<RelationResult>,
+    leases: Arc<RequiredLeases>,
+    pub(super) resources: Option<Arc<[ResourceDependency]>>,
+}
+impl PublishedInput {
+    pub(super) fn new(
+        record: Arc<RelationResult>,
+        initial: Arc<ResourceLease>,
+        resources: Option<Arc<[ResourceDependency]>>,
+    ) -> Self {
+        let normalized_in_initial = record.normalized.get().is_some();
+        Self {
+            record,
+            resources,
+            leases: Arc::new(RequiredLeases {
+                _initial: initial,
+                normalized: RefCell::new(None),
+                normalized_in_initial,
+            }),
+        }
+    }
+    pub(crate) fn as_ref(&self) -> &RelationResult {
+        &self.record
+    }
+    pub(in crate::application::file_dag) fn record(&self) -> &Arc<RelationResult> {
+        &self.record
+    }
+    pub(super) fn normalization_charged(&self) -> bool {
+        self.leases.normalized_in_initial || self.leases.normalized.borrow().is_some()
+    }
+    pub(super) fn hold_normalization(&self, lease: Arc<ResourceLease>) {
+        *self.leases.normalized.borrow_mut() = Some(lease);
+    }
+    #[cfg(test)]
+    pub(crate) fn same_record(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.record, &other.record)
+    }
+}
+impl std::ops::Deref for PublishedInput {
+    type Target = RelationResult;
+    fn deref(&self) -> &Self::Target {
+        &self.record
+    }
+}
+#[derive(Clone, Debug)]
+pub(crate) struct RetainedPublication {
+    record: Arc<RelationResult>,
+    _lease: Arc<ResourceLease>,
+    pub(super) resources: Option<Arc<[ResourceDependency]>>,
+}
+impl RetainedPublication {
+    pub(super) fn new(
+        record: Arc<RelationResult>,
+        lease: Arc<ResourceLease>,
+        resources: Option<Arc<[ResourceDependency]>>,
+    ) -> Self {
+        Self {
+            record,
+            _lease: lease,
+            resources,
+        }
+    }
+    pub(crate) fn as_ref(&self) -> &RelationResult {
+        &self.record
+    }
+    pub(in crate::application::file_dag) fn record(&self) -> &Arc<RelationResult> {
+        &self.record
+    }
+}
+
+impl std::ops::Deref for RetainedPublication {
+    type Target = RelationResult;
+    fn deref(&self) -> &Self::Target {
+        &self.record
+    }
+}

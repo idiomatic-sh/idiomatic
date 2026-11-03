@@ -1,4 +1,8 @@
 //! One prepared shared ordering and one reusable partition-local adjacency.
+use super::{
+    derived::{ledger::ResourceLease, view::AcquiredView},
+    relations::RelationOwner,
+};
 use crate::domain::{
     derived_views::types::{
         DerivedContract, DerivedInputs, DerivedScratch, DerivedStorage, ViewRequest,
@@ -10,18 +14,21 @@ use crate::domain::{
 };
 use ryo_language::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 /// Ordering metadata can be shared across consumers; only the current partition
 /// owns values/adjacency. Advancing releases the previous partition's logical contents.
 pub(crate) struct PartitionedClosure<'f> {
     input: BorrowedRows<'f>,
+    owner: Rc<RelationOwner>,
     partition_plan: Arc<DerivedContract>,
     closure_plan: Arc<DerivedContract>,
-    ordered: Arc<DerivedStorage>,
+    ordered: AcquiredView,
+    ordering_capacity: usize,
     cursor: usize,
     key: Vec<Value>,
     current: DerivedStorage,
+    current_lease: Option<Arc<ResourceLease>>,
     scratch: DerivedScratch,
 }
 impl<'f> PartitionedClosure<'f> {
@@ -29,7 +36,8 @@ impl<'f> PartitionedClosure<'f> {
         input: BorrowedRows<'f>,
         partition_plan: Arc<DerivedContract>,
         closure_plan: Arc<DerivedContract>,
-        ordered: Arc<DerivedStorage>,
+        ordered: AcquiredView,
+        owner: Rc<RelationOwner>,
     ) -> Result<Self, OperatingError> {
         crate::domain::derived_views::service::validate(
             crate::domain::derived_views::types::DerivedKind::PartitionOrder,
@@ -39,9 +47,15 @@ impl<'f> PartitionedClosure<'f> {
             crate::domain::derived_views::types::DerivedKind::ClosureAdjacency,
             &closure_plan,
         )?;
-        if !matches!(ordered.as_ref(), DerivedStorage::PartitionOrder(_)) {
+        if !std::ptr::eq(ordered.contract(), partition_plan.as_ref())
+            || !matches!(
+                ordered.view()?,
+                crate::domain::derived_views::types::DerivedView::PartitionOrder(_)
+            )
+        {
             return Err(OperatingError::WrongOperation);
         }
+        let ordering_capacity = ordered.partition_order_capacity()?;
         let ViewRequest::ClosureAdjacency {
             source,
             destination,
@@ -64,12 +78,15 @@ impl<'f> PartitionedClosure<'f> {
         });
         Ok(Self {
             input,
+            owner,
             partition_plan,
             closure_plan,
             ordered,
+            ordering_capacity,
             cursor: 0,
             key: Vec::new(),
             current,
+            current_lease: None,
             scratch: DerivedScratch::default(),
         })
     }
@@ -101,30 +118,26 @@ impl<'f> PartitionedClosure<'f> {
             },
             &schema,
         )?);
-        let mut ordered = DerivedStorage::Unbuilt;
-        super::derived::owner::build_scoped(
-            crate::application::file_dag::route_counts::BuildRoute::ClosurePartition,
+        let owner = Rc::new(RelationOwner::new(true));
+        let proof = owner.admit_external(input)?;
+        let (population, _) = proof.identity(owner.as_ref())?;
+        let ordered = owner.derived.acquire_stored(
             &partition_plan,
-            DerivedInputs::Rows(&[input]),
-            &mut ordered,
+            &[population],
+            super::derived::owner::ViewContext::default(),
+            DerivedInputs::Rows(&[proof.rows()]),
             &mut DerivedScratch::default(),
+            None,
         )?;
-        Self::from_prepared(input, partition_plan, closure_plan, Arc::new(ordered))
-    }
-    fn order(&self) -> &[RowIndex] {
-        let crate::domain::derived_views::types::DerivedView::PartitionOrder(order) =
-            crate::domain::derived_views::collections::views::registration::registered(
-                self.partition_plan.kind,
-            )
-            .view(&self.partition_plan, &self.ordered)
-            .expect("validated partition ordering")
-        else {
-            unreachable!("prepared partition order")
-        };
-        order
+        Self::from_prepared(input, partition_plan, closure_plan, ordered, owner)
     }
     pub(crate) fn advance(&mut self) -> Result<bool, OperatingError> {
-        let Some(&first) = self.order().get(self.cursor) else {
+        let crate::domain::derived_views::types::DerivedView::PartitionOrder(order) =
+            self.ordered.view()?
+        else {
+            return Err(OperatingError::WrongOperation);
+        };
+        let Some(&first) = order.get(self.cursor) else {
             return Ok(false);
         };
         let ViewRequest::PartitionOrder { keys } = &self.partition_plan.request else {
@@ -139,25 +152,26 @@ impl<'f> PartitionedClosure<'f> {
             );
         }
         let begin = self.cursor;
-        while let Some(&row) = self.order().get(self.cursor) {
-            if !keys
+        while let Some(&row) = order.get(self.cursor) {
+            let same_key = keys
                 .iter()
                 .zip(&self.key)
-                .all(|(column, value)| self.input.cell(row, *column) == Some(*value))
-            {
+                .try_fold(true, |same, (column, value)| {
+                    let actual = self
+                        .input
+                        .cell(row, *column)
+                        .ok_or(OperatingError::ShapeMismatch)?;
+                    Ok::<_, OperatingError>(same && actual == *value)
+                })?;
+            if !same_key {
                 break;
             }
             self.cursor += 1;
         }
-        let crate::domain::derived_views::types::DerivedView::PartitionOrder(order) =
-            crate::domain::derived_views::collections::views::registration::registered(
-                self.partition_plan.kind,
-            )
-            .view(&self.partition_plan, &self.ordered)?
-        else {
-            return Err(OperatingError::WrongOperation);
-        };
-        super::derived::owner::build_scoped(
+        // The old partition's mandatory charge ends before its reusable buffer
+        // is rebuilt for the next key. A taken partition transfers its lease.
+        drop(self.current_lease.take());
+        self.current_lease = Some(self.owner.derived.scoped_build(
             crate::application::file_dag::route_counts::BuildRoute::ClosurePartition,
             &self.closure_plan,
             DerivedInputs::Partition {
@@ -167,14 +181,17 @@ impl<'f> PartitionedClosure<'f> {
             },
             &mut self.current,
             &mut self.scratch,
-        )?;
+        )?);
         Ok(true)
     }
-    pub(crate) fn take_current(&mut self) -> Result<ClosurePartition, OperatingError> {
+    pub(in crate::application::file_dag) fn take_current(
+        &mut self,
+    ) -> Result<(ClosurePartition, Arc<ResourceLease>), OperatingError> {
+        let lease = self.current_lease.take().ok_or(OperatingError::NotRun)?;
         let DerivedStorage::ClosureAdjacency(current) = std::mem::take(&mut self.current) else {
             return Err(OperatingError::NotRun);
         };
-        Ok(current)
+        Ok((current, lease))
     }
     pub(crate) fn current(&self) -> &ClosurePartition {
         let crate::domain::derived_views::types::DerivedView::ClosureAdjacency(current) =
@@ -215,24 +232,21 @@ impl<'f> PartitionedClosure<'f> {
             capacity.saturating_mul(size_of::<T>())
         }
         let index = &self.current().index;
-        vector::<RowIndex>(match self.ordered.as_ref() {
-            DerivedStorage::PartitionOrder(order) => order.capacity(),
-            _ => 0,
-        })
-        .saturating_add(vector::<Value>(self.working_capacity()))
-        .saturating_add(vector::<CellKind>(self.current().table.kinds.capacity()))
-        .saturating_add(vector::<RowIndex>(index.rows.capacity()))
-        .saturating_add(vector::<KeyCellsHash>(index.hashes.capacity()))
-        .saturating_add(vector::<ChainLink>(index.heads.capacity()))
-        .saturating_add(vector::<ChainLink>(index.next.capacity()))
-        .saturating_add(vector::<RowIndex>(index.sorted.capacity()))
-        .saturating_add(vector::<HashedRow>(index.pairs.capacity()))
-        .saturating_add(
-            index
-                .runs
-                .capacity()
-                .saturating_mul(size_of::<KeyCellsHash>() + 1),
-        )
+        vector::<RowIndex>(self.ordering_capacity)
+            .saturating_add(vector::<Value>(self.working_capacity()))
+            .saturating_add(vector::<CellKind>(self.current().table.kinds.capacity()))
+            .saturating_add(vector::<RowIndex>(index.rows.capacity()))
+            .saturating_add(vector::<KeyCellsHash>(index.hashes.capacity()))
+            .saturating_add(vector::<ChainLink>(index.heads.capacity()))
+            .saturating_add(vector::<ChainLink>(index.next.capacity()))
+            .saturating_add(vector::<RowIndex>(index.sorted.capacity()))
+            .saturating_add(vector::<HashedRow>(index.pairs.capacity()))
+            .saturating_add(
+                index
+                    .runs
+                    .capacity()
+                    .saturating_mul(size_of::<KeyCellsHash>() + 1),
+            )
     }
 }
 

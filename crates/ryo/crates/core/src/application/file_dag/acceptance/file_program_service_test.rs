@@ -202,7 +202,7 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         Some(shared),
         "source origins are caller owned"
     );
-    let incomplete = program(Arc::clone(&graph), |_| true, &[]);
+    let incomplete = program((graph).clone(), |_| true, &[]);
     assert_eq!(
         incomplete.remaining[shared.0], 0,
         "partial facts never mean complete empty"
@@ -243,7 +243,7 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
             columns: &columns,
         })
     };
-    let mut program = program(Arc::clone(&graph), |_| true, &[Relation::Function]);
+    let mut program = program((graph).clone(), |_| true, &[Relation::Function]);
     let mut prepared = PreparedPool::default();
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
@@ -329,9 +329,9 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
         "duplicate occurrence stays addressable"
     );
     assert_eq!(graph.consumers, vec![vec![node], vec![node]]);
-    let complete = program(Arc::clone(&graph), |_| true, &[Relation::Function]);
+    let complete = program((graph).clone(), |_| true, &[Relation::Function]);
     assert_eq!(complete.remaining[node.0], 2, "two rules, not four cuts");
-    let inactive = program(Arc::clone(&graph), |rule| rule == 1, &[Relation::Function]);
+    let inactive = program((graph).clone(), |rule| rule == 1, &[Relation::Function]);
     assert_eq!(inactive.remaining[node.0], 1);
     let partial = program(graph, |_| true, &[]);
     assert_eq!(
@@ -464,7 +464,7 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
     .unwrap();
     reads.set(0);
     let mut actual = pool_for(std::slice::from_ref(query));
-    crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
+    crate::application::file_dag::pipeline::service::evaluate_file_with_legacy_oracle(
         query,
         &rows,
         None,
