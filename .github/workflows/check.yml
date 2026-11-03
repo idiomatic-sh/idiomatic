@@ -468,5 +468,5 @@ jobs:
           name: ruff-all-defaults-${{ github.run_attempt }}
           path: target/checks/ruff-all-defaults/
           include-hidden-files: true
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
