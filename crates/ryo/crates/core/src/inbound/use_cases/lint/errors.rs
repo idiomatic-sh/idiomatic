@@ -16,6 +16,12 @@ use ryo_values::domain::plan_parts::types::RefusedQuery;
 /// Why `lint` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum LintError {
+    /// Required application execution dependencies were inconsistent.
+    #[error("execution: {reason}")]
+    Execution {
+        /// Why the execution scope could not be established.
+        reason: String,
+    },
     /// An explicitly selected source provider is not linked at this request edge.
     #[error("explicit source provider `{name}` must name exactly one linked provider")]
     SourceLanguage {
@@ -247,6 +253,9 @@ impl From<crate::application::file_analysis::errors::FileAnalysisError> for Lint
     fn from(error: crate::application::file_analysis::errors::FileAnalysisError) -> Self {
         use crate::application::file_analysis::errors::FileAnalysisError;
         match error {
+            FileAnalysisError::Execution(error) => Self::Execution {
+                reason: error.to_string(),
+            },
             FileAnalysisError::SourceLanguage { name } => Self::SourceLanguage { name },
             FileAnalysisError::Store(error) => error.into(),
             FileAnalysisError::Corpus(error) => error.into(),

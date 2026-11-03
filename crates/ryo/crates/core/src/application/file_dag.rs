@@ -28,7 +28,7 @@ pub(crate) mod selected;
 
 mod required;
 
-mod relations;
+pub(in crate::application) mod relations;
 
 pub(crate) mod executor;
 pub(crate) mod interface;

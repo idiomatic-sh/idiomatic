@@ -291,7 +291,6 @@ where
             stepper
                 .relation_owner
                 .as_ref()
-                .ok_or(OperatingError::NotRun)?
                 .resolve(result.as_ref(), &|relation| stepper.read.rows(relation))
         })
         .transpose()

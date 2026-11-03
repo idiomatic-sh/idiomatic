@@ -118,10 +118,7 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
                 .ok_or(OperatingError::NotRun)?
                 .get()
                 .map(Clone::clone),
-            Input::Relation(relation) => self
-                .relation_owner
-                .as_ref()
-                .and_then(|owner| owner.lookup_source(relation)),
+            Input::Relation(relation) => self.relation_owner.lookup_source(relation),
         })
     }
 
