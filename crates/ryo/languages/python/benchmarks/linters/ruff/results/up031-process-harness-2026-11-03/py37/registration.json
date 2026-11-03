@@ -1,0 +1,1517 @@
+{
+  "provider": "ruff",
+  "defaults": [
+    "UP031"
+  ],
+  "identity": {
+    "profile_sha256": "c3e3982ae19ee053d2cfa349b0c2c58cdaff12a6f0bad7c3f781e05d42cfb903",
+    "query_sha256": "7d78368c75ccb51389268782b991e802269ac08e74946eef0ab3e52b03e8ee93",
+    "cases_sha256": "9dab884a10ef43ed7d06f06f2277894bef998543371e1fc2cb81ccacd1762b83"
+  },
+  "rules": [
+    {
+      "rule_id": "UP031",
+      "command": null,
+      "reason": null,
+      "instance": null,
+      "cases": [
+        {
+          "rule": "UP031",
+          "name": "annotation-addition-negative",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "40c17df1f9366b2437411cd49869c7c552c9bd71cafec65fd0318d5d75634e19",
+          "source_sha256": "660d2e43b6a864cece5659d7e41eaa2db7d2f4e10bea20ca04dd736a898e115b",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "backslash-annotation-modulo",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "190ac161aa180c65fedb7c320996efc27a7c290f493a0b3c31f8cdb3030cf332",
+          "source_sha256": "c876dfbf0d7f46d4d9faf45510ca1232659624b2c1c958b84f4f5b8085cfcff9",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "full",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 3,
+              "end": 23
+            }
+          ],
+          "reference_discrepancy": {
+            "identity": {
+              "tool": "ruff",
+              "version": "0.16.5",
+              "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+              "profile-sha256": "c3e3982ae19ee053d2cfa349b0c2c58cdaff12a6f0bad7c3f781e05d42cfb903",
+              "settings-sha256": "8e53ce2d031b7b909fc79fe3a05db6760f49d34a39f5c5d65a58117d3b3252a1",
+              "source-sha256": "c876dfbf0d7f46d4d9faf45510ca1232659624b2c1c958b84f4f5b8085cfcff9",
+              "reference-output-sha256": "696b529db0ce483a1820c17124124d5cdeca6d553a2116c586b605cbc88d66eb",
+              "intended-output-sha256": "a93ef4e06016ee4dc8d237319a829c5fd5d3b6207963d851b4302f6c79479932"
+            },
+            "approved_executable_sha256": [
+              "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+              "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+              "515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4",
+              "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
+              "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
+            ],
+            "reference_expected": null,
+            "intended_expected": [
+              {
+                "rule": "UP031",
+                "file": "case.py",
+                "start": 3,
+                "end": 23
+              }
+            ],
+            "reason": "Pinned Ruff0.16.5 completes with exit2 structured panic rather than a diagnostic report on this exact escaped annotation. Two actual no-deadline harness captures bind this binary/source/settings; independently parsed percent expressions retain the intended UP031 finding and existing host-span mapping. No timeout, signal, or unrelated output is waived.",
+            "process": {
+              "kind": "process-failure",
+              "exit": 2,
+              "stdout": [
+                {
+                  "kind": "literal",
+                  "value": "[\n  {\n    \"cell\": null,\n    \"code\": \"panic\",\n    \"end_location\": null,\n    \"filename\": \""
+                },
+                {
+                  "kind": "input-path",
+                  "file": "case.py",
+                  "encoding": "json-string-content"
+                },
+                {
+                  "kind": "literal",
+                  "value": "\",\n    \"fix\": null,\n    \"location\": null,\n    \"message\": \"Panicked at crates/ruff_linter/src/rules/pyupgrade/rules/printf_string_formatting.rs:474:32 when checking `"
+                },
+                {
+                  "kind": "input-path",
+                  "file": "case.py",
+                  "encoding": "json-string-content"
+                },
+                {
+                  "kind": "literal",
+                  "value": "`: `assertion failed: start.raw <= end.raw`\",\n    \"name\": \"panic\",\n    \"noqa_row\": null,\n    \"severity\": \"error\",\n    \"url\": null\n  }\n]"
+                }
+              ],
+              "stderr": [
+                {
+                  "kind": "literal",
+                  "value": "error: Panic during linting indicates a bug in Ruff. If you could open an issue at:\n\nhttps://github.com/astral-sh/ruff/issues/new?title=%5BLinter%20panic%5D\n\n...with the relevant file contents, the `pyproject.toml` settings, and the stack trace above, we'd be very appreciative!\n\n"
+                }
+              ],
+              "observations": [
+                {
+                  "executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/aarch64/attempt-1/invocation.json",
+                    "sha256": "86b77e9aa84bfd217d4a6b43fbf47726bf7eaee10cc00f6a8b06921541bf9457"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/aarch64/attempt-1/stdout.bin",
+                    "sha256": "341a19cc0872cb8094e376b17981a1b6e1af90653e069d1ceaa41ed0f130eda8"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/aarch64/attempt-1/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                },
+                {
+                  "executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/aarch64/attempt-2/invocation.json",
+                    "sha256": "dd087fd31fb7bdf0bfcfa53b8e33b9f17f852625e5e847a5b681edd76c292f5a"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/aarch64/attempt-2/stdout.bin",
+                    "sha256": "1d05ad341af69c16f0ad5aa11de0ce16a48a87666f2dbdb7af2eec50c61f2869"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/aarch64/attempt-2/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                },
+                {
+                  "executable-sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/x86_64/attempt-1/invocation.json",
+                    "sha256": "236fe2513be0361a53365e73c16d4f5c343b84177f9b56d0f9807bab30df8367"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/x86_64/attempt-1/stdout.bin",
+                    "sha256": "62c26a0a10325e794d5f174364c9b7858be3567ddb154ca19a25ea903feaa6b0"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/x86_64/attempt-1/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                },
+                {
+                  "executable-sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/x86_64/attempt-2/invocation.json",
+                    "sha256": "019985692fe785914d173b4744dcbe0ca9f0635d6f0d2e3f0740c28d8c57e1ce"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/x86_64/attempt-2/stdout.bin",
+                    "sha256": "6ac2b9acb3c7f1ac4514599fdfaf1c90d33897b854d9a2c3c7e1c559aa5f6037"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/backslash-annotation-modulo/x86_64/attempt-2/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "rule": "UP031",
+          "name": "bytes-not-str",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "0f347c566d34f34138a2b33c78c9bd502048e471430fba8fc1c681317f22661d",
+          "source_sha256": "ab3f363a1e65b8d64de79c8c324968f1c694a818c458f1d18dd9e2b5a89752a3",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "combined-flags",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "91eb9e5cd4dce0de6714576c71072d7ce68984c3dc98387bff2e7dd5023e9bd1",
+          "source_sha256": "d2f8971dab3514f84df2518deaac7e841dfe4bf8e5e4219e68aef9c322ff2083",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 19
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "dictionary-positional",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "0b4acf262531de40c30bd1e2868386661b58131a1888b672c2ab3fdcd19f86ba",
+          "source_sha256": "4810305a11b0b9ac20c79db2961103d36a1974be9cc4e12a8e080dccc019244a",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 4
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "duplicate-keyword-dictionary",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "0ad29265ef4b67d60dae80138553821519f68f6a4e4f749c6804f1af734efc23",
+          "source_sha256": "25d88063e11241f6f92d589653bc9b4fc136ad71689a7bd2b2e6710bba126ea8",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 7
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "dynamic-format-name",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "7b0b36b506a9643ce5cc79114daea5da776fa347fcebfc6c77f3529b3b619dcf",
+          "source_sha256": "ed14729f6eca6fefed49fac268e9ba3726e85e3a892c52b4ce4d21f69aef2a73",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "dynamic-precision",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "cc5a48a3f2a86e7cea2df86091fd491c339d78d11bd2cf2eacd933b847710e20",
+          "source_sha256": "c6d08e0cd9c7e691b60cda8f6414f9c00ebcd6579d78bfa0d4347b5fb7b3fc14",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 6
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "dynamic-width",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "e1a6aef006196612f4397af5c8f1442f346c0613e2c8ba8842f1c705af590d49",
+          "source_sha256": "e2fab607bf51fdc57019184a92dcbb6bddda3cb6d82aad9204847a6e456eda63",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 5
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "empty-format",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "d7679514201295db781c58eebd18c0408cced7a64c1df2af9277df4f0ebf9a58",
+          "source_sha256": "0ee1871a03252d3e8088e1751b47c1797920c0462e83c29723a469a780b5cdb9",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 7
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "empty-mapping-key",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "6fc1bf05824a8190cef5407d2a394e442054d38da53e45a3cd9fb3fad346786f",
+          "source_sha256": "7b92ccdd715976d1b240c4144e2a79277b800665b21b183e97fa018f6e4f155b",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 6
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "escaped-annotation-modulo",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "5976380cfe17628bbff2b24ae18b5e304e14b4a31976d3a7b1fa94cd433bee44",
+          "source_sha256": "37d8c29ceaf683cbd160d3b919f5cc8a38ebb7d5a28ada2db77203cba91a0191",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "full",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 3,
+              "end": 19
+            }
+          ],
+          "reference_discrepancy": {
+            "identity": {
+              "tool": "ruff",
+              "version": "0.16.5",
+              "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+              "profile-sha256": "c3e3982ae19ee053d2cfa349b0c2c58cdaff12a6f0bad7c3f781e05d42cfb903",
+              "settings-sha256": "8e53ce2d031b7b909fc79fe3a05db6760f49d34a39f5c5d65a58117d3b3252a1",
+              "source-sha256": "37d8c29ceaf683cbd160d3b919f5cc8a38ebb7d5a28ada2db77203cba91a0191",
+              "reference-output-sha256": "696b529db0ce483a1820c17124124d5cdeca6d553a2116c586b605cbc88d66eb",
+              "intended-output-sha256": "27b1ef8ce3c11f9b8ea34faf3ba5a5a1de4afbb1e6f6af52b327a0b35174fbb0"
+            },
+            "approved_executable_sha256": [
+              "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+              "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+              "515c8e5e3c8c3cd9785f421e050c98748420aae9a02459b7232c89a46bbadba4",
+              "894431afcb8addcd8e3752e53634fdb0a6f9063153cd62ed730ce59d02878487",
+              "29bad4fe4eea42953274db328ce9bd3c8cc2854b1d00d4b90ee48f797795b33e"
+            ],
+            "reference_expected": null,
+            "intended_expected": [
+              {
+                "rule": "UP031",
+                "file": "case.py",
+                "start": 3,
+                "end": 19
+              }
+            ],
+            "reason": "Pinned Ruff0.16.5 completes with exit2 structured panic rather than a diagnostic report on this exact escaped annotation. Two actual no-deadline harness captures bind this binary/source/settings; independently parsed percent expressions retain the intended UP031 finding and existing host-span mapping. No timeout, signal, or unrelated output is waived.",
+            "process": {
+              "kind": "process-failure",
+              "exit": 2,
+              "stdout": [
+                {
+                  "kind": "literal",
+                  "value": "[\n  {\n    \"cell\": null,\n    \"code\": \"panic\",\n    \"end_location\": null,\n    \"filename\": \""
+                },
+                {
+                  "kind": "input-path",
+                  "file": "case.py",
+                  "encoding": "json-string-content"
+                },
+                {
+                  "kind": "literal",
+                  "value": "\",\n    \"fix\": null,\n    \"location\": null,\n    \"message\": \"Panicked at crates/ruff_linter/src/rules/pyupgrade/rules/printf_string_formatting.rs:474:32 when checking `"
+                },
+                {
+                  "kind": "input-path",
+                  "file": "case.py",
+                  "encoding": "json-string-content"
+                },
+                {
+                  "kind": "literal",
+                  "value": "`: `assertion failed: start.raw <= end.raw`\",\n    \"name\": \"panic\",\n    \"noqa_row\": null,\n    \"severity\": \"error\",\n    \"url\": null\n  }\n]"
+                }
+              ],
+              "stderr": [
+                {
+                  "kind": "literal",
+                  "value": "error: Panic during linting indicates a bug in Ruff. If you could open an issue at:\n\nhttps://github.com/astral-sh/ruff/issues/new?title=%5BLinter%20panic%5D\n\n...with the relevant file contents, the `pyproject.toml` settings, and the stack trace above, we'd be very appreciative!\n\n"
+                }
+              ],
+              "observations": [
+                {
+                  "executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/aarch64/attempt-1/invocation.json",
+                    "sha256": "c6e803637db681ecab6150b3ac5ca9a568b7224a28ab63e012f06abe3fb072f7"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/aarch64/attempt-1/stdout.bin",
+                    "sha256": "2acdc9e2bf1453e10eb790fda84d54cc3a6a059723b542ac2f32a40d424b5e63"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/aarch64/attempt-1/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                },
+                {
+                  "executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/aarch64/attempt-2/invocation.json",
+                    "sha256": "01f5fde6344e89970e2c61c90f267755a0ea84e7b5294e0348c0a0e38bb757b2"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/aarch64/attempt-2/stdout.bin",
+                    "sha256": "eaada10049f8f5dd16a60c8d7edcad694c7ae318ad3a828899d258d6dfce07db"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/aarch64/attempt-2/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                },
+                {
+                  "executable-sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/x86_64/attempt-1/invocation.json",
+                    "sha256": "233a1d7003c32e33f665023b8cf57de6150ef66e26c791613ad8daf97c73b5ad"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/x86_64/attempt-1/stdout.bin",
+                    "sha256": "d450501bd3d07622b1a409f77dd221b134107cf096a673a97ffb9c6fadf996de"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/x86_64/attempt-1/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                },
+                {
+                  "executable-sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+                  "invocation": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/x86_64/attempt-2/invocation.json",
+                    "sha256": "cd8c59fe3a3bd7b98367e3ad2c3042b378efa68b8415f84c4f5f45109d9f6c66"
+                  },
+                  "stdout": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/x86_64/attempt-2/stdout.bin",
+                    "sha256": "36d3a241adb2fa4e81afe863087db043ba5c8bb86071707b80f3c35f8f07421e"
+                  },
+                  "stderr": {
+                    "path": "results/up031-process-harness-2026-11-03/py37/escaped-annotation-modulo/x86_64/attempt-2/stderr.bin",
+                    "sha256": "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "rule": "UP031",
+          "name": "escaped-percent-format",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "dd0bfd1bf4b4f369644107f926e21ba845c85df9da8369afd13b2b9ae5f330dc",
+          "source_sha256": "cb61450cb3b55c24a3681837a133041e7e8f7d9c8b42039e6044da9e70a96f54",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 9
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "fallback-first-segment",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "3b0be32de7094990fbed0c74d886ca8d16aad41c47325448d33326038f7cc9af",
+          "source_sha256": "e692b878df6013a0fad965f3aaeec183c6dd3842b653108b5b724930282be8e8",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 9
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "flag-free-repr",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "b3d737cf3f900096cacad1673ebf5e34d6d06921e5604436fb431fbfd90fd3c1",
+          "source_sha256": "20af0942049bb5dc59319b0a884b71c3aa5742d263130a641cc660b96b962113",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 12
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "flagged-repr",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "199b2d41d48a9729b0bd16bf83237477c8fea1d9f8e306a2781303d6c2fd6792",
+          "source_sha256": "4e35d4c8912d93bc5e3e25ac4e823eb456132ab1428c2c228db8e04042ca8193",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 5
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "implicit-concatenation",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "93307121f77ca868ee58c62704382464e7dbd8737d4c4e676c82906079f99e60",
+          "source_sha256": "7ee4f54825728229984fba59df5e28479aed1a442ef91062d8a3c303ce792b43",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 20
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "integer-coercion",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "d50331f8b2c5d348f62f40936b0f14e5e3908b208302eaa01a030ffbab3b3dd0",
+          "source_sha256": "dae59f0f101d905935654ffa903a124f74ae9beed0e68994d9ae4b47a8b2233d",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 4
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "integer-modulo",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "ee9e62f580e414bf16a8d6d0ad243371a8808914a60c873bb8a4309751a5ffd0",
+          "source_sha256": "4a1de53071e5c6c50196b284c19f000e8ea6c8974e4a3d5ca7b2d96140c54856",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "invalid-first-segment",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "3f32f6a8004b7c7bc374aa95ab565c38ebaadf8404d7379fab25b70d5da00bec",
+          "source_sha256": "f21ab98328810cc48951b7b3947c893a56707e3caab63c5f468c358265ad55bd",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "invalid-keyword-dictionary",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "2080a46f4d7c87e190cd4a5a4e35c7bd0209f10ef290f9f7229d496b2efd7751",
+          "source_sha256": "d8841ad5843053d563eed93676da7aa94d51c9b1214c0b0340fdb7a6704cb5b7",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 7
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "malformed-format",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "60a101d40359970b6134a08f8d5482df656b4c8c7a4afca27ba4e3cc44eb016e",
+          "source_sha256": "adf272400ad42eaa6333992890a8ec3345f25ff0a49578c6e3ef122083059576",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "nested-format",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "ac98936247d2ab592a8abc095f81a14b02b96cb989ce305fe75b069f8da260f2",
+          "source_sha256": "098a3bbad5c45963e0e0c932be8b02164075aa2dfd61d10ca76974a6260186ea",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 22
+            },
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 8,
+              "end": 20
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "numeric-format",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "4028c71cb7811f32e6f2d9d163236814ec7a88aa71f8638c4dc44c1a8048a91c",
+          "source_sha256": "e1aa8e2bb78b492c6d4915674f314bc147bc314237de5d6ad82d5b918f32ba87",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 14
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "parenthesized-integer-fallback",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "045db0b9d65dc77e1672003b657bdce52520a53efcaeeb03aeaa122245cd2fa2",
+          "source_sha256": "ff5120300ec75a6106f3408ac6ae943614ef322de76ba92093d3f6d6bab64476",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 1,
+              "end": 5
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "parenthesized-left",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "3a1be92abe40a516beb6204896942839d162b069b5f33ad15501f82b924b3778",
+          "source_sha256": "a8079de906c150d4cb7a03efcbab0fb7022fccf63ecb47db7d3adb43f4182cc5",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 14
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "quoted-annotation-modulo",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "711dfbff56ff5160a1cbf2e2ab85c0efa3198ecb727916f8b63319380f767abe",
+          "source_sha256": "10623308496078dac1744d5ddd991603ac5a6348fba8f6cf320bc9631bcd2b71",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 4,
+              "end": 16
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "repeated-flags",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "cca6739f5f23a74f9c80996c19eaf775793d2b76ed7ce1a046694af9e8f0e7c7",
+          "source_sha256": "024eeab0d276491202a33c4d67f1b2858f580777d8b0e014ceb427623421ec23",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 14
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "reserved-keyword-dictionary",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "23fe39bfa0b52da6fcd6c05352767f06bd808f570667c77b300dab30ffb1cef0",
+          "source_sha256": "2f89cef7e7929a861339ad6409c0b4771d53580d19270117c46ab02ef3c66a90",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "shadowed-format-name",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "9f227a6204c1b74d5e3fa611b0fdef51fa21131bffe85cccbd751c344af4bdd0",
+          "source_sha256": "79801a1a8a5085639a2123c3b2581a3dba5f236944e106b88e7b5b058d45e3bd",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 18,
+              "end": 30
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "simple-ambiguous-name",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "a2e07ebee22583f8713d9fe4be6946ddca804b7563dc74d1a2e2007a8fdddcd5",
+          "source_sha256": "574ac0adc7b217896e39d5440f84ef5d148f67ce2b613cc2eb242901fc97c3d0",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 12
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "simple-tuple",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "75d4eb5fd126d0edcd8ae4dfd8bf69754606e8c03b19036fa02f0fe487dbe8e8",
+          "source_sha256": "75c1941f866e67aa7ccce3108eaf4ed116a03a2b25e6f0c0b450f811b35c33a2",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 15
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "string-width",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "f96480f39eb825ee5a21e95c4618d162609edf4f0270b837be3c57aa9ecf4c32",
+          "source_sha256": "e51b68e072ef515787b9fcf5287cf03c673058028bad182be17a44c736428d11",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 6
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "stub",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "5cae30c322b174e3dfd105b151a46e7855fee172bedef7c9daa4c93f33806aa2",
+          "source_sha256": "214b4243e7fb1703d889e81222355c4c297d3b7a2198d08d6837b12fd5a64c53",
+          "files": [
+            "case.pyi"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.pyi",
+              "start": 7,
+              "end": 19
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "suppression",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "61f1c18e5ae2b207cfd598be3d7b0de6e6c7411b2abfd7a2a15c936ddb138033",
+          "source_sha256": "2d87826a7c444c7b090e23f69411d4410c523a4a8353e7412ba222b1da1cfa76",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "unicode-annotation-modulo",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "156fa4442d2a284936a326d584da532517f9de8cf29309c7f5f43c39e1597739",
+          "source_sha256": "f331f8fe417444092c49316ab377c8a1eb699b9e5cf7ac9b76ae18d7faa92e9d",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 4,
+              "end": 18
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "unicode-keyword-dictionary",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "f55ff4ba1e331cccb719f82d48212971c7cb18610b1c0704eec8261567a08e24",
+          "source_sha256": "e87b22f1ce7307be5cc544be8c4f1a36f61e082e57b89ec81d82352626ddaab6",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 23
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "unpacked-keyword-dictionary",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "a60850f71b869ed75de904e436c761cf2855a9a43974d9f5300eeede0db4c4eb",
+          "source_sha256": "103335033b3d9e90538aca117e638df3dcd39906c034bc05212d552b389a68a1",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "unsupported-right-expression",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "d279df0e2f63abd1d969075d0e7c0bbcce4479ff57128549ac564ece3c9019b9",
+          "source_sha256": "85d591070c7d4dc55a3df207e1d47a31c766d1061ab4ef342878ebca96c405f1",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "unsupported-right-with-fallback",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "ccc70e86cd8c4ce42ac80a09d923369296194c09425ef1923286686c451ea6fa",
+          "source_sha256": "7e870338d1dc672193c590bc9d4cdd431bdc24c06672facdabb97f8872672ac8",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 4
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "upstream-full-UP031_0.py",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "2745e7960b834a726d91cb08367af811f74131123634404152184d29c862d413",
+          "source_sha256": "fb6344d13067edb6d5668a29ba86e91d3c5e97e395ec2f1d619c624afe2b1bea",
+          "files": [
+            "UP031_0.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 39,
+              "end": 55
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 64,
+              "end": 79
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 88,
+              "end": 102
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 111,
+              "end": 129
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 138,
+              "end": 166
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 146,
+              "end": 164
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 175,
+              "end": 197
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 206,
+              "end": 218
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 227,
+              "end": 240
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 249,
+              "end": 263
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 272,
+              "end": 285
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 294,
+              "end": 307
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 316,
+              "end": 328
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 337,
+              "end": 351
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 360,
+              "end": 380
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 395,
+              "end": 426
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 440,
+              "end": 480
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 490,
+              "end": 506
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 515,
+              "end": 535
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 544,
+              "end": 584
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 593,
+              "end": 624
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 633,
+              "end": 670
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 679,
+              "end": 702
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 711,
+              "end": 732
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 747,
+              "end": 802
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 834,
+              "end": 886
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 896,
+              "end": 919
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 928,
+              "end": 962
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 971,
+              "end": 1000
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1036,
+              "end": 1056
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1064,
+              "end": 1085
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1093,
+              "end": 1114
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1122,
+              "end": 1147
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1155,
+              "end": 1183
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1191,
+              "end": 1212
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1220,
+              "end": 1245
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1253,
+              "end": 1281
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1302,
+              "end": 1341
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1343,
+              "end": 1406
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1414,
+              "end": 1437
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1447,
+              "end": 1480
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1484,
+              "end": 1512
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1522,
+              "end": 1882
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1956,
+              "end": 1972
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1974,
+              "end": 1994
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 1996,
+              "end": 2019
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2154,
+              "end": 2172
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2235,
+              "end": 2245
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2253,
+              "end": 2264
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2272,
+              "end": 2282
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2290,
+              "end": 2304
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2312,
+              "end": 2323
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2332,
+              "end": 2341
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2349,
+              "end": 2359
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2448,
+              "end": 2455
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2466,
+              "end": 2471
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2485,
+              "end": 2489
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2500,
+              "end": 2504
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2523,
+              "end": 2529
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2540,
+              "end": 2546
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2560,
+              "end": 2564
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2575,
+              "end": 2581
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2599,
+              "end": 2603
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2618,
+              "end": 2624
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2640,
+              "end": 2647
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2664,
+              "end": 2671
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2692,
+              "end": 2699
+            },
+            {
+              "rule": "UP031",
+              "file": "UP031_0.py",
+              "start": 2718,
+              "end": 2727
+            }
+          ],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "upstream-full-UP031_1.py",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "0ea437b840c8894ec5357c11ace3bf7bc0939166f4b7875e2221fce3df88fd16",
+          "source_sha256": "36c3ad8749d7155c99a936775786940be7fc1aaf417539ca46cc1230c83b91bb",
+          "files": [
+            "UP031_1.py"
+          ],
+          "comparison": "rule",
+          "expected": [],
+          "reference_discrepancy": null
+        },
+        {
+          "rule": "UP031",
+          "name": "valid-keyword-dictionary",
+          "project_context_mode": "isolated",
+          "context_identity": null,
+          "case_sha256": "d27ca573f85a1410d828c48a33ef0126e20af78eb881827e9622942ef8139fbc",
+          "source_sha256": "7c84f7f386ca3251d90bc373f40f5325344a00a250fa45c00c5f4fea17027360",
+          "files": [
+            "case.py"
+          ],
+          "comparison": "rule",
+          "expected": [
+            {
+              "rule": "UP031",
+              "file": "case.py",
+              "start": 0,
+              "end": 21
+            }
+          ],
+          "reference_discrepancy": null
+        }
+      ]
+    }
+  ]
+}

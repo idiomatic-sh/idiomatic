@@ -1,214 +1,259 @@
 [[cases]]
 name = "upstream-full-UP031_0.py"
+comparison = "rule"
 files = { "UP031_0.py" = "a, b, x, y = 1, 2, 3, 4\n\n# UP031\nprint('%s %s' % (a, b))\n\nprint('%s%s' % (a, b))\n\nprint(\"trivial\" % ())\n\nprint(\"%s\" % (\"simple\",))\n\nprint(\"%s\" % (\"%s\" % (\"nested\",),))\n\nprint(\"%s%% percent\" % (15,))\n\nprint(\"%f\" % (15,))\n\nprint(\"%.f\" % (15,))\n\nprint(\"%.3f\" % (15,))\n\nprint(\"%3f\" % (15,))\n\nprint(\"%-5f\" % (5,))\n\nprint(\"%9f\" % (5,))\n\nprint(\"%#o\" % (123,))\n\nprint(\"brace {} %s\" % (1,))\n\nprint((\n    \"foo %s \"\n    \"bar %s\" % (x, y)\n))\n\nprint(\n  \"%s\" % (\n    \"trailing comma\",\n        )\n)\n\nprint(\"foo %s \" % (x,))\n\nprint(\"%(k)s\" % {\"k\": \"v\"})\n\nprint(\"%(k)s\" % {\n    \"k\": \"v\",\n    \"i\": \"j\"\n})\n\nprint(\"%(to_list)s\" % {\"to_list\": []})\n\nprint(\"%(k)s\" % {\"k\": \"v\", \"i\": 1, \"j\": []})\n\nprint(\"%(ab)s\" % {\"a\" \"b\": 1})\n\nprint(\"%(a)s\" % {\"a\"  :  1})\n\n\nprint(\n    \"foo %(foo)s \"\n    \"bar %(bar)s\" % {\"foo\": x, \"bar\": y}\n)\n\nbar = {\"bar\": y}\nprint(\n    \"foo %(foo)s \"\n    \"bar %(bar)s\" % {\"foo\": x, **bar}\n)\n\nprint(\"%s \\N{snowman}\" % (a,))\n\nprint(\"%(foo)s \\N{snowman}\" % {\"foo\": 1})\n\nprint((\"foo %s \" \"bar %s\") % (x, y))\n\n# Single-value expressions\nprint('Hello %s' % \"World\")\nprint('Hello %s' % f\"World\")\nprint('Hello %s (%s)' % bar)\nprint('Hello %s (%s)' % bar.baz)\nprint('Hello %s (%s)' % bar['bop'])\nprint('Hello %(arg)s' % bar)\nprint('Hello %(arg)s' % bar.baz)\nprint('Hello %(arg)s' % bar['bop'])\n\n# Hanging modulos\n(\n    \"foo %s \"\n    \"bar %s\"\n) % (x, y)\n\n(\n    \"foo %(foo)s \"\n    \"bar %(bar)s\"\n) % {\"foo\": x, \"bar\": y}\n\n(\n    \"\"\"foo %s\"\"\"\n    % (x,)\n)\n\n(\n    \"\"\"\n    foo %s\n    \"\"\"\n    % (x,)\n)\n\n\"%s\" % (\n    x,  # comment\n)\n\n\npath = \"%s-%s-%s.pem\" % (\n    safe_domain_name(cn), # common name, which should be filename safe because it is IDNA-encoded, but in case of a malformed cert make sure it's ok to use as a filename\n    cert.not_valid_after.date().isoformat().replace(\"-\", \"\"), # expiration date\n    hexlify(cert.fingerprint(hashes.SHA256())).decode(\"ascii\")[0:8], # fingerprint prefix\n)\n\n# UP031 (no longer false negatives; now offer potentially unsafe fixes)\n'Hello %s' % bar\n\n'Hello %s' % bar.baz\n\n'Hello %s' % bar['bop']\n\n# Not a valid type annotation but this test shouldn't result in a panic.\n# Refer: https://github.com/astral-sh/ruff/issues/11736\nx: \"'%s + %s' % (1, 2)\"\n\n# See: https://github.com/astral-sh/ruff/issues/12421\nprint(\"%.2X\" % 1)\nprint(\"%.02X\" % 1)\nprint(\"%02X\" % 1)\nprint(\"%.00002X\" % 1)\nprint(\"%.20X\" % 1)\n\nprint(\"%2X\" % 1)\nprint(\"%02X\" % 1)\n\n# UP031 (no longer false negatives, but offer no fix because of more complex syntax)\n\n\"%d.%d\" % (a, b)\n\n\"%*s\" % (5, \"hi\")\n\n\"%d\" % (flt,)\n\n\"%c\" % (some_string,)\n\n\"%.2r\" % (1.25)\n\n\"%.*s\" % (5, \"hi\")\n\n\"%i\" % (flt,)\n\n\"%()s\" % {\"\": \"empty\"}\n\n\"%s\" % {\"k\": \"v\"}\n\n\"%()s\" % {\"\": \"bar\"}\n\n\"%(1)s\" % {\"1\": \"bar\"}\n\n\"%(a)s\" % {\"a\": 1, \"a\": 2}\n\n\"%(1)s\" % {1: 2, \"1\": 2}\n\n\"%(and)s\" % {\"and\": 2}\n" }
-expected = [{ rule = "UP031", file = "UP031_0.py", start = 39, end = 55 }, { rule = "UP031", file = "UP031_0.py", start = 64, end = 79 }, { rule = "UP031", file = "UP031_0.py", start = 88, end = 102 }, { rule = "UP031", file = "UP031_0.py", start = 111, end = 129 }, { rule = "UP031", file = "UP031_0.py", start = 138, end = 166 }, { rule = "UP031", file = "UP031_0.py", start = 146, end = 164 }, { rule = "UP031", file = "UP031_0.py", start = 175, end = 197 }, { rule = "UP031", file = "UP031_0.py", start = 206, end = 218 }, { rule = "UP031", file = "UP031_0.py", start = 227, end = 240 }, { rule = "UP031", file = "UP031_0.py", start = 249, end = 263 }, { rule = "UP031", file = "UP031_0.py", start = 272, end = 285 }, { rule = "UP031", file = "UP031_0.py", start = 294, end = 307 }, { rule = "UP031", file = "UP031_0.py", start = 316, end = 328 }, { rule = "UP031", file = "UP031_0.py", start = 337, end = 351 }, { rule = "UP031", file = "UP031_0.py", start = 360, end = 380 }, { rule = "UP031", file = "UP031_0.py", start = 395, end = 426 }, { rule = "UP031", file = "UP031_0.py", start = 440, end = 480 }, { rule = "UP031", file = "UP031_0.py", start = 490, end = 506 }, { rule = "UP031", file = "UP031_0.py", start = 515, end = 535 }, { rule = "UP031", file = "UP031_0.py", start = 544, end = 584 }, { rule = "UP031", file = "UP031_0.py", start = 593, end = 624 }, { rule = "UP031", file = "UP031_0.py", start = 633, end = 670 }, { rule = "UP031", file = "UP031_0.py", start = 679, end = 702 }, { rule = "UP031", file = "UP031_0.py", start = 711, end = 732 }, { rule = "UP031", file = "UP031_0.py", start = 747, end = 802 }, { rule = "UP031", file = "UP031_0.py", start = 834, end = 886 }, { rule = "UP031", file = "UP031_0.py", start = 896, end = 919 }, { rule = "UP031", file = "UP031_0.py", start = 928, end = 962 }, { rule = "UP031", file = "UP031_0.py", start = 971, end = 1000 }, { rule = "UP031", file = "UP031_0.py", start = 1036, end = 1056 }, { rule = "UP031", file = "UP031_0.py", start = 1064, end = 1085 }, { rule = "UP031", file = "UP031_0.py", start = 1093, end = 1114 }, { rule = "UP031", file = "UP031_0.py", start = 1122, end = 1147 }, { rule = "UP031", file = "UP031_0.py", start = 1155, end = 1183 }, { rule = "UP031", file = "UP031_0.py", start = 1191, end = 1212 }, { rule = "UP031", file = "UP031_0.py", start = 1220, end = 1245 }, { rule = "UP031", file = "UP031_0.py", start = 1253, end = 1281 }, { rule = "UP031", file = "UP031_0.py", start = 1302, end = 1341 }, { rule = "UP031", file = "UP031_0.py", start = 1343, end = 1406 }, { rule = "UP031", file = "UP031_0.py", start = 1414, end = 1437 }, { rule = "UP031", file = "UP031_0.py", start = 1447, end = 1480 }, { rule = "UP031", file = "UP031_0.py", start = 1484, end = 1512 }, { rule = "UP031", file = "UP031_0.py", start = 1522, end = 1882 }, { rule = "UP031", file = "UP031_0.py", start = 1956, end = 1972 }, { rule = "UP031", file = "UP031_0.py", start = 1974, end = 1994 }, { rule = "UP031", file = "UP031_0.py", start = 1996, end = 2019 }, { rule = "UP031", file = "UP031_0.py", start = 2154, end = 2172 }, { rule = "UP031", file = "UP031_0.py", start = 2235, end = 2245 }, { rule = "UP031", file = "UP031_0.py", start = 2253, end = 2264 }, { rule = "UP031", file = "UP031_0.py", start = 2272, end = 2282 }, { rule = "UP031", file = "UP031_0.py", start = 2290, end = 2304 }, { rule = "UP031", file = "UP031_0.py", start = 2312, end = 2323 }, { rule = "UP031", file = "UP031_0.py", start = 2332, end = 2341 }, { rule = "UP031", file = "UP031_0.py", start = 2349, end = 2359 }, { rule = "UP031", file = "UP031_0.py", start = 2448, end = 2455 }, { rule = "UP031", file = "UP031_0.py", start = 2466, end = 2471 }, { rule = "UP031", file = "UP031_0.py", start = 2485, end = 2489 }, { rule = "UP031", file = "UP031_0.py", start = 2500, end = 2504 }, { rule = "UP031", file = "UP031_0.py", start = 2523, end = 2529 }, { rule = "UP031", file = "UP031_0.py", start = 2540, end = 2546 }, { rule = "UP031", file = "UP031_0.py", start = 2560, end = 2564 }, { rule = "UP031", file = "UP031_0.py", start = 2575, end = 2581 }, { rule = "UP031", file = "UP031_0.py", start = 2599, end = 2603 }, { rule = "UP031", file = "UP031_0.py", start = 2618, end = 2624 }, { rule = "UP031", file = "UP031_0.py", start = 2640, end = 2647 }, { rule = "UP031", file = "UP031_0.py", start = 2664, end = 2671 }, { rule = "UP031", file = "UP031_0.py", start = 2692, end = 2699 }, { rule = "UP031", file = "UP031_0.py", start = 2718, end = 2727 }]
+expected = [{ "rule" = "UP031", "file" = "UP031_0.py", "start" = 39, "end" = 55 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 64, "end" = 79 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 88, "end" = 102 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 111, "end" = 129 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 138, "end" = 166 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 146, "end" = 164 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 175, "end" = 197 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 206, "end" = 218 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 227, "end" = 240 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 249, "end" = 263 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 272, "end" = 285 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 294, "end" = 307 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 316, "end" = 328 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 337, "end" = 351 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 360, "end" = 380 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 395, "end" = 426 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 440, "end" = 480 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 490, "end" = 506 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 515, "end" = 535 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 544, "end" = 584 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 593, "end" = 624 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 633, "end" = 670 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 679, "end" = 702 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 711, "end" = 732 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 747, "end" = 802 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 834, "end" = 886 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 896, "end" = 919 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 928, "end" = 962 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 971, "end" = 1000 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1036, "end" = 1056 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1064, "end" = 1085 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1093, "end" = 1114 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1122, "end" = 1147 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1155, "end" = 1183 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1191, "end" = 1212 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1220, "end" = 1245 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1253, "end" = 1281 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1302, "end" = 1341 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1343, "end" = 1406 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1414, "end" = 1437 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1447, "end" = 1480 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1484, "end" = 1512 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1522, "end" = 1882 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1956, "end" = 1972 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1974, "end" = 1994 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1996, "end" = 2019 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2154, "end" = 2172 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2235, "end" = 2245 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2253, "end" = 2264 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2272, "end" = 2282 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2290, "end" = 2304 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2312, "end" = 2323 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2332, "end" = 2341 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2349, "end" = 2359 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2448, "end" = 2455 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2466, "end" = 2471 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2485, "end" = 2489 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2500, "end" = 2504 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2523, "end" = 2529 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2540, "end" = 2546 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2560, "end" = 2564 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2575, "end" = 2581 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2599, "end" = 2603 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2618, "end" = 2624 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2640, "end" = 2647 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2664, "end" = 2671 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2692, "end" = 2699 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2718, "end" = 2727 }]
 
 [[cases]]
 name = "upstream-full-UP031_1.py"
+comparison = "rule"
 files = { "UP031_1.py" = "# OK\nb\"%s\" % (b\"bytestring\",)\n\n\"%4%\" % ()\n\ni % 3\n\npytest.param('\"%8s\" % (None,)', id=\"unsafe width-string conversion\"),\n" }
 expected = []
 
 [[cases]]
 name = "simple-tuple"
+comparison = "rule"
 files = { "case.py" = "\"%s\" % (value,)\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 15 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 15 }]
 
 [[cases]]
 name = "simple-ambiguous-name"
+comparison = "rule"
 files = { "case.py" = "\"%s\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 12 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 12 }]
 
 [[cases]]
 name = "numeric-format"
+comparison = "rule"
 files = { "case.py" = "\"%.2f\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 14 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 14 }]
 
 [[cases]]
 name = "integer-coercion"
+comparison = "rule"
 files = { "case.py" = "\"%d\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 4 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 4 }]
 
 [[cases]]
 name = "flag-free-repr"
+comparison = "rule"
 files = { "case.py" = "\"%r\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 12 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 12 }]
 
 [[cases]]
 name = "flagged-repr"
+comparison = "rule"
 files = { "case.py" = "\"%+r\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 5 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 5 }]
 
 [[cases]]
 name = "combined-flags"
+comparison = "rule"
 files = { "case.py" = "\"%#0- +10x\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 19 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 19 }]
 
 [[cases]]
 name = "repeated-flags"
+comparison = "rule"
 files = { "case.py" = "\"%##00--++  r\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 14 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 14 }]
 
 [[cases]]
 name = "string-width"
+comparison = "rule"
 files = { "case.py" = "\"%10s\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 6 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 6 }]
 
 [[cases]]
 name = "dynamic-width"
+comparison = "rule"
 files = { "case.py" = "\"%*s\" % (3,value)\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 5 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 5 }]
 
 [[cases]]
 name = "dynamic-precision"
+comparison = "rule"
 files = { "case.py" = "\"%.*f\" % (3,value)\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 6 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 6 }]
 
 [[cases]]
 name = "empty-mapping-key"
+comparison = "rule"
 files = { "case.py" = "\"%()s\" % {\"\":value}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 6 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 6 }]
 
 [[cases]]
 name = "dictionary-positional"
+comparison = "rule"
 files = { "case.py" = "\"%s\" % {\"x\":value}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 4 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 4 }]
 
 [[cases]]
 name = "valid-keyword-dictionary"
+comparison = "rule"
 files = { "case.py" = "\"%(x)s\" % {\"x\":value}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 21 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 21 }]
 
 [[cases]]
 name = "invalid-keyword-dictionary"
+comparison = "rule"
 files = { "case.py" = "\"%(1)s\" % {\"1\":value}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 7 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 7 }]
 
 [[cases]]
 name = "reserved-keyword-dictionary"
+comparison = "rule"
 files = { "case.py" = "\"%(class)s\" % {\"class\":value}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 11 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 11 }]
 
 [[cases]]
 name = "duplicate-keyword-dictionary"
+comparison = "rule"
 files = { "case.py" = "\"%(x)s\" % {\"x\":1,\"x\":2}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 7 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 7 }]
 
 [[cases]]
 name = "unicode-keyword-dictionary"
-files = { "case.py" = "\"%(\u03b1)s\" % {\"\u03b1\":value}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 23 }]
+comparison = "rule"
+files = { "case.py" = "\"%(α)s\" % {\"α\":value}\n" }
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 23 }]
 
 [[cases]]
 name = "unpacked-keyword-dictionary"
+comparison = "rule"
 files = { "case.py" = "\"%(x)s\" % {**mapping}\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 21 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 21 }]
 
 [[cases]]
 name = "unsupported-right-expression"
+comparison = "rule"
 files = { "case.py" = "\"%s\" % [value]\n" }
 expected = []
 
 [[cases]]
 name = "unsupported-right-with-fallback"
+comparison = "rule"
 files = { "case.py" = "\"%d\" % [value]\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 4 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 4 }]
 
 [[cases]]
 name = "malformed-format"
+comparison = "rule"
 files = { "case.py" = "\"%q\" % value\n" }
 expected = []
 
 [[cases]]
 name = "invalid-first-segment"
+comparison = "rule"
 files = { "case.py" = "\"%q\" \"%d\" % value\n" }
 expected = []
 
 [[cases]]
 name = "fallback-first-segment"
+comparison = "rule"
 files = { "case.py" = "\"%d\" \"%q\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 9 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 9 }]
 
 [[cases]]
 name = "empty-format"
+comparison = "rule"
 files = { "case.py" = "\"\" % ()\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 7 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 7 }]
 
 [[cases]]
 name = "escaped-percent-format"
+comparison = "rule"
 files = { "case.py" = "\"%%\" % ()\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 9 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 9 }]
 
 [[cases]]
 name = "bytes-not-str"
+comparison = "rule"
 files = { "case.py" = "b\"%s\" % (b\"x\",)\n" }
 expected = []
 
 [[cases]]
 name = "integer-modulo"
+comparison = "rule"
 files = { "case.py" = "10 % value\n" }
 expected = []
 
 [[cases]]
 name = "dynamic-format-name"
+comparison = "rule"
 files = { "case.py" = "template % value\n" }
 expected = []
 
 [[cases]]
 name = "shadowed-format-name"
+comparison = "rule"
 files = { "case.py" = "format = object()\n\"%s\" % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 18, end = 30 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 18, "end" = 30 }]
 
 [[cases]]
 name = "suppression"
+comparison = "rule"
 files = { "case.py" = "\"%s\" % value # noqa: UP031\n" }
 expected = []
 
 [[cases]]
 name = "parenthesized-left"
+comparison = "rule"
 files = { "case.py" = "(\"%s\") % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 14 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 14 }]
 
 [[cases]]
 name = "implicit-concatenation"
+comparison = "rule"
 files = { "case.py" = "(\"%s\" \" %r\") % (a,b)\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 20 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 20 }]
 
 [[cases]]
 name = "nested-format"
+comparison = "rule"
 files = { "case.py" = "\"%s\" % (\"%s\" % value,)\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 0, end = 22 }, { rule = "UP031", file = "case.py", start = 8, end = 20 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 22 }, { "rule" = "UP031", "file" = "case.py", "start" = 8, "end" = 20 }]
 
 [[cases]]
 name = "stub"
+comparison = "rule"
 files = { "case.pyi" = "x: str\n\"%s\" % value\n" }
-expected = [{ rule = "UP031", file = "case.pyi", start = 7, end = 19 }]
+expected = [{ "rule" = "UP031", "file" = "case.pyi", "start" = 7, "end" = 19 }]
 
 [[cases]]
 name = "parenthesized-integer-fallback"
+comparison = "rule"
 files = { "case.py" = "(\"%d\") % value\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 1, end = 5 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 1, "end" = 5 }]
 
 [[cases]]
 name = "quoted-annotation-modulo"
+comparison = "rule"
 files = { "case.py" = "x: \"'%s' % value\"\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 4, end = 16 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 4, "end" = 16 }]
 
 [[cases]]
 name = "escaped-annotation-modulo"
+comparison = "full"
 files = { "case.py" = "x: \"\\\"%s\\\" % value\"\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 3, end = 19 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 3, "end" = 19 }]
+reference-discrepancy = { "process" = { "kind" = "process-failure", "exit" = 2, "stdout" = [{ "kind" = "literal", "value" = "[\n  {\n    \"cell\": null,\n    \"code\": \"panic\",\n    \"end_location\": null,\n    \"filename\": \"" }, { "kind" = "input-path", "file" = "case.py", "encoding" = "json-string-content" }, { "kind" = "literal", "value" = "\",\n    \"fix\": null,\n    \"location\": null,\n    \"message\": \"Panicked at crates/ruff_linter/src/rules/pyupgrade/rules/printf_string_formatting.rs:474:32 when checking `" }, { "kind" = "input-path", "file" = "case.py", "encoding" = "json-string-content" }, { "kind" = "literal", "value" = "`: `assertion failed: start.raw <= end.raw`\",\n    \"name\": \"panic\",\n    \"noqa_row\": null,\n    \"severity\": \"error\",\n    \"url\": null\n  }\n]" }], "stderr" = [{ "kind" = "literal", "value" = "error: Panic during linting indicates a bug in Ruff. If you could open an issue at:\n\nhttps://github.com/astral-sh/ruff/issues/new?title=%5BLinter%20panic%5D\n\n...with the relevant file contents, the `pyproject.toml` settings, and the stack trace above, we'd be very appreciative!\n\n" }], "observations" = [{ "executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-1/invocation.json", "sha256" = "48fb8877147d08be249818001ebd62fd6fa73efa1dd9e0f98ad36567c3b4369c" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-1/stdout.bin", "sha256" = "c7370bdebe83cbb3ca97b65a8285c9b4426ed3205ac44eb872190a90b43e558d" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-1/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }, { "executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-2/invocation.json", "sha256" = "6f0b357df029dc60c481f2fa500a109a99594e8b234f5391e0eeef1e8f6b78c6" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-2/stdout.bin", "sha256" = "4f8357dd0aa049296e32b84011c30bf3a64993d18dc12fee9298949fdbf6e104" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-2/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }, { "executable-sha256" = "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-1/invocation.json", "sha256" = "b50f42383ef31ec97380e4d2c46fb00d5f6547ffb738710c651a4190290c1a27" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-1/stdout.bin", "sha256" = "c09ceaf58fa2fd360b94256611402edcea4caee0462cb1b47a499d3c7a92dd40" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-1/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }, { "executable-sha256" = "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-2/invocation.json", "sha256" = "7d979834c07f8899b1dcd51da081c846e53a88c52f6c657c15c325f2e49c5e65" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-2/stdout.bin", "sha256" = "f8dea51e59a2fb9ef2703b19d7192a8c9441026fcb0934efe7f1c73fb5eecb6f" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-2/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }] }, "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e", "settings-sha256" = "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63", "source-sha256" = "37d8c29ceaf683cbd160d3b919f5cc8a38ebb7d5a28ada2db77203cba91a0191", "reference-output-sha256" = "696b529db0ce483a1820c17124124d5cdeca6d553a2116c586b605cbc88d66eb", "intended-output-sha256" = "27b1ef8ce3c11f9b8ea34faf3ba5a5a1de4afbb1e6f6af52b327a0b35174fbb0" }, "evidence" = [{ "path" = "results/up031-process-harness-2026-11-03/py310/stdout.json", "sha256" = "118f65fd66c6122ce6b87eb7a9fc2d938a7f009d2c8154c4ab9907c57c5aeb2a", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact original sources compile under CPython3.10; decoded literal percent-format expressions and unchanged addition negative are independently observed. These forms use Python3.7-compatible annotated-assignment/string syntax and established percent/format semantics; no runtime type validity is claimed." }], "reason" = "Pinned Ruff0.16.5 completes with exit2 structured panic rather than a diagnostic report on this exact escaped annotation. Two actual no-deadline harness captures bind this binary/source/settings; independently parsed percent expressions retain the intended UP031 finding and existing host-span mapping. No timeout, signal, or unrelated output is waived." }
 
 [[cases]]
 name = "unicode-annotation-modulo"
+comparison = "rule"
 files = { "case.py" = "x: \"'é%s' % value\"\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 4, end = 18 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 4, "end" = 18 }]
 
 [[cases]]
 name = "backslash-annotation-modulo"
+comparison = "full"
 files = { "case.py" = "x: \"'%s\\\\path' % value\"\n" }
-expected = [{ rule = "UP031", file = "case.py", start = 3, end = 23 }]
+expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 3, "end" = 23 }]
+reference-discrepancy = { "process" = { "kind" = "process-failure", "exit" = 2, "stdout" = [{ "kind" = "literal", "value" = "[\n  {\n    \"cell\": null,\n    \"code\": \"panic\",\n    \"end_location\": null,\n    \"filename\": \"" }, { "kind" = "input-path", "file" = "case.py", "encoding" = "json-string-content" }, { "kind" = "literal", "value" = "\",\n    \"fix\": null,\n    \"location\": null,\n    \"message\": \"Panicked at crates/ruff_linter/src/rules/pyupgrade/rules/printf_string_formatting.rs:474:32 when checking `" }, { "kind" = "input-path", "file" = "case.py", "encoding" = "json-string-content" }, { "kind" = "literal", "value" = "`: `assertion failed: start.raw <= end.raw`\",\n    \"name\": \"panic\",\n    \"noqa_row\": null,\n    \"severity\": \"error\",\n    \"url\": null\n  }\n]" }], "stderr" = [{ "kind" = "literal", "value" = "error: Panic during linting indicates a bug in Ruff. If you could open an issue at:\n\nhttps://github.com/astral-sh/ruff/issues/new?title=%5BLinter%20panic%5D\n\n...with the relevant file contents, the `pyproject.toml` settings, and the stack trace above, we'd be very appreciative!\n\n" }], "observations" = [{ "executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-1/invocation.json", "sha256" = "f72811f533574991e222fb43396f869b34424a197d580e095af5d7c7d3679f86" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-1/stdout.bin", "sha256" = "a24db4abe019e3daee8449a0c32007745f3ec7d5b9f2526060532c8b2349ade5" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-1/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }, { "executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-2/invocation.json", "sha256" = "b140ac83ebfc8b9c96a3acd882399e9c00f6fe269faf9bbdcb47987afb7624f5" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-2/stdout.bin", "sha256" = "1f70f6325805797ca02ff961b6ca507ed5fa03ec594a71a1c73c55b4a455c1cc" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-2/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }, { "executable-sha256" = "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-1/invocation.json", "sha256" = "5cff1a22499965562a6f7fc88d2c9c4beb80d5b2fad1968ec0ab3dbc4028222e" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-1/stdout.bin", "sha256" = "736ba2781a401876cabed089a9087e4e72fa2d7389059a6afd61fe759f06d73f" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-1/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }, { "executable-sha256" = "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32", "invocation" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-2/invocation.json", "sha256" = "42f7baa82cd424d37f3e2590c20bd6722dc573c715cf98abc6a37cb71e0f50ec" }, "stdout" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-2/stdout.bin", "sha256" = "4e705f86873d523eab0812ef6388ddee9f2ce230d80180700c15afbbe08a693c" }, "stderr" = { "path" = "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-2/stderr.bin", "sha256" = "e1449cf8619e17247b5629dc95a27360a83bb73e57a65d780894c24c03356321" } }] }, "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e", "settings-sha256" = "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63", "source-sha256" = "c876dfbf0d7f46d4d9faf45510ca1232659624b2c1c958b84f4f5b8085cfcff9", "reference-output-sha256" = "696b529db0ce483a1820c17124124d5cdeca6d553a2116c586b605cbc88d66eb", "intended-output-sha256" = "a93ef4e06016ee4dc8d237319a829c5fd5d3b6207963d851b4302f6c79479932" }, "evidence" = [{ "path" = "results/up031-process-harness-2026-11-03/py310/stdout.json", "sha256" = "118f65fd66c6122ce6b87eb7a9fc2d938a7f009d2c8154c4ab9907c57c5aeb2a", "kind" = "independent-language-run", "language-version" = "CPython 3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact original sources compile under CPython3.10; decoded literal percent-format expressions and unchanged addition negative are independently observed. These forms use Python3.7-compatible annotated-assignment/string syntax and established percent/format semantics; no runtime type validity is claimed." }], "reason" = "Pinned Ruff0.16.5 completes with exit2 structured panic rather than a diagnostic report on this exact escaped annotation. Two actual no-deadline harness captures bind this binary/source/settings; independently parsed percent expressions retain the intended UP031 finding and existing host-span mapping. No timeout, signal, or unrelated output is waived." }
 
 [[cases]]
 name = "annotation-addition-negative"
+comparison = "rule"
 files = { "case.py" = "x: \"'%s' + value\"\n" }
 expected = []
