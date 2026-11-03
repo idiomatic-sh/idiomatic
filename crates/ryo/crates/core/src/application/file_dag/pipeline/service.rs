@@ -126,6 +126,14 @@ pub(crate) fn pass_on<'a, 'f>(
 where
     'f: 'a,
 {
+    #[cfg(feature = "diagnostic-row-progress")]
+    let _row_progress_node = {
+        let scope = crate::application::file_dag::route_counts::step(id.0);
+        if let Some(step) = stepper.plan.steps.get(id.0) {
+            crate::application::file_dag::route_counts::node_description(&step.operation);
+        }
+        scope
+    };
     let diagnostic = tracing::enabled!(
         target: "ryo::diagnostic::rule_step",
         tracing::Level::TRACE

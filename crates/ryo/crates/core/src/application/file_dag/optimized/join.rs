@@ -199,6 +199,8 @@ fn sparse_left(
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
             1,
         );
+        #[cfg(feature = "diagnostic-row-progress")]
+        crate::application::file_dag::route_counts::row_file(left_row, context.paths);
         let mut driver = Pairs {
             #[cfg(feature = "diagnostic-row-progress")]
             progress: semantics.progress(),

@@ -72,6 +72,9 @@ pub(super) fn indexed(
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    super::route_counts::row_file(left, context.paths);
+
     let mut driver = IndexedDriver {
         index,
         context,

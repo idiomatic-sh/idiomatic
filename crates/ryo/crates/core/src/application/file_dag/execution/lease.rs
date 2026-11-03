@@ -47,7 +47,8 @@ pub(super) fn evaluate(
         _ => None,
     };
     #[cfg(feature = "diagnostic-row-progress")]
-    if row.is_some() {
+    if let Some(row) = row {
+        crate::application::file_dag::route_counts::row_file(row, context.paths);
         crate::application::file_dag::route_counts::progress(
             crate::domain::operator::contract::views::ProgressCounter::InputRows,
             1,

@@ -193,10 +193,18 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
         'a: 't,
     {
         if self.counting == Counting::DoesNotCount {
-            return keep(self, which, context, into);
+            let held = keep(self, which, context, into)?;
+            #[cfg(feature = "diagnostic-row-progress")]
+            crate::application::file_dag::route_counts::input_cardinality(
+                which.0,
+                count_of(&held).0,
+            );
+            return Ok(held);
         }
         let consumer = self.current;
         let held = keep(self, which, context, into)?;
+        #[cfg(feature = "diagnostic-row-progress")]
+        crate::application::file_dag::route_counts::input_cardinality(which.0, count_of(&held).0);
         // A tree is looked up, not read: what it was fed is what was found in it.
         if !matches!(held, Rows::Tree(_)) {
             let rows = count_of(&held);

@@ -37,6 +37,8 @@ impl BuildRoute {
 const MAX_KEYS: usize = 32_768;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 struct Origin {
+    #[cfg(feature = "diagnostic-row-progress")]
+    namespace: &'static str,
     rule: Option<usize>,
     node: Option<usize>,
     owner: bool,
@@ -221,7 +223,20 @@ pub(crate) fn rule(rule: usize, name: &str) -> OriginScope {
     })
 }
 pub(crate) fn node(node: usize) -> OriginScope {
-    scope(|origin| origin.node = Some(node))
+    scope(|origin| {
+        origin.node = Some(node);
+        #[cfg(feature = "diagnostic-row-progress")]
+        {
+            origin.namespace = "dag";
+        }
+    })
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn step(node: usize) -> OriginScope {
+    scope(|origin| {
+        origin.node = Some(node);
+        origin.namespace = "rule-step";
+    })
 }
 pub(crate) fn consumer(consumer: &'static str) -> OriginScope {
     scope(|origin| origin.consumer = Some(consumer))
@@ -323,8 +338,9 @@ struct ProgressState {
     last: std::time::Instant,
     ticks: u64,
     name: String,
-    nodes: HashMap<usize, String>,
-    inputs: HashMap<(Option<usize>, Option<usize>, usize), usize>,
+    nodes: HashMap<(Option<usize>, &'static str, usize), String>,
+    row_file: Option<(u32, String)>,
+    inputs: HashMap<(Option<usize>, &'static str, Option<usize>, usize), usize>,
 }
 #[cfg(feature = "diagnostic-row-progress")]
 impl ProgressState {
@@ -336,6 +352,7 @@ impl ProgressState {
             ticks: 0,
             name: String::new(),
             nodes: HashMap::new(),
+            row_file: None,
             inputs: HashMap::new(),
         }
     }
@@ -347,6 +364,31 @@ pub(crate) fn file_name(name: &str) {
             state.progress.name = name.to_owned();
         }
     });
+    progress_flush("scope_start");
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn row_file(
+    row: &[ryo_relations::domain::relations::types::Value],
+    paths: &[ryo_language::domain::files::types::FilePath],
+) {
+    let file = row.iter().find_map(|value| match value {
+        ryo_relations::domain::relations::types::Value::File(file) => Some(file.0),
+        _ => None,
+    });
+    STATE.with_borrow_mut(|state| {
+        let Some(state) = state else {
+            return;
+        };
+        match file {
+            Some(file) if state.progress.row_file.as_ref().map(|(id, _)| *id) != Some(file) => {
+                state.progress.row_file = paths
+                    .get(file as usize)
+                    .map(|path| (file, path.0.to_string()));
+            }
+            None => state.progress.row_file = None,
+            _ => {}
+        }
+    });
 }
 #[cfg(feature = "diagnostic-row-progress")]
 pub(crate) fn input_cardinality(which: usize, rows: usize) {
@@ -354,7 +396,12 @@ pub(crate) fn input_cardinality(which: usize, rows: usize) {
         let Some(state) = state else {
             return;
         };
-        let key = (state.origin.rule, state.origin.node, which);
+        let key = (
+            state.origin.rule,
+            state.origin.namespace,
+            state.origin.node,
+            which,
+        );
         if state.progress.inputs.contains_key(&key) || state.progress.inputs.len() < MAX_KEYS {
             state.progress.inputs.insert(key, rows);
         } else {
@@ -371,12 +418,17 @@ pub(crate) fn node_description(operation: &ryo_values::domain::plans::types::Ope
         let Some(node) = state.origin.node else {
             return;
         };
-        if !state.progress.nodes.contains_key(&node) && state.progress.nodes.len() < MAX_KEYS {
+        if !state
+            .progress
+            .nodes
+            .contains_key(&(state.origin.rule, state.origin.namespace, node))
+            && state.progress.nodes.len() < MAX_KEYS
+        {
             let text = format!("{operation:?}");
-            state
-                .progress
-                .nodes
-                .insert(node, text.chars().take(8192).collect());
+            state.progress.nodes.insert(
+                (state.origin.rule, state.origin.namespace, node),
+                text.chars().take(8192).collect(),
+            );
         }
     });
 }
@@ -454,6 +506,7 @@ fn progress_flush(stage: &'static str) {
             if key.route == "row_progress"
                 && key.origin.rule == state.origin.rule
                 && key.origin.node == state.origin.node
+                && key.origin.namespace == state.origin.namespace
             {
                 if let Some(i) = labels.iter().position(|label| *label == key.family) {
                     current[i] += count.calls;
@@ -472,13 +525,23 @@ fn progress_flush(stage: &'static str) {
             state
                 .progress
                 .inputs
-                .get(&(state.origin.rule, state.origin.node, which))
+                .get(&(
+                    state.origin.rule,
+                    state.origin.namespace,
+                    state.origin.node,
+                    which,
+                ))
                 .copied()
         });
         let operation = state
             .origin
             .node
-            .and_then(|n| state.progress.nodes.get(&n))
+            .and_then(|n| {
+                state
+                    .progress
+                    .nodes
+                    .get(&(state.origin.rule, state.origin.namespace, n))
+            })
             .cloned()
             .unwrap_or_default();
         let mut hottest = String::from("[");
@@ -506,6 +569,8 @@ fn progress_flush(stage: &'static str) {
                     .and_then(|r| state.rules.get(&r))
                     .map_or("<none>", String::as_str),
             );
+            hottest.push_str(",\"node_namespace\":");
+            json_string(&mut hottest, key.origin.namespace);
             hottest.push('}');
         }
         hottest.push(']');
@@ -526,6 +591,7 @@ fn progress_flush(stage: &'static str) {
             current_json,
             operation,
             input_cardinalities,
+            state.progress.row_file.clone(),
         ))
     });
     if let Some((
@@ -540,8 +606,15 @@ fn progress_flush(stage: &'static str) {
         current,
         operation,
         input_cardinalities,
+        row_file,
     )) = snapshot
     {
-        tracing::trace!(target: "ryo::diagnostic::row_progress", event = "row_progress", stage, file, path, rule, rule_index = ?origin.rule, node = ?origin.node, consumer = ?origin.consumer, elapsed_ms, ticks, overflow, hottest = %hottest, counters = %current, operation, input_cardinalities = ?input_cardinalities);
+        let phase = if file == usize::MAX {
+            "project"
+        } else {
+            "file"
+        };
+        let file = (file != usize::MAX).then_some(file);
+        tracing::trace!(target: "ryo::diagnostic::row_progress", event = "row_progress", stage, phase, file = ?file, path, row_file = ?row_file, rule, node_namespace = origin.namespace, rule_index = ?origin.rule, node = ?origin.node, consumer = ?origin.consumer, elapsed_ms, ticks, overflow, hottest = %hottest, counters = %current, operation, input_cardinalities = ?input_cardinalities);
     }
 }
