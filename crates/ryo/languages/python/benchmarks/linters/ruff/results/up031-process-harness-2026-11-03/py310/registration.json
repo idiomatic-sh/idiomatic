@@ -6,7 +6,7 @@
   "identity": {
     "profile_sha256": "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e",
     "query_sha256": "7d78368c75ccb51389268782b991e802269ac08e74946eef0ab3e52b03e8ee93",
-    "cases_sha256": "8395f1328cea6b66f995a4b08fc7af7eccd6df56d2cf28a37bae5e7d2b4cba76"
+    "cases_sha256": "bc362e0394512c8d3931e0c95f8434d609cce881936ebdd8cc2f906906fd64fd"
   },
   "rules": [
     {
@@ -20,12 +20,12 @@
           "name": "annotation-addition-negative",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "40c17df1f9366b2437411cd49869c7c552c9bd71cafec65fd0318d5d75634e19",
+          "case_sha256": "2795a8b2b49730d6693e0517049b3d309ed5219596b4b557e879c0dcf36e95cb",
           "source_sha256": "660d2e43b6a864cece5659d7e41eaa2db7d2f4e10bea20ca04dd736a898e115b",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -179,12 +179,12 @@
           "name": "bytes-not-str",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "0f347c566d34f34138a2b33c78c9bd502048e471430fba8fc1c681317f22661d",
+          "case_sha256": "9db7986a1a268f7dc7cd93b073fa99f4af1e0dc345f40da0f075701ae58a42cd",
           "source_sha256": "ab3f363a1e65b8d64de79c8c324968f1c694a818c458f1d18dd9e2b5a89752a3",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -193,12 +193,12 @@
           "name": "combined-flags",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "91eb9e5cd4dce0de6714576c71072d7ce68984c3dc98387bff2e7dd5023e9bd1",
+          "case_sha256": "7c6bf3ae9d7d72814e4bb26c6c83424bca6aafa8a5539461b62f5d499610684a",
           "source_sha256": "d2f8971dab3514f84df2518deaac7e841dfe4bf8e5e4219e68aef9c322ff2083",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -214,12 +214,12 @@
           "name": "dictionary-positional",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "0b4acf262531de40c30bd1e2868386661b58131a1888b672c2ab3fdcd19f86ba",
+          "case_sha256": "93249eb7c9b9ec0e42028fed5fe9fd84c91d43786ba0e0ba34154817cb8e508f",
           "source_sha256": "4810305a11b0b9ac20c79db2961103d36a1974be9cc4e12a8e080dccc019244a",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -235,12 +235,12 @@
           "name": "duplicate-keyword-dictionary",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "0ad29265ef4b67d60dae80138553821519f68f6a4e4f749c6804f1af734efc23",
+          "case_sha256": "f58696a34c27dc47d84079b868663693cb7a15cc7c663399e4e772c61946557b",
           "source_sha256": "25d88063e11241f6f92d589653bc9b4fc136ad71689a7bd2b2e6710bba126ea8",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -256,12 +256,12 @@
           "name": "dynamic-format-name",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "7b0b36b506a9643ce5cc79114daea5da776fa347fcebfc6c77f3529b3b619dcf",
+          "case_sha256": "77dca841ad82326de11a32f4b115efae8faa845dce2c7b56109cb0b4ee8541c5",
           "source_sha256": "ed14729f6eca6fefed49fac268e9ba3726e85e3a892c52b4ce4d21f69aef2a73",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -270,12 +270,12 @@
           "name": "dynamic-precision",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "cc5a48a3f2a86e7cea2df86091fd491c339d78d11bd2cf2eacd933b847710e20",
+          "case_sha256": "244799128dbc2ef88568d9c43a50358f9e97d3dfbf63708c731e9cabb03c040b",
           "source_sha256": "c6d08e0cd9c7e691b60cda8f6414f9c00ebcd6579d78bfa0d4347b5fb7b3fc14",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -291,12 +291,12 @@
           "name": "dynamic-width",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "e1a6aef006196612f4397af5c8f1442f346c0613e2c8ba8842f1c705af590d49",
+          "case_sha256": "b0e0b2e3b85cbda0850187e5b70c7816e20ca96a50734e91f0221b23437cbf36",
           "source_sha256": "e2fab607bf51fdc57019184a92dcbb6bddda3cb6d82aad9204847a6e456eda63",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -312,12 +312,12 @@
           "name": "empty-format",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "d7679514201295db781c58eebd18c0408cced7a64c1df2af9277df4f0ebf9a58",
+          "case_sha256": "d7cef48a35bff6362f4fe0e731bf119f15bedb50c9f83856a64db87293fe0be2",
           "source_sha256": "0ee1871a03252d3e8088e1751b47c1797920c0462e83c29723a469a780b5cdb9",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -333,12 +333,12 @@
           "name": "empty-mapping-key",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "6fc1bf05824a8190cef5407d2a394e442054d38da53e45a3cd9fb3fad346786f",
+          "case_sha256": "8c55ad823e068b66e9a54386674299a51ee6bf945f17445de870edda5694158f",
           "source_sha256": "7b92ccdd715976d1b240c4144e2a79277b800665b21b183e97fa018f6e4f155b",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -499,12 +499,12 @@
           "name": "escaped-percent-format",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "dd0bfd1bf4b4f369644107f926e21ba845c85df9da8369afd13b2b9ae5f330dc",
+          "case_sha256": "c0dd1a80c72e0e145fc279640ea63e97969dc445d9f3db19cdd562802e14299d",
           "source_sha256": "cb61450cb3b55c24a3681837a133041e7e8f7d9c8b42039e6044da9e70a96f54",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -520,12 +520,12 @@
           "name": "fallback-first-segment",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "3b0be32de7094990fbed0c74d886ca8d16aad41c47325448d33326038f7cc9af",
+          "case_sha256": "44ca4e281fdabd9e998be0f85dd56539997df7c20dcbddadb03da3c2de0bb21d",
           "source_sha256": "e692b878df6013a0fad965f3aaeec183c6dd3842b653108b5b724930282be8e8",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -541,12 +541,12 @@
           "name": "flag-free-repr",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "b3d737cf3f900096cacad1673ebf5e34d6d06921e5604436fb431fbfd90fd3c1",
+          "case_sha256": "802acc095e59145886e6799d75071d7786a7b890bc6af42d1da9d61bd8f329df",
           "source_sha256": "20af0942049bb5dc59319b0a884b71c3aa5742d263130a641cc660b96b962113",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -562,12 +562,12 @@
           "name": "flagged-repr",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "199b2d41d48a9729b0bd16bf83237477c8fea1d9f8e306a2781303d6c2fd6792",
+          "case_sha256": "9264a159c20a806f2b0ac8c5c8b2b79c34f4ecf33582953cf21bb9bb2eecd3bc",
           "source_sha256": "4e35d4c8912d93bc5e3e25ac4e823eb456132ab1428c2c228db8e04042ca8193",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -583,12 +583,12 @@
           "name": "implicit-concatenation",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "93307121f77ca868ee58c62704382464e7dbd8737d4c4e676c82906079f99e60",
+          "case_sha256": "8dc545e68e42c5472d7ce7f22771af8249505e865163492d3e06a3a27889e866",
           "source_sha256": "7ee4f54825728229984fba59df5e28479aed1a442ef91062d8a3c303ce792b43",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -604,12 +604,12 @@
           "name": "integer-coercion",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "d50331f8b2c5d348f62f40936b0f14e5e3908b208302eaa01a030ffbab3b3dd0",
+          "case_sha256": "cb10b95738270158c1510d189b64872034302e49098c49051b4ab574dc98dc1e",
           "source_sha256": "dae59f0f101d905935654ffa903a124f74ae9beed0e68994d9ae4b47a8b2233d",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -625,12 +625,12 @@
           "name": "integer-modulo",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "ee9e62f580e414bf16a8d6d0ad243371a8808914a60c873bb8a4309751a5ffd0",
+          "case_sha256": "f5d6b078850dc8ec8de4c7d87ba461a5b80bbd8d667cc857497fe4849e5381b8",
           "source_sha256": "4a1de53071e5c6c50196b284c19f000e8ea6c8974e4a3d5ca7b2d96140c54856",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -639,12 +639,12 @@
           "name": "invalid-first-segment",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "3f32f6a8004b7c7bc374aa95ab565c38ebaadf8404d7379fab25b70d5da00bec",
+          "case_sha256": "98ac370a66aad5cafb6e74c1998344bd9f3a220887bb4763b8aa82bdfdebe3e5",
           "source_sha256": "f21ab98328810cc48951b7b3947c893a56707e3caab63c5f468c358265ad55bd",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -653,12 +653,12 @@
           "name": "invalid-keyword-dictionary",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "2080a46f4d7c87e190cd4a5a4e35c7bd0209f10ef290f9f7229d496b2efd7751",
+          "case_sha256": "534ec9d0fc55860a410fcf5d15d9aef612c1727887be157910442d1d0518c039",
           "source_sha256": "d8841ad5843053d563eed93676da7aa94d51c9b1214c0b0340fdb7a6704cb5b7",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -674,12 +674,12 @@
           "name": "malformed-format",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "60a101d40359970b6134a08f8d5482df656b4c8c7a4afca27ba4e3cc44eb016e",
+          "case_sha256": "16588739b3963677304411ef54067eeffa853b648bddbf7431e9ed3a989cc49c",
           "source_sha256": "adf272400ad42eaa6333992890a8ec3345f25ff0a49578c6e3ef122083059576",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -688,12 +688,12 @@
           "name": "nested-format",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "ac98936247d2ab592a8abc095f81a14b02b96cb989ce305fe75b069f8da260f2",
+          "case_sha256": "3b3f1a7901c520c8128065e116961584f97b092ad2923a1324d209c4c7002d3b",
           "source_sha256": "098a3bbad5c45963e0e0c932be8b02164075aa2dfd61d10ca76974a6260186ea",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -715,12 +715,12 @@
           "name": "numeric-format",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "4028c71cb7811f32e6f2d9d163236814ec7a88aa71f8638c4dc44c1a8048a91c",
+          "case_sha256": "bdc97b22f76ad5a8baf21ed2c4bd1d87e64af045578f43e0c7ea931ab987aec2",
           "source_sha256": "e1aa8e2bb78b492c6d4915674f314bc147bc314237de5d6ad82d5b918f32ba87",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -736,12 +736,12 @@
           "name": "parenthesized-integer-fallback",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "045db0b9d65dc77e1672003b657bdce52520a53efcaeeb03aeaa122245cd2fa2",
+          "case_sha256": "c2f709c4bc5f2f369ecb9e486c5b0180c48a99ffcd559b4a3147b9fd68a94f3f",
           "source_sha256": "ff5120300ec75a6106f3408ac6ae943614ef322de76ba92093d3f6d6bab64476",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -757,12 +757,12 @@
           "name": "parenthesized-left",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "3a1be92abe40a516beb6204896942839d162b069b5f33ad15501f82b924b3778",
+          "case_sha256": "259443e0b58a76587015233b54e517722a672735e2331bf5268de1ca740cbfba",
           "source_sha256": "a8079de906c150d4cb7a03efcbab0fb7022fccf63ecb47db7d3adb43f4182cc5",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -778,12 +778,12 @@
           "name": "quoted-annotation-modulo",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "711dfbff56ff5160a1cbf2e2ab85c0efa3198ecb727916f8b63319380f767abe",
+          "case_sha256": "43e94fffc43c9c594f6a8f89068a90917cdaffe0a29a803c5a24fb383a5f3a65",
           "source_sha256": "10623308496078dac1744d5ddd991603ac5a6348fba8f6cf320bc9631bcd2b71",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -799,12 +799,12 @@
           "name": "repeated-flags",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "cca6739f5f23a74f9c80996c19eaf775793d2b76ed7ce1a046694af9e8f0e7c7",
+          "case_sha256": "b3ba51e44b3b5e9538815c1e4437ac0a35669bd3048d1344f682557f4b70918a",
           "source_sha256": "024eeab0d276491202a33c4d67f1b2858f580777d8b0e014ceb427623421ec23",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -820,12 +820,12 @@
           "name": "reserved-keyword-dictionary",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "23fe39bfa0b52da6fcd6c05352767f06bd808f570667c77b300dab30ffb1cef0",
+          "case_sha256": "9a6adb67c6144adb02f7d1577df5211f01c04f2c7ed92b9eaad08862fb88371b",
           "source_sha256": "2f89cef7e7929a861339ad6409c0b4771d53580d19270117c46ab02ef3c66a90",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -841,12 +841,12 @@
           "name": "shadowed-format-name",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "9f227a6204c1b74d5e3fa611b0fdef51fa21131bffe85cccbd751c344af4bdd0",
+          "case_sha256": "564c50263fb703bdb2cc9a647343b1f6c8aed717b145fcf961b32a915f82c081",
           "source_sha256": "79801a1a8a5085639a2123c3b2581a3dba5f236944e106b88e7b5b058d45e3bd",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -862,12 +862,12 @@
           "name": "simple-ambiguous-name",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "a2e07ebee22583f8713d9fe4be6946ddca804b7563dc74d1a2e2007a8fdddcd5",
+          "case_sha256": "6eea8fdd8b6513a5ab7fe1ca5ee8115dbc31a6e007edd47fa5f56fc6a847e12a",
           "source_sha256": "574ac0adc7b217896e39d5440f84ef5d148f67ce2b613cc2eb242901fc97c3d0",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -883,12 +883,12 @@
           "name": "simple-tuple",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "75d4eb5fd126d0edcd8ae4dfd8bf69754606e8c03b19036fa02f0fe487dbe8e8",
+          "case_sha256": "fe33659eb0a651eb991db15a9eacbeb817695844df89ef7867af6efe997201fb",
           "source_sha256": "75c1941f866e67aa7ccce3108eaf4ed116a03a2b25e6f0c0b450f811b35c33a2",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -904,12 +904,12 @@
           "name": "string-width",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "f96480f39eb825ee5a21e95c4618d162609edf4f0270b837be3c57aa9ecf4c32",
+          "case_sha256": "d6b53cc8191f46d6c38d37cbe3b60eed0f9b8f2aeac700366d46eb9ae8247d63",
           "source_sha256": "e51b68e072ef515787b9fcf5287cf03c673058028bad182be17a44c736428d11",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -925,12 +925,12 @@
           "name": "stub",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "5cae30c322b174e3dfd105b151a46e7855fee172bedef7c9daa4c93f33806aa2",
+          "case_sha256": "e4cd253d41f29f578831112f0d0297d366ded1a11512a228eb1392b4d21af565",
           "source_sha256": "214b4243e7fb1703d889e81222355c4c297d3b7a2198d08d6837b12fd5a64c53",
           "files": [
             "case.pyi"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -946,12 +946,12 @@
           "name": "suppression",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "61f1c18e5ae2b207cfd598be3d7b0de6e6c7411b2abfd7a2a15c936ddb138033",
+          "case_sha256": "930e1c672d5590348ebd31138d8bfe4b5071a385f805becc8de031a4d0853b4e",
           "source_sha256": "2d87826a7c444c7b090e23f69411d4410c523a4a8353e7412ba222b1da1cfa76",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -960,12 +960,12 @@
           "name": "unicode-annotation-modulo",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "156fa4442d2a284936a326d584da532517f9de8cf29309c7f5f43c39e1597739",
+          "case_sha256": "a6199fb8b66a98530354f7308f3ded4c88b642248deec7a03ff11a32220ab00c",
           "source_sha256": "f331f8fe417444092c49316ab377c8a1eb699b9e5cf7ac9b76ae18d7faa92e9d",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -981,12 +981,12 @@
           "name": "unicode-keyword-dictionary",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "f55ff4ba1e331cccb719f82d48212971c7cb18610b1c0704eec8261567a08e24",
+          "case_sha256": "f95a1a96d3dae06847abb84199a015749ba72d695527a23a9a77bd1d92c5afa9",
           "source_sha256": "e87b22f1ce7307be5cc544be8c4f1a36f61e082e57b89ec81d82352626ddaab6",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -1002,12 +1002,12 @@
           "name": "unpacked-keyword-dictionary",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "a60850f71b869ed75de904e436c761cf2855a9a43974d9f5300eeede0db4c4eb",
+          "case_sha256": "bf3812120069251939169c4656b262006f68a9a61fefa7c0be10d2d49ba96fec",
           "source_sha256": "103335033b3d9e90538aca117e638df3dcd39906c034bc05212d552b389a68a1",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -1023,12 +1023,12 @@
           "name": "unsupported-right-expression",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "d279df0e2f63abd1d969075d0e7c0bbcce4479ff57128549ac564ece3c9019b9",
+          "case_sha256": "65203fe2d56db5bc76cd9062cdff6e2878f46904738d8ac945842f3dff8f4671",
           "source_sha256": "85d591070c7d4dc55a3df207e1d47a31c766d1061ab4ef342878ebca96c405f1",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -1037,12 +1037,12 @@
           "name": "unsupported-right-with-fallback",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "ccc70e86cd8c4ce42ac80a09d923369296194c09425ef1923286686c451ea6fa",
+          "case_sha256": "98c09e7d313959efdaf95d9eafcd4c1bcf051a46366621098984c2bebe13dddc",
           "source_sha256": "7e870338d1dc672193c590bc9d4cdd431bdc24c06672facdabb97f8872672ac8",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -1058,12 +1058,12 @@
           "name": "upstream-full-UP031_0.py",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "2745e7960b834a726d91cb08367af811f74131123634404152184d29c862d413",
+          "case_sha256": "577606a0bd7582e89872b3ef9782fb5ac6e79fd82e56fa2503ccababae224877",
           "source_sha256": "fb6344d13067edb6d5668a29ba86e91d3c5e97e395ec2f1d619c624afe2b1bea",
           "files": [
             "UP031_0.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",
@@ -1481,12 +1481,12 @@
           "name": "upstream-full-UP031_1.py",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "0ea437b840c8894ec5357c11ace3bf7bc0939166f4b7875e2221fce3df88fd16",
+          "case_sha256": "ddb8406c1e9a002156ce3c9194783e8d829244e0199af2622d86f6ce06ad59e1",
           "source_sha256": "36c3ad8749d7155c99a936775786940be7fc1aaf417539ca46cc1230c83b91bb",
           "files": [
             "UP031_1.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [],
           "reference_discrepancy": null
         },
@@ -1495,12 +1495,12 @@
           "name": "valid-keyword-dictionary",
           "project_context_mode": "isolated",
           "context_identity": null,
-          "case_sha256": "d27ca573f85a1410d828c48a33ef0126e20af78eb881827e9622942ef8139fbc",
+          "case_sha256": "4cb41660280e705d1667b8184ac7894824c99b575de2bd88e8a2c4de234e7f2c",
           "source_sha256": "7c84f7f386ca3251d90bc373f40f5325344a00a250fa45c00c5f4fea17027360",
           "files": [
             "case.py"
           ],
-          "comparison": "rule",
+          "comparison": "full",
           "expected": [
             {
               "rule": "UP031",

@@ -11,3 +11,7 @@ python3.10 results/up031-process-harness-2026-11-03/controls.py results/up031-pr
 ```
 
 These observations establish accepted source syntax, decoded `%` expression structure, literal formatting behavior and physical annotation host spans; they do not claim the annotation evaluates to a valid type. Diagnostic host mapping follows the existing Ryo embedded-source contract. Strict candidate diagnostics and complete accounting remain mandatory.
+
+## Diagnostic comparison scope
+
+The canonical and current countertarget cases now all explicitly select Full diagnostic comparison, preserving every source and expected array. Fresh `arm-all-full-strict-receipts.tar.gz` proves43/43 on each target, with41 raw-exact and2 documented process differences. The earlier `arm-strict-receipts.tar.gz` and `x86-mixed-scope-strict-receipts.tar.gz` are preserved under their original41Rule/2Full scope; use the matching registrations in `history/` when inspecting them. They are not relabeled as allFull executions. Current x86 allFull verification is delegated to the final combined full413 run. `identity.json` binds every receipt/audit/archive and distinguishes these scopes.

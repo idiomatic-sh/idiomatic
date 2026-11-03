@@ -1,234 +1,234 @@
 [[cases]]
 name = "upstream-full-UP031_0.py"
-comparison = "rule"
+comparison = "full"
 files = { "UP031_0.py" = "a, b, x, y = 1, 2, 3, 4\n\n# UP031\nprint('%s %s' % (a, b))\n\nprint('%s%s' % (a, b))\n\nprint(\"trivial\" % ())\n\nprint(\"%s\" % (\"simple\",))\n\nprint(\"%s\" % (\"%s\" % (\"nested\",),))\n\nprint(\"%s%% percent\" % (15,))\n\nprint(\"%f\" % (15,))\n\nprint(\"%.f\" % (15,))\n\nprint(\"%.3f\" % (15,))\n\nprint(\"%3f\" % (15,))\n\nprint(\"%-5f\" % (5,))\n\nprint(\"%9f\" % (5,))\n\nprint(\"%#o\" % (123,))\n\nprint(\"brace {} %s\" % (1,))\n\nprint((\n    \"foo %s \"\n    \"bar %s\" % (x, y)\n))\n\nprint(\n  \"%s\" % (\n    \"trailing comma\",\n        )\n)\n\nprint(\"foo %s \" % (x,))\n\nprint(\"%(k)s\" % {\"k\": \"v\"})\n\nprint(\"%(k)s\" % {\n    \"k\": \"v\",\n    \"i\": \"j\"\n})\n\nprint(\"%(to_list)s\" % {\"to_list\": []})\n\nprint(\"%(k)s\" % {\"k\": \"v\", \"i\": 1, \"j\": []})\n\nprint(\"%(ab)s\" % {\"a\" \"b\": 1})\n\nprint(\"%(a)s\" % {\"a\"  :  1})\n\n\nprint(\n    \"foo %(foo)s \"\n    \"bar %(bar)s\" % {\"foo\": x, \"bar\": y}\n)\n\nbar = {\"bar\": y}\nprint(\n    \"foo %(foo)s \"\n    \"bar %(bar)s\" % {\"foo\": x, **bar}\n)\n\nprint(\"%s \\N{snowman}\" % (a,))\n\nprint(\"%(foo)s \\N{snowman}\" % {\"foo\": 1})\n\nprint((\"foo %s \" \"bar %s\") % (x, y))\n\n# Single-value expressions\nprint('Hello %s' % \"World\")\nprint('Hello %s' % f\"World\")\nprint('Hello %s (%s)' % bar)\nprint('Hello %s (%s)' % bar.baz)\nprint('Hello %s (%s)' % bar['bop'])\nprint('Hello %(arg)s' % bar)\nprint('Hello %(arg)s' % bar.baz)\nprint('Hello %(arg)s' % bar['bop'])\n\n# Hanging modulos\n(\n    \"foo %s \"\n    \"bar %s\"\n) % (x, y)\n\n(\n    \"foo %(foo)s \"\n    \"bar %(bar)s\"\n) % {\"foo\": x, \"bar\": y}\n\n(\n    \"\"\"foo %s\"\"\"\n    % (x,)\n)\n\n(\n    \"\"\"\n    foo %s\n    \"\"\"\n    % (x,)\n)\n\n\"%s\" % (\n    x,  # comment\n)\n\n\npath = \"%s-%s-%s.pem\" % (\n    safe_domain_name(cn), # common name, which should be filename safe because it is IDNA-encoded, but in case of a malformed cert make sure it's ok to use as a filename\n    cert.not_valid_after.date().isoformat().replace(\"-\", \"\"), # expiration date\n    hexlify(cert.fingerprint(hashes.SHA256())).decode(\"ascii\")[0:8], # fingerprint prefix\n)\n\n# UP031 (no longer false negatives; now offer potentially unsafe fixes)\n'Hello %s' % bar\n\n'Hello %s' % bar.baz\n\n'Hello %s' % bar['bop']\n\n# Not a valid type annotation but this test shouldn't result in a panic.\n# Refer: https://github.com/astral-sh/ruff/issues/11736\nx: \"'%s + %s' % (1, 2)\"\n\n# See: https://github.com/astral-sh/ruff/issues/12421\nprint(\"%.2X\" % 1)\nprint(\"%.02X\" % 1)\nprint(\"%02X\" % 1)\nprint(\"%.00002X\" % 1)\nprint(\"%.20X\" % 1)\n\nprint(\"%2X\" % 1)\nprint(\"%02X\" % 1)\n\n# UP031 (no longer false negatives, but offer no fix because of more complex syntax)\n\n\"%d.%d\" % (a, b)\n\n\"%*s\" % (5, \"hi\")\n\n\"%d\" % (flt,)\n\n\"%c\" % (some_string,)\n\n\"%.2r\" % (1.25)\n\n\"%.*s\" % (5, \"hi\")\n\n\"%i\" % (flt,)\n\n\"%()s\" % {\"\": \"empty\"}\n\n\"%s\" % {\"k\": \"v\"}\n\n\"%()s\" % {\"\": \"bar\"}\n\n\"%(1)s\" % {\"1\": \"bar\"}\n\n\"%(a)s\" % {\"a\": 1, \"a\": 2}\n\n\"%(1)s\" % {1: 2, \"1\": 2}\n\n\"%(and)s\" % {\"and\": 2}\n" }
 expected = [{ "rule" = "UP031", "file" = "UP031_0.py", "start" = 39, "end" = 55 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 64, "end" = 79 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 88, "end" = 102 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 111, "end" = 129 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 138, "end" = 166 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 146, "end" = 164 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 175, "end" = 197 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 206, "end" = 218 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 227, "end" = 240 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 249, "end" = 263 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 272, "end" = 285 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 294, "end" = 307 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 316, "end" = 328 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 337, "end" = 351 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 360, "end" = 380 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 395, "end" = 426 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 440, "end" = 480 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 490, "end" = 506 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 515, "end" = 535 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 544, "end" = 584 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 593, "end" = 624 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 633, "end" = 670 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 679, "end" = 702 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 711, "end" = 732 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 747, "end" = 802 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 834, "end" = 886 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 896, "end" = 919 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 928, "end" = 962 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 971, "end" = 1000 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1036, "end" = 1056 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1064, "end" = 1085 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1093, "end" = 1114 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1122, "end" = 1147 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1155, "end" = 1183 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1191, "end" = 1212 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1220, "end" = 1245 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1253, "end" = 1281 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1302, "end" = 1341 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1343, "end" = 1406 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1414, "end" = 1437 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1447, "end" = 1480 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1484, "end" = 1512 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1522, "end" = 1882 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1956, "end" = 1972 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1974, "end" = 1994 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 1996, "end" = 2019 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2154, "end" = 2172 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2235, "end" = 2245 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2253, "end" = 2264 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2272, "end" = 2282 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2290, "end" = 2304 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2312, "end" = 2323 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2332, "end" = 2341 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2349, "end" = 2359 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2448, "end" = 2455 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2466, "end" = 2471 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2485, "end" = 2489 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2500, "end" = 2504 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2523, "end" = 2529 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2540, "end" = 2546 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2560, "end" = 2564 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2575, "end" = 2581 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2599, "end" = 2603 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2618, "end" = 2624 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2640, "end" = 2647 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2664, "end" = 2671 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2692, "end" = 2699 }, { "rule" = "UP031", "file" = "UP031_0.py", "start" = 2718, "end" = 2727 }]
 
 [[cases]]
 name = "upstream-full-UP031_1.py"
-comparison = "rule"
+comparison = "full"
 files = { "UP031_1.py" = "# OK\nb\"%s\" % (b\"bytestring\",)\n\n\"%4%\" % ()\n\ni % 3\n\npytest.param('\"%8s\" % (None,)', id=\"unsafe width-string conversion\"),\n" }
 expected = []
 
 [[cases]]
 name = "simple-tuple"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%s\" % (value,)\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 15 }]
 
 [[cases]]
 name = "simple-ambiguous-name"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%s\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 12 }]
 
 [[cases]]
 name = "numeric-format"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%.2f\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 14 }]
 
 [[cases]]
 name = "integer-coercion"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%d\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 4 }]
 
 [[cases]]
 name = "flag-free-repr"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%r\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 12 }]
 
 [[cases]]
 name = "flagged-repr"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%+r\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 5 }]
 
 [[cases]]
 name = "combined-flags"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%#0- +10x\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 19 }]
 
 [[cases]]
 name = "repeated-flags"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%##00--++  r\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 14 }]
 
 [[cases]]
 name = "string-width"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%10s\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 6 }]
 
 [[cases]]
 name = "dynamic-width"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%*s\" % (3,value)\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 5 }]
 
 [[cases]]
 name = "dynamic-precision"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%.*f\" % (3,value)\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 6 }]
 
 [[cases]]
 name = "empty-mapping-key"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%()s\" % {\"\":value}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 6 }]
 
 [[cases]]
 name = "dictionary-positional"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%s\" % {\"x\":value}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 4 }]
 
 [[cases]]
 name = "valid-keyword-dictionary"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%(x)s\" % {\"x\":value}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 21 }]
 
 [[cases]]
 name = "invalid-keyword-dictionary"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%(1)s\" % {\"1\":value}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 7 }]
 
 [[cases]]
 name = "reserved-keyword-dictionary"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%(class)s\" % {\"class\":value}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 11 }]
 
 [[cases]]
 name = "duplicate-keyword-dictionary"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%(x)s\" % {\"x\":1,\"x\":2}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 7 }]
 
 [[cases]]
 name = "unicode-keyword-dictionary"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%(α)s\" % {\"α\":value}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 23 }]
 
 [[cases]]
 name = "unpacked-keyword-dictionary"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%(x)s\" % {**mapping}\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 21 }]
 
 [[cases]]
 name = "unsupported-right-expression"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%s\" % [value]\n" }
 expected = []
 
 [[cases]]
 name = "unsupported-right-with-fallback"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%d\" % [value]\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 4 }]
 
 [[cases]]
 name = "malformed-format"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%q\" % value\n" }
 expected = []
 
 [[cases]]
 name = "invalid-first-segment"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%q\" \"%d\" % value\n" }
 expected = []
 
 [[cases]]
 name = "fallback-first-segment"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%d\" \"%q\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 9 }]
 
 [[cases]]
 name = "empty-format"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"\" % ()\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 7 }]
 
 [[cases]]
 name = "escaped-percent-format"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%%\" % ()\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 9 }]
 
 [[cases]]
 name = "bytes-not-str"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "b\"%s\" % (b\"x\",)\n" }
 expected = []
 
 [[cases]]
 name = "integer-modulo"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "10 % value\n" }
 expected = []
 
 [[cases]]
 name = "dynamic-format-name"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "template % value\n" }
 expected = []
 
 [[cases]]
 name = "shadowed-format-name"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "format = object()\n\"%s\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 18, "end" = 30 }]
 
 [[cases]]
 name = "suppression"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%s\" % value # noqa: UP031\n" }
 expected = []
 
 [[cases]]
 name = "parenthesized-left"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "(\"%s\") % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 14 }]
 
 [[cases]]
 name = "implicit-concatenation"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "(\"%s\" \" %r\") % (a,b)\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 20 }]
 
 [[cases]]
 name = "nested-format"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "\"%s\" % (\"%s\" % value,)\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 0, "end" = 22 }, { "rule" = "UP031", "file" = "case.py", "start" = 8, "end" = 20 }]
 
 [[cases]]
 name = "stub"
-comparison = "rule"
+comparison = "full"
 files = { "case.pyi" = "x: str\n\"%s\" % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.pyi", "start" = 7, "end" = 19 }]
 
 [[cases]]
 name = "parenthesized-integer-fallback"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "(\"%d\") % value\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 1, "end" = 5 }]
 
 [[cases]]
 name = "quoted-annotation-modulo"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "x: \"'%s' % value\"\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 4, "end" = 16 }]
 
@@ -241,7 +241,7 @@ reference-discrepancy = { "process" = { "kind" = "process-failure", "exit" = 2, 
 
 [[cases]]
 name = "unicode-annotation-modulo"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "x: \"'é%s' % value\"\n" }
 expected = [{ "rule" = "UP031", "file" = "case.py", "start" = 4, "end" = 18 }]
 
@@ -254,6 +254,6 @@ reference-discrepancy = { "process" = { "kind" = "process-failure", "exit" = 2, 
 
 [[cases]]
 name = "annotation-addition-negative"
-comparison = "rule"
+comparison = "full"
 files = { "case.py" = "x: \"'%s' + value\"\n" }
 expected = []
