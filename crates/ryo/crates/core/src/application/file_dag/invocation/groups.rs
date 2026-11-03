@@ -26,14 +26,31 @@ pub(super) fn groups(
     keys: &[ColumnIndex],
     distinct: Option<ColumnIndex>,
     digest: Option<ColumnIndex>,
-    context: &OperatorContext<'_>,
+    context: &mut OperatorContext<'_>,
+    contract: &OperatorContract,
+    mode: EvaluationMode,
+    admitted: &super::super::workspace::InputAdmissions<'_, '_>,
 ) -> Result<Vec<Group>, OperatingError> {
+    // The original collected contract checks the reduction operand before its grouping keys.
+    if let Some(column) = digest.or(distinct) {
+        crate::domain::table_model::service::check_columns(input.kinds(), &[column])?;
+    }
+    let use_ = super::prepared(
+        contract,
+        mode,
+        ryo_derived::domain::contract::types::DerivedKind::PartitionOrder,
+    )?;
+    let acquired = admitted.acquire_rows(use_, context)?;
+    let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
+        acquired.view()?
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
     let table = materialized(input);
     let mut groups = Vec::new();
-    let mut order = KeyIndex::default();
     let mut values = Vec::new();
     let mut room = CountRoom {
-        order: &mut order,
+        order,
         groups: &mut groups,
         values: &mut values,
     };

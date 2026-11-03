@@ -1,7 +1,7 @@
 //! The application owns each invocation's mutable allocations and release boundary.
 use super::relations::AdmittedInput;
 use crate::domain::{
-    derived_views::types::{DerivedStorage, PreparedViewUse},
+    derived_views::types::PreparedViewUse,
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::views::BorrowedRows,
 };
@@ -314,6 +314,26 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
                 .map_err(|_| OperatingError::WrongOperation)?;
         }
         Ok(cell.get().expect("admitted demanded input"))
+    }
+    pub(super) fn try_native_lookup(
+        &self,
+        use_: &PreparedViewUse,
+    ) -> Result<Option<super::derived::view::AcquiredView>, OperatingError> {
+        if use_.plan.kind != ryo_derived::domain::contract::types::DerivedKind::NativeLookup
+            || use_.len != 2
+        {
+            return Err(OperatingError::WrongOperation);
+        }
+        let left = self.proof(use_.inputs[0])?;
+        let right = self.proof(use_.inputs[1])?;
+        let owner = self.workspace.owner();
+        let populations = [left.identity(owner)?.0, right.identity(owner)?.0];
+        owner.derived.try_acquire_rows(
+            &use_.plan,
+            &populations,
+            crate::domain::derived_views::types::DerivedInputs::Rows(&[left.rows(), right.rows()]),
+            &mut self.workspace.derived_scratch.borrow_mut(),
+        )
     }
     pub(super) fn acquire_rows(
         &self,

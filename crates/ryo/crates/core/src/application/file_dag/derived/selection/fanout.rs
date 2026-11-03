@@ -1,176 +1,129 @@
-//! Shared fanout policy declines are distinct from mandatory construction failures.
+//! Active literal metadata is prepared once; only the common owner retains completed postings.
+use super::super::backend::ActivePostings;
 use super::*;
-enum Choice {
-    Reused(Arc<Vec<u32>>),
-    Build {
-        column: ColumnIndex,
-        source_bits: usize,
-        population: usize,
-        prior_positions: usize,
-        bytes: usize,
-        texts: Vec<String>,
-    },
+fn active_bytes(active: &Vec<ActivePostings>) -> Option<usize> {
+    active
+        .capacity()
+        .checked_mul(size_of::<ActivePostings>())
+        .and_then(|base| {
+            active.iter().try_fold(base, |total, group| {
+                let strings = group
+                    .literals
+                    .iter()
+                    .try_fold(0_usize, |n, text| n.checked_add(text.0.len()))?;
+                total
+                    .checked_add(group.literals.len().checked_mul(size_of::<LiteralText>())?)?
+                    .checked_add(2 * size_of::<usize>())?
+                    .checked_add(strings)
+            })
+        })
 }
-fn choose(
-    cache: &CacheBackend,
-    program: &Selector,
-    source: ColumnsView<'_>,
-    context: &OperatorContext<'_>,
-) -> Option<Choice> {
-    let (column, wanted) = first_literal(program, source.kinds)?;
-    let place = column.0 as usize;
-    let physical = source.columns.get(place)?.0.as_slice();
-    let population = source.columns.first()?.0.len();
-    if population < 32 || population > MAX_FANOUT_POPULATION {
-        return None;
-    }
-    let source_bits = physical.as_ptr().addr();
-    if let Some(entry) = cache.fanouts.iter().find(|entry| {
-        entry.relation == program.relation
-            && entry.column == column
-            && entry.kinds == source.kinds
-            && entry.population == population
-            && entry.source_bits == source_bits
-    }) {
-        let at = entry
-            .literals
-            .binary_search_by(|item| item.text.as_str().cmp(wanted))
-            .ok()?;
-        return Some(Choice::Reused((entry.literals[at].rows).clone()));
-    }
-    if cache.fanouts.len() >= MAX_FANOUT_GROUPS {
-        return None;
-    }
-    let prior_literals: usize = cache.fanouts.iter().map(|entry| entry.literals.len()).sum();
-    let prior_text_bytes: usize = cache
-        .fanouts
-        .iter()
-        .flat_map(|entry| entry.literals.iter())
-        .map(|entry| entry.text.capacity())
-        .sum();
-    let mut texts = Vec::<String>::new();
-    let mut text_bytes = prior_text_bytes;
+pub(super) fn prepare_active(cache: &mut CacheBackend) {
+    let previous = std::mem::take(&mut cache.active_postings);
+    let Some(base) = active_bytes(&previous).and_then(|bytes| cache.bytes.checked_sub(bytes))
+    else {
+        return;
+    };
+    cache.bytes = base;
+    drop(previous);
+    let Some(views) = cache.selection_views.as_ref() else {
+        return;
+    };
+    let mut groups = std::collections::BTreeMap::<(_, _), Vec<LiteralText>>::new();
     for selector in &cache.selectors {
-        if selector.relation != program.relation {
-            continue;
-        }
-        let Some((other_column, text)) = first_literal(selector, source.kinds) else {
+        let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) else {
             continue;
         };
-        if other_column != column || texts.iter().any(|item| item.as_str() == text) {
+        let Some(kinds) = prepared.postings.schemas.first() else {
             continue;
-        }
-        text_bytes = text_bytes.checked_add(text.len())?;
-        if prior_literals + texts.len() >= MAX_FANOUT_LITERALS || text_bytes > MAX_FANOUT_TEXT_BYTES
-        {
-            return None;
-        }
-        texts.push(text.to_owned());
+        };
+        let Some((column, text)) = first_literal(selector, kinds) else {
+            continue;
+        };
+        groups
+            .entry((selector.relation, column))
+            .or_default()
+            .push(LiteralText(text.into()));
     }
-    if texts.len() < MIN_FANOUT_LITERALS || !texts.iter().any(|text| text.as_str() == wanted) {
-        return None;
+    let mut active = Vec::new();
+    for ((relation, column), mut literals) in groups {
+        literals.sort_unstable();
+        literals.dedup();
+        active.push(ActivePostings {
+            relation,
+            column,
+            literals: literals.into(),
+        });
     }
-    // Vec growth can nearly double retained position capacity. Decline before
-    // allocating if the worst case could exceed the existing selection slice.
-    let prior_positions = cache.retained_positions;
-    if population.checked_mul(2)? > MAX_RETAINED_POSITION_CAPACITY.checked_sub(prior_positions)? {
-        return None;
+    let bytes = active_bytes(&active);
+    if let Some(bytes) = bytes
+        .and_then(|bytes| cache.bytes.checked_add(bytes))
+        .filter(|bytes| *bytes <= cache.limit)
+    {
+        cache.bytes = bytes;
+        cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
+        cache.active_postings = active;
     }
-    let first = cache.selections.is_empty() && cache.fanouts.is_empty();
-    let reserved = first.then_some(RETAINED_SELECTION_RESERVATION).unwrap_or(0);
-    let bytes = cache.bytes.checked_add(reserved)?;
-    if bytes > super::super::indexes::non_graph_limit(cache) {
-        return None;
-    }
-    Some(Choice::Build {
-        column,
-        source_bits,
-        population,
-        prior_positions,
-        bytes,
-        texts,
-    })
 }
 pub(super) fn fanout_candidates(
     cache: &mut CacheBackend,
+    resources: super::super::owner::selection::SelectionSource<'_>,
     program: &Selector,
-    plan: &DerivedContract,
+    plan: &Arc<DerivedContract>,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
-) -> Result<Option<(Arc<Vec<u32>>, SelectionPath)>, OperatingError> {
-    let Some(choice) = choose(cache, program, source, context) else {
+) -> Result<
+    Option<(
+        Arc<Vec<u32>>,
+        super::super::view::AcquiredView,
+        SelectionPath,
+    )>,
+    OperatingError,
+> {
+    let Some((column, wanted)) = first_literal(program, source.kinds) else {
         return Ok(None);
     };
-    let Choice::Build {
-        column,
-        source_bits,
-        population,
-        prior_positions,
-        bytes,
-        mut texts,
-    } = choice
+    let population = source.columns.first().map_or(0, |column| column.0.len());
+    if !(32..=MAX_FANOUT_POPULATION).contains(&population) {
+        return Ok(None);
+    }
+    let Some(active) = cache
+        .active_postings
+        .iter()
+        .find(|entry| entry.relation == program.relation && entry.column == column)
+        .map(|entry| Arc::clone(&entry.literals))
     else {
-        let Choice::Reused(rows) = choice else {
-            unreachable!()
-        };
-        return Ok(Some((rows, SelectionPath::FanoutReused)));
+        return Ok(None);
     };
-    let (_, wanted) = first_literal(program, source.kinds).ok_or(OperatingError::WrongOperation)?;
-    texts.sort_unstable();
-    let active = texts
-        .into_iter()
-        .map(|text| LiteralText(text.into_boxed_str()))
-        .collect::<Vec<_>>();
+    if active.len() < MIN_FANOUT_LITERALS
+        || active.len() > MAX_FANOUT_LITERALS
+        || active
+            .binary_search_by(|text| text.0.as_ref().cmp(wanted))
+            .is_err()
+    {
+        return Ok(None);
+    }
     let texts = Texts {
         symbols: context.symbols.as_ref(),
         source: context.source,
         paths: context.paths,
         arenas: context.arenas,
     };
-    let mut storage = DerivedStorage::Unbuilt;
-    super::super::owner::build_scoped(
-        crate::application::file_dag::route_counts::BuildRoute::SelectorPostings,
-        plan,
-        DerivedInputs::Postings {
-            rows: BorrowedRows::Stored(source),
-            texts: &texts,
-            active: &active,
-        },
-        &mut storage,
-        &mut DerivedScratch::default(),
-    )?;
-    let crate::domain::derived_views::types::DerivedView::Postings(postings) =
-        crate::domain::derived_views::collections::views::registration::registered(plan.kind)
-            .view(plan, &storage)?
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
-    let Some(capacity) = postings.iter().try_fold(prior_positions, |sum, entry| {
-        sum.checked_add(entry.rows.capacity())
-    }) else {
+    let Some(acquired) = resources.acquire_postings(cache, plan, source, &texts, active)? else {
         return Ok(None);
     };
-    if capacity > MAX_RETAINED_POSITION_CAPACITY || cache.fanouts.try_reserve(1).is_err() {
-        return Ok(None);
+    let rows = acquired
+        .storage
+        .payload()
+        .share_posting_positions(wanted)
+        .ok_or(OperatingError::WrongOperation)?;
+    if acquired.was_built() {
+        cache.selection_counts.scanned += population as u64;
     }
-    let at = postings
-        .binary_search_by(|item| item.text.as_str().cmp(wanted))
-        .map_err(|_| OperatingError::WrongOperation)?;
-    let result = (postings[at].rows).clone();
-    let DerivedStorage::Postings(literals) = storage else {
-        return Err(OperatingError::WrongOperation);
+    let path = if acquired.was_built() {
+        SelectionPath::FanoutBuilt
+    } else {
+        SelectionPath::FanoutReused
     };
-    cache.fanouts.push(LiteralFanout {
-        relation: program.relation,
-        column,
-        kinds: source.kinds,
-        population,
-        source_bits,
-        literals,
-    });
-    cache.retained_positions = capacity;
-    cache.bytes = bytes;
-    cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
-    cache.selection_counts.scanned += population as u64;
-    Ok(Some((result, SelectionPath::FanoutBuilt)))
+    Ok(Some((Arc::clone(rows.backing()), acquired, path)))
 }

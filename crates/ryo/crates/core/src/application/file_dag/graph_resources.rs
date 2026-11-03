@@ -1,9 +1,7 @@
 //! Behavioral controls retained from the former application resource constructors.
 use crate::domain::{
-    derived_views::{collections::views::registration::registered, types::*},
-    operating::errors::OperatingError,
-    operation_schema::types::InputSchema,
-    operator::contract::views::BorrowedRows,
+    derived_views::types::*, operating::errors::OperatingError,
+    operation_schema::types::InputSchema, operator::contract::views::BorrowedRows,
     table_model::service::push_row,
 };
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -12,8 +10,13 @@ fn prepare_cycles(
     input: BorrowedRows<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<ryo_derived::domain::contract::types::CycleGraph, OperatingError> {
-    let plan = registered(DerivedKind::CycleAdjacency).prepare(
+) -> Result<super::derived::view::AcquiredView, OperatingError> {
+    let owner =
+        super::relations::RelationOwner::new(true, crate::outbound::derived::factory::test_port());
+    let proof = owner.admit_external(input)?;
+    let (population, _) = proof.identity(&owner)?;
+    let plan = std::sync::Arc::new(super::derived::prepare::view(
+        owner.derived.semantic_port(),
         &ViewRequest::CycleAdjacency {
             source,
             destination,
@@ -22,49 +25,29 @@ fn prepare_cycles(
             kinds: input.kinds(),
             tree: None,
         }],
-    )?;
-    let mut storage = DerivedStorage::Unbuilt;
-    super::derived::owner::build_scoped(
-        crate::application::file_dag::route_counts::BuildRoute::Fixture,
+    )?);
+    owner.derived.acquire_stored(
         &plan,
-        DerivedInputs::Rows(&[input]),
-        &mut storage,
+        &[population],
+        super::derived::owner::ViewContext::default(),
+        DerivedInputs::Rows(&[proof.rows()]),
         &mut DerivedScratch::default(),
-    )?;
-    let DerivedStorage::CycleAdjacency(graph) = storage else {
-        return Err(OperatingError::WrongOperation);
-    };
-    Ok(graph)
-}
-struct PreparedClosure {
-    parts: Vec<ryo_derived::domain::contract::types::ClosurePartition>,
-    _leases: Vec<std::sync::Arc<super::derived::ledger::ResourceLease>>,
-}
-impl std::ops::Deref for PreparedClosure {
-    type Target = [ryo_derived::domain::contract::types::ClosurePartition];
-    fn deref(&self) -> &Self::Target {
-        &self.parts
-    }
+        None,
+    )
 }
 fn prepare_closure(
     input: BorrowedRows<'_>,
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<PreparedClosure, OperatingError> {
+) -> Result<Vec<super::derived::view::AcquiredView>, OperatingError> {
     let mut cursor =
         super::closure_partitions::PartitionedClosure::prepare(input, keys, source, destination)?;
     let mut parts = Vec::new();
-    let mut leases = Vec::new();
     while cursor.advance()? {
-        let (part, lease) = cursor.take_current()?;
-        parts.push(part);
-        leases.push(lease);
+        parts.push(cursor.take_current()?);
     }
-    Ok(PreparedClosure {
-        parts,
-        _leases: leases,
-    })
+    Ok(parts)
 }
 #[cfg(test)]
 mod tests {
@@ -87,7 +70,7 @@ mod tests {
         table
     }
     #[test]
-    fn adjacency_keeps_parallel_edges_and_first_entity_numbering() {
+    fn adjacency_keeps_parallel_edges_and_first_entity_numbering() -> Result<(), OperatingError> {
         let input = table(2, &[&[9, 1], &[9, 1], &[1, 9], &[7, 7]]);
         let graph = prepare_cycles(
             BorrowedRows::Computed(&input),
@@ -95,12 +78,19 @@ mod tests {
             ColumnIndex(1),
         )
         .unwrap();
-        assert_eq!(graph.values, vec![number(9), number(1), number(7)]);
-        assert_eq!(graph.starts, vec![0, 2, 3, 4]);
-        assert_eq!(graph.leaving, vec![1, 1, 0, 2]);
+        let ryo_derived::domain::contract::types::DerivedView::CycleAdjacency(graph) =
+            graph.view()?
+        else {
+            return Err(OperatingError::WrongOperation);
+        };
+        assert_eq!(graph.values(), vec![number(9), number(1), number(7)]);
+        assert_eq!(graph.starts(), vec![0, 2, 3, 4]);
+        assert_eq!(graph.leaving(), vec![1, 1, 0, 2]);
+        Ok(())
     }
     #[test]
-    fn closure_preparation_preserves_clustered_partition_order_and_sorts_sources() {
+    fn closure_preparation_preserves_clustered_partition_order_and_sorts_sources()
+    -> Result<(), OperatingError> {
         let input = table(3, &[&[9, 4, 3], &[9, 2, 4], &[1, 7, 8]]);
         let partitions = prepare_closure(
             BorrowedRows::Computed(&input),
@@ -110,13 +100,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(partitions.len(), 2);
-        assert_eq!(partitions[0].key, vec![number(9)]);
-        assert_eq!(partitions[0].sources, vec![number(2), number(4)]);
+        use crate::domain::operator::contract::views::ClosureParts;
+        let first = ClosureParts::get(&partitions, 0)?;
+        let second = ClosureParts::get(&partitions, 1)?;
+        assert_eq!(first.key(), vec![number(9)]);
+        assert_eq!(first.sources(), vec![number(2), number(4)]);
         assert_eq!(
-            partitions[0].table.cells,
+            first.table().cells,
             vec![number(4), number(3), number(2), number(4)]
         );
-        assert_eq!(partitions[1].key, vec![number(1)]);
+        assert_eq!(second.key(), vec![number(1)]);
+        Ok(())
     }
 }
 

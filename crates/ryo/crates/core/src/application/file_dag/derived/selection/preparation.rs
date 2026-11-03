@@ -213,4 +213,5 @@ pub(in crate::application::file_dag::derived) fn install_views(
     }
     tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="selector_activation",request_groups=views.groups,working_metadata_bytes=cache.selector_repetition.capacity());
     cache.selection_views = Some(views);
+    super::fanout::prepare_active(cache);
 }

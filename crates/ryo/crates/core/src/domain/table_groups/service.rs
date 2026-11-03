@@ -17,92 +17,6 @@ use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_derived::domain::contract::types::{HashedRow, KeyCellsHash, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, FlagState};
 
-/// Lists the rows of `table` into `order.sorted` in the order of the hash of their key, those with
-/// one hash by key, and rows with the same key in the order they came: the rows of a key are
-/// together, for the operators that group.
-///
-/// # Errors
-///
-/// `NoSuchColumn` when `on` names a column the table lacks.
-pub(crate) fn sort_rows(
-    table: &Table,
-    on: On<'_>,
-    order: &mut KeyIndex,
-) -> Result<(), TableModelError> {
-    if let On::Columns(columns) = on {
-        check_columns(&table.kinds, columns)?;
-    }
-    let KeyIndex {
-        sorted,
-        pairs,
-        runs,
-        ..
-    } = order;
-    // Rows with one key that come one after the other, as they do when a step made them key by key, are grouped as they are:
-    // a key is hashed where its run begins and no more. A key that comes back after another is for the sort.
-    runs.clear();
-    sorted.clear();
-    let mut head: Option<&[Value]> = None;
-    let mut clustered = true;
-    for each in positions(table.count) {
-        let row = row_in(table, each).unwrap_or_default();
-        let same = head.is_some_and(|first| match on {
-            On::Whole => first == row,
-            On::Columns(columns) => columns
-                .iter()
-                .all(|column| column_in(first, *column) == column_in(row, *column)),
-        });
-        if !same {
-            if !runs.insert(hash_row(row, on)) {
-                clustered = false;
-                break;
-            }
-            head = Some(row);
-        }
-        sorted.push(each);
-    }
-    if clustered {
-        return Ok(());
-    }
-    pairs.clear();
-    pairs.extend(positions(table.count).map(|each| HashedRow {
-        hash: row_in(table, each).map_or(KeyCellsHash(0), |row| hash_row(row, on)),
-        row: each,
-    }));
-    pairs.sort_unstable();
-    sorted.clear();
-    sorted.extend(pairs.iter().map(|pair| pair.row));
-    // Two keys with one hash are put in the order of their keys, which is rare enough to cost nothing.
-    let mut start = 0;
-    for tied in pairs.chunk_by(|left, right| left.hash == right.hash) {
-        let end = start + tied.len();
-        if let Some(rows) = sorted.get_mut(start..end)
-            && rows.len() > 1
-        {
-            rows.sort_by(|left, right| {
-                let (Some(left_row), Some(right_row)) =
-                    (row_in(table, *left), row_in(table, *right))
-                else {
-                    return left.cmp(right);
-                };
-                let ordering = match on {
-                    On::Whole => left_row.cmp(right_row),
-                    On::Columns(columns) => columns
-                        .iter()
-                        .map(|column| {
-                            column_in(left_row, *column).cmp(&column_in(right_row, *column))
-                        })
-                        .find(|each| each.is_ne())
-                        .unwrap_or(Ordering::Equal),
-                };
-                ordering.then(left.cmp(right))
-            });
-        }
-        start = end;
-    }
-    Ok(())
-}
-
 /// Counts the rows of `table` for each key `on` names, or the distinct values of the cell at
 /// `distinct` when there is one, into `groups`, in the order the groups first appeared.
 ///
@@ -126,7 +40,9 @@ pub(crate) fn count_groups(
     if let Some(missing) = distinct.filter(|column| wide(*column)) {
         return Err(TableModelError::NoSuchColumn { index: missing.0 });
     }
-    sort_rows(table, on, order)?;
+    if let On::Columns(columns) = on {
+        check_columns(&table.kinds, columns)?;
+    }
     let (key_of_row, value_of_row) = (
         |each: &RowIndex| row_in(table, *each).unwrap_or_default(),
         |each: &RowIndex| {
@@ -142,7 +58,7 @@ pub(crate) fn count_groups(
         }),
     };
     groups.clear();
-    for run in order.sorted.chunk_by(same_key) {
+    for run in order.chunk_by(same_key) {
         let first = run.iter().copied().min().unwrap_or(RowIndex(0));
         let counted = if distinct.is_none() {
             run.len()
@@ -202,7 +118,7 @@ pub(crate) fn digest_groups(
     if usize::try_from(over.0).map_or(true, |place| place >= table.kinds.len()) {
         return Err(TableModelError::NoSuchColumn { index: over.0 });
     }
-    sort_rows(table, On::Columns(keys), order)?;
+    check_columns(&table.kinds, keys)?;
     let key_of_row = |each: &RowIndex| row_in(table, *each).unwrap_or_default();
     let same_key = |left: &RowIndex, right: &RowIndex| {
         keys.iter().all(|column| {
@@ -210,7 +126,7 @@ pub(crate) fn digest_groups(
         })
     };
     groups.clear();
-    for run in order.sorted.chunk_by(same_key) {
+    for run in order.chunk_by(same_key) {
         let first = run.iter().copied().min().unwrap_or(RowIndex(0));
         hashes.clear();
         hashes.extend(

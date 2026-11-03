@@ -1,7 +1,6 @@
 //! Owned derived handles stay in application state; the primitive sees borrowed views only.
 use super::super::derived::view::AcquiredView;
 use crate::domain::{
-    derived_views::types::{DerivedView, MembershipData},
     operating::errors::OperatingError,
     operator::contract::{
         axis::PreparedAxis,
@@ -9,6 +8,7 @@ use crate::domain::{
     },
     table_cells::types::TreeRows,
 };
+use ryo_derived::domain::contract::types::{DerivedView, MembershipView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) enum AxisResource<'f> {
@@ -37,7 +37,7 @@ impl AxisResource<'_> {
                 membership,
             } => {
                 let marks = match membership.as_ref().map(AcquiredView::view).transpose()? {
-                    Some(DerivedView::Membership(MembershipData::Dense(marks))) => marks.as_slice(),
+                    Some(DerivedView::Membership(MembershipView::Dense(marks))) => marks,
                     None if among.is_some() => &[],
                     _ => return Err(OperatingError::WrongBinding),
                 };
@@ -57,7 +57,7 @@ impl AxisResource<'_> {
                 let DerivedView::Equality(index) = equality.view()? else {
                     return Err(OperatingError::WrongBinding);
                 };
-                let DerivedView::Membership(domain @ MembershipData::Values(_)) =
+                let DerivedView::Membership(domain @ MembershipView::Values(_)) =
                     membership.view()?
                 else {
                     return Err(OperatingError::WrongBinding);

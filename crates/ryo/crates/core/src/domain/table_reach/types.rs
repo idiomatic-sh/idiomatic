@@ -34,21 +34,6 @@ pub(crate) struct Edges<'a> {
     pub to: ColumnIndex,
 }
 
-/// Reusable adjacency layout for ordered depth-first visits.
-#[derive(Debug, Default)]
-pub(crate) struct OrderedGraph {
-    /// Canonical partition/source/destination columns appended to the edge input.
-    pub edge_columns: Vec<ColumnIndex>,
-    /// Canonical partition/root columns appended to the root input.
-    pub root_columns: Vec<ColumnIndex>,
-    /// Adjacency range in the sorted index for each original edge row.
-    pub adjacency: Vec<std::ops::Range<usize>>,
-    /// Vertices expanded across the compute, for deterministic work accounting.
-    pub expanded: usize,
-    /// Edges examined across the compute, for deterministic work accounting.
-    pub examined: usize,
-}
-
 /// One reusable iterative DFS, reset before each distinct partition/root.
 #[derive(Debug, Default)]
 pub(crate) struct OrderedWalk {

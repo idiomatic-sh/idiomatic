@@ -308,6 +308,8 @@ impl CommonOperatorEngine<'_> {
                     port: self.operators,
                 },
                 contract,
+                mode.evaluation,
+                workspace,
                 originals,
                 context,
                 emit,

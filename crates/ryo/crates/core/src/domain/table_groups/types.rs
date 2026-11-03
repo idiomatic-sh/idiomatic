@@ -1,8 +1,6 @@
 //! The types of the `table_groups` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use ryo_derived::domain::contract::types::KeyIndex;
-
 use ryo_relations::domain::relations::types::Value;
 
 /// The digest of the set of distinct values a group holds; zero when none was asked for.
@@ -32,7 +30,7 @@ pub(crate) struct ValueHash(pub u64);
 #[derive(Debug)]
 pub(crate) struct CountRoom<'a> {
     /// The rows in the order of their keys.
-    pub order: &'a mut KeyIndex,
+    pub order: &'a [RowIndex],
     /// The groups found.
     pub groups: &'a mut Vec<Group>,
     /// The values of a group, to count the distinct ones.

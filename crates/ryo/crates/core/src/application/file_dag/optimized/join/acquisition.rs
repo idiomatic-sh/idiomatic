@@ -45,7 +45,7 @@ pub(super) fn acquired_index(
     let acquired = storage;
     if !matches!(
         acquired.view()?,
-        crate::domain::derived_views::types::DerivedView::Equality(_)
+        ryo_derived::domain::contract::types::DerivedView::Equality(_)
     ) {
         return Err(OperatingError::WrongBinding);
     }

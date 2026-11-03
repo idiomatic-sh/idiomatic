@@ -1,16 +1,15 @@
 //! Application policy for prepared compact selections and their shared file backend.
+use super::storage::DerivedStorage;
 use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::{
-    derived_views::types::{
-        DerivedContract, DerivedInputs, DerivedScratch, DerivedStorage, DerivedView, ViewRequest,
-    },
+    derived_views::types::{DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
     operating::{
         errors::OperatingError,
         types::{NameCount, OperatorContext},
     },
     operator::{contract::views::BorrowedRows, types::PreparedPool},
     stored_selection::types::{
-        LiteralFanout, PreparedSelectionViews, PreparedSelectorViews, Selector, SelectorHistogram,
+        PreparedSelectionViews, PreparedSelectorViews, Selector, SelectorHistogram,
     },
     table_model::{
         service::{check_columns, matching_stored},
@@ -19,6 +18,7 @@ use crate::domain::{
     table_texts::types::Texts,
 };
 use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_language::domain::symbols::{
     service::{find_hashed, hash_of, name_count},
@@ -47,18 +47,15 @@ pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas
 pub(in crate::application::file_dag::derived) use preparation::{activate, install_views};
 #[cfg(test)]
 use ryo_values::domain::plans::types::Plan;
-// One file owns this cache and drops it after the file. Reserve a fixed, conservative
-// slice of its existing limit for at most this many retained match positions and
-// entries; no allocation-size estimate is maintained for individual entries.
-pub(super) const RETAINED_SELECTION_RESERVATION: usize = 4 * 1024 * 1024;
+// One owner bounds the actual shared position allocations and retained predicate entries.
 pub(super) const MAX_RETAINED_SELECTIONS: usize = 128;
 pub(super) const MAX_RETAINED_POSITION_CAPACITY: usize = 512 * 1024;
 // A single pass can route several authored literals without a whole-column key index.
-// The position and metadata bounds fit inside the existing 4 MiB selection reservation.
+// Existing fanout count, text and position bounds remain independent of byte admission.
 const MAX_FANOUT_POPULATION: usize = 256 * 1024;
-const MAX_FANOUT_LITERALS: usize = 128;
-const MAX_FANOUT_GROUPS: usize = 4;
-const MAX_FANOUT_TEXT_BYTES: usize = 64 * 1024;
+pub(super) const MAX_FANOUT_LITERALS: usize = 128;
+pub(super) const MAX_FANOUT_GROUPS: usize = 4;
+pub(super) const MAX_FANOUT_TEXT_BYTES: usize = 64 * 1024;
 const MIN_FANOUT_LITERALS: usize = 8;
 
 /// Diagnostic reasons are fixed integers so normal selection never formats strings.
@@ -77,14 +74,17 @@ enum SelectionPath {
 
 enum CandidateRows {
     Owned(Vec<u32>),
-    Shared(Arc<Vec<u32>>),
+    Shared {
+        rows: Arc<Vec<u32>>,
+        _resource: super::view::AcquiredView,
+    },
 }
 
 impl CandidateRows {
     fn as_slice(&self) -> &[u32] {
         match self {
             Self::Owned(rows) => rows,
-            Self::Shared(rows) => rows.as_ref().as_slice(),
+            Self::Shared { rows, .. } => rows.as_ref().as_slice(),
         }
     }
 }
@@ -182,10 +182,7 @@ fn make<'a>(
             crate::application::file_dag::route_counts::BuildRoute::SelectorDistinct,
             cache,
             &views.distinct,
-            super::owner::ViewContext {
-                candidate: Some(Arc::as_ptr(&views.predicate) as usize),
-                ..Default::default()
-            },
+            super::owner::ViewContext::for_predicate(&views.predicate),
             DerivedInputs::Distinct {
                 rows: BorrowedRows::Stored(source),
                 positions: &rows,
@@ -241,8 +238,10 @@ fn shared_positions(
     {
         return Err(OperatingError::ShapeMismatch);
     }
-    let DerivedStorage::RowIds { rows, .. } = acquired.storage.as_ref() else {
-        return Err(OperatingError::WrongOperation);
-    };
-    Ok(Arc::clone(rows))
+    let rows = acquired
+        .storage
+        .payload()
+        .share_positions()
+        .ok_or(OperatingError::WrongOperation)?;
+    Ok(Arc::clone(rows.backing()))
 }

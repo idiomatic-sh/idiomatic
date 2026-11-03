@@ -15,7 +15,7 @@ use crate::domain::{
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use std::sync::Arc;
 #[path = "request/identity.rs"]
-mod identity;
+pub(super) mod identity;
 use identity::same_request;
 pub(in crate::application::file_dag) struct RequestViews {
     semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
@@ -230,11 +230,15 @@ impl RequestViews {
                     &[0, 1],
                 )?;
             }
-            ResourceProgram::None
-            | ResourceProgram::Appended(_)
-            | ResourceProgram::Rank(_)
-            | ResourceProgram::Count { .. }
-            | ResourceProgram::Digest { .. } => {}
+            ResourceProgram::Count { keys, .. } | ResourceProgram::Digest { keys, .. } => {
+                self.add(
+                    &mut slots,
+                    kinds,
+                    ViewRequest::PartitionOrder { keys: keys.clone() },
+                    &[0],
+                )?;
+            }
+            ResourceProgram::None | ResourceProgram::Appended(_) | ResourceProgram::Rank(_) => {}
         }
         Ok(slots)
     }

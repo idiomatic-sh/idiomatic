@@ -10,7 +10,7 @@ use crate::domain::lowering::service::{kind_of, shape_at};
 use crate::domain::lowering::types::Lowering;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
-use crate::domain::positions::service::{count, firsts, key_into, made_of, row, values};
+use crate::domain::positions::service::{count, key_into, made_of, row, values};
 use crate::domain::positions::types::{LoweredRoom, Slots, Stride, Work};
 use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::service::positions;
@@ -86,30 +86,27 @@ pub(crate) fn select_rows(
 
 /// The rows of the step `input`, once each by the columns a projection keeps when it drops repeated rows.
 pub(crate) fn project(
+    derived: &mut dyn crate::domain::operator::contract::derived::ScopedDerived,
     tree: &TreeRows<'_>,
     lowering: &Lowering,
     input: StepId,
     projection: ProjectedColumns<'_>,
     room: &mut LoweredRoom,
     out: &mut Slots,
-) {
+) -> Result<(), OperatingError> {
     let out = &mut out.0;
     let LoweredRoom {
-        made,
-        keys,
-        order,
-        keep,
-        ..
+        made, keys, keep, ..
     } = room;
     let Some(rows) = made_of(made, input) else {
-        return;
+        return Ok(());
     };
     if projection.repeats == RepeatedRows::Kept {
         out.extend_from_slice(&rows.slots.0);
-        return;
+        return Ok(());
     }
     let Ok(shape) = shape_at(lowering, input) else {
-        return;
+        return Ok(());
     };
     keys.0.clear();
     for at in positions(count(rows)) {
@@ -121,12 +118,15 @@ pub(crate) fn project(
             keys,
         );
     }
-    firsts(keys, Stride(projection.columns.len().max(1)), order, keep);
-    for (at, kept) in keep.0.iter().enumerate() {
-        if *kept {
-            out.extend_from_slice(row(rows, RowIndex(at)).0);
+    derived.with_raw_order(&keys.0, projection.columns.len().max(1), &mut |order| {
+        order.firsts(&mut keep.0);
+        for (at, kept) in keep.0.iter().enumerate() {
+            if *kept {
+                out.extend_from_slice(row(rows, RowIndex(at)).0);
+            }
         }
-    }
+        Ok(())
+    })
 }
 
 use ryo_values::domain::rows::types::RowIndex;

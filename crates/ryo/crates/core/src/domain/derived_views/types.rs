@@ -2,13 +2,9 @@
 use crate::domain::{
     operator::contract::{resources::DfsResources, types::PredicateProgram, views::BorrowedRows},
     stored_graph::types::GraphSource,
-    stored_selection::types::{LiteralPostings, Selector},
+    stored_selection::types::Selector,
     table_cells::types::TreeRows,
     table_texts::types::{SourceView, Texts},
-};
-use ryo_derived::domain::contract::types::KeyIndex;
-use ryo_derived::domain::contract::types::{
-    ClosurePartition, CompactGraph, CycleGraph, Finding, OrderedMatching, PreparedDfs,
 };
 use ryo_language::domain::{
     files::types::FilePath,
@@ -127,53 +123,11 @@ pub(crate) enum DerivedInputs<'a, 's> {
         arenas: &'a [ArenaBytes],
     },
 }
-/// Storage has no borrowed provider data. Only the application retains it or chooses its budget.
-#[derive(Debug, Default)]
-pub(crate) enum DerivedStorage {
-    #[default]
-    Unbuilt,
-    Equality(KeyIndex),
-    /// Existing engine-retained stored index, charged once by its file backend.
-    EqualityShared(Arc<KeyIndex>),
-    RowIds {
-        kind: DerivedKind,
-        rows: Arc<Vec<u32>>,
-    },
-    Postings(Arc<Vec<LiteralPostings>>),
-    Adjacency(Arc<CompactGraph>),
-    Membership(MembershipData),
-    PartitionOrder(Vec<RowIndex>),
-    ClosureAdjacency(ClosurePartition),
-    CycleAdjacency(CycleGraph),
-    OrderedKeys(OrderedMatching),
-    OrderedDfs(PreparedDfs),
-    NativeLookup(Finding),
-}
-#[derive(Debug)]
-pub(crate) enum MembershipData {
-    Values(hashbrown::HashSet<Value>),
-    Dense(Arc<Vec<bool>>),
-}
 #[derive(Default)]
 pub(crate) struct DerivedScratch {
     pub semantic: ryo_derived::domain::contract::types::BuildWorkspace,
     pub row: Vec<Value>,
 }
-/// No owned handle or writable storage is exposed by view().
-pub(crate) enum DerivedView<'a> {
-    Equality(&'a KeyIndex),
-    RowIds(&'a [u32]),
-    Postings(&'a [LiteralPostings]),
-    Adjacency(&'a CompactGraph),
-    Membership(&'a MembershipData),
-    PartitionOrder(&'a [RowIndex]),
-    ClosureAdjacency(&'a ClosurePartition),
-    CycleAdjacency(&'a CycleGraph),
-    OrderedKeys(&'a OrderedMatching),
-    OrderedDfs(&'a PreparedDfs),
-    NativeLookup(Finding),
-}
-
 /// Request-owned prepared use; population slots are immutable dependency metadata, not a scheduler.
 #[derive(Clone, Debug)]
 pub(crate) struct PreparedViewUse {

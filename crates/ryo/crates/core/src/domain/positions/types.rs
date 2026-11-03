@@ -45,17 +45,9 @@ pub(crate) struct Slots(pub Vec<u32>);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Keys(pub Vec<u64>);
 
-/// Rows by their place, in the order of their keys.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct KeyOrder(pub Vec<usize>);
-
 /// Which rows a step keeps, by the row's place.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Keeps(pub Vec<bool>);
-
-/// A run of places in a key order.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct OrderRun(pub std::ops::Range<usize>);
 
 /// Mutable positions and keys owned only by the current rule invocation.
 #[derive(Debug, Default)]
@@ -73,7 +65,6 @@ pub(crate) struct LoweredRoom {
     /// The key of one row of the other side.
     pub probe: Keys,
     /// The rows of the keyed side, in the order of their keys.
-    pub order: KeyOrder,
     /// Which rows a step keeps.
     pub keep: Keeps,
     /// For each step of the rule being run, the class that decided it, when the pass did.

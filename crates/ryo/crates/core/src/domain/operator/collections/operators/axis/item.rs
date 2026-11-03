@@ -1,6 +1,5 @@
 //! Axis traversal semantics over engine-prepared immutable tree/domain resources.
 use super::super::interface::OperatorsItem;
-use crate::domain::derived_views::types::MembershipData;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::axis::PreparedAxis;
 use crate::domain::operator::contract::types::{
@@ -11,6 +10,7 @@ use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_model::{service::cell, types::Verdict};
 use crate::domain::table_reach::borrowed::{follow, reach_breadth};
 use crate::domain::tree_join::service::tree_value;
+use ryo_derived::domain::contract::types::MembershipView;
 use ryo_language::domain::elements::service::{
     children, next_sibling, parent_at, previous_sibling, size_at,
 };
@@ -100,7 +100,7 @@ impl OperatorsItem for AxisItem {
                         .and_then(|work| work.walk.reached.get(at))
                         .copied()
                         .ok_or(OperatingError::ShapeMismatch)?;
-                    let MembershipData::Values(members) = domain else {
+                    let MembershipView::Values(members) = domain else {
                         return Err(OperatingError::WrongBinding);
                     };
                     if !members.contains(&entity) {

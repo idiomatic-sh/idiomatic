@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::ledger::Backing;
 use crate::application::file_dag::derived::ledger::ResourceLease;
 use crate::application::file_dag::derived::owner::{GraphRequirement, PopulationId};
-use crate::domain::derived_views::types::DerivedStorage;
+use crate::application::file_dag::derived::storage::DerivedStorage;
 use crate::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::contract::types::CompactGraph;
 use std::{ops::Deref, sync::Arc};
@@ -80,12 +80,14 @@ impl RootAnswer {
         crate::domain::operating::errors::OperatingError,
     > {
         use crate::domain::operating::errors::OperatingError;
-        let DerivedStorage::Adjacency(graph) = self._graph.as_ref() else {
+        let ryo_derived::domain::contract::types::DerivedView::Adjacency(graph) =
+            self._graph.view()?
+        else {
             return Err(OperatingError::WrongOperation);
         };
         Ok(self.rows.iter().map(move |vertex| {
             graph
-                .vertices
+                .vertices()
                 .get(*vertex as usize)
                 .copied()
                 .ok_or(OperatingError::ShapeMismatch)

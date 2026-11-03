@@ -3,10 +3,7 @@ use super::footprint::storage_bytes;
 use super::storage::DerivedStorage;
 use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::application::file_dag::route_counts::BuildRoute;
-use crate::domain::{
-    derived_views::{collections::views::registration::registered, types::*},
-    operating::errors::OperatingError,
-};
+use crate::domain::{derived_views::types::*, operating::errors::OperatingError};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -45,10 +42,19 @@ pub(in crate::application::file_dag) struct PopulationId(
     pub(in crate::application::file_dag) usize,
 );
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub(in crate::application::file_dag) struct ViewContext {
-    pub candidate: Option<usize>,
+    pub candidate: Option<graph_key::PreparedIdentity>,
+    pub literals: Option<Arc<[ryo_values::domain::plan_parts::types::LiteralText]>>,
     pub membership_order: Option<usize>,
+}
+impl ViewContext {
+    pub(in crate::application::file_dag) fn for_predicate(plan: &Arc<DerivedContract>) -> Self {
+        Self {
+            candidate: Some(graph_key::PreparedIdentity::new(plan)),
+            ..Self::default()
+        }
+    }
 }
 mod graph_key;
 pub(in crate::application::file_dag::derived) use graph_key::{
@@ -155,6 +161,7 @@ impl DerivedOwner {
         candidates.sort_unstable_by_key(|candidate| candidate.0);
         let mut released = 0;
         let mut released_predicates = 0;
+        let mut released_indexes = 0;
         for (_, key) in candidates {
             if cache
                 .bytes
@@ -177,6 +184,7 @@ impl DerivedOwner {
             let removed = entry.retained.take();
             released += entry.bytes;
             released_predicates += usize::from(entry._plan.kind == DerivedKind::PredicateMatches);
+            released_indexes += u64::from(entry._plan.kind == DerivedKind::Equality);
             // Drop the optional lease before observing the physical union. A
             // graph or publication alias may still own some of these backings.
             drop(removed);
@@ -190,6 +198,7 @@ impl DerivedOwner {
             .retained_predicates
             .saturating_sub(released_predicates);
         cache.graph_counts.reclaimed_selections += released_predicates as u64;
+        cache.graph_counts.reclaimed_indexes += released_indexes;
     }
     pub(in crate::application::file_dag) fn counts(&self) -> (u64, u64, u64) {
         let state = self.state.borrow();
@@ -277,32 +286,9 @@ fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
     }
 }
 
-impl Default for DerivedOwner {
-    fn default() -> Self {
-        Self::new(0)
-    }
-}
 #[cfg(test)]
 #[path = "owner_test.rs"]
 mod owner_test;
-
-/// Current-partition work is mandatory but deliberately not retained past its cursor window.
-/// The application supplies and reuses the complete owned storage; semantics cannot schedule it.
-pub(in crate::application::file_dag) fn build_scoped(
-    route: BuildRoute,
-    plan: &DerivedContract,
-    inputs: DerivedInputs<'_, '_>,
-    storage: &mut DerivedStorage,
-    scratch: &mut DerivedScratch,
-) -> Result<(), OperatingError> {
-    super::super::route_counts::observe(
-        route.label(),
-        super::super::route_counts::derived(plan.kind),
-        || registered(plan.kind).build(plan, inputs, storage, scratch),
-    )?;
-    let _ready = registered(plan.kind).view(plan, storage)?;
-    Ok(())
-}
 
 pub(in crate::application::file_dag) mod raw_scope;
 

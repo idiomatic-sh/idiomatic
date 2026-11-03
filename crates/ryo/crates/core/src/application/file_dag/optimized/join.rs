@@ -2,7 +2,7 @@
 //! Primitive output semantics remain the declared left/right projection; index
 //! choice, cache admission, fallback and diagnostics stay at this application edge.
 
-use crate::domain::derived_views::types::DerivedView;
+use ryo_derived::domain::contract::types::DerivedView;
 use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext},

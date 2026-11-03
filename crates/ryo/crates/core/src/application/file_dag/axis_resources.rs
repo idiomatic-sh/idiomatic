@@ -1,4 +1,5 @@
 //! Axis admission and engine-owned prepared views over original borrowed populations.
+use ryo_derived::domain::contract::types::{DerivedView, MembershipView};
 mod view;
 pub(crate) use view::AxisResource;
 #[cfg(test)]
@@ -6,7 +7,6 @@ mod tests;
 
 use super::derived::view::AcquiredView;
 use crate::domain::{
-    derived_views::types::{DerivedView, MembershipData},
     operating::errors::OperatingError,
     operator::contract::{resources::AxisResources, views::BorrowedRows},
     table_cells::types::{TreeForm, TreeRows},
@@ -94,7 +94,7 @@ pub(crate) fn prepare_axis<'f>(
             if among.is_none()
                 && !matches!(
                     membership.as_ref().map(AcquiredView::view).transpose()?,
-                    Some(DerivedView::Membership(MembershipData::Dense(_)))
+                    Some(DerivedView::Membership(MembershipView::Dense(_)))
                 )
             {
                 return Err(OperatingError::WrongBinding);
@@ -111,7 +111,7 @@ pub(crate) fn prepare_axis<'f>(
                 Some(DerivedView::Equality(_))
             ) || !matches!(
                 membership.as_ref().map(AcquiredView::view).transpose()?,
-                Some(DerivedView::Membership(MembershipData::Values(_)))
+                Some(DerivedView::Membership(MembershipView::Values(_)))
             ) {
                 return Err(OperatingError::WrongBinding);
             }

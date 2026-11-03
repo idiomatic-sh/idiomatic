@@ -22,7 +22,7 @@ impl<'f> IndexResource<'f> {
         context: &mut OperatorContext<'_>,
         skip_empty: bool,
     ) -> Result<Self, OperatingError> {
-        use crate::domain::derived_views::types::DerivedStorage;
+        use crate::application::file_dag::derived::storage::DerivedStorage;
         use ryo_derived::domain::contract::types::DerivedKind;
         let use_ = prepared(contract, mode, DerivedKind::Equality)?;
         let place = use_.inputs[0];
@@ -56,7 +56,7 @@ impl<'f> IndexResource<'f> {
                 else {
                     unreachable!("prepared equality")
                 };
-                let crate::domain::derived_views::types::DerivedView::Equality(index) =
+                let ryo_derived::domain::contract::types::DerivedView::Equality(index) =
                     view.view().expect("validated equality")
                 else {
                     unreachable!("prepared equality")

@@ -1,6 +1,6 @@
 //! Fixed position inputs and predicate admission, with no row-value materialization.
 use super::*;
-use crate::domain::positions::types::KeyOrder;
+use ryo_derived::domain::contract::types::RawOrder;
 pub(super) struct Tree<'a, 'f, 'c, 'p> {
     pub(super) tree: &'a TreeRows<'f>,
     pub(super) admit: &'a mut Admit<'p>,
@@ -41,14 +41,14 @@ impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
 }
 pub(super) struct Steps<'a> {
     pub(super) right: &'a Positions,
-    pub(super) order: &'a KeyOrder,
+    pub(super) order: &'a RawOrder,
     pub(super) places: std::ops::Range<usize>,
     pub(super) current: Option<usize>,
 }
 impl PositionJoinDriver for Steps<'_> {
     fn next(&mut self) -> Result<bool, JoinInterrupted> {
         for place in self.places.by_ref() {
-            if let Some(right) = self.order.0.get(place) {
+            if let Some(right) = self.order.rows().get(place) {
                 self.current = Some(*right);
                 return Ok(true);
             }

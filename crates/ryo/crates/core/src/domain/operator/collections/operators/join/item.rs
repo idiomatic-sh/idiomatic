@@ -129,16 +129,17 @@ impl OperatorsItem for JoinItem {
                     .ok_or(OperatingError::NotRun)?;
                 let result = (|| {
                     for partition in lease.views.closure {
-                        for source in &partition.sources {
+                        let partition = partition?;
+                        for source in partition.sources() {
                             // Bind partition/source before traversal whenever the logical key names them.
                             if !right_on.iter().zip(&key).all(|(column, value)| {
                                 let Some(logical) = reach.columns.get(column.0 as usize) else {
                                     return false;
                                 };
                                 let at = logical.0 as usize;
-                                if at < partition.key.len() {
-                                    partition.key.get(at) == Some(value)
-                                } else if at == partition.key.len() {
+                                if at < partition.key().len() {
+                                    partition.key().get(at) == Some(value)
+                                } else if at == partition.key().len() {
                                     source == value
                                 } else {
                                     true
@@ -148,8 +149,8 @@ impl OperatorsItem for JoinItem {
                             }
                             reach_all(
                                 &Edges {
-                                    table: &partition.table,
-                                    order: &partition.index,
+                                    table: partition.table(),
+                                    order: partition.index(),
                                     from: &[ColumnIndex(0)],
                                     to: ColumnIndex(1),
                                 },
@@ -160,14 +161,14 @@ impl OperatorsItem for JoinItem {
                                 right.clear();
                                 for column in &reach.columns {
                                     let at = column.0 as usize;
-                                    right.push(if at < partition.key.len() {
+                                    right.push(if at < partition.key().len() {
                                         *partition
                                             .key
                                             .get(at)
                                             .ok_or(OperatingError::ShapeMismatch)?
-                                    } else if at == partition.key.len() {
+                                    } else if at == partition.key().len() {
                                         *source
-                                    } else if at == partition.key.len() + 1 {
+                                    } else if at == partition.key().len() + 1 {
                                         *reached
                                     } else {
                                         return Err(OperatingError::ShapeMismatch);

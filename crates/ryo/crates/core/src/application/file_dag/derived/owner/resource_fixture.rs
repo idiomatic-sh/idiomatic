@@ -131,7 +131,7 @@ impl ResourceFixture {
         Snapshot {
             builds: cache.builds,
             reuses: cache.reuses,
-            entries: cache.entries.len(),
+            entries: self.owner.derived.retained_index_count(),
             graph_builds: cache.graph_counts.builds,
             graph_reuses: cache.graph_counts.reuses,
             graph_early_stops: cache.graph_counts.early_stops,
@@ -144,24 +144,10 @@ impl ResourceFixture {
         self.owner.derived.shared_index_backings()
     }
     pub(crate) fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
-        self.owner
-            .derived
-            .backend
-            .borrow()
-            .as_ref()?
-            .entries
-            .first()
-            .map(|entry| Arc::downgrade(&entry.index))
+        self.owner.derived.first_index_weak()
     }
     pub(crate) fn first_index_owners(&self) -> Option<usize> {
-        self.owner
-            .derived
-            .backend
-            .borrow()
-            .as_ref()?
-            .entries
-            .first()
-            .map(|entry| Arc::strong_count(&entry.index))
+        self.owner.derived.first_index_owners()
     }
 }
 

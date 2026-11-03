@@ -65,7 +65,7 @@ impl<'f> SelectedInput<'f> {
     ) -> Result<Self, OperatingError> {
         if !matches!(
             index.view()?,
-            crate::domain::derived_views::types::DerivedView::Equality(_)
+            ryo_derived::domain::contract::types::DerivedView::Equality(_)
         ) {
             return Err(OperatingError::WrongOperation);
         }
@@ -83,7 +83,7 @@ impl<'f> SelectedInput<'f> {
         columns
     }
     fn index(&self) -> &KeyIndex {
-        let crate::domain::derived_views::types::DerivedView::Equality(index) =
+        let ryo_derived::domain::contract::types::DerivedView::Equality(index) =
             self.index.view().expect("validated equality view")
         else {
             unreachable!("validated equality view")

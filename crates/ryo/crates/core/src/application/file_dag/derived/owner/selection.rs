@@ -8,6 +8,117 @@ pub(in crate::application::file_dag::derived) struct SelectionSource<'a> {
     population: PopulationId,
 }
 impl SelectionSource<'_> {
+    pub(in crate::application::file_dag::derived) fn build(
+        &self,
+        plan: &DerivedContract,
+        inputs: DerivedInputs<'_, '_>,
+        scratch: &mut DerivedScratch,
+    ) -> Result<DerivedStorage, OperatingError> {
+        super::super::semantics::build(self.owner.semantic_port(), plan, inputs, scratch, None)?
+            .ok_or(OperatingError::WrongOperation)
+    }
+    pub(in crate::application::file_dag::derived) fn acquire_postings(
+        &self,
+        cache: &mut CacheBackend,
+        plan: &Arc<DerivedContract>,
+        source: ColumnsView<'_>,
+        texts: &crate::domain::table_texts::types::Texts<'_>,
+        active: Arc<[ryo_values::domain::plan_parts::types::LiteralText]>,
+    ) -> Result<Option<super::super::view::AcquiredView>, OperatingError> {
+        let context = ViewContext {
+            literals: Some(Arc::clone(&active)),
+            ..ViewContext::default()
+        };
+        self.owner.try_acquire_shared_with_requirement(
+            RequirementIdentity::prepared(plan),
+            plan,
+            &[self.population],
+            context,
+            false,
+            Some(cache),
+            |cache| {
+                let cache = cache.ok_or(OperatingError::NotRun)?;
+                let state = self.owner.state.borrow();
+                let mut groups = 0_usize;
+                let mut literals = active.len();
+                let mut text_bytes = active
+                    .iter()
+                    .try_fold(0_usize, |total, value| total.checked_add(value.0.len()))
+                    .ok_or(OperatingError::ShapeMismatch)?;
+                for entry in state
+                    .entries
+                    .values()
+                    .filter(|entry| entry._plan.kind == DerivedKind::CandidatePostings)
+                {
+                    let Some(retained) = &entry.retained else {
+                        continue;
+                    };
+                    let ryo_derived::domain::contract::types::DerivedView::Postings(postings) =
+                        retained.storage.view()?
+                    else {
+                        return Err(OperatingError::WrongOperation);
+                    };
+                    groups += 1;
+                    literals = literals
+                        .checked_add(postings.len())
+                        .ok_or(OperatingError::ShapeMismatch)?;
+                    text_bytes = postings
+                        .iter()
+                        .try_fold(text_bytes, |total, value| {
+                            total.checked_add(value.text_capacity())
+                        })
+                        .ok_or(OperatingError::ShapeMismatch)?;
+                }
+                drop(state);
+                let population = source.columns.first().map_or(0, |column| column.0.len());
+                let units = self.owner.ledger.borrow().snapshot().optional_units;
+                if groups >= super::super::selection::MAX_FANOUT_GROUPS
+                    || literals > super::super::selection::MAX_FANOUT_LITERALS
+                    || text_bytes > super::super::selection::MAX_FANOUT_TEXT_BYTES
+                    || population
+                        .checked_mul(2)
+                        .and_then(|need| units.checked_add(need))
+                        .is_none_or(|units| {
+                            units > super::super::selection::MAX_RETAINED_POSITION_CAPACITY
+                        })
+                {
+                    return Ok(None);
+                }
+                let storage = crate::application::file_dag::route_counts::observe(
+                    crate::application::file_dag::route_counts::BuildRoute::SelectorPostings
+                        .label(),
+                    crate::application::file_dag::route_counts::derived(plan.kind),
+                    || {
+                        self.build(
+                            plan,
+                            DerivedInputs::Postings {
+                                rows:
+                                    crate::domain::operator::contract::views::BorrowedRows::Stored(
+                                        source,
+                                    ),
+                                texts,
+                                active: &active,
+                            },
+                            &mut DerivedScratch::default(),
+                        )
+                    },
+                )?;
+                Ok(Some((Arc::new(storage), true, false, true)))
+            },
+        )
+    }
+
+    pub(in crate::application::file_dag::derived) fn can_retain_equality(
+        &self,
+        cache: &CacheBackend,
+        relation: ryo_relations::domain::relations::types::Relation,
+        source: ColumnsView<'_>,
+        columns: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+    ) -> bool {
+        self.owner.has_live_equality(source, columns)
+            || super::super::indexes::can_retain(cache, relation, source, columns)
+    }
+
     pub(in crate::application::file_dag::derived) fn acquire_predicate(
         &self,
         cache: &mut CacheBackend,

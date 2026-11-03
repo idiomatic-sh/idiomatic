@@ -183,9 +183,9 @@ pub(super) fn evaluate(
         dfs: InvocationResources::dfs_view(resources.dfs.as_ref())?,
         cycles: InvocationResources::cycles_view(resources.cycles.as_ref())?,
         closure: if let Some(parts) = resources.partitioned_closure.as_ref() {
-            std::slice::from_ref(parts.current())
+            crate::domain::operator::contract::views::ClosureViews::One(parts.current())
         } else {
-            &resources.closure
+            crate::domain::operator::contract::views::ClosureViews::Many(&resources.closure)
         },
         ordered: InvocationResources::ordered_view(resources.ordered.as_ref())?,
         groups: resources.groups.as_deref(),

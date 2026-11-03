@@ -10,9 +10,7 @@ use crate::domain::lowering::service::{kind_of, shape_at, step_of, viewed};
 use crate::domain::lowering::types::{LoweredColumn, Lowering};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
-use crate::domain::positions::service::{
-    count, followed, hits, in_tree, key_into, made_of, row, sorted, value,
-};
+use crate::domain::positions::service::{count, followed, in_tree, key_into, made_of, row, value};
 use crate::domain::positions::types::{
     KeyColumns, LoweredRoom, Positions, Sides, Slots, Stride, Work,
 };
@@ -111,6 +109,7 @@ fn join_tree(
 /// `NotRun` when a step was not lowered.
 fn join_steps(
     semantics: &dyn PrimitiveSemantics,
+    derived: &mut dyn crate::domain::operator::contract::derived::ScopedDerived,
     tree: &TreeRows<'_>,
     lowering: &Lowering,
     sides: Sides,
@@ -121,11 +120,7 @@ fn join_steps(
     let left_shape = shape_at(lowering, sides.left)?;
     let right_shape = shape_at(lowering, sides.right)?;
     let LoweredRoom {
-        made,
-        keys,
-        probe,
-        order,
-        ..
+        made, keys, probe, ..
     } = room;
     let left_rows = made_of(made, sides.left).ok_or(OperatingError::NotRun)?;
     let right_rows = made_of(made, sides.right).ok_or(OperatingError::NotRun)?;
@@ -140,29 +135,30 @@ fn join_steps(
             keys,
         );
     }
-    sorted(keys, stride, order);
-    for at in positions(count(left_rows)) {
-        let each = row(left_rows, at);
-        probe.0.clear();
-        key_into(tree, &left_shape.columns, each, keys_of.left, probe);
-        let mut driver = drivers::Steps {
-            right: right_rows,
-            order,
-            places: hits(keys, stride, order, probe).0,
-            current: None,
-        };
-        join_result(
-            semantics.operators(OperatorCall::EqualityJoin {
-                input: JoinInput::Positions {
-                    left: each.0,
-                    driver: &mut driver,
-                    target: &mut out.0,
-                },
-            }),
-            None,
-        )?;
-    }
-    Ok(())
+    derived.with_raw_order(&keys.0, stride.0, &mut |order| {
+        for at in positions(count(left_rows)) {
+            let each = row(left_rows, at);
+            probe.0.clear();
+            key_into(tree, &left_shape.columns, each, keys_of.left, probe);
+            let mut driver = drivers::Steps {
+                right: right_rows,
+                order,
+                places: order.hits(&probe.0),
+                current: None,
+            };
+            join_result(
+                semantics.operators(OperatorCall::EqualityJoin {
+                    input: JoinInput::Positions {
+                        left: each.0,
+                        driver: &mut driver,
+                        target: &mut out.0,
+                    },
+                }),
+                None,
+            )?;
+        }
+        Ok(())
+    })
 }
 
 /// The rows of the join of the left step with a side of the tree, or with another step.
@@ -178,7 +174,11 @@ pub(super) fn run(
     work: Work<'_, '_>,
     out: &mut Slots,
 ) -> Result<(), OperatingError> {
-    let Work { room, context, .. } = work;
+    let Work {
+        room,
+        context,
+        derived,
+    } = work;
     let Operation::Join {
         left,
         right,
@@ -271,7 +271,9 @@ pub(super) fn run(
                 left: left_on,
                 right: right_on,
             };
-            join_steps(semantics, tree, lowering, sides, keys_of, room, out)
+            join_steps(
+                semantics, derived, tree, lowering, sides, keys_of, room, out,
+            )
         }
         Input::Relation(_) => Err(OperatingError::NotAStep),
     }

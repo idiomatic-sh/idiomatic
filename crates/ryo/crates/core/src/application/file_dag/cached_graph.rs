@@ -231,7 +231,7 @@ impl ReachGraph {
                     *self
                         .access
                         .graph
-                        .vertices
+                        .vertices()
                         .get(*vertex as usize)
                         .ok_or(OperatingError::ShapeMismatch)?,
                 );
@@ -253,7 +253,7 @@ impl AxisGraph {
     ) -> Result<AxisResult<'a>, OperatingError> {
         self.destinations.clear();
         let start = cell(left, self.id)?;
-        let Some(root) = self.access.graph.vertex_ids.get(&(0, start)).copied() else {
+        let Some(root) = self.access.graph.vertex(0, start) else {
             return Ok(AxisResult {
                 destinations: &self.destinations,
             });
@@ -286,7 +286,7 @@ impl AxisGraph {
                     *self
                         .access
                         .graph
-                        .vertices
+                        .vertices()
                         .get(found as usize)
                         .ok_or(OperatingError::ShapeMismatch)?,
                 );
@@ -307,7 +307,7 @@ impl AxisGraph {
                         *self
                             .access
                             .graph
-                            .vertices
+                            .vertices()
                             .get(*vertex as usize)
                             .ok_or(OperatingError::ShapeMismatch)?,
                     );

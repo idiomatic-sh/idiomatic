@@ -14,11 +14,13 @@ pub(super) fn adjacency(
         return Err(OperatingError::NotRun);
     };
     let requirement = graph_requirement(&source.identity);
-    if let Some(entry) = cache
-        .graphs
-        .iter()
-        .find(|entry| entry.population == population && entry.graph.identity == source.identity)
-    {
+    if let Some(entry) = cache.graphs.iter().find(|entry| {
+        entry.population == population
+            && entry
+                .storage
+                .graph_identity()
+                .is_some_and(|identity| identity.as_ref() == &source.identity)
+    }) {
         cache.graph_counts.reuses += 1;
         return Ok(Some(GraphHandle {
             requirement,
@@ -37,44 +39,39 @@ pub(super) fn adjacency(
     }
     let orientation = source.orientation;
     let expected_identity = source.identity.clone();
-    let mut storage = crate::domain::derived_views::types::DerivedStorage::Unbuilt;
-    crate::application::file_dag::route_counts::observe(
+    let storage = crate::application::file_dag::route_counts::observe(
         crate::application::file_dag::route_counts::BuildRoute::GraphAdjacency.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {
-            crate::domain::derived_views::collections::views::registration::registered(plan.kind)
-                .build(
-                    plan,
-                    crate::domain::derived_views::types::DerivedInputs::Adjacency {
-                        rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
-                        source,
-                    },
-                    &mut storage,
-                    &mut crate::domain::derived_views::types::DerivedScratch::default(),
-                )
+            super::super::semantics::build(
+                owner.semantic_port(),
+                plan,
+                crate::domain::derived_views::types::DerivedInputs::Adjacency {
+                    rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                    source,
+                },
+                &mut crate::domain::derived_views::types::DerivedScratch::default(),
+                None,
+            )
         },
     )?;
-    let crate::domain::derived_views::types::DerivedView::Adjacency(graph) =
-        crate::domain::derived_views::collections::views::registration::registered(plan.kind)
-            .view(plan, &storage)?
-    else {
-        return Err(OperatingError::WrongOperation);
+    let Some(storage) = storage else {
+        return Ok(None);
     };
-    if graph.identity != expected_identity {
+    if storage.graph_identity().map(Arc::as_ref) != Some(&expected_identity) {
         return Err(OperatingError::ShapeMismatch);
     }
+    let graph = storage
+        .payload()
+        .share_adjacency()
+        .ok_or(OperatingError::WrongOperation)?;
     let storage = Arc::new(storage);
-    let crate::domain::derived_views::types::DerivedStorage::Adjacency(graph) = storage.as_ref()
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
-    let graph = Arc::clone(graph);
     let backings = owner.graph_backings(&storage)?;
     let lease = owner.required_lease(&backings)?;
     cache.graph_counts.builds += 1;
     let shared = owner.retain_graph(cache, population, &storage, &backings, &graph)?;
     tracing::trace!(target: "ryo::diagnostic::graph", event = "adjacency", reused = false, shared,
-        relation = ?graph.identity.population.relation, vertices = graph.vertices.len(), edges = graph.neighbors[0].len(),
+        relation = ?expected_identity.population.relation, vertices = graph.vertices().len(), edges = graph.neighbors()[0].len(),
         graph_bytes = cache.graph_bytes, cache_bytes = cache.bytes, graph_enabled = cache.graph_enabled);
     Ok(Some(GraphHandle {
         requirement,
@@ -123,46 +120,37 @@ pub(super) fn domain(
             _lease: owner.required_lease(&entry.backings)?,
         });
     }
-    let mut storage = crate::domain::derived_views::types::DerivedStorage::Unbuilt;
-    crate::application::file_dag::route_counts::observe(
+    let storage = crate::application::file_dag::route_counts::observe(
         crate::application::file_dag::route_counts::BuildRoute::GraphDomain.label(),
         crate::application::file_dag::route_counts::derived(plan.kind),
         || {
-            crate::domain::derived_views::collections::views::registration::registered(plan.kind)
-                .build(
-                    plan,
-                    crate::domain::derived_views::types::DerivedInputs::Membership {
-                        rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
-                        space: crate::domain::derived_views::types::MembershipSpace::Dense(
-                            &access.graph.vertices,
-                        ),
-                    },
-                    &mut storage,
-                    &mut crate::domain::derived_views::types::DerivedScratch::default(),
-                )
+            super::super::semantics::build(
+                owner.semantic_port(),
+                plan,
+                crate::domain::derived_views::types::DerivedInputs::Membership {
+                    rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                    space: crate::domain::derived_views::types::MembershipSpace::Dense(
+                        access.graph.vertices(),
+                    ),
+                },
+                &mut crate::domain::derived_views::types::DerivedScratch::default(),
+                None,
+            )
         },
-    )?;
-    let crate::domain::derived_views::types::DerivedView::Membership(
-        crate::domain::derived_views::types::MembershipData::Dense(members),
-    ) = crate::domain::derived_views::collections::views::registration::registered(plan.kind)
-        .view(plan, &storage)?
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
-    if members.len() != access.graph.vertices.len() {
+    )?
+    .ok_or(OperatingError::WrongOperation)?;
+    let members = storage
+        .payload()
+        .share_marks()
+        .ok_or(OperatingError::WrongOperation)?;
+    if members.as_slice().len() != access.graph.vertices().len() {
         return Err(OperatingError::ShapeMismatch);
     }
-    let storage = Arc::new(storage);
-    let crate::domain::derived_views::types::DerivedStorage::Membership(
-        crate::domain::derived_views::types::MembershipData::Dense(members),
-    ) = storage.as_ref()
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
     let domain = Arc::new(GraphDomain {
         identity,
-        members: Arc::clone(members),
+        members: Arc::clone(members.backing()),
     });
+    let storage = Arc::new(storage);
     let mut backings = owner.graph_backings(&storage)?;
     let mut dependencies = backings.to_vec();
     for backing in access.backings.iter().copied() {

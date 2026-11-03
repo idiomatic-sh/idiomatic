@@ -10,10 +10,17 @@ pub(super) fn candidates(
     context: &OperatorContext<'_>,
 ) -> Result<(Option<CandidateRows>, SelectionPath), OperatingError> {
     let population = source.columns.first().map_or(0, |column| column.0.len());
-    if let Some((rows, path)) = fanout_candidates(cache, program, &views.postings, source, context)?
+    if let Some((rows, acquired, path)) =
+        fanout_candidates(cache, resources, program, &views.postings, source, context)?
     {
         cache.selection_counts.candidates += rows.len() as u64;
-        return Ok((Some(CandidateRows::Shared(rows)), path));
+        return Ok((
+            Some(CandidateRows::Shared {
+                rows,
+                _resource: acquired,
+            }),
+            path,
+        ));
     }
     let mut path = SelectionPath::NoDiscriminator;
     for (number, comparison) in program.identity.comparisons.iter().enumerate() {
@@ -49,7 +56,7 @@ pub(super) fn candidates(
             .get(&column)
             .cloned()
             .ok_or(OperatingError::NotRun)?;
-        if !super::super::indexes::can_retain(cache, program.relation, source, &[column]) {
+        if !resources.can_retain_equality(cache, program.relation, source, &[column]) {
             path = path.max(SelectionPath::BudgetRefused);
             continue;
         }

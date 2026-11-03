@@ -332,8 +332,8 @@ fn population_and_semantic_context_are_part_of_the_view_identity() {
         &source,
         first_population,
         ViewContext {
-            candidate: Some(9),
             membership_order: Some(2),
+            ..ViewContext::for_predicate(&plan)
         },
         &mut scratch,
     );

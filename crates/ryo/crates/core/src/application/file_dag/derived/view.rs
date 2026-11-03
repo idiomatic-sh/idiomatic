@@ -28,6 +28,11 @@ impl AcquiredView {
             built,
         }
     }
+    pub(in crate::application::file_dag::derived) fn into_storage(self) -> Option<DerivedStorage> {
+        let Self { storage, lease, .. } = self;
+        drop(lease);
+        Arc::try_unwrap(storage).ok()
+    }
     pub(in crate::application::file_dag) fn dependency(&self) -> ResourceDependency {
         ResourceDependency {
             _storage: Arc::clone(&self.storage),

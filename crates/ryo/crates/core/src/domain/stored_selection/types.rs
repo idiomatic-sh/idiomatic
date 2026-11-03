@@ -32,27 +32,6 @@ pub(crate) struct PreparedPlan {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SelectionPlanId(pub usize);
 
-/// A successful match-ID result; projections deliberately do not form part of its key.
-#[derive(Debug)]
-pub(crate) struct Matches {
-    /// The pure program that established this result.
-    pub selector: Arc<Selector>,
-    /// Original positions in ascending source order.
-    pub rows: Arc<Vec<u32>>,
-}
-
-/// One complete, immutable physical column routed to only the literal texts requested
-/// by this file's active selectors. Row positions in each posting remain in source order.
-#[derive(Debug)]
-pub(crate) struct LiteralFanout {
-    pub relation: Relation,
-    pub column: ColumnIndex,
-    pub kinds: &'static [CellKind],
-    pub population: usize,
-    pub source_bits: usize,
-    pub literals: Arc<Vec<LiteralPostings>>,
-}
-
 #[derive(Debug)]
 pub(crate) struct LiteralPostings {
     pub text: String,

@@ -19,7 +19,6 @@ use crate::domain::operator::contract::{
 use crate::domain::table_groups::types::Group;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::types::Texts;
-use crate::domain::tree_join::service::tree_finding;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_derived::domain::contract::types::{
     ClosurePartition, CycleGraph, OrderedMatching, PreparedDfs,
@@ -50,8 +49,7 @@ pub(crate) struct InvocationResources<'f> {
     pub(crate) native_join: Option<NativeJoin<'f>>,
     pub(crate) native_storage: Option<AcquiredView>,
     pub(crate) cycles: Option<AcquiredView>,
-    pub(crate) closure: Vec<ClosurePartition>,
-    pub(super) closure_leases: Vec<std::sync::Arc<super::derived::ledger::ResourceLease>>,
+    pub(crate) closure: Vec<super::derived::view::AcquiredView>,
     pub(crate) partitioned_closure: Option<super::closure_partitions::PartitionedClosure<'f>>,
     pub(crate) ordered: Option<AcquiredView>,
     pub(crate) dfs: Option<AcquiredView>,
@@ -70,7 +68,6 @@ impl<'f> InvocationResources<'f> {
             native_storage: None,
             cycles: None,
             closure: Vec::new(),
-            closure_leases: Vec::new(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -95,7 +92,6 @@ impl<'f> InvocationResources<'f> {
             native_storage: None,
             cycles: None,
             closure: Vec::new(),
-            closure_leases: Vec::new(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -162,47 +158,72 @@ impl<'f> InvocationResources<'f> {
                 if let Some(reach) = reach {
                     let mut cursor = partitioned(contract, mode, right, &admitted, context)?;
                     while cursor.advance()? {
-                        let (part, lease) = cursor.take_current()?;
-                        resources.closure.push(part);
-                        resources.closure_leases.push(lease);
+                        resources.closure.push(cursor.take_current()?);
                     }
-                } else if let BorrowedRows::Tree(tree) = right
-                    && tree_finding(&tree, left_on, right_on, view).is_some()
-                {
-                    let use_ = prepared(
-                        contract,
-                        mode,
-                        ryo_derived::domain::contract::types::DerivedKind::NativeLookup,
-                    )?;
-                    let storage = admitted.acquire_rows(use_, context)?;
-                    let acquired = storage;
-                    let crate::domain::derived_views::types::DerivedView::NativeLookup(finding) =
-                        acquired.view()?
-                    else {
-                        return Err(OperatingError::WrongOperation);
-                    };
-                    resources.native_join = Some(NativeJoin { tree, finding });
-                    resources.native_storage = Some(acquired);
                 } else {
-                    if *has_filter || !view.is_empty() {
-                        return Err(OperatingError::WrongOperation);
+                    let native = if let BorrowedRows::Tree(tree) = right {
+                        let use_ = prepared(
+                            contract,
+                            mode,
+                            ryo_derived::domain::contract::types::DerivedKind::NativeLookup,
+                        )?;
+                        admitted
+                            .try_native_lookup(use_)?
+                            .map(|acquired| (tree, acquired))
+                    } else {
+                        None
+                    };
+                    if let Some((tree, acquired)) = native {
+                        let ryo_derived::domain::contract::types::DerivedView::NativeLookup(
+                            finding,
+                        ) = acquired.view()?
+                        else {
+                            return Err(OperatingError::WrongOperation);
+                        };
+                        resources.native_join = Some(NativeJoin {
+                            tree,
+                            finding: *finding,
+                        });
+                        resources.native_storage = Some(acquired);
+                    } else {
+                        if *has_filter || !view.is_empty() {
+                            return Err(OperatingError::WrongOperation);
+                        }
+                        resources.index = Some(IndexResource::acquired(
+                            contract,
+                            mode,
+                            originals.get(1),
+                            &admitted,
+                            context,
+                            false,
+                        )?);
                     }
-                    resources.index = Some(IndexResource::acquired(
-                        contract,
-                        mode,
-                        originals.get(1),
-                        &admitted,
-                        context,
-                        false,
-                    )?);
                 }
             }
+
             ResourceProgram::Count { keys, distinct } => {
-                resources.groups = Some(groups(input(inputs, 0)?, keys, *distinct, None, context)?);
+                resources.groups = Some(groups(
+                    input(inputs, 0)?,
+                    keys,
+                    *distinct,
+                    None,
+                    context,
+                    contract,
+                    mode,
+                    &admitted,
+                )?);
             }
             ResourceProgram::Digest { keys, over } => {
-                resources.groups =
-                    Some(groups(input(inputs, 0)?, keys, None, Some(*over), context)?);
+                resources.groups = Some(groups(
+                    input(inputs, 0)?,
+                    keys,
+                    None,
+                    Some(*over),
+                    context,
+                    contract,
+                    mode,
+                    &admitted,
+                )?);
             }
             ResourceProgram::Closure { .. } => {
                 resources.partitioned_closure = Some(partitioned(
@@ -309,7 +330,7 @@ impl<'f> InvocationResources<'f> {
     }
 }
 
-fn prepared(
+pub(super) fn prepared(
     contract: &OperatorContract,
     mode: EvaluationMode,
     kind: ryo_derived::domain::contract::types::DerivedKind,
@@ -345,3 +366,25 @@ fn partitioned<'f>(
 }
 
 use ryo_values::domain::rows::types::Table;
+
+impl crate::domain::operator::contract::views::ClosureParts
+    for Vec<super::derived::view::AcquiredView>
+{
+    fn len(&self) -> usize {
+        Vec::len(self)
+    }
+    fn get(
+        &self,
+        at: usize,
+    ) -> Result<&ryo_derived::domain::contract::types::ClosurePartition, OperatingError> {
+        let view = self
+            .as_slice()
+            .get(at)
+            .ok_or(OperatingError::ShapeMismatch)?
+            .view()?;
+        match view {
+            ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(part) => Ok(part),
+            _ => Err(OperatingError::WrongOperation),
+        }
+    }
+}

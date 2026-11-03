@@ -6,9 +6,7 @@ use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
 
 use super::constants::{COLUMN_OF_STEP, POSITION_OF_TREE, ROW_OF_POSITIONS, SLOT_OF_ROW};
-use super::types::{
-    Keeps, KeyOrder, Keys, LoweredRoom, OrderRun, Positions, RowPositions, Slots, Stride,
-};
+use super::types::{Keys, LoweredRoom, Positions, RowPositions, Slots, Stride};
 use crate::domain::lowering::types::{ElementPart, LoweredColumn};
 use crate::domain::table_cells::service::{kind_name_at, ordinal_number_at, span_at};
 use crate::domain::table_cells::types::TreeRows;
@@ -142,57 +140,6 @@ pub(crate) fn key_into(
     for each in on {
         let column = column_at(columns, *each);
         into.push(to_bits(value(tree, column.field, slot_of(row, column))).0);
-    }
-}
-
-/// The rows of `keys` (`stride` numbers each) in the order of their keys, the first of equal keys first.
-pub(crate) fn sorted(keys: &Keys, stride: Stride, order: &mut KeyOrder) {
-    let keys = &keys.0;
-    let order = &mut order.0;
-    let stride = stride.0;
-    // The key of a row among `keys`, `stride` numbers each; none past the last row.
-    let key_of = |row| keys.get(row * stride..(row + 1) * stride);
-    order.clear();
-    order.extend(0..keys.len().checked_div(stride).unwrap_or(0));
-    order.sort_unstable_by(|left, right| key_of(*left).cmp(&key_of(*right)).then(left.cmp(right)));
-}
-
-/// The places in `order` of the rows whose key is `probe`.
-#[must_use]
-pub(crate) fn hits(keys: &Keys, stride: Stride, order: &KeyOrder, probe: &Keys) -> OrderRun {
-    let (keys, order, probe) = (&keys.0, &order.0, &probe.0);
-    let stride = stride.0;
-    // The key of a row among `keys`, `stride` numbers each; none past the last row.
-    let key_of = |row| keys.get(row * stride..(row + 1) * stride);
-    let probe = Some(probe.as_slice());
-    let from = order.partition_point(|each| key_of(*each) < probe);
-    let to = from
-        + order
-            .get(from..)
-            .unwrap_or_default()
-            .partition_point(|each| key_of(*each) == probe);
-    OrderRun(from..to)
-}
-
-/// Marks, in `keep`, the first row of each key.
-pub(crate) fn firsts(keys: &Keys, stride: Stride, order: &mut KeyOrder, keep: &mut Keeps) {
-    sorted(keys, stride, order);
-    let keys = &keys.0;
-    let (order, keep) = (&order.0, &mut keep.0);
-    let stride = stride.0;
-    // The key of a row among `keys`, `stride` numbers each; none past the last row.
-    let key_of = |row| keys.get(row * stride..(row + 1) * stride);
-    keep.clear();
-    keep.resize(order.len(), false);
-    let mut last: Option<usize> = None;
-    for each in order {
-        let new = last.is_none_or(|before| key_of(before) != key_of(*each));
-        if new {
-            if let Some(first) = keep.get_mut(*each) {
-                *first = true;
-            }
-            last = Some(*each);
-        }
     }
 }
 

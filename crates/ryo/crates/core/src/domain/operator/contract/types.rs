@@ -250,10 +250,10 @@ pub(crate) struct PrimitiveViews<'a> {
     pub native_join: Option<super::join::NativeJoin<'a>>,
     pub cached_reach: Option<super::graph_view::ReachResult<'a>>,
     pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
-    pub dfs: Option<&'a super::graph::PreparedDfs>,
-    pub cycles: Option<&'a super::graph::CycleGraph>,
-    pub closure: &'a [super::graph::ClosurePartition],
-    pub ordered: Option<&'a super::graph::OrderedMatching>,
+    pub dfs: Option<&'a ryo_derived::domain::contract::types::PreparedDfs>,
+    pub cycles: Option<&'a ryo_derived::domain::contract::types::CycleGraph>,
+    pub closure: super::views::ClosureViews<'a>,
+    pub ordered: Option<&'a ryo_derived::domain::contract::types::OrderedMatching>,
     pub groups: Option<&'a [crate::domain::table_groups::types::Group]>,
 }
 

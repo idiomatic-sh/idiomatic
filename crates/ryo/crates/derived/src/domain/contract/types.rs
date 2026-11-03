@@ -208,6 +208,10 @@ impl LiteralPostings {
     pub fn rows(&self) -> &[u32] {
         self.rows.as_slice()
     }
+    #[must_use]
+    pub fn text_capacity(&self) -> usize {
+        self.text.capacity()
+    }
 }
 
 /// Static requirements contain semantics only; population/generation and binding identities stay in the engine.
@@ -700,6 +704,16 @@ pub struct BuildWorkspace {
     pub(crate) row: Vec<ryo_relations::domain::relations::types::Value>,
 }
 
+impl BuildWorkspace {
+    /// Capacity fact for the engine's invocation-bounded working lease.
+    pub fn working_bytes(&self) -> Result<usize, DerivedFault> {
+        self.row
+            .capacity()
+            .checked_mul(size_of::<ryo_relations::domain::relations::types::Value>())
+            .ok_or(DerivedFault::ShapeMismatch)
+    }
+}
+
 /// Physical immutable sub-allocation description, without any lease/admission class.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SharedBacking {
@@ -720,6 +734,7 @@ impl DerivedPayload {
 }
 
 /// Immutable borrowed membership never lends an owned sub-allocation handle to a primitive.
+#[derive(Clone, Copy)]
 pub enum MembershipView<'a> {
     Values(&'a hashbrown::HashSet<ryo_relations::domain::relations::types::Value>),
     Dense(&'a [bool]),

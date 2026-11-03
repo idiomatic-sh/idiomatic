@@ -1,14 +1,10 @@
 //! Budgeted acquisition of complete typed indexes, with invocation-local fallback.
-use crate::application::file_dag::derived::backend::{Acquired, CacheBackend, Entry};
-use crate::application::file_dag::route_counts::BuildRoute;
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::coverage::types::Partial;
 
-use crate::domain::table_model::service::check_columns;
-use crate::domain::{derived_views::types::DerivedContract, operating::errors::OperatingError};
 use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex};
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use std::sync::Arc;
 
 /// Per-file retained index budget; invocation-local fallback retains its existing policy.
 pub(crate) const LIMIT: usize = 16 * 1024 * 1024;
@@ -46,7 +42,6 @@ pub(in crate::application::file_dag::derived) fn new(
         selector_descriptor: None,
         selector_repetition: Vec::new(),
         selector_repetition_failed: false,
-        retained_positions: 0,
         selection_views: None,
         graph_enabled: false,
         graph_bytes: 0,
@@ -59,15 +54,13 @@ pub(in crate::application::file_dag::derived) fn new(
             ..Default::default()
         },
         selectors: Vec::new(),
-        selections: Vec::new(),
-        fanouts: Vec::new(),
+        active_postings: Vec::new(),
         discriminator_columns: Vec::new(),
         selection_counts: Default::default(),
         selection_histogram:
             tracing::enabled!(target: "ryo::diagnostic::selection_detail", tracing::Level::TRACE)
                 .then(Vec::new),
         eligible,
-        entries: Vec::new(),
         bytes,
         limit,
         builds: 0,
@@ -119,8 +112,6 @@ pub(in crate::application::file_dag::derived) fn candidate_columns(cache: &mut C
     }
 }
 
-pub(crate) use crate::domain::stored_indexes::service::index_bytes;
-
 /// A lower bound avoids building a second, unretainable index when the budget clearly cannot fit it.
 fn minimum_bytes(rows: usize, columns: usize) -> Option<usize> {
     let buckets = rows.checked_next_power_of_two()?.max(1);
@@ -130,7 +121,6 @@ fn minimum_bytes(rows: usize, columns: usize) -> Option<usize> {
         )?)?
         .checked_add(buckets.checked_mul(size_of::<ChainLink>())?)?
         .checked_add(columns.checked_mul(size_of::<ColumnIndex>())?)?
-        .checked_add(size_of::<Entry>())
 }
 
 /// A selector should scan instead of building an index that cannot possibly be shared.
@@ -141,232 +131,11 @@ pub(in crate::application::file_dag::derived) fn can_retain(
     columns: &[ColumnIndex],
 ) -> bool {
     let rows = view.columns.first().map_or(0, |column| column.0.len());
-    cache.entries.iter().any(|entry| {
-        entry.relation == relation
-            && entry.columns == columns
-            && entry.kinds == view.kinds
-            && entry.rows == rows
-    }) || minimum_bytes(rows, columns.len())
+    minimum_bytes(rows, columns.len())
         .and_then(|bytes| cache.bytes.checked_add(bytes))
         .is_some_and(|bytes| bytes <= non_graph_limit(cache))
 }
 
-/// Build the existing invocation-local path when sharing is unavailable or refused.
-fn local(
-    route: BuildRoute,
-    plan: &Arc<DerivedContract>,
-    cache: &mut CacheBackend,
-    view: ColumnsView<'_>,
-    columns: &[ColumnIndex],
-    into: &mut KeyIndex,
-    eligible: bool,
-) -> Result<Acquired, OperatingError> {
-    build_index(route, plan, view, into)?;
-    cache.builds = cache.builds.saturating_add(1);
-    if eligible {
-        cache.refusals = cache.refusals.saturating_add(1);
-    }
-    Ok(Acquired {
-        shared: None,
-        slot: None,
-        built: true,
-        #[cfg(test)]
-        eligible,
-    })
-}
-
-/// Prepare an index after the provider read and first left row have already succeeded.
-/// Fully built indexes alone are admitted; returned Arc handles must remain within the file read.
-///
-/// # Errors
-///
-/// The existing typed index's column validation error; a hit never bypasses validation.
-pub(in crate::application::file_dag::derived) fn acquire(
-    route: BuildRoute,
-    plan: &Arc<DerivedContract>,
-    cache: &mut CacheBackend,
-    relation: Relation,
-    view: ColumnsView<'_>,
-    columns: &[ColumnIndex],
-    into: &mut KeyIndex,
-) -> Result<Acquired, OperatingError> {
-    super::super::route_counts::event("stored_index_request", "Equality");
-    let crate::domain::derived_views::types::ViewRequest::Equality { columns: declared } =
-        &plan.request
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
-    if declared != columns {
-        return Err(OperatingError::WrongOperation);
-    }
-    crate::domain::derived_views::service::validate(
-        ryo_derived::domain::contract::types::DerivedKind::Equality,
-        plan,
-    )?;
-    check_columns(view.kinds, columns)?;
-    if !cache.eligible.contains(&relation) {
-        return local(route, plan, cache, view, columns, into, false);
-    }
-    let rows = view.columns.first().map_or(0, |column| column.0.len());
-    if let Some((slot, entry)) = cache.entries.iter().enumerate().find(|(_, entry)| {
-        entry.relation == relation
-            && entry.columns.as_slice() == columns
-            && entry.kinds == view.kinds
-            && entry.rows == rows
-    }) {
-        let index = (entry.index).clone();
-        super::super::route_counts::event("stored_index_hit", "Equality");
-        cache.reuses = cache.reuses.saturating_add(1);
-        return Ok(Acquired {
-            shared: Some(index),
-            slot: Some(slot),
-            built: false,
-            #[cfg(test)]
-            eligible: true,
-        });
-    }
-    if minimum_bytes(rows, columns.len())
-        .and_then(|more| cache.bytes.checked_add(more))
-        .is_none_or(|bytes| bytes > non_graph_limit(cache))
-    {
-        return local(route, plan, cache, view, columns, into, true);
-    }
-    build(route, plan, cache, relation, view, columns, into, rows)
-}
-
-/// Construct complete data and admit only its accounted allocations; refuse without rebuilding.
-fn build(
-    route: BuildRoute,
-    plan: &Arc<DerivedContract>,
-    cache: &mut CacheBackend,
-    relation: Relation,
-    view: ColumnsView<'_>,
-    columns: &[ColumnIndex],
-    into: &mut KeyIndex,
-    rows: usize,
-) -> Result<Acquired, OperatingError> {
-    let mut owned_columns = Vec::new();
-    if owned_columns.try_reserve_exact(columns.len()).is_err() {
-        return local(route, plan, cache, view, columns, into, true);
-    }
-    owned_columns.extend_from_slice(columns);
-    // Allocate replacement metadata separately, so a refused capacity increase is never retained.
-    let mut replacement = None;
-    if cache.entries.len() == cache.entries.capacity() {
-        let mut entries = Vec::new();
-        if entries
-            .try_reserve_exact(cache.entries.len().saturating_add(1))
-            .is_err()
-        {
-            return local(route, plan, cache, view, columns, into, true);
-        }
-        replacement = Some(entries);
-    }
-    let mut index = KeyIndex::default();
-    build_index(route, plan, view, &mut index)?;
-    cache.builds = cache.builds.saturating_add(1);
-    let old_metadata = cache.entries.capacity().checked_mul(size_of::<Entry>());
-    let new_capacity = replacement
-        .as_ref()
-        .map_or(cache.entries.capacity(), Vec::capacity);
-    let retained = old_metadata
-        .and_then(|old| cache.bytes.checked_sub(old))
-        .and_then(|bytes| bytes.checked_add(new_capacity.checked_mul(size_of::<Entry>())?))
-        .and_then(|bytes| {
-            bytes.checked_add(
-                owned_columns
-                    .capacity()
-                    .checked_mul(size_of::<ColumnIndex>())?,
-            )
-        })
-        .and_then(|bytes| bytes.checked_add(index_bytes(&index)?));
-    let Some(bytes) = retained.filter(|bytes| *bytes <= non_graph_limit(cache)) else {
-        // The completed fresh index is still usable locally; never build it twice on refusal.
-        *into = index;
-        cache.refusals = cache.refusals.saturating_add(1);
-        return Ok(Acquired {
-            shared: None,
-            slot: None,
-            built: true,
-            #[cfg(test)]
-            eligible: true,
-        });
-    };
-    if let Some(mut entries) = replacement {
-        entries.append(&mut cache.entries);
-        cache.entries = entries;
-    }
-    let index = Arc::new(index);
-    cache.entries.push(Entry {
-        relation,
-        columns: owned_columns,
-        kinds: view.kinds,
-        rows,
-        index: (index).clone(),
-        payload_lease: None,
-    });
-    cache.bytes = bytes;
-    cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
-    Ok(Acquired {
-        shared: Some(index),
-        slot: Some(cache.entries.len() - 1),
-        built: true,
-        #[cfg(test)]
-        eligible: true,
-    })
-}
-
-fn build_index(
-    route: BuildRoute,
-    plan: &DerivedContract,
-    view: ColumnsView<'_>,
-    into: &mut KeyIndex,
-) -> Result<(), OperatingError> {
-    use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, DerivedStorage};
-    let mut storage = DerivedStorage::Equality(std::mem::take(into));
-    super::owner::build_scoped(
-        route,
-        plan,
-        DerivedInputs::Rows(&[
-            crate::domain::operator::contract::views::BorrowedRows::Stored(view),
-        ]),
-        &mut storage,
-        &mut DerivedScratch::default(),
-    )?;
-    let DerivedStorage::Equality(index) = storage else {
-        return Err(OperatingError::WrongOperation);
-    };
-    *into = index;
-    Ok(())
-}
-#[cfg(test)]
-pub(in crate::application::file_dag) fn acquire_fixture(
-    cache: &mut CacheBackend,
-    relation: Relation,
-    view: ColumnsView<'_>,
-    columns: &[ColumnIndex],
-    into: &mut KeyIndex,
-) -> Result<Acquired, OperatingError> {
-    let plan = Arc::new(crate::domain::derived_views::service::prepare(
-        ryo_derived::domain::contract::types::DerivedKind::Equality,
-        &crate::domain::derived_views::types::ViewRequest::Equality {
-            columns: columns.to_vec(),
-        },
-        &[crate::domain::operation_schema::types::InputSchema {
-            kinds: view.kinds,
-            tree: None,
-        }],
-    )?);
-    acquire(
-        BuildRoute::Fixture,
-        &plan,
-        cache,
-        relation,
-        view,
-        columns,
-        into,
-    )
-}
 #[cfg(test)]
 #[path = "indexes_test.rs"]
 mod tests;

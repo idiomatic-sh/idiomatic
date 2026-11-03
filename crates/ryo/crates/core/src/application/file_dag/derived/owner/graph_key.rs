@@ -80,6 +80,9 @@ impl GraphViewIdentity {
     }
 }
 impl RequirementIdentity {
+    pub(super) fn prepared(plan: &Arc<DerivedContract>) -> Self {
+        Self::Prepared(PreparedIdentity::new(plan))
+    }
     pub(super) fn compatible(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Graph(left), Self::Graph(right)) => left.compatible(right),
@@ -103,9 +106,36 @@ pub(in crate::application::file_dag::derived) enum GraphViewIdentity {
         selection: Option<GraphSelection>,
     },
 }
+/// A retained immutable descriptor prevents address ABA and allows equivalent cross-rule plans.
+#[derive(Clone, Debug)]
+pub(in crate::application::file_dag) struct PreparedIdentity(Arc<DerivedContract>);
+impl PartialEq for PreparedIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        let (left, right) = (&self.0, &other.0);
+        Arc::ptr_eq(left, right)
+            || (left.kind == right.kind
+                && left.schemas == right.schemas
+                && left.metadata == right.metadata
+                && super::super::request::identity::same_request(&left.request, &right.request))
+    }
+}
+impl Eq for PreparedIdentity {}
+impl std::hash::Hash for PreparedIdentity {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use std::hash::Hash;
+        self.0.kind.hash(state);
+        self.0.schemas.hash(state);
+        super::super::request::identity::hash_request(&self.0.request, state);
+    }
+}
+impl PreparedIdentity {
+    pub(super) fn new(plan: &Arc<DerivedContract>) -> Self {
+        Self(Arc::clone(plan))
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(in crate::application::file_dag::derived) enum RequirementIdentity {
-    Prepared(usize),
+    Prepared(PreparedIdentity),
     Graph(Arc<GraphViewIdentity>),
 }
 

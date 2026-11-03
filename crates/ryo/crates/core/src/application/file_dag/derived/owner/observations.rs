@@ -18,7 +18,7 @@ impl DerivedOwner {
                 (
                     cache.builds,
                     cache.reuses,
-                    cache.entries.len(),
+                    self.retained_index_count(),
                     self.no_invocation_index_handles(),
                 )
             })
@@ -45,10 +45,29 @@ impl DerivedOwner {
         rows: ColumnsView<'_>,
         columns: &[ColumnIndex],
     ) -> bool {
-        self.backend
+        self.backend.borrow().as_ref().is_some_and(|cache| {
+            self.has_live_equality(rows, columns)
+                || super::super::indexes::can_retain(cache, relation, rows, columns)
+        })
+    }
+    pub(super) fn has_live_equality(&self, rows: ColumnsView<'_>, columns: &[ColumnIndex]) -> bool {
+        let count = rows.columns.first().map_or(0, |column| column.0.len());
+        self.state.borrow().entries.values().any(|entry| {
+            matches!(&entry._plan.request, ViewRequest::Equality { columns: requested } if requested == columns)
+                && entry._plan.schemas.first().is_some_and(|schema| schema == rows.kinds)
+                && entry.weak.upgrade().is_some_and(|storage| {
+                    matches!(storage.view(), Ok(ryo_derived::domain::contract::types::DerivedView::Equality(index)) if index.rows().len() == count)
+                })
+        })
+    }
+    #[cfg(test)]
+    pub(in crate::application::file_dag::derived) fn retained_index_count(&self) -> usize {
+        self.state
             .borrow()
-            .as_ref()
-            .is_some_and(|cache| super::super::indexes::can_retain(cache, relation, rows, columns))
+            .entries
+            .values()
+            .filter(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some())
+            .count()
     }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn selection_counts(&self) -> (u64, u64) {
@@ -63,49 +82,42 @@ impl DerivedOwner {
                 return None;
             }
             let storage = &entry.retained.as_ref()?.storage;
-            if let DerivedStorage::RowIds { rows, .. } = storage.as_ref() {
-                Some(rows.len())
-            } else {
-                None
+            match storage.view().ok()? {
+                ryo_derived::domain::contract::types::DerivedView::RowIds(rows) => Some(rows.len()),
+                _ => None,
             }
         })
     }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn no_invocation_index_handles(&self) -> bool {
-        let backend = self.backend.borrow();
-        let Some(cache) = backend.as_ref() else {
-            return true;
-        };
-        let state = self.state.borrow();
-        for cached in &cache.entries {
-            let mut owned = 1;
-            let mut seen = Vec::new();
-            for entry in state.entries.values() {
-                let Some(storage) = entry.weak.upgrade() else {
-                    continue;
-                };
-                let DerivedStorage::EqualityShared(index) = storage.as_ref() else {
-                    continue;
-                };
-                if !Arc::ptr_eq(index, &cached.index) {
-                    continue;
-                }
-                let references =
-                    usize::from(entry.retained.is_some()) + usize::from(entry.required.is_some());
-                if Arc::strong_count(&storage) != references + 1 {
-                    return false;
-                }
-                let address = Arc::as_ptr(&storage) as usize;
-                if !seen.contains(&address) {
-                    seen.push(address);
-                    owned += 1;
-                }
+        self.state.borrow().entries.values().all(|entry| {
+            if entry._plan.kind != DerivedKind::Equality {
+                return true;
             }
-            if Arc::strong_count(&cached.index) != owned {
-                return false;
+            let owned =
+                usize::from(entry.retained.is_some()) + usize::from(entry.required.is_some());
+            entry.weak.strong_count() == owned
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn first_index_weak(
+        &self,
+    ) -> Option<Weak<ryo_derived::domain::contract::types::KeyIndex>> {
+        self.state.borrow().entries.values().find_map(|entry| {
+            if entry._plan.kind != DerivedKind::Equality {
+                return None;
             }
-        }
-        true
+            let storage = entry.weak.upgrade()?;
+            storage
+                .payload()
+                .share_equality()
+                .map(|index| Arc::downgrade(&index))
+        })
+    }
+    #[cfg(test)]
+    pub(super) fn first_index_owners(&self) -> Option<usize> {
+        self.first_index_weak().map(|index| index.strong_count())
     }
     #[cfg(test)]
     pub(in crate::application::file_dag) fn shared_index_backings(&self) -> usize {

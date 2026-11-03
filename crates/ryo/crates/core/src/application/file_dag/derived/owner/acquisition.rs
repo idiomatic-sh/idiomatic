@@ -50,6 +50,25 @@ impl DerivedOwner {
             backend.as_mut(),
         )
     }
+    pub(in crate::application::file_dag) fn try_acquire_rows(
+        &self,
+        plan: &Arc<DerivedContract>,
+        populations: &[PopulationId],
+        inputs: DerivedInputs<'_, '_>,
+        scratch: &mut DerivedScratch,
+    ) -> Result<Option<AcquiredView>, OperatingError> {
+        let mut backend = self.backend.borrow_mut();
+        self.try_acquire_in(
+            BuildRoute::OwnerAcquire,
+            plan,
+            populations,
+            ViewContext::default(),
+            inputs,
+            scratch,
+            None,
+            backend.as_mut(),
+        )
+    }
     pub(super) fn acquire_in(
         &self,
         route: BuildRoute,
@@ -64,7 +83,34 @@ impl DerivedOwner {
         )>,
         cache: Option<&mut CacheBackend>,
     ) -> Result<AcquiredView, OperatingError> {
-        self.acquire_with(
+        self.try_acquire_in(
+            route,
+            plan,
+            populations,
+            context,
+            inputs,
+            scratch,
+            stored,
+            cache,
+        )?
+        .ok_or(OperatingError::WrongOperation)
+    }
+    pub(in crate::application::file_dag::derived) fn try_acquire_in(
+        &self,
+        route: BuildRoute,
+        plan: &Arc<DerivedContract>,
+        populations: &[PopulationId],
+        context: ViewContext,
+        inputs: DerivedInputs<'_, '_>,
+        scratch: &mut DerivedScratch,
+        stored: Option<(
+            ryo_relations::domain::relations::types::Relation,
+            ryo_relations::domain::relations::types::ColumnsView<'_>,
+        )>,
+        cache: Option<&mut CacheBackend>,
+    ) -> Result<Option<AcquiredView>, OperatingError> {
+        self.try_acquire_shared_with_requirement(
+            RequirementIdentity::prepared(plan),
             plan,
             populations,
             context,
@@ -87,10 +133,9 @@ impl DerivedOwner {
                             scratch,
                             None,
                         )
-                    })?
-                    .ok_or(OperatingError::WrongOperation)?;
+                    })?;
                 // Optional retention is decided below by this owner, never by the kernel.
-                Ok((storage, true, false, allow_optional))
+                Ok(storage.map(|storage| (Arc::new(storage), true, false, allow_optional)))
             },
         )
     }
@@ -106,7 +151,7 @@ impl DerivedOwner {
         ) -> Result<(DerivedStorage, bool, bool, bool), OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
         self.acquire_with_requirement(
-            RequirementIdentity::Prepared(Arc::as_ptr(plan) as usize),
+            RequirementIdentity::prepared(plan),
             plan,
             populations,
             context,
@@ -153,6 +198,30 @@ impl DerivedOwner {
             Option<&mut CacheBackend>,
         ) -> Result<(Arc<DerivedStorage>, bool, bool, bool), OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
+        self.try_acquire_shared_with_requirement(
+            requirement,
+            plan,
+            populations,
+            context,
+            stored_observation,
+            cache,
+            |cache| build(cache).map(Some),
+        )?
+        .ok_or(OperatingError::WrongOperation)
+    }
+    pub(in crate::application::file_dag::derived) fn try_acquire_shared_with_requirement(
+        &self,
+        requirement: RequirementIdentity,
+        plan: &Arc<DerivedContract>,
+        populations: &[PopulationId],
+        context: ViewContext,
+        stored_observation: bool,
+        mut cache: Option<&mut CacheBackend>,
+        build: impl FnOnce(
+            Option<&mut CacheBackend>,
+        )
+            -> Result<Option<(Arc<DerivedStorage>, bool, bool, bool)>, OperatingError>,
+    ) -> Result<Option<AcquiredView>, OperatingError> {
         if populations.is_empty() || populations.len() > 2 {
             return Err(OperatingError::ShapeMismatch);
         }
@@ -215,10 +284,12 @@ impl DerivedOwner {
                         cache.selection_counts.reuses += 1;
                     }
                 }
-                return Ok(handle);
+                return Ok(Some(handle));
             }
         }
-        let (storage, built, backend, allow_optional) = build(cache.as_deref_mut())?;
+        let Some((storage, built, backend, allow_optional)) = build(cache.as_deref_mut())? else {
+            return Ok(None);
+        };
         if stored_observation && plan.kind == DerivedKind::Equality {
             if let Some(cache) = cache.as_deref_mut() {
                 cache.builds = cache.builds.saturating_add(u64::from(built));
@@ -255,7 +326,7 @@ impl DerivedOwner {
         let optional_room = known || state.entries.len() < self.max_entries;
         if !required && !optional_room {
             state.refusals += 1;
-            return Ok(handle);
+            return Ok(Some(handle));
         }
         let predicate_room = plan.kind != DerivedKind::PredicateMatches
             || state.retained_predicates < selection::MAX_RETAINED_SELECTIONS;
@@ -332,6 +403,6 @@ impl DerivedOwner {
                 backend: backend_bytes,
             },
         );
-        Ok(handle)
+        Ok(Some(handle))
     }
 }

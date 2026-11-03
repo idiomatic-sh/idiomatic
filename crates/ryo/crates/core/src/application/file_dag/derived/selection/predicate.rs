@@ -100,15 +100,11 @@ fn build_matches(
         memo: &mut *context.memo,
         visits: 0,
     };
-    let mut storage = DerivedStorage::Unbuilt;
     let outcome = crate::application::file_dag::route_counts::observe(
         crate::application::file_dag::route_counts::BuildRoute::SelectorPredicate.label(),
         crate::application::file_dag::route_counts::derived(views.predicate.kind),
         || {
-            crate::domain::derived_views::collections::views::registration::registered(
-                views.predicate.kind,
-            )
-            .build(
+            resources.build(
                 &views.predicate,
                 DerivedInputs::Predicate {
                     rows: BorrowedRows::Stored(source),
@@ -116,7 +112,6 @@ fn build_matches(
                     program: &mut decision,
                     symbols: context.symbols.as_ref(),
                 },
-                &mut storage,
                 &mut DerivedScratch::default(),
             )
         },
@@ -142,6 +137,5 @@ fn build_matches(
             entry.errors += u64::from(outcome.is_err());
         }
     }
-    outcome?;
-    Ok(storage)
+    outcome
 }

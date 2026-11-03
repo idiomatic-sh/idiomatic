@@ -5,7 +5,7 @@ impl InvocationResources<'_> {
         view: Option<&AcquiredView>,
     ) -> Result<Option<&CycleGraph>, OperatingError> {
         match view.map(AcquiredView::view).transpose()? {
-            Some(crate::domain::derived_views::types::DerivedView::CycleAdjacency(graph)) => {
+            Some(ryo_derived::domain::contract::types::DerivedView::CycleAdjacency(graph)) => {
                 Ok(Some(graph))
             }
             None => Ok(None),
@@ -16,7 +16,7 @@ impl InvocationResources<'_> {
         view: Option<&AcquiredView>,
     ) -> Result<Option<&OrderedMatching>, OperatingError> {
         match view.map(AcquiredView::view).transpose()? {
-            Some(crate::domain::derived_views::types::DerivedView::OrderedKeys(graph)) => {
+            Some(ryo_derived::domain::contract::types::DerivedView::OrderedKeys(graph)) => {
                 Ok(Some(graph))
             }
             None => Ok(None),
@@ -27,7 +27,7 @@ impl InvocationResources<'_> {
         view: Option<&AcquiredView>,
     ) -> Result<Option<&PreparedDfs>, OperatingError> {
         match view.map(AcquiredView::view).transpose()? {
-            Some(crate::domain::derived_views::types::DerivedView::OrderedDfs(graph)) => {
+            Some(ryo_derived::domain::contract::types::DerivedView::OrderedDfs(graph)) => {
                 Ok(Some(graph))
             }
             None => Ok(None),

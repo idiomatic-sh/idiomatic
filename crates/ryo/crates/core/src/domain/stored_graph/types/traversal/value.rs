@@ -58,7 +58,7 @@ impl<'a> GraphTraversal<'a> {
     pub(crate) fn sort(&mut self) {
         self.walk
             .reached
-            .sort_unstable_by_key(|vertex| self.graph.vertices[*vertex as usize]);
+            .sort_unstable_by_key(|vertex| self.graph.vertices()[*vertex as usize]);
     }
 
     /// Path-compressed nearest ancestry in a previously validated acyclic orientation.
@@ -72,10 +72,10 @@ impl<'a> GraphTraversal<'a> {
         self.walk.expanded = 0;
         self.walk.examined = 0;
         self.walk.path.clear();
-        let Some(parents) = &self.graph.forests[direction(orientation)] else {
+        let Some(parents) = &self.graph.forests()[direction(orientation)] else {
             return (None, false);
         };
-        answers.resize(self.graph.vertices.len(), UNKNOWN);
+        answers.resize(self.graph.vertices().len(), UNKNOWN);
         let known = answers[root as usize];
         if known != UNKNOWN {
             return ((known != ABSENT).then_some(known), true);
@@ -105,8 +105,8 @@ impl<'a> GraphTraversal<'a> {
 
     /// Epochs avoid clearing every vertex on each narrow source request.
     fn begin(&mut self) {
-        if self.walk.marks.len() < self.graph.vertices.len() {
-            self.walk.marks.resize(self.graph.vertices.len(), 0);
+        if self.walk.marks.len() < self.graph.vertices().len() {
+            self.walk.marks.resize(self.graph.vertices().len(), 0);
         }
         self.walk.epoch = self.walk.epoch.wrapping_add(1);
         if self.walk.epoch == 0 {
@@ -144,7 +144,7 @@ pub(crate) const fn direction(orientation: Orientation) -> usize {
 /// Original encounter order, including parallel physical edges.
 pub(crate) fn neighbors(graph: &CompactGraph, vertex: u32, orientation: Orientation) -> &[u32] {
     let orientation = direction(orientation);
-    let from = graph.offsets[orientation][vertex as usize] as usize;
-    let until = graph.offsets[orientation][vertex as usize + 1] as usize;
-    &graph.neighbors[orientation][from..until]
+    let from = graph.offsets()[orientation][vertex as usize] as usize;
+    let until = graph.offsets()[orientation][vertex as usize + 1] as usize;
+    &graph.neighbors()[orientation][from..until]
 }

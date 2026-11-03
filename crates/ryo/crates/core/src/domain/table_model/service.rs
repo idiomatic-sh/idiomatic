@@ -227,56 +227,6 @@ pub(crate) fn check_columns(
     }
 }
 
-/// Chains the rows of `table` by their key into `order`, whose room is reused: a table that rows
-/// can be looked up in by key, with nothing sorted.
-///
-/// # Errors
-///
-/// `NoSuchColumn` when `on` names a column the table lacks.
-pub(crate) fn index(
-    table: &Table,
-    on: On<'_>,
-    order: &mut KeyIndex,
-) -> Result<(), TableModelError> {
-    if let On::Columns(columns) = on {
-        check_columns(&table.kinds, columns)?;
-    }
-    let KeyIndex { rows, hashes, .. } = order;
-    let count = table.count.0;
-    rows.clear();
-    rows.extend(positions(table.count));
-    hashes.clear();
-    hashes.extend(
-        rows.iter()
-            .map(|each| row_in(table, *each).map_or(KeyCellsHash(0), |row| hash_row(row, on))),
-    );
-    chain(order, count);
-    Ok(())
-}
-
-/// Link indexed row hashes in original order, reusing all bucket and chain allocations.
-fn chain(order: &mut KeyIndex, count: usize) {
-    let buckets = count.next_power_of_two().max(1);
-    order.heads.clear();
-    order.heads.resize(buckets, ChainLink(0));
-    order.next.clear();
-    order.next.resize(count, ChainLink(0));
-    // Last row first, so a chain is met from the first row to the last.
-    for (place, (hash, link)) in order
-        .hashes
-        .iter()
-        .zip(order.next.iter_mut())
-        .enumerate()
-        .rev()
-    {
-        let bucket = usize::try_from(hash.0).unwrap_or(0) & (buckets - 1);
-        if let Some(head) = order.heads.get_mut(bucket) {
-            *link = *head;
-            *head = ChainLink(u32::try_from(place + 1).unwrap_or(u32::MAX));
-        }
-    }
-}
-
 /// Whether every declared stored column has exactly the first column's row population.
 /// Other views keep the materializing path, including its treatment of incomplete rows.
 pub(crate) fn rectangular(view: ColumnsView<'_>) -> bool {
@@ -367,54 +317,6 @@ pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Op
         .cell(row, column)
 }
 
-/// Index only projected keys of a compact population, preserving logical duplicate row positions.
-pub(crate) fn index_selected_view(
-    view: super::types::SelectedView<'_>,
-    columns: &[ColumnIndex],
-    order: &mut KeyIndex,
-) -> Result<(), TableModelError> {
-    check_columns(view.kinds, columns)?;
-    order.rows.clear();
-    order.rows.extend(positions(RowCount(view.positions.len())));
-    order.hashes.clear();
-    order.hashes.extend(order.rows.iter().map(|row| {
-        columns.iter().fold(KeyCellsHash(0), |hash, column| {
-            mix(
-                hash,
-                selected_view_cell(view, *row, *column)
-                    .map_or(HashWord(0), |value| word_of(&value)),
-            )
-        })
-    }));
-    chain(order, view.positions.len());
-    Ok(())
-}
-
-/// Index only the typed key cells of a rectangular stored relation, retaining original row IDs.
-///
-/// # Errors
-///
-/// `NoSuchColumn` when a key names a column the view lacks, also for an empty view.
-pub(crate) fn index_stored(
-    view: ColumnsView<'_>,
-    columns: &[ColumnIndex],
-    order: &mut KeyIndex,
-) -> Result<(), TableModelError> {
-    check_columns(view.kinds, columns)?;
-    let count = view.columns.first().map_or(0, |column| column.0.len());
-    order.rows.clear();
-    order.rows.extend(positions(RowCount(count)));
-    order.hashes.clear();
-    order.hashes.extend(order.rows.iter().map(|row| {
-        columns.iter().fold(KeyCellsHash(0), |hash, column| {
-            let word = stored_cell(view, *row, *column).map_or(HashWord(0), |cell| word_of(&cell));
-            mix(hash, word)
-        })
-    }));
-    chain(order, count);
-    Ok(())
-}
-
 /// Find original stored rows by typed keys, checking equality after every hash match.
 /// The caller indexes a rectangular view first; payload columns are never read here.
 pub(crate) fn matching_stored<'o, 'k>(
@@ -424,18 +326,18 @@ pub(crate) fn matching_stored<'o, 'k>(
     key: &'k [Value],
 ) -> impl Iterator<Item = &'o RowIndex> + Clone {
     let hash = hash_key(key.iter().map(Some));
-    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
-    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
+    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads().len().saturating_sub(1);
+    let mut at = order.heads().get(bucket).copied().unwrap_or(ChainLink(0));
     std::iter::from_fn(move || {
         while at.0 != 0 {
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
-            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
-            if order.hashes.get(place) == Some(&hash)
+            at = order.links().get(place).copied().unwrap_or(ChainLink(0));
+            if order.hashes().get(place) == Some(&hash)
                 && columns.iter().zip(key).all(|(column, wanted)| {
                     stored_cell(view, RowIndex(place), *column) == Some(*wanted)
                 })
             {
-                return order.rows.get(place);
+                return order.rows().get(place);
             }
         }
         None
@@ -451,43 +353,22 @@ pub(crate) fn matching<'o, 'k>(
     key: &'k [Value],
 ) -> impl Iterator<Item = &'o RowIndex> + Clone {
     let hash = hash_key(key.iter().map(Some));
-    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
+    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads().len().saturating_sub(1);
     // The next row of the chain, plus one; zero when there is none.
-    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
+    let mut at = order.heads().get(bucket).copied().unwrap_or(ChainLink(0));
     std::iter::from_fn(move || {
         while at.0 != 0 {
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
-            at = order.next.get(place).copied().unwrap_or(ChainLink(0));
-            if order.hashes.get(place) == Some(&hash)
+            at = order.links().get(place).copied().unwrap_or(ChainLink(0));
+            if order.hashes().get(place) == Some(&hash)
                 && row_in(table, RowIndex(place))
                     .is_some_and(|row| compare_key(row, on, key) == Ordering::Equal)
             {
-                return order.rows.get(place);
+                return order.rows().get(place);
             }
         }
         None
     })
-}
-
-/// Build equality chains from a borrowed column accessor, retaining only row IDs/hashes.
-pub(crate) fn index_cells(
-    count: RowCount,
-    columns: &[ColumnIndex],
-    order: &mut KeyIndex,
-    cell: impl Fn(RowIndex, ColumnIndex) -> Option<Value>,
-) {
-    order.rows.clear();
-    order.rows.extend(positions(count));
-    order.hashes.clear();
-    order.hashes.extend(order.rows.iter().map(|row| {
-        columns.iter().fold(KeyCellsHash(0), |hash, column| {
-            mix(
-                hash,
-                cell(*row, *column).map_or(HashWord(0), |value| word_of(&value)),
-            )
-        })
-    }));
-    chain(order, count.0);
 }
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

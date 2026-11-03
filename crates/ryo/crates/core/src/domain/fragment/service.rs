@@ -6,15 +6,15 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Value;
 
 use super::types::FragmentRun;
-use crate::domain::joins::service::{antijoin, union};
 use crate::domain::operator::contract::types::PrimitiveSemantics;
 mod join;
+mod set_rows;
 use crate::domain::lowering::service::{shape_at, step_of};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, OperatorContext};
 use crate::domain::positions::service::{
-    column_at, count, key_into, row, selected, slot_of, sorted, value, values,
+    column_at, count, key_into, row, selected, slot_of, value, values,
 };
 use crate::domain::positions::types::{
     KeyColumns, LoweredRoom, Positions, Readiness, Sides, Slots, Stride, Work,
@@ -195,20 +195,18 @@ fn make_rows(
             from,
             columns,
             distinct,
-        } => {
-            project(
-                &tree,
-                lowering,
-                step_of(*from)?,
-                ProjectedColumns {
-                    columns,
-                    repeats: *distinct,
-                },
-                work.room,
-                out,
-            );
-            Ok(())
-        }
+        } => project(
+            work.derived,
+            &tree,
+            lowering,
+            step_of(*from)?,
+            ProjectedColumns {
+                columns,
+                repeats: *distinct,
+            },
+            work.room,
+            out,
+        ),
         Operation::Join { .. } => join::run(semantics, &tree, lowering, operation, work, out),
         Operation::Axis { .. } => axis(&tree, lowering, operation, work, out),
         Operation::Antijoin {
@@ -216,7 +214,9 @@ fn make_rows(
             right,
             left_on,
             right_on,
-        } => antijoin(
+        } => set_rows::antijoin(
+            semantics,
+            work.derived,
             &tree,
             lowering,
             Sides {
@@ -230,7 +230,9 @@ fn make_rows(
             work.room,
             out,
         ),
-        Operation::Union { left, right } => union(
+        Operation::Union { left, right } => set_rows::union(
+            semantics,
+            work.derived,
             &tree,
             lowering,
             id,
@@ -315,7 +317,6 @@ pub(crate) fn emit_counts(
     let LoweredRoom {
         made,
         keys: flat,
-        order,
         cells,
         ..
     } = &mut *run.room;
@@ -337,54 +338,56 @@ pub(crate) fn emit_counts(
             );
         }
     }
-    sorted(flat, Stride(stride.max(1)), order);
-    let (flat, order) = (&flat.0, &order.0);
-    let wide = keys.len();
-    // Each group: where it first appears among the rows, and how many it counts.
-    let mut groups: Vec<(usize, usize)> = Vec::new();
-    // The key of a row among the flat keys, and the distinct value after it.
-    let key_at = |row| flat.get(row * stride..row * stride + wide);
-    let distinct_at = |row| flat.get(row * stride + wide);
-    let mut from_place = 0;
-    while let Some(&head) = order.get(from_place) {
-        let mut to_place = from_place;
-        let mut first = head;
-        let mut counted = 0;
-        let mut last_distinct: Option<usize> = None;
-        while let Some(&each) = order.get(to_place) {
-            if key_at(each) != key_at(head) {
-                break;
-            }
-            first = first.min(each);
-            if distinct.is_none() {
-                counted += 1;
-            } else {
-                let same =
-                    last_distinct.is_some_and(|before| distinct_at(before) == distinct_at(each));
-                if !same {
-                    counted += 1;
-                    last_distinct = Some(each);
+    run.derived
+        .with_raw_order(&flat.0, stride.max(1), &mut |order| {
+            let (flat, order) = (&flat.0, order.rows());
+            let wide = keys.len();
+            // Each group: where it first appears among the rows, and how many it counts.
+            let mut groups: Vec<(usize, usize)> = Vec::new();
+            // The key of a row among the flat keys, and the distinct value after it.
+            let key_at = |row| flat.get(row * stride..row * stride + wide);
+            let distinct_at = |row| flat.get(row * stride + wide);
+            let mut from_place = 0;
+            while let Some(&head) = order.get(from_place) {
+                let mut to_place = from_place;
+                let mut first = head;
+                let mut counted = 0;
+                let mut last_distinct: Option<usize> = None;
+                while let Some(&each) = order.get(to_place) {
+                    if key_at(each) != key_at(head) {
+                        break;
+                    }
+                    first = first.min(each);
+                    if distinct.is_none() {
+                        counted += 1;
+                    } else {
+                        let same = last_distinct
+                            .is_some_and(|before| distinct_at(before) == distinct_at(each));
+                        if !same {
+                            counted += 1;
+                            last_distinct = Some(each);
+                        }
+                    }
+                    to_place += 1;
                 }
+                groups.push((first, counted));
+                from_place = to_place;
             }
-            to_place += 1;
-        }
-        groups.push((first, counted));
-        from_place = to_place;
-    }
-    groups.sort_unstable();
-    for (first, counted) in groups {
-        cells.clear();
-        let each = row(rows, ryo_values::domain::rows::types::RowIndex(first));
-        for index in keys {
-            let column = column_at(&shape.columns, *index);
-            cells.push(value(&tree, column.field, slot_of(each, column)));
-        }
-        cells.push(Value::Number(Integer(
-            i64::try_from(counted).unwrap_or(i64::MAX),
-        )));
-        emit.row(context, cells)?;
-    }
-    Ok(())
+            groups.sort_unstable();
+            for (first, counted) in groups {
+                cells.clear();
+                let each = row(rows, ryo_values::domain::rows::types::RowIndex(first));
+                for index in keys {
+                    let column = column_at(&shape.columns, *index);
+                    cells.push(value(&tree, column.field, slot_of(each, column)));
+                }
+                cells.push(Value::Number(Integer(
+                    i64::try_from(counted).unwrap_or(i64::MAX),
+                )));
+                emit.row(context, cells)?;
+            }
+            Ok(())
+        })
 }
 
 /// Passes on the rows of the step `id`, as values.

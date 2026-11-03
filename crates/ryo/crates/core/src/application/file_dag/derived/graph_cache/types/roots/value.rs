@@ -51,10 +51,10 @@ impl<'a> DemandAnswers<'a> {
             cache.graph_counts.roots += 1;
         }
         crate::application::file_dag::route_counts::event("reach_request", "graph");
-        let Some(partition) = access.graph.partition_ids.get(partition) else {
+        let Some(partition) = access.graph.partition(partition) else {
             return Ok(None);
         };
-        let Some(root) = access.graph.vertex_ids.get(&(*partition, root)).copied() else {
+        let Some(root) = access.graph.vertex(partition, root) else {
             return Ok(None);
         };
         if access.shared
@@ -97,7 +97,7 @@ impl<'a> DemandAnswers<'a> {
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         crate::application::file_dag::route_counts::event("nearest_request", "graph");
-        if access.graph.forests
+        if access.graph.forests()
             [crate::domain::stored_graph::types::traversal::value::direction(orientation)]
         .is_none()
         {
@@ -226,7 +226,7 @@ impl<'a> DemandAnswers<'a> {
         let prepared = (|| {
             let minimum = access
                 .graph
-                .vertices
+                .vertices()
                 .len()
                 .checked_mul(size_of::<u32>())?
                 .checked_add(size_of::<NearestMemo>())?;
@@ -236,9 +236,9 @@ impl<'a> DemandAnswers<'a> {
             let (replacement, metadata) = slot(&cache.nearest)?;
             let mut answers = Vec::new();
             answers
-                .try_reserve_exact(access.graph.vertices.len())
+                .try_reserve_exact(access.graph.vertices().len())
                 .ok()?;
-            answers.resize(access.graph.vertices.len(), UNKNOWN);
+            answers.resize(access.graph.vertices().len(), UNKNOWN);
             let cost = vector(&answers).checked_add(metadata)?;
             Some((replacement, cost, answers))
         })();

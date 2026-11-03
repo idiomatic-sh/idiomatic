@@ -130,7 +130,7 @@ pub(crate) fn execute(
     let right = Rows::Stored(right_source);
     let _consumer = crate::application::file_dag::route_counts::consumer("column");
     let acquired = owner.stored_equality(index_plan, chain.right, right_source)?;
-    let crate::domain::derived_views::types::DerivedView::Equality(index) = acquired.view()? else {
+    let ryo_derived::domain::contract::types::DerivedView::Equality(index) = acquired.view()? else {
         return Err(OperatingError::WrongOperation);
     };
     let outcome = kernel::execute_with_index(

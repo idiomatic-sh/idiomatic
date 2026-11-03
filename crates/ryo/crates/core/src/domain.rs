@@ -22,7 +22,6 @@ pub(crate) mod functions;
 pub(crate) mod globbing;
 pub(crate) mod handing;
 pub(crate) mod hosted;
-pub(crate) mod joins;
 pub(crate) mod keeping;
 pub mod kind_check;
 pub(crate) mod kind_sets;
@@ -73,7 +72,6 @@ pub(crate) mod workers;
 // Demand-root join semantics now execute through the mandatory registered primitive.
 pub(crate) mod stored_graph;
 /// Complete stored indexes owned by a single physical file generation.
-pub(crate) mod stored_indexes;
 pub(crate) mod stored_selection;
 
 pub(crate) mod derived_views;

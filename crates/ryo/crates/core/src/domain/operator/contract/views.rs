@@ -20,12 +20,12 @@ impl IndexedRows<'_> {
     pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
         let hash = ryo_derived::domain::contract::key::hash_key(key.iter().map(Some));
         let bucket =
-            usize::try_from(hash.0).unwrap_or(0) & self.index.heads.len().saturating_sub(1);
+            usize::try_from(hash.0).unwrap_or(0) & self.index.heads().len().saturating_sub(1);
         KeyProbe {
             hash,
             at: self
                 .index
-                .heads
+                .heads()
                 .get(bucket)
                 .copied()
                 .unwrap_or(ryo_derived::domain::contract::types::ChainLink(0)),
@@ -37,12 +37,12 @@ impl IndexedRows<'_> {
             let position = usize::try_from(probe.at.0 - 1).unwrap_or(usize::MAX);
             probe.at = self
                 .index
-                .next
+                .links()
                 .get(position)
                 .copied()
                 .unwrap_or(ChainLink(0));
-            let row = self.index.rows.get(position).copied()?;
-            if self.index.hashes.get(position) == Some(&probe.hash)
+            let row = self.index.rows().get(position).copied()?;
+            if self.index.hashes().get(position) == Some(&probe.hash)
                 && self
                     .columns
                     .iter()
@@ -80,3 +80,71 @@ impl Iterator for MatchingRows<'_> {
 }
 
 use ryo_values::domain::rows::types::RowIndex;
+
+/// Finite immutable partition access; ownership and recycling remain in the invocation owner.
+pub(crate) trait ClosureParts {
+    fn len(&self) -> usize;
+    fn get(
+        &self,
+        at: usize,
+    ) -> Result<
+        &ryo_derived::domain::contract::types::ClosurePartition,
+        crate::domain::operating::errors::OperatingError,
+    >;
+}
+#[derive(Clone, Copy, Default)]
+pub(crate) enum ClosureViews<'a> {
+    #[default]
+    Empty,
+    One(&'a ryo_derived::domain::contract::types::ClosurePartition),
+    Many(&'a dyn ClosureParts),
+}
+impl<'a> ClosureViews<'a> {
+    fn len(self) -> usize {
+        match self {
+            Self::Empty => 0,
+            Self::One(_) => 1,
+            Self::Many(parts) => parts.len(),
+        }
+    }
+    fn get(
+        self,
+        at: usize,
+    ) -> Result<
+        &'a ryo_derived::domain::contract::types::ClosurePartition,
+        crate::domain::operating::errors::OperatingError,
+    > {
+        match self {
+            Self::Empty => Err(crate::domain::operating::errors::OperatingError::ShapeMismatch),
+            Self::One(part) => (at == 0)
+                .then_some(part)
+                .ok_or(crate::domain::operating::errors::OperatingError::ShapeMismatch),
+            Self::Many(parts) => parts.get(at),
+        }
+    }
+}
+pub(crate) struct ClosureIter<'a> {
+    views: ClosureViews<'a>,
+    at: usize,
+}
+impl<'a> Iterator for ClosureIter<'a> {
+    type Item = Result<
+        &'a ryo_derived::domain::contract::types::ClosurePartition,
+        crate::domain::operating::errors::OperatingError,
+    >;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.at >= self.views.len() {
+            return None;
+        }
+        let at = self.at;
+        self.at += 1;
+        Some(self.views.get(at))
+    }
+}
+impl<'a> IntoIterator for ClosureViews<'a> {
+    type Item = <ClosureIter<'a> as Iterator>::Item;
+    type IntoIter = ClosureIter<'a>;
+    fn into_iter(self) -> Self::IntoIter {
+        ClosureIter { views: self, at: 0 }
+    }
+}

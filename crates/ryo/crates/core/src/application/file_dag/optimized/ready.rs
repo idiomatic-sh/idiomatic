@@ -9,12 +9,14 @@ use crate::domain::table_model::{
     service::{check_columns, count_of, kinds_of, positions, read_row},
     types::Rows,
 };
-use crate::domain::tree_join::service::{join_tree, tree_finding};
+use crate::domain::tree_join::service::join_tree;
 use crate::domain::tree_walk::service::{entity_of, give_walk, start_walk, walk_kinds, walk_row};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) fn evaluate(
     semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
     contract: &OperatorContract,
+    mode: crate::domain::operator::contract::types::EvaluationMode,
+    workspace: &super::super::workspace::InvocationWorkspace,
     inputs: &[Rows<'_>],
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
@@ -24,16 +26,33 @@ pub(crate) fn evaluate(
             let [left, Rows::Tree(tree), ..] = inputs else {
                 return Ok(false);
             };
-            let Some(finding) = tree_finding(tree, &join.left_on, &join.right_on, &join.view)
-            else {
+            // Empty-left native execution performs neither acquisition nor RHS reads.
+            if count_of(left).0 == 0 {
+                return Ok(true);
+            }
+            let use_ = super::super::invocation::prepared(
+                contract,
+                mode,
+                ryo_derived::domain::contract::types::DerivedKind::NativeLookup,
+            )?;
+            let rows = [
+                crate::domain::operator::contract::views::BorrowedRows::from(left),
+                crate::domain::operator::contract::views::BorrowedRows::Tree(*tree),
+            ];
+            let Some(acquired) = workspace.inputs(&rows).try_native_lookup(use_)? else {
                 return Ok(false);
+            };
+            let ryo_derived::domain::contract::types::DerivedView::NativeLookup(finding) =
+                acquired.view()?
+            else {
+                return Err(OperatingError::WrongOperation);
             };
             join_tree(
                 semantics,
                 &join.left_on,
                 tree,
                 left,
-                finding,
+                *finding,
                 TreeShape {
                     comparisons: &contract.predicates.comparisons,
                     view: &join.view,

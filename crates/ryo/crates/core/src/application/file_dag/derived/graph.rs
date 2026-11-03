@@ -59,7 +59,7 @@ pub(in crate::application::file_dag::derived) fn acquire(
         return Err(OperatingError::WrongOperation);
     };
     let requirement = requirement.clone();
-    let acquired = owner.acquire_shared_with_requirement(
+    let acquired = owner.try_acquire_shared_with_requirement(
         canonical,
         plan,
         &[population],
@@ -76,24 +76,26 @@ pub(in crate::application::file_dag::derived) fn acquire(
                 source,
                 rows,
                 cache,
-            )?
-            .ok_or(OperatingError::NotRun)?;
-            Ok((Arc::clone(&built._storage), built.built, true, false))
+            )?;
+            Ok(built.map(|built| (Arc::clone(&built._storage), built.built, true, false)))
         },
     )?;
-    let crate::domain::derived_views::types::DerivedView::Adjacency(_) = acquired.view()? else {
+    let Some(acquired) = acquired else {
+        return Ok(None);
+    };
+    let ryo_derived::domain::contract::types::DerivedView::Adjacency(_) = acquired.view()? else {
         return Err(OperatingError::WrongOperation);
     };
-    let crate::domain::derived_views::types::DerivedStorage::Adjacency(graph) =
-        acquired.storage.as_ref()
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
+    let graph = acquired
+        .storage
+        .payload()
+        .share_adjacency()
+        .ok_or(OperatingError::WrongOperation)?;
     let mut shared = cache.as_ref().is_some_and(|cache| {
         cache
             .graphs
             .iter()
-            .any(|entry| Arc::ptr_eq(&entry.graph, graph))
+            .any(|entry| Arc::ptr_eq(&entry.graph, &graph))
     });
     if !invoked.get()
         && let Some(cache) = cache.as_deref_mut()
@@ -105,7 +107,7 @@ pub(in crate::application::file_dag::derived) fn acquire(
                 population,
                 &acquired.storage,
                 &acquired.backings,
-                graph,
+                &graph,
             )?;
         }
     }
@@ -115,7 +117,7 @@ pub(in crate::application::file_dag::derived) fn acquire(
         generation: input.generation(),
         built: acquired.built,
         access: GraphAccess {
-            graph: Arc::clone(graph),
+            graph: Arc::clone(&graph),
             orientation,
             shared,
         },
@@ -209,21 +211,21 @@ pub(in crate::application::file_dag::derived) fn domain(
             Ok((Arc::clone(&built._storage), built.built, true, false))
         },
     )?;
-    let crate::domain::derived_views::types::DerivedView::Membership(
-        crate::domain::derived_views::types::MembershipData::Dense(members),
+    let ryo_derived::domain::contract::types::DerivedView::Membership(
+        ryo_derived::domain::contract::types::MembershipView::Dense(members),
     ) = acquired.view()?
     else {
         return Err(OperatingError::WrongOperation);
     };
-    if members.len() != access.graph.vertices.len() {
+    if members.len() != access.graph.vertices().len() {
         return Err(OperatingError::ShapeMismatch);
     }
-    let crate::domain::derived_views::types::DerivedStorage::Membership(
-        crate::domain::derived_views::types::MembershipData::Dense(members),
-    ) = acquired.storage.as_ref()
-    else {
-        return Err(OperatingError::WrongOperation);
-    };
+    let members = acquired
+        .storage
+        .payload()
+        .share_marks()
+        .ok_or(OperatingError::WrongOperation)?;
+    let members = members.backing();
     let found = cache.as_ref().and_then(|cache| {
         cache.graph_domains.iter().find(|entry| {
             Arc::ptr_eq(&entry.graph, &access.graph) && Arc::ptr_eq(&entry.domain.members, members)
