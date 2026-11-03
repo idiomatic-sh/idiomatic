@@ -13,7 +13,7 @@ autobenches = false
 name = "ryo_benchmark"
 
 [dependencies]
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.2" }
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
