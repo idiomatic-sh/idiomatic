@@ -32,11 +32,11 @@ impl<'a> CommonOperatorEngine<'a> {
 #[cfg(test)]
 impl CommonOperatorEngine<'static> {
     pub(crate) fn fixture() -> Self {
-        Self::new(crate::outbound::operators::fixtures::port())
+        Self::new(crate::outbound::operators::factory::test_port())
     }
     pub(crate) fn fixture_ref() -> &'static Self {
         static ENGINE: CommonOperatorEngine<'static> =
-            CommonOperatorEngine::new(crate::outbound::operators::fixtures::port());
+            CommonOperatorEngine::new(crate::outbound::operators::factory::test_port());
         &ENGINE
     }
 }

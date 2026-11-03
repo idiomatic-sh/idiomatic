@@ -477,8 +477,10 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
         index(&materialized, On::Columns(&key_columns), &mut computed).expect("valid computed key");
         for row in 0..materialized.count.0 {
             let row = super::service::row_in(&materialized, RowIndex(row)).expect("row");
-            let mut key = Vec::new();
-            super::service::key_of(row, On::Columns(&key_columns), &mut key).expect("key");
+            let key = key_columns
+                .iter()
+                .map(|column| super::service::cell(row, *column).expect("key column"))
+                .collect::<Vec<_>>();
             assert_eq!(
                 matching_stored(view, &key_columns, &stored, &key)
                     .copied()
