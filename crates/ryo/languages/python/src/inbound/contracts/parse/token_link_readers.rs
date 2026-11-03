@@ -9,6 +9,7 @@ use crate::domain::{
     },
 };
 use ryo::languages;
+use std::convert::identity;
 
 pub(super) struct TokenLinkItem;
 
@@ -16,7 +17,7 @@ ryo::reads! {
     TokenLinkItem => languages::TokenLink, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits,
         each (scan(tree)) as event {
-            when event {
+            when identity(event) {
                 Event::Link(link) => {
                     given name = languages::intern_derived(symbols, tree.source, languages::NameText(link_kind(link.kind)));
                     row { source: node(link.source), target: node(link.target), link_kind: value(name), file: file, span: span(link.source), }
