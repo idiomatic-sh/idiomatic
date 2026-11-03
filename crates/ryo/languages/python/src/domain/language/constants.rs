@@ -53,4 +53,8 @@ pub(crate) const UNKNOWN_REASONS: &[ryo::languages::UnknownName] = &[
         reason: ryo::languages::UnknownReason(23),
         text: ryo::languages::ReasonName("qualified-origin"),
     },
+    ryo::languages::UnknownName {
+        reason: ryo::languages::UnknownReason(24),
+        text: ryo::languages::ReasonName("semantic-rendering-unsupported"),
+    },
 ];

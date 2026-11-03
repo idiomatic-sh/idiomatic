@@ -13,6 +13,7 @@ pub mod kinds;
 pub mod location;
 pub mod reasons;
 pub mod relations;
+pub mod semantics;
 pub mod symbols;
 pub mod targets;
 pub mod terms;

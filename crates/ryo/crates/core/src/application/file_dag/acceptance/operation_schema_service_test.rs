@@ -57,6 +57,7 @@ fn subject(populated: Input) -> Result<Value, Failure> {
         let rows: Vec<_> = tables.iter().map(Rows::Computed).collect();
         let mut output = Table::default();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &bindings,
@@ -497,6 +498,7 @@ fn hosted_without_its_request_source_is_missing_not_an_unsupported_operation() {
     );
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

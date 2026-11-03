@@ -18,6 +18,8 @@ pub(crate) fn kind_of(operation: &Operation) -> OperationKind {
     match operation {
         Operation::SpanBetween { .. } => OperationKind::SpanBetween,
         Operation::SourceMatches { .. } => OperationKind::SourceMatches,
+        Operation::RenderSyntax { .. } => OperationKind::RenderSyntax,
+        Operation::FitsRendered { .. } => OperationKind::FitsRendered,
         Operation::SpanBounds { .. } => OperationKind::SpanBounds,
         Operation::Select { .. } => OperationKind::Select,
         Operation::Project { .. } => OperationKind::Project,
@@ -59,6 +61,8 @@ fn comparisons_of(operation: &Operation) -> &[Comparison] {
         | Operation::Replace { .. }
         | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::SpanBounds { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }

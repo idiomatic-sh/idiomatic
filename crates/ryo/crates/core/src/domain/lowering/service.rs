@@ -330,6 +330,8 @@ fn shape_of(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<Lo
         | Operation::Replace { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }

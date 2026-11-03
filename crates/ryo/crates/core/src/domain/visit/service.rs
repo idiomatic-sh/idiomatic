@@ -180,6 +180,8 @@ fn reads_role(operation: &Operation) -> RoleRead {
         Operation::SpanBetween { from, .. }
         | Operation::SpanBounds { from, .. }
         | Operation::SourceMatches { from, .. }
+        | Operation::RenderSyntax { from, .. }
+        | Operation::FitsRendered { from, .. }
         | Operation::Replace { from, .. }
         | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }

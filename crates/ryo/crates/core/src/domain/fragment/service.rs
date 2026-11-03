@@ -48,6 +48,8 @@ fn dependencies(operation: &Operation) -> Result<(Option<StepId>, Option<StepId>
         | Operation::Replace { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
@@ -241,6 +243,8 @@ fn make_rows(
         | Operation::Replace { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }

@@ -16,6 +16,18 @@ pub(crate) enum ArgumentRole {
 /// The arguments a call can name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum ArgumentSlot {
+    /// Syntax node whose text is requested.
+    Node,
+    /// Embedding role for rendered syntax.
+    Context,
+    /// Maximum physical display columns.
+    MaxLine,
+    /// Physical tab stop width.
+    TabWidth,
+    /// Ordered rendered text columns for a physical width check.
+    Texts,
+    /// Literal separators around and between the rendered columns.
+    Literals,
     /// Root entity column.
     Root,
     /// Outgoing-edge order column.

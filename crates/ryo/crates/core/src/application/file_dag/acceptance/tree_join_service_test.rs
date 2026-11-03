@@ -146,6 +146,7 @@ fn either_side() {
     let mut made = |operation: &Operation, inputs: &[Rows<'_>]| {
         let mut out = Table::default();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],

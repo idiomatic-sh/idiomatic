@@ -145,6 +145,7 @@ fn run<'f>(
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

@@ -173,6 +173,22 @@ pub(crate) fn schema_of(
             appended(input.kinds, &[], CellKind::Span)
         }
         Operation::SourceMatches { .. } => source_matches_schema(operation, inputs, bindings),
+        Operation::RenderSyntax { node, .. } => {
+            let input = first()?;
+            if projected(input.kinds, &[*node])? != [CellKind::Node] {
+                return Err(OperatingError::ShapeMismatch);
+            }
+            appended(input.kinds, &[], CellKind::Symbol)
+        }
+        Operation::FitsRendered { texts, literals, span, .. } => {
+            let input = first()?;
+            if texts.is_empty() || literals.len() != texts.len() + 1
+                || texts.iter().any(|text| projected(input.kinds, &[*text]).ok() != Some(vec![CellKind::Symbol]))
+                || projected(input.kinds, &[*span])? != [CellKind::Span] {
+                return Err(OperatingError::ShapeMismatch);
+            }
+            Ok(input.kinds.to_vec())
+        }
         Operation::SpanBounds { .. } => span_bounds_schema(operation, inputs, bindings),
     }
 }

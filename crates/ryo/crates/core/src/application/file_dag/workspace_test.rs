@@ -47,6 +47,7 @@ fn context<'a>(
     memo: &'a mut Vec<crate::domain::operating::types::Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[] as &[ParameterBinding],

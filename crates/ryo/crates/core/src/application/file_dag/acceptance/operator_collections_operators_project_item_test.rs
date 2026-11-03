@@ -58,6 +58,7 @@ fn compute(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings,

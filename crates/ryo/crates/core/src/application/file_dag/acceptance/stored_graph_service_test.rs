@@ -72,6 +72,7 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
     .expect("graph");
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

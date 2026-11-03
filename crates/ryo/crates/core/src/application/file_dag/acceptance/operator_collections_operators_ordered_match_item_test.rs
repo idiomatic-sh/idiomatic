@@ -62,6 +62,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

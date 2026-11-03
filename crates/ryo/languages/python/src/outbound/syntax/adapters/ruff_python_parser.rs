@@ -14,6 +14,7 @@ pub(crate) mod types;
 mod adapter_test;
 
 mod writer;
+mod semantic;
 
 #[cfg(test)]
 mod declaration_test;

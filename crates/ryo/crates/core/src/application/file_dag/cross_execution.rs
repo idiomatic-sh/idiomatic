@@ -106,6 +106,8 @@ pub(crate) fn evaluate_cross_with_executor(
                 | Operation::GroupCount { .. }
                 | Operation::Replace { .. }
                 | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
                 | Operation::SpanBounds { .. }
                 | Operation::SpanBetween { .. }
                 | Operation::OrderedMatch { .. }

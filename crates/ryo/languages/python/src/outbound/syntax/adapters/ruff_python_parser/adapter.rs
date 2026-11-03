@@ -881,6 +881,15 @@ fn annotation_named_expression_syntax_errors(
 }
 
 impl SyntaxPort for SyntaxRuffPythonParserAdapter {
+    fn begin_semantics(
+        &self,
+        tree: &languages::Elements,
+        source_kind: PythonSourceKind,
+        settings: PythonParserSettings,
+    ) -> Option<Box<dyn languages::SemanticSession>> {
+        Some(Box::new(super::semantic::PythonSemanticSession::new(tree, source_kind, settings)))
+    }
+
     fn expand_annotations(
         &self,
         source: SourceText<'_>,

@@ -137,6 +137,7 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         );
         owner.derived.set_optional_limit(retained_budget).unwrap();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],

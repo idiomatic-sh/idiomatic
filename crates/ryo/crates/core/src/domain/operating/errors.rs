@@ -1,10 +1,23 @@
 //! The `operating` concept's failures.
 
 use crate::domain::table_model::errors::TableModelError;
+use ryo_language::domain::semantics::types::RenderError;
 
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum OperatingError {
+    /// A semantic request named a stale or foreign syntax node.
+    #[error(transparent)]
+    SemanticRender(#[from] RenderError),
+    /// The provider returned a different number of answers than requested.
+    #[error("semantic renderer returned a malformed batch")]
+    SemanticBatchShape,
+    /// A valid semantic request cannot be answered completely by this provider.
+    #[error("semantic rendering is incomplete: {reason}")]
+    SemanticIncomplete {
+        /// The application's or provider's exact reason.
+        reason: String,
+    },
     /// Ordered DFS cannot distinguish two outgoing edges of one partition/source.
     #[error("ordered-dfs requires unique order values within each partition and source")]
     DuplicateDfsOrder,

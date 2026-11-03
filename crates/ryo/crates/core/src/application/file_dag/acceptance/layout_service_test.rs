@@ -51,6 +51,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -176,6 +177,7 @@ fn metadata_only() -> Result<Value, Failure> {
     let row_capacity = scratch.row.capacity();
     let mut memo = vec![crate::domain::operating::types::Memo::Unknown];
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -242,6 +244,7 @@ fn probe_order() -> Result<Value, Failure> {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -299,6 +302,7 @@ fn native_frontier() -> Result<Value, Failure> {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -347,6 +351,7 @@ fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -431,6 +436,7 @@ fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

@@ -68,6 +68,7 @@ fn consider(
     let comparisons = class.comparisons.as_slice();
     let index = usize::try_from(position.0).unwrap_or(usize::MAX);
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: pass.matchers,
         bindings: bound,
@@ -218,6 +219,7 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
             continue;
         };
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: room.kind_vocabulary.as_deref(),
             prepared_matchers: room.matchers.as_deref(),
             bindings: bound,

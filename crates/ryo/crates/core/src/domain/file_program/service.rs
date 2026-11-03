@@ -77,6 +77,8 @@ fn canonical(
         | Operation::Words { from, .. }
         | Operation::SpanBetween { from, .. }
         | Operation::SourceMatches { from, .. }
+        | Operation::RenderSyntax { from, .. }
+        | Operation::FitsRendered { from, .. }
         | Operation::SpanBounds { from, .. } => *from = inputs[0].0,
         Operation::Join { left, right, .. }
         | Operation::Union { left, right }

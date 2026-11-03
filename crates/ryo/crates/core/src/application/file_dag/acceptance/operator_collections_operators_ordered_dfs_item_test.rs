@@ -62,6 +62,7 @@ fn compute(
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -310,6 +311,7 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     assert!(scratch.observation.local_resources_released);
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -544,6 +546,7 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
     let mut scratch = OperatorScratch::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -712,6 +715,7 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
     };
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

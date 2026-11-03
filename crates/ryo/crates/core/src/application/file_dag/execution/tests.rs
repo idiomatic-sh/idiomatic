@@ -31,6 +31,7 @@ fn malformed_declared_population_is_refused_not_silently_shortened() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],
@@ -66,6 +67,7 @@ fn zero_width_bags_keep_their_declared_population() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],
@@ -111,6 +113,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],
@@ -195,6 +198,7 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],
@@ -254,6 +258,7 @@ fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],

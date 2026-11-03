@@ -175,6 +175,8 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
         | Operation::Replace { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
@@ -296,6 +298,8 @@ fn reading_through(
         | Operation::Replace { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
@@ -414,6 +418,8 @@ pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) ->
                 | Operation::Extend { .. }
                 | Operation::SpanBounds { .. }
                 | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
                 | Operation::SpanBetween { .. }
                 | Operation::Project {
                     distinct: RepeatedRows::Kept,

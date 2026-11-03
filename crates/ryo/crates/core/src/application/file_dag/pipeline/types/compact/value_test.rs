@@ -192,6 +192,7 @@ fn subject_with_counting(
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -214,6 +215,7 @@ fn subject_with_counting(
         )?;
         {
             let mut actual = OperatorContext {
+                semantic: None,
                 prepared_kinds: None,
                 prepared_matchers: None,
                 bindings: context.bindings,
@@ -299,6 +301,7 @@ fn subject_with_counting(
     readable.set(false);
     let refused = {
         let mut actual = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: context.bindings,

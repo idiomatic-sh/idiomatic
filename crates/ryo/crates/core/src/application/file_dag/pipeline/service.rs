@@ -253,6 +253,8 @@ fn operation_name(operation: &ryo_values::domain::plans::types::Operation) -> &'
         Operation::Hosted { .. } => "hosted",
         Operation::SpanBetween { .. } => "span-between",
         Operation::SourceMatches { .. } => "source-matches",
+        Operation::RenderSyntax { .. } => "render-syntax",
+        Operation::FitsRendered { .. } => "fits-rendered",
         Operation::SpanBounds { .. } => "span-bounds",
     }
 }

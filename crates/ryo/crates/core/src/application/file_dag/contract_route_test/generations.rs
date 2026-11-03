@@ -52,6 +52,7 @@ fn run_dag(
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings,

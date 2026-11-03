@@ -138,6 +138,7 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
             };
             let (mut memo, mut scratch) = (vec![], OperatorScratch::default());
             let mut context = OperatorContext {
+                semantic: None,
                 prepared_matchers: None,
                 prepared_kinds: None,
                 bindings: &[],

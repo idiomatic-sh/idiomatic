@@ -81,6 +81,7 @@ fn evaluate(
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -200,6 +201,7 @@ fn evaluate_lines(
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -288,6 +290,7 @@ fn captured(
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

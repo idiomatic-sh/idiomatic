@@ -166,6 +166,8 @@ pub(crate) enum PreparedInputs<'a> {
 
 /// Immutable source/index data selected and acquired by the common engine.
 pub(crate) struct PrimitiveViews<'a> {
+    /// File-scoped semantic demand, borrowed only for this invocation.
+    pub semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     pub paths: &'a [ryo_language::domain::files::types::FilePath],
     pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     pub source: SourceView<'a>,

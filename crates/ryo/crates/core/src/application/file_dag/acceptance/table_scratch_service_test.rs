@@ -86,6 +86,7 @@ fn projection_constructs_only_the_group_it_uses_and_keeps_bags() {
     ] {
         let mut out = Table::default();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],
@@ -168,6 +169,7 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
         let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
         let mut memo = Vec::new();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],
@@ -215,6 +217,7 @@ fn aggregation_resources_are_engine_owned_and_released() {
         let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
         let mut out = Table::default();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &case.bindings,

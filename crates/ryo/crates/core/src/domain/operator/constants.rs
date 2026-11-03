@@ -8,10 +8,12 @@ use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescript
 use ryo_values::domain::plans::types::QueryOperator;
 
 /// Every operator, in the order the documentation lists them.
-pub(crate) const OPERATORS: [QueryOperator; 23] = [
+pub(crate) const OPERATORS: [QueryOperator; 25] = [
     QueryOperator::SpanBetween,
     QueryOperator::SpanBounds,
     QueryOperator::SourceMatches,
+    QueryOperator::RenderSyntax,
+    QueryOperator::FitsRendered,
     QueryOperator::Replace,
     QueryOperator::OrderedMatch,
     QueryOperator::OrderedDfs,
@@ -50,6 +52,12 @@ pub(crate) fn describe(operator: QueryOperator) -> OperatorDescription {
         }
         QueryOperator::SourceMatches => {
             super::collections::operators::source_matches::constants::description()
+        }
+        QueryOperator::RenderSyntax => {
+            super::collections::operators::render_syntax::constants::description()
+        }
+        QueryOperator::FitsRendered => {
+            super::collections::operators::fits_rendered::constants::description()
         }
         QueryOperator::Replace => super::collections::operators::replace::constants::description(),
         QueryOperator::OrderedDfs => {

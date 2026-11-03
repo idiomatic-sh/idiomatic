@@ -6,7 +6,7 @@ use crate::domain::coverage::types::Recovery;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::service::escape;
 use crate::domain::finish::types::{Arena, Leaves, Leaving, Retained, RuleNumber};
-use crate::domain::operating::types::OperatorContext;
+use crate::domain::operating::types::{OperatorContext, SemanticLookup};
 use crate::domain::operator::service::{emitted, pool_for};
 
 use crate::domain::operator::types::RuleWorkspace;
@@ -69,6 +69,7 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
         classes,
         file_program,
         None,
+        None,
     )
 }
 
@@ -81,6 +82,7 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     classes: &crate::domain::shared_walk::types::SharedClasses,
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
+    semantic: Option<&dyn SemanticLookup>,
 ) -> Result<Vec<Table>, RulesError> {
     let _route_rule = super::route_counts::rule(
         rule.0,
@@ -131,6 +133,7 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     let _entered = rule_span.enter();
     {
         let mut context = OperatorContext {
+            semantic,
             prepared_kinds: classes.kind_vocabulary.as_deref(),
             prepared_matchers: classes.matchers.as_deref(),
             bindings: bound,
@@ -165,7 +168,15 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
                     .ok_or(crate::domain::operating::errors::OperatingError::NotRun)
                     .map_err(|error| refuse(&error))?,
             )
-            .map_err(|error| refuse(&error));
+            .map_err(|error| match error {
+                crate::domain::operating::errors::OperatingError::SemanticIncomplete { reason } => {
+                    RulesError::SemanticIncomplete {
+                        id: id_at(setting.ids, rule),
+                        reason,
+                    }
+                }
+                other => refuse(&other),
+            });
         evaluated?;
     }
     if let Some(table) = emitted(plan, pool) {

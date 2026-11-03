@@ -7,6 +7,16 @@ use ryo::languages::TableBuilder;
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
+    /// Own lazy parser-backed syntax rendering for the current admitted tree.
+    fn begin_semantics(
+        &self,
+        _tree: &ryo::languages::Elements,
+        _source_kind: PythonSourceKind,
+        _settings: PythonParserSettings,
+    ) -> Option<Box<dyn ryo::languages::SemanticSession>> {
+        None
+    }
+
     /// Parse only carriers already classified in a resolved type context, using the existing mapping writer.
     fn expand_annotations(
         &self,

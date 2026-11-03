@@ -17,6 +17,9 @@ pub use macros::link::link;
 /// Open on purpose: a language implements it, and nothing else does.
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 
+pub use ryo_language::domain::semantics::interface::SemanticSession;
+pub use ryo_language::domain::semantics::types::{RenderContext, RenderError, RenderOutcome, RenderRequest};
+
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity;

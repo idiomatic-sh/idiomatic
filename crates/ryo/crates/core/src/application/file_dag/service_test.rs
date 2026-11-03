@@ -102,6 +102,7 @@ fn context<'a>(
     scratch: &'a mut OperatorScratch,
 ) -> OperatorContext<'a> {
     OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],

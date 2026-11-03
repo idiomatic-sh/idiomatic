@@ -50,6 +50,9 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
             message: error.to_string(),
         },
         LoweringError::SpanBoundsArgument { span, .. }
+        | LoweringError::SemanticArgument { span, .. }
+        | LoweringError::CrossFileSemantic { span }
+        | LoweringError::InvalidSemanticLiteral { span, .. }
         | LoweringError::SourceMatchesArgument { span, .. }
         | LoweringError::SourceMatchesCapturePair { span, .. }
         | LoweringError::SourceMatchesCaptureMissing { span, .. }

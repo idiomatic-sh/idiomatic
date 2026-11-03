@@ -336,6 +336,30 @@ pub enum Operation {
         /// Append the captured start line after any whole-match line output.
         capture_line: bool,
     },
+    /// Render candidate syntax in a declared embedding role on demand.
+    RenderSyntax {
+        /// Per-file candidate rows.
+        from: Input,
+        /// The node whose syntax is needed.
+        node: ColumnIndex,
+        /// The role in which the node will be embedded.
+        context: ryo_language::domain::semantics::types::RenderContext,
+    },
+    /// Keep rows whose rendered candidate fits the source's physical line width.
+    FitsRendered {
+        /// Per-file candidate rows.
+        from: Input,
+        /// Ordered rendered text columns.
+        texts: Vec<ColumnIndex>,
+        /// Literal text before, between and after columns; exactly one more than `texts`.
+        literals: Vec<crate::domain::plan_parts::types::LiteralText>,
+        /// Original physical statement span.
+        span: ColumnIndex,
+        /// Maximum physical display columns.
+        max_line: i64,
+        /// Physical tab stop width.
+        tab_width: u32,
+    },
     /// Append checked byte offsets of an existing physical source span.
     SpanBounds {
         /// Per-file input rows.
@@ -407,6 +431,10 @@ operation_kinds! {
     SpanBetween,
     /// `source-matches`.
     SourceMatches,
+    /// Candidate-driven semantic syntax rendering.
+    RenderSyntax,
+    /// Physical display-width admission for rendered text.
+    FitsRendered,
     /// `span-bounds`.
     SpanBounds,
     /// Ordered depth-first edge visits.
@@ -485,6 +513,10 @@ pub enum QueryOperator {
     SpanBetween,
     /// `source-matches(from, span, pattern, output)`.
     SourceMatches,
+    /// `render-syntax(from, node, context, output)`.
+    RenderSyntax,
+    /// `fits-rendered(from, text, span, max-line, tab-width)`.
+    FitsRendered,
     /// `span-bounds(from, span, start-output, end-output)`.
     SpanBounds,
     /// `ordered-dfs(from, root, edges, source, destination, order, edge, keys, output)`.

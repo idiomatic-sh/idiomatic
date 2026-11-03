@@ -11,6 +11,7 @@ use crate::domain::elements::types::Elements;
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
 use crate::domain::relations::types::Count;
 use crate::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
+use crate::domain::semantics::interface::SemanticSession;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::Recognition;
@@ -73,6 +74,14 @@ impl<P: ParseUseCase> ParseEngine for P {
 
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
         ParseUseCase::configuration_identity(self)
+    }
+
+    fn begin_semantics(
+        &self,
+        request: &ParseRequest<'_>,
+        tree: &Elements,
+    ) -> Option<Box<dyn SemanticSession>> {
+        ParseUseCase::begin_semantics(self, request, tree)
     }
 
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition {

@@ -55,6 +55,8 @@ pub(in crate::application::file_dag::derived) fn reserve(
                         | Operation::Hosted { .. }
                         | Operation::SpanBounds { .. }
                         | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
                         | Operation::SpanBetween { .. } => return false,
                     };
                     let relation = match edges {

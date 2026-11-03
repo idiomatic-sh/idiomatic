@@ -20,6 +20,8 @@ use crate::domain::operator::collections::operators::replace::item::ReplaceItem;
 use crate::domain::operator::collections::operators::rows::item::RowsItem;
 use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::operator::collections::operators::source_matches::item::SourceMatchesItem;
+use crate::domain::operator::collections::operators::render_syntax::item::RenderSyntaxItem;
+use crate::domain::operator::collections::operators::fits_rendered::item::FitsRenderedItem;
 use crate::domain::operator::collections::operators::span_between::item::SpanBetweenItem;
 use crate::domain::operator::collections::operators::span_bounds::item::SpanBoundsItem;
 use crate::domain::operator::collections::operators::union::item::UnionItem;
@@ -49,6 +51,8 @@ pub(crate) fn registered(kind: OperationKind) -> &'static dyn OperatorsItem {
         OperationKind::Hosted => &HostedItem,
         OperationKind::SpanBetween => &SpanBetweenItem,
         OperationKind::SourceMatches => &SourceMatchesItem,
+        OperationKind::RenderSyntax => &RenderSyntaxItem,
+        OperationKind::FitsRendered => &FitsRenderedItem,
         OperationKind::SpanBounds => &SpanBoundsItem,
         OperationKind::OrderedDfs => &OrderedDfsItem,
     }

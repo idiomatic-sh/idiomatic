@@ -20,6 +20,14 @@ pub(crate) enum RulesError {
         /// The rule's id.
         id: RuleId,
     },
+    /// This rule asked for a valid semantic answer that its provider cannot supply.
+    #[error("rule `{}` has incomplete semantic coverage: {reason}", id.0)]
+    SemanticIncomplete {
+        /// The consuming rule, even when another rule reused the same demand.
+        id: RuleId,
+        /// The exact provider or application reason.
+        reason: String,
+    },
     /// A rule's query cannot be run: an operator or a text step refused it.
     #[error("rule `{}`: {reason}", id.0)]
     Failed {

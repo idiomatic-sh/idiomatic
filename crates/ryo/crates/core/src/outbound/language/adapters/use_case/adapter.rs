@@ -13,6 +13,7 @@ use ryo_language::domain::relations::types::RowWriter;
 use ryo_language::domain::relations::types::{Bytes, Relation};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::domain::semantics::interface::SemanticSession;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::types::ProjectRequest;
@@ -47,6 +48,30 @@ impl LanguageUseCaseAdapter {
     pub(crate) fn with(mut self, language: LanguageHandles) -> Self {
         self.languages.push(language);
         self
+    }
+}
+
+fn parse_request(file: FileToRead<'_>) -> ParseRequest<'_> {
+    ParseRequest {
+        path: SourcePath(&file.path.0),
+        file: file.file,
+        bytes: ByteSlice(&file.bytes.0),
+        fields: match file.roles {
+            RoleWriting::Wanted => {
+                ryo_language::inbound::use_cases::parse::types::FieldRequest::Wanted
+            }
+            RoleWriting::Unwanted => {
+                ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted
+            }
+        },
+        notes: match file.notes {
+            NoteWriting::Wanted => {
+                ryo_language::inbound::use_cases::parse::types::NoteRequest::Wanted
+            }
+            NoteWriting::Unwanted => {
+                ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted
+            }
+        },
     }
 }
 
@@ -136,27 +161,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
         symbols: &mut Symbols,
         out: &mut dyn RowWriter,
     ) -> FileReading {
-        let request = ParseRequest {
-            path: SourcePath(&file.path.0),
-            file: file.file,
-            bytes: ByteSlice(&file.bytes.0),
-            fields: match file.roles {
-                RoleWriting::Wanted => {
-                    ryo_language::inbound::use_cases::parse::types::FieldRequest::Wanted
-                }
-                RoleWriting::Unwanted => {
-                    ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted
-                }
-            },
-            notes: match file.notes {
-                NoteWriting::Wanted => {
-                    ryo_language::inbound::use_cases::parse::types::NoteRequest::Wanted
-                }
-                NoteWriting::Unwanted => {
-                    ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted
-                }
-            },
-        };
+        let request = parse_request(file);
         if let Some(selected) = file.source_language {
             let mut matches = self
                 .languages
@@ -212,6 +217,17 @@ impl LanguagePort for LanguageUseCaseAdapter {
             },
             FileReading::Failed,
         )
+    }
+
+    fn begin_semantics(
+        &self,
+        language: LanguageNumber,
+        file: FileToRead<'_>,
+        tree: &Elements,
+    ) -> Option<Box<dyn SemanticSession>> {
+        self.languages
+            .get(language.0)
+            .and_then(|handle| handle.parse.begin_semantics(&parse_request(file), tree))
     }
 
     fn project(

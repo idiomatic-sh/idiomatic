@@ -90,6 +90,14 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = Declarations;
 
+    fn begin_semantics(
+        &self,
+        request: &languages::ParseRequest<'_>,
+        tree: &languages::Elements,
+    ) -> Option<Box<dyn languages::SemanticSession>> {
+        self.syntax.begin_semantics(tree, source_kind(request.path.0), self.settings)
+    }
+
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {
         &[
             languages::OptionalCapability::ModuleIdentity,

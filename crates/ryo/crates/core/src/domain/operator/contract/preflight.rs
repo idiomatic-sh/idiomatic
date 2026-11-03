@@ -115,6 +115,8 @@ pub(crate) fn collected_layout(
                 }
             }
         }
+        Operation::RenderSyntax { .. } => kinds.push(CellKind::Symbol),
+        Operation::FitsRendered { .. } => {}
         Operation::Rows { keys, .. } => return Ok(vec![CellKind::Symbol; keys.len()]),
         Operation::Antijoin { .. } => {
             return inputs.first().map(|input| input.kinds.to_vec()).ok_or(

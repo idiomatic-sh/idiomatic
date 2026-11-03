@@ -88,7 +88,9 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
         | Operation::Hosted { .. }
         | Operation::SpanBetween { .. }
         | Operation::SpanBounds { .. }
-        | Operation::SourceMatches { .. } => ResourceProgram::None,
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. } => ResourceProgram::None,
         Operation::Extend { values, .. } => ResourceProgram::Appended(values.clone()),
         Operation::Rank { sets, .. } => ResourceProgram::Rank(*sets),
         Operation::Intersection { .. } | Operation::Difference { .. } => ResourceProgram::Index {

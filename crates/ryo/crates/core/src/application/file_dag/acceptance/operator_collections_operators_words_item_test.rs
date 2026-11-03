@@ -49,6 +49,7 @@ fn words_of(source: &str) -> Result<Vec<String>, OperatingError> {
     };
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -93,6 +94,7 @@ fn words_without_an_input() -> Result<Value, OperatingError> {
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

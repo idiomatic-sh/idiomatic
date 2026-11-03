@@ -13,6 +13,8 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
         Operation::SpanBetween { from, .. }
         | Operation::SpanBounds { from, .. }
         | Operation::SourceMatches { from, .. }
+        | Operation::RenderSyntax { from, .. }
+        | Operation::FitsRendered { from, .. }
         | Operation::Replace { from, .. }
         | Operation::Select { from, .. }
         | Operation::Project { from, .. }

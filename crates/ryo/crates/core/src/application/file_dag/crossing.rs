@@ -64,6 +64,7 @@ pub(crate) fn cross_rule(
     let hosted = hosted_tables(crossing, plan, cross);
     let table = {
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: bound,

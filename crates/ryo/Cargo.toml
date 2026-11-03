@@ -27,6 +27,7 @@ license = "MIT"
 repository = "https://github.com/idiomatic-sh/idiomatic"
 
 [workspace.dependencies]
+unicode-width = "=0.2.2"
 wait4 = "=0.2.0"
 sha2 = "=0.10.9"
 ignore = "=0.4.33"

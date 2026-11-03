@@ -93,6 +93,7 @@ fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
         let mut scratch = OperatorScratch::default();
         let mut memo = vec![];
         let mut context = OperatorContext {
+            semantic: None,
             prepared_matchers: None,
             prepared_kinds: None,
             bindings: &[],
@@ -182,6 +183,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let mut scratch = OperatorScratch::default();
     let mut memo = vec![];
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],
@@ -312,6 +314,7 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
     let mut scratch = OperatorScratch::default();
     let mut memo = vec![];
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],

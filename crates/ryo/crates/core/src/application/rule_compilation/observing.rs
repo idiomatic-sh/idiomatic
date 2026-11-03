@@ -51,6 +51,8 @@ fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<Prefix> {
         | Operation::Hosted { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. } => return None,
     };
     let (relation, mut chosen, columns) = match from {

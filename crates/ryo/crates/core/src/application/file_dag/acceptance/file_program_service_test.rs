@@ -76,6 +76,7 @@ fn global_dag_keeps_a_prefix_with_one_reader_per_rule() {
     let mut scratch = OperatorScratch::default();
     for (rule, plan) in plans.iter().enumerate() {
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],
@@ -143,6 +144,7 @@ fn failed_pure_cut_is_never_published_or_replayed() {
     let mut scratch = OperatorScratch::default();
     for (rule, plan) in plans.iter().enumerate() {
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],
@@ -249,6 +251,7 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
     for (rule, plan) in plans.iter().enumerate() {
         let mut pool = pool_for(std::slice::from_ref(plan));
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],
@@ -288,6 +291,7 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         let mut pool = pool_for(std::slice::from_ref(plan));
         let mut ordinary = PreparedPool::default();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],
@@ -430,6 +434,7 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

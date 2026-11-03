@@ -74,6 +74,7 @@ fn evaluate(spans: &[Span]) -> Result<Vec<Value>, OperatingError> {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -163,6 +164,7 @@ fn equal_offsets_from_distinct_files_keep_both_file_identities() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

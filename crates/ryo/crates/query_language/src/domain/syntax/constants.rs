@@ -10,10 +10,12 @@ use ryo_values::domain::plans::types::ParameterType;
 use ryo_values::domain::plans::types::QueryOperator;
 
 /// Every operator, in the order the language documents them.
-pub(crate) const OPERATORS: [QueryOperator; 23] = [
+pub(crate) const OPERATORS: [QueryOperator; 25] = [
     QueryOperator::SpanBetween,
     QueryOperator::SpanBounds,
     QueryOperator::SourceMatches,
+    QueryOperator::RenderSyntax,
+    QueryOperator::FitsRendered,
     QueryOperator::Replace,
     QueryOperator::OrderedMatch,
     QueryOperator::OrderedDfs,
@@ -46,6 +48,8 @@ pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
         QueryOperator::SpanBetween => "span-between",
         QueryOperator::SpanBounds => "span-bounds",
         QueryOperator::SourceMatches => "source-matches",
+        QueryOperator::RenderSyntax => "render-syntax",
+        QueryOperator::FitsRendered => "fits-rendered",
         QueryOperator::Replace => "replace",
         QueryOperator::OrderedMatch => "ordered-match",
         QueryOperator::OrderedDfs => "ordered-dfs",
@@ -81,6 +85,12 @@ pub(crate) fn operator_named(text: &str) -> Option<QueryOperator> {
 #[must_use]
 pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
     match slot {
+        ArgumentSlot::Node => "node",
+        ArgumentSlot::Context => "context",
+        ArgumentSlot::MaxLine => "max-line",
+        ArgumentSlot::TabWidth => "tab-width",
+        ArgumentSlot::Texts => "texts",
+        ArgumentSlot::Literals => "literals",
         ArgumentSlot::Start => "start",
         ArgumentSlot::End => "end",
         ArgumentSlot::Span => "span",

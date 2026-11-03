@@ -41,6 +41,7 @@ fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let (mut symbols, mut scratch, mut memo) =
         (Symbols::default(), OperatorScratch::default(), vec![]);
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

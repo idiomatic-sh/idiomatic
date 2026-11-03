@@ -11,6 +11,7 @@ use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::relations::types::CellKind;
 use ryo_language::domain::relations::types::Value;
+use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
@@ -18,6 +19,13 @@ use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 use crate::domain::table_groups::types::ValueHash;
+
+/// An application-owned, file-scoped semantic demand port. Operators borrow it;
+/// they never own a provider session or its cache.
+pub(crate) trait SemanticLookup: std::fmt::Debug {
+    /// Resolve demanded keys in order, reusing bounded file-scoped answers.
+    fn render_batch(&self, requests: &[RenderRequest], source: &[u8]) -> Result<Vec<RenderOutcome>, OperatingError>;
+}
 
 /// The families of comparison a `select` tests with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -45,6 +53,8 @@ pub(crate) enum Family {
 /// names; language fact readers alone own source-name interning.
 #[derive(Debug)]
 pub(crate) struct OperatorContext<'a> {
+    /// The current file's application-owned semantic session, when available.
+    pub semantic: Option<&'a dyn SemanticLookup>,
     /// Finite authored literal matchers owned by this worker's prepared request.
     pub prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,

@@ -171,6 +171,8 @@ impl<'a> DemandClosure<'a> {
             | Operation::Hosted { .. }
             | Operation::SpanBounds { .. }
             | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
             | Operation::SpanBetween { .. } => None,
         }
     }
@@ -272,6 +274,8 @@ fn graph_source(
             | Operation::Hosted { .. }
             | Operation::SpanBounds { .. }
             | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
             | Operation::SpanBetween { .. } => None,
         };
         let Some((from, columns)) = view else {
@@ -344,6 +348,8 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
                     | Operation::Hosted { .. }
                     | Operation::SpanBounds { .. }
                     | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
                     | Operation::SpanBetween { .. } => return false,
                 };
             }

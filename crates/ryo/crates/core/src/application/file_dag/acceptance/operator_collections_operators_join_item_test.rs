@@ -99,6 +99,7 @@ fn made(
 ) -> Result<Table, OperatingError> {
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -475,6 +476,7 @@ fn stream_with_prepared_indexes(
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -1044,6 +1046,7 @@ fn made_with_indexes(
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -1647,6 +1650,7 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

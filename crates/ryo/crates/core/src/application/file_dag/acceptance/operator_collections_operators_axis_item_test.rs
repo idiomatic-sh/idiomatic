@@ -71,6 +71,7 @@ fn compute(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings,
@@ -169,6 +170,7 @@ fn over_the_tree(
     ];
     let mut out = Table::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
@@ -367,6 +369,7 @@ fn sparse_computed_walk_work_is_rooted() -> Result<Value, OperatingError> {
             ];
             let mut out = Table::default();
             let mut context = OperatorContext {
+                semantic: None,
                 prepared_kinds: None,
                 prepared_matchers: None,
                 bindings: &[],
@@ -534,6 +537,7 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
         let mut actual = Table::default();
         {
             let mut context = OperatorContext {
+                semantic: None,
                 prepared_kinds: None,
                 prepared_matchers: None,
                 bindings: &[],
@@ -559,6 +563,7 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
         }
         {
             let mut context = OperatorContext {
+                semantic: None,
                 prepared_kinds: None,
                 prepared_matchers: None,
                 bindings: &[],

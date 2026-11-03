@@ -49,6 +49,8 @@ impl<'a> TraversalSchema<'a> {
             | Operation::Words { .. }
             | Operation::SpanBounds { .. }
             | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
             | Operation::SpanBetween { .. }
             | Operation::Closure { .. }
             | Operation::Cycles { .. }

@@ -150,6 +150,28 @@ pub(crate) fn modes(
             PhysicalSourceText,
             0,
         ),
+        OperationKind::RenderSyntax => (
+            ModeContract {
+                publication: AfterSuccess,
+                held_publication: AfterSuccess,
+                ..views(Unary)
+            },
+            views(Unary),
+            ResourceNeeds::None,
+            DerivedText,
+            0,
+        ),
+        OperationKind::FitsRendered => (
+            ModeContract {
+                publication: AfterSuccess,
+                held_publication: AfterSuccess,
+                ..row(0, Unary)
+            },
+            views(Unary),
+            ResourceNeeds::None,
+            PhysicalSourceText,
+            0,
+        ),
         OperationKind::SpanBounds => (row(0, Unary), views(Unary), ResourceNeeds::None, Pure, 0),
     }
 }

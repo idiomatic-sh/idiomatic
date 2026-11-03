@@ -43,6 +43,7 @@ use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::StoredFileNumber;
 
 use crate::domain::rules::service::governing;
+use crate::domain::rules::errors::RulesError;
 
 use crate::domain::visit::service::lines_in;
 use crate::domain::visit::types::{BorrowedBytes, Keeping};
@@ -345,6 +346,7 @@ impl FileAnalysis {
         worker: &mut Worker,
         visit: &FileVisit<'_>,
         file: FileId,
+        semantic: &super::semantic::SemanticState,
     ) -> Result<(), FileAnalysisError> {
         let _route_counts =
             crate::application::file_dag::route_counts::FileScope::begin(file.0 as usize);
@@ -550,6 +552,7 @@ impl FileAnalysis {
             None,
             file_dag.as_ref(),
             &classes,
+            semantic,
         );
         if let Some(started) = rules_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
@@ -596,6 +599,7 @@ impl FileAnalysis {
             &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
         >,
         classes: &crate::domain::shared_walk::types::SharedClasses,
+        semantic: &super::semantic::SemanticState,
     ) -> Result<(), FileAnalysisError> {
         for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
             if governs_rule(tables, rule) == Governing::DoesNotGovern {
@@ -655,6 +659,7 @@ impl FileAnalysis {
                 file_dag.map::<&dyn crate::application::file_dag::interface::DagExecution, _>(
                     |dag| dag,
                 ),
+                Some(semantic),
             );
             let outcome = match refused.take() {
                 Some(error) => Err(FileAnalysisError::from(error)),
@@ -670,7 +675,33 @@ impl FileAnalysis {
                     outcome = if outcome.is_ok() { "ok" } else { "error" },
                 );
             }
-            let mut frontier = outcome?;
+            let mut frontier = match outcome {
+                Ok(frontier) => frontier,
+                Err(FileAnalysisError::Rules(RulesError::SemanticIncomplete { id, reason })) => {
+                    let path = visit
+                        .setting
+                        .paths
+                        .get(usize::try_from(file.0).unwrap_or(usize::MAX))
+                        .ok_or(FileAnalysisError::Rules(RulesError::SemanticIncomplete {
+                            id: id.clone(),
+                            reason: reason.clone(),
+                        }))?;
+                    tables.unknowns.push(crate::domain::coverage::types::Unknown {
+                        rule: id,
+                        path: path.clone(),
+                        message: crate::domain::coverage::types::Message(reason.into()),
+                    });
+                    semantic.mark_incomplete();
+                    if let Some(program) = file_program.as_deref_mut() {
+                        program.finish_rule(rule.0);
+                    }
+                    if let Some(dag) = file_dag {
+                        dag.borrow_mut().finish_rule(rule.0);
+                    }
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
             let inputs = visit
                 .setting
                 .plans
@@ -1013,12 +1044,38 @@ impl FileAnalysis {
             everything,
             active_wanted.as_ref(),
         );
+        let semantic_needed = setting.plans.iter().any(|plan| {
+            plan.steps.iter().any(|step| {
+                matches!(step.operation, ryo_values::domain::plans::types::Operation::RenderSyntax { .. })
+            })
+        });
+        let session = if semantic_needed {
+            worker.tables.language.and_then(|language| {
+                let source = FileToRead {
+                    source_language: setting.source_language,
+                    path: &file.path,
+                    file: number,
+                    bytes: &worker.tables.bytes,
+                    wanted: setting.wanted,
+                    notes: setting.noted.into(),
+                    roles: setting.roled.into(),
+                };
+                self.language.begin_semantics(language, source, &worker.tables.elements)
+            })
+        } else {
+            None
+        };
+        let semantic = super::semantic::SemanticState::new(number, &worker.tables.elements, session);
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
-                Self::read_file(worker, visit, number)?;
-                self.recorded(worker, visit, number, base)
-                    .map(FileOutcome::Read)
+                Self::read_file(worker, visit, number, &semantic)?;
+                if semantic.is_incomplete() {
+                    None
+                } else {
+                    self.recorded(worker, visit, number, base)
+                        .map(FileOutcome::Read)
+                }
             }
             unread @ (FileReading::Failed(_) | FileReading::Unsupported) => {
                 // What no language read has no tree and no names; the rules that ask for the file still run.
@@ -1035,7 +1092,7 @@ impl FileAnalysis {
                 if asked.any == EngineRows::Asked {
                     clear_symbols(&mut worker.tables.symbols);
                     index_kinds(&mut worker.tables.elements);
-                    Self::read_file(worker, visit, number)?;
+                    Self::read_file(worker, visit, number, &semantic)?;
                 } else {
                     let unavailable_acceptance = syntax_acceptance(&worker.tables.elements);
                     if Self::may_gate_rules(setting, unavailable_acceptance) {
@@ -1052,12 +1109,17 @@ impl FileAnalysis {
                     (Answering::Findings, EngineRows::NotAsked) => {
                         Some(FileOutcome::Unread { reason, ran: None })
                     }
-                    (Answering::Findings, EngineRows::Asked) => self
-                        .recorded(worker, visit, number, base)
-                        .map(|ran| FileOutcome::Unread {
-                            reason,
-                            ran: Some(ran),
-                        }),
+                    (Answering::Findings, EngineRows::Asked) => {
+                        if semantic.is_incomplete() {
+                            None
+                        } else {
+                            self.recorded(worker, visit, number, base)
+                                .map(|ran| FileOutcome::Unread {
+                                    reason,
+                                    ran: Some(ran),
+                                })
+                        }
+                    }
                 }
             }
         })

@@ -148,6 +148,10 @@ impl From<RulesError> for LintError {
                 id: id.0.to_string(),
                 reason,
             },
+            RulesError::SemanticIncomplete { id, reason } => Self::Rule {
+                id: id.0.to_string(),
+                reason,
+            },
         }
     }
 }

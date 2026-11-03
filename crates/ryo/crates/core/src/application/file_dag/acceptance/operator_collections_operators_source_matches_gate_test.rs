@@ -64,6 +64,7 @@ fn run(source_span: Option<Span>, line: i64, stream: bool) -> (Result<(), Operat
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: Some(&prepared),
         bindings: &[],

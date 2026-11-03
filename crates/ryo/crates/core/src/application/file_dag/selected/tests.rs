@@ -62,6 +62,7 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],

@@ -142,6 +142,7 @@ pub(super) fn evaluate(
         .map(|axis| axis.view())
         .transpose()?;
     let views = PrimitiveViews {
+        semantic: context.semantic,
         paths: context.paths,
         arenas: context.arenas,
         source: context.source,
@@ -227,6 +228,7 @@ struct OutputBridge<'a> {
 impl RowSink for OutputBridge<'_> {
     fn row(&mut self, lease: &mut PrimitiveLease<'_>, row: &[Value]) -> Result<(), OperatingError> {
         let mut context = OperatorContext {
+            semantic: None,
             prepared_matchers: self.prepared_matchers,
             prepared_kinds: self.prepared_kinds,
             bindings: self.bindings,

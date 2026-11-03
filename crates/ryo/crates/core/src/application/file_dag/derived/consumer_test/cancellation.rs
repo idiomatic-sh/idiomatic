@@ -72,6 +72,7 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         let (mut symbols, mut scratch, mut memo) =
             (Symbols::default(), OperatorScratch::default(), vec![]);
         let mut context = OperatorContext {
+            semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &[],

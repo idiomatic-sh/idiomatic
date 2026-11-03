@@ -45,6 +45,12 @@ pub(crate) fn lower_call(
         QueryOperator::SourceMatches => {
             crate::domain::substituting::service::call_source_matches(builder, name, call)?;
         }
+        QueryOperator::RenderSyntax => {
+            crate::domain::substituting::service::call_render_syntax(builder, name, call)?;
+        }
+        QueryOperator::FitsRendered => {
+            crate::domain::substituting::service::call_fits_rendered(builder, name, call)?;
+        }
         QueryOperator::SpanBounds => {
             crate::domain::substituting::service::call_span_bounds(builder, name, call)?;
         }

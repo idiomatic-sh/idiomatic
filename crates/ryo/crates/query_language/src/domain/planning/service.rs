@@ -24,6 +24,8 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
         plans::Operation::SpanBetween { from, .. }
         | plans::Operation::SpanBounds { from, .. }
         | plans::Operation::SourceMatches { from, .. }
+        | plans::Operation::RenderSyntax { from, .. }
+        | plans::Operation::FitsRendered { from, .. }
         | plans::Operation::Replace { from, .. }
         | plans::Operation::Select { from, .. }
         | plans::Operation::Project { from, .. }
@@ -105,6 +107,8 @@ pub(crate) fn scope_of(
         plans::Operation::SpanBetween { .. }
         | plans::Operation::SpanBounds { .. }
         | plans::Operation::SourceMatches { .. }
+        | plans::Operation::RenderSyntax { .. }
+        | plans::Operation::FitsRendered { .. }
         | plans::Operation::Replace { .. }
         | plans::Operation::Select { .. }
         | plans::Operation::Extend { .. }

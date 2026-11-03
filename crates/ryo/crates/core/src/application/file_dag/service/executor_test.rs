@@ -119,6 +119,7 @@ fn dag_root_and_recursive_child_use_injected_executor() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],

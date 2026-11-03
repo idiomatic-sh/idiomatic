@@ -6,6 +6,15 @@ use ryo_values::domain::program::types::{QueryOrigin, QuerySpan};
 /// Why a program does not lower to a plan.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum LoweringError {
+    /// A semantic rendering or display-width call has an extra or repeated argument.
+    #[error("semantic call has an extra or repeated argument `{name}`")]
+    SemanticArgument { name: String, span: QuerySpan },
+    /// Semantic rendering and physical line width require per-file input.
+    #[error("semantic call requires per-file input")]
+    CrossFileSemantic { span: QuerySpan },
+    /// The requested rendering role or physical line width is invalid.
+    #[error("semantic call has an invalid context or width")]
+    InvalidSemanticLiteral { span: QuerySpan },
     /// A span endpoint projection has an extra or repeated named argument.
     #[error("span-bounds has an extra or repeated argument `{name}`")]
     SpanBoundsArgument { name: String, span: QuerySpan },

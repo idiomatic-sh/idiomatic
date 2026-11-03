@@ -205,6 +205,7 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
         let mut scratch = OperatorScratch::default();
         let mut memo = Vec::new();
         let mut context = OperatorContext {
+            semantic: None,
             prepared_matchers: None,
             prepared_kinds: None,
             bindings: &case.bindings,
@@ -426,6 +427,7 @@ fn partial_route(
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],
@@ -519,6 +521,7 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,
         bindings: &[],

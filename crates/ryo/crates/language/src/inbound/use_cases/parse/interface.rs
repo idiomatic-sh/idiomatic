@@ -10,6 +10,7 @@ use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedD
 use crate::domain::answers::types::{Reader, Support};
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
 use crate::domain::relations::types::Count;
+use crate::domain::semantics::interface::SemanticSession;
 use crate::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::Recognition;
 
@@ -36,6 +37,16 @@ pub trait ParseUseCase: Send + Sync {
 
     /// Canonical immutable parser settings that can change the tree or diagnostics.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
+
+    /// Begin an owned semantic session for this file after its element table has been built.
+    /// The default explicitly leaves semantic rendering unsupported.
+    fn begin_semantics(
+        &self,
+        _request: &ParseRequest<'_>,
+        _tree: &crate::domain::elements::types::Elements,
+    ) -> Option<Box<dyn SemanticSession>> {
+        None
+    }
 
     /// What the language works out of a file once, when it parses it, for its readers to read: an index of the file, so that no reader
     /// searches the file again for each element it is given. A language that works out nothing has `()`. The engine makes one for each

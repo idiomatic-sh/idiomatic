@@ -526,6 +526,7 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
         &Default::default(),
         None,
         Some(&dag),
+        None,
     )
     .expect("first rule");
     // Pure metadata layout acquires no index; only the actual rule execution does.
@@ -559,6 +560,7 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
         &Default::default(),
         None,
         Some(&dag),
+        None,
     )
     .expect("second rule");
     assert_eq!(second_frontier.first(), Some(first));
@@ -855,6 +857,7 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
             &Default::default(),
             None,
             Some(&dag),
+            None,
         )
         .is_err()
     );
@@ -877,6 +880,7 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
         &Default::default(),
         None,
         Some(&dag),
+        None,
     )
     .expect("fresh invocation");
     assert_eq!(frontier[0].count.0, 4);

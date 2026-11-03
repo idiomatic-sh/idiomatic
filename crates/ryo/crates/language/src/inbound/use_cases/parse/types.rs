@@ -10,6 +10,7 @@ use crate::domain::relations::types::{Count, KindBits, Relation, RowWriter};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::domain::terms::types::UnknownName;
+use crate::domain::semantics::interface::SemanticSession;
 
 /// The canonical, immutable identity of parser settings that can change the tree or diagnostics.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -147,6 +148,13 @@ pub trait ParseEngine: Send + Sync {
 
     /// Canonical parser settings included in persisted-result cache identity.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
+
+    /// Begin this provider's owned semantic session for one built file.
+    fn begin_semantics(
+        &self,
+        request: &ParseRequest<'_>,
+        tree: &Elements,
+    ) -> Option<Box<dyn SemanticSession>>;
 
     /// Whether the language reads the file in `request`.
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition;

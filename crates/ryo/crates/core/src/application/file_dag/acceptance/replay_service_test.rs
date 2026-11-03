@@ -22,6 +22,7 @@ const SOURCE: &[u8] = b"replayed";
 fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
     let mut symbols = Symbols::default();
     run(&mut OperatorContext {
+        semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings: &[],
