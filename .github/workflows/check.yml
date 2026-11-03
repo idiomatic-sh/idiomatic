@@ -167,8 +167,11 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
+          prefix-key: v1-rust-workspace
+          cache-workspace-crates: true
           shared-key: ${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}
           save-if: true
+          cache-on-failure: true
           workspaces: |
             crates/asymptote -> ../../target
             crates/tastemaker -> ../../target
@@ -188,18 +191,67 @@ jobs:
           # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
           GH_TOKEN: ${{ github.token }}
       - run: asymptote check --root crates/${{ matrix.product }} --groups ${{ matrix.check.group }}
-  # The product gate also requires the independent speed guard. The Ruff full inventory records parity separately.
-  # The one check branch protection requires: it fails when a job it waits for failed or was cancelled, and passes when each
-  # succeeded or was skipped, a product the change does not reach.
+  # The product gate also requires the independent speed and Ruff authoring guards. The strict full inventory records parity
+  # separately and remains a release acceptance requirement while rules are still being implemented.
   gate:
-    needs: [changes, root, check, speed]
+    needs: [changes, root, check, speed, ruff-candidates]
     if: always()
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: root, check
+          allowed-skips: root, check, ruff-candidates
+  ruff-candidates:
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.products), 'ryo')
+    runs-on: ubuntu-26.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-bin: false
+          prefix-key: v1-rust-workspace
+          cache-workspace-crates: true
+          shared-key: ubuntu-26.04-check-ryo
+          save-if: true
+          cache-on-failure: true
+          workspaces: |
+            crates/asymptote -> ../../target
+            crates/tastemaker -> ../../target
+            crates/ryo -> ../../target
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: Install pinned tools
+        run: uv run --script tools/install.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: asymptote check --root crates/ryo --groups ruff-candidates
   speed:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-26.04
@@ -232,12 +284,13 @@ jobs:
           # Refresh dependency-only archives once; retain reusable workspace libraries too.
           prefix-key: v1-rust-workspace
           cache-workspace-crates: true
-          shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          save-if: false
-          # One owner cleans the shared target: sequential workspace cleanups
-          # otherwise discard one another's libraries. Prioritize Ryo artifacts;
-          # the shared key above still binds every Cargo.lock.
-          workspaces: crates/ryo -> ../../target
+          shared-key: ubuntu-26.04-check-ryo
+          save-if: true
+          cache-on-failure: true
+          workspaces: |
+            crates/asymptote -> ../../target
+            crates/tastemaker -> ../../target
+            crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache
@@ -338,9 +391,13 @@ jobs:
           cache-bin: false
           prefix-key: v1-rust-workspace
           cache-workspace-crates: true
-          shared-key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          save-if: false
-          workspaces: crates/ryo -> ../../target
+          shared-key: ubuntu-26.04-check-ryo
+          save-if: true
+          cache-on-failure: true
+          workspaces: |
+            crates/asymptote -> ../../target
+            crates/tastemaker -> ../../target
+            crates/ryo -> ../../target
       - id: cargo_bin_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

@@ -63,7 +63,7 @@ FULL_INVENTORY_ACTIONS = [
     ("actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "575dd3621a9046d2565240ed6cd1a03f836bdb30bf621ee41116f601aa13b2c1"),
     ("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "4ff5f58fc47d55df93511f6dfea5db27c569b98f43b84e380960801b15c1761d"),
     ("astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", "39393228bcaf4b2e15bc14f2fadb3501c81f8966ef57502f9be19f86dbc3fa10"),
-    ("Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "755d22b015494a0d8c94f1451c0b25c86f0ae5a7b598351f6ee54ddea60d5efd"),
+    ("Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "f0d36acf2fb55a0aadcadf4b1f08b4ded0dc036fc0fd2f97abdeaf9addd54d1c"),
     ("actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "c8ee43c3c99e776f1742d16763c36999907144bc3b69900a90461778414a683e"),
     ("actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "109b67da612eaa7e25df38fbc0f69727c3f6bdfc18638720ec49c2e924c7ab2b"),
     ("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9", "b9cf3ef4ae00784578aec3c3df418ccd2be3bec3c9518457e0c5f8d60856b14f"),
@@ -761,7 +761,7 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
     }
     assert workflow["concurrency"] == {"group": "check-${{ github.event.pull_request.number || github.ref }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
-    assert set(jobs) == {"changes", "root", "check", "gate", "speed", "ruff-all-defaults"}
+    assert set(jobs) == {"changes", "root", "check", "gate", "speed", "ruff-candidates", "ruff-all-defaults"}
     (filter,) = jobs["changes"]["steps"]
     assert filter["uses"].startswith("dorny/paths-filter@") and filter["with"]["predicate-quantifier"] == "some-with-excludes"
     filters = yaml.safe_load(filter["with"]["filters"])
@@ -800,10 +800,59 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
             step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
         ]
     gate = jobs["gate"]
-    assert gate["if"] == "always()" and gate["needs"] == ["changes", "root", "check", "speed"]
+    assert gate["if"] == "always()" and gate["needs"] == ["changes", "root", "check", "speed", "ruff-candidates"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
-    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "root, check"}
+    assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "root, check, ruff-candidates"}
+
+
+def ruff_candidates_covered(workflow: dict) -> bool:
+    """The authored Ruff subset has a real Linux runner and a required gate edge."""
+    jobs = workflow["jobs"]
+    job = jobs.get("ruff-candidates")
+    if job is None:
+        return False
+    return (
+        job.get("needs") == "changes"
+        and job.get("if") == "contains(fromJSON(needs.changes.outputs.products), 'ryo')"
+        and job.get("runs-on") == "ubuntu-26.04"
+        and [step["run"] for step in job["steps"] if "asymptote check" in step.get("run", "")]
+        == ["asymptote check --root crates/ryo --groups ruff-candidates"]
+        and "ruff-candidates" in jobs["gate"]["needs"]
+        and "ruff-candidates" in jobs["gate"]["steps"][0]["with"]["allowed-skips"].split(", ")
+    )
+
+
+def test_ruff_authoring_guard_cannot_be_orphaned_by_product_selection() -> None:
+    tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
+    assert any(tool["id"] == "correctness-python-ruff-candidates" and tool["group"] == "ruff-candidates" for tool in tools)
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert ruff_candidates_covered(workflow)
+    missing = deepcopy(workflow)
+    missing["jobs"].pop("ruff-candidates")
+    detached = deepcopy(workflow)
+    detached["jobs"]["gate"]["needs"].remove("ruff-candidates")
+    skipped = deepcopy(workflow)
+    skipped["jobs"]["ruff-candidates"]["if"] = "false"
+    wrong_group = deepcopy(workflow)
+    command = next(step for step in wrong_group["jobs"]["ruff-candidates"]["steps"] if "asymptote check" in step.get("run", ""))
+    command["run"] = "asymptote check --root crates/ryo --groups check"
+    assert all(not ruff_candidates_covered(changed) for changed in (missing, detached, skipped, wrong_group))
+
+
+def test_rust_build_cache_has_compatible_writers_even_when_parity_fails() -> None:
+    jobs = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]
+    expected_workspaces = "crates/asymptote -> ../../target\ncrates/tastemaker -> ../../target\ncrates/ryo -> ../../target\n"
+    for name in ("check", "speed", "ruff-candidates", "ruff-all-defaults"):
+        cache = next(step for step in jobs[name]["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
+        assert cache["prefix-key"] == "v1-rust-workspace"
+        assert cache["cache-workspace-crates"] is True
+        assert cache["workspaces"] == expected_workspaces
+        assert cache["save-if"] is True and cache["cache-on-failure"] is True
+        assert cache["shared-key"] == (
+            "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}" if name == "check"
+            else "ubuntu-26.04-check-ryo"
+        )
 
 
 def release_check() -> dict:
