@@ -244,11 +244,14 @@ fn subject_with_counting(
         assert_eq!(compact.steps[2], baseline.steps[2]);
         assert_eq!(compact.frontier, baseline.frontier);
         assert_eq!(compact.steps[2].count.0, 8);
-        assert!(compact.selected[0].is_some());
         if counting == crate::domain::lowering::types::Counting::Counts {
+            assert!(
+                compact.selected[0].is_none(),
+                "counted work uses the ordinary materialized input path"
+            );
             assert_eq!(
                 prepared.fed, baseline_prepared.fed,
-                "selected-input work is counted exactly once"
+                "counted fallback preserves the ordinary input work"
             );
             assert!(
                 prepared
@@ -258,26 +261,28 @@ fn subject_with_counting(
                     .any(|rows| rows.0.iter().any(|count| *count > 0)),
                 "the counted path must record actual fed rows"
             );
+        } else {
+            assert!(compact.selected[0].is_some());
+            assert!(compact.steps[0].cells.is_empty());
+            assert!(compact.steps[1].cells.is_empty());
+            assert_eq!(
+                frame
+                    .borrow()
+                    .relations
+                    .derived
+                    .retained_predicate_rows()
+                    .expect("owner retains predicate IDs"),
+                8,
+                "shared IDs remain predicate-only"
+            );
+            assert!(
+                compact
+                    .rooms
+                    .iter()
+                    .flatten()
+                    .all(|room| room.held.iter().all(|table| table.cells.is_empty()))
+            );
         }
-        assert!(compact.steps[0].cells.is_empty());
-        assert!(compact.steps[1].cells.is_empty());
-        assert_eq!(
-            frame
-                .borrow()
-                .relations
-                .derived
-                .retained_predicate_rows()
-                .expect("owner retains predicate IDs"),
-            8,
-            "shared IDs remain predicate-only"
-        );
-        assert!(
-            compact
-                .rooms
-                .iter()
-                .flatten()
-                .all(|room| room.held.iter().all(|table| table.cells.is_empty()))
-        );
         let frontier = std::mem::take(&mut compact.frontier);
         drop(compact);
         compact = pool_for(&plans);
@@ -287,8 +292,10 @@ fn subject_with_counting(
             "application-owned output outlives its rule workspace"
         );
     }
-    assert_eq!(frame.borrow().relations.derived.selection_counts().0, 1);
-    assert!(frame.borrow().relations.derived.selection_counts().1 >= 3);
+    if counting == crate::domain::lowering::types::Counting::DoesNotCount {
+        assert_eq!(frame.borrow().relations.derived.selection_counts().0, 1);
+        assert!(frame.borrow().relations.derived.selection_counts().1 >= 3);
+    }
     readable.set(false);
     let refused = {
         let mut actual = OperatorContext {
