@@ -10,7 +10,8 @@ use super::super::{
     ledger::Backing,
 };
 use super::*;
-use crate::domain::stored_graph::types::{CompactGraph, GraphDomain};
+use crate::domain::stored_graph::types::GraphDomain;
+use ryo_derived::domain::contract::types::CompactGraph;
 impl DerivedOwner {
     pub(in crate::application::file_dag::derived) fn retain_graph(
         &self,

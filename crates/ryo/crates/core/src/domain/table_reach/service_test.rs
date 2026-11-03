@@ -10,7 +10,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{index, push_row};
-use crate::domain::table_model::types::{KeyIndex, On};
+
+use ryo_derived::domain::contract::types::{KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// A scenario: what a row asks of the part.

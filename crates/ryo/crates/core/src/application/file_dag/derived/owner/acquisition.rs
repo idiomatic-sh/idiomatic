@@ -70,54 +70,27 @@ impl DerivedOwner {
             context,
             stored.is_some(),
             cache,
-            |mut cache| {
-                let mut storage = DerivedStorage::Unbuilt;
-                let (built, backend) =
-                    if let (DerivedKind::Equality, Some((relation, source)), Some(cache)) =
-                        (plan.kind, stored, cache.as_deref_mut())
-                    {
-                        let ViewRequest::Equality { columns } = &plan.request else {
-                            return Err(OperatingError::WrongOperation);
-                        };
-                        let mut index = crate::domain::table_model::types::KeyIndex::default();
-                        let acquired = indexes::acquire(
-                            route, plan, cache, relation, source, columns, &mut index,
-                        )?;
-                        if let Some(slot) = acquired.slot {
-                            let entry = cache.entries.get(slot).ok_or(OperatingError::NotRun)?;
-                            if entry.payload_lease.is_none() {
-                                let backing = backings::shared_index(&entry.index)?;
-                                let ledger = self.ledger.borrow();
-                                let allowed = ledger.snapshot().view_optional_bytes
-                                    .checked_add(ledger.incremental_optional_bytes(&[backing])?)
-                                    .is_some_and(|bytes| bytes <= cache.limit);
-                                drop(ledger);
-                                if allowed {
-                                    cache.entries[slot].payload_lease = Some(self.optional_lease(&[backing])?);
-                                } else {
-                                    let removed = cache.entries.remove(slot);
-                                    let cost = crate::application::file_dag::derived::graph_cache::types::reclamation::value::index_payload(&removed)
-                                        .ok_or(OperatingError::ShapeMismatch)?;
-                                    cache.bytes = cache.bytes.checked_sub(cost).ok_or(OperatingError::ShapeMismatch)?;
-                                    cache.refusals += 1;
-                                    drop(removed);
-                                }
-                            }
-                        }
-                        storage = acquired.shared.map_or(
-                            DerivedStorage::Equality(index),
-                            DerivedStorage::EqualityShared,
-                        );
-                        (acquired.built, true)
-                    } else {
-                        route_counts::observe(
-                            route.label(),
-                            route_counts::derived(plan.kind),
-                            || registered(plan.kind).build(plan, inputs, &mut storage, scratch),
-                        )?;
-                        (true, false)
-                    };
-                Ok((storage, built, backend, true))
+            |cache| {
+                let allow_optional = match (stored, cache.as_deref()) {
+                    (Some((relation, _)), Some(cache)) if plan.kind == DerivedKind::Equality => {
+                        cache.eligible.contains(&relation)
+                    }
+                    (Some(_), None) if plan.kind == DerivedKind::Equality => false,
+                    _ => true,
+                };
+                let storage =
+                    route_counts::observe(route.label(), route_counts::derived(plan.kind), || {
+                        super::super::semantics::build(
+                            self.semantic_port(),
+                            plan,
+                            inputs,
+                            scratch,
+                            None,
+                        )
+                    })?
+                    .ok_or(OperatingError::WrongOperation)?;
+                // Optional retention is decided below by this owner, never by the kernel.
+                Ok((storage, true, false, allow_optional))
             },
         )
     }
@@ -246,13 +219,14 @@ impl DerivedOwner {
             }
         }
         let (storage, built, backend, allow_optional) = build(cache.as_deref_mut())?;
-        let _checked = registered(plan.kind).view(plan, &storage)?;
+        if stored_observation && plan.kind == DerivedKind::Equality {
+            if let Some(cache) = cache.as_deref_mut() {
+                cache.builds = cache.builds.saturating_add(u64::from(built));
+            }
+        }
+        let _checked = storage.view()?;
         let bytes = storage_bytes(&storage)?;
-        let backend_bytes = if let DerivedStorage::EqualityShared(index) = storage.as_ref() {
-            indexes::index_bytes(index).ok_or(OperatingError::ShapeMismatch)?
-        } else {
-            0
-        };
+        let backend_bytes = 0;
         let working = bytes.saturating_add(backend_bytes);
         let backings = backings::view(&storage)?;
         let handle = AcquiredView::new(
@@ -293,7 +267,6 @@ impl DerivedOwner {
                 && optional_bytes
                     .checked_add(additional_bytes)
                     .is_some_and(|bytes| bytes <= cache.limit)
-                && (!backend || matches!(storage.as_ref(), DerivedStorage::EqualityShared(_)))
                 && cache
                     .bytes
                     .checked_add(additional_bytes)
@@ -315,6 +288,13 @@ impl DerivedOwner {
             None
         };
         if let Some(cache) = cache.as_deref_mut() {
+            if stored_observation
+                && plan.kind == DerivedKind::Equality
+                && allow_optional
+                && retained.is_none()
+            {
+                cache.refusals = cache.refusals.saturating_add(1);
+            }
             if plan.kind == DerivedKind::PredicateMatches {
                 cache.selection_counts.builds += u64::from(built);
                 cache.selection_counts.reuses += u64::from(!built);

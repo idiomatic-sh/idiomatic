@@ -8,12 +8,11 @@ use crate::domain::operator::contract::{
 use crate::domain::table_model::types::Verdict;
 use crate::domain::tree_join::{
     collections::strategies::{
-        entity_vector::item::EntityVectorItem,
-        span_index::item::SpanIndexItem,
-        types::{Finding, NodeColumns},
+        entity_vector::item::EntityVectorItem, span_index::item::SpanIndexItem, types::NodeColumns,
     },
     service::tree_value,
 };
+use ryo_derived::domain::contract::types::Finding;
 use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted, OperatorCall};
 use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};

@@ -1,6 +1,6 @@
 //! Read-only physical inputs expose no owned cache or retained selection handle.
 
-use crate::domain::table_model::types::KeyIndex;
+use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -18,7 +18,7 @@ impl IndexedRows<'_> {
         self.matching(key).next().is_some()
     }
     pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
-        let hash = crate::domain::table_model::service::hash_key(key.iter().map(Some));
+        let hash = ryo_derived::domain::contract::key::hash_key(key.iter().map(Some));
         let bucket =
             usize::try_from(hash.0).unwrap_or(0) & self.index.heads.len().saturating_sub(1);
         KeyProbe {
@@ -28,11 +28,11 @@ impl IndexedRows<'_> {
                 .heads
                 .get(bucket)
                 .copied()
-                .unwrap_or(crate::domain::table_model::types::ChainLink(0)),
+                .unwrap_or(ryo_derived::domain::contract::types::ChainLink(0)),
         }
     }
     pub(crate) fn next_match(&self, key: &[Value], probe: &mut KeyProbe) -> Option<RowIndex> {
-        use crate::domain::table_model::types::ChainLink;
+        use ryo_derived::domain::contract::types::ChainLink;
         while probe.at.0 != 0 {
             let position = usize::try_from(probe.at.0 - 1).unwrap_or(usize::MAX);
             probe.at = self
@@ -64,8 +64,8 @@ impl IndexedRows<'_> {
 }
 /// Physical hash-chain position, independent of the caller-owned key buffer.
 pub(crate) struct KeyProbe {
-    hash: crate::domain::table_model::types::KeyCellsHash,
-    at: crate::domain::table_model::types::ChainLink,
+    hash: ryo_derived::domain::contract::types::KeyCellsHash,
+    at: ryo_derived::domain::contract::types::ChainLink,
 }
 pub(crate) struct MatchingRows<'a> {
     view: &'a IndexedRows<'a>,

@@ -1,16 +1,14 @@
 //! Ordered matching keys derived once from borrowed rows and textual values.
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::{
-        graph::{OrderedMatching, OwnedOrderedKey, OwnedOrderedRow},
-        views::BorrowedRows,
-    },
+    operator::contract::views::BorrowedRows,
     table_model::service::{cell, check_columns},
     table_texts::{
         service::datum,
         types::{Datum, Texts},
     },
 };
+use ryo_derived::domain::contract::types::{OrderedMatching, OwnedOrderedKey, OwnedOrderedRow};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

@@ -45,27 +45,6 @@ pub(crate) enum Orientation {
 }
 
 /// Complete owned adjacency: no borrowed provider rows, source bytes or symbol buffers.
-#[derive(Debug)]
-pub(crate) struct CompactGraph {
-    /// Exact cache identity, never a pointer/hash-only key.
-    pub identity: GraphIdentity,
-    /// Partition tuples, once each; the map keys share these Arc allocations.
-    pub partitions: Vec<Arc<[Value]>>,
-    /// Exact typed partition lookup.
-    pub partition_ids: hashbrown::HashMap<Arc<[Value]>, u32>,
-    /// Typed endpoint values by dense vertex ID.
-    pub vertices: Vec<Value>,
-    /// The partition owning each dense vertex.
-    pub vertex_partitions: Vec<u32>,
-    /// Exact typed vertex lookup within a partition.
-    pub vertex_ids: hashbrown::HashMap<(u32, Value), u32>,
-    /// Adjacency offsets, forward then reverse.
-    pub offsets: [Vec<u32>; 2],
-    /// Ordered neighbor IDs, preserving duplicate physical edges.
-    pub neighbors: [Vec<u32>; 2],
-    /// Single-successor acyclic parent maps when independently validated for each orientation.
-    pub forests: [Option<Vec<u32>>; 2],
-}
 
 /// One successful sorted positive-reach answer, bounded independently of required live traversal.
 

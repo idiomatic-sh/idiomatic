@@ -145,7 +145,7 @@ pub trait RowCells {
     fn bulk(&self) -> Option<BulkRows<'_>>;
 
     fn read_row<'a>(
-        &self,
+        &'a self,
         row: usize,
         buffer: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
     ) -> Option<&'a [ryo_relations::domain::relations::types::Value]> {
@@ -291,7 +291,7 @@ impl PreparedDerived {
 
 /// Adjacency carries semantic data only; exact population/generation identity is held by the engine.
 #[derive(Debug)]
-pub struct Adjacency {
+pub struct CompactGraph {
     pub(crate) partitions: Vec<Arc<[ryo_relations::domain::relations::types::Value]>>,
     pub(crate) partition_ids:
         hashbrown::HashMap<Arc<[ryo_relations::domain::relations::types::Value]>, u32>,
@@ -303,7 +303,7 @@ pub struct Adjacency {
     pub(crate) neighbors: [Vec<u32>; 2],
     pub(crate) forests: [Option<Vec<u32>>; 2],
 }
-impl Adjacency {
+impl CompactGraph {
     #[must_use]
     pub fn partition(
         &self,
@@ -411,7 +411,7 @@ pub enum NativeForm {
     Edges,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NativeFinding {
+pub enum Finding {
     Node(ColumnIndex, ColumnIndex),
     Stretch(ColumnIndex, ColumnIndex),
     Span(ColumnIndex),
@@ -519,19 +519,19 @@ pub trait ValueTexts {
     fn text(&self, value: ryo_relations::domain::relations::types::Value) -> Option<&str>;
 }
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum OrderedKey {
+pub enum OwnedOrderedKey {
     Text(String),
     Value(ryo_relations::domain::relations::types::Value),
 }
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct OrderedRow {
-    pub(crate) keys: Vec<OrderedKey>,
+pub struct OwnedOrderedRow {
+    pub(crate) keys: Vec<OwnedOrderedKey>,
     pub(crate) order: ryo_relations::domain::relations::types::Integer,
     pub(crate) row: RowIndex,
 }
-impl OrderedRow {
+impl OwnedOrderedRow {
     #[must_use]
-    pub fn keys(&self) -> &[OrderedKey] {
+    pub fn keys(&self) -> &[OwnedOrderedKey] {
         &self.keys
     }
     #[must_use]
@@ -545,23 +545,26 @@ impl OrderedRow {
 }
 #[derive(Debug)]
 pub struct OrderedMatching {
-    pub(crate) left: Vec<OrderedRow>,
-    pub(crate) right: Vec<OrderedRow>,
+    pub(crate) left: Vec<OwnedOrderedRow>,
+    pub(crate) right: Vec<OwnedOrderedRow>,
 }
 impl OrderedMatching {
     #[must_use]
-    pub fn left(&self) -> &[OrderedRow] {
+    pub fn left(&self) -> &[OwnedOrderedRow] {
         &self.left
     }
     #[must_use]
-    pub fn right(&self) -> &[OrderedRow] {
+    pub fn right(&self) -> &[OwnedOrderedRow] {
         &self.right
     }
 }
 
 /// Source text access and query-symbol storage are finite data services, not acquisition policy.
 pub trait CanonicalTexts: ValueTexts {
-    fn intern(&mut self, text: &str) -> ryo_relations::domain::relations::types::Value;
+    fn intern(
+        &mut self,
+        text: &str,
+    ) -> Result<ryo_relations::domain::relations::types::Value, DerivedFault>;
 }
 #[derive(Debug)]
 pub struct PreparedDfs {
@@ -569,8 +572,6 @@ pub struct PreparedDfs {
     pub(crate) edges: Table,
     pub(crate) root_index: KeyIndex,
     pub(crate) edge_index: KeyIndex,
-    pub(crate) root_order: Vec<RowIndex>,
-    pub(crate) edge_order: Vec<RowIndex>,
     pub(crate) root_columns: Vec<ColumnIndex>,
     pub(crate) edge_columns: Vec<ColumnIndex>,
     pub(crate) adjacency: Vec<std::ops::Range<usize>>,
@@ -594,11 +595,11 @@ impl PreparedDfs {
     }
     #[must_use]
     pub fn root_order(&self) -> &[RowIndex] {
-        &self.root_order
+        &self.root_index.sorted
     }
     #[must_use]
     pub fn edge_order(&self) -> &[RowIndex] {
-        &self.edge_order
+        &self.edge_index.sorted
     }
     #[must_use]
     pub fn root_columns(&self) -> &[ColumnIndex] {
@@ -625,14 +626,14 @@ pub(crate) enum PayloadData {
     PredicateMatches(SharedPositions),
     CandidatePostings(Vec<LiteralPostings>),
     DistinctRepresentatives(SharedPositions),
-    Adjacency(Arc<Adjacency>),
+    Adjacency(Arc<CompactGraph>),
     Membership(Membership),
     PartitionOrder(Vec<RowIndex>),
     ClosureAdjacency(Arc<ClosurePartition>),
     CycleAdjacency(Arc<CycleGraph>),
     OrderedKeys(Arc<OrderedMatching>),
     OrderedDfs(Arc<PreparedDfs>),
-    NativeLookup(NativeFinding),
+    NativeLookup(Finding),
     RawKeyOrder(Arc<RawOrder>),
 }
 /// Unsupported readable native/oversized layouts decline distinctly from faults.
@@ -646,14 +647,14 @@ pub enum DerivedView<'a> {
     Equality(&'a KeyIndex),
     RowIds(&'a [u32]),
     Postings(&'a [LiteralPostings]),
-    Adjacency(&'a Adjacency),
+    Adjacency(&'a CompactGraph),
     Membership(MembershipView<'a>),
     PartitionOrder(&'a [RowIndex]),
     ClosureAdjacency(&'a ClosurePartition),
     CycleAdjacency(&'a CycleGraph),
     OrderedKeys(&'a OrderedMatching),
     OrderedDfs(&'a PreparedDfs),
-    NativeLookup(&'a NativeFinding),
+    NativeLookup(&'a Finding),
     RawKeyOrder(&'a RawOrder),
 }
 pub enum DerivedInputs<'a> {
@@ -724,6 +725,14 @@ pub enum MembershipView<'a> {
     Dense(&'a [bool]),
 }
 impl DerivedPayload {
+    /// Capacity of the immutable typed ordering allocation, without lending its ownership.
+    #[must_use]
+    pub fn partition_order_capacity(&self) -> Option<usize> {
+        match &self.data {
+            PayloadData::PartitionOrder(rows) => Some(rows.capacity()),
+            _ => None,
+        }
+    }
     #[must_use]
     pub fn share_positions(&self) -> Option<SharedPositions> {
         match &self.data {
@@ -759,10 +768,17 @@ impl DerivedPayload {
         }
     }
     #[must_use]
-    pub fn share_adjacency(&self) -> Option<Arc<Adjacency>> {
+    pub fn share_adjacency(&self) -> Option<Arc<CompactGraph>> {
         match &self.data {
             PayloadData::Adjacency(data) => Some(Arc::clone(data)),
             _ => None,
         }
     }
+}
+
+/// Key-column vocabulary shared by immutable probes and derived builders.
+#[derive(Clone, Copy, Debug)]
+pub enum On<'a> {
+    Whole,
+    Columns(&'a [ColumnIndex]),
 }

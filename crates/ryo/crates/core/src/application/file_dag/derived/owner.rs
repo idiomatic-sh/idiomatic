@@ -1,5 +1,6 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use super::footprint::storage_bytes;
+use super::storage::DerivedStorage;
 use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{

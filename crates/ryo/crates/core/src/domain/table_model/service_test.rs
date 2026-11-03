@@ -17,9 +17,10 @@ use ryo_relations::domain::terms::types::NameText;
 
 use super::errors::TableModelError;
 use super::service::{cell, count_of, index, kinds_of, matching, push_row, read_row, reset};
-use super::types::{KeyIndex, On, Rows};
+use super::types::Rows;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_derived::domain::contract::types::{KeyIndex, On};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

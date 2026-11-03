@@ -27,7 +27,8 @@ use crate::domain::text_gate::service::{
 use crate::domain::tree_join::collections::strategies::entity_vector::item::EntityVectorItem;
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
-use crate::domain::tree_join::collections::strategies::types::{Finding, Fitting, NodeColumns};
+use crate::domain::tree_join::collections::strategies::types::{Fitting, NodeColumns};
+use ryo_derived::domain::contract::types::Finding;
 use ryo_language::domain::elements::service::{kind_at, parent_at, text_at};
 use ryo_operators::domain::contract::types::OperatorCall;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};

@@ -230,10 +230,9 @@ impl DerivedViewsItem for DistinctRepresentativesItem {
             };
             return Ok(());
         }
-        use crate::domain::table_model::{
-            service::{mix, word_of},
-            types::KeyCellsHash,
-        };
+
+        use ryo_derived::domain::contract::key::{mix, word_of};
+        use ryo_derived::domain::contract::types::KeyCellsHash;
         let mut seen = std::collections::HashMap::<KeyCellsHash, Vec<u32>>::new();
         let mut output = Vec::new();
         for &at in positions {

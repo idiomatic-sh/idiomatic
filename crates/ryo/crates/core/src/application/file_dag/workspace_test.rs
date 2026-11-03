@@ -175,7 +175,7 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
             panic!("ordered")
         };
         assert!(
-            matches!(rows.right[0].keys[0],crate::domain::operator::contract::graph::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
+            matches!(rows.right[0].keys[0],ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
         );
         retained_views.push(view);
     }
@@ -191,11 +191,11 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
     );
     assert!(matches!(
         first.right[0].keys[0],
-        crate::domain::operator::contract::graph::OwnedOrderedKey::Value(Value::Number(Integer(9)))
+        ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(9)))
     ));
     assert!(matches!(
         second.right[0].keys[0],
-        crate::domain::operator::contract::graph::OwnedOrderedKey::Value(Value::Number(Integer(4)))
+        ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(4)))
     ));
     assert_eq!(
         owner.derived.counts().0,

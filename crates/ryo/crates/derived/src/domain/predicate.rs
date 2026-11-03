@@ -51,7 +51,7 @@ pub(crate) fn distinct(
                 .cell(at as usize, *column)
                 .ok_or(DerivedFault::ShapeMismatch)?;
             Ok::<_, DerivedFault>(
-                (hash.rotate_left(5) ^ super::equality::word(value))
+                (hash.rotate_left(5) ^ super::contract::key::word_of(&value).0)
                     .wrapping_mul(0x517c_c1b7_2722_0a95),
             )
         })?;

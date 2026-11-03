@@ -1,5 +1,5 @@
 //! Existing compact adjacency algorithm; generation identity and retention are engine-owned.
-use super::contract::types::{Adjacency, DerivedFault, RowCells};
+use super::contract::types::{CompactGraph, DerivedFault, RowCells};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -18,13 +18,13 @@ pub(crate) fn build_borrowed(
     rows: &dyn RowCells,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
-) -> Result<Option<Adjacency>, DerivedFault> {
+) -> Result<Option<CompactGraph>, DerivedFault> {
     check_columns(rows.kinds(), &endpoints)?;
     check_columns(rows.kinds(), keys)?;
     if rows.count() > (u32::MAX - 2) as usize {
         return Ok(None);
     }
-    let mut graph = Adjacency {
+    let mut graph = CompactGraph {
         partitions: Vec::new(),
         partition_ids: Default::default(),
         vertices: Vec::new(),

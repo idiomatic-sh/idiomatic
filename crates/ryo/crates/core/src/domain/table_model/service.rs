@@ -23,10 +23,11 @@ use ryo_relations::domain::relations::types::{
 };
 
 use super::errors::TableModelError;
-use super::types::{ChainLink, HashWord, KeyCellsHash, KeyIndex, On, Rows};
+use super::types::Rows;
 use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_derived::domain::contract::types::{ChainLink, HashWord, KeyCellsHash, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// The one of `items` that the column `index` names, when there is one: the one conversion between a column number and a place.
@@ -223,39 +224,6 @@ pub(crate) fn check_columns(
     {
         Some(missing) => Err(TableModelError::NoSuchColumn { index: missing.0 }),
         None => Ok(()),
-    }
-}
-
-/// The number a value is for hashing: what it is stored as, apart from which kind of value it is.
-pub(crate) fn word_of(value: &Value) -> HashWord {
-    HashWord(match value {
-        Value::Node(node) => node.0,
-        Value::Symbol(symbol) => u64::from(symbol.0),
-        Value::Name(name) => name.hash.0,
-        Value::File(file) => u64::from(file.0),
-        Value::Span(span) => (u64::from(span.start.0) << 32) | u64::from(span.end.0),
-        Value::Number(Integer(number)) => number.cast_unsigned(),
-        Value::Flag(flag) => u64::from(*flag == Flag::Raised),
-    })
-}
-
-/// One step of the hash of a run of values.
-pub(crate) const fn mix(hash: KeyCellsHash, word: HashWord) -> KeyCellsHash {
-    KeyCellsHash((hash.0.rotate_left(5) ^ word.0).wrapping_mul(0x517c_c1b7_2722_0a95))
-}
-
-/// The hash of the cells that make a key.
-pub(crate) fn hash_key<'v>(cells: impl Iterator<Item = Option<&'v Value>>) -> KeyCellsHash {
-    cells.fold(KeyCellsHash(0), |hash, cell| {
-        mix(hash, cell.map_or(HashWord(0), word_of))
-    })
-}
-
-/// The hash of the key a row has.
-pub(crate) fn hash_row(row: &[Value], on: On<'_>) -> KeyCellsHash {
-    match on {
-        On::Whole => hash_key(row.iter().map(Some)),
-        On::Columns(columns) => hash_key(columns.iter().map(|column| column_in(row, *column))),
     }
 }
 

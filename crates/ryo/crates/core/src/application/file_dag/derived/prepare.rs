@@ -121,9 +121,21 @@ pub(in crate::application::file_dag) fn view(
     let metadata = prepared
         .validate()
         .map_err(crate::domain::operator::contract::derived::portable_fault);
+    // The engine's identity descriptor must describe the canonical literal slots produced by
+    // semantic preparation, including duplicate elimination and ordering.
+    let request = match (request, prepared.request()) {
+        (
+            ViewRequest::CandidatePostings { .. },
+            SemanticRequest::CandidatePostings { column, literals },
+        ) => ViewRequest::CandidatePostings {
+            column: *column,
+            literals: literals.clone(),
+        },
+        _ => request.clone(),
+    };
     Ok(DerivedContract {
-        kind: crate::domain::derived_views::service::kind(request),
-        request: request.clone(),
+        kind: crate::domain::derived_views::service::kind(&request),
+        request,
         schemas: schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
         metadata,
         needed,

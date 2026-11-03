@@ -1,17 +1,14 @@
 //! Closed typed requirements, construction storage and immutable borrowed access.
 use crate::domain::{
-    operator::contract::{
-        graph::{ClosurePartition, CycleGraph, OrderedMatching, PreparedDfs},
-        resources::DfsResources,
-        types::PredicateProgram,
-        views::BorrowedRows,
-    },
-    stored_graph::types::{CompactGraph, GraphSource},
+    operator::contract::{resources::DfsResources, types::PredicateProgram, views::BorrowedRows},
+    stored_graph::types::GraphSource,
     stored_selection::types::{LiteralPostings, Selector},
     table_cells::types::TreeRows,
-    table_model::types::KeyIndex,
     table_texts::types::{SourceView, Texts},
-    tree_join::collections::strategies::types::Finding,
+};
+use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::contract::types::{
+    ClosurePartition, CompactGraph, CycleGraph, Finding, OrderedMatching, PreparedDfs,
 };
 use ryo_language::domain::{
     files::types::FilePath,
@@ -159,6 +156,7 @@ pub(crate) enum MembershipData {
 }
 #[derive(Default)]
 pub(crate) struct DerivedScratch {
+    pub semantic: ryo_derived::domain::contract::types::BuildWorkspace,
     pub row: Vec<Value>,
 }
 /// No owned handle or writable storage is exposed by view().

@@ -8,9 +8,10 @@ use crate::domain::{
         DerivedContract, DerivedInputs, DerivedScratch, DerivedStorage, ViewRequest,
     },
     operating::errors::OperatingError,
-    operator::contract::{graph::ClosurePartition, views::BorrowedRows},
-    table_model::types::{ChainLink, HashedRow, KeyCellsHash},
+    operator::contract::views::BorrowedRows,
 };
+use ryo_derived::domain::contract::types::ClosurePartition;
+use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::{rc::Rc, sync::Arc};

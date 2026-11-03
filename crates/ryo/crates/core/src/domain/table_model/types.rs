@@ -14,48 +14,15 @@ use ryo_values::domain::plan_parts::types::WholeNumber;
 /// How many rows a table holds.
 
 /// Which cells of a row say which rows are alike.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum On<'a> {
-    /// Every cell: whole rows are alike when they are equal.
-    Whole,
-    /// These columns only.
-    Columns(&'a [ColumnIndex]),
-}
 
 /// The rows of a table found by what their key columns hold: each row is chained to the next row of
 /// its bucket, in the order the rows came, so a key is found by hashing it and rows with one key are
 /// met in the order they came. `sorted` lists the rows by key for the operators that group. The room is
 /// reused from one indexing to the next.
-#[derive(Debug, Default)]
-pub(crate) struct KeyIndex {
-    /// Every row, by its own place: a match is a reference into this list.
-    pub rows: Vec<RowIndex>,
-    /// The hash of the key of each row.
-    pub hashes: Vec<KeyCellsHash>,
-    /// For each bucket, the first row of its chain, plus one; zero when the bucket is empty.
-    pub heads: Vec<ChainLink>,
-    /// For each row, the next row of its chain, plus one; zero at the end.
-    pub next: Vec<ChainLink>,
-    /// The rows ordered by the hash of their key, rows with one hash by key and then as they came.
-    pub sorted: Vec<RowIndex>,
-    /// The hash and the place of each row, while they are put in order.
-    pub pairs: Vec<HashedRow>,
-    /// The hashes of the keys at which a run of rows with one key began, while the rows are met in order.
-    pub runs: hashbrown::HashSet<KeyCellsHash>,
-}
 
 /// A row, with the hash of its key.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct HashedRow {
-    /// The hash of the key of the row.
-    pub hash: KeyCellsHash,
-    /// The row.
-    pub row: RowIndex,
-}
 
 /// The next row of a chain of an index, plus one; zero where there is none.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ChainLink(pub u32);
 
 /// Rows under typed columns, flat: the cells of every row one after another, each row as wide as
 /// there are kinds. A table is cleared and filled again for the next file, keeping its room.
@@ -159,12 +126,8 @@ pub(crate) struct Frontier {
 }
 
 /// The number a value is for hashing: what it is stored as, apart from which kind of value it is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct HashWord(pub u64);
 
 /// The hash of the cells that make a key.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct KeyCellsHash(pub u64);
 
 /// Whether a kind is in a set of kinds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -3,17 +3,6 @@ use super::contract::types::{BulkRows, ChainLink, DerivedFault, KeyCellsHash, Ke
 use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
-pub(super) fn word(value: Value) -> u64 {
-    match value {
-        Value::Node(value) => value.0,
-        Value::Symbol(value) => u64::from(value.0),
-        Value::Name(value) => value.hash.0,
-        Value::File(value) => u64::from(value.0),
-        Value::Span(value) => (u64::from(value.start.0) << 32) | u64::from(value.end.0),
-        Value::Number(Integer(value)) => value.cast_unsigned(),
-        Value::Flag(value) => u64::from(value == Flag::Raised),
-    }
-}
 pub(crate) fn build(
     rows: &dyn RowCells,
     columns: &[ColumnIndex],
@@ -87,8 +76,9 @@ fn fill(
     out.hashes.clear();
     out.hashes.extend(out.rows.iter().map(|row| {
         KeyCellsHash(columns.iter().fold(0_u64, |hash, column| {
-            (hash.rotate_left(5) ^ cell(row.0, *column).map_or(0, word))
-                .wrapping_mul(0x517c_c1b7_2722_0a95)
+            (hash.rotate_left(5)
+                ^ cell(row.0, *column).map_or(0, |value| super::contract::key::word_of(&value).0))
+            .wrapping_mul(0x517c_c1b7_2722_0a95)
         }))
     }));
 }

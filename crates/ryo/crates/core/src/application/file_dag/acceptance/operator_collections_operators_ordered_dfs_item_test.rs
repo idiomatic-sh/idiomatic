@@ -412,11 +412,11 @@ fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingErro
 }
 fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<usize, OperatingError>
 {
-    use crate::domain::table_model::types::KeyIndex;
     use crate::domain::table_reach::{
         service::{begin_ordered, next_ordered, prepare_ordered},
         types::{Edges, OrderedGraph, OrderedWalk},
     };
+    use ryo_derived::domain::contract::types::KeyIndex;
     let table = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
     let mut graph = OrderedGraph {
         edge_columns: vec![column(0), column(1)],

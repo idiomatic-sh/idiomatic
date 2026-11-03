@@ -11,7 +11,7 @@ use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
-fn graph(edges: &[[i64; 2]]) -> crate::domain::stored_graph::types::CompactGraph {
+fn graph(edges: &[[i64; 2]]) -> ryo_derived::domain::contract::types::CompactGraph {
     let mut table = Table {
         kinds: vec![CellKind::Number; 2],
         ..Default::default()
@@ -40,7 +40,7 @@ fn graph(edges: &[[i64; 2]]) -> crate::domain::stored_graph::types::CompactGraph
     .expect("graph")
 }
 
-fn vertex(graph: &crate::domain::stored_graph::types::CompactGraph, value: i64) -> u32 {
+fn vertex(graph: &ryo_derived::domain::contract::types::CompactGraph, value: i64) -> u32 {
     graph.vertex_ids[&(0, Value::Number(Integer(value)))]
 }
 

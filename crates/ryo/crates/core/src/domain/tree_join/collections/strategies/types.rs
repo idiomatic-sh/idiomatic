@@ -12,15 +12,6 @@ pub(crate) struct NodeColumns {
 }
 
 /// What a join's left row finds its right rows by.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum Finding {
-    /// The left column holding a node, and the column of the elements it is equal to.
-    Node(ColumnIndex, ColumnIndex),
-    /// The left columns holding a file and a stretch of it: the elements that cover that stretch exactly.
-    Stretch(ColumnIndex, ColumnIndex),
-    /// The left column holding a stretch of the file being read: the elements that cover it exactly.
-    Span(ColumnIndex),
-}
 
 /// Whether a strategy finds the right rows of a join for a finding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -3,7 +3,8 @@ use crate::application::file_dag::derived::ledger::Backing;
 use crate::application::file_dag::derived::ledger::ResourceLease;
 use crate::application::file_dag::derived::owner::PopulationId;
 use crate::domain::derived_views::types::DerivedStorage;
-use crate::domain::stored_graph::types::{CompactGraph, GraphDomain, Orientation};
+use crate::domain::stored_graph::types::{GraphDomain, Orientation};
+use ryo_derived::domain::contract::types::CompactGraph;
 use std::sync::Arc;
 #[derive(Debug)]
 pub(crate) struct RootMemo {

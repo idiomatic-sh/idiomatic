@@ -1,7 +1,7 @@
 //! The types of the `table_groups` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use crate::domain::table_model::types::KeyIndex;
+use ryo_derived::domain::contract::types::KeyIndex;
 
 use ryo_relations::domain::relations::types::Value;
 

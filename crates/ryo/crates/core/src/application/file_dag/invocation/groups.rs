@@ -5,8 +5,9 @@ use crate::domain::{
         service::{count_groups, digest_groups},
         types::{CountRoom, Hashes},
     },
-    table_model::{service::push_row, types::On},
+    table_model::service::push_row,
 };
+use ryo_derived::domain::contract::types::On;
 fn materialized(input: BorrowedRows<'_>) -> Table {
     let mut table = Table {
         kinds: input.kinds().to_vec(),

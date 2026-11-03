@@ -3,7 +3,8 @@ use super::{LIMIT, acquire_fixture as acquire, index_bytes, new};
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 
 use crate::domain::table_model::service::matching_stored;
-use crate::domain::table_model::types::KeyIndex;
+
+use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value,
 };

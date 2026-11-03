@@ -9,10 +9,12 @@ use super::types::{Group, Hashes, SetDigest, ValueHash};
 
 use crate::domain::table_groups::types::CountRoom;
 use crate::domain::table_model::errors::TableModelError;
-use crate::domain::table_model::service::{check_columns, column_in, hash_row, positions, row_in};
-use crate::domain::table_model::types::{HashedRow, KeyCellsHash, KeyIndex, On};
+use crate::domain::table_model::service::{check_columns, column_in, positions, row_in};
+use ryo_derived::domain::contract::key::hash_row;
+
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
+use ryo_derived::domain::contract::types::{HashedRow, KeyCellsHash, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, FlagState};
 
 /// Lists the rows of `table` into `order.sorted` in the order of the hash of their key, those with

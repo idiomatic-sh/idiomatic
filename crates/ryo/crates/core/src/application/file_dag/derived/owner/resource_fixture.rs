@@ -6,11 +6,9 @@ use crate::domain::{
     operating::types::OperatorContext,
     operation_schema::types::InputSchema,
     operator::{service::registered, types::PreparedPool},
-    table_model::{
-        service::kinds_of,
-        types::{KeyIndex, Rows},
-    },
+    table_model::{service::kinds_of, types::Rows},
 };
+use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, StepId},

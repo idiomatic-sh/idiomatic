@@ -1,12 +1,11 @@
 //! One current closure adjacency. Partition scheduling and the ordered cursor stay with the application.
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::{graph::ClosurePartition, views::BorrowedRows},
-    table_model::{
-        service::{check_columns, index, push_row},
-        types::{KeyIndex, On},
-    },
+    operator::contract::views::BorrowedRows,
+    table_model::service::{check_columns, index, push_row},
 };
+use ryo_derived::domain::contract::types::ClosurePartition;
+use ryo_derived::domain::contract::types::{KeyIndex, On};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

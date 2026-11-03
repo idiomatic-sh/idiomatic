@@ -11,16 +11,19 @@ pub(super) use index::IndexResource;
 mod observation;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::{
-    graph::{ClosurePartition, CycleGraph, OrderedMatching, PreparedDfs},
     join::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
     types::{EvaluationMode, OperatorContract},
     views::{BorrowedRows, IndexedRows},
 };
 use crate::domain::table_groups::types::Group;
-use crate::domain::table_model::types::{KeyIndex, ParameterBinding};
+use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::types::Texts;
 use crate::domain::tree_join::service::tree_finding;
+use ryo_derived::domain::contract::types::KeyIndex;
+use ryo_derived::domain::contract::types::{
+    ClosurePartition, CycleGraph, OrderedMatching, PreparedDfs,
+};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::{

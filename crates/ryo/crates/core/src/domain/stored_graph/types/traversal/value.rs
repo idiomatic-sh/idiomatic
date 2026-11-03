@@ -1,6 +1,7 @@
 //! Iterative positive reach, ordered early stop and validated-forest path compression.
 
-use crate::domain::stored_graph::types::{CompactGraph, GraphDomain, GraphWalk, Orientation};
+use crate::domain::stored_graph::types::{GraphDomain, GraphWalk, Orientation};
+use ryo_derived::domain::contract::types::CompactGraph;
 
 /// No known nearest answer has been computed for this vertex/context.
 pub(crate) const UNKNOWN: u32 = u32::MAX;

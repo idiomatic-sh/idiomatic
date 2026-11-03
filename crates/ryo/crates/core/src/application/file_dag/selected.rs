@@ -7,7 +7,8 @@ use crate::domain::operating::{
     types::{Emit, OperatorContext},
 };
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
-use crate::domain::table_model::types::{KeyIndex, SelectedRows};
+use crate::domain::table_model::types::SelectedRows;
+use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 

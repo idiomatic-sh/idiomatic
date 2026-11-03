@@ -4,10 +4,9 @@
 use super::views::BorrowedRows;
 use crate::domain::operating::errors::OperatingError;
 
-use crate::domain::table_model::{
-    service::{check_columns, mix, word_of},
-    types::KeyCellsHash,
-};
+use crate::domain::table_model::service::check_columns;
+use ryo_derived::domain::contract::key::{mix, word_of};
+use ryo_derived::domain::contract::types::KeyCellsHash;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 fn hash_at(

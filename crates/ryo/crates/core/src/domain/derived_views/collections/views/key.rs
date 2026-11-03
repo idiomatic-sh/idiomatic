@@ -6,9 +6,10 @@ use crate::domain::{
     operation_schema::types::InputSchema,
     table_model::{
         service::{index, index_selected_view, index_stored},
-        types::{KeyIndex, On, SelectedView},
+        types::SelectedView,
     },
 };
+use ryo_derived::domain::contract::types::{KeyIndex, On};
 pub(crate) struct EqualityItem;
 impl DerivedViewsItem for EqualityItem {
     fn prepare(

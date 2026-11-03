@@ -12,7 +12,7 @@ fn prepare_cycles(
     input: BorrowedRows<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<crate::domain::operator::contract::graph::CycleGraph, OperatingError> {
+) -> Result<ryo_derived::domain::contract::types::CycleGraph, OperatingError> {
     let plan = registered(DerivedKind::CycleAdjacency).prepare(
         &ViewRequest::CycleAdjacency {
             source,
@@ -37,11 +37,11 @@ fn prepare_cycles(
     Ok(graph)
 }
 struct PreparedClosure {
-    parts: Vec<crate::domain::operator::contract::graph::ClosurePartition>,
+    parts: Vec<ryo_derived::domain::contract::types::ClosurePartition>,
     _leases: Vec<std::sync::Arc<super::derived::ledger::ResourceLease>>,
 }
 impl std::ops::Deref for PreparedClosure {
-    type Target = [crate::domain::operator::contract::graph::ClosurePartition];
+    type Target = [ryo_derived::domain::contract::types::ClosurePartition];
     fn deref(&self) -> &Self::Target {
         &self.parts
     }

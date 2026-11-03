@@ -1,9 +1,10 @@
 //! Preparation and generation-local acquisition of complete typed compact adjacency.
 
-use super::types::{CompactGraph, GraphIdentity};
+use super::types::GraphIdentity;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::service::{cell_at, check_columns, count_of, kinds_of};
 use crate::domain::table_model::types::Rows;
+use ryo_derived::domain::contract::types::CompactGraph;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;

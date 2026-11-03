@@ -1,12 +1,13 @@
 //! Tarjan cycle semantics over immutable engine-prepared adjacency.
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::graph::{CycleGraph, CycleMarks};
+use crate::domain::operator::contract::graph::CycleMarks;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_scratch::types::{EdgePlace, EntityNumber, WalkStep};
+use ryo_derived::domain::contract::types::CycleGraph;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 /// Walks every node once, and marks in `room.found` those of a component of more than one or with an edge to themselves.
 #[expect(
@@ -14,11 +15,9 @@ use ryo_values::domain::plans::types::{Operation, OperationKind};
     reason = "every index is in bounds by construction: a node is a number below the length of `values`, to which `clear_marks` sized `order`, `low`, `open` and `found` and `lay_out_edges` sized `starts` one past, and an edge place is below the next node's start, inside `leaving`"
 )]
 fn mark_components(graph: &CycleGraph, room: &mut CycleMarks) {
-    let CycleGraph {
-        values,
-        starts,
-        leaving,
-    } = graph;
+    let values = graph.values();
+    let starts = graph.starts();
+    let leaving = graph.leaving();
     let CycleMarks {
         order,
         low,
@@ -134,7 +133,7 @@ impl OperatorsItem for CyclesItem {
             .cycles
             .as_deref_mut()
             .ok_or(OperatingError::WrongBinding)?;
-        let nodes = graph.values.len();
+        let nodes = graph.values().len();
         marks.order.clear();
         marks.order.resize(nodes, usize::MAX);
         marks.low.clear();
@@ -149,7 +148,7 @@ impl OperatorsItem for CyclesItem {
         marks.ordered.clear();
         marks.ordered.extend(
             graph
-                .values
+                .values()
                 .iter()
                 .zip(&marks.found)
                 .filter(|(_, on)| **on)

@@ -2,8 +2,9 @@
 //! data with public fields and derives, and no constructor or inherent impl.
 
 use crate::domain::table_cells::types::ColumnPlaces;
-use crate::domain::table_model::types::KeyIndex;
+
 use crate::domain::table_model::types::Verdict;
+use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_language::domain::elements::types::KindSum;
 use ryo_relations::domain::relations::types::{FileId, KindBits, TextHash, Value};
 use ryo_relations::domain::terms::types::Symbol;

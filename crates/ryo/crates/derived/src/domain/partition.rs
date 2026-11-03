@@ -19,7 +19,7 @@ fn hash_at(input: &dyn RowCells, row: RowIndex, keys: &[ColumnIndex]) -> Result<
             .cell(row.0, *column)
             .ok_or(DerivedFault::ShapeMismatch)?;
         Ok(
-            (hash.rotate_left(5) ^ super::equality::word(value))
+            (hash.rotate_left(5) ^ super::contract::key::word_of(&value).0)
                 .wrapping_mul(0x517c_c1b7_2722_0a95),
         )
     })

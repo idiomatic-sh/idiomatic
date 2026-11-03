@@ -1,9 +1,10 @@
 //! Dense adjacency for cycle traversal, preserving duplicate edges and first-seen IDs.
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::{graph::CycleGraph, views::BorrowedRows},
+    operator::contract::views::BorrowedRows,
     table_model::service::{cell, check_columns},
 };
+use ryo_derived::domain::contract::types::CycleGraph;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

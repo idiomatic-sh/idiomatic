@@ -1,13 +1,12 @@
 //! Canonical lookup columns and immutable ordered-DFS adjacency preparation.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::{graph::PreparedDfs, views::BorrowedRows};
+use crate::domain::operator::contract::views::BorrowedRows;
+use ryo_derived::domain::contract::types::PreparedDfs;
 
 use crate::domain::table_groups::service::sort_rows;
-use crate::domain::table_model::{
-    service::{check_columns, column_in, push_row},
-    types::{KeyIndex, On},
-};
+use crate::domain::table_model::service::{check_columns, column_in, push_row};
 use crate::domain::table_texts::types::Texts;
+use ryo_derived::domain::contract::types::{KeyIndex, On};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// Append canonical lookup identities while retaining every original output cell.

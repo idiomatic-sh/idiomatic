@@ -1,5 +1,6 @@
 //! Private application backend storage. Only derived-owner algorithms can access mutable fields.
-use crate::domain::table_model::types::KeyIndex;
+
+use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;

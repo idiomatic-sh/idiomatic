@@ -1,6 +1,6 @@
 //! Existing ordered matching, retaining exact duplicate-order error semantics.
 use super::contract::types::{
-    DerivedFault, OrderedKey, OrderedMatching, OrderedRow, RowCells, ValueTexts,
+    DerivedFault, OrderedMatching, OwnedOrderedKey, OwnedOrderedRow, RowCells, ValueTexts,
 };
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -23,7 +23,7 @@ fn ordered_rows(
     order: ColumnIndex,
     texts: &dyn ValueTexts,
     buffer: &mut Vec<Value>,
-) -> Result<Vec<OrderedRow>, DerivedFault> {
+) -> Result<Vec<OwnedOrderedRow>, DerivedFault> {
     let mut rows = Vec::with_capacity(input.count());
     for at in 0..input.count() {
         let Some(row) = input.read_row(at, buffer) else {
@@ -41,13 +41,13 @@ fn ordered_rows(
                         let Some(text) = texts.text(value) else {
                             return Err(DerivedFault::ShapeMismatch);
                         };
-                        OrderedKey::Text(text.to_owned())
+                        OwnedOrderedKey::Text(text.to_owned())
                     }
-                    _ => OrderedKey::Value(value),
+                    _ => OwnedOrderedKey::Value(value),
                 })
             })
             .collect::<Result<Vec<_>, DerivedFault>>()?;
-        rows.push(OrderedRow {
+        rows.push(OwnedOrderedRow {
             keys: group,
             order,
             row: ryo_values::domain::rows::types::RowIndex(at),

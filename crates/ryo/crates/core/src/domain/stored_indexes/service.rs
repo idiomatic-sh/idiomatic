@@ -1,6 +1,6 @@
 //! Pure byte accounting for typed equality storage; acquisition lives in application.
 
-use crate::domain::table_model::types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex};
+use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex};
 const ARC_BYTES: usize =
     size_of::<KeyIndex>() + 2 * size_of::<usize>() + align_of::<KeyIndex>() - 1;
 /// Sum actual capacities of every index vector and the Arc allocation metadata.

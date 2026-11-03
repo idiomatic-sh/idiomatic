@@ -4,7 +4,8 @@ use ryo_relations::domain::relations::types::Value;
 
 use super::types::{Edges, Walk};
 use crate::domain::table_model::service::{column_in, matching, row_in};
-use crate::domain::table_model::types::On;
+
+use ryo_derived::domain::contract::types::On;
 
 /// Pushes onto `into` where the edges lead from `start`, in the order the edges came; `key` is the
 /// room the lookup is made with.
@@ -45,7 +46,7 @@ pub(crate) fn reach_all(edges: &Edges<'_>, start: Value, walk: &mut Walk) {
 pub(crate) fn prepare_ordered(
     table: &ryo_values::domain::rows::types::Table,
     ordinal: ryo_values::domain::plan_parts::types::ColumnIndex,
-    index: &mut crate::domain::table_model::types::KeyIndex,
+    index: &mut ryo_derived::domain::contract::types::KeyIndex,
     graph: &mut super::types::OrderedGraph,
 ) -> Result<(), crate::domain::operating::errors::OperatingError> {
     use crate::domain::operating::errors::OperatingError;
@@ -119,7 +120,7 @@ pub(crate) fn prepare_ordered(
 /// Look up one newly expanded vertex once and retain its adjacency cursor.
 fn ordered_frame(
     edges: &Edges<'_>,
-    graph: &super::types::OrderedGraph,
+    graph: &ryo_derived::domain::contract::types::PreparedDfs,
     partition: &[Value],
     entity: Value,
     walk: &mut super::types::OrderedWalk,
@@ -130,7 +131,7 @@ fn ordered_frame(
     walk.expanded += 1;
     matching(edges.table, On::Columns(edges.from), edges.order, &walk.key)
         .next()
-        .and_then(|at| graph.adjacency.get(at.0))
+        .and_then(|at| graph.adjacency().get(at.0))
         .cloned()
         .unwrap_or(0..0)
 }
@@ -138,7 +139,7 @@ fn ordered_frame(
 /// Start one independent DFS; the root is already visited before any edge is emitted.
 pub(crate) fn begin_ordered(
     edges: &Edges<'_>,
-    graph: &super::types::OrderedGraph,
+    graph: &ryo_derived::domain::contract::types::PreparedDfs,
     partition: &[Value],
     root: Value,
     walk: &mut super::types::OrderedWalk,
@@ -157,7 +158,7 @@ pub(crate) fn begin_ordered(
 /// Yield an edge visit before considering whether to expand its destination.
 pub(crate) fn next_ordered(
     edges: &Edges<'_>,
-    graph: &super::types::OrderedGraph,
+    graph: &ryo_derived::domain::contract::types::PreparedDfs,
     partition: &[Value],
     walk: &mut super::types::OrderedWalk,
 ) -> Result<

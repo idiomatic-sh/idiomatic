@@ -10,7 +10,8 @@ use super::super::types::NodeColumns;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::cell;
-use crate::domain::tree_join::collections::strategies::types::{Finding, Fitting};
+use crate::domain::tree_join::collections::strategies::types::Fitting;
+use ryo_derived::domain::contract::types::Finding;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// `entity_vector`, one item of the `strategies` collection.

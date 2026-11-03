@@ -23,7 +23,8 @@ use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
-use crate::domain::tree_join::collections::strategies::types::{Finding, Fitting};
+use crate::domain::tree_join::collections::strategies::types::Fitting;
+use ryo_derived::domain::contract::types::Finding;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side};
 use ryo_values::domain::plans::types::Operation;
 

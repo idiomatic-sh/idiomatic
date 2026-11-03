@@ -36,12 +36,12 @@ fn equality(value: &KeyIndex) -> Result<usize, DerivedFault> {
 fn table(value: &Table) -> Result<usize, DerivedFault> {
     sum([vector(&value.kinds), vector(&value.cells)])
 }
-fn ordered(rows: &Vec<OrderedRow>) -> Result<usize, DerivedFault> {
+fn ordered(rows: &Vec<OwnedOrderedRow>) -> Result<usize, DerivedFault> {
     let mut bytes = vector(rows);
     for row in rows {
         bytes = sum([bytes, vector(&row.keys)])?;
         for key in &row.keys {
-            if let OrderedKey::Text(text) = key {
+            if let OwnedOrderedKey::Text(text) = key {
                 bytes = sum([bytes, text.capacity()])?;
             }
         }
@@ -136,8 +136,6 @@ pub(crate) fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, Der
                 table(&value.edges)?,
                 equality(&value.root_index)?,
                 equality(&value.edge_index)?,
-                vector(&value.root_order),
-                vector(&value.edge_order),
                 vector(&value.root_columns),
                 vector(&value.edge_columns),
                 vector(&value.adjacency),

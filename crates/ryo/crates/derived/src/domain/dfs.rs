@@ -73,7 +73,7 @@ fn canonical_columns(
             let canonical = if let Some(text) = found {
                 buffer.clear();
                 buffer.push_str(text);
-                texts.intern(&buffer)
+                texts.intern(&buffer)?
             } else {
                 value
             };
@@ -177,16 +177,16 @@ pub(crate) fn build(
         }
         begin = end;
     }
-    let edge_index = super::equality::build(&edges, from, None)?;
+    let mut edge_index = super::equality::build(&edges, from, None)?;
+    edge_index.sorted = edge_order;
     let root_order = super::partition::ordered_positions(&roots, &root_columns)?;
-    let root_index = super::equality::build(&roots, &root_columns, None)?;
+    let mut root_index = super::equality::build(&roots, &root_columns, None)?;
+    root_index.sorted = root_order;
     Ok(PreparedDfs {
         roots,
         edges,
         root_index,
         edge_index,
-        root_order,
-        edge_order,
         root_columns,
         edge_columns,
         adjacency,

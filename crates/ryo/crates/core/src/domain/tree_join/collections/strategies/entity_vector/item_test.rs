@@ -15,7 +15,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
-use crate::domain::tree_join::collections::strategies::types::{Finding, Fitting};
+use crate::domain::tree_join::collections::strategies::types::Fitting;
+use ryo_derived::domain::contract::types::Finding;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// What a row asks: the row on the left, which tree form is read, and by which columns.

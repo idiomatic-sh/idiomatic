@@ -1,8 +1,7 @@
 //! Pure stable projection hashing and first-representative selection; no cache or scheduler.
-use crate::domain::table_model::{
-    service::{check_columns, mix, rectangular, word_of},
-    types::KeyCellsHash,
-};
+use crate::domain::table_model::service::{check_columns, rectangular};
+use ryo_derived::domain::contract::key::{mix, word_of};
+use ryo_derived::domain::contract::types::KeyCellsHash;
 use ryo_relations::domain::relations::{
     service::from_bits,
     types::{Bits, ColumnsView, Value},

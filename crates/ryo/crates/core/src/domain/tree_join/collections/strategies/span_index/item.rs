@@ -8,7 +8,8 @@ use super::super::interface::StrategiesItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::service::cell;
-use crate::domain::tree_join::collections::strategies::types::{Finding, Fitting};
+use crate::domain::tree_join::collections::strategies::types::Fitting;
+use ryo_derived::domain::contract::types::Finding;
 
 /// `span_index`, one item of the `strategies` collection.
 pub(crate) struct SpanIndexItem;

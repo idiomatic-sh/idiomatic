@@ -3,11 +3,9 @@ use crate::application::file_dag::derived::backend::{Acquired, CacheBackend, Ent
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::coverage::types::Partial;
 
-use crate::domain::table_model::{
-    service::check_columns,
-    types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex},
-};
+use crate::domain::table_model::service::check_columns;
 use crate::domain::{derived_views::types::DerivedContract, operating::errors::OperatingError};
+use ryo_derived::domain::contract::types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex};
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;

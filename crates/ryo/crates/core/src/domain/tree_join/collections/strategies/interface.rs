@@ -1,6 +1,7 @@
 //! The shape every item of the `strategies` collection implements.
 
-use crate::domain::tree_join::collections::strategies::types::{Finding, Fitting};
+use crate::domain::tree_join::collections::strategies::types::Fitting;
+use ryo_derived::domain::contract::types::Finding;
 
 /// What every item of the `strategies` collection offers: whether it finds the right rows of a join that finds them by `finding`
 /// (`None`: by the hash of a key, in a table).

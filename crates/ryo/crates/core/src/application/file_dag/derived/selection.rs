@@ -14,11 +14,12 @@ use crate::domain::{
     },
     table_model::{
         service::{check_columns, matching_stored},
-        types::{KeyIndex, ParameterBinding, SelectedRows, StoredSelection, Verdict},
+        types::{ParameterBinding, SelectedRows, StoredSelection, Verdict},
     },
     table_texts::types::Texts,
 };
 use ryo_derived::domain::contract::types::DerivedKind;
+use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_language::domain::symbols::{
     service::{find_hashed, hash_of, name_count},
     types::ByteSlice,

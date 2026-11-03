@@ -1,12 +1,8 @@
 //! Opaque request-bound resource lease; primitives receive only borrowed trait views.
 use super::ledger::{Backing, ResourceLease};
-use crate::domain::{
-    derived_views::{
-        collections::views::registration::registered,
-        types::{DerivedContract, DerivedStorage, DerivedView},
-    },
-    operating::errors::OperatingError,
-};
+use super::storage::DerivedStorage;
+use crate::domain::{derived_views::types::DerivedContract, operating::errors::OperatingError};
+use ryo_derived::domain::contract::types::DerivedView;
 use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub(crate) struct AcquiredView {
@@ -44,10 +40,10 @@ impl AcquiredView {
         if !matches!(self.view()?, DerivedView::PartitionOrder(_)) {
             return Err(OperatingError::WrongOperation);
         }
-        let DerivedStorage::PartitionOrder(rows) = self.storage.as_ref() else {
-            return Err(OperatingError::WrongOperation);
-        };
-        Ok(rows.capacity())
+        self.storage
+            .payload()
+            .partition_order_capacity()
+            .ok_or(OperatingError::WrongOperation)
     }
     pub(in crate::application::file_dag) fn was_built(&self) -> bool {
         self.built
@@ -60,7 +56,7 @@ impl AcquiredView {
         Arc::ptr_eq(&self.storage, &other.storage)
     }
     pub(in crate::application::file_dag) fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
-        registered(self.plan.kind).view(&self.plan, &self.storage)
+        self.storage.view()
     }
 }
 
