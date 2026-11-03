@@ -25,6 +25,8 @@ use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use fixtures::{SOURCE, fixture};
+use ryo_language::domain::completion::service::{completion, name_kind};
+use ryo_language::domain::terms::types::NameText;
 use ryo_language::domain::{
     elements::{
         service::{enter_node, leave_node, table_builder, token},
@@ -146,6 +148,16 @@ fn actual_tree() -> (Elements, Symbols) {
     leave_node(&mut builder, Offset(2));
     leave_node(&mut builder, Offset(2));
     drop(builder);
+    for (kind, name) in ["unused", "root", "token", "branch"]
+        .into_iter()
+        .enumerate()
+    {
+        name_kind(
+            &mut completion(&mut elements, &mut symbols, ByteSlice(SOURCE), FileId(0)),
+            KindBits(kind as u16),
+            NameText(name),
+        );
+    }
     (elements, symbols)
 }
 #[test]
