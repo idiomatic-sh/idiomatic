@@ -95,7 +95,7 @@ Pure operator and derived-view semantics currently live inside `ryo-core`, so cr
 
 Each row is **execution route × resource family/representation**. Enumerate actual registry, acquire/select, publication/Selected constructors, cache accesses and terminal drivers; map every resolved site exactly once. Unmapped sites block closure.
 
-Tastemaker enforces imports, layout, required assets and structural access. Runtime tests establish behavior, completeness, lifetime and performance that structural rules cannot observe.
+Tastemaker enforces imports, layout, required assets and structural access. Runtime tests establish behavior, completeness, lifetime and performance that structural rules cannot observe. Apply the [systemic audit workflow](../../../../.agents/skills/systemic-audit/SKILL.md) to repeated findings before closing a matrix row.
 
 | Question | Ownership axes to prove | Required evidence |
 | --- | --- | --- |
