@@ -6,10 +6,8 @@ use crate::domain::{
     },
     table_scratch::types::OperatorScratch,
 };
-use ryo_language::domain::{
-    relations::types::Value,
-    symbols::{service::query_reborrow, types::QuerySymbols},
-};
+use ryo_language::domain::symbols::{service::query_reborrow, types::QuerySymbols};
+use ryo_relations::domain::relations::types::Value;
 
 pub(super) struct Headers<'a> {
     pub(super) prepared_matchers:
