@@ -217,7 +217,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
         executor: &crate::application::file_dag::execution::CommonOperatorEngine,
         execution: &mut dag,
         inputs: &inputs,
-        schemas: std::slice::from_ref(&graph.nodes[child.0].kinds),
+        schemas: std::slice::from_ref(graph.nodes[child.0].contract.schema.as_ref().unwrap()),
         held: &held,
         read: &read,
     };

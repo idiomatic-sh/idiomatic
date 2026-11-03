@@ -24,7 +24,6 @@ struct CanonicalNode {
     operation: Operation,
     inputs: Vec<NodeInput>,
     relations: Vec<Relation>,
-    kinds: Vec<ryo_language::domain::relations::types::CellKind>,
     schema_valid: bool,
 }
 
@@ -167,7 +166,6 @@ pub(crate) fn compile_prepared(
                             NodeInput::Node(id) => nodes[id.0].schema_valid,
                             NodeInput::Relation(_) => true,
                         });
-                    let kinds = validated.unwrap_or_default();
                     let id = NodeId(nodes.len());
                     nodes.push(CanonicalNode {
                         physical: operators.physical[rule][index].clone(),
@@ -176,7 +174,6 @@ pub(crate) fn compile_prepared(
                         operation,
                         inputs,
                         relations,
-                        kinds,
                         schema_valid,
                     });
                     buckets.entry(hash).or_default().push(id);
@@ -301,7 +298,6 @@ pub(crate) fn compile_prepared(
                 physical: node.physical,
                 operation: node.operation,
                 inputs: node.inputs,
-                kinds: node.kinds,
                 schema_valid: node.schema_valid,
                 relations: node.relations,
             })
