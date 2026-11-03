@@ -181,8 +181,9 @@ fn a_single_emitted_step_is_residual_not_a_dag_cut() {
     assert!(dag.owned(0, 0).is_none());
 }
 #[test]
-fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor() {
+fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor() {
     let executor = CountingExecutor::default();
+    let semantic = fixtures::KnownSyntax;
     for kind in OperationKind::ALL {
         let mut case = fixture(*kind);
         let schemas = case
@@ -205,7 +206,7 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
         let mut scratch = OperatorScratch::default();
         let mut memo = Vec::new();
         let mut context = OperatorContext {
-            semantic: None,
+            semantic: Some(&semantic),
             prepared_matchers: None,
             prepared_kinds: None,
             bindings: &case.bindings,

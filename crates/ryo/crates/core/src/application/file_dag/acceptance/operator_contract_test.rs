@@ -15,20 +15,6 @@ use ryo_values::domain::{
 use std::sync::Arc;
 #[test]
 fn every_registered_class_runs_real_collect_and_stream_with_independent_expectations() {
-    #[derive(Debug)]
-    struct KnownSyntax;
-    impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
-        fn render_batch(
-            &self,
-            requests: &[RenderRequest],
-            _: &[u8],
-        ) -> Result<Vec<RenderOutcome>, OperatingError> {
-            Ok(requests
-                .iter()
-                .map(|_| RenderOutcome::Known(Arc::from("a")))
-                .collect())
-        }
-    }
     let semantic = KnownSyntax;
     assert_eq!(OperationKind::ALL.len(), 26);
     for kind in OperationKind::ALL {

@@ -7,7 +7,7 @@ use ryo_language::domain::relations::service::node_id;
 use ryo_language::domain::relations::types::{
     CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
 };
-use ryo_language::domain::semantics::types::RenderContext;
+use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, Symbols},
@@ -18,6 +18,22 @@ use ryo_values::domain::plan_parts::types::{
     QueryLiteral, RepeatedRows, Side, TableKey, WholeNumber,
 };
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use std::sync::Arc;
+
+#[derive(Debug)]
+pub(crate) struct KnownSyntax;
+impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
+    fn render_batch(
+        &self,
+        requests: &[RenderRequest],
+        _: &[u8],
+    ) -> Result<Vec<RenderOutcome>, crate::domain::operating::errors::OperatingError> {
+        Ok(requests
+            .iter()
+            .map(|_| RenderOutcome::Known(Arc::from("a")))
+            .collect())
+    }
+}
 pub(super) const FROM: Input = Input::Relation(Relation::Function);
 pub(super) const RIGHT: Input = Input::Relation(Relation::Scope);
 pub(super) const DOMAIN: Input = Input::Relation(Relation::SyntaxTree);

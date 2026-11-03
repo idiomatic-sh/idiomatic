@@ -40,6 +40,6 @@ pub(crate) fn description() -> OperatorDescription {
             ),
         ],
         &[],
-        r#"let example = fits-rendered(from="syntax-tree", texts=["name"], literals=["", ""], span="span", max-line=88, tab-width=8); emit example subject file key(id);"#,
+        r#"let example = fits-rendered(from="function", texts=["name"], literals=["", ""], span="span", max-line=88, tab-width=8); emit example subject file key(id);"#,
     )
 }

@@ -1,5 +1,6 @@
 //! Proves every operation schema against its actual empty and populated evaluator.
 
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::KnownSyntax;
 use crate::application::file_dag::cross_execution::compute;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::features::service::{catalog, kind_of};
@@ -9,6 +10,7 @@ use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
+use ryo_language::domain::semantics::types::RenderContext;
 use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},
@@ -37,6 +39,7 @@ type Value = usize;
 type Failure = OperatingError;
 
 fn subject(populated: Input) -> Result<Value, Failure> {
+    let semantic = KnownSyntax;
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("alpha/beta"));
     let bindings = bindings();
@@ -57,7 +60,7 @@ fn subject(populated: Input) -> Result<Value, Failure> {
         let rows: Vec<_> = tables.iter().map(Rows::Computed).collect();
         let mut output = Table::default();
         let mut context = OperatorContext {
-            semantic: None,
+            semantic: Some(&semantic),
             prepared_kinds: None,
             prepared_matchers: None,
             bindings: &bindings,
@@ -87,13 +90,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("all_empty_operator_shapes_match_evaluation"),
         word: Word::Succeeds,
         input: || false,
-        expect: Expect::Value(24),
+        expect: Expect::Value(26),
     },
     Case {
         name: CaseName("all_populated_operator_shapes_match_evaluation"),
         word: Word::Succeeds,
         input: || true,
-        expect: Expect::Value(24),
+        expect: Expect::Value(26),
     },
 ];
 
@@ -300,6 +303,19 @@ fn unary() -> Vec<Operation> {
             capture: None,
             capture_text: false,
             capture_line: false,
+        },
+        Operation::RenderSyntax {
+            from: FROM,
+            node: col(2),
+            context: RenderContext::PositionalArgument,
+        },
+        Operation::FitsRendered {
+            from: FROM,
+            texts: vec![col(1)],
+            literals: vec![LiteralText("".into()), LiteralText("".into())],
+            span: col(3),
+            max_line: 88,
+            tab_width: 4,
         },
         Operation::SpanBounds {
             from: FROM,
