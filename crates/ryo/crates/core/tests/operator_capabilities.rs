@@ -58,7 +58,7 @@ extern crate self as hashbrown;
 pub struct HashTable<T>(std::marker::PhantomData<T>);
 pub mod meta {pub struct Regex;}
 pub mod domain {
- pub mod operating {pub mod errors{#[derive(Clone,Debug)]pub struct OperatingError;}pub mod types{#[derive(Clone,Copy)]pub struct InputPlace(pub usize);}}
+ pub mod operating {pub mod errors{#[derive(Clone,Debug)]pub struct OperatingError;}pub mod types{#[derive(Clone,Copy)]pub struct InputPlace(pub usize);pub trait SemanticLookup:std::fmt::Debug{}}}
  pub mod relations {pub mod types {#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct CellKind;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Value;#[derive(Clone,Copy)]pub struct ColumnsView<'a>(pub &'a ());pub struct Position;}}
  pub mod symbols {pub mod types {pub struct Symbols;pub struct QuerySymbols<'a>(pub &'a mut Symbols);impl QuerySymbols<'_>{pub fn as_ref(&self)->&Symbols {self.0}}}}
  pub mod files {pub mod types {pub struct FilePath;}}

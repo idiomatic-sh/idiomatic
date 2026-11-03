@@ -120,6 +120,7 @@ fn stored_kinds(table: &Table) -> &'static [CellKind] {
         [Number, Number] => &[Number, Number],
         [Number, Number, Number, Number] => &[Number, Number, Number, Number],
         [Symbol] => &[Symbol],
+        [Symbol, Span] => &[Symbol, Span],
         [Node] => &[Node],
         [Node, Node] => &[Node, Node],
         [Span] => &[Span],

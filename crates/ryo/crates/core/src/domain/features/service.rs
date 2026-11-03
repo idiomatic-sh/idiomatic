@@ -92,6 +92,8 @@ pub(crate) fn catalog() -> Vec<Feature> {
         OperationKind::Replace,
         OperationKind::SpanBetween,
         OperationKind::SourceMatches,
+        OperationKind::RenderSyntax,
+        OperationKind::FitsRendered,
         OperationKind::SpanBounds,
         OperationKind::OrderedMatch,
         OperationKind::OrderedDfs,

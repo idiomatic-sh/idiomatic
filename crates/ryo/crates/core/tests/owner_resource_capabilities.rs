@@ -142,6 +142,7 @@ pub mod domain {
   use crate::domain::{table_model::types::ParameterBinding,symbols::types::QuerySymbols,table_texts::types::SourceView,files::types::FilePath,stored_facts::types::ArenaBytes};
   #[derive(Debug)]pub struct Memo;
   #[derive(Debug)]pub struct OperatorScratch;
+  pub trait SemanticLookup: std::fmt::Debug {}
   __DECLARATION__
  }}
  pub mod matching {pub mod types {pub mod prepared {pub mod value {#[derive(Debug)]pub struct PreparedMatchers;}}}}
