@@ -19,7 +19,7 @@ fn diagnostics_at(
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-    SyntaxRuffPythonParserAdapter.read(
+    SyntaxRuffPythonParserAdapter::default().read(
         SourceText(source.as_bytes()),
         kind,
         &PythonParserSettings::new(target),
