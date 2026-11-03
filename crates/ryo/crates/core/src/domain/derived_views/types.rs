@@ -19,9 +19,6 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {
-    RawKeyOrder {
-        stride: usize,
-    },
     Equality {
         columns: Vec<ColumnIndex>,
     },

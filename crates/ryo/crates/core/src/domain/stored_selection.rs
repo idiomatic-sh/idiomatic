@@ -1,6 +1,5 @@
 //! Compact stored selections and their generation-local shared execution.
 
-pub(crate) mod service;
 pub(crate) mod types;
 
 #[cfg(test)]

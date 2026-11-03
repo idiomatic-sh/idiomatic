@@ -57,7 +57,6 @@ pub(crate) struct SelectedView<'a> {
     pub source: ColumnsView<'a>,
     pub positions: &'a [u32],
     pub columns: &'a [ColumnIndex],
-    pub kinds: &'a [CellKind],
 }
 
 /// Owned, generation-local metadata; it contains no provider/source references.

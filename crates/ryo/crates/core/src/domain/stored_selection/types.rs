@@ -32,12 +32,6 @@ pub(crate) struct PreparedPlan {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SelectionPlanId(pub usize);
 
-#[derive(Debug)]
-pub(crate) struct LiteralPostings {
-    pub text: String,
-    pub rows: Arc<Vec<u32>>,
-}
-
 /// One discriminator column used by distinct active predicate programs.
 #[derive(Debug)]
 pub(crate) struct CandidateColumn {

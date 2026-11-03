@@ -4,7 +4,6 @@ use crate::domain::operating::errors::OperatingError;
 
 pub(crate) fn kind(request: &ViewRequest) -> DerivedKind {
     match request {
-        ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
         ViewRequest::Equality { .. } => DerivedKind::Equality,
         ViewRequest::PredicateMatches(_) => DerivedKind::PredicateMatches,
         ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,

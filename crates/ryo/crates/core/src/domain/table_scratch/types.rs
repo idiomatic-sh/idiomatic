@@ -9,31 +9,6 @@ use ryo_language::domain::elements::types::KindSum;
 use ryo_relations::domain::relations::types::{FileId, KindBits, TextHash, Value};
 use ryo_relations::domain::terms::types::Symbol;
 
-/// Text being made in the room the operators work in: cleared and grown in place for every row, so it is a `String` and not a `Box<str>`.
-#[derive(Debug, Default)]
-pub(crate) struct ScratchText(pub String);
-
-impl std::ops::Deref for ScratchText {
-    type Target = String;
-
-    fn deref(&self) -> &String {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for ScratchText {
-    fn deref_mut(&mut self) -> &mut String {
-        &mut self.0
-    }
-}
-
-impl std::fmt::Write for ScratchText {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        self.0.push_str(s);
-        Ok(())
-    }
-}
-
 /// A word being read out of a text: cleared and grown in place for every word.
 #[derive(Debug, Default)]
 pub(crate) struct ScratchWord(pub String);

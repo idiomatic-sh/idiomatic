@@ -296,7 +296,6 @@ fn selected_cell(
             source: view.source,
             positions: &view.selection.rows,
             columns: &view.selection.columns,
-            kinds: &view.selection.kinds,
         },
         row,
         column,

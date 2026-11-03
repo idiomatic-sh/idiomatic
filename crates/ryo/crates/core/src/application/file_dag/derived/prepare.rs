@@ -32,7 +32,6 @@ pub(in crate::application::file_dag) fn view(
     use ryo_derived::domain::contract::types::ViewRequest as SemanticRequest;
     let mut needed = crate::domain::table_cells::types::ColumnPlaces::default();
     let meaning = match request {
-        ViewRequest::RawKeyOrder { stride } => SemanticRequest::RawKeyOrder { stride: *stride },
         ViewRequest::Equality { columns } => SemanticRequest::Equality {
             columns: columns.clone(),
         },
