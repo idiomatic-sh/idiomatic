@@ -1,6 +1,30 @@
-# Engine contracts: working rubric
+# Extension ownership contracts
 
-## 1. Rubric
+## 1. Ownership matrix
+
+`☑` means the engine is the sole authority for that cell on the named **actual route**, with source and test evidence. `☐` means split or unproved ownership; `—` means the axis does not apply. A checked cell is not a speed claim. The [common-owner tests and review](../../languages/python/benchmarks/linters/ruff/results/common-owner-graph-2026-11-03/README.md) cover the scoped selection, derived-view, and graph rows; fanout and remaining terminal paths stay open.
+
+| Contract / route | Scheduling | Caching | Invalidation | Data ownership | Lifetime | Remaining implementor responsibility |
+| --- | :---: | :---: | :---: | :---: | :---: | --- |
+| Language parse and project | ☑ | — | ☑ | ☐ | ☐ | Provider parser state and scratch stay local. |
+| Typed relation catalog | ☑ | — | — | ☑ | ☑ | Provider supplies values through typed relations. |
+| Complete and partial facts | ☑ | ☑ | ☑ | ☐ | ☑ | Provider still certifies recovery and partials. |
+| Provider walk versus execution demand | ☑ | — | — | ☐ | — | Provider still certifies deferred-fact completeness. |
+| Source bytes and spans | ☑ | — | ☑ | ☐ | ☑ | Provider still supplies token coordinates. |
+| Source and derived symbols | — | — | ☑ | ☐ | ☑ | Provider still supplies source-name meaning. |
+| Query grammar and typed plan | ☑ | — | ☑ | ☑ | ☑ | Map compile errors without changing query semantics. |
+| Primitive schema and evaluator | ☐ | ☐ | ☑ | ☑ | ☐ | Close remaining native and fanout bypass routes. |
+| Operator inputs and absence | ☑ | — | — | ☑ | — | Preserve declared absence and lazy error order. |
+| Ordinary plan, frontier, and terminal output | ☐ | ☐ | ☐ | ☑ | ☐ | Finish one scheduler and output lifetime across residual paths. |
+| Request-wide file graph | ☐ | ☐ | ☐ | ☑ | ☐ | Consolidate remaining request and Stepper work/release. |
+| Stored selections and selector views | ☑ | ☑ | ☑ | ☑ | ☑ | Extend the proven owner path to CandidatePostings fanout. |
+| Derived predicate/equality/distinct views | ☐ | ☑ | ☑ | ☑ | ☑ | Remove remaining caller-local scheduling choices. |
+| Graph adjacency, domain, and memo retention | ☐ | ☑ | ☑ | ☑ | ☑ | Finish traversal-demand scheduling; measure cost separately. |
+| CandidatePostings fanout | ☐ | ☐ | ☐ | ☐ | ☐ | Move admission, materialization, reuse, and release into the common owner. |
+| Persistent lint snapshot | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles. |
+| Outbound reports and jobs | ☑ | — | ☑ | ☑ | ☐ | Scheduler adapter still owns executor resources. |
+
+## 2. Rubric
 
 Each row is **execution route × resource family/representation**. Enumerate actual registry, acquire/select, publication/Selected constructors, cache accesses and terminal drivers; map every resolved site exactly once. Unmapped sites block closure.
 
@@ -16,7 +40,7 @@ Each row is **execution route × resource family/representation**. Enumerate act
 
 Cells are **proven: test/receipt**, **falsified: file:line**, or **unknown**; any falsified authority leaves its ownership checkbox unchecked. Traits/registry coverage alone prove neither sole ownership nor speed. Q2–Q4 workload-cost claims require attributable counted diagnostics or frozen-workload receipts; synthetic tests prove only their constructed mechanism. Shared untagged counters cannot identify a route. Exercise all 24 operators through actual DAG/root and residual/terminal routes; compile positives must use real capability types before negatives.
 
-## 2. Prioritization
+## 3. Prioritization
 
 **Nightmare severity:** 5 = observed wrong results/OOM/unusable target; 4 = measured large time/memory waste; 3 = measured moderate repeated waste; 2 = localized small impact; 1 = minor; ? = unmeasured. Unchecked ownership does not imply severity 5.
 
@@ -31,7 +55,7 @@ Cells are **proven: test/receipt**, **falsified: file:line**, or **unknown**; an
 
 Correctness/enforcement blockers come first. Otherwise sort **lexicographically** by observed severity, reached coverage, evidence confidence and dependencies; weigh effort and semantic risk. Confidence: frozen-workload receipt > attributable counted diagnostic > static hypothesis. Expected gain stays unknown without supporting evidence. Seek stepwise **20–50%+ whole-workload gains** by eliminating passes/repeated work; this is an aspiration, not a forecast or sum of microbenchmarks.
 
-## 3. How to work
+## 4. How to work
 
 - [ ] Identify the semantic interface, engine-owned policy/state/lifetime, every implementation and actual route before changing code.
 - [ ] Run a short isolated POC: hypothesis, smallest representative workload, baseline plus counts; document temporary contract debt, with no checked ownership credit.
@@ -42,7 +66,7 @@ Correctness/enforcement blockers come first. Otherwise sort **lexicographically*
 
 Reuse [measured demand/admission results](../../languages/python/benchmarks/linters/ruff/results/demand-admission-2026-11-03/README.md). The historical [18-workload/five-process spike](https://github.com/idiomatic-sh/idiomatic/blob/85d0a1ad7e/.agents/research/ryo-pvwd-performance-20261001.md) retained two failed timing budgets; [perf-4.2](https://github.com/idiomatic-sh/idiomatic/blob/85d0a1ad7e/crates/ryo/docs/archive/planning/perf-4.2.md) distinguishes measured M from assumed A. Its ≈515 ms is a model, not an achieved result. The [independent rubric review](evidence/fable-review-3-20261103.json) passed; implementation ownership closure remains open.
 
-## 4. Inspiration
+## 5. Inspiration
 
 | Primary source | Transferable question; applicability limit |
 | --- | --- |
