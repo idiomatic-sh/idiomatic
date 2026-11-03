@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/home/vscode/.local/bin/python3.10",
+    "/tmp/shared-validity-six-consumers-20261103/audit.py",
+    "/tmp/shared-validity-six-consumers-20261103/exact-current-failed-sources.json"
+  ],
+  "tool_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "script_sha256": "1d7c7ff0f6a0f3d8d1a4cec8e1d3482e17b6f1b836a62927fd4c44ca97ef595e",
+  "inputs_sha256": "a14b4d9b58379042dabc06ea974274a2db691002008409f1183488a4e311eb59",
+  "timestamp": "2026-11-03T00:49:45.394239+00:00"
+}

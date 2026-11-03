@@ -57,7 +57,7 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**387 PASS / 26 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**389 PASS / 24 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
 
@@ -71,3 +71,12 @@ class InventoryRendererTests(unittest.TestCase):
         rows = verified_rows(renderer.RUFF, receipt.parent, previous, directory)
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("RUF022", 33, 33, 0), ("RUF023", 31, 31, 0)])
+
+    def test_stub_syntax_proof_keeps_all_original_cases_and_only_two_exact_discrepancies(self):
+        receipt = renderer.LATEST_FULL_RESULT
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        from authoring.target_supplement import verified_rows
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous,
+                             receipt.parent / "pyi019-pyi034-target-supplement")
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("PYI019", 139, 138, 1), ("PYI034", 72, 71, 1)])

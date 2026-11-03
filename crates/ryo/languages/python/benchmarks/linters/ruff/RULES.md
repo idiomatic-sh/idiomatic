@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**387 PASS / 26 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**389 PASS / 24 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -264,7 +264,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | PYI016 | PASS | verified intended expectations |
 | PYI017 | PASS | verified intended expectations |
 | PYI018 | PASS | verified intended expectations |
-| PYI019 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| PYI019 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/pyi019-pyi034-target-supplement/summary.json) |
 | PYI020 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | PYI025 | PASS | verified intended expectations |
 | PYI026 | PASS | verified intended expectations |
@@ -272,7 +272,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | PYI030 | PASS | verified intended expectations |
 | PYI032 | PASS | verified intended expectations |
 | PYI033 | PASS | verified intended expectations |
-| PYI034 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| PYI034 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/pyi019-pyi034-target-supplement/summary.json) |
 | PYI035 | PASS | verified intended expectations |
 | PYI036 | PASS | verified intended expectations |
 | PYI041 | PASS | verified intended expectations |

@@ -32,3 +32,43 @@ Policy source:
 [`potential_index_error.rs`](https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/rules/pylint/rules/potential_index_error.rs),
 Ruff 0.16.5 commit `9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a`.
 The candidate remains unadmitted pending canonical candidate/reference evidence.
+
+## Reference discrepancy report
+
+**Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/PLE0643/benchmark.toml)). **Scope:** Source-specific reference difference; upstream bug status is unverified.
+
+The 3 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+
+To reproduce Ruff's reference finding for `unknown-starred`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
+
+```sh
+RAYON_NUM_THREADS=1 /home/vscode/.local/bin/ruff check --isolated --output-format json --cache-dir ./ruff-cache --select PLE0643 --target-version py310 -- case.py
+```
+
+### Unknown starred length
+
+Cases (1): `unknown-starred`.
+
+Representative exact source, `unknown-starred` (`case.py`):
+
+```python
+result = [*items][1]
+```
+
+- Intended: none. Pinned Ruff observed: PLE0643 case.py:18–19.
+- Basis: The length of an external starred iterable is not established by this source; CPython controls produce either IndexError or 20 from the same index, so a definite out-of-range diagnostic is unsupported. Primary evidence: [cpython310-observation.json](../../profiles/PLE0643/evidence/cpython310-observation.json).
+- Reproduce: use the [profile](../../profiles/PLE0643/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+
+### Known starred expansion
+
+Cases (2): `known-valid-starred`, `inline-literal-starred`.
+
+Representative exact source, `inline-literal-starred` (`case.py`):
+
+```python
+result = [*[10,20]][1]
+```
+
+- Intended: none. Pinned Ruff observed: PLE0643 case.py:20–21.
+- Basis: CPython expands the exact inline starred list to two elements and index 1 returns 20; the pinned reference reports an index error by counting the starred expression as one element. Primary evidence: [cpython310-observation.json](../../profiles/PLE0643/evidence/cpython310-observation.json).
+- Reproduce: use the [profile](../../profiles/PLE0643/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.

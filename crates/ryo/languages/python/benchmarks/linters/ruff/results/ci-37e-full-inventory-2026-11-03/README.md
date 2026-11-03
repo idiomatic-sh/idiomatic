@@ -1,0 +1,5 @@
+# Exact 37e561bf Ruff full-inventory CI
+
+[Run 41556074310](https://github.com/idiomatic-sh/idiomatic/actions/runs/41556074310), job `ruff-all-defaults` 125655493894, completed with **387 PASS / 26 FAIL / 413** and no unrun rule. The job itself is red because 26 defaults fail. [Summary](summary.json), [source-bound raw receipts](raw-receipts.tar.gz), [artifact identity](metadata.json), and [per-rule delta](triage.json) preserve the result. The original GitHub artifact is `ruff-all-defaults-1` ID 13195377919, SHA256 `2b71c970e40256f789070051514ca181f79d2331cd9fa6ad433e79a9fe04a63e`.
+
+Compared with the [exact 80be full run](../ci-80be-full-inventory-2026-11-03/summary.json) (383 PASS / 30 FAIL), only PLE0115, PLE0117, RUF022 and RUF023 move from FAIL to PASS; no prior PASS regresses. Later source-bound PYI019/PYI034 supplements raise the **composed** inventory to 389 PASS / 24 FAIL. That composed figure is not this complete CI run. The run's speed and remaining quality jobs are tracked separately and are not accepted by this Ruff result.

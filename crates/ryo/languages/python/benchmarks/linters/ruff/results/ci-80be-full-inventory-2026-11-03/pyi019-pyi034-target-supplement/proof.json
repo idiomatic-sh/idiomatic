@@ -1,0 +1,33 @@
+{
+  "schema": "benchmark-inventory-target-supplement/v1",
+  "rule_ids": [
+    "PYI019",
+    "PYI034"
+  ],
+  "requirements": {
+    "PYI019": [
+      "py310"
+    ],
+    "PYI034": [
+      "py310"
+    ]
+  },
+  "prior_summaries_sha256": {
+    "summary.json": "ea3396b368a4e0197d6c4308ac53e6d13e736f491ffaf082d9a1c04827618c67",
+    "ple0115-ple0117-target-supplement/summary.json": "21c2953181244dde5c9adca7423b6b861665e325fa3ac6035691637a4460c8e5",
+    "ruf022-ruf023-target-supplement/summary.json": "3ed5916a67e54311602e60d4373a2409776cbb82f19548f1f9e91368d9f8d285",
+    "speed-evidence/summary.json": "b29d89b86833a98dc322e8abe18874a10b0a4ad24242836da296adef57c5d96f"
+  },
+  "identity": {
+    "worker_sha256": "fe24023f0f920182eefe1e1b866d16f8977bd1ff6f6434f750f43f4938b8c9c1",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "default_case_results_sha256": {
+    "PYI019": "0575d8826c6fffa7a48054242d4c8487e483c089bcaada8de8ad835998722100",
+    "PYI034": "4cf4308b8695cfccb8e1affdcd94dc5f066bcbcfdfc301a5c56f6f55c5f33cc5"
+  },
+  "summary_sha256": "5201a2f315c49c5598779c8617979413e6925e2763da860adf4829d08d21ba6b",
+  "controls_sha256": "0d88aace0bac7947edfbb4cf28fdd203aa1b466e07dc696e90af82f2ffabb8cb",
+  "provenance_sha256": "772199dcdb74bde60a48c49c4ed0c12552200db1b4aa3ad667510619cbba6d4d",
+  "raw_receipts_sha256": "0f7859218eee9f91fbbb420d52745317db1f365cd9183478d5c910aafcd597c9"
+}

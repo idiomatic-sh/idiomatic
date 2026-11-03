@@ -78,3 +78,71 @@ Research pin: Ruff0.16.5 commit
 The tagged fixture/snapshot hashes are in `provenance.json`. This is an
 independent relational implementation of the observable placement policy, not a
 copy of the reference visitor architecture.
+
+## Reference discrepancy report
+
+**Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/RUF028/benchmark.toml)). **Scope:** Authored formatter-placement policy difference; no upstream bug claim.
+
+The 4 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The [archived raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz) records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+
+To reproduce Ruff's reference finding for `directive-whitespace`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
+
+```sh
+RAYON_NUM_THREADS=1 /home/vscode/.local/bin/ruff check --isolated --output-format json --cache-dir ./ruff-cache --select RUF028 --target-version py310 -- case.py
+```
+
+### Directive whitespace
+
+Cases (1): `directive-whitespace`.
+
+Representative exact source, `directive-whitespace` (`case.py`): JSON-escaped to preserve whitespace:
+
+```json
+"\t#\tfmt:\tskip\t\n"
+```
+
+- Intended: RUF028 case.py:1–13. Pinned Ruff observed: none.
+- Basis: The authored directive grammar admits Python horizontal tab whitespace around fmt: skip; CPython tokenization confirms the exact own-line comment. Primary evidence: [cpython310-observation.json](../../profiles/RUF028/evidence/cpython310-observation.json).
+- Reproduce: use the [profile](../../profiles/RUF028/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+
+### Semicolon body line indentation
+
+Cases (1): `semicolon-body-line-indentation`.
+
+Representative exact source, `semicolon-body-line-indentation` (`case.py`): JSON-escaped to preserve whitespace:
+
+```json
+"for x in items:\n    f();g()\n# fmt: off\nelse:\n    h()\n"
+```
+
+- Intended: RUF028 case.py:28–38. Pinned Ruff observed: none.
+- Basis: The authored placement contract uses the physical indentation of the semicolon-separated loop-body line. Primary evidence: [cpython310-observation.json](../../profiles/RUF028/evidence/cpython310-observation.json).
+- Reproduce: use the [profile](../../profiles/RUF028/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+
+### Unicode byte spans
+
+Cases (1): `unicode-byte-spans`.
+
+Representative exact source, `unicode-byte-spans` (`case.py`): JSON-escaped to preserve whitespace:
+
+```json
+"label=\"é🧪\"\nx=1 # fmt: on\n"
+```
+
+- Intended: RUF028 case.py:19–28. Pinned Ruff observed: none.
+- Basis: The authored placement contract rejects an inline fmt: on after code. Primary evidence: [cpython310-observation.json](../../profiles/RUF028/evidence/cpython310-observation.json).
+- Reproduce: use the [profile](../../profiles/RUF028/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+
+### Comment at eof
+
+Cases (1): `comment-at-eof`.
+
+Representative exact source, `comment-at-eof` (`case.py`): JSON-escaped to preserve whitespace:
+
+```json
+"x=1\n# fmt: skip"
+```
+
+- Intended: RUF028 case.py:4–15. Pinned Ruff observed: none.
+- Basis: The authored formatter-placement contract rejects an own-line fmt: skip at EOF because it trails no code. Primary evidence: [cpython310-observation.json](../../profiles/RUF028/evidence/cpython310-observation.json).
+- Reproduce: use the [profile](../../profiles/RUF028/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
