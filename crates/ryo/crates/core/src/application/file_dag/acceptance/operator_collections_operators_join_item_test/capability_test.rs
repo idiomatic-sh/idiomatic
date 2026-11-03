@@ -1,6 +1,6 @@
 //! Actual common-engine routes must reach the same injected Join capability.
 use super::*;
-use crate::application::file_dag::{execution::CommonOperatorEngine, executor::PrimitiveExecutor};
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::domain::operating::types::Memo;
 use crate::domain::table_model::types::{SelectedRows, StoredSelection};
 use crate::outbound::operators::interface::OperatorsPort;
@@ -10,22 +10,69 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 const REFUSAL: u32 = 60001;
-#[derive(Debug, Default)]
-struct Refuses {
+#[derive(Debug)]
+pub(in crate::application::file_dag::acceptance) struct Refuses {
     calls: AtomicUsize,
     positions: AtomicUsize,
+    columns: AtomicUsize,
+    refuse: bool,
+    only_columns: bool,
+}
+impl Default for Refuses {
+    fn default() -> Self {
+        Self {
+            calls: AtomicUsize::new(0),
+            positions: AtomicUsize::new(0),
+            columns: AtomicUsize::new(0),
+            refuse: true,
+            only_columns: false,
+        }
+    }
+}
+impl Refuses {
+    pub(in crate::application::file_dag::acceptance) fn forwarding() -> Self {
+        Self {
+            refuse: false,
+            ..Self::default()
+        }
+    }
+    pub(in crate::application::file_dag::acceptance) fn column_refusal() -> Self {
+        Self {
+            only_columns: true,
+            ..Self::default()
+        }
+    }
+    pub(in crate::application::file_dag::acceptance) fn column_calls(&self) -> usize {
+        self.columns.load(Ordering::Relaxed)
+    }
+    pub(in crate::application::file_dag::acceptance) fn all_calls(&self) -> usize {
+        self.calls.load(Ordering::Relaxed)
+    }
 }
 impl OperatorsPort for Refuses {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if let OperatorCall::EqualityJoin { input } = call {
-            match input {
-                ryo_operators::domain::contract::types::JoinInput::Values { .. } => {}
+            let columnar = match &input {
+                ryo_operators::domain::contract::types::JoinInput::Values { left, .. } => {
+                    match left {
+                        ryo_operators::domain::contract::types::JoinRow::Values(_) => false,
+                        ryo_operators::domain::contract::types::JoinRow::Columns(_) => {
+                            self.columns.fetch_add(1, Ordering::Relaxed);
+                            true
+                        }
+                    }
+                }
                 ryo_operators::domain::contract::types::JoinInput::Positions { .. } => {
                     self.positions.fetch_add(1, Ordering::Relaxed);
+                    false
                 }
-            }
+            };
             self.calls.fetch_add(1, Ordering::Relaxed);
-            Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL })
+            if self.refuse && (!self.only_columns || columnar) {
+                return Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL });
+            }
+            crate::outbound::operators::factory::test_port()
+                .operators(OperatorCall::EqualityJoin { input })
         } else {
             crate::outbound::operators::factory::test_port().operators(call)
         }
@@ -105,7 +152,27 @@ fn collected_computed_stored_selected_and_generic_routes_use_injected_join() {
         }),
     });
     let ordinary = plan(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    for rows in [Rows::Computed(&right), Rows::Stored(stored), selected] {
+    use crate::domain::table_model::collections::representations::types::RepresentationKind;
+    for representation in RepresentationKind::ALL {
+        let rows = match representation {
+            RepresentationKind::Stored => Rows::Stored(stored),
+            RepresentationKind::Selected => selected.clone(),
+            RepresentationKind::Computed => Rows::Computed(&right),
+            RepresentationKind::Tree => {
+                let (elements, mut symbols) = wide_tree(1, true);
+                let nodes = table_of(&[CellKind::Node], &[&[node(1)]]);
+                collected(
+                    &plan(&[0], &[0], &[(Side::Right, 0)], vec![], &[]),
+                    &[
+                        Rows::Computed(&nodes),
+                        tree_rows(&elements, TreeForm::Elements),
+                    ],
+                    &mut symbols,
+                    0,
+                );
+                continue;
+            }
+        };
         for limit in [0, crate::application::file_dag::derived::indexes::LIMIT] {
             collected(
                 &ordinary,
@@ -398,6 +465,21 @@ fn original_engine_error_wins_over_every_inconsistent_kernel_terminal() {
 
 #[test]
 fn lowered_pipeline_join_cannot_bypass_the_same_refusing_capability() {
+    use crate::domain::operator::types::TreeSteps;
+    for strategy in [TreeSteps::Lowered, TreeSteps::AsOperators] {
+        for right in [
+            PlanInput::Relation(Relation::SyntaxTree),
+            PlanInput::Relation(Relation::SyntaxChild),
+            PlanInput::Step(ryo_values::domain::plan_parts::types::StepId(1)),
+        ] {
+            match strategy {
+                TreeSteps::Lowered => native_pipeline_case(TreeSteps::Lowered, right),
+                TreeSteps::AsOperators => native_pipeline_case(TreeSteps::AsOperators, right),
+            }
+        }
+    }
+}
+fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, right: PlanInput) {
     use crate::domain::operator::{
         service::pool_for,
         types::{PreparedPool, TreeSteps},
@@ -418,11 +500,28 @@ fn lowered_pipeline_join_cannot_bypass_the_same_refusing_capability() {
         comparisons: vec![],
         kept: vec![ColumnIndex(0)],
     };
+    let mut steps = vec![PlanStep {
+        operation: select.clone(),
+        scope: StepScope::PerFile,
+    }];
+    if matches!(right, PlanInput::Step(_)) {
+        steps.push(PlanStep {
+            operation: select,
+            scope: StepScope::PerFile,
+        });
+    }
+    let root = StepId(u32::try_from(steps.len()).expect("bounded fixture steps"));
     let join = Operation::Join {
         left: PlanInput::Step(StepId(0)),
-        right: PlanInput::Relation(Relation::SyntaxTree),
+        right,
         left_on: vec![ColumnIndex(0)],
-        right_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(
+            if right == PlanInput::Relation(Relation::SyntaxChild) {
+                1
+            } else {
+                0
+            },
+        )],
         output: vec![JoinColumn {
             side: Side::Left,
             column: ColumnIndex(0),
@@ -431,20 +530,15 @@ fn lowered_pipeline_join_cannot_bypass_the_same_refusing_capability() {
         view: vec![],
         reach: None,
     };
+    steps.push(PlanStep {
+        operation: join,
+        scope: StepScope::PerFile,
+    });
     let plan = Plan {
         parameters: vec![],
-        steps: vec![
-            PlanStep {
-                operation: select,
-                scope: StepScope::PerFile,
-            },
-            PlanStep {
-                operation: join,
-                scope: StepScope::PerFile,
-            },
-        ],
+        steps,
         emit: Emit {
-            step: StepId(1),
+            step: root,
             subject: ColumnIndex(0),
             key: vec![],
             headings: vec![],
@@ -459,7 +553,7 @@ fn lowered_pipeline_join_cannot_bypass_the_same_refusing_capability() {
     )
     .expect("request preparation");
     let mut prepared = PreparedPool {
-        unlowered: TreeSteps::Lowered,
+        unlowered: strategy,
         ..PreparedPool::default()
     };
     crate::application::file_dag::derived::selection::prepare_request(&mut prepared, &request);
@@ -490,18 +584,31 @@ fn lowered_pipeline_join_cannot_bypass_the_same_refusing_capability() {
             &request.rules[0],
         ),
     );
-    assert_eq!(
-        port.positions.load(Ordering::Relaxed),
-        1,
-        "refusal must come from deferred position Join, not a value fallback"
-    );
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
-    assert!(prepared.layouts[0].lowering.shapes[1].is_some());
-    assert_eq!(
-        crate::domain::table_model::service::take_read_row_counts(),
-        (0, 0),
-        "lowered refusal must not materialize typed rows"
-    );
+    let reads = crate::domain::table_model::service::take_read_row_counts();
+    match strategy {
+        TreeSteps::Lowered => {
+            assert_eq!(
+                port.positions.load(Ordering::Relaxed),
+                1,
+                "must use deferred positions, not value fallback"
+            );
+            assert!(
+                prepared.layouts[0].lowering.shapes[usize::try_from(root.0).expect("root index")]
+                    .is_some()
+            );
+            assert_eq!(
+                reads,
+                (0, 0),
+                "lowered refusal must not materialize typed rows"
+            );
+        }
+        TreeSteps::AsOperators => assert_eq!(
+            port.positions.load(Ordering::Relaxed),
+            0,
+            "ordinary native strategy must use the value capability"
+        ),
+    }
 }
 
 struct NestedOutput {

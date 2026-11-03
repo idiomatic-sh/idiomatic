@@ -145,7 +145,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             use crate::domain::positions::types::{Positions, Readiness};
             use ryo_values::domain::plans::types::{Emit, Plan, PlanStep, StepScope};
             let mut lowering = lowering_of(&fields);
-            let root = StepId(room.made.len() as u32);
+            let root = StepId(u32::try_from(room.made.len()).map_err(|_| OperatingError::NotRun)?);
             let shape = lowering.shapes[0].as_ref().expect("left shape").clone();
             lowering.shapes.push(Some(LoweredShape {
                 width: RowWidth(2),

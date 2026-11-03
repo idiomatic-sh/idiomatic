@@ -11,12 +11,12 @@ use crate::domain::operator::types::{Pool, PreparedPool};
 use crate::domain::table_model::service::take_read_row_counts;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
+use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::{node_id, to_bits};
 use ryo_relations::domain::relations::types::{
     ColumnsView, FactColumn, FileId, Integer, Offset, Position, Relation, Span, Value as Cell,
 };
-use ryo_language::domain::symbols::service::intern_derived;
-use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows,
@@ -114,6 +114,23 @@ fn run<'f>(
     partial: &[Partial],
     strategy: KernelStrategy,
 ) -> Result<(Pool, PreparedPool, (u64, u64)), OperatingError> {
+    run_with_port(
+        plan,
+        read,
+        symbols,
+        partial,
+        strategy,
+        crate::outbound::operators::factory::test_port(),
+    )
+}
+fn run_with_port<'f>(
+    plan: &Plan,
+    read: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    symbols: &mut Symbols,
+    partial: &[Partial],
+    strategy: KernelStrategy,
+    port: &dyn crate::outbound::operators::interface::OperatorsPort,
+) -> Result<(Pool, PreparedPool, (u64, u64)), OperatingError> {
     let mut pool = pool_for(std::slice::from_ref(plan));
     pool.partial = partial.to_vec();
     let mut prepared = PreparedPool {
@@ -170,7 +187,7 @@ fn run<'f>(
         frame
             .as_ref()
             .map(|frame| frame as &dyn crate::application::file_dag::interface::DagExecution),
-        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
+        &crate::application::file_dag::execution::CommonOperatorEngine::new(port),
         &request.rules[0],
     );
     let reads = take_read_row_counts();
@@ -243,6 +260,41 @@ fn selected_stored_chain_matches_executor_and_reduces_full_row_reads() -> Result
     let (baseline, _, old_reads) = run(&plan, &read, &mut symbols, &[], KernelStrategy::Existing)?;
     let (candidate, prepared, new_reads) =
         run(&plan, &read, &mut symbols, &[], KernelStrategy::Column)?;
+    use super::operator_collections_operators_join_item_test::capability_test::Refuses;
+    for strategy in [KernelStrategy::Existing, KernelStrategy::Column] {
+        let observed = Refuses::forwarding();
+        let (actual, measured, _) =
+            run_with_port(&plan, &read, &mut symbols, &[], strategy, &observed)?;
+        assert_eq!(actual.steps[3], baseline.steps[3]);
+        assert!(observed.all_calls() > 0);
+        let refusing = match strategy {
+            KernelStrategy::Existing => Refuses::default(),
+            KernelStrategy::Column => {
+                assert!(observed.column_calls() > 0);
+                assert!(measured.kernel_counts.eligible_chains > 0);
+                Refuses::column_refusal()
+            }
+        };
+        assert!(
+            matches!(
+                run_with_port(&plan, &read, &mut symbols, &[], strategy, &refusing),
+                Err(OperatingError::Table(
+                    crate::domain::table_model::errors::TableModelError::NoSuchColumn {
+                        index: 60001
+                    }
+                ))
+            ),
+            "injected refusal must propagate, never optional-fallback"
+        );
+        match strategy {
+            KernelStrategy::Existing => assert_eq!(refusing.column_calls(), 0),
+            KernelStrategy::Column => assert_eq!(
+                refusing.column_calls(),
+                1,
+                "the fused physical strategy must hit the same capability before its first row"
+            ),
+        }
+    }
     assert_eq!(candidate.steps[3], baseline.steps[3]);
     assert_eq!(candidate.frontier, baseline.frontier);
     assert_eq!(

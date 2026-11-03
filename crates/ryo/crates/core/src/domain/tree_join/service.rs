@@ -1,9 +1,9 @@
 //! The `tree_join` service: how a join finds the elements of a tree for each row of its left input, with no IO and no ports.
 
 use ryo_language::domain::elements::service::{field_name_at, kind_names};
+use ryo_language::domain::symbols::service::name_count;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
-use ryo_language::domain::symbols::service::name_count;
 
 use super::types::{ColumnLack, TreeState};
 use crate::domain::comparing::service::holds_some;
@@ -235,7 +235,7 @@ pub(crate) fn probe(
     };
     let answer = semantics.operators(OperatorCall::EqualityJoin {
         input: ryo_operators::domain::contract::types::JoinInput::Values {
-            left: left_row,
+            left: ryo_operators::domain::contract::types::JoinRow::Values(left_row),
             left_on,
             output,
             view,

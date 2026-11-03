@@ -14,8 +14,8 @@ use crate::domain::tree_join::{
     },
     service::tree_value,
 };
-use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted, OperatorCall};
+use ryo_relations::domain::relations::types::{Position, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 
 struct Driver<'a, 'f> {
@@ -57,7 +57,11 @@ impl Driver<'_, '_> {
                 self.at += 1;
                 if self.filtered {
                     let row = std::array::from_fn::<_, 5, _>(|at| {
-                        tree_value(&native.tree, position, ColumnIndex(at as u32))
+                        tree_value(
+                            &native.tree,
+                            position,
+                            ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX)),
+                        )
                     });
                     if self.lease.holds(&row)? == Verdict::Fails {
                         continue;
@@ -143,7 +147,7 @@ pub(super) fn evaluate(
     };
     let answer = semantics.operators(OperatorCall::EqualityJoin {
         input: ryo_operators::domain::contract::types::JoinInput::Values {
-            left,
+            left: ryo_operators::domain::contract::types::JoinRow::Values(left),
             left_on,
             output,
             view,

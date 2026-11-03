@@ -28,7 +28,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                         driver,
                         key,
                         target,
-                    } => crate::domain::equality_join::service::join(
+                    } => crate::domain::equality_join::service::join_row(
                         left, left_on, output, view, driver, key, target,
                     )?,
                     crate::domain::contract::types::JoinInput::Positions {

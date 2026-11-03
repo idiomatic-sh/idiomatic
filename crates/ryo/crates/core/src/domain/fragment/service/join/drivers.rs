@@ -104,6 +104,8 @@ impl PositionJoinDriver for Edges<'_, '_, '_> {
         if self.error.is_some() {
             return &[];
         }
-        self.current.map_or(&[], |at| &self.found[at..at + 1])
+        self.current
+            .and_then(|at| self.found.get(at..at.saturating_add(1)))
+            .unwrap_or(&[])
     }
 }

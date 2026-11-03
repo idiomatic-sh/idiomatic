@@ -3,14 +3,21 @@
 
 use super::types::{Chain, KernelPlan};
 use crate::domain::lowering::types::Counting;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operator::contract::{
+    types::{PrimitiveSemantics, join_result},
+    views::{BorrowedRows, IndexedRows},
+};
 use crate::domain::operator::types::PlanLayout;
 use crate::domain::table_cells::types::RowIndex;
-use crate::domain::table_model::service::{cell_at, column_in, matching_stored, push_row, reset};
+use crate::domain::table_model::service::{cell_at, column_in, reset};
+use ryo_operators::domain::contract::types::{JoinInput, JoinRow, OperatorCall};
+mod driver;
 use crate::domain::table_model::types::{KeyIndex, Rows, Table};
-use ryo_relations::domain::relations::service::kinds;
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::service::kinds;
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::{
     Comparison, Input, JoinColumn, Operand, QueryLiteral, Side, Test,
 };
@@ -164,13 +171,13 @@ fn cell(
     left_row: RowIndex,
     right_row: RowIndex,
     source: JoinColumn,
-    decoded: &mut u64,
+    decoded: &std::cell::Cell<u64>,
 ) -> Option<Value> {
     let value = match source.side {
         Side::Left => cell_at(left, left_row, source.column),
         Side::Right => cell_at(right, right_row, source.column),
     }?;
-    *decoded = decoded.saturating_add(1);
+    decoded.set(decoded.get().saturating_add(1));
     Some(value)
 }
 
@@ -194,6 +201,7 @@ fn symbol_holds(value: Value, literal: &str, symbols: &Symbols, source: ByteSlic
 /// A row-ID cursor is the whole intermediate representation: no joined pair
 /// list or materialized intermediate table survives a candidate iteration.
 pub(crate) fn execute_with_index(
+    semantics: &dyn PrimitiveSemantics,
     chain: &Chain,
     left: &Rows<'_>,
     right: &Rows<'_>,
@@ -203,43 +211,57 @@ pub(crate) fn execute_with_index(
     source: ByteSlice<'_>,
     target: &mut Table,
     kinds: &[CellKind],
-) -> Option<(u64, u64, u64)> {
-    reset(target, kinds);
-    let mut key = Vec::with_capacity(chain.left_on.len());
-    let mut final_row = Vec::with_capacity(chain.projected.len());
-    let (mut decoded, mut hits, mut emitted) = (0_u64, 0_u64, 0_u64);
+) -> Result<Option<(u64, u64, u64)>, OperatingError> {
     let left_count = match left {
         Rows::Selected(view) => view.selection.rows.len(),
-        _ => return None,
+        _ => return Ok(None),
+    };
+    reset(target, kinds);
+    let mut key = Vec::with_capacity(chain.left_on.len());
+    let mut projected = Vec::with_capacity(chain.projected.len());
+    let decoded = std::cell::Cell::new(0_u64);
+    let hits = std::cell::Cell::new(0_u64);
+    let emitted = std::cell::Cell::new(0_u64);
+    let indexed = IndexedRows {
+        rows: BorrowedRows::Stored(right_source),
+        columns: &chain.right_on,
+        index,
     };
     for position in 0..left_count {
         let left_row = RowIndex(position);
-        key.clear();
-        for &column in &chain.left_on {
-            let value = cell_at(left, left_row, column)?;
-            decoded += 1;
-            key.push(value);
-        }
-        for &right_row in matching_stored(right_source, &chain.right_on, index, &key) {
-            hits += 1;
-            let value = cell(left, right, left_row, right_row, chain.filter, &mut decoded)?;
-            if !symbol_holds(value, &chain.literal.0, symbols, source) {
-                continue;
-            }
-            final_row.clear();
-            for &source in &chain.projected {
-                final_row.push(cell(
-                    left,
-                    right,
-                    left_row,
-                    right_row,
-                    source,
-                    &mut decoded,
-                )?);
-            }
-            push_row(target, &final_row);
-            emitted += 1;
-        }
+        let reader = driver::Left {
+            rows: left,
+            row: left_row,
+            decoded: &decoded,
+        };
+        let mut driver = driver::Driver {
+            chain,
+            left,
+            left_row,
+            right,
+            index: indexed,
+            probe: None,
+            current: None,
+            symbols,
+            source,
+            target,
+            decoded: &decoded,
+            hits: &hits,
+            emitted: &emitted,
+            error: None,
+        };
+        let answer = semantics.operators(OperatorCall::EqualityJoin {
+            input: JoinInput::Values {
+                left: JoinRow::Columns(&reader),
+                left_on: &chain.left_on,
+                output: &chain.projected,
+                view: &[],
+                driver: &mut driver,
+                key: &mut key,
+                target: &mut projected,
+            },
+        });
+        join_result(answer, driver.error.take())?;
     }
-    Some((emitted, decoded, hits))
+    Ok(Some((emitted.get(), decoded.get(), hits.get())))
 }

@@ -110,7 +110,7 @@ pub enum JoinInput<'a> {
     /// Immediate typed cells over already acquired matching candidates.
     Values {
         /// The scheduled left row.
-        left: &'a [ryo_relations::domain::relations::types::Value],
+        left: JoinRow<'a>,
         /// Ordered left key columns, validated when this row is reached.
         left_on: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
         /// Ordered output projection, including duplicates.
@@ -140,4 +140,20 @@ pub trait PositionJoinDriver {
     fn next(&mut self) -> Result<bool, JoinInterrupted>;
     /// File-local position slots of the current already matching RHS row.
     fn right_positions(&self) -> &[u32];
+}
+
+/// One immutable left row: values already at hand, or a finite columnar reader.
+pub enum JoinRow<'a> {
+    /// Already materialized typed values.
+    Values(&'a [ryo_relations::domain::relations::types::Value]),
+    /// Decode only requested key/output cells from one already admitted row.
+    Columns(&'a dyn JoinCells),
+}
+/// Read-only access to one already admitted physical row, never an acquisition port.
+pub trait JoinCells {
+    /// Read exactly one logical cell. No cache, scheduler or population handle is exposed.
+    fn cell(
+        &self,
+        column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    ) -> Option<ryo_relations::domain::relations::types::Value>;
 }

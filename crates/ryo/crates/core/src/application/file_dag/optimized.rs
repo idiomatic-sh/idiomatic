@@ -115,7 +115,7 @@ impl CommonOperatorEngine<'_> {
             crate::domain::operating::types::InputPlace(0),
             crate::domain::table_model::types::RowCount(made),
         );
-        return result;
+        result
     }
     pub(crate) fn keep_step<'a, 'f>(
         &self,
@@ -141,6 +141,9 @@ impl CommonOperatorEngine<'_> {
                 .and_then(|program| program.0.get(id.0))
                 .and_then(Option::as_ref)
             && column::execute(
+                &super::execution::PrimitiveSemanticsBridge {
+                    port: self.operators,
+                },
                 chain,
                 stepper.read,
                 stepper.selected,

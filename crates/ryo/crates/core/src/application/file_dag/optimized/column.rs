@@ -20,7 +20,7 @@ use crate::domain::table_model::{
     service::{column_in, rectangular, reset},
     types::{Rows, SelectedRows, StoredSelection, Table},
 };
-use ryo_language::domain::{symbols::types::ByteSlice};
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::{service::kinds as relation_kinds, types::CellKind};
 use ryo_values::domain::plans::types::Plan;
 use std::sync::Arc;
@@ -50,6 +50,7 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
 /// Preserve the old fast-path admission and fallback order. A refusal leaves
 /// the target empty and returns false so the common engine evaluates the step.
 pub(crate) fn execute(
+    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
     chain: &Chain,
     read: &dyn Reading<'_>,
     selected: &[Option<Arc<StoredSelection>>],
@@ -126,6 +127,7 @@ pub(crate) fn execute(
         return Err(OperatingError::WrongOperation);
     };
     let outcome = kernel::execute_with_index(
+        semantics,
         chain,
         &left,
         &right,
@@ -135,7 +137,7 @@ pub(crate) fn execute(
         ByteSlice(context.source.0),
         target,
         kinds,
-    );
+    )?;
     let Some((rows, cells, hits)) = outcome else {
         reset(target, kinds);
         return Ok(false);

@@ -6,12 +6,12 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::{node_id, to_bits};
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, Integer, KindBits, Offset, Position, Relation, Span,
     Value as Cell,
 };
-use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::QueryOperator;
 
@@ -1859,4 +1859,4 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
     assert!(room.scratch.observation.traversal_queue_len == 0);
 }
 
-mod capability_test;
+pub(super) mod capability_test;

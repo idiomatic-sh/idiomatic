@@ -1,10 +1,11 @@
 //! The engine chooses the physical probe; this kernel owns ordered Join row semantics.
-use crate::domain::contract::types::{JoinDriver, PortableOperatorFault};
+use crate::domain::contract::types::{JoinDriver, JoinRow, PortableOperatorFault};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
-pub(crate) fn join(
-    left: &[Value],
+/// Ordered Join meaning over the engine-selected borrowed left representation.
+pub(crate) fn join_row(
+    left: JoinRow<'_>,
     left_on: &[ColumnIndex],
     output: &[JoinColumn],
     view: &[ColumnIndex],
@@ -12,12 +13,17 @@ pub(crate) fn join(
     key: &mut Vec<Value>,
     target: &mut Vec<Value>,
 ) -> Result<(), PortableOperatorFault> {
+    let read_left = |column: ColumnIndex| match &left {
+        JoinRow::Values(row) => usize::try_from(column.0)
+            .ok()
+            .and_then(|at| row.get(at))
+            .copied(),
+        JoinRow::Columns(row) => row.cell(column),
+    };
     key.clear();
     for column in left_on {
         key.push(
-            *left
-                .get(column.0 as usize)
-                .ok_or(PortableOperatorFault::NoSuchColumn { index: column.0 })?,
+            read_left(*column).ok_or(PortableOperatorFault::NoSuchColumn { index: column.0 })?,
         );
     }
     while driver
@@ -27,9 +33,9 @@ pub(crate) fn join(
         target.clear();
         for column in output {
             let value = match column.side {
-                Side::Left => left.get(column.column.0 as usize).copied(),
+                Side::Left => read_left(column.column),
                 Side::Right => driver.right_cell(
-                    view.get(column.column.0 as usize)
+                    view.get(usize::try_from(column.column.0).unwrap_or(usize::MAX))
                         .copied()
                         .unwrap_or(column.column),
                 ),
@@ -64,4 +70,25 @@ pub(crate) fn positions(
         target.extend_from_slice(driver.right_positions());
     }
     Ok(())
+}
+
+#[cfg(test)]
+fn join(
+    left: &[Value],
+    left_on: &[ColumnIndex],
+    output: &[JoinColumn],
+    view: &[ColumnIndex],
+    driver: &mut dyn JoinDriver,
+    key: &mut Vec<Value>,
+    target: &mut Vec<Value>,
+) -> Result<(), PortableOperatorFault> {
+    join_row(
+        JoinRow::Values(left),
+        left_on,
+        output,
+        view,
+        driver,
+        key,
+        target,
+    )
 }

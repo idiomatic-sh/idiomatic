@@ -25,7 +25,10 @@ impl JoinDriver for Driver {
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Value> {
         self.reads.set(self.reads.get() + 1);
-        self.rows.get(self.at - 1)?.get(column.0 as usize).copied()
+        self.rows
+            .get(self.at - 1)?
+            .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+            .copied()
     }
     fn emit(&mut self, row: &[Value]) -> Result<(), JoinInterrupted> {
         if self.stopped {
@@ -214,4 +217,43 @@ fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
         Ok(OperatorAnswer::Written)
     );
     assert_eq!(target, vec![99, 4, 2, 9, 3, 4, 2, 1, 7, 4, 2, 9, 3]);
+}
+
+#[test]
+fn columnar_left_decodes_only_demanded_key_and_projection_cells() {
+    use crate::domain::contract::types::{JoinCells, JoinRow};
+    struct Columns {
+        reads: std::cell::RefCell<Vec<u32>>,
+    }
+    impl JoinCells for Columns {
+        fn cell(&self, column: ColumnIndex) -> Option<Value> {
+            self.reads.borrow_mut().push(column.0);
+            match column.0 {
+                0 => Some(number(7)),
+                999 => Some(number(8)),
+                _ => None,
+            }
+        }
+    }
+    let columns = Columns {
+        reads: std::cell::RefCell::new(vec![]),
+    };
+    let mut d = driver();
+    assert_eq!(
+        join_row(
+            JoinRow::Columns(&columns),
+            &[ColumnIndex(0)],
+            &[JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(999)
+            }],
+            &[],
+            &mut d,
+            &mut vec![],
+            &mut vec![]
+        ),
+        Ok(())
+    );
+    assert_eq!(*columns.reads.borrow(), vec![0, 999, 999, 999]);
+    assert_eq!(d.outputs, vec![vec![number(8)]; 3]);
 }

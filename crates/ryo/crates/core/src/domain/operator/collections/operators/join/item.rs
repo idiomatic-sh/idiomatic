@@ -59,6 +59,7 @@ impl OperatorsItem for JoinItem {
             output,
             view,
             reach,
+            filter,
             ..
         } = operation
         else {
@@ -68,9 +69,6 @@ impl OperatorsItem for JoinItem {
             return Err(OperatingError::WrongOperation);
         };
         if reach.is_none() {
-            let Operation::Join { filter, .. } = operation else {
-                unreachable!("checked Join")
-            };
             return ordinary::evaluate(
                 left,
                 left_on,

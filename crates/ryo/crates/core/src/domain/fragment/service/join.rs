@@ -1,9 +1,8 @@
 //! The `joins` service: the lowered steps that combine the rows of two steps, with no IO and no ports.
 
 use ryo_language::domain::elements::service::children;
-use ryo_relations::domain::relations::service::to_bits;
-use ryo_relations::domain::relations::types::{CellKind, Position, Relation, Value};
 use ryo_language::domain::symbols::service::name_count;
+use ryo_relations::domain::relations::types::{CellKind, Position, Relation, Value};
 
 use crate::domain::comparing::service::holds_all;
 use crate::domain::lowering::constants::EDGE;
@@ -12,7 +11,7 @@ use crate::domain::lowering::types::{LoweredColumn, Lowering};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
 use crate::domain::positions::service::{
-    count, firsts, followed, hits, in_tree, key_into, made_of, row, slot_of, sorted, value,
+    count, followed, hits, in_tree, key_into, made_of, row, sorted, value,
 };
 use crate::domain::positions::types::{
     KeyColumns, LoweredRoom, Positions, Sides, Slots, Stride, Work,
@@ -26,7 +25,6 @@ use crate::domain::walks::types::Admit;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
 
 use crate::domain::operator::contract::types::{PrimitiveSemantics, join_result};

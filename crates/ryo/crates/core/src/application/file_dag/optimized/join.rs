@@ -20,8 +20,8 @@ use crate::domain::table_model::{
     },
     types::{RowCount, Rows},
 };
-use ryo_relations::domain::relations::{service::kinds, types::Value};
 use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted, OperatorCall};
+use ryo_relations::domain::relations::{service::kinds, types::Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 
 const SPARSE_PAIR_LIMIT: usize = 65_536;
@@ -197,7 +197,7 @@ fn sparse_left(
         };
         let answer = semantics.operators(OperatorCall::EqualityJoin {
             input: ryo_operators::domain::contract::types::JoinInput::Values {
-                left: left_row,
+                left: ryo_operators::domain::contract::types::JoinRow::Values(left_row),
                 left_on: &join.left_on,
                 output: &join.output,
                 view: &[],
