@@ -168,14 +168,12 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
             query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\"; emit diagnostics subject file key(id);").unwrap(),
         },
     );
-    let report = engine
-        .run(
-            request.clone(),
-            crate::outbound::engine::types::PreparedMissingInputs {
-                selected_missing: [ryo::linter::RelativePath("missing.py".into())].into(),
-            },
-        )
-        .unwrap();
+    let prepared = prepare(request.clone()).unwrap();
+    assert_eq!(
+        prepared.missing.selected_missing,
+        request.files.iter().cloned().collect()
+    );
+    let report = engine.run(prepared.request, prepared.missing).unwrap();
     assert_eq!(report.diagnostics.len(), 1);
     assert_eq!(report.diagnostics[0].file, request.files[0]);
     assert_eq!(report.diagnostics[0].start.0, 0);
@@ -198,14 +196,11 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
         .unwrap(),
     );
     readable.files = vec![ryo::linter::RelativePath("input.txt".into())];
+    let prepared = prepare(readable).unwrap();
+    assert!(prepared.missing.selected_missing.is_empty());
     assert!(
         engine
-            .run(
-                readable,
-                crate::outbound::engine::types::PreparedMissingInputs {
-                    selected_missing: Default::default(),
-                },
-            )
+            .run(prepared.request, prepared.missing)
             .unwrap_err()
             .to_string()
             .contains("incomplete candidate"),
