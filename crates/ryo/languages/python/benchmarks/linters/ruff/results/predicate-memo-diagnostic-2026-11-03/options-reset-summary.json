@@ -1,0 +1,26 @@
+{
+  "measurement": false,
+  "stdout_parity": true,
+  "matches_prior_options": true,
+  "events": 1,
+  "overflow": 0,
+  "aggregate": {
+    "initializations": 1851,
+    "initialized_cells": 6600670,
+    "read_attempts": 873435,
+    "known_hits": 54530,
+    "unknown_reads": 9098,
+    "missing_reads": 809807,
+    "writes": 9098,
+    "distinct_touched": 9098,
+    "equal_text_bypass": 5854165,
+    "glob_subject_bypass": 513,
+    "reset_elapsed_ns": 328885,
+    "capacity_growths": 1314,
+    "capacity_growth_cells": 4201285,
+    "peak_capacity_cells": 18263
+  },
+  "memo_element_bytes": 1,
+  "initialized_bytes": 6600670,
+  "events_bytes": 140774
+}

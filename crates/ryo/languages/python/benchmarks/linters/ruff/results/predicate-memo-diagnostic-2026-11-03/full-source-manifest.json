@@ -1,0 +1,106 @@
+{
+  "base": "fef20a0123ca59ab74a09cfa014501c40ba722cd",
+  "patch_sha256": "8a68b5f6bd4562a4d6e46f0b370434571c92d3194a21f412222814a014328dd4",
+  "files": [
+    {
+      "path": "crates/ryo/crates/benchmark/src/outbound/engine/adapters/local/diagnostic_events.rs",
+      "before_sha256": "87bca5afbb5e54fe9299e9dc9b8949965d8f9e14aa237e337afbcd3444021a96",
+      "after_sha256": "8fc5c799f1ab6fdd407a1a6a9150a6b4b3b0f06bdfbea81d45799c4e622889da"
+    },
+    {
+      "path": "crates/ryo/crates/benchmark/src/outbound/engine/adapters/local/diagnostic_events_test.rs",
+      "before_sha256": "7b136899371f11cdc9e02fe2bb6b64bd5da8dfbf953e632d62656d58339697c7",
+      "after_sha256": "3a984ca19570d0cde75eb7551ab1f9e1e23d856f5d228a3840747f70df044551"
+    },
+    {
+      "path": "crates/ryo/crates/core/Cargo.toml",
+      "before_sha256": "bed256a3a4d0bc46077b74243390719e7973e4cc71d129acfd4d180a6a34c8ee",
+      "after_sha256": "d4664c395c5018c8f2604ea6115c97212de32960d2723b536646c4d0c5ddd6e1"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/application/file_analysis/service.rs",
+      "before_sha256": "596e31b5f064b3f58918726d9d6835c5d4c4a4e898c7aa1462d53f9be59d0ba7",
+      "after_sha256": "bf901c7d7190c595b6cfd9b2eea72e64f18933ab2e285c4481e51b7e7b65d768"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/application/file_dag/derived/selection/predicate.rs",
+      "before_sha256": "8aca68681f42f1b4d6b121c30a5cd76e06797361344547be09b7378eae945075",
+      "after_sha256": "715f0d8d032ade1213467566c478ee15bcd17c96e05f5f59b2f099661e1a4232"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/application/file_dag/predicates.rs",
+      "before_sha256": "d79cb02b1286623251afe89a36728b30ea77e7f5424056f1e3d56e7fcd5a72c7",
+      "after_sha256": "930926df36ce450ea977211e69eb80a13e3ab0c9701abfbd60ce10c9eeb3830a"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/application/file_dag/rule_execution.rs",
+      "before_sha256": "3c67c66b15547c045fab3507f13a251e5798bfc326b51c0f75ab5ee6167cc6e6",
+      "after_sha256": "b0a27e09e5568bb0b60b90e2abf5fe05520452673c1b11d6542ffb3defcc0332"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/comparing.rs",
+      "before_sha256": "d54e1e211d6a8a7abe4eec20c9e2c9558d5c2681e5bd0ddf5bce6df61f262afd",
+      "after_sha256": "04eddd9a9ea742a974d9f82229255a209f89015953b809df1b80425c1f355131"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/comparing/diagnostics.rs",
+      "before_sha256": null,
+      "after_sha256": "c5a9db6d74a93b2a03a1686de933091d30efd0e0b1bb00b0f77bc2c0e94566c1"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/comparing/diagnostics_test.rs",
+      "before_sha256": null,
+      "after_sha256": "42e0d835cd314f5f1f2c6a81460b7f8e6c260f42b8250b43dbc539ecdec78f10"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/comparing/service.rs",
+      "before_sha256": "03858e3238d2f1b7acec298b8ed79cb1e8c6328ed6861445b271f761522e5093",
+      "after_sha256": "40186570d76201238a86dc2dca780057fb9049149e44287e037521aa080a73d2"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/joins/service.rs",
+      "before_sha256": "c43f47c4081ea0fd6d7665d04b2c20afbc9a0dd27086f30f2db122e306d21b1d",
+      "after_sha256": "1f16f389f8ef733eddd69f05ef1eaa1c87eae219d452e14d5abb1d0037d3de95"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/selections/evaluation.rs",
+      "before_sha256": "ac9413194828eb1e8f01bcaf843da05203125f16a6400d9df8a85b0e9daceab0",
+      "after_sha256": "8957f28fbd67207879020396e2aa4d6622e1fcc59be92fbffbcb6d05ca9aaf2b"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/selections/service.rs",
+      "before_sha256": "b0e15015947712dc91b79b637e738233c0777621d0e801853c6782385c2b7128",
+      "after_sha256": "26b7f46a66e085ad5cf5cd2e28cd789a8c1ef6bc3e3a22c4a39cfb1339ab1111"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/shared_walk/service.rs",
+      "before_sha256": "5c2d7bd7399418c59939e754aeb2fe1e12b5b938e07cc583a03575d9bd081d7b",
+      "after_sha256": "5db2849bcc42897e52ab3f74428ebab52225bb4f2daeabffc9da05377e8597e5"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/tree_join/service.rs",
+      "before_sha256": "4a4c9a93081222131a3324bbcd5a906b3bb6a42a3f56b9f5052d2dfb5a35e7e0",
+      "after_sha256": "258f9dab22d93994db500e14292ff02d590cd7af686a8943327dbf2ea38f6308"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/tree_walk/service.rs",
+      "before_sha256": "26fdef96b3d41c006fda309fcc042d95dd7d0c01def220b1645ae880f9580572",
+      "after_sha256": "ee5e1a6970460fe2c52836dda1eed923e804a0aa0a50f7de6f2704f700188f2f"
+    },
+    {
+      "path": "crates/ryo/crates/core/src/domain/walks/service.rs",
+      "before_sha256": "f2e5bcfba64ac47febd4732ea1b5da08128cdaaf2eb433788860be50ac9c5cd3",
+      "after_sha256": "8c2697e117b4c92f1237ecfbc80566ed12c1271638b9b541b1489416c25f4f68"
+    }
+  ],
+  "mode": "RYO_DIAGNOSTIC_PREDICATE_MEMO=1; other targets suppressed",
+  "limits": {
+    "aggregate_keys": 4096,
+    "named_rules": 4096,
+    "memo_buffers": 4096,
+    "distinct_touched_slots": 262144
+  },
+  "interpretation": "Diagnostic counts only; overflow nonzero invalidates complete attribution. No timing or optimization result.",
+  "head": "d05318311ff01a02c56409ac735ffa7db938a550",
+  "build_feature": "idiomatic-sh-ryo-core/predicate-memo-diagnostic"
+}

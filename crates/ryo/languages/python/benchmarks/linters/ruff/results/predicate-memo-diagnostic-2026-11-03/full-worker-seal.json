@@ -1,0 +1,29 @@
+{
+  "command": [
+    "cargo",
+    "build",
+    "--locked",
+    "--release",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-python",
+    "-p",
+    "idiomatic-sh-ryo-core",
+    "--bench",
+    "ruff",
+    "--features",
+    "idiomatic-sh-ryo-core/predicate-memo-diagnostic",
+    "--message-format=json"
+  ],
+  "source_head": "d05318311ff01a02c56409ac735ffa7db938a550",
+  "exit_code": 0,
+  "wall_seconds": 68.8394672870636,
+  "diagnostic_only": true,
+  "performance_comparable": false,
+  "worker_sha256": "f502ead6079106621b753289212e4732af4d95fc0c1991f95ee73b9537704ae8",
+  "target_kind": "bench",
+  "artifact": "/workspaces/idiomatic-benchmark-guards/target/release/deps/ruff-32dcd6860d7a006e",
+  "core_diagnostic_feature_verified": true,
+  "source_clean_after": true,
+  "head_unchanged": true
+}
