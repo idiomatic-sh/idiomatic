@@ -6,6 +6,7 @@ import re
 import tomllib
 from copy import deepcopy
 from hashlib import sha256
+from json import dumps
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,31 @@ FULL_INVENTORY_SCRIPTS = {
     "Build shared benchmark inventory runner": "5d8998c6e9bdfbdec286c4606f51bebb5785784a27a8afa118f7205d7e8c0f1f",
     "Verify all 413 pinned Ruff defaults": "c3aaa07327b3c8134fcd36a4cf760fbed37cd6cb3bd9be6f0836462468879adf",
 }
+# Each digest binds the entire pinned action step: its `uses`, inputs, id,
+# condition and name. The ordered inventory also prevents inserted actions
+# from changing PATH, environment or the checkout beneath sealed scripts.
+FULL_INVENTORY_ACTIONS = [
+    ("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "3facce523aa8a0e29a937485282e18e07e2907c45914b4ce7745b674c765f3b7"),
+    ("rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621", "29c1d451230538f43d0b400cd8f29d6d44751605fdc700c034be0ee1dd079524"),
+    ("actions/setup-node@820762786026740c76f36085b0efc47a31fe5020", "7f5474ce29bf0dbdda451c45fc3e6dea65abfbbe1df98d51d9f4d0d29a599875"),
+    ("actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "575dd3621a9046d2565240ed6cd1a03f836bdb30bf621ee41116f601aa13b2c1"),
+    ("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "4ff5f58fc47d55df93511f6dfea5db27c569b98f43b84e380960801b15c1761d"),
+    ("astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", "39393228bcaf4b2e15bc14f2fadb3501c81f8966ef57502f9be19f86dbc3fa10"),
+    ("Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "755d22b015494a0d8c94f1451c0b25c86f0ae5a7b598351f6ee54ddea60d5efd"),
+    ("actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "c8ee43c3c99e776f1742d16763c36999907144bc3b69900a90461778414a683e"),
+    ("actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "109b67da612eaa7e25df38fbc0f69727c3f6bdfc18638720ec49c2e924c7ab2b"),
+    ("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9", "b9cf3ef4ae00784578aec3c3df418ccd2be3bec3c9518457e0c5f8d60856b14f"),
+]
+FULL_INVENTORY_ORDER = [
+    *(uses for uses, _ in FULL_INVENTORY_ACTIONS[:6]),
+    "Rust toolchain (rust-toolchain.toml)",
+    FULL_INVENTORY_ACTIONS[6][0],
+    FULL_INVENTORY_ACTIONS[7][0],
+    "Install pinned tools",
+    FULL_INVENTORY_ACTIONS[8][0],
+    *FULL_INVENTORY_SCRIPTS,
+    FULL_INVENTORY_ACTIONS[9][0],
+]
 
 
 def full_inventory_problems(job: dict) -> list[str]:
@@ -57,10 +83,16 @@ def full_inventory_problems(job: dict) -> list[str]:
     steps = job.get("steps", [])
     if not steps:
         return ["full inventory has no worker, collector, verifier or receipts"]
-    if job.get("runs-on") != "ubuntu-26.04" or any(key in job for key in ("needs", "if", "continue-on-error", "env")):
+    if set(job) != {"runs-on", "timeout-minutes", "defaults", "steps"} or job.get("runs-on") != "ubuntu-26.04" or job.get("timeout-minutes") != 360:
         found.append("full inventory must run independently on Linux and propagate failure")
-    if job.get("defaults", {}).get("run", {}).get("shell") != "bash":
+    if job.get("defaults") != {"run": {"shell": "bash"}}:
         found.append("full inventory must use the reviewed Bash scripts")
+    actions = [
+        (step["uses"], sha256(dumps(step, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
+        for step in steps if "uses" in step
+    ]
+    if actions != FULL_INVENTORY_ACTIONS or [step.get("uses") or step.get("name") or step.get("run") for step in steps] != FULL_INVENTORY_ORDER:
+        found.append("full inventory changed its ordered setup actions or action inputs")
     named = [step for step in steps if step.get("name") in FULL_INVENTORY_SCRIPTS]
     if [step.get("name") for step in named] != list(FULL_INVENTORY_SCRIPTS):
         found.append("full inventory lost or reordered its worker, collector or verifier")
@@ -370,6 +402,33 @@ def test_full_inventory_refuses_masked_upload_and_build_environment_override() -
     worker = next(step for step in changed["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == "Build one Ruff worker and seal its artifact")
     worker["env"] = {"CARGO_TARGET_DIR": "/tmp/other"}
     assert problems(changed)
+
+
+@pytest.mark.parametrize(("field", "value"), [("ref", "main"), ("repository", "someone/else")])
+def test_full_inventory_refuses_checkout_away_from_the_run_commit(field: str, value: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    checkout = altered["jobs"]["ruff-all-defaults"]["steps"][0]
+    checkout["with"][field] = value
+    assert problems(altered)
+
+
+def test_full_inventory_refuses_added_or_changed_setup_actions() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    added = deepcopy(workflow)
+    added["jobs"]["ruff-all-defaults"]["steps"].insert(6, {"uses": "./.github/actions/replace-tool"})
+    assert problems(added)
+    changed = deepcopy(workflow)
+    setup_node = next(step for step in changed["jobs"]["ruff-all-defaults"]["steps"] if step.get("uses", "").startswith("actions/setup-node@"))
+    setup_node["with"]["node-version"] = 22
+    assert problems(changed)
+
+
+def test_full_inventory_refuses_a_job_container() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    altered["jobs"]["ruff-all-defaults"]["container"] = "example.invalid/custom:latest"
+    assert problems(altered)
 
 
 def test_a_job_command_runs_beside_the_steps_that_install_the_tools() -> None:
