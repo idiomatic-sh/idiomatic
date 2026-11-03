@@ -13,8 +13,10 @@ let actual_else = select l.parent as parent, l.clause as clause, l.file as file 
 let alternatives = select l.parent as parent, r.child as child, l.file as file from actual_else as l join edges as r on l.clause = r.parent and l.file = r.file where r.field = "body";
 let body_counts = group-count(from=bodies, keys=["parent","file"], count="count");
 let else_counts = group-count(from=alternatives, keys=["parent","file"], count="count");
+let clause_counts = group-count(from=else_clauses, keys=["parent","file"], count="count");
 let body_single = select l.id as id, l.file as file from plain_ifs as l join body_counts as r on l.id = r.parent and l.file = r.file where r.count = 1;
-let both_single = select l.id as id, l.file as file from body_single as l join else_counts as r on l.id = r.parent and l.file = r.file where r.count = 1;
+let one_clause = select l.id as id, l.file as file from body_single as l join clause_counts as r on l.id = r.parent and l.file = r.file where r.count = 1;
+let both_single = select l.id as id, l.file as file from one_clause as l join else_counts as r on l.id = r.parent and l.file = r.file where r.count = 1;
 let body_branches = select l.id as id, l.file as file, r.child as body from both_single as l join bodies as r on l.id = r.parent and l.file = r.file;
 let branches = select l.id as id, l.file as file, l.body as body, r.child as alternative from body_branches as l join alternatives as r on l.id = r.parent and l.file = r.file;
 let assignments = select id, file from nodes where kind = "assign";

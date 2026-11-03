@@ -106,3 +106,15 @@ name = "elif-not-in-branch-negative"
 comparison = "full"
 files = { "case.py" = "d = {}\nif key not in d:\n    value = 0\nelif other:\n    value = d[key]\n" }
 expected = []
+
+[[cases]]
+name = "elif-else-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelif other:\n    changed = 1\nelse:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "elif-else-not-in-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key not in d:\n    value = 0\nelif other:\n    changed = 1\nelse:\n    value = d[key]\n" }
+expected = []
