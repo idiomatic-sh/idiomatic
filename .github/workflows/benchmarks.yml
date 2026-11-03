@@ -47,24 +47,25 @@ jobs:
         run: |
           set -euo pipefail
           root="$PWD/target/checks/up031-process"
-          profile="$PWD/.github/fixtures/up031-process-bootstrap/repro"
           worker="$root/worker"
           reference="$(command -v ruff)"
           sha256sum "$worker" "$reference" > "$root/executable-sha256.txt"
           ruff --version > "$root/ruff-version.txt"
           uname -m > "$root/architecture.txt"
           git rev-parse HEAD > "$root/source-head.txt"
-          for attempt in 1 2; do
-            output="$root/attempt-$attempt"
-            mkdir -p "$output"
-            set +e
-            RYO_VERIFY_CASE_RESULTS="$output/cases.jsonl" "$worker" verify-reference-cases \
-              "$reference" "$profile" > "$output/stdout.txt" 2> "$output/stderr.txt"
-            status=$?
-            set -e
-            echo "$status" > "$output/status.txt"
-            test "$status" -eq 1
-            python3 - "$output" <<'PY'
+          for target in default py37; do
+            profile="$PWD/.github/fixtures/up031-process-bootstrap-$target/repro"
+            for attempt in 1 2; do
+              output="$root/$target/attempt-$attempt"
+              mkdir -p "$output"
+              set +e
+              RYO_VERIFY_CASE_RESULTS="$output/cases.jsonl" "$worker" verify-reference-cases \
+                "$reference" "$profile" > "$output/stdout.txt" 2> "$output/stderr.txt"
+              status=$?
+              set -e
+              echo "$status" > "$output/status.txt"
+              test "$status" -eq 1
+              python3 - "$output" <<'PY'
           import json
           from pathlib import Path
           import sys
@@ -83,6 +84,7 @@ jobs:
               for artifact in observed['artifacts'].values():
                   assert (root / artifact['path']).is_file(), artifact
           PY
+            done
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
