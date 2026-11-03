@@ -1,0 +1,308 @@
+[
+  {
+    "name": "upstream-full-fixture",
+    "files": {
+      "case.py": "import itertools\nfrom itertools import groupby\n\nshoppers = [\"Jane\", \"Joe\", \"Sarah\"]\nitems = [\n    (\"lettuce\", \"greens\"),\n    (\"tomatoes\", \"greens\"),\n    (\"cucumber\", \"greens\"),\n    (\"chicken breast\", \"meats & fish\"),\n    (\"salmon\", \"meats & fish\"),\n    (\"ice cream\", \"frozen items\"),\n]\n\ncarts = {shopper: [] for shopper in shoppers}\n\n\ndef collect_shop_items(shopper, items):\n    # Imagine this an expensive database query or calculation that is\n    # advantageous to batch.\n    carts[shopper] += items\n\n\n# Invoking the `groupby` function directly\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    for shopper in shoppers:\n        shopper = shopper.title()\n        collect_shop_items(shopper, section_items)  # B031\n    # We're outside the nested loop and used the group again.\n    collect_shop_items(shopper, section_items)  # B031\n\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    collect_shop_items(\"Jane\", section_items)\n    collect_shop_items(\"Joe\", section_items)  # B031\n\n\n# Make sure to detect in other loop constructs as well - `while` loop\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    countdown = 3\n    while countdown > 0:\n        collect_shop_items(shopper, section_items)  # B031\n        countdown -= 1\n\n# Make sure to detect in other loop constructs as well - `list` comprehension\ncollection = []\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    collection.append([list(section_items) for _ in range(3)])  # B031\n\nunique_items = set()\nanother_set = set()\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    # For nested loops, it should not flag the usage of the name\n    for item in section_items:\n        unique_items.add(item)\n\n    # But it should be detected when used again\n    for item in section_items:  # B031\n        another_set.add(item)\n\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    # Variable has been overridden, skip checking\n    section_items = list(unique_items)\n    collect_shop_items(\"Jane\", section_items)\n    collect_shop_items(\"Jane\", section_items)\n\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    # Variable has been overridden, skip checking\n    # Not a realistic situation, just for testing purpose\n    (section_items := list(unique_items))\n    collect_shop_items(\"Jane\", section_items)\n    collect_shop_items(\"Jane\", section_items)\n\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    # This is ok\n    collect_shop_items(\"Jane\", section_items)\n\n# Invocation via the `itertools` module\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    for shopper in shoppers:\n        collect_shop_items(shopper, section_items)  # B031\n\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    _ = [collect_shop_items(shopper, section_items) for shopper in shoppers]  # B031\n\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    # The variable is overridden, skip checking.\n    _ = [_ for section_items in range(3)]\n    _ = [collect_shop_items(shopper, section_items) for shopper in shoppers]\n\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    _ = [item for item in section_items]\n\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    # The iterator is being used for the second time.\n    _ = [(item1, item2) for item1 in section_items for item2 in section_items]  # B031\n\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    if _section == \"greens\":\n        collect_shop_items(shopper, section_items)\n    else:\n        collect_shop_items(shopper, section_items)\n        collect_shop_items(shopper, section_items)  # B031\n\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    # Mutually exclusive branches shouldn't trigger the warning\n    if _section == \"greens\":\n        collect_shop_items(shopper, section_items)\n        if _section == \"greens\":\n            collect_shop_items(shopper, section_items)  # B031\n        elif _section == \"frozen items\":\n            collect_shop_items(shopper, section_items)  # B031\n        else:\n            collect_shop_items(shopper, section_items)  # B031\n        collect_shop_items(shopper, section_items)  # B031\n    elif _section == \"frozen items\":\n        # Mix `match` and `if` statements\n        match shopper:\n            case \"Jane\":\n                collect_shop_items(shopper, section_items)\n                if _section == \"fourth\":\n                    collect_shop_items(shopper, section_items)  # B031\n            case _:\n                collect_shop_items(shopper, section_items)\n    else:\n        collect_shop_items(shopper, section_items)\n    # Now, it should detect\n    collect_shop_items(shopper, section_items)  # B031\n\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    # Mutually exclusive branches shouldn't trigger the warning\n    match _section:\n        case \"greens\":\n            collect_shop_items(shopper, section_items)\n            match shopper:\n                case \"Jane\":\n                    collect_shop_items(shopper, section_items)  # B031\n                case _:\n                    collect_shop_items(shopper, section_items)  # B031\n        case \"frozen items\":\n            collect_shop_items(shopper, section_items)\n            collect_shop_items(shopper, section_items)  # B031\n        case _:\n            collect_shop_items(shopper, section_items)\n    # Now, it should detect\n    collect_shop_items(shopper, section_items)  # B031\n\nfor group in groupby(items, key=lambda p: p[1]):\n    # This is bad, but not detected currently\n    collect_shop_items(\"Jane\", group[1])\n    collect_shop_items(\"Joe\", group[1])\n\n\n# https://github.com/astral-sh/ruff/issues/4050\nfor _section, section_items in itertools.groupby(items, key=lambda p: p[1]):\n    if _section == \"greens\":\n        for item in section_items:\n            collect_shop_items(shopper, item)\n    elif _section == \"frozen items\":\n        _ = [item for item in section_items]\n    else:\n        collect_shop_items(shopper, section_items)\n\n#  Make sure we ignore - but don't fail on more complicated invocations\nfor _key, (_value1, _value2) in groupby(\n    [(\"a\", (1, 2)), (\"b\", (3, 4)), (\"a\", (5, 6))], key=lambda p: p[1]\n):\n    collect_shop_items(\"Jane\", group[1])\n    collect_shop_items(\"Joe\", group[1])\n\n#  Make sure we ignore - but don't fail on more complicated invocations\nfor (_key1, _key2), (_value1, _value2) in groupby(\n    [((\"a\", \"a\"), (1, 2)), ((\"b\", \"b\"), (3, 4)), ((\"a\", \"a\"), (5, 6))],\n    key=lambda p: p[1],\n):\n    collect_shop_items(\"Jane\", group[1])\n    collect_shop_items(\"Joe\", group[1])\n\n# Shouldn't trigger the warning when there is a continue, break statement.\nfor _section, section_items in groupby(items, key=lambda p: p[1]):\n    if _section == \"greens\":\n        collect_shop_items(shopper, section_items)\n        continue\n    elif _section == \"frozen items\":\n        collect_shop_items(shopper, section_items)\n        break\n    collect_shop_items(shopper, section_items)\n\n# Shouldn't trigger the warning when there is a return statement.\ndef foo():\n    for _section, section_items in groupby(items, key=lambda p: p[1]):\n        if _section == \"greens\":\n            collect_shop_items(shopper, section_items)\n            return\n        elif _section == \"frozen items\":\n            return section_items\n        collect_shop_items(shopper, section_items)\n\n# Should trigger the warning for duplicate access, even if is a return statement after.\ndef foo():\n    from itertools import groupby\n    for _section, section_items in groupby(items, key=lambda p: p[1]):\n        if _section == \"greens\":\n            collect_shop_items(shopper, section_items)\n            collect_shop_items(shopper, section_items)\n            return\n\n# Should trigger the warning for duplicate access, even if is a return in another branch.\ndef foo():\n    from itertools import groupby\n    for _section, section_items in groupby(items, key=lambda p: p[1]):\n        if _section == \"greens\":\n            collect_shop_items(shopper, section_items)\n            return\n        elif _section == \"frozen items\":\n            collect_shop_items(shopper, section_items)\n            collect_shop_items(shopper, section_items)\n\n# Should trigger, since only one branch has a return statement.\ndef foo():\n    from itertools import groupby\n    for _section, section_items in groupby(items, key=lambda p: p[1]):\n        if _section == \"greens\":\n            collect_shop_items(shopper, section_items)\n            return\n        elif _section == \"frozen items\":\n            collect_shop_items(shopper, section_items)\n        collect_shop_items(shopper, section_items)  # B031\n\n# Let's redefine the `groupby` function to make sure we pick up the correct one.\n# NOTE: This should always be at the end of the file.\ndef groupby(data, key=None):\n    pass\n\n\nfor name, group in groupby(items):\n    collect_shop_items(\"Jane\", items)\n    # This shouldn't be flagged as the `groupby` function is different\n    collect_shop_items(\"Joe\", items)\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 713,
+        "end": 726
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 830,
+        "end": 843
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 997,
+        "end": 1010
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 1238,
+        "end": 1251
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 1474,
+        "end": 1487
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 1818,
+        "end": 1831
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 2744,
+        "end": 2757
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 2882,
+        "end": 2895
+      },
+      {
+        "end": 3149,
+        "file": "case.py",
+        "rule": "B031",
+        "start": 3136
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 3491,
+        "end": 3504
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 3769,
+        "end": 3782
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 4087,
+        "end": 4100
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 4191,
+        "end": 4204
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 4268,
+        "end": 4281
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 4327,
+        "end": 4340
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 4625,
+        "end": 4638
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 4848,
+        "end": 4861
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 5215,
+        "end": 5228
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 5310,
+        "end": 5323
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 5457,
+        "end": 5470
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 5611,
+        "end": 5624
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 7866,
+        "end": 7879
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 8350,
+        "end": 8363
+      },
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 8785,
+        "end": 8798
+      }
+    ]
+  },
+  {
+    "name": "reference-twice",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1, 1]):\n    a = g\n    b = g\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "identity-twice",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1, 1]):\n    id(g)\n    id(g)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "print-twice",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1, 1]):\n    print(g)\n    print(g)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "observation-before-consumption",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    id(g)\n    print(g)\n    list(g)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "conditional-expression",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    x = list(g) if flag else list(g)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "comprehension-shadow-does-not-replace",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    ignored = [g for g in range(2)]\n    list(g)\n    list(g) # REPORT\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 115,
+        "end": 116
+      }
+    ]
+  },
+  {
+    "name": "nested-termination-stays-local",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    list(g)\n    for _ in [1]:\n        break\n    list(g) # REPORT\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 111,
+        "end": 112
+      }
+    ]
+  },
+  {
+    "name": "iter-is-an-observation",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    a = iter(g)\n    b = iter(g)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "next-is-incremental-iteration",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    first = next(g)\n    second = next(g)\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "opposite-arm-replacement",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    if flag:\n        g = []\n    else:\n        list(g)\n        list(g) # REPORT\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 125,
+        "end": 126
+      }
+    ]
+  },
+  {
+    "name": "possible-replacement",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    if flag:\n        g = []\n    list(g)\n    list(g) # REPORT\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 107,
+        "end": 108
+      }
+    ]
+  },
+  {
+    "name": "later-comprehension-iterator",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    values = [item for _ in [1,2] for item in g] # REPORT\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 104,
+        "end": 105
+      }
+    ]
+  },
+  {
+    "name": "comprehension-filter-consumer",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    values = [item for item in [1,2] if list(g)] # REPORT\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 103,
+        "end": 104
+      }
+    ]
+  },
+  {
+    "name": "generator-repeated-consumer",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    values = (list(g) for _ in [1,2]) # REPORT\n    results = list(values)\n"
+    },
+    "expected": [
+      {
+        "rule": "B031",
+        "file": "case.py",
+        "start": 77,
+        "end": 78
+      }
+    ]
+  },
+  {
+    "name": "one-inner-iteration-is-not-reuse",
+    "files": {
+      "case.py": "from itertools import groupby\nfor _, g in groupby([1,1]):\n    for _ in [0]:\n        list(g)\n"
+    },
+    "expected": []
+  }
+]

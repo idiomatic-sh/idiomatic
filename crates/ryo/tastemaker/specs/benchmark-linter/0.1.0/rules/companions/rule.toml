@@ -2,7 +2,7 @@ description = "Canonical benchmark assets are paired and linter composition dele
 why = "Active rules have one query.ryoql and independent cases.toml; historical profiles preserve evidence and are not active inputs. Cargo entry/composition roles may wire the shared inbound runner and local linter adapter, but explicit Rust loops, external execution/timing/filesystem capabilities and trait implementations do not belong there. This AST/import boundary does not resolve aliases through arbitrary reexports, macro expansion, closures hiding iteration, or runtime behavior; two independent provider registrations must exercise the same shared execution/status loop in its semantic contract."
 query = '''
 let files = project(from="filesystem.file", columns=["path"]);
-let active-files = select * from files where not glob_any(path, "{profiles/**,**/profiles/**}");
+let active-files = select * from files where not glob_any(path, "{profiles/**,**/profiles/**,results/**,**/results/**}");
 let queries = capture(from=active-files, path="path", pattern="{*dir}/query.ryoql", captures=["dir"]);
 let cases = capture(from=active-files, path="path", pattern="{*dir}/cases.toml", captures=["dir"]);
 let untested = antijoin(left=queries, right=cases, left-on=["dir"], right-on=["dir"]);

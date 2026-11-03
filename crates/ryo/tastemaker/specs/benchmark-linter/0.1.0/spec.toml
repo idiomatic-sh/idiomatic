@@ -28,6 +28,35 @@ templates = [
   { alias = "historical-cases-snapshot", template = "cases", file = "profiles/{profile}/inputs/rules/{rule}/cases.toml", count = { min = 0 }, description = "Exact historical case bytes retained only in a frozen profile snapshot." },
   { alias = "candidate-profile-oracle", template = "evidence", file = "profiles/{profile}/oracle.json", count = { min = 0 }, description = "Pinned Ruff outputs for an unpromoted candidate or reference-audit profile." },
   { alias = "combined-profile-expectations", template = "evidence", file = "profiles/{profile}/expectations.json", count = { min = 0 }, description = "Reviewed expected-output overlay for combined full-report cohorts." },
+  { alias = "profile-oracle-source", template = "source", file = "profiles/{profile}/evidence/oracle.py", count = { min = 0 }, description = "Source for an independently observed profile oracle, owned by benchmark evidence rather than provider parsing." },
+  { alias = "profile-oracle-result", template = "evidence", file = "profiles/{profile}/evidence/oracle.json", count = { min = 0 }, description = "Captured independent oracle output." },
+  { alias = "profile-original-cases", template = "evidence", file = "profiles/{profile}/evidence/original-cases.json", count = { min = 0 }, description = "Frozen original case inventory before a certified overlay." },
+  { alias = "profile-registration", template = "evidence", file = "profiles/{profile}/evidence/registration.json", count = { min = 0 }, description = "Registration identity for the profile's evidence." },
+  { alias = "profile-uncertified", template = "evidence", file = "profiles/{profile}/evidence/uncertified-cases.jsonl", count = { min = 0 }, description = "Preserved raw case observations before certificate review." },
+  { alias = "rule-guide", template = "evidence", file = "rules/{rule}/README.md", count = { min = 0 }, description = "Rule-local source and case provenance." },
+  { alias = "rule-upstream", template = "evidence", file = "rules/{rule}/upstream.py", count = { min = 0 }, description = "Pinned upstream Python fixture, never provider implementation." },
+  { alias = "run-guide", template = "evidence", file = "results/{run}/README.md", count = { min = 0 }, description = "Dated verification run and its source identities." },
+  { alias = "run-certifier", template = "source", file = "results/{run}/certify.py", count = { min = 0 }, description = "Reproducible evidence authoring script, outside provider implementation." },
+  { alias = "run-countertarget", template = "source", file = "results/{run}/countertarget.py", count = { min = 0 }, description = "Independent countertarget evidence script, outside provider implementation." },
+  { alias = "run-oracle-source", template = "source", file = "results/{run}/oracle.py", count = { min = 0 }, description = "Preserved independent oracle source." },
+  { alias = "run-initial-cases", template = "evidence", file = "results/{run}/initial-cases.toml", count = { min = 0 }, description = "Case inputs before certification." },
+  { alias = "run-oracle-result", template = "evidence", file = "results/{run}/oracle.json", count = { min = 0 }, description = "Captured independent oracle output." },
+  { alias = "run-original-cases", template = "evidence", file = "results/{run}/original-cases.json", count = { min = 0 }, description = "Frozen original case inventory." },
+  { alias = "run-uncertified", template = "evidence", file = "results/{run}/uncertified-cases.jsonl", count = { min = 0 }, description = "Raw observations retained before certificate review." },
+  { alias = "run-strict-summary", template = "evidence", file = "results/{run}/strict-summary.json", count = { min = 0 }, description = "Strict result summary with source identities." },
+  { alias = "run-upstream-origin", template = "evidence", file = "results/{run}/upstream-origin.json", count = { min = 0 }, description = "Pinned upstream source provenance." },
+  { alias = "run-recorded-profile", template = "evidence", file = "results/{run}/{target}/benchmark.toml", count = { min = 0 }, description = "Archived observed settings for a target or captured profile; never an active profile." },
+  { alias = "run-target-cases", template = "evidence", file = "results/{run}/{target}/cases.jsonl", count = { min = 0 }, description = "Target-specific durable case receipts." },
+  { alias = "run-target-offline", template = "evidence", file = "results/{run}/{target}/offline-audit.json", count = { min = 0 }, description = "Target-specific offline audit result." },
+  { alias = "run-target-registration", template = "evidence", file = "results/{run}/{target}/registration.json", count = { min = 0 }, description = "Target-specific registration identity." },
+  { alias = "run-target-result", template = "evidence", file = "results/{run}/{target}/result.json", count = { min = 0 }, description = "Target-specific execution result." },
+  { alias = "run-target-oracle", template = "evidence", file = "results/{run}/{target}/oracle.json", count = { min = 0 }, description = "Target-specific independent oracle result." },
+  { alias = "run-target-preflight", template = "evidence", file = "results/{run}/{target}/initial-staging.stderr", count = { min = 0 }, description = "Preserved failed staging preflight output." },
+  { alias = "run-phase-summary", template = "evidence", file = "results/{run}/{phase}/summary.json", count = { min = 0 }, description = "A named follow-up proof phase and its target receipts." },
+  { alias = "run-phase-cases", template = "evidence", file = "results/{run}/{phase}/{target}/cases.jsonl", count = { min = 0 }, description = "Follow-up phase case receipts for one target." },
+  { alias = "run-phase-offline", template = "evidence", file = "results/{run}/{phase}/{target}/offline-audit.json", count = { min = 0 }, description = "Follow-up phase offline audit for one target." },
+  { alias = "run-phase-registration", template = "evidence", file = "results/{run}/{phase}/{target}/registration.json", count = { min = 0 }, description = "Follow-up phase registration identity for one target." },
+  { alias = "run-phase-result", template = "evidence", file = "results/{run}/{phase}/{target}/result.json", count = { min = 0 }, description = "Follow-up phase execution result for one target." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
   { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
 ]
@@ -85,6 +114,27 @@ scenario = "An arbitrary output file is not silently accepted as evidence."
 given.files.'results/scratch.txt' = ''
 then.only = ['idiomatic.ryo/benchmark-linter#closed']
 then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'results/scratch.txt' }]
+
+[[scenarios]]
+id = "dated-evidence-has-explicit-roles"
+scenario = "Benchmark owned source, profile observations and target receipts are placed without opening arbitrary result paths."
+given.files.'profiles/B031/evidence/oracle.py' = ''
+given.files.'profiles/B031/evidence/oracle.json' = ''
+given.files.'rules/B031/README.md' = ''
+given.files.'rules/B031/upstream.py' = ''
+given.files.'results/b031-2026-11-03/captured-profile/benchmark.toml' = ''
+given.files.'results/b031-2026-11-03/py313/benchmark.toml' = ''
+given.files.'results/b031-2026-11-03/py313/cases.jsonl' = ''
+given.files.'results/b031-2026-11-03/prefix-proof/summary.json' = ''
+given.files.'results/b031-2026-11-03/prefix-proof/py313/cases.jsonl' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed', 'idiomatic.ryo/benchmark-linter/companions']
+
+[[scenarios]]
+id = "unreviewed-dated-evidence-is-refused"
+scenario = "A dated run cannot admit an unknown artifact merely because it is nested beneath results."
+given.files.'results/b031-2026-11-03/py313/unreviewed.json' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'results/b031-2026-11-03/py313/unreviewed.json' }]
 
 [[scenarios]]
 id = "acceptance-profile-inputs-are-placed"

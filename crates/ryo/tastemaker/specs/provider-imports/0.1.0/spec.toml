@@ -1,0 +1,19 @@
+description = "The source boundary of a language provider."
+why = "The parent language spec owns parse and project. Its import policy is placed on provider code directories, so benchmark evidence follows benchmark roles rather than provider imports. This extra rule makes the provider-to-engine boundary independently explicit."
+closed = false
+rules = [
+  { rule = "private-engine", include = ["**/*.rs"], description = "Provider implementation cannot reach private engine code." },
+]
+
+[[scenarios]]
+id = "provider-uses-public-language-contract"
+scenario = "A provider can import its public language contract."
+given.files.'domain/model.rs' = 'use ryo_language::domain::files::types::FilePath;'
+then.only = ['idiomatic.ryo/provider-imports/private-engine']
+
+[[scenarios]]
+id = "provider-cannot-import-engine-internals"
+scenario = "A new provider implementation cannot import private engine code."
+given.files.'domain/model.rs' = 'use ryo_core::domain::operator::types::Operation;'
+then.only = ['idiomatic.ryo/provider-imports/private-engine']
+then.findings = [{ rule = 'idiomatic.ryo/provider-imports/private-engine', path = 'domain/model.rs' }]
