@@ -4,7 +4,7 @@ use crate::application::file_dag::feed::Feed;
 use crate::domain::features::service::kind_of;
 use crate::domain::operating::{
     errors::OperatingError,
-    types::{Emit, InputPlace, OperatorContext, Room, Supply},
+    types::{Emit, InputPlace, OperatorContext, Room, SemanticLookup, Supply},
 };
 use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::{contract::types::OperatorContract, service::registered};
@@ -115,11 +115,25 @@ pub(crate) fn execute(
     symbols: &mut Symbols,
     stop_after: Option<usize>,
 ) -> Result<Observation, OperatingError> {
+    execute_with_semantic(
+        operation, tables, bindings, source, symbols, stop_after, None,
+    )
+}
+
+pub(crate) fn execute_with_semantic(
+    operation: &Operation,
+    tables: &[Table],
+    bindings: &[ParameterBinding],
+    source: &[u8],
+    symbols: &mut Symbols,
+    stop_after: Option<usize>,
+    semantic: Option<&dyn SemanticLookup>,
+) -> Result<Observation, OperatingError> {
     let contract = prepare(operation, tables, bindings)?;
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
-        semantic: None,
+        semantic,
         prepared_kinds: None,
         prepared_matchers: None,
         bindings,

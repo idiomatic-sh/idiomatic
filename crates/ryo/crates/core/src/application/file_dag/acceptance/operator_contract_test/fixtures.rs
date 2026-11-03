@@ -7,6 +7,7 @@ use ryo_language::domain::relations::service::node_id;
 use ryo_language::domain::relations::types::{
     CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
 };
+use ryo_language::domain::semantics::types::RenderContext;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, Symbols},
@@ -357,6 +358,30 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
                 vec![span(0, 3), span(0, 1)],
                 vec![span(0, 3), span(2, 3)],
             ]),
+        ),
+        OperationKind::RenderSyntax => (
+            Operation::RenderSyntax {
+                from: FROM,
+                node: ColumnIndex(0),
+                context: RenderContext::PositionalArgument,
+            },
+            vec![table(&[CellKind::Node], &[vec![node(0)]])],
+            vec![vec![Expected::Cell(node(0)), Expected::Text("a")]],
+        ),
+        OperationKind::FitsRendered => (
+            Operation::FitsRendered {
+                from: FROM,
+                texts: vec![ColumnIndex(0)],
+                literals: vec![LiteralText("".into()), LiteralText("".into())],
+                span: ColumnIndex(1),
+                max_line: 88,
+                tab_width: 4,
+            },
+            vec![table(
+                &[CellKind::Symbol, CellKind::Span],
+                &[vec![text("a", &mut symbols), span(0, 3)]],
+            )],
+            vec![vec![Expected::Text("a"), Expected::Cell(span(0, 3))]],
         ),
         OperationKind::SpanBounds => (
             Operation::SpanBounds {

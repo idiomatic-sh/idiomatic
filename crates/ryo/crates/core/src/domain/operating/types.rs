@@ -23,8 +23,12 @@ use crate::domain::table_groups::types::ValueHash;
 /// An application-owned, file-scoped semantic demand port. Operators borrow it;
 /// they never own a provider session or its cache.
 pub(crate) trait SemanticLookup: std::fmt::Debug {
-    /// Resolve demanded keys in order, reusing bounded file-scoped answers.
-    fn render_batch(&self, requests: &[RenderRequest], source: &[u8]) -> Result<Vec<RenderOutcome>, OperatingError>;
+    /// Resolve demanded keys in order; the current application deduplicates each batch.
+    fn render_batch(
+        &self,
+        requests: &[RenderRequest],
+        source: &[u8],
+    ) -> Result<Vec<RenderOutcome>, OperatingError>;
 }
 
 /// The families of comparison a `select` tests with.

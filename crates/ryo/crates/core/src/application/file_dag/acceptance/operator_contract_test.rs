@@ -1,29 +1,51 @@
 //! All classes and the former pilot regressions use the same production executor.
 pub(crate) mod fixtures;
-use crate::application::file_dag::testing::{execute, same_rows};
+use crate::application::file_dag::testing::{execute, execute_with_semantic, same_rows};
 use crate::domain::features::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::service::registered;
 use crate::domain::table_model::types::Table;
 use fixtures::*;
+use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::{relations::types::Value, symbols::types::Symbols};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     plans::types::{Operation, OperationKind},
 };
+use std::sync::Arc;
 #[test]
 fn every_registered_class_runs_real_collect_and_stream_with_independent_expectations() {
-    assert_eq!(OperationKind::ALL.len(), 24);
+    #[derive(Debug)]
+    struct KnownSyntax;
+    impl crate::domain::operating::types::SemanticLookup for KnownSyntax {
+        fn render_batch(
+            &self,
+            requests: &[RenderRequest],
+            _: &[u8],
+        ) -> Result<Vec<RenderOutcome>, OperatingError> {
+            Ok(requests
+                .iter()
+                .map(|_| RenderOutcome::Known(Arc::from("a")))
+                .collect())
+        }
+    }
+    let semantic = KnownSyntax;
+    assert_eq!(OperationKind::ALL.len(), 26);
     for kind in OperationKind::ALL {
         let mut case = fixture(*kind);
         assert_eq!(kind_of(&case.operation), *kind);
-        let observed = execute(
+        let observed = execute_with_semantic(
             &case.operation,
             &case.inputs,
             &case.bindings,
             SOURCE,
             &mut case.symbols,
             None,
+            if *kind == OperationKind::RenderSyntax {
+                Some(&semantic)
+            } else {
+                None
+            },
         )
         .unwrap();
         let collected = observed.collected.unwrap();
@@ -35,6 +57,53 @@ fn every_registered_class_runs_real_collect_and_stream_with_independent_expectat
         );
         assert_expected(&case.expected, &observed.rows, &case.symbols);
     }
+}
+
+#[test]
+fn unsupported_semantic_batch_publishes_no_prefix() {
+    #[derive(Debug)]
+    struct PartialSyntax;
+    impl crate::domain::operating::types::SemanticLookup for PartialSyntax {
+        fn render_batch(
+            &self,
+            _: &[RenderRequest],
+            _: &[u8],
+        ) -> Result<Vec<RenderOutcome>, OperatingError> {
+            Ok(vec![
+                RenderOutcome::Known(Arc::from("a")),
+                RenderOutcome::Unsupported(ryo_language::domain::terms::types::UnknownReason(24)),
+            ])
+        }
+    }
+    let mut case = fixture(OperationKind::RenderSyntax);
+    crate::domain::table_model::service::push_row(
+        &mut case.inputs[0],
+        &[Value::Node(
+            ryo_language::domain::relations::service::node_id(
+                ryo_language::domain::relations::types::FileId(0),
+                ryo_language::domain::relations::types::Position(1),
+            ),
+        )],
+    );
+    let observed = execute_with_semantic(
+        &case.operation,
+        &case.inputs,
+        &case.bindings,
+        SOURCE,
+        &mut case.symbols,
+        None,
+        Some(&PartialSyntax),
+    )
+    .unwrap();
+    assert!(matches!(
+        observed.collected,
+        Err(OperatingError::SemanticIncomplete { .. })
+    ));
+    assert!(matches!(
+        observed.stream_error,
+        Some(OperatingError::SemanticIncomplete { .. })
+    ));
+    assert!(observed.rows.is_empty());
 }
 
 #[test]
