@@ -662,6 +662,7 @@ pub(super) fn affix_filter(input: &mut Input<'_>) -> ModalResult<Filter> {
     let ((test, left, right), span) = (
         terminated(
             alt((
+                keyword(Keyword::NaturalLt).value(WrittenTest::NaturalLessThan),
                 keyword(Keyword::StartsWith).value(WrittenTest::StartsWith),
                 keyword(Keyword::Matches).value(WrittenTest::Matches),
                 keyword(Keyword::EndsWith).value(WrittenTest::EndsWith),

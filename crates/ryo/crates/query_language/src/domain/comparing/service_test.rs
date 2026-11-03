@@ -62,6 +62,18 @@ const FUNCTION_COMPARED_WITH_A_NUMBER: &str = "let a = select * from \"function\
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("natural_order_accepts_texts"),
+        word: Word::Succeeds,
+        input: || "param limit: string; let a = select * from \"function\" where natural_lt(name, $limit); emit a subject file key(span);",
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("natural_order_refuses_integer_operands"),
+        word: Word::Refuses,
+        input: || "let a = select * from \"entry\" where natural_lt(integer, 10); emit a subject file key(span);",
+        expect: Expect::Refusal(|error| selects(matches!(error, LoweringError::NotText { .. }))),
+    },
+    Case {
         name: CaseName("successor_accepts_existing_integer_and_numeric_text"),
         word: Word::Succeeds,
         input: || "let a = select * from \"numeric-literal\" where integer_successor(value, 43) and integer_successor(41, value); emit a subject file key(id);",

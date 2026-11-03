@@ -1,0 +1,7 @@
+# Natural-order rule fixture proof
+
+Sealed worker `fe24023f…` verifies all33 RUF022 cases and all31 RUF023 cases at Python3.10 andPython3.7, both sides complete and raw exact. The complete pinned upstream fixtures retain35 and25 findings respectively. No fixture was dropped or expectation weakened; no reference discrepancy or accounting-only allowance is needed.
+
+The shared predicate is a borrowed text comparator with a documented deterministic contract; ordinary text `<` is unchanged. Rule-specific casing/scope/assignment policy remains in the canonical queries. Integration tested the comparator laws, parser/type guards, existing affected libraries and capability targets before sealing. Two subsequent RUF022 query-only authoring corrections do not change Rust code: required extend values objects and verbatim regex property escaping. Native receipts bind the exact final query/profile/case/helper bytes; both earlier failure generations are preserved in the archive.
+
+The existing generic supplement validator checks all current source/settings/cases/helpers and native attestations. Summaries are derived offline from actual native verify-cases receipts, not a collector invocation or a combined413 replay. The immutable original exact80be full413 report remains unchanged; this evidence promotes only these two rules. Ruff execution accounting remains explicitly unavailable under the existing diagnostics contract, while candidate accounting is complete.

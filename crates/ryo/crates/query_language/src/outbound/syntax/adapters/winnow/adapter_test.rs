@@ -796,7 +796,7 @@ fn refuses() {
 }
 
 /// Every keyword, in the order the grammar meets them.
-const KEYWORDS: [Keyword; 32] = [
+const KEYWORDS: [Keyword; 33] = [
     Keyword::Param,
     Keyword::Import,
     Keyword::Input,
@@ -820,6 +820,7 @@ const KEYWORDS: [Keyword; 32] = [
     Keyword::GlobAny,
     Keyword::FloatTextGte,
     Keyword::NumericGte,
+    Keyword::NaturalLt,
     Keyword::IntegerSuccessor,
     Keyword::StartsWith,
     Keyword::Matches,
@@ -1045,4 +1046,19 @@ fn integer_successor_reads_ordered_text_and_integer_operands() {
         test_at(select, 0).right,
         WrittenOperand::Number(_)
     ));
+}
+
+#[test]
+fn natural_lt_reads_text_and_parameter_operands() {
+    let program = SyntaxWinnowAdapter.read(QueryView("param limit: string; let a = select * from \"function\" where natural_lt(name, $limit) and natural_lt(\"item2\", name); emit a subject file key(span);"))
+        .expect("natural text predicate parses");
+    let Expression::Select(select) = &program.steps[0].expression else {
+        panic!("select")
+    };
+    assert_eq!(test_at(select, 0).test, WrittenTest::NaturalLessThan);
+    assert_eq!(test_at(select, 1).test, WrittenTest::NaturalLessThan);
+    assert_eq!(
+        test_at(select, 0).right,
+        WrittenOperand::Parameter(WrittenParameter("limit".into()))
+    );
 }

@@ -68,6 +68,8 @@ pub(crate) enum Keyword {
     Snake,
     /// `kebab`.
     Kebab,
+    /// `natural_lt`.
+    NaturalLt,
 }
 
 /// A mark of the grammar made of more than one character.
@@ -106,6 +108,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Not => "not",
         Keyword::In => "in",
         Keyword::GlobAny => "glob_any",
+        Keyword::NaturalLt => "natural_lt",
         Keyword::FloatTextGte => "float_text_gte",
         Keyword::NumericGte => "numeric_gte",
         Keyword::IntegerSuccessor => "integer_successor",
@@ -286,7 +289,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "affix_filter",
-        form: "( starts_with | ends_with | matches ) \"(\" operand \",\" operand \")\", a text prefix, suffix or regular-expression search",
+        form: "( natural_lt | starts_with | ends_with | matches ) \"(\" operand \",\" operand \")\", a text prefix, suffix or regular-expression search",
         example: "ends_with(name, concat(pascal(p.pkg), \"Service\"))",
     },
     GrammarLine {

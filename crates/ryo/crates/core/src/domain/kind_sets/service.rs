@@ -52,6 +52,7 @@ fn naming(test: Test) -> Option<NamingPlace> {
         | Test::LessThanOrEqual
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
+        | Test::NaturalLessThan
         | Test::FloatTextGreaterThanOrEqual
         | Test::NumericGreaterThanOrEqual
         | Test::IntegerSuccessor
@@ -78,6 +79,7 @@ pub(crate) fn satisfies(test: Test, name: TextView<'_>, wanted: TextView<'_>) ->
         | Test::LessThanOrEqual
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
+        | Test::NaturalLessThan
         | Test::FloatTextGreaterThanOrEqual
         | Test::NumericGreaterThanOrEqual
         | Test::IntegerSuccessor

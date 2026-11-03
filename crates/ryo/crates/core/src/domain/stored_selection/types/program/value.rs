@@ -81,6 +81,7 @@ impl<'a> SelectionProgram<'a> {
                         comparison.test,
                         Test::Equal
                             | Test::NotEqual
+                            | Test::NaturalLessThan
                             | Test::LessThan
                             | Test::LessThanOrEqual
                             | Test::GreaterThan

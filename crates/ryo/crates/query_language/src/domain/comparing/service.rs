@@ -76,7 +76,8 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
         parts::Test::NumericGreaterThanOrEqual | parts::Test::IntegerSuccessor => {
             (texty(left) || numbery(left)) && (texty(right) || numbery(right))
         }
-        parts::Test::FloatTextGreaterThanOrEqual
+        parts::Test::NaturalLessThan
+        | parts::Test::FloatTextGreaterThanOrEqual
         | parts::Test::StartsWith
         | parts::Test::Matches
         | parts::Test::EndsWith => texty(left) && texty(right),
@@ -98,6 +99,7 @@ pub(crate) fn compatible(test: parts::Test, left: Typed, right: Typed) -> Compat
 /// The test a filter's operator is.
 pub(crate) fn test_of(test: syntax::WrittenTest) -> parts::Test {
     match test {
+        syntax::WrittenTest::NaturalLessThan => parts::Test::NaturalLessThan,
         syntax::WrittenTest::Equal => parts::Test::Equal,
         syntax::WrittenTest::NotEqual => parts::Test::NotEqual,
         syntax::WrittenTest::LessThan => parts::Test::LessThan,
@@ -251,6 +253,7 @@ pub(crate) fn comparison_of(
     } = operand_of(builder, &filter.right, columns)?;
     let test = test_of(filter.test);
     let affix = match test {
+        parts::Test::NaturalLessThan => Some("natural_lt"),
         parts::Test::StartsWith => Some(STARTS_WITH),
         parts::Test::Matches => Some(MATCHES),
         parts::Test::EndsWith => Some(ENDS_WITH),

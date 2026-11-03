@@ -52,6 +52,7 @@ impl ComparisonsItem for NumericItem {
             | Test::LessThanOrEqual
             | Test::GreaterThan
             | Test::GreaterThanOrEqual
+            | Test::NaturalLessThan
             | Test::FloatTextGreaterThanOrEqual
             | Test::In
             | Test::NotIn

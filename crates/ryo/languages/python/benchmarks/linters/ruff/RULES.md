@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**385 PASS / 28 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**387 PASS / 26 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -308,8 +308,8 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF018 | PASS | verified intended expectations |
 | RUF019 | PASS | verified intended expectations |
 | RUF020 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
-| RUF022 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
-| RUF023 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| RUF022 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/ruf022-ruf023-target-supplement/summary.json) |
+| RUF023 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/ruf022-ruf023-target-supplement/summary.json) |
 | RUF024 | PASS | verified intended expectations |
 | RUF026 | PASS | verified intended expectations |
 | RUF028 | PASS | verified intended expectations |

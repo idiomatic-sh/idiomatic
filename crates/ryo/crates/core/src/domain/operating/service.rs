@@ -8,9 +8,11 @@ use ryo_values::domain::plan_parts::types::Test;
 pub(crate) fn family_of(test: Test) -> Family {
     match test {
         Test::Equal | Test::NotEqual => Family::Equality,
-        Test::LessThan | Test::LessThanOrEqual | Test::GreaterThan | Test::GreaterThanOrEqual => {
-            Family::Ordering
-        }
+        Test::NaturalLessThan
+        | Test::LessThan
+        | Test::LessThanOrEqual
+        | Test::GreaterThan
+        | Test::GreaterThanOrEqual => Family::Ordering,
         Test::FloatTextGreaterThanOrEqual => Family::FloatText,
         Test::NumericGreaterThanOrEqual | Test::IntegerSuccessor => Family::Numeric,
         Test::In | Test::NotIn => Family::Membership,

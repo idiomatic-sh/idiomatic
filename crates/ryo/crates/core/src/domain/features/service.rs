@@ -113,6 +113,7 @@ pub(crate) fn catalog() -> Vec<Feature> {
             Test::GreaterThan,
             Test::GreaterThanOrEqual,
             Test::FloatTextGreaterThanOrEqual,
+            Test::NaturalLessThan,
             Test::NumericGreaterThanOrEqual,
             Test::IntegerSuccessor,
             Test::In,

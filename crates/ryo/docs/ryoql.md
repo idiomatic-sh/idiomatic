@@ -78,6 +78,7 @@ A `where` holds comparisons joined with `and` and `or`; `and` binds tighter than
 | `in`, `not in` | `kind in $kinds` | the value is, or is not, in a `list<…>` or `set<…>` parameter |
 | `glob_any`, `not glob_any` | `glob_any(target, $forbidden)` | the text matches the glob, or any glob of a parameter, or none |
 | `starts_with`, `ends_with` | `ends_with(name, "Service")` | the first text starts, or ends, with the second |
+| `natural_lt` | `natural_lt(left, right)` | case-sensitive natural text ordering; ASCII digit runs, fraction-style zero padding, Unicode whitespace separators |
 | `float_text_gte` | `float_text_gte(text, $limit)` | the first text, read as a number, is at least the second |
 
 `in` and `not in` compare against a parameter; a list written in the query, as in `kind in ["class", "function"]`, is not RyoQL.
@@ -91,6 +92,8 @@ A side of a comparison is a column, a text in quotes, a number, a `$parameter` o
 | `camel` | `camel("todo_lists")` | `todoLists` |
 | `snake` | `snake("TodoLists")` | `todo_lists` |
 | `kebab` | `kebab("TodoLists")` | `todo-lists` |
+
+`natural_lt` compares nonzero-leading ASCII digit runs by length, then digits, without integer limits (`"item2" < "item10"`). If either run starts with zero, it compares digit strings lexically, with a shorter equal prefix first (`"02" < "1"`, `"01" < "010"`). Unicode whitespace has no comparison weight but separates numeric runs: `"a1"` and `"a 1"` tie, while `"1 2" < "12"`. Other Unicode scalar values compare case-sensitively, without normalization or case folding; non-ASCII digits are ordinary characters. Equivalent streams tie and neither is naturally less. Ordinary `<` remains bytewise for text.
 
 ## Operators
 

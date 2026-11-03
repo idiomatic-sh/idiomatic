@@ -58,6 +58,7 @@ impl ComparisonsItem for GlobItem {
             | Test::LessThanOrEqual
             | Test::GreaterThan
             | Test::GreaterThanOrEqual
+            | Test::NaturalLessThan
             | Test::FloatTextGreaterThanOrEqual
             | Test::NumericGreaterThanOrEqual
             | Test::IntegerSuccessor

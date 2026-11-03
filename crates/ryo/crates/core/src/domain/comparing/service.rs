@@ -41,6 +41,7 @@ fn equal_to_text(comparison: &Comparison, row: &[Value], texts: &Texts<'_>) -> O
         | Test::LessThanOrEqual
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
+        | Test::NaturalLessThan
         | Test::FloatTextGreaterThanOrEqual
         | Test::NumericGreaterThanOrEqual
         | Test::IntegerSuccessor

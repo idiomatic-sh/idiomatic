@@ -59,6 +59,7 @@ fn admits(comparison: &Comparison, kind: &LackingKind) -> Passage {
         | Test::LessThanOrEqual
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
+        | Test::NaturalLessThan
         | Test::FloatTextGreaterThanOrEqual
         | Test::NumericGreaterThanOrEqual
         | Test::IntegerSuccessor

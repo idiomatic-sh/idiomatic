@@ -1,0 +1,21 @@
+{
+  "scope": "Reference-only source controls; no candidate parser/type/runtime proof or rule admission. Both rules remain FAIL until new-worker replay.",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "upstream_commit": "9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a",
+  "target": "python-target=3.10",
+  "rules": {
+    "RUF022": {
+      "cases": 33,
+      "independent_controls_exact": true,
+      "full_fixture_sha256": "473059df130595981e2cd874ed75de45d4838726331d429fec160ca74491204a",
+      "full_fixture_findings": 35
+    },
+    "RUF023": {
+      "cases": 31,
+      "independent_controls_exact": true,
+      "full_fixture_sha256": "0de5c8ed2aa2e46a94413d6b1e36303f70fb7f9316159db8cf624ff65ef5d0f0",
+      "full_fixture_findings": 25
+    }
+  },
+  "archive_sha256": "757897d51a1a035f9fc5dabe105d0d2c95910739ba5f5c51f121c13be1660e17"
+}

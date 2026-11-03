@@ -57,6 +57,17 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**385 PASS / 28 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**387 PASS / 26 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
+
+    def test_natural_order_proof_retains_both_complete_target_controls(self):
+        receipt = renderer.LATEST_FULL_RESULT
+        directory = receipt.parent / "ruf022-ruf023-target-supplement"
+        proof = json.loads((directory / "proof.json").read_text())
+        self.assertEqual(proof["requirements"], {"RUF022": ["py310", "py37"], "RUF023": ["py310", "py37"]})
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        from authoring.target_supplement import verified_rows
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous, directory)
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("RUF022", 33, 33, 0), ("RUF023", 31, 31, 0)])

@@ -32,7 +32,11 @@ enum KindSite {
 
 #[test]
 fn numeric_text_is_not_mistaken_for_a_declared_syntax_kind() {
-    for test in [Test::NumericGreaterThanOrEqual, Test::IntegerSuccessor] {
+    for test in [
+        Test::NaturalLessThan,
+        Test::NumericGreaterThanOrEqual,
+        Test::IntegerSuccessor,
+    ] {
         for site in [KindSite::Select, KindSite::Join] {
             let plan = plan_comparing_kind(
                 test,

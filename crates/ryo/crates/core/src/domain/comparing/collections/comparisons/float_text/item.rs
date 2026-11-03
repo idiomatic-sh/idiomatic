@@ -43,7 +43,8 @@ impl ComparisonsItem for FloatTextItem {
                 (Some(left), Some(right)) if left >= right => Verdict::Holds,
                 _ => Verdict::Fails,
             }),
-            Test::Equal
+            Test::NaturalLessThan
+            | Test::Equal
             | Test::NumericGreaterThanOrEqual
             | Test::IntegerSuccessor
             | Test::NotEqual

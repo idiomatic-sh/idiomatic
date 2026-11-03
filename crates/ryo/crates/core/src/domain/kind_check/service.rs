@@ -60,10 +60,10 @@ fn asked_in(
         if comparison.left != Operand::Column(KIND_COLUMN) {
             continue;
         }
-        // Numeric ordering does not assert that its text operand names a syntax kind.
+        // Numeric and natural ordering do not assert that its text operand names a syntax kind.
         if matches!(
             comparison.test,
-            Test::NumericGreaterThanOrEqual | Test::IntegerSuccessor
+            Test::NaturalLessThan | Test::NumericGreaterThanOrEqual | Test::IntegerSuccessor
         ) {
             continue;
         }
@@ -138,6 +138,7 @@ pub(crate) fn names_a_kind(asked: &AskedKind, vocabularies: &KindVocabularies) -
         | Test::LessThanOrEqual
         | Test::GreaterThan
         | Test::GreaterThanOrEqual
+        | Test::NaturalLessThan
         | Test::FloatTextGreaterThanOrEqual
         | Test::NumericGreaterThanOrEqual
         | Test::IntegerSuccessor

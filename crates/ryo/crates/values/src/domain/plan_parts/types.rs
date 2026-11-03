@@ -160,6 +160,9 @@ pub enum Test {
     NumericGreaterThanOrEqual,
     /// `integer_successor(left, right)`: right is exactly left plus one; integers only.
     IntegerSuccessor,
+    /// `natural_lt(left, right)`: case-sensitive natural text order; ASCII digit runs,
+    /// fraction-style zero prefixes, Unicode whitespace separators, no normalization.
+    NaturalLessThan,
 }
 
 /// One condition of a `select` step.
