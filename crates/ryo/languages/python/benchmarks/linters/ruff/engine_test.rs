@@ -258,7 +258,9 @@ fn input_file(scenario: EngineScenario) -> &'static str {
 
 fn source_for(scenario: EngineScenario) -> &'static str {
     match scenario {
-        EngineScenario::Partial => "try:\n    pass\nexcept:\n    pass\n\ndef broken(\n",
+        // An unmatched delimiter can now certify complete lexical facts. An
+        // unterminated string cannot: suppression must not trust comment absence.
+        EngineScenario::Partial => "try:\n    pass\nexcept:\n    pass\n\n\"unterminated\n",
         EngineScenario::InvalidSyntax
         | EngineScenario::InvalidSyntaxProjectionDisabled
         | EngineScenario::CustomFrontendProjection
@@ -458,7 +460,7 @@ fn check_expected_failure(
                 if message.starts_with("incomplete candidate:")
                     && !message.contains("unknowns=[]")
                     && message.contains("unread=[]")),
-            "partial relation availability must refuse despite complete file coverage"
+            "partial relation availability must refuse despite complete file coverage: {result:?}"
         );
     }
 }
@@ -648,47 +650,75 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     Ok(plain == imported)
 }
 
-fn stage_py310_negative_files(
+/// Stage every canonical source; its declared expectations are bound to Python3.11.
+/// The same complete source set must be negative on3.10, before and after cache reuse.
+fn stage_up017_target_files(
     root: &std::path::Path,
-) -> Result<Vec<ryo::linter::RelativePath>, Error> {
+) -> Result<(Vec<ryo::linter::RelativePath>, Vec<BenchmarkFinding>), Error> {
     #[derive(serde::Deserialize)]
     struct Cases {
         cases: Vec<Case>,
     }
-
     #[derive(serde::Deserialize)]
     struct Case {
         name: String,
         files: BTreeMap<String, String>,
-        expected: Vec<serde::de::IgnoredAny>,
+        expected: Vec<Finding>,
     }
-
+    #[derive(serde::Deserialize)]
+    struct Finding {
+        rule: String,
+        file: String,
+        start: usize,
+        end: usize,
+    }
     let cases: Cases = toml::from_str(include_str!("rules/UP017/cases.toml"))
         .map_err(|error| Error::Invalid(error.to_string()))?;
-    let mut negative_files = Vec::new();
+    if cases.cases.len() != 14 {
+        return Err(Error::Invalid(
+            "UP017 target control must retain all14 canonical cases".into(),
+        ));
+    }
+    let (mut files, mut expected_py311) = (Vec::new(), Vec::new());
     for case in cases.cases {
-        if !case.expected.is_empty() {
-            return Err(Error::Invalid(format!(
-                "UP017 PY310 guard case {} is not an expected negative",
-                case.name
-            )));
+        for finding in case.expected {
+            if finding.rule != "UP017" || !case.files.contains_key(&finding.file) {
+                return Err(Error::Invalid(format!(
+                    "invalid UP017 py311 expectation in {}",
+                    case.name
+                )));
+            }
+            expected_py311.push(BenchmarkFinding {
+                rule: ryo::linter::RuleId::try_from(finding.rule.as_str())
+                    .map_err(|error| Error::Invalid(error.to_string()))?,
+                file: ryo::linter::RelativePath(
+                    format!("up017-target/{}/{}", case.name, finding.file).into(),
+                ),
+                start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(finding.start),
+                end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(finding.end),
+            });
         }
         for (relative, text) in case.files {
-            let path = format!("up017-py310/{}/{}", case.name, relative);
+            let path = format!("up017-target/{}/{}", case.name, relative);
             let destination = root.join(&path);
             if let Some(parent) = destination.parent() {
                 std::fs::create_dir_all(parent)?;
             }
             std::fs::write(destination, text)?;
-            negative_files.push(ryo::linter::RelativePath(path.into()));
+            files.push(ryo::linter::RelativePath(path.into()));
         }
     }
-    negative_files.sort();
-    Ok(negative_files)
+    files.sort();
+    expected_py311.sort();
+    if files.len() != 14 || expected_py311.is_empty() {
+        return Err(Error::Invalid(
+            "UP017 target guard needs all14 sources and live py311 positives".into(),
+        ));
+    }
+    Ok((files, expected_py311))
 }
 
 fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Error> {
-    use ryo_benchmark::domain::diagnostics::types::SourceByteOffset;
     use ryo_benchmark::domain::suite::types::WorkerState;
     let rules = root.join("rules");
     let rule_directory = rules.join("UP017");
@@ -698,49 +728,17 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         include_str!("rules/UP017/query.ryoql"),
     )?;
     write_suppress_module(root)?;
-    std::fs::write(
-        root.join("input.py"),
-        "import datetime\ndatetime.timezone.utc\n",
-    )?;
-    let files = vec![ryo::linter::RelativePath("input.py".into())];
+    let (files, expected_py311) = stage_up017_target_files(root)?;
     let cache = root.join("retained-target-cache");
     let query_modules = suppress_modules();
-    let negative_files = stage_py310_negative_files(root)?;
-    let negative = factory::local(
-        ryo::linter::Languages(vec![ryo_python::linked_with_settings(
-            ryo_python::settings::PythonParserSettings::new(
-                ryo_python::settings::PythonTargetVersion::Py310,
-            ),
-        )]),
-        None,
-    )
-    .run(WorkerRequest {
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
-        context_manifest: None,
-        root: root.to_owned(),
-        rules: rules.clone(),
-        query_modules: query_modules.clone(),
-        rule_applicability: BTreeMap::default(),
-        parser_configuration: Some("python-target=3.10".to_owned()),
-        source_language: None,
-        files: negative_files.clone(),
-        state: WorkerState::Fresh,
-    })?;
-    if negative.files != negative_files || !negative.diagnostics.is_empty() {
-        let message = format!(
-            "UP017 PY310 target guard differs: requested={negative_files:?}, observed={:?}, diagnostics={:?}",
-            negative.files, negative.diagnostics
-        );
-        return Err(Error::Invalid(message));
-    }
-    let run = |target, identity: &'static str| {
-        let engine = factory::local(
+    let run = |target, identity: &'static str, state| {
+        factory::local(
             ryo::linter::Languages(vec![ryo_python::linked_with_settings(
                 ryo_python::settings::PythonParserSettings::new(target),
             )]),
             None,
-        );
-        engine.run(WorkerRequest {
+        )
+        .run(WorkerRequest {
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -751,33 +749,45 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
             parser_configuration: Some(identity.to_owned()),
             source_language: None,
             files: files.clone(),
-            state: WorkerState::Retained(cache.clone()),
+            state,
         })
     };
-    let py310 = run(
-        ryo_python::settings::PythonTargetVersion::Py310,
-        "python-target=3.10",
-    )?;
-    let py311 = run(
-        ryo_python::settings::PythonTargetVersion::Py311,
-        "python-target=3.11",
-    )?;
-    let expected = vec![BenchmarkFinding {
-        rule: ryo::linter::RuleId::try_from("UP017")
-            .map_err(|error| Error::Invalid(error.to_string()))?,
-        file: files
-            .first()
-            .cloned()
-            .ok_or_else(|| Error::Invalid("missing target fixture file".into()))?,
-        start: SourceByteOffset(16),
-        end: SourceByteOffset(37),
-    }];
-    if !py310.diagnostics.is_empty() || py311.diagnostics != expected {
-        let message = format!(
-            "UP017 target cache transition differs: py310={:?}, py311={:?}",
-            py310.diagnostics, py311.diagnostics
-        );
-        return Err(Error::Invalid(message));
+    for (target, identity, state, expected) in [
+        (
+            ryo_python::settings::PythonTargetVersion::Py310,
+            "python-target=3.10",
+            WorkerState::Fresh,
+            Vec::new(),
+        ),
+        (
+            ryo_python::settings::PythonTargetVersion::Py310,
+            "python-target=3.10",
+            WorkerState::Retained(cache.clone()),
+            Vec::new(),
+        ),
+        (
+            ryo_python::settings::PythonTargetVersion::Py311,
+            "python-target=3.11",
+            WorkerState::Retained(cache.clone()),
+            expected_py311,
+        ),
+        (
+            ryo_python::settings::PythonTargetVersion::Py310,
+            "python-target=3.10",
+            WorkerState::Retained(cache.clone()),
+            Vec::new(),
+        ),
+    ] {
+        let report = run(target, identity, state)?;
+        let mut observed_files = report.files;
+        observed_files.sort();
+        let mut observed = report.diagnostics;
+        observed.sort(); // Canonical diagnostic multiset: preserve every duplicate.
+        if observed_files != files || observed != expected {
+            return Err(Error::Invalid(format!(
+                "UP017 full14-source target/cache guard differs at {identity}: files={observed_files:?}; expected={expected:?}; observed={observed:?}"
+            )));
+        }
     }
     Ok(true)
 }
