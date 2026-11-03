@@ -11,7 +11,8 @@ use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ryo_language::domain::answers::service::{absent, reads};
-use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, AbsenceCause, Support};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_language::domain::elements::service::{enter_node, leave_node, token};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_relations::domain::relations::collections::relations::function::item::{
@@ -257,7 +258,8 @@ use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ryo_language::domain::answers::service::{absent, reads};
-use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, AbsenceCause, Support};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_language::domain::elements::service::{enter_node, leave_node, token};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_relations::domain::relations::collections::relations::function::item::{
@@ -500,7 +502,8 @@ use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ryo_language::domain::answers::service::{absent, reads};
-use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, AbsenceCause, Support};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_language::domain::elements::service::{enter_node, leave_node, token};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_relations::domain::relations::collections::relations::function::item::{
