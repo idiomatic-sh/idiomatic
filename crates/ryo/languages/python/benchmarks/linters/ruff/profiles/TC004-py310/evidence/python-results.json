@@ -1,0 +1,45 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "results": [
+    {
+      "name": "quoted-annotation",
+      "error": null,
+      "expected": null,
+      "passed": true,
+      "source": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:\"Foo\"\n",
+      "external_import_model": "Explicit sys.modules external with one real Foo class; source bytes unchanged. Fallback uses preexisting local Foo; true guard really imports external.Foo."
+    },
+    {
+      "name": "eager-annotation",
+      "error": "NameError",
+      "expected": "NameError",
+      "passed": true,
+      "source": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:Foo\n",
+      "external_import_model": "Explicit sys.modules external with one real Foo class; source bytes unchanged. Fallback uses preexisting local Foo; true guard really imports external.Foo."
+    },
+    {
+      "name": "shadowed-true",
+      "error": null,
+      "expected": null,
+      "passed": true,
+      "source": "from typing import TYPE_CHECKING\nTYPE_CHECKING=True\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n",
+      "external_import_model": "Explicit sys.modules external with one real Foo class; source bytes unchanged. Fallback uses preexisting local Foo; true guard really imports external.Foo."
+    },
+    {
+      "name": "runtime-fallback",
+      "error": null,
+      "expected": null,
+      "passed": true,
+      "source": "class Foo: ...\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n",
+      "external_import_model": "Explicit sys.modules external with one real Foo class; source bytes unchanged. Fallback uses preexisting local Foo; true guard really imports external.Foo."
+    },
+    {
+      "name": "local-shadow",
+      "error": null,
+      "expected": null,
+      "passed": true,
+      "source": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef f():\n Foo=1\n return Foo\n",
+      "external_import_model": "Explicit sys.modules external with one real Foo class; source bytes unchanged. Fallback uses preexisting local Foo; true guard really imports external.Foo."
+    }
+  ]
+}

@@ -57,9 +57,25 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**395 PASS / 18 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**396 PASS / 17 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
+
+    def test_tc004_proof_retains_full_fixtures_and_both_target_controls(self):
+        from authoring.target_supplement import verified_rows
+        receipt = renderer.LATEST_FULL_RESULT
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        target = receipt.parent / "tc004-target-supplement"
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous, target)
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("TC004", 41, 39, 2)])
+        controls = json.loads((target / "controls.json").read_text())["controls"]
+        self.assertEqual([(item["target"], item["case_count"]) for item in controls],
+                         [("py312", 41), ("py310", 41)])
+        cases = tomllib.loads((renderer.RUFF / "rules/TC004/cases.toml").read_text())["cases"]
+        self.assertEqual(sum(case["name"].startswith("upstream-full-") for case in cases), 17)
+        self.assertEqual({case["name"] for case in cases if "reference-discrepancy" in case},
+                         {"runtime-fallback", "shadowed-true"})
 
     def test_tc007_proof_preserves_scope_negatives_and_exact_differences(self):
         from authoring.target_supplement import verified_rows

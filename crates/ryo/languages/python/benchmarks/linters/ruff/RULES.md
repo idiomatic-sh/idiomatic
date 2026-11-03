@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**395 PASS / 18 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**396 PASS / 17 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -357,7 +357,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | SIM905 | PASS | verified intended expectations |
 | SIM911 | PASS | verified intended expectations |
 | T100 | PASS | verified intended expectations |
-| TC004 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| TC004 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/tc004-target-supplement/summary.json) |
 | TC005 | PASS | verified intended expectations |
 | TC007 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/tc007-target-supplement/summary.json) |
 | TC010 | PASS | verified intended expectations |

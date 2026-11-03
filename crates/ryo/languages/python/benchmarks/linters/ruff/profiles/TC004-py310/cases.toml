@@ -1,0 +1,208 @@
+[[cases]]
+name = "upstream-full-TC004_1.py"
+files = { "TC004_1.py" = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from datetime import datetime\nx = datetime\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_1.py", "start" = 77, "end" = 85 }]
+
+[[cases]]
+name = "upstream-full-TC004_10.py"
+files = { "TC004_10.py" = "from __future__ import annotations\n\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Tuple, List, Dict\n\nx: Tuple\n\n\nclass C:\n    x: List\n\n\ndef f():\n    x: Dict\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_11.py"
+files = { "TC004_11.py" = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import List\n\n__all__ = (\"List\",)\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_11.py", "start" = 75, "end" = 79 }]
+
+[[cases]]
+name = "upstream-full-TC004_12.py"
+files = { "TC004_12.py" = "from __future__ import annotations\n\nfrom typing import Any, TYPE_CHECKING, TypeAlias\n\nif TYPE_CHECKING:\n    from collections.abc import Callable\n\nAnyCallable: TypeAlias = Callable[..., Any]\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_12.py", "start" = 136, "end" = 144 }]
+
+[[cases]]
+name = "upstream-full-TC004_13.py"
+files = { "TC004_13.py" = "from __future__ import annotations\n\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Final, Literal, TypeAlias\n\n    RatingKey: TypeAlias = Literal[\"good\", \"fair\", \"poor\"]\n\nRATING_KEYS: Final[tuple[RatingKey, ...]] = (\"good\", \"fair\", \"poor\")\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_14.pyi"
+files = { "TC004_14.pyi" = "from typing import Tuple\n\nx: Tuple\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_15.py"
+files = { "TC004_15.py" = "from __future__ import annotations\n\nfrom collections.abc import Callable\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from .foo import Record\n\ntype RecordOrThings = Record | int | str\ntype RecordCallback[R: Record] = Callable[[R], None]\n\n\ndef process_record[R: Record](record: R) -> None:\n    ...\n\n\nclass RecordContainer[R: Record]:\n    def add_record(self, record: R) -> None:\n        ...\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "TC004_15.py", "start" = 154, "end" = 158 }, { "rule" = "invalid-syntax", "file" = "TC004_15.py", "start" = 195, "end" = 199 }, { "rule" = "invalid-syntax", "file" = "TC004_15.py", "start" = 268, "end" = 279 }, { "rule" = "invalid-syntax", "file" = "TC004_15.py", "start" = 331, "end" = 342 }]
+
+[[cases]]
+name = "upstream-full-TC004_16.py"
+files = { "TC004_16.py" = "from __future__ import annotations\n\nfrom typing_extensions import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from pandas import DataFrame\n\n\ndef example() -> DataFrame:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_17.py"
+files = { "TC004_17.py" = "from __future__ import annotations\n\nfrom typing_extensions import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from pandas import DataFrame\n\n\ndef example() -> DataFrame:\n    x = DataFrame()\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_17.py", "start" = 122, "end" = 131 }]
+
+[[cases]]
+name = "upstream-full-TC004_2.py"
+files = { "TC004_2.py" = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from datetime import date\n\n\ndef example():\n    return date()\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_2.py", "start" = 77, "end" = 81 }]
+
+[[cases]]
+name = "upstream-full-TC004_3.py"
+files = { "TC004_3.py" = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Any\n\n    CustomType = Any\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_4.py"
+files = { "TC004_4.py" = "from typing import TYPE_CHECKING, Type\n\nif TYPE_CHECKING:\n    from typing import Any\n\n\ndef example(*args: Any, **kwargs: Any):\n    return\n\n\nmy_type: Type[Any] | Any\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_4.py", "start" = 81, "end" = 84 }]
+
+[[cases]]
+name = "upstream-full-TC004_5.py"
+files = { "TC004_5.py" = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import List, Sequence, Set\n\n\ndef example(a: List[int], /, b: Sequence[int], *, c: Set[int]):\n    return\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_5.py", "start" = 75, "end" = 79 }, { "rule" = "TC004", "file" = "TC004_5.py", "start" = 81, "end" = 89 }, { "rule" = "TC004", "file" = "TC004_5.py", "start" = 91, "end" = 94 }]
+
+[[cases]]
+name = "upstream-full-TC004_6.py"
+files = { "TC004_6.py" = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from pandas import DataFrame\n\n\ndef example():\n    from pandas import DataFrame\n\n    x = DataFrame\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_7.py"
+files = { "TC004_7.py" = "from __future__ import annotations\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import AsyncIterator, List\n\n\nclass Example:\n    async def example(self) -> AsyncIterator[List[str]]:\n        yield 0\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_8.py"
+files = { "TC004_8.py" = "from typing import TYPE_CHECKING\nfrom weakref import WeakKeyDictionary\n\nif TYPE_CHECKING:\n    from typing import Any\n\nd = WeakKeyDictionary[\"Any\", \"Any\"]()\n" }
+expected = []
+
+[[cases]]
+name = "upstream-full-TC004_9.py"
+files = { "TC004_9.py" = "from typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from typing import Tuple, List, Dict\n\nx: Tuple\n\n\nclass C:\n    x: List\n\n\ndef f():\n    x: Dict\n" }
+expected = [{ "rule" = "TC004", "file" = "TC004_9.py", "start" = 75, "end" = 80 }, { "rule" = "TC004", "file" = "TC004_9.py", "start" = 82, "end" = 86 }]
+
+[[cases]]
+name = "value-use"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
+
+[[cases]]
+name = "unreferenced"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\n" }
+expected = []
+
+[[cases]]
+name = "quoted-annotation"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:\"Foo\"\n" }
+expected = []
+
+[[cases]]
+name = "eager-annotation"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:Foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
+
+[[cases]]
+name = "postponed-annotation"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:Foo\n" }
+expected = []
+
+[[cases]]
+name = "local-annotation"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef f():\n x:Foo\n" }
+expected = []
+
+[[cases]]
+name = "guard-only-use"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\n x=Foo\n" }
+expected = []
+
+[[cases]]
+name = "guard-alias"
+files = { "case.py" = "from typing import TYPE_CHECKING as TC\nif TC:\n from external import Foo\nx=Foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 68, "end" = 71 }]
+
+[[cases]]
+name = "qualified-guard"
+files = { "case.py" = "import typing as t\nif t.TYPE_CHECKING:\n from external import Foo\nx=Foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 61, "end" = 64 }]
+
+[[cases]]
+name = "shadowed-true"
+files = { "case.py" = "from typing import TYPE_CHECKING\nTYPE_CHECKING=True\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n" }
+expected = []
+comparison = "full"
+reference-discrepancy = { "expected" = [{ "rule" = "TC004", "file" = "case.py", "start" = 92, "end" = 95 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "28b90422ae8c081a20dcf9f3acbfb8b020b1d7c3b1443817101b72398eeab0f8", "settings-sha256" = "47e0731ecf758a13568b42ee637df9be42ed32ef3f31e1151e41ca8d3a697788", "source-sha256" = "61c66b53146e890acbb8156984e6cf2c9201e6034b716f0c015af0a52c86397e", "reference-output-sha256" = "15cfe2d13ba3f93aa13e1e2e635469dc8b27300b28fc2dd51a0672eed5ebbdff", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/scope-contract.json", "sha256" = "454ce4a05678acfdb05d1eab7b2307e1a5880ab0b3e36d7ecc9cc3fc360ae2b5", "kind" = "language-spec", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/python-results.json", "sha256" = "42042c2d4180492a31ffe45247659b38856ee04ab1cff72e0a0804da4c8501f1", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/python-program.py", "sha256" = "03cdfecc16922614234bec601c8302d36288c3837c433363762006c8640516a0", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/invocation.json", "sha256" = "942de30a058504ed31371fc6bd43002c09d9d911d49eea136e097ff4ec76ae8a", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/reference-results.json", "sha256" = "9879e40fcc94a5d626c7db4f147a680e64db568965775812ce8f057735ce5a6f", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/expectation-origins.json", "sha256" = "6210b735e5e63b56a2304a8774fce300c1a51ed58156b9f9ec0970f0d14d89fd", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }], "reason" = "The name TYPE_CHECKING is explicitly rebound True. With the explicit import prerequisite supplied as a real external module with Foo, unchanged original execution verifies x is Foo. Reference intentionally treats the spelling as a typing guard conservatively. This is a case-specific availability false positive from that heuristic, not a general claim that conservative static policies are Python bugs. Only two complete exact diagnostic multisets for unchanged source programs. No unavailable candidate accounting, incomplete source or arbitrary runtime failure is waived. Import model explicitly supplies external.Foo only for independent execution; it does not alter the canonical source. Classification: documented runtime-availability contract versus conservative analysis/policy, not an established Ruff bug. Runtime name availability does not prove identity with the import selected by a type checker; intended diagnostics here enforce the documented availability condition only." }
+
+[[cases]]
+name = "runtime-fallback"
+files = { "case.py" = "class Foo: ...\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx=Foo\n" }
+expected = []
+comparison = "full"
+reference-discrepancy = { "expected" = [{ "rule" = "TC004", "file" = "case.py", "start" = 88, "end" = 91 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "28b90422ae8c081a20dcf9f3acbfb8b020b1d7c3b1443817101b72398eeab0f8", "settings-sha256" = "47e0731ecf758a13568b42ee637df9be42ed32ef3f31e1151e41ca8d3a697788", "source-sha256" = "171e0021ada8a0e99c9c8d0911ab9cbc40e3d6ef6d9a43d35f400d8738fb6395", "reference-output-sha256" = "7f67821b8f1e030d4139bab72b310411944c5aab5e74e635bac89a515f1abde0", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/scope-contract.json", "sha256" = "454ce4a05678acfdb05d1eab7b2307e1a5880ab0b3e36d7ecc9cc3fc360ae2b5", "kind" = "language-spec", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/python-results.json", "sha256" = "42042c2d4180492a31ffe45247659b38856ee04ab1cff72e0a0804da4c8501f1", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/python-program.py", "sha256" = "03cdfecc16922614234bec601c8302d36288c3837c433363762006c8640516a0", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/invocation.json", "sha256" = "942de30a058504ed31371fc6bd43002c09d9d911d49eea136e097ff4ec76ae8a", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/reference-results.json", "sha256" = "9879e40fcc94a5d626c7db4f147a680e64db568965775812ce8f057735ce5a6f", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }, { "path" = "evidence/expectation-origins.json", "sha256" = "6210b735e5e63b56a2304a8774fce300c1a51ed58156b9f9ec0970f0d14d89fd", "kind" = "independent-language-run", "language-version" = "CPython3.10.19; Python3.12 ordinary name binding semantics", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact certified source programs execute on CPython3.10.19 with explicit import prerequisite recorded. Full unchanged upstream PEP695 sources retain independently AST-token-derived unsupported type-keyword and type-parameter bracket spans; no full-fixture3.10 execution claim." }], "reason" = "An earlier class Foo is a real runtime fallback because the typing guard is False. Exact original CPython3.10 execution verifies x is Foo without importing external. Guard-only control raises NameError; local shadow and runtime fallback controls establish value availability independently. This exact import is not the only definition, contrary to the documented diagnostic precondition. Only two complete exact diagnostic multisets for unchanged source programs. No unavailable candidate accounting, incomplete source or arbitrary runtime failure is waived. Import model explicitly supplies external.Foo only for independent execution; it does not alter the canonical source. Classification: documented runtime-availability contract versus conservative analysis/policy, not an established Ruff bug. Runtime name availability does not prove identity with the import selected by a type checker; intended diagnostics here enforce the documented availability condition only." }
+
+[[cases]]
+name = "local-shadow"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef f():\n Foo=1\n return Foo\n" }
+expected = []
+
+[[cases]]
+name = "deferred-function-use"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef f():\n return Foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
+
+[[cases]]
+name = "two-imports"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo, Bar\nx=Foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
+
+[[cases]]
+name = "import-alias"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo as Bar\nx=Bar\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 80, "end" = 83 }]
+
+[[cases]]
+name = "plain-import"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n import external\nx=external.foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 59, "end" = 67 }]
+
+[[cases]]
+name = "export"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\n__all__=[\"Foo\"]\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
+
+[[cases]]
+name = "getattr-export"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ndef __getattr__(name): return 1\n__all__=[\"Foo\"]\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo # noqa: TC004\nx=Foo\n" }
+expected = []
+
+[[cases]]
+name = "stub"
+files = { "case.pyi" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nx:Foo\n" }
+expected = []
+
+[[cases]]
+name = "explicit-alias"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nfrom typing import TypeAlias\nAlias:TypeAlias=Foo\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
+
+[[cases]]
+name = "pep695-alias"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\ntype Alias=Foo\n" }
+expected = [{ "rule" = "invalid-syntax", "file" = "case.py", "start" = 77, "end" = 81 }]
+
+[[cases]]
+name = "class-export-is-not-module-export"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nclass C:\n __all__=[\"Foo\"]\n" }
+expected = []
+
+[[cases]]
+name = "class-getattr-does-not-resolve-module-export"
+files = { "case.py" = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from external import Foo\nclass C:\n def __getattr__(self,name): return 1\n__all__=[\"Foo\"]\n" }
+expected = [{ "rule" = "TC004", "file" = "case.py", "start" = 73, "end" = 76 }]
