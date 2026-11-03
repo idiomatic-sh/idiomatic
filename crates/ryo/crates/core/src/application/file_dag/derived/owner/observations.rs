@@ -66,7 +66,7 @@ impl DerivedOwner {
                 return None;
             }
             let storage = &entry.retained.as_ref()?.storage;
-            if let DerivedStorage::RowIds { rows } = storage.as_ref() {
+            if let DerivedStorage::RowIds { rows, .. } = storage.as_ref() {
                 Some(rows.len())
             } else {
                 None

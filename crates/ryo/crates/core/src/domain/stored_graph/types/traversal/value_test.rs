@@ -9,6 +9,7 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Rows, Table};
 use ryo_language::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use std::sync::Arc;
 
 fn graph(edges: &[[i64; 2]]) -> crate::domain::stored_graph::types::CompactGraph {
     let mut table = Table {

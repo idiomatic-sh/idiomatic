@@ -131,7 +131,7 @@ impl std::fmt::Debug for FileAnalysis {
 }
 
 impl FileAnalysis {
-    fn resource_generation_enabled(tables: &Tables, facts: &dyn FactsWorker) -> bool {
+    pub(super) fn resource_generation_enabled(tables: &Tables, facts: &dyn FactsWorker) -> bool {
         tables.language.is_some() && facts.resident_stability() == ResidentStability::Stable
     }
     /// Admit one exact linked-provider selection before parsing or retained-data reuse.

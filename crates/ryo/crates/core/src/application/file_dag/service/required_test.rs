@@ -195,7 +195,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let held = [OnceCell::new()];
     let inputs = [NodeInput::Node(child)];
     let mut feed = GraphInputs {
-        executor: &crate::application::file_dag::executor::CommonOperatorEngine,
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
         execution: &mut dag,
         graph: &graph,
         inputs: &inputs,

@@ -13,7 +13,7 @@ use crate::domain::operator::contract::{
     graph::{CycleMarks, DfsWorkspace},
 };
 use crate::domain::table_cells::types::RowIndex;
-use crate::domain::table_model::types::Table;
+use crate::domain::table_model::types::{Rows, Table};
 use crate::domain::table_reach::types::Walk;
 use crate::domain::table_scratch::types::{ScratchWord, Stretches};
 use ryo_language::domain::relations::types::{Position, Value};
