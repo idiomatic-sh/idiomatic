@@ -68,35 +68,10 @@ pub(crate) struct CompactGraph {
 }
 
 /// One successful sorted positive-reach answer, bounded independently of required live traversal.
-#[derive(Debug)]
-pub(crate) struct RootMemo {
-    /// Dense root already identifies its partition.
-    pub root: u32,
-    /// Requested traversal orientation.
-    pub orientation: Orientation,
-    /// Reachable dense IDs in typed Value order.
-    pub reached: Arc<Vec<u32>>,
-}
 
 /// Admitted adjacency with bounded successful root memoization.
-#[derive(Debug)]
-pub(crate) struct GraphEntry {
-    /// Immutable handle may be held across nested emit after mutable cache access ends.
-    pub graph: Arc<CompactGraph>,
-    /// Successful source requests only; never a full all-roots closure.
-    pub roots: Vec<RootMemo>,
-}
 
 /// A graph handle and requested orientation; no mutable cache borrow survives acquisition.
-#[derive(Debug)]
-pub(crate) struct GraphAccess {
-    /// Complete immutable adjacency, retained or invocation-local.
-    pub graph: Arc<CompactGraph>,
-    /// Original requested source relative to canonical endpoint order.
-    pub orientation: Orientation,
-    /// Whether the generation owns this adjacency allocation.
-    pub shared: bool,
-}
 
 /// Canonical graph identity plus the columns needed to build it from the current logical row view.
 pub(crate) struct GraphSource {
@@ -109,13 +84,6 @@ pub(crate) struct GraphSource {
 }
 
 /// Shared domain membership belongs to one exact adjacency as well as its own population.
-#[derive(Debug)]
-pub(crate) struct DomainEntry {
-    /// Adjacency whose dense IDs the membership vector uses.
-    pub graph: Arc<CompactGraph>,
-    /// Exact membership context.
-    pub domain: Arc<GraphDomain>,
-}
 
 /// Exact domain membership context for graph/nearest reuse.
 #[derive(Clone, Debug, PartialEq)]
@@ -136,17 +104,6 @@ pub(crate) struct GraphDomain {
 }
 
 /// One domain-specific nearest context; mutable answers remain under the generation owner.
-#[derive(Debug)]
-pub(crate) struct NearestMemo {
-    /// Exact adjacency context.
-    pub graph: Arc<CompactGraph>,
-    /// Exact membership context.
-    pub domain: Arc<GraphDomain>,
-    /// Parent direction whose forest was validated.
-    pub orientation: Orientation,
-    /// Unknown/absent/answer sentinels or dense IDs, never public values.
-    pub answers: Vec<u32>,
-}
 
 /// Reusable invocation traversal memory; marks use epochs rather than clearing all vertices per root.
 #[derive(Debug, Default)]

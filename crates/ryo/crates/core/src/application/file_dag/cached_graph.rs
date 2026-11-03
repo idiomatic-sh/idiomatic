@@ -1,10 +1,11 @@
 //! Generation-owned complete graph acquisition and one-row demand answers.
 //! The primitive sees only borrowed values after the mutable cache borrow ends.
 use crate::application::file_dag::derived::backend::CacheBackend;
-use crate::application::file_dag::derived::{
-    graph::{acquire, domain},
-    graph_cache::types::roots::value::DemandAnswers,
+use crate::application::file_dag::derived::graph_cache::types::handles::{
+    DomainHandle, GraphHandle,
 };
+use crate::application::file_dag::derived::graph_cache::types::roots::value::DemandAnswers;
+use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     graph_view::{AxisResult, CachedGraphRow, ReachResult},
@@ -12,12 +13,11 @@ use crate::domain::operator::contract::{
 };
 use crate::domain::stored_graph::{
     types::traversal::value::GraphTraversal,
-    types::{GraphAccess, GraphDomain, GraphWalk, Orientation},
+    types::{GraphWalk, Orientation},
 };
 use crate::domain::table_model::{service::cell, types::Rows};
 use ryo_language::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input};
-use std::sync::Arc;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 /// One request-bound plan with invocation-local traversal buffers. Exact cache
 /// identity and bounded retention remain in `CacheBackend` and `graph_cache`.
@@ -27,7 +27,7 @@ pub(crate) enum CachedGraph {
 }
 
 pub(crate) struct ReachGraph {
-    access: GraphAccess,
+    access: GraphHandle,
     left_on: Vec<ColumnIndex>,
     bindings: Vec<usize>,
     partition_width: usize,
@@ -38,8 +38,8 @@ pub(crate) struct ReachGraph {
 }
 
 pub(crate) struct AxisGraph {
-    access: GraphAccess,
-    domain: Arc<GraphDomain>,
+    access: GraphHandle,
+    domain: DomainHandle,
     id: ColumnIndex,
     direction: Direction,
     destinations: Vec<Value>,
@@ -55,7 +55,6 @@ impl CachedGraph {
         admission: &super::workspace::InvocationWorkspace,
         mode: crate::domain::operator::contract::types::EvaluationMode,
         program: &ResourceProgram,
-        logical_inputs: &[Input],
         original_inputs: &[Rows<'_>],
         mut cache: Option<&mut CacheBackend>,
     ) -> Result<Option<Self>, OperatingError> {
@@ -93,17 +92,19 @@ impl CachedGraph {
                 let Some(bindings) = bindings else {
                     return Ok(None);
                 };
-                let (Some(input), Some(rows)) = (logical_inputs.get(1), original_inputs.get(1))
-                else {
+                let Some(rows) = original_inputs.get(1) else {
                     return Ok(None);
                 };
-                let Some(access) = acquire(
-                    adjacency()?,
-                    Some(admission),
-                    *input,
-                    rows,
-                    cache.as_deref_mut(),
-                )?
+                if !matches!(rows, Rows::Stored(_) | Rows::Selected(_)) {
+                    return Ok(None);
+                }
+                let Some(source) = admission.graph_input(1, rows)? else {
+                    return Ok(None);
+                };
+                let Some(access) =
+                    source
+                        .owner()
+                        .acquire_graph(adjacency()?, &source, cache.as_deref_mut())?
                 else {
                     return Ok(None);
                 };
@@ -129,33 +130,35 @@ impl CachedGraph {
                 {
                     return Ok(None);
                 }
-                let (Some(edges_input), Some(edges), Some(domain_input), Some(domain_rows)) = (
-                    logical_inputs.get(1),
-                    original_inputs.get(1),
-                    logical_inputs.get(2),
-                    original_inputs.get(2),
-                ) else {
-                    return Ok(None);
-                };
-                let Some(access) = acquire(
-                    adjacency()?,
-                    Some(admission),
-                    *edges_input,
-                    edges,
-                    cache.as_deref_mut(),
-                )?
+                let (Some(edges), Some(domain_rows)) =
+                    (original_inputs.get(1), original_inputs.get(2))
                 else {
                     return Ok(None);
                 };
-                let membership = domain(
+                if !matches!(edges, Rows::Stored(_) | Rows::Selected(_)) {
+                    return Ok(None);
+                }
+                let Some(source) = admission.graph_input(1, edges)? else {
+                    return Ok(None);
+                };
+                let Some(access) =
+                    source
+                        .owner()
+                        .acquire_graph(adjacency()?, &source, cache.as_deref_mut())?
+                else {
+                    return Ok(None);
+                };
+                let Some(domain_input) = admission.graph_input(2, domain_rows)? else {
+                    return Ok(None);
+                };
+                let membership = domain_input.owner().acquire_graph_domain(
                     &slots[slot(DerivedKind::Membership)]
                         .as_ref()
                         .ok_or(OperatingError::NotRun)?
                         .primary
                         .plan,
                     &access,
-                    *domain_input,
-                    domain_rows,
+                    &domain_input,
                     cache.as_deref_mut(),
                 )?;
                 Ok(Some(Self::Axis(AxisGraph {
@@ -176,11 +179,12 @@ impl CachedGraph {
     pub(in crate::application::file_dag) fn row<'a>(
         &'a mut self,
         left: &[Value],
+        owner: &DerivedOwner,
         cache: Option<&mut CacheBackend>,
     ) -> Result<CachedGraphRow<'a>, OperatingError> {
         match self {
-            Self::Reach(reach) => Ok(CachedGraphRow::Reach(reach.row(left, cache)?)),
-            Self::Axis(axis) => Ok(CachedGraphRow::Axis(axis.row(left, cache)?)),
+            Self::Reach(reach) => Ok(CachedGraphRow::Reach(reach.row(left, owner, cache)?)),
+            Self::Axis(axis) => Ok(CachedGraphRow::Axis(axis.row(left, owner, cache)?)),
         }
     }
 }
@@ -189,6 +193,7 @@ impl ReachGraph {
     fn row<'a>(
         &'a mut self,
         left: &[Value],
+        owner: &DerivedOwner,
         cache: Option<&mut CacheBackend>,
     ) -> Result<ReachResult<'a>, OperatingError> {
         self.key.clear();
@@ -209,24 +214,27 @@ impl ReachGraph {
             .request
             .get(self.partition_width)
             .ok_or(OperatingError::ShapeMismatch)?;
-        let reached = DemandAnswers::new(cache).reach(
+        let reached = DemandAnswers::new(owner, cache).reach(
             &self.access,
             &self.request[..self.partition_width],
             source,
             &mut self.walk,
-        );
-        let vertices = reached
-            .as_deref()
-            .map_or(self.walk.reached.as_slice(), Vec::as_slice);
-        for vertex in vertices {
-            self.destinations.push(
-                *self
-                    .access
-                    .graph
-                    .vertices
-                    .get(*vertex as usize)
-                    .ok_or(OperatingError::ShapeMismatch)?,
-            );
+        )?;
+        if let Some(answer) = reached {
+            for value in answer.values()? {
+                self.destinations.push(value?);
+            }
+        } else {
+            for vertex in &self.walk.reached {
+                self.destinations.push(
+                    *self
+                        .access
+                        .graph
+                        .vertices
+                        .get(*vertex as usize)
+                        .ok_or(OperatingError::ShapeMismatch)?,
+                );
+            }
         }
         Ok(ReachResult {
             request: &self.request,
@@ -239,6 +247,7 @@ impl AxisGraph {
     fn row<'a>(
         &'a mut self,
         left: &[Value],
+        owner: &DerivedOwner,
         mut cache: Option<&mut CacheBackend>,
     ) -> Result<AxisResult<'a>, OperatingError> {
         self.destinations.clear();
@@ -262,14 +271,14 @@ impl AxisGraph {
         };
         if self.direction == Direction::NearestAncestor {
             let mut answers = std::mem::take(&mut self.walk.answers);
-            let found = DemandAnswers::new(cache.as_deref_mut()).nearest(
+            let found = DemandAnswers::new(owner, cache.as_deref_mut()).nearest(
                 &self.access,
                 &self.domain,
                 root,
                 orientation,
                 &mut answers,
                 &mut self.walk,
-            );
+            )?;
             self.walk.answers = answers;
             if let Some(found) = found {
                 self.destinations.push(

@@ -22,6 +22,12 @@ mod acquisition;
 mod backings;
 mod graph;
 #[cfg(test)]
+pub(crate) mod graph_fixture;
+#[cfg(test)]
+mod graph_lifetime_test;
+mod graph_policy;
+mod graph_retention;
+#[cfg(test)]
 #[path = "owner/index_lifetime_test.rs"]
 mod index_lifetime_test;
 mod leases;
@@ -43,9 +49,13 @@ pub(in crate::application::file_dag) struct ViewContext {
     pub candidate: Option<usize>,
     pub membership_order: Option<usize>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+mod graph_key;
+pub(in crate::application::file_dag::derived) use graph_key::{
+    GraphRequirement, GraphSelection, GraphViewIdentity, RequirementIdentity,
+};
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Key {
-    plan: usize,
+    plan: RequirementIdentity,
     populations: [PopulationId; 2],
     len: u8,
     context: ViewContext,
@@ -55,6 +65,7 @@ struct RetainedView {
     _lease: Arc<super::ledger::ResourceLease>,
 }
 struct Entry {
+    admission: usize,
     _plan: Arc<DerivedContract>,
     weak: Weak<DerivedStorage>,
     required: Option<super::view::AcquiredView>,
@@ -67,7 +78,8 @@ struct Entry {
 }
 #[derive(Default)]
 struct State {
-    entries: HashMap<Key, Entry>,
+    next_admission: usize,
+    entries: hashbrown::HashMap<Key, Entry>,
     pins: HashMap<PopulationId, usize>,
     dependents: HashMap<PopulationId, Vec<Key>>,
     spare_dependencies: Vec<Vec<Key>>,
@@ -101,42 +113,71 @@ impl DerivedOwner {
             max_entries,
         }
     }
-    /// A graph's existing priority can reclaim optional wrappers, but never a
-    /// required or borrowed view. Payload retained in CacheBackend remains charged there.
-    pub(in crate::application::file_dag) fn reclaim_optional(
+    pub(super) fn reclaim_optional_preserving(
         &self,
         cache: &mut CacheBackend,
         cost: usize,
+        protected: &[super::ledger::Backing],
+        extra_units: usize,
     ) {
         let mut state = self.state.borrow_mut();
+        let ledger = self.ledger.borrow();
+        let mut candidates = state
+            .entries
+            .iter()
+            .filter_map(|(key, entry)| {
+                (entry.required.is_none()
+                    && ledger.optional_payload_only(&entry.backings)
+                    && entry
+                        .retained
+                        .as_ref()
+                        .is_some_and(|retained| Arc::strong_count(&retained.storage) == 1)
+                    && !entry
+                        .backings
+                        .iter()
+                        .any(|backing| protected.iter().any(|needed| needed.key == backing.key)))
+                .then(|| (entry.admission, key.clone()))
+            })
+            .collect::<Vec<_>>();
+        drop(ledger);
+        candidates.sort_unstable_by_key(|candidate| candidate.0);
         let mut released = 0;
         let mut released_predicates = 0;
-        for entry in state.entries.values_mut() {
+        for (_, key) in candidates {
             if cache
                 .bytes
-                .saturating_sub(released)
                 .checked_add(cost)
                 .is_some_and(|bytes| bytes <= cache.limit)
+                && self
+                    .ledger
+                    .borrow()
+                    .snapshot()
+                    .optional_units
+                    .checked_add(extra_units)
+                    .is_some_and(|units| units <= super::selection::MAX_RETAINED_POSITION_CAPACITY)
             {
                 break;
             }
-            if entry.required.is_none()
-                && entry
-                    .retained
-                    .as_ref()
-                    .is_some_and(|storage| Arc::strong_count(&storage.storage) == 1)
-            {
-                let _released = entry.retained.take();
-                released_predicates +=
-                    usize::from(entry._plan.kind == DerivedKind::PredicateMatches);
-                released += entry.bytes;
-            }
+            let before = self.ledger.borrow().snapshot().view_optional_bytes;
+            let Some(entry) = state.entries.get_mut(&key) else {
+                continue;
+            };
+            let removed = entry.retained.take();
+            released += entry.bytes;
+            released_predicates += usize::from(entry._plan.kind == DerivedKind::PredicateMatches);
+            // Drop the optional lease before observing the physical union. A
+            // graph or publication alias may still own some of these backings.
+            drop(removed);
+            let after = self.ledger.borrow().snapshot().view_optional_bytes;
+            let physical = before.saturating_sub(after);
+            cache.bytes = cache.bytes.saturating_sub(physical);
+            cache.graph_counts.reclaimed_bytes += physical as u64;
         }
         state.retained_bytes = state.retained_bytes.saturating_sub(released);
         state.retained_predicates = state
             .retained_predicates
             .saturating_sub(released_predicates);
-        cache.bytes = cache.bytes.saturating_sub(released);
+        cache.graph_counts.reclaimed_selections += released_predicates as u64;
     }
     pub(in crate::application::file_dag) fn counts(&self) -> (u64, u64, u64) {
         let state = self.state.borrow();
@@ -168,9 +209,14 @@ impl DerivedOwner {
         let state = self.state.borrow();
         state
             .entries
-            .capacity()
-            .saturating_mul(size_of::<(Key, Entry)>() + 1)
-            .saturating_mul(2)
+            .keys()
+            .map(|key| key.plan.metadata_bytes())
+            .sum::<usize>()
+            + state
+                .entries
+                .capacity()
+                .saturating_mul(size_of::<(Key, Entry)>() + 1)
+                .saturating_mul(2)
             + state
                 .pins
                 .capacity()
@@ -215,7 +261,7 @@ fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
             .dependents
             .get_mut(&population)
             .expect("installed reverse list")
-            .push(key);
+            .push(key.clone());
     }
 }
 

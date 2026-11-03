@@ -6,3 +6,7 @@ pub(crate) mod roots;
 pub(crate) mod reclamation;
 
 pub(in crate::application::file_dag::derived) mod footprint;
+
+pub(in crate::application::file_dag::derived) mod retained;
+
+pub(in crate::application::file_dag) mod handles;

@@ -55,6 +55,7 @@ impl DerivedOwner {
     pub(in crate::application::file_dag) fn clear(&self) {
         let mut state = self.state.borrow_mut();
         state.entries.clear();
+        state.next_admission = 0;
         state.pins.clear();
         let mut recycled = std::mem::take(&mut state.spare_dependencies);
         for (_, mut keys) in state.dependents.drain() {

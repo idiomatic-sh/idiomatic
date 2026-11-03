@@ -40,11 +40,11 @@ pub(in crate::application::file_dag) struct CacheBackend {
     /// Successful root and nearest memo payload admitted within its smaller sub-budget.
     pub(super) memo_bytes: usize,
     /// Complete immutable graph populations.
-    pub(super) graphs: Vec<crate::domain::stored_graph::types::GraphEntry>,
+    pub(super) graphs: Vec<super::graph_cache::types::retained::GraphEntry>,
     /// Exact stable domain memberships.
-    pub(super) graph_domains: Vec<crate::domain::stored_graph::types::DomainEntry>,
+    pub(super) graph_domains: Vec<super::graph_cache::types::retained::DomainEntry>,
     /// Mutable nearest answers remain owned by this generation.
-    pub(super) nearest: Vec<crate::domain::stored_graph::types::NearestMemo>,
+    pub(super) nearest: Vec<super::graph_cache::types::retained::NearestMemo>,
     /// Aggregate requested/traversed work and graph admission accounting.
     pub(super) graph_counts: crate::domain::stored_graph::types::GraphCounts,
     /// Active pure stored descriptors; prepared metadata is owned by the worker's plans.

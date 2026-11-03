@@ -52,6 +52,7 @@ pub(crate) use record::RelationResult;
 
 struct SourceViews {
     population: SourceDescriptor,
+    canonical_population: PopulationId,
     views: HashMap<SourceDescriptor, PublishedInput>,
 }
 
@@ -60,7 +61,7 @@ pub(crate) struct RelationOwner {
     pub(super) identity_checks: Cell<u64>,
     pub(super) derived: super::derived::owner::DerivedOwner,
     next_population: Cell<usize>,
-    producer_populations: RefCell<HashMap<usize, usize>>,
+    producer_populations: RefCell<HashMap<usize, (usize, PopulationId)>>,
     generation: RefCell<Arc<()>>,
     stable: bool,
     sources: RefCell<HashMap<Relation, SourceViews>>,
@@ -130,10 +131,17 @@ impl RelationOwner {
         let result = self.publication(result)?;
         if self.stable && self.views.get() < self.max_views {
             let mut sources = self.sources.borrow_mut();
-            let entry = sources.entry(relation).or_insert_with(|| SourceViews {
-                population: identity::describe(relation, population),
-                views: HashMap::new(),
-            });
+            let entry = match sources.entry(relation) {
+                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+                std::collections::hash_map::Entry::Vacant(entry) => entry.insert(SourceViews {
+                    population: identity::describe(relation, population),
+                    // Graph aliases share a separate admitted ID. Pinning a
+                    // graph source must not promote unrelated ordinary views
+                    // keyed by the raw relation's primary population.
+                    canonical_population: PopulationId(self.allocate_population()?),
+                    views: HashMap::new(),
+                }),
+            };
             entry
                 .views
                 .insert(identity::describe(relation, raw), result.clone());
@@ -293,6 +301,10 @@ impl RelationOwner {
         Ok(AdmittedInput {
             rows: input,
             shape,
+            backing_population: self.backing_population(result),
+            backing_relation: Self::backing_relation(result),
+            canonical_backing: Self::backing_relation(result)
+                .is_some_and(|relation| self.sources.borrow().contains_key(&relation)),
             origin: (
                 self.result_population(result),
                 match &result.body {
@@ -388,19 +400,48 @@ impl RelationOwner {
             self.producer_populations
                 .borrow_mut()
                 .entry(node.0)
-                .or_insert(self.result_population(result).0);
+                .or_insert((
+                    self.result_population(result).0,
+                    self.backing_population(result),
+                ));
             return Ok(());
         }
         let mut known = self.producer_populations.borrow_mut();
-        let id = *known.entry(node.0).or_insert(result.population);
+        let (id, _) = *known
+            .entry(node.0)
+            .or_insert((result.population, self.backing_population(result)));
         let _installed = result.producer.set(id);
         Ok(())
     }
     fn result_population(&self, result: &RelationResult) -> PopulationId {
         PopulationId(*result.producer.get().unwrap_or(&result.population))
     }
+    fn backing_relation(result: &RelationResult) -> Option<Relation> {
+        match &result.body {
+            RelationBody::Source(source) => Some(source.relation),
+            RelationBody::Selected { source, .. } => Self::backing_relation(source),
+            RelationBody::Computed(_) => None,
+        }
+    }
+    fn backing_population(&self, result: &RelationResult) -> PopulationId {
+        match &result.body {
+            RelationBody::Source(source) => {
+                self.sources.borrow().get(&source.relation).map_or_else(
+                    || self.result_population(result),
+                    |source| source.canonical_population,
+                )
+            }
+            RelationBody::Selected { source, .. } => self.backing_population(source),
+            RelationBody::Computed(_) => self.result_population(result),
+        }
+    }
     pub(super) fn pin_derived(&self, result: &RelationResult) {
-        self.derived.pin(self.result_population(result));
+        let population = self.result_population(result);
+        self.derived.pin(population);
+        let backing = self.backing_population(result);
+        if backing != population {
+            self.derived.pin(backing);
+        }
     }
     /// Global consumer cancellation need not retain the producer payload.
     /// A generation clear has already released all pins and removed this map.
@@ -408,11 +449,22 @@ impl RelationOwner {
         &self,
         node: crate::domain::file_program::types::NodeId,
     ) {
-        if let Some(population) = self.producer_populations.borrow().get(&node.0).copied() {
-            self.derived.release(PopulationId(population));
+        if let Some((population, backing)) =
+            self.producer_populations.borrow().get(&node.0).copied()
+        {
+            let population = PopulationId(population);
+            self.derived.release(population);
+            if backing != population {
+                self.derived.release(backing);
+            }
         }
     }
     pub(super) fn release_derived(&self, result: &RelationResult) {
-        self.derived.release(self.result_population(result));
+        let population = self.result_population(result);
+        self.derived.release(population);
+        let backing = self.backing_population(result);
+        if backing != population {
+            self.derived.release(backing);
+        }
     }
 }

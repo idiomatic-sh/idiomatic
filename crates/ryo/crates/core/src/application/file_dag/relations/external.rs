@@ -22,14 +22,14 @@ impl RelationOwner {
         rows: BorrowedRows<'a>,
     ) -> Result<AdmittedInput<'a>, OperatingError> {
         rows.validate()?;
+        let population = PopulationId(self.allocate_population()?);
         Ok(AdmittedInput {
+            backing_population: population,
+            backing_relation: None,
+            canonical_backing: false,
             rows,
             shape: PhysicalShape::Complete,
-            origin: (
-                PopulationId(self.allocate_population()?),
-                None,
-                Arc::clone(&self.generation.borrow()),
-            ),
+            origin: (population, None, Arc::clone(&self.generation.borrow())),
         })
     }
 }

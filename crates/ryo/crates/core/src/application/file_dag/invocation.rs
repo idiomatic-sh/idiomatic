@@ -109,14 +109,10 @@ impl<'f> InvocationResources<'f> {
         let empty_domain=contract.collected_empty.iter().any(|gate|gate.input>0 && gate.representation==crate::domain::operator::contract::types::EmptyRepresentation::Computed &&
           originals.get(gate.input).is_some_and(|rows|matches!(rows,crate::domain::table_model::types::Rows::Computed(table) if table.count.0==0)));
         if !empty_domain {
-            resources.cached_graph = admission.owner().derived.prepare_graph(
-                contract,
-                admission,
-                mode,
-                program,
-                ryo_values::domain::plans::service::named(&contract.inputs),
-                originals,
-            )?;
+            resources.cached_graph = admission
+                .owner()
+                .derived
+                .prepare_graph(contract, admission, mode, program, originals)?;
             if resources.cached_graph.is_some() {
                 return Ok(resources);
             }

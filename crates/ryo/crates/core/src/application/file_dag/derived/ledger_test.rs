@@ -235,6 +235,77 @@ fn position_capacity_is_charged_once_per_optional_backing_and_survives_required_
 }
 
 #[test]
+fn optional_release_preview_requires_every_last_handle_and_counts_units_separately() {
+    let ledger = Rc::new(RefCell::new(Ledger::default()));
+    let rows = positions(10, 400, 100);
+    let first = Arc::new(Ledger::acquire(&ledger, &[rows], LeaseClass::Optional).unwrap());
+    let second = Arc::new(Ledger::acquire(&ledger, &[rows], LeaseClass::Optional).unwrap());
+
+    assert_eq!(
+        ledger.borrow().optional_release_credit(&[&first]).unwrap(),
+        Some((0, 0))
+    );
+    assert_eq!(
+        ledger
+            .borrow()
+            .optional_release_credit(&[&first, &second])
+            .unwrap(),
+        Some((400, 100))
+    );
+
+    let live_consumer = Arc::clone(&first);
+    assert_eq!(
+        ledger
+            .borrow()
+            .optional_release_credit(&[&first, &second])
+            .unwrap(),
+        Some((0, 0))
+    );
+    drop(live_consumer);
+
+    let required = Ledger::acquire(&ledger, &[rows], LeaseClass::Required).unwrap();
+    assert_eq!(
+        ledger
+            .borrow()
+            .optional_release_credit(&[&first, &second])
+            .unwrap(),
+        Some((0, 100))
+    );
+    drop(required);
+    let node = Ledger::acquire(&ledger, &[rows], LeaseClass::NodeOptional).unwrap();
+    assert_eq!(
+        ledger
+            .borrow()
+            .optional_release_credit(&[&first, &second])
+            .unwrap(),
+        Some((0, 100))
+    );
+    drop(node);
+
+    let shared = Arc::new(
+        Ledger::acquire(&ledger, &[positions(11, 250, 60)], LeaseClass::Optional).unwrap(),
+    );
+    let other_slot = Arc::clone(&shared);
+    assert_eq!(
+        ledger.borrow().optional_release_credit(&[&shared]).unwrap(),
+        Some((0, 0))
+    );
+    assert_eq!(
+        ledger
+            .borrow()
+            .optional_release_credit(&[&shared, &other_slot])
+            .unwrap(),
+        Some((250, 60))
+    );
+
+    drop(first);
+    drop(second);
+    drop(shared);
+    drop(other_slot);
+    assert_eq!(ledger.borrow().snapshot().optional_units, 0);
+}
+
+#[test]
 fn a_reused_key_cannot_change_its_immutable_size() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let required = Ledger::acquire(&ledger, &[backing(3, 10)], LeaseClass::Required).unwrap();

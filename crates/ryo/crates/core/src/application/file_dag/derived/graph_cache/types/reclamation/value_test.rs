@@ -1,153 +1,226 @@
-//! Complete preflight, exact payload credit, live handles and metadata-capacity ownership.
+//! Graph admission reclaims only dormant resources owned by the real file owner.
 
-use super::value::{GraphAdmission, index_payload, selection_payload};
-use crate::application::file_dag::derived::backend::CacheBackend;
-use crate::application::file_dag::derived::graph_cache::types::footprint::value::{
-    arc_bytes, vector,
-};
-use crate::application::file_dag::derived::indexes::{LIMIT, acquire_fixture as acquire, new};
-use crate::domain::stored_selection::types::{Matches, Selector};
-use crate::domain::table_model::types::{KeyIndex, SelectionIdentity};
+use crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture;
+use crate::application::file_dag::derived::{indexes::LIMIT, owner::graph_fixture::GraphFixture};
+use crate::domain::operating::types::OperatorContext;
+use crate::domain::stored_selection::fixtures::program;
+use crate::domain::table_model::types::Rows;
+use crate::domain::table_scratch::types::OperatorScratch;
+use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
-/// Acquire an ordinary index through its production accounting, keeping its live handle if requested.
-fn indexed() -> (CacheBackend, Arc<KeyIndex>) {
-    let columns = [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![4, 3, 2, 1])];
-    let source = ColumnsView {
+fn rows<'a>(columns: &'a [FactColumn; 2]) -> Rows<'a> {
+    Rows::Stored(ColumnsView {
         kinds: &[CellKind::Number; 2],
-        columns: &columns,
-    };
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    cache.graph_enabled = true;
-    let handle = acquire(
-        &mut cache,
-        Relation::Function,
-        source,
-        &[ColumnIndex(0)],
-        &mut KeyIndex::default(),
-    )
-    .expect("index")
-    .shared
-    .expect("admitted");
-    (cache, handle)
+        columns,
+    })
+}
+
+fn columns() -> [FactColumn; 2] {
+    [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![4, 3, 2, 1])]
 }
 
 #[test]
 fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
-    let (mut cache, handle) = indexed();
-    let payload = index_payload(&cache.entries[0]).expect("actual allocation");
-    let before = cache.bytes;
-    let capacity = cache.entries.capacity();
-    cache.limit = before + payload / 2;
-    assert!(!GraphAdmission::new(&mut cache).prepare(payload));
-    assert_eq!(cache.bytes, before);
-    assert_eq!(cache.entries.len(), 1);
-    assert_eq!(cache.graph_counts.pinned_refusals, 1);
+    let columns = columns();
+    let rows = rows(&columns);
+    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+    let handle = fixture
+        .index(Relation::Function, &rows, &[ColumnIndex(0)])
+        .expect("owner acquired index");
+    let before = fixture.snapshot();
+    assert_eq!(before.indexes, 1);
+    let payload = before.index_payloads[0];
+    let capacity = before.index_capacity;
+    let cost = payload + before.retained_view_bytes;
+    fixture.set_limit(before.bytes + payload / 2);
+    assert!(!fixture.reclaim(cost));
+    let pinned = fixture.snapshot();
+    assert_eq!(pinned.bytes, before.bytes);
+    assert_eq!(pinned.indexes, 1);
+    assert_eq!(pinned.counts.pinned_refusals, 1);
     drop(handle);
-    assert!(GraphAdmission::new(&mut cache).prepare(payload));
-    assert_eq!(cache.bytes, before - payload);
-    assert!(cache.entries.is_empty());
-    assert_eq!(cache.entries.capacity(), capacity);
-    assert_eq!(cache.graph_counts.reclaimed_indexes, 1);
-    assert_eq!(cache.graph_counts.reclaimed_bytes, payload as u64);
-    assert!(cache.bytes + payload <= cache.limit);
+    assert!(fixture.reclaim(cost));
+    let reclaimed = fixture.snapshot();
+    assert_eq!(
+        reclaimed.bytes + reclaimed.counts.reclaimed_bytes as usize,
+        before.bytes,
+        "the owner accounts for the unique physical credit once"
+    );
+    assert_eq!(reclaimed.indexes, 0);
+    assert_eq!(reclaimed.index_capacity, capacity);
+    assert_eq!(reclaimed.counts.reclaimed_indexes, 1);
+    assert_eq!(reclaimed.counts.reclaimed_bytes, cost as u64);
+    assert_eq!(reclaimed.optional_bytes, 0);
+    assert_eq!(reclaimed.retained_view_bytes, 0);
+    assert!(reclaimed.bytes + cost <= reclaimed.limit);
 }
 
 #[test]
 fn impossible_admission_does_not_mutate_even_dormant_payload_or_capacity() {
-    let (mut cache, handle) = indexed();
+    let columns = columns();
+    let rows = rows(&columns);
+    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+    let handle = fixture
+        .index(Relation::Function, &rows, &[ColumnIndex(0)])
+        .expect("owner acquired index");
     drop(handle);
-    let before = cache.bytes;
-    let capacity = cache.entries.capacity();
-    let payload = index_payload(&cache.entries[0]).expect("payload");
-    cache.limit = before;
-    assert!(!GraphAdmission::new(&mut cache).prepare(payload + 1));
+    let before = fixture.snapshot();
+    let payload = before.index_payloads[0];
+    fixture.set_limit(before.bytes);
+    assert!(!fixture.reclaim(payload + before.retained_view_bytes + 1));
+    let after = fixture.snapshot();
     assert_eq!(
-        (cache.bytes, cache.entries.len(), cache.entries.capacity()),
-        (before, 1, capacity)
+        (after.bytes, after.indexes, after.index_capacity),
+        (before.bytes, before.indexes, before.index_capacity)
     );
-    assert_eq!(cache.graph_counts.reclaimed_bytes, 0);
+    assert_eq!(after.counts.reclaimed_bytes, 0);
 }
 
 #[test]
 fn fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order() {
-    let (mut cache, handle) = indexed();
-    drop(handle);
-    let columns = [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![4, 3, 2, 1])];
-    let source = ColumnsView {
-        kinds: &[CellKind::Number; 2],
-        columns: &columns,
-    };
+    let columns = columns();
+    let rows = rows(&columns);
+    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
     drop(
-        acquire(
-            &mut cache,
-            Relation::Function,
-            source,
-            &[ColumnIndex(1)],
-            &mut KeyIndex::default(),
-        )
-        .expect("second index"),
+        fixture
+            .index(Relation::Function, &rows, &[ColumnIndex(0)])
+            .expect("first owner acquired index"),
     );
-    let before = cache.bytes;
-    let capacity = cache.entries.capacity();
-    let first = index_payload(&cache.entries[0]).expect("payload");
-    cache.limit = before;
-    assert!(GraphAdmission::new(&mut cache).prepare(first));
-    assert_eq!(cache.entries.len(), 1);
-    assert_eq!(cache.entries[0].columns, [ColumnIndex(1)]);
-    assert_eq!(cache.entries.capacity(), capacity);
-    assert_eq!(cache.bytes, before - first);
+    drop(
+        fixture
+            .index(Relation::Function, &rows, &[ColumnIndex(1)])
+            .expect("second owner acquired index"),
+    );
+    let before = fixture.snapshot();
+    assert_eq!(before.indexes, 2);
+    let capacity = before.index_capacity;
+    let first = before.index_payloads[0];
+    fixture.set_limit(before.bytes);
+    assert!(fixture.reclaim(first + before.retained_view_bytes));
+    let after = fixture.snapshot();
+    assert_eq!(after.indexes, 1);
+    assert_eq!(after.index_columns[0], [ColumnIndex(1)]);
+    assert_eq!(after.index_capacity, capacity);
+    assert!(after.bytes <= before.bytes - first);
+}
+
+#[test]
+fn owner_retained_views_reclaim_oldest_before_newer_without_releasing_indexes() {
+    let columns = columns();
+    let rows = rows(&columns);
+    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+    let first = fixture
+        .index(Relation::Function, &rows, &[ColumnIndex(0)])
+        .expect("first owner view");
+    let first_storage = Arc::downgrade(&first.storage);
+    let first_view_bytes = fixture.snapshot().retained_view_bytes;
+    assert!(first_view_bytes > 0);
+    drop(first);
+
+    let second = fixture
+        .index(Relation::Function, &rows, &[ColumnIndex(1)])
+        .expect("second owner view");
+    let second_storage = Arc::downgrade(&second.storage);
+    drop(second);
+    let before = fixture.snapshot();
+    assert_eq!(before.indexes, 2);
+    assert!(before.retained_view_bytes > first_view_bytes);
+
+    fixture.set_limit(before.bytes);
+    assert!(fixture.reclaim(first_view_bytes));
+    let after = fixture.snapshot();
+    assert!(
+        first_storage.upgrade().is_none(),
+        "oldest owner view releases first"
+    );
+    assert!(
+        second_storage.upgrade().is_some(),
+        "newer owner view remains"
+    );
+    assert_eq!(after.indexes, 2);
+    assert_eq!(after.counts.reclaimed_indexes, 0);
+    assert_eq!(
+        after.retained_view_bytes,
+        before.retained_view_bytes - first_view_bytes
+    );
 }
 
 #[test]
 fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    let rows = Arc::new(vec![0_u32, 1, 1, 2]);
-    cache.selections.push(Matches {
-        selector: Arc::new(Selector {
-            distinct: false,
-            relation: Relation::Function,
-            identity: Arc::new(SelectionIdentity::default()),
-            columns: vec![ColumnIndex(0)],
-        }),
-        rows: (rows).clone(),
-    });
-    cache.retained_positions = cache
-        .selections
-        .iter()
-        .map(|entry| entry.rows.capacity())
-        .sum();
-    let payload = selection_payload(&cache.selections[0]).expect("payload");
-    assert_eq!(payload, arc_bytes::<Vec<u32>>() + vector(&rows));
-    cache.bytes += cache.selections.capacity() * size_of::<Matches>() + payload;
-    let before = cache.bytes;
-    let capacity = cache.selections.capacity();
-    cache.limit = before;
-    assert!(!GraphAdmission::new(&mut cache).prepare(payload));
-    assert_eq!(cache.bytes, before);
-    assert_eq!(cache.selections.len(), 1);
-    assert_eq!(cache.retained_positions, rows.capacity());
-    drop(rows);
-    assert!(GraphAdmission::new(&mut cache).prepare(payload));
-    assert_eq!(cache.bytes, before - payload);
-    assert_eq!(cache.selections.capacity(), capacity);
-    assert!(cache.selections.is_empty());
-    assert_eq!(cache.retained_positions, 0);
-    assert_eq!(cache.graph_counts.reclaimed_selections, 1);
+    let columns = [
+        FactColumn(vec![1, 2, 2, 3]),
+        FactColumn(vec![10, 20, 21, 30]),
+    ];
+    let source = ColumnsView {
+        kinds: &[CellKind::Number; 2],
+        columns: &columns,
+    };
+    let selector = program(2);
+    let selection = SelectionFixture::new(
+        &[Relation::Function],
+        &[],
+        vec![selector.clone(), selector.clone()],
+        [selector.clone()],
+        source.kinds,
+    )
+    .expect("real selection owner");
+    let (mut symbols, mut memo, mut scratch) =
+        (Symbols::default(), Vec::new(), OperatorScratch::default());
+    let mut context = OperatorContext {
+        prepared_kinds: None,
+        prepared_matchers: None,
+        bindings: &[],
+        symbols: (&mut symbols).into(),
+        source: SourceView(b""),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let selected = selection
+        .select(&selector, source, &mut context)
+        .expect("actual selector execution")
+        .expect("retained selection");
+    assert_eq!(selected.selection.rows.as_slice(), &[1, 2]);
+    let mut fixture = GraphFixture::attach(Rc::clone(selection.owner()), &[Relation::Function]);
+    let before = fixture.snapshot();
+    assert_eq!(before.selections, 1);
+    assert!(before.retained_positions >= selected.selection.rows.capacity());
+    assert!(before.retained_view_bytes > 0);
+    fixture.set_limit(before.bytes);
+    let cost = before.retained_view_bytes;
+    assert!(!fixture.reclaim(cost));
+    let pinned = fixture.snapshot();
+    assert_eq!(pinned.bytes, before.bytes);
+    assert_eq!(pinned.selections, 1);
+    assert_eq!(pinned.retained_positions, before.retained_positions);
+    drop(selected);
+    assert!(fixture.reclaim(cost));
+    let after = fixture.snapshot();
+    assert_eq!(after.selections, 0);
+    assert_eq!(after.retained_positions, 0);
+    assert_eq!(after.counts.reclaimed_selections, 1);
+    assert!(after.bytes < before.bytes);
 }
 
 #[test]
 fn enabling_graph_demand_does_not_reserve_unused_ordinary_capacity() {
-    let (mut cache, handle) = indexed();
-    drop(handle);
-    assert_eq!(
-        crate::application::file_dag::derived::indexes::non_graph_limit(&cache),
-        LIMIT
+    let columns = columns();
+    let rows = rows(&columns);
+    let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+    drop(
+        fixture
+            .index(Relation::Function, &rows, &[ColumnIndex(0)])
+            .expect("owner acquired index"),
     );
-    let bytes = cache.bytes;
-    assert!(GraphAdmission::new(&mut cache).prepare(1));
-    assert_eq!(cache.bytes, bytes);
-    assert_eq!(cache.entries.len(), 1);
+    let before = fixture.snapshot();
+    assert_eq!(before.limit, LIMIT);
+    assert!(fixture.reclaim(1));
+    let after = fixture.snapshot();
+    assert_eq!(after.bytes, before.bytes);
+    assert_eq!(after.indexes, 1);
 }

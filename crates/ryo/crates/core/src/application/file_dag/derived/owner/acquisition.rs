@@ -132,13 +132,61 @@ impl DerivedOwner {
             Option<&mut CacheBackend>,
         ) -> Result<(DerivedStorage, bool, bool, bool), OperatingError>,
     ) -> Result<AcquiredView, OperatingError> {
+        self.acquire_with_requirement(
+            RequirementIdentity::Prepared(Arc::as_ptr(plan) as usize),
+            plan,
+            populations,
+            context,
+            stored_observation,
+            cache,
+            build,
+        )
+    }
+    pub(in crate::application::file_dag::derived) fn acquire_with_requirement(
+        &self,
+        requirement: RequirementIdentity,
+        plan: &Arc<DerivedContract>,
+        populations: &[PopulationId],
+        context: ViewContext,
+        stored_observation: bool,
+        mut cache: Option<&mut CacheBackend>,
+        build: impl FnOnce(
+            Option<&mut CacheBackend>,
+        ) -> Result<(DerivedStorage, bool, bool, bool), OperatingError>,
+    ) -> Result<AcquiredView, OperatingError> {
+        self.acquire_shared_with_requirement(
+            requirement,
+            plan,
+            populations,
+            context,
+            stored_observation,
+            cache,
+            |cache| {
+                build(cache).map(|(storage, built, backend, optional)| {
+                    (Arc::new(storage), built, backend, optional)
+                })
+            },
+        )
+    }
+    pub(in crate::application::file_dag::derived) fn acquire_shared_with_requirement(
+        &self,
+        requirement: RequirementIdentity,
+        plan: &Arc<DerivedContract>,
+        populations: &[PopulationId],
+        context: ViewContext,
+        stored_observation: bool,
+        mut cache: Option<&mut CacheBackend>,
+        build: impl FnOnce(
+            Option<&mut CacheBackend>,
+        ) -> Result<(Arc<DerivedStorage>, bool, bool, bool), OperatingError>,
+    ) -> Result<AcquiredView, OperatingError> {
         if populations.is_empty() || populations.len() > 2 {
             return Err(OperatingError::ShapeMismatch);
         }
         let mut ids = [PopulationId(usize::MAX); 2];
         ids[..populations.len()].copy_from_slice(populations);
         let key = Key {
-            plan: Arc::as_ptr(plan) as usize,
+            plan: requirement,
             populations: ids,
             len: populations.len() as u8,
             context,
@@ -200,13 +248,12 @@ impl DerivedOwner {
         let (storage, built, backend, allow_optional) = build(cache.as_deref_mut())?;
         let _checked = registered(plan.kind).view(plan, &storage)?;
         let bytes = storage_bytes(&storage)?;
-        let backend_bytes = if let DerivedStorage::EqualityShared(index) = &storage {
+        let backend_bytes = if let DerivedStorage::EqualityShared(index) = storage.as_ref() {
             indexes::index_bytes(index).ok_or(OperatingError::ShapeMismatch)?
         } else {
             0
         };
         let working = bytes.saturating_add(backend_bytes);
-        let storage = Arc::new(storage);
         let backings = backings::view(&storage)?;
         let handle = AcquiredView::new(
             plan,
@@ -249,11 +296,11 @@ impl DerivedOwner {
                 && (!backend || matches!(storage.as_ref(), DerivedStorage::EqualityShared(_)))
                 && cache
                     .bytes
-                    .checked_add(bytes)
+                    .checked_add(additional_bytes)
                     .is_some_and(|n| n <= cache.limit)
         }) {
             let lease = self.optional_lease(&backings)?;
-            cache.bytes += bytes;
+            cache.bytes += additional_bytes;
             cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
             state.retained_bytes += bytes;
             state.retained_predicates += usize::from(plan.kind == DerivedKind::PredicateMatches);
@@ -282,12 +329,18 @@ impl DerivedOwner {
             state.required_bytes += working;
             state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
         }
+        let admission = state.next_admission;
+        state.next_admission = state
+            .next_admission
+            .checked_add(1)
+            .ok_or(OperatingError::ShapeMismatch)?;
         if !known {
-            link(&mut state, key, populations);
+            link(&mut state, key.clone(), populations);
         }
         state.entries.insert(
             key,
             Entry {
+                admission,
                 _plan: Arc::clone(plan),
                 weak: Arc::downgrade(&storage),
                 required: required.then(|| handle.clone()),

@@ -7,6 +7,8 @@ use std::{cell::RefCell, collections::HashMap, mem::size_of, rc::Rc};
 #[path = "ledger_test.rs"]
 mod tests;
 
+mod credit;
+
 type Key = (u8, usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

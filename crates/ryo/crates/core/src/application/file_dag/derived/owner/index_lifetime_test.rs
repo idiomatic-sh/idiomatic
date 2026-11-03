@@ -112,8 +112,7 @@ fn reclaim(fixture: &ResourceFixture, all_payload: bool) -> bool {
     } else {
         cache.limit - cache.bytes + 1
     };
-    owner.reclaim_optional(cache, cost);
-    crate::application::file_dag::derived::graph_cache::types::reclamation::value::GraphAdmission::new(cache).prepare(cost)
+    owner.prepare_graph_room(cache, cost, &[]).unwrap()
 }
 #[test]
 fn wrapper_eviction_preserves_backend_charge_and_live_consumers_block_reclamation() {

@@ -1,6 +1,5 @@
 //! The application owns each invocation's mutable allocations and release boundary.
 use super::relations::AdmittedInput;
-use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::{
     derived_views::types::{DerivedStorage, PreparedViewUse},
     operating::{errors::OperatingError, types::OperatorContext},
@@ -50,9 +49,6 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(super) fn reclaim_derived(&self, cache: &mut CacheBackend, cost: usize) {
-        self.owner().derived.reclaim_optional(cache, cost);
-    }
     pub(super) fn derived_counts(&self) -> (u64, u64) {
         let (builds, hits, _) = self.owner().derived.counts();
         (builds, hits)
@@ -178,6 +174,51 @@ impl InvocationWorkspace {
             Ok(())
         } else {
             input.validate()
+        }
+    }
+}
+
+/// Only the workspace can bind an original graph row view to its admission.
+/// The graph path never receives independently replaceable raw rows and proof.
+pub(super) struct GraphInput<'a> {
+    rows: &'a crate::domain::table_model::types::Rows<'a>,
+    proof: AdmittedInput<'a>,
+    relation: Option<ryo_language::domain::relations::types::Relation>,
+    owner: &'a super::relations::RelationOwner,
+}
+impl<'a> GraphInput<'a> {
+    pub(super) fn rows(&self) -> &crate::domain::table_model::types::Rows<'a> {
+        self.rows
+    }
+    pub(super) fn owner(&self) -> &super::derived::owner::DerivedOwner {
+        &self.owner.derived
+    }
+    pub(super) fn canonical_backing(&self) -> bool {
+        self.proof.canonical_backing()
+    }
+    pub(super) fn population(&self) -> Result<super::derived::owner::PopulationId, OperatingError> {
+        self.proof.backing_population(self.owner)
+    }
+    pub(super) fn relation(&self) -> Option<ryo_language::domain::relations::types::Relation> {
+        self.relation
+    }
+    pub(super) fn generation(&self) -> Arc<()> {
+        self.proof.generation_guard()
+    }
+}
+impl InvocationWorkspace {
+    pub(super) fn graph_input<'a>(
+        &'a self,
+        place: usize,
+        rows: &'a crate::domain::table_model::types::Rows<'a>,
+    ) -> Result<Option<GraphInput<'a>>, OperatingError> {
+        let proof = self.admit(place, BorrowedRows::from(rows))?;
+        match proof.physical_shape() {
+            crate::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback => Ok(None),
+            crate::domain::table_model::collections::representations::types::PhysicalShape::Complete => {
+                let relation = proof.graph_relation(self.owner())?;
+                Ok(Some(GraphInput { rows, proof, relation, owner: self.owner() }))
+            },
         }
     }
 }

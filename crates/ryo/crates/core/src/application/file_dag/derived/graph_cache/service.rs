@@ -2,19 +2,9 @@
 
 use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::operator::types::PreparedPool;
-#[cfg(test)]
-use crate::domain::{
-    operating::errors::OperatingError,
-    stored_graph::types::{GraphAccess, GraphDomain},
-    table_model::{service::kinds_of, types::Rows},
-};
 use ryo_language::domain::relations::types::Relation;
-#[cfg(test)]
-use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
-#[cfg(test)]
-use std::sync::Arc;
 
 /// Root and nearest answers cannot silently grow into a retained all-pairs closure.
 pub(crate) const MEMO_LIMIT: usize = 2 * 1024 * 1024;
@@ -83,47 +73,6 @@ pub(in crate::application::file_dag::derived) fn reserve(
     if requested {
         cache.graph_enabled = true;
     }
-}
-
-/// Acquire only after the operator's required provider/input holds have succeeded.
-#[cfg(test)]
-pub(in crate::application::file_dag) fn acquire(
-    input: Input,
-    rows: &Rows<'_>,
-    endpoints: [ColumnIndex; 2],
-    keys: &[ColumnIndex],
-    cache: Option<&mut CacheBackend>,
-) -> Result<Option<GraphAccess>, OperatingError> {
-    let plan = Arc::new(crate::domain::derived_views::service::prepare(
-        crate::domain::derived_views::types::DerivedKind::Adjacency,
-        &crate::domain::derived_views::types::ViewRequest::Adjacency {
-            endpoints,
-            keys: keys.to_vec(),
-        },
-        &[crate::domain::operation_schema::types::InputSchema {
-            kinds: kinds_of(rows),
-            tree: None,
-        }],
-    )?);
-    super::super::graph::acquire(&plan, None, input, rows, cache)
-}
-#[cfg(test)]
-pub(in crate::application::file_dag) fn domain(
-    access: &GraphAccess,
-    input: Input,
-    rows: &Rows<'_>,
-    column: ColumnIndex,
-    cache: Option<&mut CacheBackend>,
-) -> Result<Arc<GraphDomain>, OperatingError> {
-    let plan = Arc::new(crate::domain::derived_views::service::prepare(
-        crate::domain::derived_views::types::DerivedKind::Membership,
-        &crate::domain::derived_views::types::ViewRequest::Membership { column },
-        &[crate::domain::operation_schema::types::InputSchema {
-            kinds: kinds_of(rows),
-            tree: None,
-        }],
-    )?);
-    super::super::graph::domain(&plan, access, input, rows, cache)
 }
 
 /// Replacement metadata is allocated separately, so refusal never grows retained capacity.

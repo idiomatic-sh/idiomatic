@@ -1,10 +1,9 @@
 //! Root keys carry orientation and positive reach cannot invent a missing root.
 
 use super::value::DemandAnswers;
+use crate::application::file_dag::derived::graph_cache::types::handles::GraphAccess;
 use crate::domain::stored_graph::service::build;
-use crate::domain::stored_graph::types::{
-    GraphAccess, GraphIdentity, GraphWalk, Orientation, Population,
-};
+use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, Population};
 use crate::domain::table_model::types::{Rows, Table};
 use ryo_language::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -42,9 +41,11 @@ fn empty_graph_and_absent_partition_clear_previous_answer() {
     };
     let mut walk = GraphWalk::default();
     walk.reached.push(99);
+    let owner = crate::application::file_dag::derived::owner::DerivedOwner::new(0);
     assert!(
-        DemandAnswers::new(None)
+        DemandAnswers::new(&owner, None)
             .reach(&access, &[], Value::Number(Integer(1)), &mut walk)
+            .unwrap()
             .is_none()
     );
     assert!(walk.reached.is_empty());

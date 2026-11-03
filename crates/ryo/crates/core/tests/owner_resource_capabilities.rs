@@ -70,6 +70,11 @@ pub mod domain {
 pub mod application {pub mod file_dag {
  pub mod derived {
   pub mod ledger {#[derive(Debug)]pub struct ResourceLease;}
+  pub mod graph_cache {pub mod types {pub mod retained {
+   #[derive(Debug)]pub struct GraphEntry;
+   #[derive(Debug)]pub struct DomainEntry;
+   #[derive(Debug)]pub struct NearestMemo;
+  }}}
   #[path=__BACKEND__]pub mod backend;
   pub mod owner {
    use super::backend::CacheBackend;
