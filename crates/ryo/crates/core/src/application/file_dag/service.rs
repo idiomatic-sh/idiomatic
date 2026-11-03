@@ -201,8 +201,8 @@ impl FileDagExecution {
         let owner = std::rc::Rc::clone(&self.relations);
         let mut feed = GraphInputs {
             execution: self,
-            graph: &graph,
             inputs: &node.inputs,
+            schemas: &node.contract.input_kinds,
             held: &held,
             read,
             executor,
@@ -282,8 +282,8 @@ impl FileDagExecution {
 /// copying cells; no borrowed provider view survives a rule's keep boundary.
 pub(crate) struct GraphInputs<'a, 'f> {
     execution: &'a mut FileDagExecution,
-    graph: &'a RequestGraph,
     inputs: &'a [NodeInput],
+    schemas: &'a [Vec<CellKind>],
     held: &'a [OnceCell<crate::application::file_dag::relations::PublishedInput>],
     read: &'a dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
     executor: &'a dyn PrimitiveExecutor,
@@ -320,15 +320,12 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
             .map(Clone::clone))
     }
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
-        match self.inputs.get(which.0) {
-            Some(NodeInput::Relation(relation)) => {
-                Ok(ryo_language::domain::relations::service::kinds(*relation))
-            }
-            Some(NodeInput::Node(node)) => Ok(&self.graph.nodes[node.0].kinds),
-            None => Err(OperatingError::MissingInput {
+        self.schemas
+            .get(which.0)
+            .map(Vec::as_slice)
+            .ok_or(OperatingError::MissingInput {
                 position: which.0 + 1,
-            }),
-        }
+            })
     }
     fn streams(&self, _: InputPlace) -> Supply {
         Supply::AtHand

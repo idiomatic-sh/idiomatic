@@ -193,12 +193,31 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
         scratch: &mut scratch,
     };
     let held = [OnceCell::new()];
+    {
+        let inputs = [NodeInput::Relation(Relation::Function)];
+        let schemas = [vec![CellKind::Number]];
+        let unavailable = |_| panic!("metadata must not request provider rows");
+        let metadata = GraphInputs {
+            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            execution: &mut dag,
+            inputs: &inputs,
+            schemas: &schemas,
+            held: &held,
+            read: &unavailable,
+        };
+        assert_eq!(
+            metadata.kinds(InputPlace(0)).unwrap(),
+            &[CellKind::Number],
+            "prepared custom schema is authoritative over catalog defaults"
+        );
+        assert!(metadata.publication(InputPlace(0)).unwrap().is_none());
+    }
     let inputs = [NodeInput::Node(child)];
     let mut feed = GraphInputs {
         executor: &crate::application::file_dag::execution::CommonOperatorEngine,
         execution: &mut dag,
-        graph: &graph,
         inputs: &inputs,
+        schemas: std::slice::from_ref(&graph.nodes[child.0].kinds),
         held: &held,
         read: &read,
     };

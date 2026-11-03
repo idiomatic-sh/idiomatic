@@ -237,6 +237,18 @@ impl ResourceFixture {
             &schemas,
             context.bindings,
         )?;
+        self.stream_prepared(operation, &contract, inputs, feed, context, room, emit)
+    }
+    pub(crate) fn stream_prepared<'f>(
+        &self,
+        operation: &Operation,
+        contract: &crate::domain::operator::contract::types::OperatorContract,
+        inputs: &[Rows<'f>],
+        feed: &mut dyn crate::application::file_dag::feed::Feed<'f>,
+        context: &mut OperatorContext<'_>,
+        room: &mut crate::domain::operating::types::Room,
+        emit: &mut dyn crate::domain::operating::types::Emit,
+    ) -> Result<(), OperatingError> {
         let plan = Plan {
             parameters: vec![],
             steps: vec![PlanStep {
@@ -266,7 +278,7 @@ impl ResourceFixture {
             logical: ryo_values::domain::plans::service::named(&contract.inputs).to_vec(),
             owner: Rc::clone(&self.owner),
         };
-        CommonOperatorEngine.stream(&contract, &mut feed, context, room, emit)
+        CommonOperatorEngine.stream(contract, &mut feed, context, room, emit)
     }
 }
 

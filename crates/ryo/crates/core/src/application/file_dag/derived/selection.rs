@@ -14,7 +14,7 @@ use crate::domain::{
         LiteralFanout, PreparedSelectionViews, PreparedSelectorViews, Selector, SelectorHistogram,
     },
     table_model::{
-        service::{check_columns, matching_stored, rectangular},
+        service::{check_columns, matching_stored},
         types::{KeyIndex, ParameterBinding, SelectedRows, StoredSelection, Verdict},
     },
     table_texts::types::Texts,
@@ -133,14 +133,6 @@ pub(in crate::application::file_dag::derived) fn select<'a>(
     source: ColumnsView<'a>,
     context: &mut OperatorContext<'_>,
 ) -> Result<Option<SelectionOutput<'a>>, OperatingError> {
-    if !rectangular(source)
-        || source
-            .columns
-            .first()
-            .is_some_and(|column| column.0.len() > u32::MAX as usize)
-    {
-        return Ok(None);
-    }
     if cache.eligible.contains(&program.relation) {
         make(cache, resources, program, source, context)
     } else {

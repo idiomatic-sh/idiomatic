@@ -35,6 +35,16 @@ pub(super) fn select<'f>(
     let Rows::Stored(columns) = &raw else {
         return Ok(None);
     };
+    // Compact selection is optional for unreadable physical layouts; leave
+    // their established readable-prefix normalization to ordinary execution.
+    if !crate::domain::table_model::service::rectangular(*columns)
+        || columns
+            .columns
+            .first()
+            .is_some_and(|column| column.0.len() > u32::MAX as usize)
+    {
+        return Ok(None);
+    }
     if prepared
         .schemas
         .first()
