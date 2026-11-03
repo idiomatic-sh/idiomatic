@@ -6,6 +6,7 @@ use crate::domain::operating::{
     types::{Emit, InputPlace, OperatorContext, Room},
 };
 use crate::domain::operator::contract::{types::*, views::BorrowedRows};
+use crate::domain::replay::types::Collect;
 
 use crate::domain::table_model::{
     service::{push_row, reset},
