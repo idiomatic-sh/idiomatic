@@ -57,9 +57,25 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**394 PASS / 19 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**395 PASS / 18 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
+
+    def test_tc007_proof_preserves_scope_negatives_and_exact_differences(self):
+        from authoring.target_supplement import verified_rows
+        receipt = renderer.LATEST_FULL_RESULT
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous,
+                             receipt.parent / "tc007-target-supplement")
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("TC007", 32, 30, 2)])
+        cases = tomllib.loads((renderer.RUFF / "rules/TC007/cases.toml").read_text())["cases"]
+        by_name = {case["name"]: case for case in cases}
+        for name in ("annotation-only-name", "forward-runtime-class",
+                     "function-local-shadow", "function-local-builtin-shadow"):
+            self.assertEqual(by_name[name]["expected"], [])
+            self.assertNotIn("reference-discrepancy", by_name[name])
+        self.assertTrue(by_name["valid-class-scope-unavailable"]["expected"])
 
     def test_natural_order_proof_retains_both_complete_target_controls(self):
         receipt = renderer.LATEST_FULL_RESULT

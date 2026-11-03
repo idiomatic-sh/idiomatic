@@ -1,0 +1,104 @@
+{
+  "annotation-only-name": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "F821,F823,TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-namespace-audit-20261103/annotation-only-name/case.py"
+    ],
+    "exit": 1,
+    "source_sha256": "186a19651ba37e85b4be670cc29fca83c40d1f20c953676c00b8c42703be6ca8",
+    "tool_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "forward-runtime-class": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "F821,F823,TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-namespace-audit-20261103/forward-runtime-class/case.py"
+    ],
+    "exit": 1,
+    "source_sha256": "047be06c39174dcc38c7f1629aeebe262b99160874534506ffc239de9745afb3",
+    "tool_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "function-local-builtin-shadow": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "F821,F823,TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-namespace-audit-20261103/function-local-builtin-shadow/case.py"
+    ],
+    "exit": 0,
+    "source_sha256": "760725c6551fe4b205070e2b82dd522c4f6ebe79903e9d546f9910d001e6f349",
+    "tool_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "function-local-shadow": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "F821,F823,TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-namespace-audit-20261103/function-local-shadow/case.py"
+    ],
+    "exit": 0,
+    "source_sha256": "d93c0a6490b64b0021095c030987bfa029a60264d8c3d9959db80eec3c075723",
+    "tool_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "runtime-fallback-deleted": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "F821,F823,TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-namespace-audit-20261103/runtime-fallback-deleted/case.py"
+    ],
+    "exit": 0,
+    "source_sha256": "532da8c9e77fe909beeef1228930a8773b9762adc9dde81f1ed5fa18a8751cb1",
+    "tool_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "shadowed-true-guard": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "F821,F823,TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-namespace-audit-20261103/shadowed-true-guard/case.py"
+    ],
+    "exit": 1,
+    "source_sha256": "6f19a266d79276c3f86416aa11e311b411e060249d0f6a5305c8942ba7c22104",
+    "tool_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  }
+}

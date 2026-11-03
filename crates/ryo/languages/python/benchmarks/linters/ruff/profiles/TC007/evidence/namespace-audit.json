@@ -1,0 +1,108 @@
+[
+  {
+    "name": "annotation-only-name",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nFoo:int\nAlias:TypeAlias=Foo\n",
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 20,
+          "row": 3
+        },
+        "filename": "/tmp/tc007-namespace-audit-20261103/annotation-only-name/case.py",
+        "fix": null,
+        "location": {
+          "column": 17,
+          "row": 3
+        },
+        "message": "Undefined name `Foo`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "forward-runtime-class",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nAlias:TypeAlias=Foo\nclass Foo: ...\n",
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 20,
+          "row": 2
+        },
+        "filename": "/tmp/tc007-namespace-audit-20261103/forward-runtime-class/case.py",
+        "fix": null,
+        "location": {
+          "column": 17,
+          "row": 2
+        },
+        "message": "Undefined name `Foo`",
+        "name": "undefined-name",
+        "noqa_row": 2,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "function-local-builtin-shadow",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\ndef outer():\n if TYPE_CHECKING:\n  from external import int\n Alias:TypeAlias=int\n",
+    "diagnostics": []
+  },
+  {
+    "name": "function-local-shadow",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nclass Foo: ...\ndef outer():\n if TYPE_CHECKING:\n  from external import Foo\n Alias:TypeAlias=Foo\n",
+    "diagnostics": []
+  },
+  {
+    "name": "runtime-fallback-deleted",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nclass Foo: ...\ndel Foo\nif TYPE_CHECKING:\n from external import Foo\nAlias:TypeAlias=Foo\n",
+    "diagnostics": []
+  },
+  {
+    "name": "shadowed-true-guard",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nTYPE_CHECKING=True\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=Foo\n",
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 5
+        },
+        "filename": "/tmp/tc007-namespace-audit-20261103/shadowed-true-guard/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 5
+              },
+              "location": {
+                "column": 17,
+                "row": 5
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 5
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  }
+]
