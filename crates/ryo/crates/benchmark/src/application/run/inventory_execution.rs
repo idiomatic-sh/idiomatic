@@ -89,6 +89,15 @@ pub(super) fn compare(
     candidate: &Value,
     contract: ComparisonContract,
 ) -> Result<Comparison, String> {
+    if reference["process_observation"].is_object() {
+        if contract != ComparisonContract::Diagnostics {
+            return Err("process failure has no complete-report execution accounting".into());
+        }
+        let candidate = report(candidate)?;
+        crate::domain::diagnostics::service::require_complete_execution(&candidate)
+            .map_err(str::to_owned)?;
+        return Ok(Comparison::Incomparable);
+    }
     let reference = report(reference)?;
     let candidate = report(candidate)?;
     compare_with_contract(&reference, &candidate, contract)

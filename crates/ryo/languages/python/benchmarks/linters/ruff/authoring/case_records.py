@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 import tomllib
 from authoring import reference_discrepancies
+from authoring import case_receipt_adapter
 
 def source_hash(files: dict[str, str]) -> str:
     encoded = json.dumps(files, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
@@ -134,11 +135,13 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
         raise ValueError('staged case inventory is empty or has duplicate (rule, name) identities')
     return inventory
 
-def discrepancy_record_pair_valid(case: dict[str, object], sides: dict[str, dict[str, object]]) -> bool:
+def discrepancy_record_pair_valid(case: dict[str, object], sides: dict[str, dict[str, object]], *, _shared_verified: frozenset[str]=frozenset()) -> bool:
     """Native attestations bind the actually verified request, not inferred historical settings."""
     certificate = case.get('reference_discrepancy')
     if certificate is None:
         return True
+    if certificate.get('process') is not None:
+        return f"{case['rule']}/{case['name']}" in _shared_verified
     identity = certificate['identity']
     for side, row in sides.items():
         proof = row.get('discrepancy_validation')
@@ -200,8 +203,10 @@ def record_execution_comparison(reference: dict[str, object], candidate: dict[st
     skips = lambda row: sorted(((skip['rule'], skip['path'], skip['reason']) for skip in row['skipped']))
     return 'exact' if reference['coverage'] == candidate['coverage'] and skips(reference) == skips(candidate) else 'different'
 
-def record_contract_satisfied(case: dict[str, object], sides: dict[str, dict[str, object]]) -> bool:
+def record_contract_satisfied(case: dict[str, object], sides: dict[str, dict[str, object]], *, _shared_verified: frozenset[str]=frozenset()) -> bool:
     """Apply the declared contract without promoting unavailable reference accounting to zero."""
+    if isinstance(case.get('reference_discrepancy'), dict) and case['reference_discrepancy'].get('process') is not None:
+        return f"{case['rule']}/{case['name']}" in _shared_verified
     contract = case.get('expectation_contract', 'diagnostics')
     if contract not in {'diagnostics', 'complete-report'} or set(sides) != {'reference', 'candidate'}:
         return False
@@ -221,8 +226,17 @@ def record_contract_satisfied(case: dict[str, object], sides: dict[str, dict[str
     execution = record_execution_comparison(sides['reference'], sides['candidate'])
     return execution == 'exact' or (contract == 'diagnostics' and execution == 'incomparable')
 
-def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dict[str, object]]) -> set[str]:
+def case_record_objects(records: list[object]) -> list[dict[str, object]]:
+    """Validate JSON row structure before grouping; diagnostic policy remains with its verifier."""
+    for index, row in enumerate(records, 1):
+        if not isinstance(row, dict) or any(not isinstance(row.get(key), str) for key in ('rule', 'name', 'side')):
+            raise ValueError(f'native case receipt row {index} must be an object with string rule/name/side identities')
+    return records
+
+def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dict[str, object]], *, receipt_file: Path | None=None) -> set[str]:
     """Return cases with one valid, durable full report from each contestant."""
+    records = case_record_objects(records)
+    shared_verified = case_receipt_adapter.verified_process_ids(selected_cases, records, receipt_file)
     expected_cases = {f"{case['rule']}/{case['name']}": case for case in selected_cases}
     grouped: dict[str, dict[str, dict[str, object]]] = {}
     duplicates = set()
@@ -250,14 +264,14 @@ def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dic
             for row in sides.values()
         )
         if (identities_match and context_receipts_valid(expected_case, sides)
-            and discrepancy_record_pair_valid(expected_case, sides)
-            and record_contract_satisfied(expected_case, sides)):
+            and discrepancy_record_pair_valid(expected_case, sides, _shared_verified=shared_verified)
+            and record_contract_satisfied(expected_case, sides, _shared_verified=shared_verified)):
             completed.add(case_id)
     return completed
 
-def case_expectation_summary(inventory: list[dict[str, object]], records: list[dict[str, object]]) -> dict[str, int]:
+def case_expectation_summary(inventory: list[dict[str, object]], records: list[dict[str, object]], *, receipt_file: Path | None=None) -> dict[str, int]:
     """Raw parity and independently intended behavior are separate, never interchangeable totals."""
-    completed = complete_case_ids(inventory, records)
+    completed = complete_case_ids(inventory, records, receipt_file=receipt_file)
     grouped: dict[str, dict[str, dict[str, object]]] = {}
     for row in records:
         case_id = f"{row.get('rule')}/{row.get('name')}"
@@ -269,17 +283,23 @@ def case_expectation_summary(inventory: list[dict[str, object]], records: list[d
         if sides is None:
             continue
         reference, candidate = (sides['reference'], sides['candidate'])
-        diagnostic_match = diagnostic_multiset(reference['diagnostics']) == diagnostic_multiset(candidate['diagnostics'])
-        counts['diagnostic_parity_matches' if diagnostic_match else 'diagnostic_parity_mismatches'] += 1
+        process = isinstance(case.get('reference_discrepancy'), dict) and case['reference_discrepancy'].get('process') is not None
+        if process:
+            counts['diagnostic_parity_incomparable'] = counts.get('diagnostic_parity_incomparable', 0) + 1
+        diagnostic_match = not process and diagnostic_multiset(reference['diagnostics']) == diagnostic_multiset(candidate['diagnostics'])
+        if not process:
+            counts['diagnostic_parity_matches' if diagnostic_match else 'diagnostic_parity_mismatches'] += 1
         counts[f'execution_metadata_{record_execution_comparison(reference, candidate)}'] += 1
         counts['typed_candidate_execution_complete' if record_execution_complete(candidate) else 'legacy_or_unknown_candidate_execution'] += 1
-        raw_match = diagnostic_multiset(reference['diagnostics']) == diagnostic_multiset(candidate['diagnostics']) and reference.get('skipped', []) == candidate.get('skipped', [])
+        raw_match = not process and diagnostic_multiset(reference['diagnostics']) == diagnostic_multiset(candidate['diagnostics']) and reference.get('skipped', []) == candidate.get('skipped', [])
         intended_pass = candidate.get('case_passed') is True
         counts['raw_parity_matches' if raw_match else 'raw_parity_mismatches'] += 1
         counts['intended_behavior_passes' if intended_pass else 'intended_behavior_failures'] += 1
         documented = not raw_match and case.get('reference_discrepancy') is not None and (reference.get('case_passed') is True) and intended_pass
         if documented:
             counts['documented_reference_discrepancies'] += 1
+            if process:
+                counts['reference_process_discrepancies'] = counts.get('reference_process_discrepancies', 0) + 1
         elif not raw_match:
             if diagnostic_match and record_contract_satisfied(case, sides):
                 counts['contract_only_passes'] = counts.get('contract_only_passes', 0) + 1
@@ -313,7 +333,7 @@ def candidate_result_valid(profile_root: Path, stdout: bytes, case_results_path:
     try:
         inventory = profile_case_inventory(profile_root)
         records = [json.loads(line) for line in case_results_path.read_text(encoding='utf-8').splitlines()]
-        valid_ids = complete_case_ids(inventory, records)
+        valid_ids = complete_case_ids(inventory, records, receipt_file=case_results_path)
         expected_ids = {f"{case['rule']}/{case['name']}" for case in inventory}
         side_counts = collections.Counter(((row.get('rule'), row.get('name'), row.get('side')) for row in records))
         output = stdout.decode('utf-8')

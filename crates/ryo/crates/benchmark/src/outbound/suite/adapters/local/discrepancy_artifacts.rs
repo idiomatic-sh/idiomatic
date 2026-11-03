@@ -49,27 +49,7 @@ pub(super) fn case_reference_wires(
 
 /// Verify exact sources and evidence inside their separately explicit boundaries.
 pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> {
-    let root = artifacts.root.canonicalize()?;
-    let mut files = artifacts.files.to_vec();
-    files.sort_by(|left, right| left.to_string_lossy().cmp(&right.to_string_lossy()));
-    let mut source = Sha256::new();
-    for file in files {
-        relative(&file)?;
-        let path = root.join(&file).canonicalize()?;
-        if !path.starts_with(&root) {
-            return Err(ArtifactError::Invalid(
-                "source artifact escapes its boundary".into(),
-            ));
-        }
-        source.update(
-            file.to_str()
-                .ok_or_else(|| ArtifactError::Invalid("non-UTF8 source path".into()))?
-                .as_bytes(),
-        );
-        source.update([0]);
-        source.update(std::fs::read(path)?);
-    }
-    if format!("{:x}", source.finalize()) != artifacts.source_sha256 {
+    if source_digest(artifacts.root, artifacts.files)? != artifacts.source_sha256 {
         return Err(ArtifactError::Invalid(
             "stale reference discrepancy source identity".into(),
         ));
@@ -99,7 +79,37 @@ pub(super) fn copy_evidence(
         .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
     let boundary = profile.canonicalize()?;
     for (_, wire) in wires {
-        for evidence in wire.evidence {
+        let mut artifacts = wire
+            .evidence
+            .into_iter()
+            .map(
+                |item| crate::outbound::suite::types::discrepancy::EvidenceArtifact {
+                    path: item.path,
+                    sha256: item.sha256,
+                },
+            )
+            .collect::<Vec<_>>();
+        if let Some(crate::outbound::suite::types::process::ProcessFailureWire::ProcessFailure {
+            observations,
+            ..
+        }) = wire.process
+        {
+            for observation in observations {
+                for item in [
+                    observation.invocation,
+                    observation.stdout,
+                    observation.stderr,
+                ] {
+                    artifacts.push(
+                        crate::outbound::suite::types::discrepancy::EvidenceArtifact {
+                            path: item.path,
+                            sha256: item.sha256,
+                        },
+                    );
+                }
+            }
+        }
+        for evidence in artifacts {
             relative(&evidence.path)
                 .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
             let source = boundary.join(&evidence.path).canonicalize()?;
@@ -125,3 +135,59 @@ pub(super) fn copy_evidence(
 #[cfg(test)]
 #[path = "discrepancy_artifacts_test.rs"]
 mod tests;
+
+/// Read exact declared raw bytes under the profile boundary after validating their digests.
+pub(super) fn read(
+    profile: &Path,
+    artifacts: &[crate::outbound::suite::types::discrepancy::EvidenceArtifact],
+) -> Result<std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>, ArtifactError> {
+    let boundary = profile.canonicalize()?;
+    let mut result = std::collections::BTreeMap::new();
+    for artifact in artifacts {
+        relative(&artifact.path)?;
+        let path = boundary.join(&artifact.path).canonicalize()?;
+        if !path.starts_with(&boundary) || !path.is_file() {
+            return Err(ArtifactError::Invalid(
+                "raw artifact escapes its profile".into(),
+            ));
+        }
+        let bytes = std::fs::read(path)?;
+        if format!("{:x}", Sha256::digest(&bytes)) != artifact.sha256 {
+            return Err(ArtifactError::Invalid(
+                "raw artifact byte identity differs".into(),
+            ));
+        }
+        if result.insert(artifact.path.clone(), bytes).is_some() {
+            return Err(ArtifactError::Invalid("duplicate raw artifact path".into()));
+        }
+    }
+    Ok(result)
+}
+
+/// Canonical source framing shared by fresh observations and discrepancy evidence.
+pub(super) fn source_digest(
+    root: &Path,
+    files: &[std::path::PathBuf],
+) -> Result<String, ArtifactError> {
+    let root = root.canonicalize()?;
+    let mut files = files.to_vec();
+    files.sort_by(|left, right| left.to_string_lossy().cmp(&right.to_string_lossy()));
+    let mut source = Sha256::new();
+    for file in files {
+        relative(&file)?;
+        let path = root.join(&file).canonicalize()?;
+        if !path.starts_with(&root) {
+            return Err(ArtifactError::Invalid(
+                "source artifact escapes its boundary".into(),
+            ));
+        }
+        source.update(
+            file.to_str()
+                .ok_or_else(|| ArtifactError::Invalid("nonUTF8 source path".into()))?
+                .as_bytes(),
+        );
+        source.update([0]);
+        source.update(std::fs::read(path)?);
+    }
+    Ok(format!("{:x}", source.finalize()))
+}

@@ -17,6 +17,10 @@ pub(crate) struct ExecutionProcessAdapter {
     pub(crate) timeout: Option<Duration>,
 }
 impl ExecutionPort for ExecutionProcessAdapter {
+    fn observes_completed_processes_without_deadline(&self) -> bool {
+        self.timeout.is_none()
+    }
+
     fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
         crate::domain::measurements::types::ExecutionProfile::Wall
     }

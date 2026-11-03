@@ -74,6 +74,15 @@ fn digest(path: &Path) -> Result<String, String> {
 #[derive(Debug)]
 pub(crate) struct InventoryLocalAdapter;
 impl InventoryPort for InventoryLocalAdapter {
+    fn observations(&self, receipt: &Path) -> Result<CapturedObservation, String> {
+        let records = observations(receipt)?;
+        Ok(CapturedObservation {
+            artifacts: super::case_artifacts::read(receipt, &records)?,
+            records,
+            sha256: Some(digest(receipt)?),
+        })
+    }
+
     fn load(&self, path: &Path) -> Result<Registration, String> {
         load(path)
     }
@@ -96,14 +105,12 @@ impl InventoryPort for InventoryLocalAdapter {
         let path = directory.join("cases.jsonl");
         if !path.is_file() {
             return Ok(CapturedObservation {
+                artifacts: std::collections::BTreeMap::new(),
                 records: Vec::new(),
                 sha256: None,
             });
         }
-        Ok(CapturedObservation {
-            records: observations(&path)?,
-            sha256: Some(digest(&path)?),
-        })
+        self.observations(&path)
     }
     fn result(&self, directory: &Path, row: &Row) -> Result<(), String> {
         result(directory, row)

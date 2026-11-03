@@ -88,6 +88,8 @@ pub struct Summary {
 /// Native observations actually present after one child invocation.
 #[derive(Clone, Debug)]
 pub struct CapturedObservation {
+    /// Exact receipt-scoped raw process artifacts, keyed by safe relative path.
+    pub artifacts: BTreeMap<PathBuf, Vec<u8>>,
     /// Absent receipts are not fabricated as successful records.
     pub records: Vec<serde_json::Value>,
     /// Absent until a native case receipt exists.

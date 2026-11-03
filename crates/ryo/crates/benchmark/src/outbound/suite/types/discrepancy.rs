@@ -16,7 +16,11 @@ pub struct CaseReferenceWire {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ReferenceDiscrepancyWire {
+    /// Explicit process expectation; absent preserves the existing diagnostic contract.
+    #[serde(default)]
+    pub process: Option<super::process::ProcessFailureWire>,
     /// Exact reference findings.
+    #[serde(default)]
     pub expected: Vec<ReferenceFindingWire>,
     /// Immutable certificate inputs.
     pub identity: ReferenceIdentityWire,

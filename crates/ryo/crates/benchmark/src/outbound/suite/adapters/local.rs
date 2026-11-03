@@ -10,3 +10,8 @@ mod adapter_test;
 mod fixtures;
 
 mod discrepancy_artifacts;
+
+mod case_observations;
+
+#[cfg(test)]
+mod process_schema_test;

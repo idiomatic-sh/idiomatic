@@ -26,6 +26,14 @@ pub(super) fn validate(
     cases: &[Value],
     observations: &[Value],
 ) -> Result<(usize, usize, usize), String> {
+    validate_with_artifacts(cases, observations, &std::collections::BTreeMap::new())
+}
+/// The same validation with exact raw process bytes loaded by the artifact boundary.
+pub(super) fn validate_with_artifacts(
+    cases: &[Value],
+    observations: &[Value],
+    artifacts: &std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+) -> Result<(usize, usize, usize), String> {
     if cases.is_empty() || observations.len() != cases.len() * 2 {
         return Err("missing or extra native case receipts".into());
     }
@@ -72,13 +80,22 @@ pub(super) fn validate(
         };
         let expected = normalized(&case["expected"])?;
         let certificate = &case["reference_discrepancy"];
+        let process = !certificate["process"].is_null();
+        if process && declared != crate::domain::diagnostics::types::ComparisonContract::Diagnostics
+        {
+            return Err("process expectation cannot satisfy complete-report accounting".into());
+        }
         let reference_expected = if certificate.is_null() {
             expected.clone()
         } else {
             if normalized(&certificate["intended_expected"])? != expected {
                 return Err("discrepancy intention differs from registered case".into());
             }
-            normalized(&certificate["reference_expected"])?
+            if process {
+                Vec::new()
+            } else {
+                normalized(&certificate["reference_expected"])?
+            }
         };
         let mut sides = Vec::new();
         for side in ["reference", "candidate"] {
@@ -105,18 +122,29 @@ pub(super) fn validate(
                 || row["source_sha256"] != case["source_sha256"]
                 || row["files"] != case["files"]
                 || normalized(&row["expected"])? != expected
-                || normalized(&row["reference_expected"])? != reference_expected
+                || if process {
+                    !row["reference_expected"].is_null()
+                } else {
+                    normalized(&row["reference_expected"])? != reference_expected
+                }
             {
                 return Err("failed, incomplete, or stale native observation".into());
             }
-            let actual = normalized(&row["diagnostics"])?;
-            let required = if side == "reference" {
-                &reference_expected
+            if process && side == "reference" {
+                super::process_receipts::validate(case, row, artifacts)?;
             } else {
-                &expected
-            };
-            if actual.as_slice() != required.as_slice() || !row["skipped"].is_array() {
-                return Err("native diagnostics differ from registered expectations".into());
+                if !row["process_observation"].is_null() {
+                    return Err("diagnostic report unexpectedly contains a process failure".into());
+                }
+                let actual = normalized(&row["diagnostics"])?;
+                let required = if side == "reference" {
+                    &reference_expected
+                } else {
+                    &expected
+                };
+                if actual.as_slice() != required.as_slice() || !row["skipped"].is_array() {
+                    return Err("native diagnostics differ from registered expectations".into());
+                }
             }
             if side == "candidate" {
                 let coverage = &row["coverage"];
@@ -187,7 +215,8 @@ pub(super) fn validate(
             }
         }
         super::inventory_execution::compare(sides[0], sides[1], declared)?;
-        let exact = normalized(&sides[0]["diagnostics"])? == normalized(&sides[1]["diagnostics"])?
+        let exact = !process
+            && normalized(&sides[0]["diagnostics"])? == normalized(&sides[1]["diagnostics"])?
             && sides[0]["skipped"] == sides[1]["skipped"];
         raw_exact += usize::from(exact);
         documented += usize::from(!exact && !certificate.is_null());

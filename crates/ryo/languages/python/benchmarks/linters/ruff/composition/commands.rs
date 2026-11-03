@@ -201,12 +201,13 @@ pub(super) fn verify_reference_cases(
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
     let reference = reference(executable, tool)?;
     let scratch = tempfile::tempdir()?;
+    let root = scratch.path().canonicalize()?;
     ryo_benchmark::application::run::service::verify_reference_cases(
         &suite_source,
         &reference,
         &execution,
         &source.join(constants::RULES_DIRECTORY),
-        scratch.path(),
+        &root,
     )
 }
 

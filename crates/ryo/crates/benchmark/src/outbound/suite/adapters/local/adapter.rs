@@ -1,5 +1,5 @@
 //! Validate pins, cases and rule coverage before running contestants.
-use super::constants;
+use super::{constants, discrepancy_artifacts};
 use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::suite::service::{relative_path, validate_case_sources, validate_cases};
 use crate::domain::suite::types::ArtifactDigest;
@@ -135,6 +135,37 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 /// Reads and freezes validated benchmark artifacts from the local filesystem.
 pub(crate) struct SuiteLocalAdapter;
 impl SuitePort for SuiteLocalAdapter {
+    fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
+        std::env::var_os("RYO_VERIFY_CASE_RESULTS").map(std::path::PathBuf::from)
+    }
+
+    fn case_source_digest(
+        &self,
+        root: ArtifactPath<'_>,
+        files: &[std::path::PathBuf],
+    ) -> Result<String, crate::outbound::suite::types::discrepancy::ArtifactError> {
+        discrepancy_artifacts::source_digest(root.0, files)
+    }
+
+    fn read_discrepancy_artifacts(
+        &self,
+        profile: ArtifactPath<'_>,
+        artifacts: &[crate::outbound::suite::types::discrepancy::EvidenceArtifact],
+    ) -> Result<
+        std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+        crate::outbound::suite::types::discrepancy::ArtifactError,
+    > {
+        discrepancy_artifacts::read(profile.0, artifacts)
+    }
+    fn record_case(
+        &self,
+        receipt: ArtifactPath<'_>,
+        record: serde_json::Value,
+        process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
+    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+        super::case_observations::record(receipt.0, record, process)
+    }
+
     fn case_reference_wires(
         &self,
         ArtifactPath(profile): ArtifactPath<'_>,

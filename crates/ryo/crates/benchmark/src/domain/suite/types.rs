@@ -160,7 +160,7 @@ pub struct DiscrepancyEvidence {
 #[derive(Clone, Debug)]
 pub struct PreparedReferenceDiscrepancy {
     /// Exact reference report; distinct from the candidate's intended expected report.
-    pub expected: crate::domain::diagnostics::types::RunReport,
+    pub expected: super::process::types::ReferenceExpectation,
     /// Immutable execution and output identities.
     pub identity: ReferenceDiscrepancyIdentity,
     /// Independent evidence retained for reporting and stale-artifact refusal.

@@ -136,8 +136,15 @@ pub fn verify(
                     String::from_utf8_lossy(&observed.stderr.0)
                 ));
             }
-            let (raw, documented, contract_only) =
-                super::inventory_receipts::validate(&entry.cases, &captured.records)?;
+            let (raw, documented, contract_only) = if captured.artifacts.is_empty() {
+                super::inventory_receipts::validate(&entry.cases, &captured.records)?
+            } else {
+                super::inventory_receipts::validate_with_artifacts(
+                    &entry.cases,
+                    &captured.records,
+                    &captured.artifacts,
+                )?
+            };
             let digest = captured.sha256.ok_or("native receipt digest is missing")?;
             Ok((entry.cases.len(), raw, documented, contract_only, digest))
         })();
