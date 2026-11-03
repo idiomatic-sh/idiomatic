@@ -1,0 +1,173 @@
+[[cases]]
+name = "upstream-full-UP032_0.py"
+comparison = "full"
+files = { "UP032_0.py" = "###\n# Errors\n###\n\n\"{} {}\".format(a, b)\n\n\"{1} {0}\".format(a, b)\n\n\"{0} {1} {0}\".format(a, b)\n\n\"{x.y}\".format(x=z)\n\n\"{x} {y} {x}\".format(x=a, y=b)\n\n\"{.x} {.y}\".format(a, b)\n\n\"{} {}\".format(a.b, c.d)\n\n\"{}\".format(a())\n\n\"{}\".format(a.b())\n\n\"{}\".format(a.b().c())\n\n\"hello {}!\".format(name)\n\n\"{}{b}{}\".format(a, c, b=b)\n\n\"{}\".format(0x0)\n\n\"{} {}\".format(a, b)\n\n\"\"\"{} {}\"\"\".format(a, b)\n\n\"foo{}\".format(1)\n\nr\"foo{}\".format(1)\n\nx = \"{a}\".format(a=1)\n\nprint(\"foo {} \".format(x))\n\n\"{a[b]}\".format(a=a)\n\n\"{a.a[b]}\".format(a=a)\n\n\"{}{{}}{}\".format(escaped, y)\n\n\"{}\".format(a)\n\n'({}={{0!e}})'.format(a)\n\n\"{[b]}\".format(a)\n\n'{[b]}'.format(a)\n\n\"\"\"{[b]}\"\"\".format(a)\n\n'''{[b]}'''.format(a)\n\n\"{}\".format(\n    1\n)\n\n\"123456789 {}\".format(\n    1111111111111111111111111111111111111111111111111111111111111111111111111,\n)\n\n\"\"\"\n{}\n\"\"\".format(1)\n\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa = \"\"\"\n{}\n\"\"\".format(\n    111111\n)\n\n\"{a}\" \"{b}\".format(a=1, b=1)\n\n(\n    \"{a}\"\n    \"{b}\"\n).format(a=1, b=1)\n\n(\n    \"{a}\"\n    \"\"\n    \"{b}\"\n    \"\"\n).format(a=1, b=1)\n\n(\n    (\n        # comment\n        \"{a}\"\n        # comment\n        \"{b}\"\n    )\n    # comment\n    .format(a=1, b=1)\n)\n\n(\n    \"{a}\"\n    \"b\"\n).format(a=1)\n\n\ndef d(osname, version, release):\n    return\"{}-{}.{}\".format(osname, version, release)\n\n\ndef e():\n    yield\"{}\".format(1)\n\n\nassert\"{}\".format(1)\n\n\nasync def c():\n    return \"{}\".format(await 3)\n\n\nasync def c():\n    return \"{}\".format(1 + await 3)\n\n\n\"{}\".format(1 * 2)\n\n###\n# Non-errors\n###\n\n\"\\N{snowman} {}\".format(a)\n\n\"{\".format(a)\n\n\"}\".format(a)\n\n\"{} {}\".format(*a)\n\n\"{x} {x}\".format(arg)\n\n\"{x.y} {x.z}\".format(arg)\n\nb\"{} {}\".format(a, b)\n\n\"{:{}}\".format(x, y)\n\n\"{}{}\".format(a)\n\n\"\" \"{}\".format(a[\"\\\\\"])\n\n\"{}\".format(a[\"b\"])\n\nr'\"\\N{snowman} {}\".format(a)'\n\n\"123456789 {}\".format(\n    11111111111111111111111111111111111111111111111111111111111111111111111111,\n)\n\n\"\"\"\n{}\n{}\n{}\n\"\"\".format(\n1,\n2,\n111111111111111111111111111111111111111111111111111111111111111111111111111111111111111,\n)\n\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa = \"\"\"{}\n\"\"\".format(\n    111111\n)\n\n\"{}\".format(\n    [\n        1,\n        2,\n        3,\n    ]\n)\n\n\"{a}\".format(\n    a=[\n        1,\n        2,\n        3,\n    ]\n)\n\n(\n    \"{a}\"\n    \"{1 + 2}\"\n).format(a=1)\n\n\"{}\".format(**c)\n\n\"{}\".format(\n    1  # comment\n)\n\n\n# The fixed string will exceed the line length, but it's still smaller than the\n# existing line length, so it's fine.\n\"<Customer: {}, {}, {}, {}, {}>\".format(self.internal_ids, self.external_ids, self.properties, self.tags, self.others)\n\n# When fixing, trim the trailing empty string.\nraise ValueError(\"Conflicting configuration dicts: {!r} {!r}\"\n                 \"\".format(new_dict, d))\n\n# When fixing, trim the trailing empty string.\nraise ValueError(\"Conflicting configuration dicts: {!r} {!r}\"\n                 .format(new_dict, d))\n\nraise ValueError(\n    \"Conflicting configuration dicts: {!r} {!r}\"\n    \"\".format(new_dict, d)\n)\n\nraise ValueError(\n    \"Conflicting configuration dicts: {!r} {!r}\"\n    \"\".format(new_dict, d)\n\n)\n\n# The first string will be converted to an f-string and the curly braces in the second should be converted to be unescaped\n(\n    \"{}\"\n    \"{{}}\"\n).format(a)\n\n(\"{}\" \"{{}}\").format(a)\n\n\n# Both strings will be converted to an f-string and the curly braces in the second should left escaped\n(\n    \"{}\"\n    \"{{{}}}\"\n).format(a, b)\n\n(\"{}\" \"{{{}}}\").format(a, b)\n\n# The dictionary should be parenthesized.\n\"{}\".format({0: 1}[0])\n\n# The dictionary should be parenthesized.\n\"{}\".format({0: 1}.bar)\n\n# The dictionary should be parenthesized.\n\"{}\".format({0: 1}())\n\n# The string shouldn't be converted, since it would require repeating the function call.\n\"{x} {x}\".format(x=foo())\n\"{0} {0}\".format(foo())\n\n# The string _should_ be converted, since the function call is repeated in the arguments.\n\"{0} {1}\".format(foo(), foo())\n\n# The call should be removed, but the string itself should remain.\n''.format(self.project)\n\n# The call should be removed, but the string itself should remain.\n\"\".format(self.project)\n\n# Not a valid type annotation but this test shouldn't result in a panic.\n# Refer: https://github.com/astral-sh/ruff/issues/11736\nx: \"'{} + {}'.format(x, y)\"\n\n# Regression https://github.com/astral-sh/ruff/issues/21000\n# Fix should parenthesize walrus\nif __name__ == \"__main__\":\n    number = 0\n    string = \"{}\".format(number := number + 1)\n    print(string)\n\n# Unicode escape\n\"\\N{angle}AOB = {angle}°\".format(angle=180)\n\n# Raw string with \\N{...}\nr\"\\N{angle}AOB = {angle}°\".format(angle=180)\n" }
+expected = [{ "rule" = "UP032", "file" = "UP032_0.py", "start" = 18, "end" = 38 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 40, "end" = 62 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 64, "end" = 90 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 92, "end" = 111 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 113, "end" = 143 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 145, "end" = 169 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 171, "end" = 195 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 197, "end" = 213 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 215, "end" = 233 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 235, "end" = 257 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 259, "end" = 283 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 285, "end" = 312 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 314, "end" = 330 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 332, "end" = 352 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 354, "end" = 378 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 380, "end" = 397 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 399, "end" = 417 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 423, "end" = 440 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 448, "end" = 467 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 470, "end" = 490 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 492, "end" = 514 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 516, "end" = 545 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 547, "end" = 561 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 563, "end" = 587 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 589, "end" = 606 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 608, "end" = 625 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 627, "end" = 648 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 650, "end" = 671 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 673, "end" = 693 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 695, "end" = 798 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 800, "end" = 820 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 906, "end" = 937 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 939, "end" = 967 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 969, "end" = 1009 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1011, "end" = 1065 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1073, "end" = 1180 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1184, "end" = 1217 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1263, "end" = 1306 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1327, "end" = 1341 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1350, "end" = 1364 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1393, "end" = 1413 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1442, "end" = 1466 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1469, "end" = 1487 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1511, "end" = 1537 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1779, "end" = 1883 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 1885, "end" = 2006 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 2091, "end" = 2121 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 2307, "end" = 2338 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 2459, "end" = 2577 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 2643, "end" = 2727 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 2794, "end" = 2876 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 2901, "end" = 2972 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 2998, "end" = 3069 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3197, "end" = 3230 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3232, "end" = 3255 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3361, "end" = 3399 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3401, "end" = 3429 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3473, "end" = 3495 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3539, "end" = 3562 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3606, "end" = 3627 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3859, "end" = 3889 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 3958, "end" = 3981 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 4050, "end" = 4073 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 4208, "end" = 4230 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 4381, "end" = 4414 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 4451, "end" = 4495 }, { "rule" = "UP032", "file" = "UP032_0.py", "start" = 4523, "end" = 4568 }]
+
+[[cases]]
+name = "upstream-full-UP032_1.py"
+comparison = "full"
+files = { "UP032_1.py" = "\"{} {}\".format(a, b)  # Intentionally at start-of-file, to ensure graceful handling.\n" }
+expected = [{ "rule" = "UP032", "file" = "UP032_1.py", "start" = 0, "end" = 20 }]
+
+[[cases]]
+name = "upstream-full-UP032_2.py"
+comparison = "full"
+files = { "UP032_2.py" = "# Errors\n\"{.real}\".format(1)\n\"{0.real}\".format(1)\n\"{a.real}\".format(a=1)\n\n\"{.real}\".format(1.0)\n\"{0.real}\".format(1.0)\n\"{a.real}\".format(a=1.0)\n\n\"{.real}\".format(1j)\n\"{0.real}\".format(1j)\n\"{a.real}\".format(a=1j)\n\n\"{.real}\".format(0b01)\n\"{0.real}\".format(0b01)\n\"{a.real}\".format(a=0b01)\n\n\"{}\".format(1 + 2)\n\"{}\".format([1, 2])\n\"{}\".format({1, 2})\n\"{}\".format({1: 2, 3: 4})\n\"{}\".format((i for i in range(2)))\n\n\"{.real}\".format(1 + 2)\n\"{.real}\".format([1, 2])\n\"{.real}\".format({1, 2})\n\"{.real}\".format({1: 2, 3: 4})\n\"{}\".format((i for i in range(2)))\n\n# https://github.com/astral-sh/ruff/issues/21017\n\"{.real}\".format(1_2)\n\"{0.real}\".format(1_2)\n\"{a.real}\".format(a=1_2)\n" }
+expected = [{ "rule" = "UP032", "file" = "UP032_2.py", "start" = 9, "end" = 28 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 29, "end" = 49 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 50, "end" = 72 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 74, "end" = 95 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 96, "end" = 118 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 119, "end" = 143 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 145, "end" = 165 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 166, "end" = 187 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 188, "end" = 211 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 213, "end" = 235 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 236, "end" = 259 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 260, "end" = 285 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 287, "end" = 305 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 306, "end" = 325 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 326, "end" = 345 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 346, "end" = 371 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 372, "end" = 406 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 408, "end" = 431 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 432, "end" = 456 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 457, "end" = 481 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 482, "end" = 512 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 513, "end" = 547 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 598, "end" = 619 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 620, "end" = 642 }, { "rule" = "UP032", "file" = "UP032_2.py", "start" = 643, "end" = 667 }]
+
+[[cases]]
+name = "upstream-full-UP032_3.py"
+comparison = "full"
+files = { "UP032_3.py" = "from django.utils.translation import gettext\n\nlong = 'long'\nsplit_to = 'split_to'\ngettext(\n    'some super {} and complicated string so that the error code '\n    'E501 Triggers when this is not {} multi-line'.format(\n        long, split_to)\n)\n" }
+expected = []
+
+[[cases]]
+name = "control-auto-positionals"
+comparison = "full"
+files = { "case.py" = "\"{} {}\".format(left, right)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 0, "end" = 27 }]
+
+[[cases]]
+name = "control-escaped-braces"
+comparison = "full"
+files = { "case.py" = "\"{{}} {}\".format(value)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 0, "end" = 23 }]
+
+[[cases]]
+name = "control-keyword-unpack"
+comparison = "full"
+files = { "case.py" = "\"{item}\".format(**values)\n" }
+expected = []
+
+[[cases]]
+name = "control-line-suppressed"
+comparison = "full"
+files = { "case.py" = "\"{}\".format(value)  # noqa: UP032\n" }
+expected = []
+
+[[cases]]
+name = "control-missing-argument"
+comparison = "full"
+files = { "case.py" = "\"{}\".format()\n" }
+expected = []
+
+[[cases]]
+name = "control-missing-index"
+comparison = "full"
+files = { "case.py" = "\"{2}\".format(value)\n" }
+expected = []
+
+[[cases]]
+name = "control-named-keyword"
+comparison = "full"
+files = { "case.py" = "\"{item}\".format(item=value)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 0, "end" = 27 }]
+
+[[cases]]
+name = "control-nested-field"
+comparison = "full"
+files = { "case.py" = "\"{0:{1}}\".format(value, width)\n" }
+expected = []
+
+[[cases]]
+name = "control-no-fields"
+comparison = "full"
+files = { "case.py" = "\"plain\".format()\n" }
+expected = []
+
+[[cases]]
+name = "control-nonliteral-receiver"
+comparison = "full"
+files = { "case.py" = "template.format(value)\n" }
+expected = []
+
+[[cases]]
+name = "control-quoted-field-text"
+comparison = "full"
+files = { "case.py" = "\"{item}\".format(item=\"quoted\")\n" }
+expected = []
+
+[[cases]]
+name = "control-reused-effectful"
+comparison = "full"
+files = { "case.py" = "\"{0} {0}\".format(next(items))\n" }
+expected = []
+
+[[cases]]
+name = "control-reused-pure"
+comparison = "full"
+files = { "case.py" = "\"{0} {0}\".format(value)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 0, "end" = 23 }]
+
+[[cases]]
+name = "control-starred-arguments"
+comparison = "full"
+files = { "case.py" = "\"{}\".format(*values)\n" }
+expected = []
+
+[[cases]]
+name = "control-string-literal-argument"
+comparison = "full"
+files = { "case.py" = "\"{0}\".format(\"hello\")\n" }
+expected = []
+
+[[cases]]
+name = "control-translated"
+comparison = "full"
+files = { "case.py" = "from django.utils.translation import gettext\ngettext(\"{}\".format(value))\n" }
+expected = []
+
+[[cases]]
+name = "control-two-calls"
+comparison = "full"
+files = { "case.py" = "\"{}\".format(first)\n\"{x}\".format(x=second)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 0, "end" = 18 }, { "rule" = "UP032", "file" = "case.py", "start" = 19, "end" = 41 }]
+
+[[cases]]
+name = "control-two-positionals"
+comparison = "full"
+files = { "case.py" = "\"{0} {1}\".format(left, right)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 0, "end" = 29 }]
+
+[[cases]]
+name = "control-two-files"
+comparison = "full"
+files = { "a.py" = "\"{}\".format(value)\n", "b.py" = "\"{x}\".format(x=value)\n" }
+expected = [{ "rule" = "UP032", "file" = "a.py", "start" = 0, "end" = 18 }, { "rule" = "UP032", "file" = "b.py", "start" = 0, "end" = 21 }]
+
+[[cases]]
+name = "control-lambda-pure"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda: x)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 0, "end" = 26 }]
+
+[[cases]]
+name = "control-lambda-subscript"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda: a[0])\n" }
+expected = []
+
+[[cases]]
+name = "control-lambda-call"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda: f())\n" }
+expected = []
+
+[[cases]]
+name = "control-lambda-default-call"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda x=f(): x)\n" }
+expected = []
+
+[[cases]]
+name = "control-lambda-default-subscript"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda x=a[0]: x)\n" }
+expected = []
+
+[[cases]]
+name = "control-ordinary-subscript"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(a[0])\n" }
+expected = []
