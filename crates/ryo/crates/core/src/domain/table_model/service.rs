@@ -191,28 +191,6 @@ pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<V
         capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()));
 }
 
-/// The cells of `row` that `on` names, written into `key`, whose room is reused.
-///
-/// # Errors
-///
-/// `NoSuchColumn` when the row lacks one of the columns.
-pub(crate) fn key_of(
-    row: &[Value],
-    on: On<'_>,
-    key: &mut Vec<Value>,
-) -> Result<(), TableModelError> {
-    key.clear();
-    match on {
-        On::Whole => key.extend_from_slice(row),
-        On::Columns(columns) => {
-            for column in columns {
-                key.push(cell(row, *column)?);
-            }
-        }
-    }
-    Ok(())
-}
-
 /// How the row compares with `key`, by the cells `on` names.
 pub(crate) fn compare_key(row: &[Value], on: On<'_>, key: &[Value]) -> Ordering {
     match on {
