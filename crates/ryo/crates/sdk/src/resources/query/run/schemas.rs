@@ -122,7 +122,7 @@ impl From<RunErrorSchema> for RunError {
             CoreError::MissingParameter { .. } => Self::Query {
                 reason: "the query has no value for a parameter it declares".to_owned(),
             },
-            CoreError::Rule { reason, .. } => Self::Evaluate { reason },
+            CoreError::Rule { reason, .. } | CoreError::Execution { reason } => Self::Evaluate { reason },
             CoreError::Corpus { reason } => Self::Corpus { reason },
             CoreError::Facts { reason } => Self::Facts { reason },
             CoreError::Language { reason } => Self::Language { reason },

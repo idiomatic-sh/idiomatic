@@ -8,6 +8,12 @@ use crate::domain::query::errors::ValidateError;
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum LintError {
+    /// The engine could not execute the prepared request.
+    #[error("execution: {reason}")]
+    Execution {
+        /// Why execution failed.
+        reason: String,
+    },
     /// An explicit source provider is unavailable at the request edge.
     #[error("explicit source provider `{name}` must name exactly one linked provider")]
     SourceLanguage {
