@@ -13,7 +13,6 @@ autobenches = false
 name = "ryo_benchmark"
 
 [dependencies]
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.2" }
 serde.workspace = true
 serde_json.workspace = true

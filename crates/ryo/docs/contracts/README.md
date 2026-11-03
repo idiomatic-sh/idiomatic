@@ -47,7 +47,7 @@
 | 33. Shared benchmark harness | `ryo-benchmark` | — | — | — | — | — | Verify final 413-rule inventory and workload with source-bound receipts. |
 | 34. Provider internals | ten provider crates | — | — | — | — | — | Parser sessions and source meaning stay local; audit each declared relation route. |
 
-The counts come from the [65-relation catalog](../../crates/language/src/domain/relations/service.rs), [26 operation kinds and 25 public query operators](../../crates/values/src/domain/plans/types.rs), and [12 derived kinds](../../crates/core/src/domain/derived_views/types.rs). The [relation owner](../../crates/core/src/application/file_dag/relations.rs) and [five per-file entry routes](../../crates/core/src/application/file_dag/pipeline/service.rs) anchor the engine side. These inventories identify work to prove; they do not certify every route.
+The counts come from the [65-relation catalog](../../crates/relations/src/domain/relations/service.rs), [26 operation kinds and 25 public query operators](../../crates/values/src/domain/plans/types.rs), and [12 derived kinds](../../crates/core/src/domain/derived_views/types.rs). The [relation owner](../../crates/core/src/application/file_dag/relations.rs) and [five per-file entry routes](../../crates/core/src/application/file_dag/pipeline/service.rs) anchor the engine side. These inventories identify work to prove; they do not certify every route.
 
 ### Capability crate inventory (34-family audit; ownership open)
 

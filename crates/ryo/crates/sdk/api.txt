@@ -31,6 +31,9 @@ pub use ryo::languages::BraceFormatParseColumn
 pub use ryo::languages::BraceFormatParseRow
 pub use ryo::languages::ByteSlice
 pub use ryo::languages::Bytes
+pub use ryo::languages::BytesLiteral
+pub use ryo::languages::BytesLiteralColumn
+pub use ryo::languages::BytesLiteralRow
 pub use ryo::languages::CallArgument
 pub use ryo::languages::CallArgumentColumn
 pub use ryo::languages::CallArgumentRow
@@ -46,6 +49,7 @@ pub use ryo::languages::CompilerFeature
 pub use ryo::languages::CompilerFeatureColumn
 pub use ryo::languages::CompilerFeatureRow
 pub use ryo::languages::Completion
+pub use ryo::languages::CompletionRequirement
 pub use ryo::languages::ConstantKey
 pub use ryo::languages::ConstantKeyColumn
 pub use ryo::languages::ConstantKeyRow
@@ -92,6 +96,9 @@ pub use ryo::languages::FilePackage
 pub use ryo::languages::FilePackageColumn
 pub use ryo::languages::FilePackageRow
 pub use ryo::languages::FilePath
+pub use ryo::languages::FilesystemExecutable
+pub use ryo::languages::FilesystemExecutableColumn
+pub use ryo::languages::FilesystemExecutableRow
 pub use ryo::languages::FilesystemFile
 pub use ryo::languages::FilesystemFileColumn
 pub use ryo::languages::FilesystemFileRow
@@ -107,6 +114,9 @@ pub use ryo::languages::FormatFieldRow
 pub use ryo::languages::FormatParse
 pub use ryo::languages::FormatParseColumn
 pub use ryo::languages::FormatParseRow
+pub use ryo::languages::FormatSpecification
+pub use ryo::languages::FormatSpecificationColumn
+pub use ryo::languages::FormatSpecificationRow
 pub use ryo::languages::Function
 pub use ryo::languages::FunctionColumn
 pub use ryo::languages::FunctionRow
@@ -218,6 +228,10 @@ pub use ryo::languages::ReferenceColumn
 pub use ryo::languages::ReferenceRow
 pub use ryo::languages::Refused
 pub use ryo::languages::Relation
+pub use ryo::languages::RenderContext
+pub use ryo::languages::RenderError
+pub use ryo::languages::RenderOutcome
+pub use ryo::languages::RenderRequest
 pub use ryo::languages::ReportText
 pub use ryo::languages::Repository
 pub use ryo::languages::Resolved
@@ -236,6 +250,7 @@ pub use ryo::languages::ScopeRow
 pub use ryo::languages::SemanticChild
 pub use ryo::languages::SemanticChildColumn
 pub use ryo::languages::SemanticChildRow
+pub use ryo::languages::SemanticSession
 pub use ryo::languages::SemanticSyntax
 pub use ryo::languages::SemanticSyntaxColumn
 pub use ryo::languages::SemanticSyntaxRow
@@ -279,6 +294,9 @@ pub use ryo::languages::TOKEN
 pub use ryo::languages::TableBuilder
 pub use ryo::languages::TargetReach
 pub use ryo::languages::Term
+pub use ryo::languages::TokenLink
+pub use ryo::languages::TokenLinkColumn
+pub use ryo::languages::TokenLinkRow
 pub use ryo::languages::ToolMessage
 pub use ryo::languages::Tree
 pub use ryo::languages::TreeImpact
@@ -298,6 +316,7 @@ pub use ryo::languages::WrittenTarget
 pub use ryo::languages::absent
 pub use ryo::languages::adopt
 pub use ryo::languages::all
+pub use ryo::languages::append_embedded
 pub use ryo::languages::begin_name
 pub use ryo::languages::builder_position
 pub use ryo::languages::child_of_kind
@@ -378,6 +397,7 @@ pub use ryo::languages::text_of
 pub use ryo::languages::token
 pub use ryo::languages::unknown_symbol
 pub use ryo::languages::vocabulary_symbol
+pub use ryo::languages::with_file_model
 pub use ryo::languages::write_embedded
 pub use ryo::languages::write_fields
 pub use ryo::languages::write_notes
@@ -422,6 +442,7 @@ impl core::hash::Hash for ryo::languages::LanguageName
 pub fn ryo::languages::LanguageName::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::languages::LanguageName
 pub mod ryo::linter
+pub use ryo::linter::ExecutablePermission
 pub mod ryo::linter::lint
 pub mod ryo::linter::lint::entry
 pub fn ryo::linter::lint::entry::dependency_fingerprint(&[u8]) -> ryo::linter::DependencyFingerprint
@@ -458,6 +479,8 @@ pub ryo::linter::lint::errors::LintError::Provider::provider: ryo::linter::Provi
 pub ryo::linter::lint::errors::LintError::Rule
 pub ryo::linter::lint::errors::LintError::Rule::error: ryo::query::ValidateError
 pub ryo::linter::lint::errors::LintError::Rule::id: ryo::linter::RuleId
+pub ryo::linter::lint::errors::LintError::SourceLanguage
+pub ryo::linter::lint::errors::LintError::SourceLanguage::name: alloc::string::String
 pub ryo::linter::lint::errors::LintError::TooLarge
 pub ryo::linter::lint::errors::LintError::TooLarge::budget: u64
 pub ryo::linter::lint::errors::LintError::TooLarge::size: u64
@@ -493,6 +516,7 @@ pub fn ryo::linter::ProviderCode::fmt(&self, &mut core::fmt::Formatter<'_>) -> c
 impl core::marker::Copy for ryo::linter::ProviderCode
 impl core::marker::StructuralPartialEq for ryo::linter::ProviderCode
 pub mod ryo::linter::lint::types
+pub use ryo::linter::lint::types::ExecutablePermission
 #[non_exhaustive] pub enum ryo::linter::lint::types::Cache
 pub ryo::linter::lint::types::Cache::At(std::path::PathBuf)
 pub ryo::linter::lint::types::Cache::None
@@ -627,6 +651,7 @@ pub fn ryo::linter::SkipReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::SkipReason
 impl core::marker::StructuralPartialEq for ryo::linter::SkipReason
 pub struct ryo::linter::lint::types::CaseSource
+pub ryo::linter::lint::types::CaseSource::executable: ryo_values::domain::files::types::ExecutablePermission
 pub ryo::linter::lint::types::CaseSource::path: ryo::linter::RelativePath
 pub ryo::linter::lint::types::CaseSource::text: ryo::linter::SourceText
 impl core::clone::Clone for ryo::linter::CaseSource
@@ -787,6 +812,7 @@ pub ryo::linter::lint::types::LintRequest::files: alloc::vec::Vec<ryo::linter::G
 pub ryo::linter::lint::types::LintRequest::hosted: alloc::vec::Vec<ryo::linter::HostRelation>
 pub ryo::linter::lint::types::LintRequest::root: std::path::PathBuf
 pub ryo::linter::lint::types::LintRequest::rules: alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>
+pub ryo::linter::lint::types::LintRequest::source_language: core::option::Option<ryo::languages::LanguageName>
 impl core::clone::Clone for ryo::linter::LintRequest
 pub fn ryo::linter::LintRequest::clone(&self) -> ryo::linter::LintRequest
 impl core::cmp::Eq for ryo::linter::LintRequest
@@ -1029,7 +1055,7 @@ impl core::marker::StructuralPartialEq for ryo::linter::Cache
 #[non_exhaustive] pub enum ryo::linter::Cell
 pub ryo::linter::Cell::File(ryo::linter::RelativePath)
 pub ryo::linter::Cell::Number(ryo::linter::HostNumber)
-pub ryo::linter::Cell::Span(ryo_language::domain::relations::types::Span)
+pub ryo::linter::Cell::Span(ryo_relations::domain::relations::types::Span)
 pub ryo::linter::Cell::Text(ryo::linter::HostText)
 impl core::clone::Clone for ryo::linter::Cell
 pub fn ryo::linter::Cell::clone(&self) -> ryo::linter::Cell
@@ -1118,6 +1144,8 @@ pub ryo::linter::LintError::Provider::provider: ryo::linter::ProviderName
 pub ryo::linter::LintError::Rule
 pub ryo::linter::LintError::Rule::error: ryo::query::ValidateError
 pub ryo::linter::LintError::Rule::id: ryo::linter::RuleId
+pub ryo::linter::LintError::SourceLanguage
+pub ryo::linter::LintError::SourceLanguage::name: alloc::string::String
 pub ryo::linter::LintError::TooLarge
 pub ryo::linter::LintError::TooLarge::budget: u64
 pub ryo::linter::LintError::TooLarge::size: u64
@@ -1287,6 +1315,7 @@ impl core::fmt::Debug for ryo::linter::Unreadable
 pub fn ryo::linter::Unreadable::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::Unreadable
 pub struct ryo::linter::CaseSource
+pub ryo::linter::CaseSource::executable: ryo_values::domain::files::types::ExecutablePermission
 pub ryo::linter::CaseSource::path: ryo::linter::RelativePath
 pub ryo::linter::CaseSource::text: ryo::linter::SourceText
 impl core::clone::Clone for ryo::linter::CaseSource
@@ -1570,6 +1599,7 @@ pub ryo::linter::LintRequest::files: alloc::vec::Vec<ryo::linter::Glob>
 pub ryo::linter::LintRequest::hosted: alloc::vec::Vec<ryo::linter::HostRelation>
 pub ryo::linter::LintRequest::root: std::path::PathBuf
 pub ryo::linter::LintRequest::rules: alloc::collections::btree::map::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>
+pub ryo::linter::LintRequest::source_language: core::option::Option<ryo::languages::LanguageName>
 impl core::clone::Clone for ryo::linter::LintRequest
 pub fn ryo::linter::LintRequest::clone(&self) -> ryo::linter::LintRequest
 impl core::cmp::Eq for ryo::linter::LintRequest
@@ -2385,7 +2415,7 @@ impl core::marker::StructuralPartialEq for ryo::query::ValidateRequest
 #[non_exhaustive] pub enum ryo::query::Cell
 pub ryo::query::Cell::File(ryo::linter::RelativePath)
 pub ryo::query::Cell::Number(ryo::linter::HostNumber)
-pub ryo::query::Cell::Span(ryo_language::domain::relations::types::Span)
+pub ryo::query::Cell::Span(ryo_relations::domain::relations::types::Span)
 pub ryo::query::Cell::Text(ryo::linter::HostText)
 impl core::clone::Clone for ryo::linter::Cell
 pub fn ryo::linter::Cell::clone(&self) -> ryo::linter::Cell
