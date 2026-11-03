@@ -1,0 +1,50 @@
+{
+  "variant": "base",
+  "source_commit": "f09b48b3a924e20b36987f74fd6100dbbc84cd66",
+  "binary_sha256": "501cb97d91c925c0096478fe490b979595fc0fb952f3b6948cac0e01c4ce416d",
+  "exit_code": 0,
+  "wall_seconds": 59.45662602799712,
+  "load_before": [
+    1.09130859375,
+    1.18994140625,
+    1.171875
+  ],
+  "load_after": [
+    3.5185546875,
+    1.9775390625,
+    1.4521484375
+  ],
+  "stdout_sha256": "43d3154acf2706836797f5b3dd7fabfe8119ac7abad4dd3ee0b13168fb7c8b8f",
+  "stderr_sha256": "fbd0aa7ea2e3bbd38c144c90fe65fe02043454c093a494f69e45f1d15e2d1803",
+  "metrics": {
+    "cold-cpu-milliseconds": 11893,
+    "cold-milliseconds": 1683,
+    "edit-milliseconds": 352,
+    "peak-megabytes": 500,
+    "spike-cpu-milliseconds": 2462,
+    "store-files": 1,
+    "store-megabytes": 67,
+    "warm-milliseconds": 89
+  },
+  "internal_rounds": {
+    "cold-milliseconds": [
+      1698,
+      1683,
+      1688,
+      1669,
+      1667
+    ],
+    "cold-cpu-milliseconds": [
+      11893,
+      11877,
+      11913,
+      11898,
+      11855
+    ],
+    "spike-cpu-milliseconds": [
+      2445,
+      2462,
+      2467
+    ]
+  }
+}
