@@ -1,5 +1,5 @@
 //! Demand a unique dependency schedule; primitive semantics stay in domain.
-use super::executor::PrimitiveExecutor;
+use super::executor::ScopedExecutor;
 use super::interface::DagExecution;
 use super::types::FileDagExecution;
 use crate::application::file_dag::feed::Feed;
@@ -32,20 +32,18 @@ impl FileDagExecution {
         active: impl Fn(usize) -> bool,
         complete: &[Relation],
     ) -> Self {
-        Self::new_for_population(
-            graph,
-            active,
-            complete,
+        let owner = std::rc::Rc::new(super::relations::RelationOwner::for_request(
             true,
+            graph.nodes.len() + complete.len() + 1,
             crate::outbound::derived::factory::test_port(),
-        )
+        ));
+        Self::new_for_population(graph, active, complete, owner)
     }
     pub(crate) fn new_for_population(
         graph: Arc<RequestGraph>,
         active: impl Fn(usize) -> bool,
         complete: &[Relation],
-        stable: bool,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+        owner: std::rc::Rc<super::relations::RelationOwner>,
     ) -> Self {
         let active = graph
             .cuts
@@ -88,11 +86,7 @@ impl FileDagExecution {
         }
         let count = graph.nodes.len();
         Self {
-            relations: std::rc::Rc::new(super::relations::RelationOwner::for_request(
-                stable,
-                graph.nodes.len() + complete.len() + 1,
-                semantic,
-            )),
+            relations: owner,
             graph,
             active,
             remaining,
@@ -174,9 +168,12 @@ impl FileDagExecution {
         &mut self,
         id: NodeId,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        if !std::rc::Rc::ptr_eq(&self.relations, executor.owner()) {
+            return Err(OperatingError::NotRead);
+        }
         let _node = crate::application::file_dag::route_counts::node(id.0);
         self.demands += 1;
         if let Some(table) = self.required.get(id.0).and_then(Option::as_ref) {
@@ -206,7 +203,6 @@ impl FileDagExecution {
         let held = (0..node.inputs.len())
             .map(|_| OnceCell::new())
             .collect::<Vec<_>>();
-        let owner = std::rc::Rc::clone(&self.relations);
         let mut feed = GraphInputs {
             execution: self,
             inputs: &node.inputs,
@@ -215,13 +211,8 @@ impl FileDagExecution {
             read,
             executor,
         };
-        let outcome = executor.keep_representation(
-            &node.contract,
-            &node.physical,
-            &mut feed,
-            &owner,
-            context,
-        );
+        let outcome =
+            executor.keep_representation(&node.contract, &node.physical, &mut feed, context);
         drop(feed);
         drop(held);
         self.visiting[id.0] = false;
@@ -297,11 +288,11 @@ pub(crate) struct GraphInputs<'a, 'f> {
     schemas: &'a [Vec<CellKind>],
     held: &'a [OnceCell<crate::application::file_dag::relations::PublishedInput>],
     read: &'a dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-    executor: &'a dyn PrimitiveExecutor,
+    executor: &'a ScopedExecutor<'a>,
 }
 impl<'a> Feed<'a> for GraphInputs<'a, '_> {
-    fn relation_owner(&self) -> Option<std::rc::Rc<super::relations::RelationOwner>> {
-        Some(std::rc::Rc::clone(&self.execution.relations))
+    fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.execution.relations)
     }
     fn origin(&self, which: InputPlace) -> Result<super::feed::InputOrigin, OperatingError> {
         match self.inputs.get(which.0) {
@@ -443,7 +434,7 @@ impl DagExecution for std::cell::RefCell<FileDagExecution> {
         &self,
         node: NodeId,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         self.borrow_mut()
@@ -465,7 +456,7 @@ impl DagExecution for std::cell::RefCell<&mut FileDagExecution> {
         &self,
         node: NodeId,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         self.borrow_mut()

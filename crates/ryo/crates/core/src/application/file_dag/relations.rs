@@ -71,37 +71,44 @@ pub(crate) struct RelationOwner {
     pub reuses: Cell<u64>,
 }
 impl RelationOwner {
-    pub(super) fn new(
+    pub(in crate::application) fn new(
         stable: bool,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
+        Self::with_limits(stable, 1024, 1024, semantic)
+    }
+    pub(in crate::application) fn for_request(
+        stable: bool,
+        views: usize,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
+        Self::with_limits(
+            stable,
+            views,
+            views.saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()),
+            semantic,
+        )
+    }
+    fn with_limits(
+        stable: bool,
+        max_views: usize,
+        max_derived: usize,
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
         Self {
             #[cfg(test)]
             identity_checks: Cell::new(0),
-            derived: super::derived::owner::DerivedOwner::new(1024, semantic),
+            derived: super::derived::owner::DerivedOwner::new(max_derived, semantic),
             next_population: Cell::new(0),
             producer_populations: RefCell::new(HashMap::new()),
             generation: RefCell::new(Arc::new(())),
             stable,
             sources: RefCell::new(HashMap::new()),
-            max_views: 1024,
+            max_views,
             views: Cell::new(0),
             checks: Cell::new(0),
             reuses: Cell::new(0),
         }
-    }
-    pub(super) fn for_request(
-        stable: bool,
-        views: usize,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
-    ) -> Self {
-        let mut owner = Self::new(stable, Arc::clone(&semantic));
-        owner.max_views = views;
-        owner.derived = super::derived::owner::DerivedOwner::new(
-            views.saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()),
-            semantic,
-        );
-        owner
     }
     pub(super) fn source(
         &self,

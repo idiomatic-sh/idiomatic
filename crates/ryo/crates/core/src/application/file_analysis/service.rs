@@ -444,6 +444,22 @@ impl FileAnalysis {
         }
         // The generation owner is unconditional. The benchmark switch changes
         // retention only; every class keeps the same executor and semantics.
+        let semantic_port = visit.setting.executor.derived_port();
+        let stable = facts.resident_stability() == ResidentStability::Stable;
+        // One explicit generation owner serves every rule, including files without a DAG schedule.
+        let owner = std::rc::Rc::new(if let Some(graph) = &tables.pool.file_graph {
+            crate::application::file_dag::relations::RelationOwner::for_request(
+                stable,
+                graph.nodes.len() + complete.len() + 1,
+                semantic_port,
+            )
+        } else {
+            crate::application::file_dag::relations::RelationOwner::new(stable, semantic_port)
+        });
+        let executor = crate::application::file_dag::executor::ScopedExecutor::new(
+            visit.setting.executor,
+            std::rc::Rc::clone(&owner),
+        )?;
         let file_dag = tables.pool.file_graph.as_ref().map(|graph| {
             let mut execution =
                 crate::application::file_dag::types::FileDagExecution::new_for_population(
@@ -457,32 +473,29 @@ impl FileAnalysis {
                                 .unwrap_or(false)
                     },
                     &complete,
-                    facts.resident_stability() == ResidentStability::Stable,
-                    visit.setting.executor.derived_port(),
+                    std::rc::Rc::clone(&owner),
                 );
             if !crate::domain::file_program::service::enabled() {
                 execution.limit = 0;
             }
             std::cell::RefCell::new(execution)
         });
-        if let Some(dag) = &file_dag {
-            dag.borrow().prepare_resources(
-                Self::resource_generation_enabled(tables, facts.as_ref()),
-                active_wanted.as_ref(),
-                &physical_partials,
-                &selectable,
-                visit.setting.plans,
-                &tables.pool,
-                |index| {
-                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
-                        && !skipped
-                            .as_ref()
-                            .and_then(|skipped| skipped.get(index))
-                            .copied()
-                            .unwrap_or(false)
-                },
-            );
-        }
+        executor.prepare_resources(
+            Self::resource_generation_enabled(tables, facts.as_ref()),
+            active_wanted.as_ref(),
+            &physical_partials,
+            &selectable,
+            visit.setting.plans,
+            &tables.pool,
+            |index| {
+                governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                    && !skipped
+                        .as_ref()
+                        .and_then(|skipped| skipped.get(index))
+                        .copied()
+                        .unwrap_or(false)
+            },
+        );
 
         // The steps of the rules that select from the elements are decided in one pass over them.
         let execution_diagnostics =
@@ -552,6 +565,7 @@ impl FileAnalysis {
             skipped.as_deref(),
             None,
             file_dag.as_ref(),
+            &executor,
             &classes,
             semantic,
         );
@@ -599,6 +613,7 @@ impl FileAnalysis {
         file_dag: Option<
             &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
         >,
+        executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
         classes: &crate::domain::shared_walk::types::SharedClasses,
         semantic: &super::semantic::SemanticState,
     ) -> Result<(), FileAnalysisError> {
@@ -660,6 +675,7 @@ impl FileAnalysis {
                 file_dag.map::<&dyn crate::application::file_dag::interface::DagExecution, _>(
                     |dag| dag,
                 ),
+                executor,
                 Some(semantic),
             );
             let outcome = match refused.take() {

@@ -2,7 +2,6 @@
 //! Primitive output semantics remain the declared left/right projection; index
 //! choice, cache admission, fallback and diagnostics stay at this application edge.
 
-use ryo_derived::domain::contract::types::DerivedView;
 use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext},
@@ -12,6 +11,7 @@ use crate::domain::operator::contract::types::{
     EvaluationMode, OperatorContract, PrimitiveSemantics, join_result,
 };
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
+use ryo_derived::domain::contract::types::DerivedView;
 
 use crate::domain::table_model::{
     service::{

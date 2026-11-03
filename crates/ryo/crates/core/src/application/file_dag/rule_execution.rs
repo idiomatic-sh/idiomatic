@@ -82,6 +82,7 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     classes: &crate::domain::shared_walk::types::SharedClasses,
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
+    executor: &super::executor::ScopedExecutor<'_>,
     semantic: Option<&dyn SemanticLookup>,
 ) -> Result<Vec<Table>, RulesError> {
     let _route_rule = super::route_counts::rule(
@@ -160,7 +161,7 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
                 file_program,
                 rule.0,
                 file_dag,
-                setting.executor,
+                executor,
                 setting
                     .operators
                     .rules

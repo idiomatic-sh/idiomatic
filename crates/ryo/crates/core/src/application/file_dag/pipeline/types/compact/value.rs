@@ -53,9 +53,7 @@ impl<'a, 'p, 'f: 'p> CompactInput<'a, 'p, 'f> {
         {
             return Ok(None);
         }
-        let Some(owner) = self.stepper.relation_owner.as_ref() else {
-            return Ok(None);
-        };
+        let owner = &self.stepper.relation_owner;
         let Some(produced) = owner.produce_selection(
             program,
             &|relation| self.stepper.read.rows(relation),

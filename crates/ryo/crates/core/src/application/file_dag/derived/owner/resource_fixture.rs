@@ -117,7 +117,7 @@ impl ResourceFixture {
             &schemas,
             context.bindings,
         )?;
-        CommonOperatorEngine::new(operators, self.owner.derived.semantic_port()).collect_owned(
+        CommonOperatorEngine::new(operators, self.owner.derived.semantic_port()).collect(
             &contract,
             inputs,
             context,

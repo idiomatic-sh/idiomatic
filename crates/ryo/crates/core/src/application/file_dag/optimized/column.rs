@@ -60,7 +60,7 @@ pub(crate) fn execute(
     read: &dyn Reading<'_>,
     selected: &[Option<Arc<StoredSelection>>],
     partial: &[Partial],
-    owner: Option<&crate::application::file_dag::relations::RelationOwner>,
+    owner: &crate::application::file_dag::relations::RelationOwner,
     publications: &[std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     context: &mut OperatorContext<'_>,
     target: &mut Table,
@@ -104,9 +104,6 @@ pub(crate) fn execute(
         counts.eligible_chains += 1;
         return Ok(true);
     }
-    let Some(owner) = owner else {
-        return Ok(false);
-    };
     if !owner.derived.relation_eligible(selection.relation)
         || !owner.derived.relation_eligible(chain.right)
         || !owner

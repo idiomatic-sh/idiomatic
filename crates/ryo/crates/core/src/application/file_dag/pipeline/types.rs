@@ -34,7 +34,7 @@ pub(crate) struct Stepper<'a, 'f> {
     pub kernel_strategy: crate::domain::column_kernel::types::KernelStrategy,
     pub kernel: Option<&'a crate::domain::column_kernel::types::KernelPlan>,
     pub kernel_counts: &'a mut crate::domain::column_kernel::types::KernelCounts,
-    pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
+    pub executor: &'a crate::application::file_dag::executor::ScopedExecutor<'a>,
     pub operators:
         &'a [std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
     /// The plan.
@@ -51,7 +51,7 @@ pub(crate) struct Stepper<'a, 'f> {
     /// Application-owned schedule, borrowed for this residual invocation only.
     pub dag: Option<&'a dyn crate::application::file_dag::interface::DagExecution>,
     /// Invocation leases pin a demanded graph handle without copying its cells.
-    pub relation_owner: Option<std::rc::Rc<crate::application::file_dag::relations::RelationOwner>>,
+    pub relation_owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
     pub dag_shared:
         &'a [std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     /// Ordered terminal identity; graph computation itself is shared across rules.
@@ -87,8 +87,8 @@ pub(crate) use crate::domain::table_model::reading::Reading;
 impl<'a> Feed<'a> for Stepper<'a, '_> {
     fn relation_owner(
         &self,
-    ) -> Option<std::rc::Rc<crate::application::file_dag::relations::RelationOwner>> {
-        self.relation_owner.as_ref().map(std::rc::Rc::clone)
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.relation_owner)
     }
     fn origin(&self, which: InputPlace) -> Result<super::super::feed::InputOrigin, OperatingError> {
         Ok(match input(self, which)? {

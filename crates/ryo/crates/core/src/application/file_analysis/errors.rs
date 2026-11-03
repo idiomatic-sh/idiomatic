@@ -8,6 +8,9 @@ use crate::outbound::memory::errors::MemoryError;
 /// Why an analysis could not finish.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum FileAnalysisError {
+    /// Required execution scope dependencies were inconsistent.
+    #[error(transparent)]
+    Execution(#[from] crate::domain::operating::errors::OperatingError),
     /// The request's selected provider is missing or ambiguous.
     #[error("explicit source provider `{name}` must name exactly one linked provider")]
     SourceLanguage {

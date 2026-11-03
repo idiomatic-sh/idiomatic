@@ -1,5 +1,5 @@
 //! Application-owned shared execution lifetime.
-use super::executor::PrimitiveExecutor;
+use super::executor::ScopedExecutor;
 use super::relations::{RelationOwner, RelationResult};
 use crate::domain::file_program::types::NodeId;
 use ryo_relations::domain::relations::types::Relation;
@@ -24,7 +24,7 @@ pub(crate) trait DagExecution {
             crate::domain::table_model::types::Rows<'f>,
             crate::domain::operating::errors::OperatingError,
         >,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
     ) -> Result<
         crate::application::file_dag::relations::PublishedInput,

@@ -108,31 +108,14 @@ fn physical_fallbacks(
 impl CommonOperatorEngine<'_> {
     pub(crate) fn collect(
         &self,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
         contract: &OperatorContract,
         inputs: &[Rows<'_>],
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
-        self.collect_workspace(
-            contract,
-            inputs,
-            context,
-            out,
-            InvocationWorkspace::new(std::sync::Arc::clone(&self.derived)),
-        )
-    }
-    #[cfg(test)]
-    pub(in crate::application::file_dag) fn collect_owned(
-        &self,
-        contract: &OperatorContract,
-        inputs: &[Rows<'_>],
-        context: &mut OperatorContext<'_>,
-        out: &mut Table,
-        owner: std::rc::Rc<super::relations::RelationOwner>,
-    ) -> Result<(), OperatingError> {
-        let mut workspace = InvocationWorkspace::new(std::sync::Arc::clone(&self.derived));
-        workspace.capture_provided(
-            owner,
+        let mut workspace = InvocationWorkspace::new(std::rc::Rc::clone(owner));
+        workspace.capture_inputs(
             ryo_values::domain::plans::service::named(&contract.inputs),
             inputs,
         )?;
@@ -272,13 +255,14 @@ impl CommonOperatorEngine<'_> {
     }
     pub(crate) fn stream(
         &self,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
         contract: &OperatorContract,
         feed: &mut dyn Feed<'_>,
         context: &mut OperatorContext<'_>,
         room: &mut Room,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
-        transport::stream(self, contract, feed, context, room, emit)
+        transport::stream(self, owner, contract, feed, context, room, emit)
     }
     fn run<'f>(
         &self,
@@ -483,22 +467,24 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
 
     fn stream(
         &self,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
         contract: &OperatorContract,
         feed: &mut dyn Feed<'_>,
         context: &mut OperatorContext<'_>,
         room: &mut Room,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
-        CommonOperatorEngine::stream(self, contract, feed, context, room, emit)
+        CommonOperatorEngine::stream(self, owner, contract, feed, context, room, emit)
     }
     fn collect(
         &self,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
         contract: &OperatorContract,
         inputs: &[Rows<'_>],
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
-        CommonOperatorEngine::collect(self, contract, inputs, context, out)
+        CommonOperatorEngine::collect(self, owner, contract, inputs, context, out)
     }
     fn stream_step<'a, 'f>(
         &self,
@@ -534,7 +520,7 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
         contract: &OperatorContract,
         physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
         feed: &mut super::service::GraphInputs<'_, '_>,
-        owner: &super::relations::RelationOwner,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
         context: &mut OperatorContext<'_>,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         CommonOperatorEngine::keep_representation(self, contract, physical, feed, owner, context)
@@ -550,7 +536,7 @@ impl CommonOperatorEngine<'_> {
         contract: &OperatorContract,
         physical:&crate::domain::table_model::collections::representations::publication::PreparedPhysical,
         feed: &mut super::service::GraphInputs<'_, '_>,
-        owner: &super::relations::RelationOwner,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
         context: &mut OperatorContext<'_>,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         if let Some(which) = physical.alias.filter(|_| owner.stable()) {
@@ -569,6 +555,7 @@ impl CommonOperatorEngine<'_> {
             &contract.collected_kinds.as_ref().map_err(Clone::clone)?,
         );
         self.stream(
+            owner,
             contract,
             feed,
             context,

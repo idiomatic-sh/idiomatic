@@ -26,6 +26,11 @@ pub(crate) fn evaluate_cross_with_executor(
     executor: &dyn PrimitiveExecutor,
     operators: &[std::sync::Arc<OperatorContract>],
 ) -> Result<Table, OperatingError> {
+    let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
+        false,
+        executor.derived_port(),
+    ));
+    let executor = super::executor::ScopedExecutor::new(executor, owner)?;
     let needs = crate::domain::trust::service::needs_of_contracts(plan, operators)?;
     let mut computed: Vec<Table> = vec![Table::default(); plan.steps.len()];
     // The step that reads each step last: when it is done, the rows of the step it read are not kept.

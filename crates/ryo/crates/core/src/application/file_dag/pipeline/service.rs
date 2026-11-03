@@ -598,7 +598,7 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     _file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     rule: usize,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
-    executor: &dyn crate::application::file_dag::executor::PrimitiveExecutor,
+    executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
     operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
     evaluate_file_inner::<false>(
@@ -621,7 +621,7 @@ pub(crate) fn evaluate_file_with_legacy_oracle<'f>(
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     rule: usize,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
-    executor: &dyn crate::application::file_dag::executor::PrimitiveExecutor,
+    executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
     operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
     evaluate_file_inner::<true>(
@@ -651,7 +651,7 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
     mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     rule: usize,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
-    executor: &dyn crate::application::file_dag::executor::PrimitiveExecutor,
+    executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
     operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
     if let Some(dag) = file_dag {
@@ -822,12 +822,10 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
         let cached = retained.iter().map(Option::is_some).collect::<Vec<_>>();
         demanded_steps(plan, &eager, &cached)
     });
-    let relation_owner = file_dag.map(|dag| dag.relation_owner()).unwrap_or_else(|| {
-        std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-            false,
-            executor.derived_port(),
-        ))
-    });
+    let relation_owner = std::rc::Rc::clone(executor.owner());
+    if file_dag.is_some_and(|dag| !std::rc::Rc::ptr_eq(executor.owner(), &dag.relation_owner())) {
+        return Err(OperatingError::NotRead);
+    }
     let dag_shared = (0..plan.steps.len())
         .map(|_| std::cell::OnceCell::new())
         .collect::<Vec<_>>();
@@ -899,7 +897,7 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
             shared: shared_steps.get(..index).unwrap_or(&[]),
             graph_kept: graph_kept.get(..index).unwrap_or(&[]),
             dag: file_dag,
-            relation_owner: Some(std::rc::Rc::clone(&relation_owner)),
+            relation_owner: std::rc::Rc::clone(&relation_owner),
             dag_shared: &dag_shared,
             rule,
             selectors,
@@ -981,7 +979,7 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
         steps,
         selected,
         &read,
-        Some(relation_owner.as_ref()),
+        relation_owner.as_ref(),
         &dag_shared,
         context,
         frontier,
@@ -1009,7 +1007,7 @@ fn hand_over<'f>(
     steps: &[Table],
     selected: &[Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>],
     read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-    owner: Option<&crate::application::file_dag::relations::RelationOwner>,
+    owner: &crate::application::file_dag::relations::RelationOwner,
     publications: &[std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     context: &mut OperatorContext<'_>,
     frontier: &mut [Table],
@@ -1024,7 +1022,6 @@ fn hand_over<'f>(
                     .get(id.0 as usize)
                     .and_then(std::cell::OnceCell::get)
                 {
-                    let owner = owner.ok_or(OperatingError::NotRun)?;
                     let rows = owner.resolve(publication.as_ref(), read)?;
                     materialize(&rows, into, &mut context.scratch.row);
                     continue;

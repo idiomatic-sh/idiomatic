@@ -100,18 +100,60 @@ impl super::types::FileDagExecution {
         pool: &crate::domain::operator::types::PreparedPool,
         active: impl Fn(usize) -> bool + Copy,
     ) {
-        self.relations
-            .derived
-            .prepare_file(enabled, wanted, partial, selectable, plans, pool, active);
-        #[cfg(test)]
-        RESOURCE_SETUP.with(|state| {
-            state.set(Some((
-                enabled,
-                self.relations.derived.index_observation().available,
-            )));
-        });
+        prepare_resources(
+            &self.relations,
+            enabled,
+            wanted,
+            partial,
+            selectable,
+            plans,
+            pool,
+            active,
+        );
     }
     pub(crate) fn report_resources(&self, file: ryo_relations::domain::relations::types::FileId) {
         self.relations.derived.report(file);
     }
+}
+
+impl super::executor::ScopedExecutor<'_> {
+    pub(crate) fn prepare_resources(
+        &self,
+        enabled: bool,
+        wanted: &[ryo_relations::domain::relations::types::Relation],
+        partial: &[crate::domain::coverage::types::Partial],
+        selectable: &[ryo_relations::domain::relations::types::Relation],
+        plans: &[ryo_values::domain::plans::types::Plan],
+        pool: &crate::domain::operator::types::PreparedPool,
+        active: impl Fn(usize) -> bool + Copy,
+    ) {
+        prepare_resources(
+            self.owner(),
+            enabled,
+            wanted,
+            partial,
+            selectable,
+            plans,
+            pool,
+            active,
+        );
+    }
+}
+
+fn prepare_resources(
+    owner: &super::relations::RelationOwner,
+    enabled: bool,
+    wanted: &[ryo_relations::domain::relations::types::Relation],
+    partial: &[crate::domain::coverage::types::Partial],
+    selectable: &[ryo_relations::domain::relations::types::Relation],
+    plans: &[ryo_values::domain::plans::types::Plan],
+    pool: &crate::domain::operator::types::PreparedPool,
+    active: impl Fn(usize) -> bool + Copy,
+) {
+    owner
+        .derived
+        .prepare_file(enabled, wanted, partial, selectable, plans, pool, active);
+    #[cfg(test)]
+    RESOURCE_SETUP
+        .with(|state| state.set(Some((enabled, owner.derived.index_observation().available))));
 }

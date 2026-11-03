@@ -16,9 +16,7 @@ pub(crate) enum InputOrigin {
     Temporary,
 }
 pub(crate) trait Feed<'f> {
-    fn relation_owner(&self) -> Option<std::rc::Rc<super::relations::RelationOwner>> {
-        None
-    }
+    fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner>;
     fn origin(&self, _which: InputPlace) -> Result<InputOrigin, OperatingError> {
         Ok(InputOrigin::External)
     }

@@ -63,7 +63,8 @@ impl CommonOperatorEngine<'_> {
             stepper.spare.push(buffer);
             return result;
         }
-        self.stream(contract, stepper, context, room, emit)
+        let owner = std::rc::Rc::clone(&stepper.relation_owner);
+        self.stream(&owner, contract, stepper, context, room, emit)
     }
     fn lowered_step<'a, 'f>(
         &self,
@@ -79,11 +80,7 @@ impl CommonOperatorEngine<'_> {
         let semantics = super::execution::PrimitiveSemanticsBridge {
             port: self.operators,
         };
-        let owner = stepper
-            .relation_owner
-            .as_ref()
-            .cloned()
-            .ok_or(OperatingError::NotRun)?;
+        let owner = std::rc::Rc::clone(&stepper.relation_owner);
         let mut derived = super::derived::owner::raw_scope::RawScope::new(owner);
         let mut run = FragmentRun {
             derived: &mut derived,
@@ -152,7 +149,7 @@ impl CommonOperatorEngine<'_> {
                 stepper.read,
                 stepper.selected,
                 stepper.partial,
-                stepper.relation_owner.as_deref(),
+                stepper.relation_owner.as_ref(),
                 stepper.dag_shared,
                 context,
                 target,

@@ -22,13 +22,17 @@ use ryo_relations::domain::relations::types::Value;
 
 pub(super) fn stream(
     engine: &CommonOperatorEngine,
+    owner: &std::rc::Rc<super::super::relations::RelationOwner>,
     contract: &OperatorContract,
     feed: &mut dyn Feed<'_>,
     context: &mut OperatorContext<'_>,
     room: &mut Room,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
-    let mut workspace = InvocationWorkspace::new(std::sync::Arc::clone(&engine.derived));
+    if !std::rc::Rc::ptr_eq(owner, &feed.relation_owner()) {
+        return Err(OperatingError::NotRead);
+    }
+    let mut workspace = InvocationWorkspace::new(std::rc::Rc::clone(owner));
     workspace.predicates = std::mem::take(&mut room.scratch.select_scratch);
     workspace.predicate_memo = std::mem::take(&mut room.memo);
     workspace.downstream_scratch = std::mem::take(&mut room.scratch);

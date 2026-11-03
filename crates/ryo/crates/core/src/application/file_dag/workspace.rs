@@ -17,11 +17,9 @@ use crate::domain::table_reach::types::Walk;
 use crate::domain::table_scratch::types::{ScratchWord, Stretches};
 use ryo_relations::domain::relations::types::{Position, Value};
 pub(crate) struct InvocationWorkspace {
-    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
-    external_owner: std::cell::OnceCell<std::rc::Rc<super::relations::RelationOwner>>,
     origins: Vec<super::feed::InputOrigin>,
     pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
-    pub relation_owner: Option<std::rc::Rc<super::relations::RelationOwner>>,
+    relation_owner: std::rc::Rc<super::relations::RelationOwner>,
     pub publications: Vec<Option<crate::application::file_dag::relations::PublishedInput>>,
     #[cfg(test)]
     pub observation: crate::domain::operating::types::ExecutionObservation,
@@ -49,13 +47,11 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(crate) fn new(semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>) -> Self {
+    pub(crate) fn new(owner: std::rc::Rc<super::relations::RelationOwner>) -> Self {
         Self {
-            semantic,
-            external_owner: Default::default(),
             origins: Default::default(),
             derived_scratch: Default::default(),
-            relation_owner: Default::default(),
+            relation_owner: owner,
             publications: Default::default(),
             downstream_scratch: Default::default(),
             downstream_memo: Default::default(),
@@ -112,14 +108,12 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    #[cfg(test)]
-    pub(super) fn capture_provided(
+    pub(super) fn capture_inputs(
         &mut self,
-        owner: std::rc::Rc<super::relations::RelationOwner>,
         logical: &[ryo_values::domain::plan_parts::types::Input],
         inputs: &[Rows<'_>],
     ) -> Result<(), OperatingError> {
-        self.relation_owner = Some(std::rc::Rc::clone(&owner));
+        let owner = std::rc::Rc::clone(&self.relation_owner);
         self.origins.clear();
         self.publications.clear();
         for (at, rows) in inputs.iter().enumerate() {
@@ -147,8 +141,9 @@ impl InvocationWorkspace {
         feed: &dyn super::feed::Feed<'_>,
         count: usize,
     ) -> Result<(), OperatingError> {
-        self.external_owner.take();
-        self.relation_owner = feed.relation_owner();
+        if !std::rc::Rc::ptr_eq(&self.relation_owner, &feed.relation_owner()) {
+            return Err(OperatingError::NotRead);
+        }
         self.publications.clear();
         self.origins.clear();
         for at in 0..count {
@@ -159,54 +154,31 @@ impl InvocationWorkspace {
         Ok(())
     }
     pub(super) fn owner(&self) -> &super::relations::RelationOwner {
-        self.relation_owner.as_deref().unwrap_or_else(|| {
-            self.external_owner
-                .get_or_init(|| {
-                    std::rc::Rc::new(super::relations::RelationOwner::new(
-                        false,
-                        Arc::clone(&self.semantic),
-                    ))
-                })
-                .as_ref()
-        })
+        &self.relation_owner
     }
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
-        self.relation_owner.as_ref().cloned().unwrap_or_else(|| {
-            self.external_owner
-                .get_or_init(|| {
-                    std::rc::Rc::new(super::relations::RelationOwner::new(
-                        false,
-                        Arc::clone(&self.semantic),
-                    ))
-                })
-                .clone()
-        })
+        std::rc::Rc::clone(&self.relation_owner)
     }
     pub(super) fn normalization(
         &self,
         place: usize,
         rows: crate::domain::table_model::types::Rows<'_>,
     ) -> Option<Result<Option<Arc<ryo_values::domain::rows::types::Table>>, OperatingError>> {
-        let (owner, record) = self
-            .relation_owner
-            .as_ref()
-            .zip(self.publications.get(place)?.as_ref())?;
-        Some(owner.normalized(record, rows))
+        let record = self.publications.get(place)?.as_ref()?;
+        Some(self.relation_owner.normalized(record, rows))
     }
     pub(super) fn proven(
         &self,
         place: usize,
         input: BorrowedRows<'_>,
     ) -> Result<bool, OperatingError> {
-        let Some((owner, record)) = self
-            .relation_owner
-            .as_ref()
-            .zip(self.publications.get(place).and_then(Option::as_ref))
-        else {
+        let Some(record) = self.publications.get(place).and_then(Option::as_ref) else {
             return Ok(false);
         };
-        Ok(owner.inspect(record.as_ref(), input)? == crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)
+        Ok(self.relation_owner.inspect(record.as_ref(), input)?
+            == crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)
     }
+
     pub(super) fn validate(
         &self,
         place: usize,
