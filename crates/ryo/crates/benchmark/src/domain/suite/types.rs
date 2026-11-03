@@ -29,6 +29,8 @@ pub struct Project {
 /// The independently pinned reference executable and its shipped defaults.
 #[derive(Clone, Debug)]
 pub struct Tool {
+    /// File observation this correctness profile requires for every declared source.
+    pub file_observation: Option<FileObservation>,
     /// Whether the candidate receives an isolated input or an explicitly sealed disk context.
     pub project_context_mode: ProjectContextMode,
     /// Reference executable identity reported by its version command.
@@ -51,6 +53,13 @@ pub struct Tool {
     pub parser_configuration: Option<String>,
     /// Explicit source provider selected by the request edge, if any.
     pub source_language: Option<String>,
+}
+
+/// Generic input observation required by a profile's comparison contract.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileObservation {
+    /// Actual POSIX execute bits must be declared, staged and observed.
+    PosixExecutable,
 }
 
 /// The correctness cases authored beside one candidate query.
@@ -82,6 +91,8 @@ pub enum ExpectedRule {
 /// An isolated set of source files and its exact expected findings.
 #[derive(Clone, Debug)]
 pub struct Case {
+    /// Explicit per-file POSIX executable bits; None preserves legacy byte-only identity.
+    pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Explicit logical root and auxiliary context, excluded from the lint file inventory.
     pub context: Option<CaseContext>,
     /// Whether all diagnostics or only the enclosing rule are asserted.
@@ -112,6 +123,8 @@ pub struct ReferenceDiscrepancy {
 /// Immutable identities required before admitting a reference discrepancy.
 #[derive(Clone, Debug)]
 pub struct ReferenceDiscrepancyIdentity {
+    /// Separate declared-metadata identity; absent only for legacy unspecified observations.
+    pub file_metadata_sha256: Option<ArtifactDigest>,
     /// Reference tool name.
     pub tool: ToolName,
     /// Exact reference version.
@@ -202,6 +215,8 @@ pub struct Expected {
 /// Both contestants receive exactly this list, never independently walk the tree.
 #[derive(Clone, Debug)]
 pub struct RunRequest {
+    /// Declared file observations, reverified before each contestant is prepared.
+    pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Sealed disk context shared by both contestants, when explicitly selected.
     pub context_manifest: Option<ContextManifest>,
     /// Root of the exact source snapshot supplied to both contestants.

@@ -92,6 +92,7 @@ const CASES: &[Case<Scenario, usize, &'static str>] = &[
 fn subject(scenario: Scenario) -> Result<usize, &'static str> {
     if matches!(scenario, Scenario::OmittedInput) {
         let request = RunRequest {
+            file_metadata: None,
             context_manifest: None,
             root: ".".into(),
             state: "cache".into(),
@@ -510,6 +511,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
             rule: ryo::linter::RuleId::try_from("E722").unwrap(),
             name: "positive".into(),
             request: RunRequest {
+                file_metadata: None,
                 context_manifest: None,
                 root: ".".into(),
                 files: vec![ryo::linter::RelativePath("case.py".into())],
@@ -531,6 +533,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         });
     }
     suite.profile = Some(crate::domain::suite::types::Tool {
+        file_observation: None,
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
@@ -584,6 +587,7 @@ fn discrepancy_suite() -> SuiteFake {
     }));
     case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
         identity: ReferenceDiscrepancyIdentity {
+            file_metadata_sha256: None,
             tool: "fixture".into(),
             version: "1".into(),
             observed_executable_sha256: binary_hash.clone(),
@@ -607,6 +611,7 @@ fn discrepancy_suite() -> SuiteFake {
         }],
     });
     suite.profile = Some(Tool {
+        file_observation: None,
         project_context_mode: ProjectContextMode::Isolated,
         tool: "fixture".into(),
         version: "1".into(),
@@ -753,4 +758,100 @@ fn native_reference_only_checks_the_distinct_pinned_reference_expectation() {
         .is_err(),
         "reference-only path cannot bypass independent evidence"
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidate() {
+    use crate::outbound::linter::interface::LinterPort;
+    use std::{cell::Cell, os::unix::fs::PermissionsExt as _};
+    struct DriftingReference {
+        calls: Cell<usize>,
+        expected: bool,
+        drift: bool,
+    }
+    impl LinterPort for DriftingReference {
+        fn prepare(
+            &self,
+            request: &RunRequest,
+        ) -> Result<crate::domain::measurements::types::Invocation, Error> {
+            let calls = self.calls.get() + 1;
+            self.calls.set(calls);
+            if calls == 2 && self.drift {
+                std::fs::set_permissions(
+                    request.root.join("case.py"),
+                    std::fs::Permissions::from_mode(if self.expected { 0o644 } else { 0o744 }),
+                )?;
+            }
+            LinterFake::default().prepare(request)
+        }
+        fn decode(
+            &self,
+            request: &RunRequest,
+            output: crate::domain::measurements::types::ProcessOutput,
+        ) -> Result<RunReport, Error> {
+            LinterFake::default().decode(request, output)
+        }
+    }
+    for expected in [false, true] {
+        for drift in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            std::fs::write(root.path().join("case.py"), "same bytes").unwrap();
+            std::fs::set_permissions(
+                root.path().join("case.py"),
+                std::fs::Permissions::from_mode(if expected { 0o744 } else { 0o644 }),
+            )
+            .unwrap();
+            let (mut suite, _) = prepared(Scenario::Agreement);
+            let profile = suite.profile.as_mut().unwrap();
+            profile.defaults.truncate(1);
+            profile.file_observation =
+                Some(crate::domain::suite::types::FileObservation::PosixExecutable);
+            let case = &mut suite.prepared[0];
+            case.name = "first".into();
+            case.expected.diagnostics.clear();
+            case.request.root = root.path().to_path_buf();
+            case.request.file_metadata = Some(std::collections::BTreeMap::from([(
+                case.request.files[0].clone(),
+                expected,
+            )]));
+            let mut second = case.clone();
+            second.name = "second".into();
+            suite.prepared.push(second);
+            let reference = DriftingReference {
+                calls: Cell::new(0),
+                expected,
+                drift,
+            };
+            let execution = ExecutionFake {
+                status: 0,
+                ..Default::default()
+            };
+            let result = verify(
+                &suite,
+                &reference,
+                &LinterFake::default(),
+                &execution,
+                Path::new("rules"),
+                root.path(),
+            );
+            assert_eq!(reference.calls.get(), 2);
+            if drift {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .to_string()
+                        .contains("executable metadata drifted")
+                );
+                assert_eq!(
+                    history_len(&execution),
+                    Some(3),
+                    "second candidate must not execute after reference changes mode"
+                );
+            } else {
+                assert_eq!(result.unwrap().0, 2);
+                assert_eq!(history_len(&execution), Some(4));
+            }
+        }
+    }
 }

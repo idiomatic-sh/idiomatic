@@ -607,7 +607,8 @@ impl LintUseCaseImpl {
             if as_kept(each, &entry) == Freshness::AsItWas {
                 continue;
             }
-            if self.corpus.read(&entry, &mut bytes).is_err()
+            if each.executable != entry.executable
+                || self.corpus.read(&entry, &mut bytes).is_err()
                 || self.digest.digest(DigestBytes(&bytes.0)) != each.digest
             {
                 return Freshness::Changed;

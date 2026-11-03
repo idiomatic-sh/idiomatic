@@ -89,11 +89,13 @@ impl Drop for Phase<'_> {
 pub(crate) fn complete<M: Default + Send + 'static>(
     completion: Completion<'_>,
     configuration: &str,
-    requires_model: bool,
+    requirement: crate::domain::elements::types::CompletionRequirement,
     initialize: impl FnOnce(&Tree<'_>, &mut M),
     finish: impl FnOnce(&mut Completion<'_>),
     extend: impl FnOnce(&Tree<'_>, Position, &mut M),
 ) {
+    let requires_model =
+        requirement == crate::domain::elements::types::CompletionRequirement::PreparedModel;
     let mut phase = Phase {
         completion,
         committed: false,

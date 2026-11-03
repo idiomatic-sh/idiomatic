@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 import tomllib
 from authoring import case_records
+from authoring import case_receipt_adapter
 from authoring import profile_config
 
 def discrepancy_json_hash(value: object) -> str:
@@ -34,9 +35,11 @@ def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], 
         raise ValueError('reference discrepancy requires full comparison and a reason')
     identity = annotation['identity']
     identity_fields = {'tool', 'version', 'observed-executable-sha256', 'profile-sha256', 'settings-sha256', 'source-sha256', 'reference-output-sha256', 'intended-output-sha256'}
-    if not isinstance(identity, dict) or set(identity) != identity_fields:
+    if not isinstance(identity, dict) or not identity_fields.issubset(identity) or set(identity) - identity_fields - {'file-metadata-sha256'}:
         raise ValueError('incomplete reference discrepancy identity')
-    for field in identity_fields - {'tool', 'version'}:
+    if identity.get('file-metadata-sha256') != case_receipt_adapter.file_metadata_digest(case.get('file-metadata')):
+        raise ValueError('stale discrepancy file metadata identity')
+    for field in (set(identity) - {'tool', 'version'}):
         if not isinstance(identity[field], str) or re.fullmatch('[a-f0-9]{64}', identity[field]) is None:
             raise ValueError('reference discrepancy requires lowercase SHA256 identities')
     profile_path = profile_root / 'benchmark.toml'

@@ -127,8 +127,8 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity(self.settings.identity())
     }
 
-    fn completion_requires_model(&self) -> bool {
-        true
+    fn completion_requirement(&self) -> languages::CompletionRequirement {
+        languages::CompletionRequirement::PreparedModel
     }
 
     fn extend_file_model(

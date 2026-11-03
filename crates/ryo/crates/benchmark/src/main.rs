@@ -26,14 +26,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::path::Path::new(&arguments[1]),
             std::path::Path::new(&arguments[2]),
         )?;
-        serde_json::to_writer(
-            std::io::stdout(),
-            &serde_json::json!({
-                "schema":"benchmark-case-receipt-audit/v1", "case_count":audit.case_count,
-                "validated_case_ids":audit.verified.iter().map(|(rule,name)|serde_json::json!({"rule":rule,"name":name})).collect::<Vec<_>>(),
-                "raw_exact":audit.raw_exact,"documented_discrepancies":audit.documented_discrepancies,"contract_only":audit.contract_only,"errors":audit.errors,
-            }),
-        )?;
+        let mut result = serde_json::json!({
+            "schema":"benchmark-case-receipt-audit/v1", "case_count":audit.case_count,
+            "validated_case_ids":audit.verified.iter().map(|(rule,name)|serde_json::json!({"rule":rule,"name":name})).collect::<Vec<_>>(),
+            "raw_exact":audit.raw_exact,"documented_discrepancies":audit.documented_discrepancies,"contract_only":audit.contract_only,"errors":audit.errors,
+        });
+        if !audit.metadata_verified.is_empty() {
+            result["file_metadata_verified_cases"] = serde_json::json!(audit.metadata_verified.iter().map(|(rule,name,digest)|serde_json::json!({"rule":rule,"name":name,"sha256":digest.0})).collect::<Vec<_>>());
+        }
+        serde_json::to_writer(std::io::stdout(), &result)?;
         std::io::stdout().write_all(b"\n")?;
         return if audit.errors.is_empty() && audit.verified.len() == audit.case_count {
             Ok(())

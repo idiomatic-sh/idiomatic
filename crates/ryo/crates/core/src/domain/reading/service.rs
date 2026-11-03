@@ -62,12 +62,21 @@ pub(crate) fn engine_asked(wanted: &[Relation]) -> EngineAsked {
     };
     let file = asked(Relation::FilesystemFile);
     let lines = asked(Relation::FilesystemLineCount);
-    let any = if file == EngineRows::Asked || lines == EngineRows::Asked {
+    let executable = asked(Relation::FilesystemExecutable);
+    let any = if file == EngineRows::Asked
+        || lines == EngineRows::Asked
+        || executable == EngineRows::Asked
+    {
         EngineRows::Asked
     } else {
         EngineRows::NotAsked
     };
-    EngineAsked { file, lines, any }
+    EngineAsked {
+        file,
+        lines,
+        executable,
+        any,
+    }
 }
 
 /// Notes the relations the file is read in part: those a reader said so of, and all of code if what was read is a recovery.

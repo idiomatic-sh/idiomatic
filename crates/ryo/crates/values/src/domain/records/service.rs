@@ -11,7 +11,8 @@ use crate::domain::records::types::{
 /// Whether the file the inventory lists is the one the record is of, by what the system says of it.
 #[must_use]
 pub fn is_as_it_was(record: &Record, entry: &CorpusEntry) -> Freshness {
-    if record.size == entry.size
+    if record.executable == entry.executable
+        && record.size == entry.size
         && record.modified == entry.modified
         && entry.modified != Nanoseconds(0)
     {

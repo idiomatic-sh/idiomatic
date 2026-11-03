@@ -67,8 +67,8 @@ class ProcessShardTests(unittest.TestCase):
 
     def test_no_receipt_never_authorizes_any_process_case(self):
         with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(case_receipt_adapter.verified_process_ids([self.case], [], None), frozenset())
-            self.assertEqual(case_receipt_adapter.verified_process_ids([self.case], [], self.root/'absent.jsonl'), frozenset())
+            self.assertEqual(case_receipt_adapter.verified_case_ids([self.case], [], None), frozenset())
+            self.assertEqual(case_receipt_adapter.verified_case_ids([self.case], [], self.root/'absent.jsonl'), frozenset())
 
     def test_nonobject_and_wrong_identity_types_have_explicit_failed_shard_receipts(self):
         for payload in [None, [], {'rule':'A001','name':'case','side':[]}]:
@@ -94,3 +94,14 @@ class ProcessShardTests(unittest.TestCase):
         for row in [None, [], {'rule':[], 'name':'case', 'side':'reference'}, {'rule':'A001', 'name':{}, 'side':'reference'}, {'rule':'A001', 'name':'case', 'side':[]}]:
             with self.subTest(row=row), self.assertRaises(ValueError):
                 case_records.complete_case_ids([], [row])
+
+    def test_missing_required_metadata_never_resumes_byte_only_rows_as_complete(self):
+        self.case = {'rule': 'A001', 'name': 'case', 'reference_discrepancy': None, 'file_observation': 'posix-executable'}
+        self.assertEqual(self.run_shards(), 1)
+        self.assertEqual(self.run_shards(resume=True), 1)
+        self.assertEqual(self.calls, 2)
+        receipt = json.loads(self.receipt().read_text())
+        self.assertEqual(receipt['status'], 1)
+        self.assertFalse(receipt['case_result_records_valid'])
+        self.assertIn('pinned shared validator', receipt['error'])
+        self.assertTrue(list(self.receipt().parent.glob('000.cases.jsonl.history-*')))

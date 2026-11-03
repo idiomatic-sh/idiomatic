@@ -128,7 +128,14 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
                 source_digest.update(b'\x00')
                 source_digest.update(source.encode('utf-8'))
             expected = sorted(({'rule': finding.get('rule', rule_root.name), 'file': finding['file'], 'start': finding['start'], 'end': finding['end']} for finding in case.get('expected', [])), key=lambda row: (row['rule'], row['file'], row['start'], row['end']))
-            inventory.append({**identity, 'project_context_mode': mode, 'context_identity': expected_context_identity(case, mode), 'case_sha256': hashlib.sha256(encoded.encode()).hexdigest(), 'source_sha256': source_digest.hexdigest(), 'files': sorted(case['files']), 'comparison': case.get('comparison', 'rule'), 'expected': expected, 'reference_discrepancy': reference_discrepancies.validate_reference_discrepancy(profile_root, case, rule_root.name)})
+            metadata = case.get('file-metadata')
+            metadata_sha = case_receipt_adapter.file_metadata_digest(metadata)
+            extra = {}
+            if metadata is not None:
+                extra.update(file_metadata=metadata, file_metadata_sha256=metadata_sha)
+            if profile.get('file-observation') is not None:
+                extra['file_observation'] = profile['file-observation']
+            inventory.append({**extra, **identity, 'project_context_mode': mode, 'context_identity': expected_context_identity(case, mode), 'case_sha256': hashlib.sha256(encoded.encode()).hexdigest(), 'source_sha256': source_digest.hexdigest(), 'files': sorted(case['files']), 'comparison': case.get('comparison', 'rule'), 'expected': expected, 'reference_discrepancy': reference_discrepancies.validate_reference_discrepancy(profile_root, case, rule_root.name)})
     inventory.sort(key=lambda case: (case['rule'], case['name']))
     ids = [(case['rule'], case['name']) for case in inventory]
     if not ids or len(ids) != len(set(ids)):
@@ -143,12 +150,14 @@ def discrepancy_record_pair_valid(case: dict[str, object], sides: dict[str, dict
     if certificate.get('process') is not None:
         return f"{case['rule']}/{case['name']}" in _shared_verified
     identity = certificate['identity']
+    if identity.get('file-metadata-sha256') != case.get('file_metadata_sha256'):
+        return False
     for side, row in sides.items():
         proof = row.get('discrepancy_validation')
         if not isinstance(proof, dict) or proof != sides['reference'].get('discrepancy_validation'):
             return False
         checks = {'settings_sha256': 'settings-sha256', 'profile_sha256': 'profile-sha256', 'source_sha256': 'source-sha256', 'reference_output_sha256': 'reference-output-sha256', 'intended_output_sha256': 'intended-output-sha256'}
-        if any((proof.get(key) != identity[value] for key, value in checks.items())):
+        if proof.get('file_metadata_sha256') != case.get('file_metadata_sha256') or any((proof.get(key) != identity[value] for key, value in checks.items())):
             return False
         if proof.get('actual_executable_sha256') not in certificate['approved_executable_sha256']:
             return False
@@ -236,7 +245,7 @@ def case_record_objects(records: list[object]) -> list[dict[str, object]]:
 def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dict[str, object]], *, receipt_file: Path | None=None) -> set[str]:
     """Return cases with one valid, durable full report from each contestant."""
     records = case_record_objects(records)
-    shared_verified = case_receipt_adapter.verified_process_ids(selected_cases, records, receipt_file)
+    shared_verified = case_receipt_adapter.verified_case_ids(selected_cases, records, receipt_file)
     expected_cases = {f"{case['rule']}/{case['name']}": case for case in selected_cases}
     grouped: dict[str, dict[str, dict[str, object]]] = {}
     duplicates = set()
@@ -258,12 +267,14 @@ def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dic
         identities_match = all(
             row.get('complete') is True and row.get('error') is None
             and row.get('source_sha256') == expected_case['source_sha256']
+            and row.get('file_metadata_sha256') == expected_case.get('file_metadata_sha256')
             and row.get('files') == expected_case['files']
             and row.get('expected') == expected_case['expected']
             and isinstance(row.get('case_passed'), bool)
             for row in sides.values()
         )
-        if (identities_match and context_receipts_valid(expected_case, sides)
+        physical_verified = expected_case.get('file_metadata') is None and expected_case.get('file_observation') is None and expected_case.get('file_metadata_sha256') is None or case_id in shared_verified
+        if (identities_match and physical_verified and context_receipts_valid(expected_case, sides)
             and discrepancy_record_pair_valid(expected_case, sides, _shared_verified=shared_verified)
             and record_contract_satisfied(expected_case, sides, _shared_verified=shared_verified)):
             completed.add(case_id)

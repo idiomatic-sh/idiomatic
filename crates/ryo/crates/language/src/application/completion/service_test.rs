@@ -61,7 +61,7 @@ fn initialized_model_survives_append_and_decoded_tail_without_native_identity_ch
     complete::<Model>(
         completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(7)),
         "target=v1",
-        true,
+        crate::domain::elements::types::CompletionRequirement::PreparedModel,
         |_, model| model.preparations += 1,
         |c| {
             assert_eq!(
@@ -149,7 +149,7 @@ fn initialization_completion_and_incremental_failure_never_leave_a_prepared_mark
             complete::<Model>(
                 completion(&mut elements, &mut symbols, ByteSlice(b"a"), FileId(0)),
                 "v1",
-                true,
+                crate::domain::elements::types::CompletionRequirement::PreparedModel,
                 |_, m| {
                     assert_ne!(failing_phase, 0, "initialization failure");
                     m.preparations += 1;

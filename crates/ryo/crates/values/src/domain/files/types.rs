@@ -4,9 +4,24 @@ use std::sync::Arc;
 
 use ryo_language::domain::files::types::FilePath;
 
+/// What an input edge knows of POSIX executable permission semantics.
+/// Unavailable observations never mean a known nonexecutable file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ExecutablePermission {
+    /// The edge supplied no reliable observation.
+    #[default]
+    Unknown,
+    /// The input's permission model has no POSIX executable-bit meaning.
+    Unsupported,
+    /// The observed mode intersects POSIX execute bits (`0o111`).
+    Posix(bool),
+}
+
 /// One file of the repository, found but not read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CorpusEntry {
+    /// Edge-observed permission state, independent of source bytes and modification time.
+    pub executable: ExecutablePermission,
     /// The path, relative to the root, with `/` between directories.
     pub path: FilePath,
     /// The file's size in bytes.
@@ -18,6 +33,8 @@ pub struct CorpusEntry {
 /// One file of the repository with its bytes: what a fake keeps and hands out on `read`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CorpusFile {
+    /// Edge-observed permission state, independent of source bytes and modification time.
+    pub executable: ExecutablePermission,
     /// The path, relative to the root, with `/` between directories.
     pub path: FilePath,
     /// The file's bytes.

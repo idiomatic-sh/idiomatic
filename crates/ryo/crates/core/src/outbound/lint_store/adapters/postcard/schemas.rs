@@ -52,6 +52,8 @@ pub(super) struct RuleSchema {
 /// A file: one row for each, numbered by its place in the table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct FileSchema {
+    /// Explicit permission observation in this versioned store format.
+    executable: ExecutableSchema,
     /// Its path.
     path: TextSchema,
     /// What its bytes came to.
@@ -352,9 +354,28 @@ fn file_number(files: usize, at: u32) -> Result<StoredFileNumber, postcard::Erro
     }
 }
 
+/// Wire representation of permission knowledge; no integer sentinel means false.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum ExecutableSchema {
+    Unknown,
+    Unsupported,
+    Posix(bool),
+}
+
 /// The row of a file, its path named in the table of strings.
 fn file_schema<'a>(strings: &mut StringsSchema<'a>, file: &'a StoredFile) -> FileSchema {
     FileSchema {
+        executable: match file.executable {
+            ryo_values::domain::files::types::ExecutablePermission::Unknown => {
+                ExecutableSchema::Unknown
+            }
+            ryo_values::domain::files::types::ExecutablePermission::Unsupported => {
+                ExecutableSchema::Unsupported
+            }
+            ryo_values::domain::files::types::ExecutablePermission::Posix(value) => {
+                ExecutableSchema::Posix(value)
+            }
+        },
         path: text(strings, &file.path.0),
         digest: file.digest.0,
         interface: file.interface.0,
@@ -367,6 +388,17 @@ fn file_schema<'a>(strings: &mut StringsSchema<'a>, file: &'a StoredFile) -> Fil
 /// The file a row is of, its path read from the table of strings.
 fn file_from(strings: &[Cow<'_, str>], file: &FileSchema) -> Result<StoredFile, postcard::Error> {
     Ok(StoredFile {
+        executable: match file.executable {
+            ExecutableSchema::Unknown => {
+                ryo_values::domain::files::types::ExecutablePermission::Unknown
+            }
+            ExecutableSchema::Unsupported => {
+                ryo_values::domain::files::types::ExecutablePermission::Unsupported
+            }
+            ExecutableSchema::Posix(value) => {
+                ryo_values::domain::files::types::ExecutablePermission::Posix(value)
+            }
+        },
         path: FilePath(named(strings, file.path)?),
         digest: Digest(file.digest),
         interface: Digest(file.interface),

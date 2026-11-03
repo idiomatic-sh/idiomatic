@@ -15,6 +15,7 @@ const CASES: &[Case<(), (bool, usize), ()>] = &[Case {
 )]
 fn subject(_: ()) -> Result<(bool, usize), ()> {
     let request = RunRequest {
+        file_metadata: None,
         context_manifest: None,
         root: ".".into(),
         files: vec![ryo::linter::RelativePath("file".into())],

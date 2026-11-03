@@ -261,6 +261,8 @@ def verify_profile(name: str, profile_root: Path, command: list[str], output_dir
 def verify_reference_profile(name: str, profile_root: Path, ruff: Path, output_directory: Path | None, identities: dict[str, object], *, runner=subprocess.run) -> int:
     """Check pinned full-report fixtures directly with Ruff, without building Ryo."""
     profile = tomllib.loads((profile_root / 'benchmark.toml').read_text(encoding='utf-8'))
+    if profile.get('file-observation') is not None:
+        raise ValueError('reference-only stdin transport cannot verify file observations; use the sealed native file-mode protocol')
     if profile.get('project-context-mode', 'isolated') != 'isolated':
         raise ValueError('reference-only stdin transport cannot verify ListedDisk context; use the sealed native verify-reference-cases protocol')
     target_config = profile.get('parser-configuration')
@@ -282,6 +284,8 @@ def verify_reference_profile(name: str, profile_root: Path, ruff: Path, output_d
     failures = []
     command_log = []
     for case in cases:
+        if 'file-metadata' in case:
+            raise ValueError('reference-only stdin transport cannot observe declared file metadata; use file mode')
         if case.get('reference-discrepancy') is not None:
             raise ValueError('reference discrepancy cases require native verify-reference-cases evidence enforcement')
         actual = []

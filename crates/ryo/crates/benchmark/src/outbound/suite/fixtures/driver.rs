@@ -37,6 +37,7 @@ expected = []
         .expect("cases");
     }
     let tool = Tool {
+        file_observation: None,
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),

@@ -463,6 +463,7 @@ fn visited_as_with_facts(
         files: paths
             .iter()
             .map(|path| CorpusFile {
+                executable: Default::default(),
                 path: FilePath((*path).into()),
                 bytes: FileBytes(b"fn main() {}".to_vec()),
             })
@@ -675,6 +676,7 @@ fn required_dependency_stat_and_read_errors_cannot_disappear() {
                 })
             } else {
                 Ok(PathStat::Found(CorpusEntry {
+                    executable: Default::default(),
                     path: path.clone(),
                     size: FileSize(1),
                     modified: Nanoseconds(1),
@@ -1282,6 +1284,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             .expect("outcome");
     drop(producer);
     let mut record = Record {
+        executable: Default::default(),
         path: FilePath("case.py".into()),
         size: FileSize(0),
         modified: Nanoseconds(0),

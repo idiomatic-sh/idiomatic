@@ -15,6 +15,7 @@ fn a_file_that_changes_while_it_is_read_is_refused_as_unstable() {
     use ryo_language::domain::files::types::FilePath;
     use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Nanoseconds};
     let entry = CorpusEntry {
+        executable: Default::default(),
         path: FilePath("unstable.rs".into()),
         size: FileSize(0),
         modified: Nanoseconds(0),

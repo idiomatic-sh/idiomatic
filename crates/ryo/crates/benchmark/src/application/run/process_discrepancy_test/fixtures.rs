@@ -40,6 +40,7 @@ impl Fixture {
         let rules = source.join("rules");
         let receipt = source.join("cases.jsonl");
         let profile = Tool {
+            file_observation: None,
             project_context_mode: ProjectContextMode::Isolated,
             tool: name.into(),
             version: "1".into(),
@@ -70,6 +71,7 @@ impl Fixture {
             rule: ryo::linter::RuleId::try_from("A001").unwrap(),
             name: name.into(),
             request: RunRequest {
+                file_metadata: None,
                 root: source.clone(),
                 state: source.join("state"),
                 files: expected.files.clone(),
@@ -145,6 +147,7 @@ impl Fixture {
         let process =
             process_discrepancy::convert(serde_json::from_value(wire.clone()).unwrap()).unwrap();
         let identity = ReferenceDiscrepancyIdentity {
+            file_metadata_sha256: None,
             tool: profile.tool.clone(),
             version: profile.version.clone(),
             observed_executable_sha256: ArtifactDigest("a".repeat(64)),

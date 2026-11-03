@@ -58,8 +58,10 @@ use crate::outbound::digest::types::{DigestBytes, DigestWords};
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
+use ryo_language::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
+use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::records::types::Unread;
-use ryo_values::domain::stored_facts::types::ReadInPart;
+use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
 
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::language::types::{FileReading, FileToRead, ProjectInput};
@@ -762,7 +764,9 @@ impl FileAnalysis {
                 Digest([0; 16])
             };
         // A file written again with the same bytes is as it was too.
-        if let Some(record) = kept.filter(|record| record.digest == digest) {
+        if let Some(record) =
+            kept.filter(|record| record.digest == digest && record.executable == file.executable)
+        {
             replay(&mut worker.tables, number, at, record, file, digest);
             return Self::hand_again(worker, visit, at, number, record);
         }
@@ -983,7 +987,7 @@ impl FileAnalysis {
         if let Some(started) = parse_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "provider_parse", file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
         }
-        let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
+        let mut said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let acceptance = syntax_acceptance(&worker.tables.elements);
         let active_wanted = Self::active_wanted(&worker.tables, setting, acceptance);
         // The language that read the file is kept with what it noted of it.
@@ -1000,7 +1004,7 @@ impl FileAnalysis {
             self.admit(worker, active_wanted.as_ref(), number, *provider)?;
         }
         let asked = engine_asked(active_wanted.as_ref());
-        Self::write_engine_rows(worker, asked, number)?;
+        Self::write_engine_rows(worker, asked, number, file.executable, &mut said)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
         let everything = recovery_of(&reading, &worker.tables.elements);
         start_partials(
@@ -1064,7 +1068,32 @@ impl FileAnalysis {
         worker: &mut Worker,
         asked: EngineAsked,
         number: FileId,
+        executable: ExecutablePermission,
+        said: &mut Vec<ReadInPart>,
     ) -> Result<(), FileAnalysisError> {
+        if asked.executable == EngineRows::Asked {
+            match executable {
+                ExecutablePermission::Posix(value) => {
+                    worker.facts.columns_mut()?.write(FilesystemExecutableRow {
+                        path: number,
+                        executable: if value {
+                            ryo_language::domain::relations::types::Flag::Raised
+                        } else {
+                            ryo_language::domain::relations::types::Flag::Lowered
+                        },
+                    })
+                }
+                ExecutablePermission::Unsupported => {}
+                ExecutablePermission::Unknown => said.push(ReadInPart {
+                    relation: Relation::FilesystemExecutable,
+                    cause: PartialCause(
+                        "input edge did not supply executable permission metadata".into(),
+                    ),
+                    lacking: ryo_language::domain::relations::types::Missing::Any,
+                    at: PartialScope::OneFile(PartialAt(number.0)),
+                }),
+            }
+        }
         if asked.file == EngineRows::Asked {
             worker
                 .facts
@@ -1186,6 +1215,7 @@ impl FileAnalysis {
             };
             self.corpus.read(&entry, &mut bytes)?;
             into.consulted.push(StoredFile {
+                executable: entry.executable,
                 digest: self.digest.digest(DigestBytes(&bytes.0)),
                 interface: Digest([0; 16]),
                 noted: Digest([0; 16]),

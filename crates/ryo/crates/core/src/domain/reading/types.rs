@@ -3,7 +3,7 @@
 /// Whether a file with no tree and no names still has the rows the engine writes of every file, which the rules that ask for it read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EngineRows {
-    /// A rule asked for the file or its line count, so its rows are written and the rules run on them.
+    /// A rule asked for the file, its line count or its input metadata, so its rows are written and the rules run on them.
     Asked,
     /// No rule asked for them.
     NotAsked,
@@ -16,6 +16,8 @@ pub(crate) struct EngineAsked {
     pub file: EngineRows,
     /// The row of `filesystem.line-count`.
     pub lines: EngineRows,
-    /// Either of them.
+    /// Known executable-permission rows supplied by the input edge.
+    pub executable: EngineRows,
+    /// Any engine relation.
     pub any: EngineRows,
 }

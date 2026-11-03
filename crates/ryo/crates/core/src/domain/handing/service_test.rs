@@ -26,6 +26,7 @@ type Failure = Infallible;
 /// A stored file at `path`, its digests blank.
 fn file(path: &str) -> StoredFile {
     StoredFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         digest: Digest([0; 16]),
         interface: Digest([0; 16]),

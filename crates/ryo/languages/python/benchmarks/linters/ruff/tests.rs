@@ -51,3 +51,5 @@ fn worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run() {
     );
     assert_eq!(tracing_for_command("diagnostic-unknown"), None);
 }
+
+mod host;

@@ -1,0 +1,11 @@
+import suppress from "python/ruff/suppress";
+let executable_files = select path as file from "filesystem.executable" where executable = "true";
+let shebangs = select file from "syntax-tree" where kind = "comment" and matches(text, "^#!");
+let missing = antijoin(left=executable_files, right=shebangs, left-on=["file"], right-on=["file"]);
+let modules = select id, file, span from "syntax-tree" where kind = "module";
+let origins = source-matches(from=modules, span="span", pattern="^", output="point");
+let points = select id, file, point as span from origins;
+let located = extend(from=points, values={line: 1});
+let candidates = select l.id as id, l.file as file, l.span as span, l.line as line from located as l join missing as r on l.file = r.file;
+let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])EXE002(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:EXE002)(?:,|$)");
+emit violations subject file key(id);

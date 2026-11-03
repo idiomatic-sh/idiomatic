@@ -735,12 +735,13 @@ fn bucket_reader_observes_each_row_at_its_buffer_acquisition() {
             .write(true)
             .open(root.path().join("lint.store"))
             .expect("same inode");
-        let _position = file.seek(SeekFrom::Start(if change_header {
-            second.header
-        } else {
-            second.offset
-        }))
-        .expect("second row");
+        let _position = file
+            .seek(SeekFrom::Start(if change_header {
+                second.header
+            } else {
+                second.offset
+            }))
+            .expect("second row");
         file.write_all(&[0x7f]).expect("equal-length edit");
         drop(file);
         let mut direct = PackedWords::default();
@@ -882,3 +883,5 @@ fn bucket_readers_keep_snapshot_identity_across_concurrent_consumers() {
         }
     });
 }
+
+mod executable;

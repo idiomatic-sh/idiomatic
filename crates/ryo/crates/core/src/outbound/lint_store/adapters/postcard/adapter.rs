@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use super::constants::{FILE, LENGTH, NOT_A_FILE, OUTSIDE, TEMPORARY, UNDECODED};
+use super::constants::{FILE, FORMAT, LENGTH, NOT_A_FILE, OUTSIDE, TEMPORARY, UNDECODED};
 use super::schemas::{contents, contents_bytes, rest_bytes, rest_from, tables_bytes, tables_of};
 use super::types::{
     BucketSpan, FileOffset, OpenedStore, SectionBytes, SectionLength, SectionSpan, TableOfContents,
@@ -252,16 +252,21 @@ impl LintStorePostcardAdapter {
             return Err(self.unreadable(&NOT_A_FILE));
         }
         let size = metadata.len();
-        if size < LENGTH {
+        let trailer_length =
+            LENGTH + u64::try_from(FORMAT.len()).map_err(|error| self.unreadable(&error))?;
+        if size < trailer_length {
             return Ok(None);
         }
-        let mut trailer = SectionBytes(vec![0_u8; 8]);
-        read_at(&mut file, FileOffset(size - LENGTH), &mut trailer)
+        let mut trailer = SectionBytes(vec![0_u8; 8 + FORMAT.len()]);
+        read_at(&mut file, FileOffset(size - trailer_length), &mut trailer)
             .map_err(|error| self.unreadable(&error))?;
+        if trailer.0.get(8..) != Some(FORMAT) {
+            return Ok(None);
+        }
         let length = u64::from_le_bytes(std::array::from_fn(|place| {
             trailer.0.get(place).copied().unwrap_or_default()
         }));
-        let Some(start) = (size - LENGTH).checked_sub(length) else {
+        let Some(start) = (size - trailer_length).checked_sub(length) else {
             return Ok(None);
         };
         let mut bytes = SectionBytes(vec![0_u8; usize::try_from(length).unwrap_or_default()]);
@@ -722,6 +727,7 @@ impl ReadStore for PostcardRead {
                 let _contents = put(&mut out, &mut at, &toc).map_err(|error| unwritable(&error))?;
                 out.write_all(&length.to_le_bytes())
                     .map_err(|error| unwritable(&error))?;
+                out.write_all(FORMAT).map_err(|error| unwritable(&error))?;
                 out.flush().map_err(|error| unwritable(&error))
             });
         published(&temporary, written, || {

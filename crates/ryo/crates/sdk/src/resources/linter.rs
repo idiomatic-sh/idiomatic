@@ -26,6 +26,7 @@ pub use lint::schemas::RuleIdSchemaError;
 pub use lint::types::Cache;
 
 pub use lint::types::CaseSource;
+pub use lint::types::ExecutablePermission;
 
 pub use lint::types::SourceText;
 

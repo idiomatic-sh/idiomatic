@@ -101,6 +101,8 @@ pub struct PlacedColumn(pub u32);
 /// What a run kept of one file.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Record {
+    /// The exact executable-permission observation used to produce this file outcome.
+    pub executable: crate::domain::files::types::ExecutablePermission,
     /// The path, relative to the root.
     pub path: FilePath,
     /// The file's size when it was read.

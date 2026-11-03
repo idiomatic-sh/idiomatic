@@ -26,10 +26,12 @@ type Failure = CorpusError;
 fn adapter() -> CorpusMemoryAdapter {
     CorpusMemoryAdapter::new(vec![
         CorpusFile {
+            executable: Default::default(),
             path: FilePath("a.rs".into()),
             bytes: FileBytes(b"fn a() {}".to_vec()),
         },
         CorpusFile {
+            executable: Default::default(),
             path: FilePath("sub/b.rs".into()),
             bytes: FileBytes(b"fn b() {}\n".to_vec()),
         },
@@ -41,6 +43,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Inventory => adapter().inventory().map(|entries| entries.0.len()),
         Scenario::Read(path) => {
             let entry = CorpusEntry {
+                executable: Default::default(),
                 path: FilePath(path.into()),
                 size: FileSize(0),
                 modified: Nanoseconds(0),

@@ -157,7 +157,7 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
     crate::application::completion::service::complete::<L::FileModel>(
         completion(table, symbols, request.bytes, request.file),
         language.configuration_identity().0,
-        language.completion_requires_model(),
+        language.completion_requirement(),
         |tree, model| language.file_model(tree, model),
         |completed| language.complete(&request, completed),
         |tree, from, model| language.extend_file_model(tree, from, model),
@@ -312,7 +312,9 @@ fn walk_with<L>(
     if !reads_any {
         return;
     }
-    if language.completion_requires_model() {
+    if language.completion_requirement()
+        == crate::domain::elements::types::CompletionRequirement::PreparedModel
+    {
         crate::application::completion::service::prepare(
             elements,
             source,

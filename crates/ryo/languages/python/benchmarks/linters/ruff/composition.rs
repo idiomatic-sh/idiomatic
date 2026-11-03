@@ -235,6 +235,7 @@ pub(crate) fn run(
                         Some(constants::MEASURE_VALID | constants::MEASURE_ACCOUNTED_VALID)
                     ) {
                         let preflight = RunRequest {
+                            file_metadata: None,
                             context_manifest: None,
                             root: workspace.root().to_owned(),
                             files: files.clone(),
@@ -300,6 +301,7 @@ pub(crate) fn run(
                             .tempdir_in(&cache)?
                             .keep();
                         let request = RunRequest {
+                            file_metadata: None,
                             context_manifest: None,
                             root: workspace.root().to_owned(),
                             files: files.clone(),

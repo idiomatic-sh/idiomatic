@@ -233,6 +233,7 @@ pub fn stored(tag: u8) -> Stored {
         ],
         files: vec![
             StoredFile {
+                executable: Default::default(),
                 path: path("a.rs"),
                 digest: Digest([1; 16]),
                 interface: Digest([2; 16]),
@@ -241,6 +242,7 @@ pub fn stored(tag: u8) -> Stored {
                 modified: Nanoseconds(7),
             },
             StoredFile {
+                executable: Default::default(),
                 path: path("b.md"),
                 digest: Digest([3; 16]),
                 interface: Digest([0; 16]),
@@ -300,6 +302,7 @@ pub fn stored(tag: u8) -> Stored {
             digest: Digest([tag; 16]),
         }],
         consulted: vec![StoredFile {
+            executable: Default::default(),
             path: FilePath("../.cargo/config.toml".into()),
             digest: Digest([tag.wrapping_add(2); 16]),
             interface: Digest([0; 16]),

@@ -292,6 +292,7 @@ pub(crate) fn replay(
     digest: Digest,
 ) {
     let renewed = |outcome: FileOutcome| Record {
+        executable: file.executable,
         path: record.path.clone(),
         size: file.size,
         modified: file.modified,
@@ -361,6 +362,7 @@ pub(crate) fn finish_file(
             tables.fresh.push(FreshRecord {
                 place: at,
                 record: Record {
+                    executable: file.executable,
                     path: file.path.clone(),
                     size: file.size,
                     modified: file.modified,

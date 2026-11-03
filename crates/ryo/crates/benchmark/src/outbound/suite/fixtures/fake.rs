@@ -30,6 +30,13 @@ pub struct SuiteFake {
     pub(crate) reference_wires: Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
 }
 impl SuitePort for SuiteFake {
+    fn validate_file_metadata(
+        &self,
+        request: &crate::domain::suite::types::RunRequest,
+    ) -> Result<(), Error> {
+        crate::outbound::suite::factory::local().validate_file_metadata(request)
+    }
+
     fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
         self.case_receipt.clone()
     }

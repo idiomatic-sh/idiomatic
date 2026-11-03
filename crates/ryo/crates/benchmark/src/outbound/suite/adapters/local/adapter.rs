@@ -135,6 +135,13 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 /// Reads and freezes validated benchmark artifacts from the local filesystem.
 pub(crate) struct SuiteLocalAdapter;
 impl SuitePort for SuiteLocalAdapter {
+    fn validate_file_metadata(
+        &self,
+        request: &crate::domain::suite::types::RunRequest,
+    ) -> Result<(), Error> {
+        super::input_metadata::validate(request)
+    }
+
     fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
         std::env::var_os("RYO_VERIFY_CASE_RESULTS").map(std::path::PathBuf::from)
     }
@@ -352,13 +359,15 @@ fn prepare_cases(
         .parent()
         .ok_or_else(|| Error::Invalid("case rules have no profile parent".into()))?
         .join(constants::MANIFEST);
-    let context_mode = match std::fs::read_to_string(profile) {
-        Ok(text) => super::schemas::tool(&text)?.project_context_mode,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            crate::domain::suite::types::ProjectContextMode::Isolated
-        }
+    let profile = match std::fs::read_to_string(profile) {
+        Ok(text) => Some(super::schemas::tool(&text)?),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => return Err(error.into()),
     };
+    let context_mode = profile.as_ref().map_or(
+        crate::domain::suite::types::ProjectContextMode::Isolated,
+        |tool| tool.project_context_mode,
+    );
     for entry in std::fs::read_dir(rules)? {
         let entry = entry?;
         let rule = entry
@@ -370,6 +379,19 @@ fn prepare_cases(
             entry.path().join(constants::CASES),
         )?)?;
         validate_case_sources(&cases)?;
+        if profile
+            .as_ref()
+            .is_some_and(|tool| tool.file_observation.is_some())
+            && cases.cases.iter().any(|case| {
+                case.file_metadata
+                    .as_ref()
+                    .is_none_or(|values| values.len() != case.files.len())
+            })
+        {
+            return Err(Error::Invalid(
+                "file-observation-required profile needs explicit metadata for every source".into(),
+            ));
+        }
         match std::fs::read_to_string(entry.path().join(constants::QUERY)) {
             Ok(query) if !query.trim().is_empty() => {}
             Ok(_) => return Err(Error::Invalid(format!("empty query for {rule}"))),
@@ -407,9 +429,17 @@ fn prepare_cases(
                     path.parent()
                         .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PARENT.into()))?,
                 )?;
-                std::fs::write(path, source.0.as_bytes())?;
+                std::fs::write(&path, source.0.as_bytes())?;
+                if let Some(executable) = case
+                    .file_metadata
+                    .as_ref()
+                    .and_then(|values| values.get(file))
+                {
+                    super::input_metadata::stage(&path, *executable)?;
+                }
             }
             let request = RunRequest {
+                file_metadata: case.file_metadata,
                 context_manifest,
                 root,
                 files: case.files.keys().cloned().collect(),

@@ -21,6 +21,28 @@ pub(super) struct Outcome {
     pub result: Result<Measurement, Error>,
     pub capture: Option<Capture>,
 }
+/// One verification preparation boundary for both contestants and every attempt.
+fn prepare(
+    suite: &dyn SuitePort,
+    linter: &dyn LinterPort,
+    request: &crate::domain::suite::types::RunRequest,
+) -> Result<crate::domain::measurements::types::Invocation, Error> {
+    suite.validate_file_metadata(request)?;
+    if let Some(context) = &request.context_manifest {
+        crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
+    }
+    linter.prepare(request)
+}
+/// The candidate keeps ordinary report decoding while sharing reference preparation admission.
+pub(super) fn candidate(
+    suite: &dyn SuitePort,
+    linter: &dyn LinterPort,
+    execution: &dyn ExecutionPort,
+    request: &crate::domain::suite::types::RunRequest,
+) -> Result<Measurement, Error> {
+    let invocation = prepare(suite, linter, request)?;
+    super::service::finish(linter, request, execution.run(invocation)?)
+}
 /// Execute once and preserve failed process streams before adapter errors discard them.
 pub(super) fn run(
     suite: &dyn SuitePort,
@@ -30,13 +52,7 @@ pub(super) fn run(
     rules: &Path,
 ) -> Outcome {
     let attempt = || {
-        if let Some(context) = &case.request.context_manifest {
-            crate::outbound::context::adapters::local::adapter::validate(
-                context,
-                &case.request.root,
-            )?;
-        }
-        let invocation = linter.prepare(&case.request)?;
+        let invocation = prepare(suite, linter, &case.request)?;
         let output = execution.run(invocation.clone())?;
         Ok::<_, Error>((invocation, output))
     };
@@ -81,7 +97,7 @@ pub(super) fn run(
                 let executable = suite.digest(ArtifactPath(&invocation.executable))?;
                 let settings =
                     super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
-                Ok::<_, Error>(serde_json::json!({
+                let mut captured = serde_json::json!({
                     "actual_request_root":request_root, "files":case.request.files.iter().map(|file|file.0.as_ref()).collect::<Vec<_>>(),
                     "executable_sha256":executable.0, "settings_sha256":settings.0,
                     "normalized_settings":super::invocation_identity::normalized_invocation(&invocation,case,&profile)?,
@@ -91,7 +107,13 @@ pub(super) fn run(
                     "environment":invocation.environment.iter().map(|(key,value)|(key.to_string_lossy(),value.to_string_lossy())).collect::<std::collections::BTreeMap<_,_>>(),
                     "directory":invocation.directory.to_string_lossy(), "exit":raw.status.0, "signal":raw.signal,
                     "observer_no_deadline":execution.observes_completed_processes_without_deadline(),
-                }))
+                });
+                if let Some(digest) = crate::domain::suite::input_metadata::digest(
+                    case.request.file_metadata.as_ref(),
+                )? {
+                    captured["file_metadata_sha256"] = serde_json::json!(digest.0);
+                }
+                Ok::<_, Error>(captured)
             };
             match metadata() {
                 Ok(invocation) => Outcome {
@@ -125,3 +147,6 @@ pub(super) fn run(
         }
     }
 }
+
+#[cfg(all(test, unix))]
+mod input_metadata_test;

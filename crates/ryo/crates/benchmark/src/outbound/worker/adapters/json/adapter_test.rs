@@ -136,6 +136,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     );
     let temporary = tempfile::tempdir().map_err(|_invalid_parser| Refusal::Unexpected)?;
     let request = RunRequest {
+        file_metadata: None,
         context_manifest: None,
         root: "workspace".into(),
         files: vec![ryo::linter::RelativePath("source.txt".into())],

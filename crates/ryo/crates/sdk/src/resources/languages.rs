@@ -312,3 +312,6 @@ pub use ryo_language::domain::relations::types::OptionalCapability;
 pub use ryo_language::application::completion::service::with_file_model;
 /// Append embedded syntax without resetting the native population.
 pub use ryo_language::domain::expansions::service::append_embedded;
+
+/// Semantic preparation requirement declared by syntax completion.
+pub use ryo_language::domain::elements::types::CompletionRequirement;

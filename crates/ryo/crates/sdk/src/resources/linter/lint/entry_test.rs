@@ -428,12 +428,14 @@ fn subject(given: Input) -> Result<Value, Failure> {
             Reads::Listed => Corpus::Listed(vec![RelativePath("notes.txt".into())]),
             Reads::ListedNothing => Corpus::Listed(Vec::new()),
             Reads::Given => Corpus::Given(vec![CaseSource {
+                executable: Default::default(),
                 path: RelativePath("from-memory.txt".into()),
                 text: SourceText("text".into()),
             }]),
         },
         beside: if matches!(given.corpus, Reads::Beside) {
             vec![CaseSource {
+                executable: Default::default(),
                 path: RelativePath("beside.txt".into()),
                 text: SourceText("text".into()),
             }]
@@ -532,6 +534,7 @@ fn shared_calls(root: &std::path::Path) -> [LintRequest; 2] {
     };
     let given = |file: &str| {
         Corpus::Given(vec![CaseSource {
+            executable: Default::default(),
             path: RelativePath(file.into()),
             text: SourceText("text".into()),
         }])
@@ -1093,3 +1096,5 @@ fn capability_cache(query: &str) -> Value {
     }
     (1, 0, true, 0)
 }
+
+mod executable;

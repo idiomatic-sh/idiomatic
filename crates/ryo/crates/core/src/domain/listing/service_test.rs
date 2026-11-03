@@ -21,6 +21,7 @@ type Failure = ();
 
 fn entry(path: &str) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(1),
         modified: Nanoseconds(2),

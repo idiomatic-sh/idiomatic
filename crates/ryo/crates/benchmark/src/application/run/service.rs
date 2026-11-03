@@ -189,6 +189,7 @@ pub fn verify_shard(
         crate::outbound::suite::types::ArtifactPath(rules),
         crate::outbound::suite::types::ArtifactPath(scratch),
     )?;
+    super::input_metadata::admit(suite, rules, &cases)?;
     super::discrepancy::attach(suite, rules, &mut cases)?;
     let Selection {
         global_count,
@@ -210,24 +211,31 @@ pub fn verify_shard(
             "process-failure verification requires a direct no-deadline observer".into(),
         ));
     }
-    let mut initial = Some(run(candidate, execution, &first.request)?);
+    let mut initial = Some(super::case_execution::candidate(
+        suite,
+        candidate,
+        execution,
+        &first.request,
+    )?);
     let mut failures = Vec::new();
     for (case, validation) in selected_cases.into_iter().zip(validations) {
         for (name, tool) in [
             (super::constants::REFERENCE, reference),
             (super::constants::CANDIDATE, candidate),
         ] {
-            let super::case_execution::Outcome { result, capture } =
-                if name == super::constants::CANDIDATE {
-                    super::case_execution::Outcome {
-                        result: initial
-                            .take()
-                            .map_or_else(|| run(tool, execution, &case.request), Ok),
-                        capture: None,
-                    }
-                } else {
-                    super::case_execution::run(suite, tool, execution, &case, rules)
-                };
+            let super::case_execution::Outcome { result, capture } = if name
+                == super::constants::CANDIDATE
+            {
+                super::case_execution::Outcome {
+                    result: initial.take().map_or_else(
+                        || super::case_execution::candidate(suite, tool, execution, &case.request),
+                        Ok,
+                    ),
+                    capture: None,
+                }
+            } else {
+                super::case_execution::run(suite, tool, execution, &case, rules)
+            };
             let full_report = result
                 .as_ref()
                 .ok()
@@ -359,6 +367,7 @@ pub fn verify_reference_cases(
         crate::outbound::suite::types::ArtifactPath(rules),
         crate::outbound::suite::types::ArtifactPath(scratch),
     )?;
+    super::input_metadata::admit(suite, rules, &cases)?;
     super::discrepancy::attach(suite, rules, &mut cases)?;
     let count = cases.len();
     if cases.is_empty() {

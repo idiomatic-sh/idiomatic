@@ -70,6 +70,8 @@ pub struct ReceiptAudit {
     pub case_count: usize,
     /// Exact identities that independently passed the shared validator.
     pub verified: Vec<(String, String)>,
+    /// Metadata contracts independently recomputed by this verifier, never echoed from pass flags.
+    pub metadata_verified: Vec<(String, String, super::super::types::ArtifactDigest)>,
     /// Strict failures, never skipped successes.
     pub errors: Vec<String>,
     /// Raw report equality, excluding process observations.

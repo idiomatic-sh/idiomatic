@@ -1,4 +1,4 @@
-"""Serialize case registrations and delegate process-receipt policy to the shared Rust verifier."""
+"""Serialize case registrations and delegate physical-observation receipt policy to the shared Rust verifier."""
 from __future__ import annotations
 import hashlib
 import json
@@ -8,16 +8,31 @@ import subprocess
 import tempfile
 
 
-def verified_process_ids(inventory: list[dict[str, object]], records: list[dict[str, object]], receipt: Path | None) -> frozenset[str]:
+def file_metadata_digest(values: dict[str, bool] | None) -> str | None:
+    """Encode the shared versioned path-length/UTF-8/boolean framing; no comparison policy."""
+    if values is None:
+        return None
+    if not isinstance(values, dict) or any(not isinstance(key, str) or type(value) is not bool for key, value in values.items()):
+        raise ValueError('file metadata must map declared paths to booleans')
+    digest = hashlib.sha256(b'ryo-case-file-metadata-v1\x00')
+    for path, executable in sorted(values.items()):
+        encoded = path.encode('utf-8')
+        digest.update(len(encoded).to_bytes(8, 'little'))
+        digest.update(encoded)
+        digest.update(bytes([int(executable)]))
+    return digest.hexdigest()
+
+
+def verified_case_ids(inventory: list[dict[str, object]], records: list[dict[str, object]], receipt: Path | None) -> frozenset[str]:
     """Decode a pinned shared audit; this adapter never matches process bytes or exit policy."""
-    if not any(case.get('reference_discrepancy', {}).get('process') is not None for case in inventory if isinstance(case.get('reference_discrepancy'), dict)):
+    if not any(case.get('file_metadata') is not None or case.get('file_observation') is not None or case.get('file_metadata_sha256') is not None or (isinstance(case.get('reference_discrepancy'), dict) and case['reference_discrepancy'].get('process') is not None) for case in inventory):
         return frozenset()
     if receipt is None or not receipt.is_file():
         return frozenset()
     configured = os.environ.get('RYO_BENCHMARK_RECEIPT_VALIDATOR')
     pin = os.environ.get('RYO_BENCHMARK_RECEIPT_VALIDATOR_SHA256')
     if not configured or not pin:
-        raise ValueError('process receipts require an explicit receipt file and pinned shared validator')
+        raise ValueError('physical-observation receipts require an explicit receipt file and pinned shared validator')
     original = receipt.read_bytes()
     loaded = [json.loads(line) for line in original.splitlines()]
     canonical = lambda rows: sorted(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(',', ':')) for row in rows)
@@ -45,7 +60,7 @@ def verified_process_ids(inventory: list[dict[str, object]], records: list[dict[
         raise ValueError('shared receipt validator operational failure')
     try:
         audit = json.loads(result.stdout)
-        if set(audit) != {'schema', 'case_count', 'validated_case_ids', 'raw_exact', 'documented_discrepancies', 'contract_only', 'errors'} or audit['schema'] != 'benchmark-case-receipt-audit/v1' or type(audit['case_count']) is not int or audit['case_count'] != len(inventory):
+        if set(audit) - {'file_metadata_verified_cases'} != {'schema', 'case_count', 'validated_case_ids', 'raw_exact', 'documented_discrepancies', 'contract_only', 'errors'} or audit['schema'] != 'benchmark-case-receipt-audit/v1' or type(audit['case_count']) is not int or audit['case_count'] != len(inventory):
             raise ValueError('shared receipt audit scope differs')
         expected = {(case['rule'], case['name']) for case in inventory}
         if not isinstance(audit['validated_case_ids'], list) or any(set(row) != {'rule', 'name'} for row in audit['validated_case_ids']):
@@ -53,6 +68,15 @@ def verified_process_ids(inventory: list[dict[str, object]], records: list[dict[
         pairs = [(row['rule'], row['name']) for row in audit['validated_case_ids']]
         if len(set(pairs)) != len(pairs) or not set(pairs) <= expected:
             raise ValueError('shared receipt audit contains unknown or duplicate identities')
+        metadata_cases = {(case['rule'], case['name']): case for case in inventory if case.get('file_metadata') is not None or case.get('file_observation') is not None or case.get('file_metadata_sha256') is not None}
+        witnesses = audit.get('file_metadata_verified_cases', [])
+        if not isinstance(witnesses, list) or any(not isinstance(row, dict) or set(row) != {'rule', 'name', 'sha256'} or not all(isinstance(row[key], str) for key in row) or len(row['sha256']) != 64 or any(character not in '0123456789abcdef' for character in row['sha256']) for row in witnesses):
+            raise ValueError('shared metadata witness encoding differs')
+        witness_pairs = [(row['rule'], row['name']) for row in witnesses]
+        if len(set(witness_pairs)) != len(witness_pairs) or set(witness_pairs) != set(pairs).intersection(metadata_cases):
+            raise ValueError('shared validator did not verify required file metadata')
+        if any(row['sha256'] != metadata_cases[(row['rule'], row['name'])].get('file_metadata_sha256') for row in witnesses):
+            raise ValueError('shared metadata witness identity differs')
         counts = [audit[key] for key in ('raw_exact', 'documented_discrepancies', 'contract_only')]
         if any(type(value) is not int or value < 0 for value in counts) or sum(counts) != len(pairs):
             raise ValueError('shared receipt audit count encoding differs')

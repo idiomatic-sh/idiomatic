@@ -209,6 +209,7 @@ pub(crate) fn build_reading(request: &LintRequest) -> Reading {
         sources
             .iter()
             .map(|each| CorpusFile {
+                executable: each.executable,
                 path: FilePath(each.path.0.clone()),
                 bytes: FileBytes(each.text.0.as_bytes().to_vec()),
             })

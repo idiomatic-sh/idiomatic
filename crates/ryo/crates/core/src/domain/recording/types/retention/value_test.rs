@@ -33,6 +33,7 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
     let notes_capacity = notes.capacity();
     let mut records = Vec::with_capacity(3);
     records.push(Record {
+        executable: Default::default(),
         path: FilePath("case.py".into()),
         size: FileSize(0),
         modified: Nanoseconds(0),
@@ -170,6 +171,7 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
     use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
     let mut records: Vec<_> = (0..128)
         .map(|number| Record {
+            executable: Default::default(),
             path: FilePath(format!("{number}.py").into()),
             size: FileSize(0),
             modified: Nanoseconds(0),

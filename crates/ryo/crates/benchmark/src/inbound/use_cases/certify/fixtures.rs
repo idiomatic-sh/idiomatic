@@ -238,6 +238,7 @@ pub fn exercise(
     )
     .expect(constants::FIXTURE_PRECONDITION);
     let request = RunRequest {
+        file_metadata: None,
         context_manifest: None,
         root: measured_root,
         files: vec![ryo::linter::RelativePath(

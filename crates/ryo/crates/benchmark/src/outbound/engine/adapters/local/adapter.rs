@@ -14,6 +14,7 @@ use ryo::linter::{
 use ryo::query::RyoQlQuery;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
+use std::path::Path;
 use tracing_subscriber::prelude::*;
 
 use crate::outbound::engine::interface::EnginePort;
@@ -373,6 +374,7 @@ fn source_inputs(
         }
         let source = std::fs::read_to_string(request.root.join(file.0.as_ref()))?;
         sources.push(CaseSource {
+            executable: executable(&request.root.join(file.0.as_ref()))?,
             path: file.clone(),
             text: SourceText(source.into_boxed_str()),
         });
@@ -422,3 +424,20 @@ fn diagnostic_findings(findings: Vec<linter::Finding>) -> Result<Vec<BenchmarkFi
 #[cfg(test)]
 #[path = "query_module_tests.rs"]
 mod query_module_tests;
+
+/// Observe the actual staged file before transporting an Isolated input into memory.
+fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
+    let metadata = std::fs::metadata(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        Ok(ryo::linter::ExecutablePermission::Posix(
+            metadata.permissions().mode() & 0o111 != 0,
+        ))
+    }
+    #[cfg(not(unix))]
+    {
+        let _metadata = metadata;
+        Ok(ryo::linter::ExecutablePermission::Unsupported)
+    }
+}

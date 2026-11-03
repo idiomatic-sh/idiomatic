@@ -76,6 +76,15 @@ pub fn validate(
             &captured.artifacts,
         ) {
             Ok((raw, documented, contract_only)) => {
+                let recomputed =
+                    super::inventory_receipts::metadata_digest(case).map_err(Error::Invalid)?;
+                if let Some(digest) = recomputed.as_str() {
+                    audit.metadata_verified.push((
+                        key.0.clone(),
+                        key.1.clone(),
+                        crate::domain::suite::types::ArtifactDigest(digest.to_owned()),
+                    ));
+                }
                 audit.verified.push(key);
                 audit.raw_exact += raw;
                 audit.documented_discrepancies += documented;

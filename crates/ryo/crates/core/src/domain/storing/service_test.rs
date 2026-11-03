@@ -77,6 +77,7 @@ fn rules(across: bool) -> Vec<StoredRule> {
 /// The file at `path` as the system lists it.
 fn entry(path: &str, size: u64, modified: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(size),
         modified: Nanoseconds(modified),
@@ -116,6 +117,7 @@ fn finding(file: Option<u32>, subject: &str, line: u32) -> StoredFinding {
 /// what a rule could not decide in `a.rs` and a configuration above the root the project's lookup read.
 fn stored() -> Stored {
     let file = |path: &str, size: u64, modified: u64, tag: u8| StoredFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         digest: Digest([tag; 16]),
         interface: Digest([tag + 1; 16]),
@@ -169,6 +171,7 @@ fn ids() -> Vec<RuleId> {
 /// the digest `frontier`.
 fn record(path: &str, digest: u8, interface: u8, noted: u8, frontier: u8) -> Record {
     Record {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(9),
         modified: Nanoseconds(9),
@@ -251,7 +254,9 @@ fn held_changed() -> Value {
 
 /// Round-trip all stored metadata and retain each file's original word number.
 fn stored_round_trip() -> Value {
-    let kept = stored();
+    let mut kept = stored();
+    kept.files[0].executable = ryo_values::domain::files::types::ExecutablePermission::Posix(false);
+    kept.files[1].executable = ryo_values::domain::files::types::ExecutablePermission::Posix(true);
     let records = records_from(&kept, &ids()).unwrap_or_default();
     let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
     let unknowns = unknowns_from(&kept, &[]);
@@ -443,4 +448,43 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+
+#[test]
+fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions() {
+    use ryo_values::domain::files::types::ExecutablePermission::Posix;
+    for (before, after) in [(false, true), (true, false)] {
+        let mut kept = stored();
+        let mut files = listed();
+        kept.files[0].executable = Posix(before);
+        files[0].executable = Posix(before);
+        assert_eq!(
+            super::service::as_kept(&kept.files[0], &files[0]),
+            ryo_values::domain::records::types::Freshness::AsItWas
+        );
+        assert_eq!(decide(&kept, &rules(true), &files), Decision::Again);
+        let mut fresh = record("a.rs", 10, 11, 12, 5);
+        fresh.size = files[0].size;
+        fresh.modified = files[0].modified;
+        fresh.executable = Posix(before);
+        assert_eq!(
+            made_again(&kept, &[fresh.clone()], &[], &[], &[]),
+            MadeAgain::Nothing
+        );
+        files[0].executable = Posix(after);
+        fresh.executable = Posix(after);
+        assert_eq!(
+            super::service::as_kept(&kept.files[0], &files[0]),
+            ryo_values::domain::records::types::Freshness::Changed
+        );
+        assert_eq!(
+            decide(&kept, &rules(true), &files),
+            Decision::Check(vec![FileOrder(0)])
+        );
+        assert_eq!(
+            made_again(&kept, &[fresh], &[], &[], &[]),
+            MadeAgain::All,
+            "equal byte/interface digests cannot hide changed input observations"
+        );
+    }
 }

@@ -162,6 +162,7 @@ fn words_of_numbers() -> Words {
 
 fn entry() -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath("a.rs".into()),
         size: FileSize(10),
         modified: Nanoseconds(5),
@@ -300,6 +301,7 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
 
 fn replay_scenario(outcome: FileOutcome) -> Value {
     let record = Record {
+        executable: Default::default(),
         path: FilePath("a.rs".into()),
         size: FileSize(1),
         modified: Nanoseconds(1),

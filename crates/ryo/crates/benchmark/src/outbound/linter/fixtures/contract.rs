@@ -47,6 +47,7 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 pub fn check(adapter: &impl LinterPort) {
     let temporary = tempfile::tempdir().expect("isolated linter fixture");
     let request = RunRequest {
+        file_metadata: None,
         context_manifest: None,
         root: PathBuf::new(),
         state: temporary.path().join("state"),

@@ -21,6 +21,51 @@ fn normalized(value: &Value) -> Result<Vec<String>, String> {
     rows.sort();
     Ok(rows)
 }
+/// Decode only declared metadata and recompute its pure framed identity.
+pub(super) fn metadata_digest(case: &Value) -> Result<Value, String> {
+    let files = case["files"]
+        .as_array()
+        .ok_or("registered files are missing")?;
+    let required = !case["file_observation"].is_null();
+    if required && case["file_observation"] != "posix-executable" {
+        return Err("unsupported registered file observation".into());
+    }
+    let metadata = if case["file_metadata"].is_null() {
+        None
+    } else {
+        let values = case["file_metadata"]
+            .as_object()
+            .ok_or("file metadata must be an object")?;
+        let mut parsed = std::collections::BTreeMap::new();
+        for (path, value) in values {
+            crate::domain::suite::service::relative_path(std::path::Path::new(path))
+                .map_err(|error| error.to_string())?;
+            if !files.iter().any(|file| file.as_str() == Some(path)) {
+                return Err("metadata names an undeclared source".into());
+            }
+            parsed.insert(
+                ryo::linter::RelativePath(path.clone().into_boxed_str()),
+                value
+                    .as_bool()
+                    .ok_or("executable observation must be boolean")?,
+            );
+        }
+        Some(parsed)
+    };
+    if required
+        && metadata
+            .as_ref()
+            .is_none_or(|values| values.len() != files.len())
+    {
+        return Err("required input observations are missing".into());
+    }
+    Ok(serde_json::json!(
+        crate::domain::suite::input_metadata::digest(metadata.as_ref())
+            .map_err(|error| error.to_string())?
+            .map(|value| value.0)
+    ))
+}
+
 /// Require exact registered case identities and two actual complete, passing observations.
 pub(super) fn validate(
     cases: &[Value],
@@ -73,6 +118,10 @@ pub(super) fn validate_with_artifacts(
     let mut documented = 0;
     let mut contract_only = 0;
     for case in cases {
+        let metadata = metadata_digest(case)?;
+        if case["file_metadata_sha256"] != metadata {
+            return Err("registered file metadata digest differs".into());
+        }
         let declared = if case["expectation_contract"].is_null() {
             crate::domain::diagnostics::types::ComparisonContract::Diagnostics
         } else {
@@ -120,6 +169,7 @@ pub(super) fn validate_with_artifacts(
                 || !row["error"].is_null()
                 || row["case_passed"] != true
                 || row["source_sha256"] != case["source_sha256"]
+                || row["file_metadata_sha256"] != metadata
                 || row["files"] != case["files"]
                 || normalized(&row["expected"])? != expected
                 || if process {
@@ -180,6 +230,11 @@ pub(super) fn validate_with_artifacts(
         }
         if !certificate.is_null() {
             let proof = &sides[0]["discrepancy_validation"];
+            if proof["file_metadata_sha256"] != metadata
+                || certificate["identity"]["file-metadata-sha256"] != metadata
+            {
+                return Err("discrepancy file metadata identity differs".into());
+            }
             if proof.is_null() || proof != &sides[1]["discrepancy_validation"] {
                 return Err("missing independent discrepancy validation".into());
             }
@@ -398,3 +453,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod input_metadata_test;

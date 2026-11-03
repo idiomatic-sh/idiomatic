@@ -232,6 +232,8 @@ pub struct StoredRule {
 /// A file a run read or used again.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredFile {
+    /// The exact executable-permission observation used to produce this file outcome.
+    pub executable: crate::domain::files::types::ExecutablePermission,
     /// Its path, relative to the root.
     pub path: FilePath,
     /// What its bytes came to.

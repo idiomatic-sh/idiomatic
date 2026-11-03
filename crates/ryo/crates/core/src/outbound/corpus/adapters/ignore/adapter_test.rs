@@ -106,6 +106,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             file.set_len(u64::from(u32::MAX) + 1)
                 .expect("a sparse file");
             let entry = CorpusEntry {
+                executable: Default::default(),
                 path: FilePath("big.bin".into()),
                 size: FileSize(u64::from(u32::MAX) + 1),
                 modified: Nanoseconds(0),
@@ -139,6 +140,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 RootPath(root.path().to_str().expect("a utf-8 path").into()),
                 CorpusListing::Walked,
                 vec![CorpusFile {
+                    executable: Default::default(),
                     path: FilePath("a.rs".into()),
                     bytes: FileBytes(b"fn given() {}".to_vec()),
                 }],
@@ -154,6 +156,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::MissingFile => {
             let root = tempfile::tempdir().expect("a temporary directory");
             let entry = CorpusEntry {
+                executable: Default::default(),
                 path: FilePath("gone.rs".into()),
                 size: FileSize(9),
                 modified: Nanoseconds(0),
@@ -170,6 +173,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let root = tempfile::tempdir().expect("a temporary directory");
             std::fs::write(root.path().join("a.rs"), "fn a() {}").expect("a file");
             let entry = CorpusEntry {
+                executable: Default::default(),
                 path: FilePath("a.rs".into()),
                 size: FileSize(9),
                 modified: Nanoseconds(0),
@@ -296,6 +300,7 @@ fn listed() -> Result<Value, Failure> {
         RootPath(root.path().to_str().expect("a utf-8 path").into()),
         CorpusListing::Listed(vec![FilePath("a.rs".into()), FilePath("gone.rs".into())]),
         vec![CorpusFile {
+            executable: Default::default(),
             path: FilePath("given/b.rs".into()),
             bytes: FileBytes(b"fn b() {}".to_vec()),
         }],
@@ -426,4 +431,42 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[cfg(unix)]
+#[test]
+fn inventory_and_stat_observe_each_posix_execute_bit_without_changing_bytes_or_mtime() {
+    use ryo_values::domain::files::types::ExecutablePermission;
+    use std::os::unix::fs::PermissionsExt as _;
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("case.py");
+    std::fs::write(&path, b"print(1)\n").unwrap();
+    let adapter = walking(RootPath(root.path().to_str().unwrap().into()));
+    let file = FilePath("case.py".into());
+    let crate::outbound::corpus::types::PathStat::Found(original) = adapter.stat(&file).unwrap()
+    else {
+        panic!("file is present");
+    };
+    for (mode, expected) in [
+        (0o644, false),
+        (0o744, true),
+        (0o654, true),
+        (0o645, true),
+        (0o644, false),
+    ] {
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
+        let crate::outbound::corpus::types::PathStat::Found(observed) =
+            adapter.stat(&file).unwrap()
+        else {
+            panic!("file remains present");
+        };
+        assert_eq!(observed.executable, ExecutablePermission::Posix(expected));
+        assert_eq!(observed.size, original.size);
+        assert_eq!(observed.modified, original.modified);
+        assert_eq!(
+            adapter.inventory().unwrap().0[0].executable,
+            observed.executable
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"print(1)\n");
+    }
 }

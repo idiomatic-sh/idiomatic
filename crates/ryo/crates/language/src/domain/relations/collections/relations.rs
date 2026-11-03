@@ -13,6 +13,7 @@ pub mod defines;
 pub mod directive;
 pub mod entry;
 pub mod file_package;
+pub mod filesystem_executable;
 pub mod filesystem_file;
 pub mod filesystem_line_count;
 pub mod format_field;

@@ -81,6 +81,7 @@ pub fn check(adapter: &impl CorpusPort) {
             }
             Scenario::AFileNotListed => {
                 let entry = CorpusEntry {
+                    executable: Default::default(),
                     path: FilePath("this/file/is/not/listed.rs".into()),
                     size: FileSize(0),
                     modified: Nanoseconds(0),

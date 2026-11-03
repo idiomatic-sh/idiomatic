@@ -83,6 +83,7 @@ macro_rules! each_relation {
             engine {
                 FilesystemFile filesystem_file FilesystemFileRow FilesystemFileColumn;
                 FilesystemLineCount filesystem_line_count FilesystemLineCountRow FilesystemLineCountColumn;
+                FilesystemExecutable filesystem_executable FilesystemExecutableRow FilesystemExecutableColumn;
             }
         }
     };

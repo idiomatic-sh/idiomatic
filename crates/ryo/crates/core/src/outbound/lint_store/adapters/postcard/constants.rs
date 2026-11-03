@@ -15,5 +15,8 @@ pub(super) const OUTSIDE: &str = "the table of contents names a section past the
 /// What the store says when a section a run asks for does not read back.
 pub(super) const UNDECODED: &str = "a section of the store does not read back";
 
-/// How long the number that says how long the table of contents is, at the end of the file.
+/// How long the number that says how long the table of contents is, immediately before the checked format trailer.
 pub(super) const LENGTH: u64 = 8;
+
+/// Checked before positional postcard decoding; old stores become ordinary cache misses.
+pub(super) const FORMAT: &[u8] = b"ryo-lint-store\0permissions-v1\0";

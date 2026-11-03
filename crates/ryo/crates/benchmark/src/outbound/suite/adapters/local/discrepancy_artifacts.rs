@@ -54,6 +54,15 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
             "stale reference discrepancy source identity".into(),
         ));
     }
+    if let Some(expected) = artifacts.file_metadata_sha256 {
+        let actual = super::input_metadata::actual_digest(artifacts.root, artifacts.files)
+            .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
+        if actual != expected {
+            return Err(ArtifactError::Invalid(
+                "stale reference discrepancy file metadata identity".into(),
+            ));
+        }
+    }
     let boundary = artifacts.profile.canonicalize()?;
     for evidence in artifacts.evidence {
         relative(&evidence.path)?;

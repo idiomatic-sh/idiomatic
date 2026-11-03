@@ -15,3 +15,5 @@ mod case_observations;
 
 #[cfg(test)]
 mod process_schema_test;
+
+mod input_metadata;

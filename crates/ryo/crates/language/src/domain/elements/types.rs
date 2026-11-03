@@ -513,3 +513,13 @@ impl std::fmt::Write for PropertyText<'_> {
         Ok(())
     }
 }
+
+/// Semantic input required when completing a provider's native syntax population.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CompletionRequirement {
+    /// Completion does not require a prepared file model; preserve legacy provider order.
+    #[default]
+    Independent,
+    /// The common engine must prepare the provider model once before completion.
+    PreparedModel,
+}

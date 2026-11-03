@@ -213,6 +213,11 @@ pub(super) fn verify_reference_cases(
 
 /// Compose the selected reference rule subset with its verified executable.
 pub(super) fn reference(executable: PathBuf, tool: Tool) -> Result<LinterRuffAdapter, Error> {
+    if tool.file_observation.is_some() && !super::super::host::permission_checks_supported() {
+        return Err(Error::Invalid(
+            "pinned reference does not evaluate POSIX executable checks on this host".into(),
+        ));
+    }
     let target_version = ruff_target(tool.parser_configuration.as_deref())?.to_owned();
     Ok(LinterRuffAdapter::new(LinterRuffSettings {
         executable,

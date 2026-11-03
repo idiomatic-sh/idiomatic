@@ -7,6 +7,21 @@ use crate::domain::{
 };
 /// Read external suite artifacts and audit their authored default coverage.
 pub trait SuitePort {
+    /// Reverify declared physical observations before each contestant prepares its input.
+    /// Legacy adapters may handle unspecified metadata; they cannot certify explicit observations.
+    fn validate_file_metadata(
+        &self,
+        request: &crate::domain::suite::types::RunRequest,
+    ) -> Result<(), Error> {
+        if request.file_metadata.is_some() {
+            Err(Error::Invalid(
+                "file metadata verification is unavailable".into(),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
     /// Optional receipt sink chosen at the outer edge; fixtures inject it without global state.
     fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
         None

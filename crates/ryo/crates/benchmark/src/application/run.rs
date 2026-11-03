@@ -27,3 +27,5 @@ mod invocation_identity;
 
 #[cfg(test)]
 mod process_discrepancy_test;
+
+mod input_metadata;

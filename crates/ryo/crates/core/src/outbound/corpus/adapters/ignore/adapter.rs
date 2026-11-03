@@ -111,6 +111,7 @@ fn walked(root: &RootPath, skipped: &SkippedDirectories) -> Result<Vec<CorpusEnt
                         return WalkState::Continue;
                     };
                     sender.send(Ok(CorpusEntry {
+                        executable: executable(&meta),
                         path: with_separator(
                             PlatformPath(&relative.to_string_lossy()),
                             NativeSeparator(std::path::MAIN_SEPARATOR),
@@ -151,6 +152,7 @@ fn listed(
         .par_iter()
         .map(|path| match std::fs::metadata(base.join(&*path.0)) {
             Ok(meta) => Ok(meta.is_file().then(|| CorpusEntry {
+                executable: executable(&meta),
                 path: path.clone(),
                 size: FileSize(meta.len()),
                 modified: modified(&meta),
@@ -237,6 +239,7 @@ impl CorpusPort for CorpusIgnoreAdapter {
         if !self.beside.is_empty() {
             entries.retain(|entry| self.beside.iter().all(|given| given.path != entry.path));
             entries.extend(self.beside.iter().map(|given| CorpusEntry {
+                executable: given.executable,
                 path: given.path.clone(),
                 size: FileSize(u64::try_from(given.bytes.0.len()).unwrap_or(u64::MAX)),
                 modified: given_date(&given.bytes),
@@ -294,6 +297,7 @@ impl CorpusPort for CorpusIgnoreAdapter {
     ) -> Result<PathStat, CorpusError> {
         if let Some(given) = self.beside.iter().find(|given| given.path == *path) {
             return Ok(PathStat::Found(CorpusEntry {
+                executable: given.executable,
                 path: given.path.clone(),
                 size: FileSize(u64::try_from(given.bytes.0.len()).unwrap_or(u64::MAX)),
                 modified: given_date(&given.bytes),
@@ -303,4 +307,19 @@ impl CorpusPort for CorpusIgnoreAdapter {
             .pop()
             .map_or(PathStat::Missing, PathStat::Found))
     }
+}
+
+/// Observe only the platform's actual permission model; reference WSL policy stays at its edge.
+#[cfg(unix)]
+fn executable(
+    metadata: &std::fs::Metadata,
+) -> ryo_values::domain::files::types::ExecutablePermission {
+    use std::os::unix::fs::PermissionsExt as _;
+    ryo_values::domain::files::types::ExecutablePermission::Posix(
+        metadata.permissions().mode() & 0o111 != 0,
+    )
+}
+#[cfg(not(unix))]
+fn executable(_: &std::fs::Metadata) -> ryo_values::domain::files::types::ExecutablePermission {
+    ryo_values::domain::files::types::ExecutablePermission::Unsupported
 }

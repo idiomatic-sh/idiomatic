@@ -56,6 +56,11 @@ pub(super) fn validate(
     {
         return Err("reference process variant or exact termination identity differs".into());
     }
+    if identity["file-metadata-sha256"] != case["file_metadata_sha256"]
+        || proof["file_metadata_sha256"] != case["file_metadata_sha256"]
+    {
+        return Err("process certificate file metadata identity differs".into());
+    }
     let root = reference["actual_request_root"]
         .as_str()
         .ok_or("process receipt request root is missing")?;
@@ -110,6 +115,7 @@ pub(super) fn validate(
         ("actual_request_root", &reference["actual_request_root"]),
         ("files", &case["files"]),
         ("source_sha256", &case["source_sha256"]),
+        ("file_metadata_sha256", &case["file_metadata_sha256"]),
         ("executable_sha256", &proof["actual_executable_sha256"]),
         ("settings_sha256", &identity["settings-sha256"]),
         ("profile_sha256", &identity["profile-sha256"]),

@@ -127,6 +127,7 @@ fn public_sdk_reads_comments_with_every_enabled_provider() {
         .map(|(path, text, _)| {
             std::fs::write(root.path().join(path), text).expect("source file");
             CaseSource {
+                executable: Default::default(),
                 path: RelativePath((*path).into()),
                 text: SourceText((*text).into()),
             }
@@ -295,6 +296,7 @@ fn files_given_as_text_fill_the_project_relations_as_the_same_files_walked_on_di
     let sources: Vec<CaseSource> = WORKSPACE
         .iter()
         .map(|(path, text)| CaseSource {
+            executable: Default::default(),
             path: RelativePath((*path).into()),
             text: SourceText((*text).into()),
         })

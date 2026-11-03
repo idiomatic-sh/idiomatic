@@ -62,7 +62,17 @@ pub(super) fn write(
             .map(|file| std::path::PathBuf::from(file.0.as_ref()))
             .collect::<Vec<_>>(),
     );
-    let source_error = source_identity.as_ref().err().map(ToString::to_string);
+    let metadata_identity =
+        crate::domain::suite::input_metadata::digest(case.request.file_metadata.as_ref());
+    let metadata_error = metadata_identity.as_ref().err().map(ToString::to_string);
+    let metadata_sha256 = metadata_identity.ok().flatten().map(|value| value.0);
+    let source_error = source_identity
+        .as_ref()
+        .err()
+        .map(ToString::to_string)
+        .or_else(|| {
+            metadata_error.map(|reason| format!("file metadata identity unavailable: {reason}"))
+        });
     let source_sha256 = source_identity.ok();
     let recorded_error = match (error, source_error.as_deref()) {
         (Some(error), Some(source)) => {
@@ -111,9 +121,15 @@ pub(super) fn write(
         "case_passed": passed && source_error.is_none(),
         "complete": true,
     });
+    if let Some(digest) = &metadata_sha256 {
+        record["file_metadata_sha256"] = serde_json::json!(digest);
+    }
     let mut raw_invocation = capture.map(|capture| capture.invocation.clone());
     if let Some(invocation) = &mut raw_invocation {
         invocation["source_sha256"] = serde_json::json!(source_sha256);
+        if let Some(digest) = &metadata_sha256 {
+            invocation["file_metadata_sha256"] = serde_json::json!(digest);
+        }
         record["process_observation"] = serde_json::json!({
             "kind":"process-failure", "exit":invocation["exit"], "signal":invocation["signal"],
             "actual_request_root":invocation["actual_request_root"], "observer_no_deadline":invocation["observer_no_deadline"],

@@ -59,6 +59,7 @@ fn public_sdk_cache_tracks_given_source_edits_deletion_and_filters() {
     let cache = tempfile::tempdir().expect("consumer cache");
     let languages = Languages(vec![ryo_rust::linked()]);
     let source = |name: &str, text: &str| CaseSource {
+        executable: Default::default(),
         path: RelativePath(name.into()),
         text: SourceText(text.into()),
     };

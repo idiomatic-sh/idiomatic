@@ -214,7 +214,8 @@ pub(crate) fn shaped(
                 | Relation::FilePackage
                 | Relation::ModuleIdentity
                 | Relation::FilesystemFile
-                | Relation::FilesystemLineCount => None,
+                | Relation::FilesystemLineCount
+                | Relation::FilesystemExecutable => None,
             },
         })
     };

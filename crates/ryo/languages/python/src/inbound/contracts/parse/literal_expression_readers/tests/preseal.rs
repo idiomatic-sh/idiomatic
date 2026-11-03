@@ -234,3 +234,87 @@ fn unicode_and_escaped_carriers_use_the_existing_single_mapping_writer() {
         assert_eq!(embedded.rows[1][1], embedded.rows[0][0]);
     }
 }
+
+#[test]
+fn complete_relation_rows_do_not_depend_on_demand_order() {
+    fn run(order: &[languages::Relation]) -> Vec<(languages::Relation, Vec<Vec<String>>)> {
+        let source = b"Alias = list[\"'T'\"]\nvalue = env[\"ordinary_key\"]\n";
+        let (syntax, count) = observed_ruff_python_parser();
+        let parse = ParseContract::new(
+            PythonParserSettings::new(PythonTargetVersion::Py310),
+            Arc::new(syntax),
+            Arc::new(postcard()),
+        );
+        let (mut elements, mut symbols) = (
+            languages::Elements::default(),
+            languages::Symbols::default(),
+        );
+        build(&parse, source, &mut elements, &mut symbols);
+        let mut result = Vec::new();
+        for &relation in order {
+            let mut out = languages::contract::Collect::default();
+            languages::contract::walk(
+                &parse,
+                &mut elements,
+                &mut symbols,
+                ByteSlice(source),
+                languages::FileId(0),
+                &[relation],
+                &mut out,
+            );
+            assert!(out.partials.is_empty());
+            assert!(out.partials_at.is_empty());
+            // These are the Symbol columns of the three actual typed row schemas.
+            // Normalize only symbol handles; retain every node/file/span/number cell.
+            let symbol_columns: &[usize] = match relation {
+                languages::Relation::SemanticSyntax
+                | languages::Relation::LiteralExpressionParse => &[1, 2],
+                languages::Relation::EmbeddedExpression => &[2, 3],
+                _ => unreachable!("this fixture demands exactly three relations"),
+            };
+            let mut rows = out
+                .rows()
+                .into_iter()
+                .map(|(actual, row)| {
+                    assert_eq!(actual, relation);
+                    row.into_iter()
+                        .enumerate()
+                        .map(|(column, word)| {
+                            if symbol_columns.contains(&column) {
+                                languages::text_of(
+                                    &symbols,
+                                    ByteSlice(source),
+                                    languages::Symbol(u32::try_from(word).unwrap()),
+                                )
+                                .map_or_else(
+                                    || "absent-symbol".to_owned(),
+                                    |text| format!("text:{}", text.0),
+                                )
+                            } else {
+                                format!("bits:{word}")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+            assert!(!rows.is_empty(), "{relation:?}");
+            rows.sort();
+            result.push((relation, rows));
+        }
+        assert_eq!(parse.model_preparation_count(), 1);
+        assert_eq!(count.load(Ordering::Relaxed), 1);
+        result.sort_by_key(|(relation, _)| *relation);
+        result
+    }
+    let forward = [
+        languages::Relation::LiteralExpressionParse,
+        languages::Relation::SemanticSyntax,
+        languages::Relation::EmbeddedExpression,
+    ];
+    let reverse = [
+        languages::Relation::EmbeddedExpression,
+        languages::Relation::SemanticSyntax,
+        languages::Relation::LiteralExpressionParse,
+    ];
+    assert_eq!(run(&forward), run(&reverse));
+}

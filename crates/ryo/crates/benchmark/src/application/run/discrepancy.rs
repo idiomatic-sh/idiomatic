@@ -120,6 +120,7 @@ fn convert(
         evidence,
         reason: wire.reason,
         identity: ReferenceDiscrepancyIdentity {
+            file_metadata_sha256: identity.file_metadata_sha256.map(digest).transpose()?,
             tool: identity.tool.into(),
             version: identity.version.into(),
             observed_executable_sha256: digest(identity.observed_executable_sha256)?,
@@ -287,10 +288,16 @@ pub(super) fn validate(
             root: &case.request.root,
             files: &files,
             source_sha256: &identity.source_sha256.0,
+            file_metadata_sha256: identity
+                .file_metadata_sha256
+                .as_ref()
+                .map(|value| value.0.as_str()),
             evidence: &evidence,
         })
         .map_err(|error| Error::Invalid(error.to_string()))?;
-    if settings != identity.settings_sha256
+    if crate::domain::suite::input_metadata::digest(case.request.file_metadata.as_ref())?
+        != identity.file_metadata_sha256
+        || settings != identity.settings_sha256
         || output_digest(&case.expected) != identity.intended_output_sha256
         || reference_digest(&item.expected) != identity.reference_output_sha256
     {
@@ -308,7 +315,7 @@ pub(super) fn validate(
             &actual_executable,
         )?;
     }
-    Ok(Some(serde_json::json!({
+    let mut validation = serde_json::json!({
         "process_observation_group_sha256": super::process_discrepancy::expected(case).map(|process|super::process_discrepancy::group_digest(process,&actual_executable.0)).transpose()?.map(|value|value.0),
         "reference_expectation_kind": if super::process_discrepancy::expected(case).is_some() { "process-failure" } else { "diagnostics" },
         "settings_sha256": settings.0,
@@ -317,7 +324,11 @@ pub(super) fn validate(
         "source_sha256": identity.source_sha256.0,
         "reference_output_sha256": identity.reference_output_sha256.0,
         "intended_output_sha256": identity.intended_output_sha256.0,
-    })))
+    });
+    if let Some(digest) = &identity.file_metadata_sha256 {
+        validation["file_metadata_sha256"] = serde_json::json!(digest.0);
+    }
+    Ok(Some(validation))
 }
 
 /// Approved native binaries may differ from the binary used in the original observation.

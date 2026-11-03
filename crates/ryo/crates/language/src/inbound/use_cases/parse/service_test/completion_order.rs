@@ -60,7 +60,10 @@ impl ParseUseCase for Ordered {
 #[test]
 fn default_requirement_preserves_completion_before_each_model_and_real_reader_results() {
     let provider = Ordered::default();
-    assert!(!provider.completion_requires_model());
+    assert_eq!(
+        provider.completion_requirement(),
+        crate::domain::elements::types::CompletionRequirement::Independent
+    );
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     build(
         &provider,

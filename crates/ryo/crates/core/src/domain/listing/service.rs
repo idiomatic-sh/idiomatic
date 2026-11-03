@@ -20,6 +20,7 @@ pub(crate) fn every_file(files: &[CorpusEntry], fresh: Fresh, failed: &[FilePath
         }
         if failed.binary_search(&file.path).is_err() {
             records.push(Record {
+                executable: file.executable,
                 path: file.path.clone(),
                 size: file.size,
                 modified: file.modified,

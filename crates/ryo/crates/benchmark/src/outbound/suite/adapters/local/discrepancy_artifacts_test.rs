@@ -24,7 +24,47 @@ fn source_identity_uses_utf8_name_order_on_every_platform() {
         source_sha256: fixture["source_sha256"]
             .as_str()
             .expect("Python source digest"),
+        file_metadata_sha256: None,
         evidence: &[],
     })
     .expect("identical UTF8 digest with BMP and supplementary-plane filenames");
+}
+
+#[cfg(unix)]
+#[test]
+fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
+    use std::os::unix::fs::PermissionsExt as _;
+    for expected in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let files = vec![std::path::PathBuf::from("case.py")];
+        let file = root.path().join(&files[0]);
+        std::fs::write(&file, b"same bytes").unwrap();
+        let mode = if expected { 0o744 } else { 0o644 };
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(mode)).unwrap();
+        let source = source_digest(root.path(), &files).unwrap();
+        let metadata = crate::outbound::suite::adapters::local::input_metadata::actual_digest(
+            root.path(),
+            &files,
+        )
+        .unwrap();
+        let check = || {
+            verify(CaseArtifacts {
+                profile: root.path(),
+                root: root.path(),
+                files: &files,
+                source_sha256: &source,
+                file_metadata_sha256: Some(&metadata),
+                evidence: &[],
+            })
+        };
+        check().unwrap();
+        std::fs::set_permissions(
+            &file,
+            std::fs::Permissions::from_mode(if expected { 0o644 } else { 0o744 }),
+        )
+        .unwrap();
+        assert!(check().is_err());
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(mode)).unwrap();
+        check().unwrap();
+    }
 }

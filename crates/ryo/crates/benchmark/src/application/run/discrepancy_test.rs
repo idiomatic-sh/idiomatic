@@ -34,6 +34,7 @@ fn case() -> PreparedCase {
         rule: ryo::linter::RuleId::try_from("F821").expect("valid ID"),
         name: "independent-contract".into(),
         request: RunRequest {
+            file_metadata: None,
             root: ".".into(),
             state: "cache".into(),
             files: report.files.clone(),
@@ -54,6 +55,7 @@ fn case() -> PreparedCase {
 /// Distinct native approved digests model different operating system distributions.
 fn identity() -> ReferenceDiscrepancyIdentity {
     ReferenceDiscrepancyIdentity {
+        file_metadata_sha256: None,
         tool: "fixture".into(),
         version: "1.0".into(),
         observed_executable_sha256: ArtifactDigest("a".repeat(64)),
@@ -97,6 +99,7 @@ fn wrong_oracle_cannot_satisfy_the_intended_candidate_contract() {
 fn approved_platform_digest_can_differ_from_observed_evidence_binary() {
     let identity = identity();
     let profile = Tool {
+        file_observation: None,
         project_context_mode: ProjectContextMode::Isolated,
         tool: "fixture".into(),
         version: "1.0".into(),

@@ -58,6 +58,7 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
         },
     };
     let request = RunRequest {
+        file_metadata: None,
         context_manifest: None,
         root: ".".into(),
         state: "cache".into(),

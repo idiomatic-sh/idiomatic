@@ -113,6 +113,7 @@ fn plan(steps: usize) -> Plan {
 
 fn entry(path: &str, size: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(size),
         modified: Nanoseconds(0),
@@ -121,6 +122,7 @@ fn entry(path: &str, size: u64) -> CorpusEntry {
 
 fn record(path: &str) -> Record {
     Record {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(0),
         modified: Nanoseconds(0),

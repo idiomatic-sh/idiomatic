@@ -423,6 +423,7 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
             Vec::new()
         } else {
             vec![CorpusFile {
+                executable: Default::default(),
                 path: FilePath("source".into()),
                 bytes: FileBytes(bytes.to_vec()),
             }]
@@ -433,6 +434,7 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
     };
     let service = CrossFile::new(std::sync::Arc::new(corpus));
     let files = [CorpusEntry {
+        executable: Default::default(),
         path: FilePath("source".into()),
         size: FileSize(3),
         modified: Nanoseconds(0),

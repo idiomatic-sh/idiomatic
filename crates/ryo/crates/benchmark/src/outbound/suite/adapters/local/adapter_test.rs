@@ -208,6 +208,7 @@ expected = []
     )
     .expect("oracle cases");
     let tool = crate::domain::suite::types::Tool {
+        file_observation: None,
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
@@ -390,6 +391,7 @@ fn verify_discrepancy_fixture(
             root,
             files: &files,
             source_sha256: &wire.discrepancy.identity.source_sha256,
+            file_metadata_sha256: wire.discrepancy.identity.file_metadata_sha256.as_deref(),
             evidence: &evidence,
         },
     )
@@ -423,3 +425,5 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
         );
     }
 }
+
+mod input_metadata;

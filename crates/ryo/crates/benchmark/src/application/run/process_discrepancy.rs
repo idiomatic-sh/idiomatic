@@ -109,6 +109,7 @@ pub(super) fn matches(
         || capture.invocation["executable_sha256"] != validation["actual_executable_sha256"]
         || capture.invocation["settings_sha256"] != validation["settings_sha256"]
         || capture.invocation["profile_sha256"] != validation["profile_sha256"]
+        || capture.invocation["file_metadata_sha256"] != validation["file_metadata_sha256"]
     {
         return Err(Error::Invalid(
             "actual process identity is not the validated exact observation group".into(),
@@ -148,6 +149,7 @@ pub(super) fn matches(
             profile: profile_root,
             root: &case.request.root,
             files: &files,
+            file_metadata_sha256: validation["file_metadata_sha256"].as_str(),
             source_sha256: validation["source_sha256"]
                 .as_str()
                 .ok_or_else(|| Error::Invalid("missing validated source identity".into()))?,
@@ -249,6 +251,8 @@ pub(super) fn validate_archives(
             || metadata["executable_sha256"] != observation.executable_sha256.0
             || metadata["profile_sha256"] != identity.profile_sha256.0
             || metadata["source_sha256"] != identity.source_sha256.0
+            || metadata["file_metadata_sha256"]
+                != serde_json::json!(identity.file_metadata_sha256.as_ref().map(|value| &value.0))
             || metadata["settings_sha256"] != identity.settings_sha256.0
             || metadata["tool"] != profile.tool.0.as_str()
             || metadata["version"] != profile.version.0.as_str()

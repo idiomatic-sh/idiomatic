@@ -47,10 +47,10 @@ pub trait ParseUseCase: Send + Sync {
     /// keeps and writes the file's, and the readers of the file read it.
     fn file_model(&self, tree: &Tree<'_>, model: &mut Self::FileModel);
 
-    /// Whether completing this provider's syntax requires its initialized file model.
+    /// The semantic model input needed while completing this provider's syntax.
     /// The common engine owns initialization and readiness; providers only declare this input.
-    fn completion_requires_model(&self) -> bool {
-        false
+    fn completion_requirement(&self) -> crate::domain::elements::types::CompletionRequirement {
+        crate::domain::elements::types::CompletionRequirement::Independent
     }
 
     /// Extend only model entries for newly appended expressions; native resolution stays valid.

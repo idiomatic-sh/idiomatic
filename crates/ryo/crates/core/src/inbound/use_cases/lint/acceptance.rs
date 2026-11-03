@@ -34,6 +34,7 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScop
 /// A file of the corpus at `path`, holding one function.
 fn file(path: &str) -> CorpusFile {
     CorpusFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         bytes: FileBytes(b"fn main() {}".to_vec()),
     }

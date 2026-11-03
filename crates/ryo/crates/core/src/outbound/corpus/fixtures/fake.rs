@@ -46,6 +46,7 @@ impl CorpusPort for CorpusFake {
             self.files
                 .iter()
                 .map(|file| CorpusEntry {
+                    executable: file.executable,
                     path: file.path.clone(),
                     size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                     modified: written(&file.bytes.0),
@@ -85,6 +86,7 @@ impl CorpusPort for CorpusFake {
             .chain(&self.outside)
             .find(|file| file.path == *path)
             .map(|file| CorpusEntry {
+                executable: file.executable,
                 path: file.path.clone(),
                 size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                 modified: written(&file.bytes.0),

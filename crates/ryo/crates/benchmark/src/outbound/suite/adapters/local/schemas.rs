@@ -7,6 +7,9 @@ use std::collections::BTreeMap;
 #[serde(deny_unknown_fields)]
 /// Pinned reference profile and explicit default-rule accounting.
 struct ToolSchema {
+    /// Generic whole-profile input observation requirement.
+    #[serde(default, rename = "file-observation")]
+    file_observation: Option<String>,
     #[serde(default, rename = "project-context-mode")]
     /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
@@ -69,6 +72,9 @@ struct CasesSchema {
 #[serde(deny_unknown_fields)]
 /// One independent source example.
 struct CaseSchema {
+    /// Explicit POSIX executable observations for declared source files.
+    #[serde(default, rename = "file-metadata")]
+    file_metadata: Option<BTreeMap<String, bool>>,
     #[serde(default)]
     /// Optional explicit per-case project context; isolated cases omit it.
     context: Option<CaseContextSchema>,
@@ -175,6 +181,15 @@ impl TryFrom<ToolSchema> for types::Tool {
             ));
         }
         Ok(Self {
+            file_observation: match wire.file_observation.as_deref() {
+                None => None,
+                Some("posix-executable") => Some(types::FileObservation::PosixExecutable),
+                Some(_) => {
+                    return Err(Error::Invalid(
+                        "unsupported file observation requirement".into(),
+                    ));
+                }
+            },
             project_context_mode: wire.project_context_mode.into(),
             tool: wire.tool.into(),
             version: wire.version.into(),
@@ -273,6 +288,14 @@ impl TryFrom<CasesSchema> for types::Cases {
                 .into_iter()
                 .map(|case| {
                     Ok(types::Case {
+                        file_metadata: case.file_metadata.map(|values| {
+                            values
+                                .into_iter()
+                                .map(|(path, executable)| {
+                                    (ryo::linter::RelativePath(path.into_boxed_str()), executable)
+                                })
+                                .collect()
+                        }),
                         reference_discrepancy: None,
                         context: case.context.map(Into::into),
                         comparison: match case.comparison {

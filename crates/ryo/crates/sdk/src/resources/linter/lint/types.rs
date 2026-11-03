@@ -1,5 +1,8 @@
 //! The types of `linter lint`: what a caller states and what comes back. They are the SDK's own: nothing of the core is in them.
 
+/// Edge-observed POSIX executable-bit knowledge, independent of file content.
+pub use ryo_values::domain::files::types::ExecutablePermission;
+
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
@@ -239,6 +242,8 @@ pub struct SourceText(pub Box<str>);
 /// A file given as text, for the run to read instead of the disk.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CaseSource {
+    /// Explicit edge observation; unknown preserves text-only input semantics.
+    pub executable: ExecutablePermission,
     /// The file, relative to the root.
     pub path: RelativePath,
     /// What it holds.

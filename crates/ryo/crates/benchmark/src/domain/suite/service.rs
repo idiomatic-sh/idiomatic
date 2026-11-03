@@ -112,6 +112,16 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         for name in case.files.keys() {
             relative_path(name.0.as_ref())?;
         }
+        if let Some(values) = &case.file_metadata {
+            for name in values.keys() {
+                relative_path(name.0.as_ref())?;
+                if !case.files.contains_key(name) {
+                    return Err(Error::Invalid(
+                        "file metadata names an undeclared source".into(),
+                    ));
+                }
+            }
+        }
         if case.reference_discrepancy.is_some()
             && case.comparison != super::types::CaseComparison::Full
         {

@@ -32,7 +32,11 @@ fn stored_at<'a>(stored: &'a Stored, path: &FilePath) -> Option<&'a StoredFile> 
 #[must_use]
 pub(crate) fn as_kept(kept: &StoredFile, file: &CorpusEntry) -> Freshness {
     // A time the system does not know says nothing of the file.
-    if kept.size == file.size && kept.modified == file.modified && file.modified != Nanoseconds(0) {
+    if kept.size == file.size
+        && kept.modified == file.modified
+        && kept.executable == file.executable
+        && file.modified != Nanoseconds(0)
+    {
         Freshness::AsItWas
     } else {
         Freshness::Changed
@@ -136,6 +140,9 @@ pub(crate) fn made_again(
         let Some(kept) = stored.files.get(place) else {
             return MadeAgain::All;
         };
+        if record.executable != kept.executable {
+            return MadeAgain::All;
+        }
         if record.digest == kept.digest {
             continue;
         }
@@ -232,6 +239,7 @@ pub(crate) fn records_from(stored: &Stored, ids: &[RuleId]) -> Option<Vec<Record
                 noted: file.noted,
             };
             Some(Record {
+                executable: file.executable,
                 path: file.path.clone(),
                 size: file.size,
                 modified: file.modified,
@@ -399,6 +407,7 @@ pub(crate) fn stored_of<W>(
                 }));
         }
         stored.files.push(StoredFile {
+            executable: record.executable,
             path: record.path,
             digest: record.digest,
             noted: ran.map_or(Digest([0; 16]), |ran| ran.noted),

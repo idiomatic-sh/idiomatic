@@ -16,7 +16,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     input: || (),
     // 55 syntax facts, including decoded byte literals and format specifications,
     // six manifest facts, and two engine filesystem facts.
-    expect: Expect::Value(64),
+    expect: Expect::Value(65),
 }];
 
 fn subject((): Input) -> Result<Value, Failure> {

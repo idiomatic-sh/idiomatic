@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
-from authoring.case_receipt_adapter import verified_process_ids
+from authoring.case_receipt_adapter import verified_case_ids
 
 
 class ReceiptAdapterTests(unittest.TestCase):
@@ -30,7 +30,7 @@ class ReceiptAdapterTests(unittest.TestCase):
     def run_audit(self, audit=None, code=0):
         result = subprocess.CompletedProcess([], code, json.dumps(self.audit if audit is None else audit).encode(), b'')
         with patch.dict(os.environ, self.environment, clear=True), patch('authoring.case_receipt_adapter.subprocess.run', return_value=result) as run:
-            answer = verified_process_ids(self.inventory, self.records, self.receipt)
+            answer = verified_case_ids(self.inventory, self.records, self.receipt)
             self.assertEqual(run.call_args.args[0][1], 'validate-case-receipts')
             self.assertEqual(run.call_args.args[0][-1], str(self.receipt.resolve()))
             return answer
@@ -38,7 +38,7 @@ class ReceiptAdapterTests(unittest.TestCase):
     def test_pinned_shared_audit_is_mandatory(self):
         self.assertEqual(self.run_audit(), frozenset({'A001/one'}))
         with patch.dict(os.environ, {}, clear=True), self.assertRaises(ValueError):
-            verified_process_ids(self.inventory, self.records, self.receipt)
+            verified_case_ids(self.inventory, self.records, self.receipt)
         self.executable.write_bytes(b'changed')
         with self.assertRaises(ValueError): self.run_audit()
 
@@ -53,9 +53,21 @@ class ReceiptAdapterTests(unittest.TestCase):
     def test_in_memory_mutation_refuses_before_delegation(self):
         self.records[0]['side'] = 'candidate'
         with patch.dict(os.environ, self.environment, clear=True), patch('authoring.case_receipt_adapter.subprocess.run') as run, self.assertRaises(ValueError):
-            verified_process_ids(self.inventory, self.records, self.receipt)
+            verified_case_ids(self.inventory, self.records, self.receipt)
         run.assert_not_called()
 
     def test_diagnostic_only_receipts_need_no_process_validator(self):
         with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(verified_process_ids([{'reference_discrepancy': None}], [], None), frozenset())
+            self.assertEqual(verified_case_ids([{'reference_discrepancy': None}], [], None), frozenset())
+
+    def test_old_collector_cannot_claim_new_metadata_contract_and_current_witness_is_bound(self):
+        from authoring.case_receipt_adapter import file_metadata_digest
+        digest = file_metadata_digest({'input.txt': False})
+        self.inventory[0].update(file_observation='posix-executable', file_metadata={'input.txt': False}, file_metadata_sha256=digest)
+        with self.assertRaisesRegex(ValueError, 'did not verify required file metadata'):
+            self.run_audit()  # Exact legacy audit/v1 shape lacks a metadata verification witness.
+        current = dict(self.audit, file_metadata_verified_cases=[{'rule': 'A001', 'name': 'one', 'sha256': digest}])
+        self.assertEqual(self.run_audit(current), frozenset({'A001/one'}))
+        current['file_metadata_verified_cases'][0]['sha256'] = file_metadata_digest({'input.txt': True})
+        with self.assertRaisesRegex(ValueError, 'metadata witness identity differs'):
+            self.run_audit(current)

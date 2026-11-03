@@ -11,3 +11,9 @@ mod service_test;
 
 /// Exact reference process observations; independent of any linter.
 pub mod process;
+
+/// Canonical identity for optional declared input metadata.
+pub mod input_metadata;
+
+#[cfg(test)]
+mod input_metadata_test;

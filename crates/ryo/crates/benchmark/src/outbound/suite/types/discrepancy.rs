@@ -46,6 +46,9 @@ pub struct ReferenceFindingWire {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ReferenceIdentityWire {
+    /// Separate optional case metadata identity, mandatory when observations are declared.
+    #[serde(default)]
+    pub file_metadata_sha256: Option<String>,
     /// Reference name.
     pub tool: String,
     /// Pinned version.
@@ -108,6 +111,8 @@ pub struct CaseArtifacts<'a> {
     pub files: &'a [PathBuf],
     /// Exact filename/source digest.
     pub source_sha256: &'a str,
+    /// Optional exact digest of all actual file observations.
+    pub file_metadata_sha256: Option<&'a str>,
     /// Explicit independently authored evidence artifacts.
     pub evidence: &'a [EvidenceArtifact],
 }

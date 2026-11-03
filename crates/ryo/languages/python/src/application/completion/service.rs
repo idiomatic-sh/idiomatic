@@ -8,7 +8,7 @@ use crate::{
 };
 use ryo::languages;
 
-/// The model is an explicit input promised by Parse::completion_requires_model.
+/// The model is an explicit input promised by Parse::completion_requirement.
 #[expect(
     clippy::expect_used,
     reason = "the common engine prepares exactly Parse::FileModel before this provider's completion; absence is a programmer contract violation and must not become false semantic absence"

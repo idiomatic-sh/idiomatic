@@ -47,6 +47,7 @@ use ryo_values::domain::stores::types::{FindingMade, Stored};
 
 /// What a row gives the use case: the ports it calls, the rules and the files linted.
 struct Given {
+    outside_executable: ryo_values::domain::files::types::ExecutablePermission,
     files: Vec<(&'static str, &'static str)>,
     /// Files on the disk the corpus does not list, such as those above the root.
     outside: Vec<(&'static str, &'static str)>,
@@ -230,6 +231,7 @@ fn host_placed() -> HostRelation {
 /// Every function of `a.rs` and `b.rs` is a violation, `notes.txt` is read by no language.
 fn violations() -> Given {
     Given {
+        outside_executable: Default::default(),
         files: SOURCES.to_vec(),
         outside: Vec::new(),
         corpus_fails: false,
@@ -449,11 +451,20 @@ fn scheduled_world_with_query_kernel(
     let language = Arc::new(given.language);
     let reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let corpus_file = |(path, text): &(&str, &str)| CorpusFile {
+        executable: Default::default(),
         path: FilePath((*path).into()),
         bytes: FileBytes(text.as_bytes().to_vec()),
     };
     let files = given.files.iter().map(corpus_file);
-    let outside = given.outside.iter().map(corpus_file).collect();
+    let outside = given
+        .outside
+        .iter()
+        .map(corpus_file)
+        .map(|mut file| {
+            file.executable = given.outside_executable;
+            file
+        })
+        .collect();
     let use_case = {
         let analysis_corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort> =
             Arc::new(CorpusFake {
@@ -1965,4 +1976,39 @@ fn project_reuse_frames_root_and_repository_and_keeps_dependency_evidence() {
         0,
         "nonproject cache identity is unchanged by root and mode"
     );
+}
+
+#[test]
+fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() {
+    use ryo_values::domain::files::types::ExecutablePermission;
+    for before in [false, true] {
+        for changed in [false, true] {
+            let store = Arc::new(LintStoreFake::default());
+            let given = |executable| Given {
+                files: vec![
+                    SOURCES[0],
+                    SOURCES[1],
+                    ("project.manifest.fake", "members = 1"),
+                ],
+                outside: vec![("../config.fake", "target = 1")],
+                outside_executable: ExecutablePermission::Posix(executable),
+                store: Arc::clone(&store),
+                root: "root",
+                query: Arc::new(reading_the_project()),
+                language: LanguageFake {
+                    consulted: vec![FilePath("../config.fake".into())],
+                    ..LanguageFake::default()
+                },
+                ..violations()
+            };
+            assert_eq!(counted_lint(given(before)).unwrap().0, 1);
+            assert_eq!(
+                counted_lint(given(if changed { !before } else { before }))
+                    .unwrap()
+                    .0,
+                usize::from(changed),
+                "consulted metadata must invalidate even when source digest is equal"
+            );
+        }
+    }
 }
