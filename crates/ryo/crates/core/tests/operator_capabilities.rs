@@ -45,30 +45,34 @@ fn production_paths() -> (String, String, String, String) {
     )
 }
 fn lease_scaffold(types: &str, interface: &str, kinds: &str) -> String {
-    let representations = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/domain/table_model/collections/representations");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let representations = root.join("src/domain/table_model/collections/representations");
     let representation_types = rust_path_literal(&representations.join("types.rs"));
     let publication = rust_path_literal(&representations.join("publication.rs"));
+    let portable = rust_path_literal(&root.join("../operators/src/domain/contract/types.rs"));
     let base = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
+extern crate self as ryo_relations;
+extern crate self as ryo_operators;
 extern crate self as ryo_values;
 extern crate self as regex_automata;
 extern crate self as hashbrown;
 pub struct HashTable<T>(std::marker::PhantomData<T>);
 pub mod meta {pub struct Regex;}
 pub mod domain {
- pub mod operating {pub mod errors{#[derive(Clone,Debug)]pub struct OperatingError;}pub mod types{#[derive(Clone,Copy)]pub struct InputPlace(pub usize);pub trait SemanticLookup:std::fmt::Debug{}}}
+ pub mod contract {#[path=__PORTABLE__]pub mod types;}
+ pub mod operating {pub mod errors{#[derive(Clone,Debug)]pub enum OperatingError{WrongOperation,ShapeMismatch,InvalidSpanBounds,InvalidSpan,Table} }pub mod types{#[derive(Clone,Copy)]pub struct InputPlace(pub usize);pub trait SemanticLookup:std::fmt::Debug{}}}
  pub mod relations {pub mod types {#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct CellKind;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Value;#[derive(Clone,Copy)]pub struct ColumnsView<'a>(pub &'a ());pub struct Position;}}
  pub mod symbols {pub mod types {pub struct Symbols;pub struct QuerySymbols<'a>(pub &'a mut Symbols);impl QuerySymbols<'_>{pub fn as_ref(&self)->&Symbols {self.0}}}}
  pub mod files {pub mod types {pub struct FilePath;}}
- pub mod plan_parts {pub mod types {#[derive(Clone,Debug)]pub struct Inputs;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct ColumnIndex;#[derive(Clone,Debug)]pub struct LiteralText;#[derive(Clone,Debug)]pub struct Comparison;}}
+ pub mod plan_parts {pub mod types {#[derive(Clone,Debug)]pub struct Inputs;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct ColumnIndex;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct InputNumber;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct JoinColumn;#[derive(Clone,Debug)]pub struct LiteralText;#[derive(Clone,Debug)]pub struct Comparison;}}
  pub mod plans {pub mod types {#[derive(Clone,Debug)]pub struct Operation;#[derive(Clone,Copy,Debug,PartialEq,Eq)] __KINDS__}}
  pub mod stored_facts {pub mod types {pub struct ArenaBytes;}}
  pub mod operation_schema {pub mod types {pub struct InputSchema<'a>{pub kinds:&'a[crate::domain::relations::types::CellKind]}}}
  pub mod stored_selection {pub mod types {#[derive(Debug)]pub struct Selector;#[derive(Debug)]pub struct PreparedPlan;#[derive(Debug)]pub struct PreparedSelectionViews;}}
  pub mod derived_views {pub mod types {#[derive(Clone,Debug,Default)]pub struct DerivedSlots;}}
- pub mod table_model {pub mod types {#[derive(Clone,Debug)]pub struct ParameterBinding;pub struct Table;pub struct Verdict;}pub mod collections {pub mod representations {#[path=__REPRESENTATION_TYPES__]pub mod types;#[path=__PUBLICATION__]pub mod publication;}}}
+ pub mod table_model {pub mod errors {pub enum TableModelError{NoSuchColumn{index:u32}}impl From<TableModelError> for crate::domain::operating::errors::OperatingError{fn from(_:TableModelError)->Self{Self::Table}}}pub mod types {#[derive(Clone,Debug)]pub struct ParameterBinding;pub struct Table;pub struct Verdict;}pub mod collections {pub mod representations {#[path=__REPRESENTATION_TYPES__]pub mod types;#[path=__PUBLICATION__]pub mod publication;}}}
  pub mod table_texts {pub mod types {#[derive(Clone,Copy)]pub struct SourceView<'a>(pub &'a[u8]);}}
  pub mod table_scratch {pub mod types {pub struct ScratchWord;pub struct Stretches;}}
  pub mod table_cells {pub mod types {pub struct RowIndex;#[derive(Clone,Copy)]pub struct TreeRows<'a>(pub &'a());}}
@@ -93,6 +97,7 @@ pub mod domain {
 "#;
     base.replace("__REPRESENTATION_TYPES__", &representation_types)
         .replace("__PUBLICATION__", &publication)
+        .replace("__PORTABLE__", &portable)
         .replace("__TYPES__", types)
         .replace("__INTERFACE__", interface)
         .replace("__KINDS__", kinds)
