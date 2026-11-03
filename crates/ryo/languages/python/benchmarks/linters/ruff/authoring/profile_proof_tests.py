@@ -67,12 +67,6 @@ def native_standalone_self_test() -> None:
         base = json.loads(profile_config.MANIFEST.read_text(encoding='utf-8'))
         frozen_bytes = profile_config.NATIVE_DESCRIPTOR_FILE.read_bytes()
         frozen = profile_proofs.native_descriptor_json(frozen_bytes.decode())
-        try:
-            profile_proofs.native_standalone_manifest(base, frozen)
-        except ValueError as error:
-            assert 'native module identity mismatch:' in str(error), str(error)
-        else:
-            raise AssertionError('frozen helper identities unexpectedly certify changed current source')
         # This is a test registration, not a rewrite or replay of native151 evidence.
         descriptor = json.loads(json.dumps(frozen))
         staging_names = ['native-PYI035', 'native-ASYNC115', 'native-UP044', 'native-PLE1142']
@@ -111,6 +105,15 @@ def native_standalone_self_test() -> None:
             value = json.loads(json.dumps(descriptor))
             edit(value)
             return value
+        # Exercise module validation only after the current registration is admitted.
+        module = next(iter(descriptor['module_sha256']))
+        wrong_module = changed(lambda value: value['module_sha256'].update({module: '0' * 64}))
+        try:
+            profile_proofs.native_standalone_manifest(base, wrong_module)
+        except ValueError as error:
+            assert str(error) == f'native module identity mismatch: {module}', str(error)
+        else:
+            raise AssertionError('native descriptor accepted a changed module identity')
         mutations = [('omission', lambda d: d['profiles'].pop()), ('duplicate', lambda d: d['profiles'].append(d['profiles'][0])), ('empty-selection', lambda d: d['profiles'][0].update(selected_rules=[])), ('wrong-selection', lambda d: d['profiles'][0].update(selected_rules=['PYI010'])), ('unknown-rule', lambda d: d['profiles'][0].update(rule_id='NOT_A_PINNED_RULE')), ('wrong-query-hash', lambda d: d['profiles'][0].update(query_sha256='0' * 64)), ('substitute-candidate', lambda d: d['profiles'][0].update(candidate_file='rules/ASYNC115/candidate.ryoql')), ('wrong-case-hash', lambda d: d['profiles'][0].update(cases_sha256='0' * 64)), ('case-omission', lambda d: d['profiles'][0]['case_names'].pop()), ('case-total', lambda d: d.update(case_count=d['case_count'] - 1)), ('count-schema', lambda d: d.update(query_count=float(d['query_count']))), ('module-schema', lambda d: d.update(module_sha256=[])), ('schema', lambda d: d.update(schema='native-standalone-cases/unknown')), ('unknown-field', lambda d: d.update(guessed_execution=True)), ('entry-schema', lambda d: d['profiles'][0].update(unknown=True)), ('invented-history', lambda d: d.update(historical_certification=True)), ('source-profile', lambda d: d.update(source_profile_sha256='0' * 64)), ('context', lambda d: d['source_settings'].update(project_context_mode='listed-disk')), ('parser-settings', lambda d: d['profiles'][0]['effective_settings'].update(parser_configuration='python-target=3.11')), ('unreviewed-flags', lambda d: d['profiles'][0]['effective_settings'].update(flags={'ignore': True})), ('phase', lambda d: d['profiles'][0]['effective_settings'].update(rule_applicability={})), ('phase-registry', lambda d: d.update(phase_registry_sha256='0' * 64)), ('module-omission', lambda d: d['module_registry'].pop(next(iter(d['module_registry'])))), ('module-hash', lambda d: d['module_sha256'].update({next(iter(d['module_sha256'])): '0' * 64}))]
         if descriptor['schema'] == 'native-standalone-cases/v2':
             custom_index = next((i for i, entry in enumerate(descriptor['profiles']) if entry['profile_file'] != descriptor['source_profile_file']))
