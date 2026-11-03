@@ -259,6 +259,7 @@ def render_full_inventory(path: Path) -> str:
             ("sim115-target-supplement", "raw-exact fixture proof"),
             ("f621-target-supplement", "declared-contract fixture proof"),
             ("furb188-target-supplement", "fixture and py38 inactive-rule control proof"),
+            ("ple1300-ple1310-target-supplement", "full fixture and target-version control proof"),
         ):
             for row in verified_rows(RUFF, current, by_rule, current / directory_name):
                 by_rule[row["rule_id"]] = {**row, "reason": f"[separate {label}](results/full-inventory-current/{directory_name}/summary.json)"}

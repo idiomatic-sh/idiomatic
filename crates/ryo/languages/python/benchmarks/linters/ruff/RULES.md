@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**383 PASS / 30 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**385 PASS / 28 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -194,9 +194,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | PLE1142 | PASS | verified intended expectations |
 | PLE1205 | PASS | verified intended expectations |
 | PLE1206 | PASS | verified intended expectations |
-| PLE1300 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| PLE1300 | PASS | [separate full fixture and target-version control proof](results/full-inventory-current/ple1300-ple1310-target-supplement/summary.json) |
 | PLE1307 | PASS | verified intended expectations |
-| PLE1310 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| PLE1310 | PASS | [separate full fixture and target-version control proof](results/full-inventory-current/ple1300-ple1310-target-supplement/summary.json) |
 | PLE1507 | PASS | verified intended expectations |
 | PLE1519 | PASS | verified intended expectations |
 | PLE1520 | PASS | verified intended expectations |
