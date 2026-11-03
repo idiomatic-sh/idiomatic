@@ -119,7 +119,7 @@ pub(crate) fn hosted_tables(
     let numbered: Vec<FilePath> = crossing
         .files
         .iter()
-        .map(|file| file.path.clone())
+        .map(|file| ryo_values::domain::files::service::input_path(file).clone())
         .collect();
     crossing
         .hosted

@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--no-cache",
+    "--select",
+    "E902",
+    "--target-version",
+    "py310",
+    "--output-format",
+    "json",
+    "invalid.py",
+    "missing.py"
+  ],
+  "cwd": "/tmp/e902-readable-frontend-reference-20261103/sources",
+  "status": 1,
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "source_sha256": "553eda8c53fc903895e005a1bc644c6058ffd91ce4df67c9fbdbe8763f6d8862",
+  "source_hex": "6465662062726f6b656e280a",
+  "missing": "missing.py",
+  "timestamp": "2026-11-03T19:58:15.913303+00:00"
+}

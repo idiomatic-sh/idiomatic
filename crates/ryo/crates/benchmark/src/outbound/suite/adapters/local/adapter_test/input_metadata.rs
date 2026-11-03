@@ -81,3 +81,40 @@ fn required_profile_cannot_admit_omitted_observations_even_for_negative_cases() 
             .is_err()
     );
 }
+
+#[test]
+fn sealed_missing_request_needs_metadata_only_for_observed_sources() {
+    let root = tempfile::tempdir().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let rules = fixture(root.path(), "listed-disk", true);
+    std::fs::write(
+        rules.join("A001/cases.toml"),
+        "[[cases]]\nname='observed-plus-missing'\ncomparison='full'\nrequested-files=['case.txt','missing.txt']\nfiles={'case.txt'='data'}\nfile-metadata={'case.txt'=true}\ncontext={logical-root='repo',auxiliary-files={},missing=['repo/missing.txt']}\nexpected=[{rule='A001',file='case.txt',start=0,end=0}]\n[[cases]]\nname='negative-with-missing'\ncomparison='full'\nrequested-files=['case.txt','missing.txt']\nfiles={'case.txt'='data'}\nfile-metadata={'case.txt'=true}\ncontext={logical-root='repo',auxiliary-files={},missing=['repo/missing.txt']}\nexpected=[]\n",
+    )
+    .unwrap();
+    let cases = SuiteLocalAdapter
+        .cases(ArtifactPath(&rules), ArtifactPath(scratch.path()))
+        .expect("the missing requested path has no fabricated metadata");
+    assert_eq!(cases.len(), 2);
+    for case in cases {
+        assert_eq!(case.request.file_metadata.as_ref().unwrap().len(), 1);
+        assert!(!case.request.root.join("missing.txt").exists());
+        SuiteLocalAdapter
+            .validate_file_metadata(&case.request)
+            .expect("only the readable source is observed");
+    }
+    let path = rules.join("A001/cases.toml");
+    let observed = std::fs::read_to_string(&path).unwrap();
+    let fabricated = observed.replace(
+        "file-metadata={'case.txt'=true}",
+        "file-metadata={'case.txt'=true,'missing.txt'=true}",
+    );
+    assert_ne!(fabricated, observed);
+    std::fs::write(path, fabricated).unwrap();
+    assert!(
+        SuiteLocalAdapter
+            .cases(ArtifactPath(&rules), ArtifactPath(scratch.path()))
+            .is_err(),
+        "a missing path cannot acquire fabricated file metadata"
+    );
+}

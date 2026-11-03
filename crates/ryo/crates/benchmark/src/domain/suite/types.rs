@@ -91,6 +91,9 @@ pub enum ExpectedRule {
 /// An isolated set of source files and its exact expected findings.
 #[derive(Clone, Debug)]
 pub struct Case {
+    /// Explicit primary inventory, including selected paths sealed absent by the context.
+    /// None preserves the legacy inventory of exactly the source-text map's keys.
+    pub requested_files: Option<Vec<RelativePath>>,
     /// Explicit per-file POSIX executable bits; None preserves legacy byte-only identity.
     pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Explicit logical root and auxiliary context, excluded from the lint file inventory.

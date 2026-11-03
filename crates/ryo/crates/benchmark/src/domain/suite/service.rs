@@ -104,13 +104,41 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
     }
     let mut names = std::collections::BTreeSet::new();
     for case in &cases.cases {
-        if case.files.is_empty() || case.name.0.trim().is_empty() || !names.insert(&case.name) {
+        if (case.files.is_empty() && case.requested_files.as_ref().is_none_or(Vec::is_empty))
+            || case.name.0.trim().is_empty()
+            || !names.insert(&case.name)
+        {
             return Err(Error::Invalid(
                 super::constants::INVALID_CASE_IDENTITY.into(),
             ));
         }
         for name in case.files.keys() {
             relative_path(name.0.as_ref())?;
+        }
+        if let Some(requested) = &case.requested_files {
+            let selected: std::collections::BTreeSet<_> = requested.iter().collect();
+            if requested.is_empty()
+                || selected.len() != requested.len()
+                || case.files.keys().any(|path| !selected.contains(path))
+            {
+                return Err(Error::Invalid(
+                    "explicit source inventory must retain every readable source exactly once"
+                        .into(),
+                ));
+            }
+            let context = case.context.as_ref().ok_or_else(|| {
+                Error::Invalid("explicit source inventory requires a sealed disk context".into())
+            })?;
+            for path in requested {
+                relative_path(path.0.as_ref())?;
+                if !case.files.contains_key(path)
+                    && !context_missing(&context.logical_root, &context.missing, path)
+                {
+                    return Err(Error::Invalid(
+                        "requested unavailable source lacks a context absence seal".into(),
+                    ));
+                }
+            }
         }
         if let Some(values) = &case.file_metadata {
             for name in values.keys() {
@@ -141,10 +169,19 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                     super::constants::MISSING_DIAGNOSTIC_IDENTITY.into(),
                 ));
             }
-            let source = case
-                .files
-                .get(&expected.file)
-                .ok_or_else(|| Error::Invalid(super::constants::MISSING_SOURCE.into()))?;
+            let source = match case.files.get(&expected.file) {
+                Some(source) => source,
+                None if case
+                    .requested_files
+                    .as_ref()
+                    .is_some_and(|paths| paths.contains(&expected.file))
+                    && expected.start.0 == 0
+                    && expected.end.0 == 0 =>
+                {
+                    continue;
+                }
+                None => return Err(Error::Invalid(super::constants::MISSING_SOURCE.into())),
+            };
             if expected.start > expected.end
                 || !source.0.is_char_boundary(expected.start.0)
                 || !source.0.is_char_boundary(expected.end.0)
@@ -156,4 +193,39 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// Whether a context declaration names this logical input as absent. This is only membership:
+/// application preparation must independently validate the physical context before execution.
+#[must_use]
+pub fn declares_missing(
+    manifest: &super::types::ContextManifest,
+    file: &ryo::linter::RelativePath,
+) -> bool {
+    context_missing(&manifest.logical_root, &manifest.missing, file)
+}
+
+/// Match logical input paths using the same harmless `.` normalization as context materialization.
+fn context_missing(
+    root: &Path,
+    missing: &[std::path::PathBuf],
+    file: &ryo::linter::RelativePath,
+) -> bool {
+    let input = context_input_path(root, file);
+    missing.iter().any(|path| {
+        path.components()
+            .filter(|part| *part != Component::CurDir)
+            .eq(input.components().filter(|part| *part != Component::CurDir))
+    })
+}
+
+/// A requested logical input's boundary-relative path, consistent with context materialization.
+pub(crate) fn context_input_path(
+    root: &Path,
+    file: &ryo::linter::RelativePath,
+) -> std::path::PathBuf {
+    root.join(file.0.as_ref())
+        .components()
+        .filter(|part| *part != Component::CurDir)
+        .collect()
 }

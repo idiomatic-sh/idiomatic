@@ -8,15 +8,15 @@ use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, 
 
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
-use ryo_relations::domain::relations::service::all;
-use ryo_relations::domain::relations::types::RowWriter;
-use ryo_relations::domain::relations::types::{Bytes, Relation};
+use ryo_language::domain::semantics::interface::SemanticSession;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::semantics::interface::SemanticSession;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::types::ProjectRequest;
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::types::{Bytes, Relation};
 
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::language::interface::LanguagePort;
@@ -244,7 +244,11 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 root: input.root.clone(),
                 repository: input.repository,
                 manifests: input.manifests.to_vec(),
-                files: input.files.iter().map(|each| each.path.clone()).collect(),
+                files: input
+                    .files
+                    .iter()
+                    .map(|each| ryo_values::domain::files::service::input_path(each).clone())
+                    .collect(),
                 notes: input
                     .notes
                     .0

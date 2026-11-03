@@ -85,6 +85,7 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
     let cases = Cases {
         cases: vec![
             SuiteCase {
+                requested_files: None,
                 file_metadata: None,
                 reference_discrepancy: None,
                 context: None,
@@ -94,6 +95,7 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
                 expected: vec![expected(rule.clone()), expected(rule.clone())],
             },
             SuiteCase {
+                requested_files: None,
                 file_metadata: None,
                 reference_discrepancy: None,
                 context: None,
@@ -121,3 +123,64 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
 }
 
 type Failure = Refusal;
+
+#[test]
+fn requested_missing_inputs_require_a_real_absence_contract_and_only_origin_spans() {
+    use crate::domain::diagnostics::types::SourceByteOffset;
+    use crate::domain::suite::service::validate_case_sources;
+    use crate::domain::suite::types::CaseContext;
+    let readable = ryo::linter::RelativePath("companion.py".into());
+    let missing = ryo::linter::RelativePath("missing.py".into());
+    let case = SuiteCase {
+        requested_files: Some(vec![readable.clone(), missing.clone()]),
+        file_metadata: None,
+        reference_discrepancy: None,
+        context: Some(CaseContext {
+            logical_root: "project".into(),
+            auxiliary_files: Default::default(),
+            missing: vec!["project/missing.py".into()],
+        }),
+        comparison: CaseComparison::Full,
+        name: BenchmarkCaseName("explicit-missing".into()),
+        files: [(readable, ryo::linter::SourceText("x = 1\n".into()))].into(),
+        expected: vec![Expected {
+            identity: ExpectedRule::Explicit(ryo::linter::RuleId::try_from("R1").unwrap()),
+            file: missing.clone(),
+            start: SourceByteOffset(0),
+            end: SourceByteOffset(0),
+        }],
+    };
+    let validate = |case| validate_case_sources(&Cases { cases: vec![case] });
+    assert!(validate(case.clone()).is_ok());
+    let mut dotted = case.clone();
+    dotted.context.as_mut().unwrap().logical_root = ".".into();
+    dotted.context.as_mut().unwrap().missing = vec!["missing.py".into()];
+    assert!(
+        validate(dotted).is_ok(),
+        "a root spelled dot retains the existing context path meaning"
+    );
+    let mut changed = case.clone();
+    changed.context.as_mut().unwrap().missing.clear();
+    assert!(
+        validate(changed).is_err(),
+        "ordinary source omission is not a sealed absence"
+    );
+    let mut changed = case.clone();
+    changed.expected[0].end = SourceByteOffset(1);
+    assert!(
+        validate(changed).is_err(),
+        "there is no source byte at a missing path"
+    );
+    let mut changed = case.clone();
+    changed.requested_files.as_mut().unwrap().push(missing);
+    assert!(
+        validate(changed).is_err(),
+        "requested paths cannot be duplicated"
+    );
+    let mut changed = case;
+    changed.requested_files.as_mut().unwrap().remove(0);
+    assert!(
+        validate(changed).is_err(),
+        "readable source inventory cannot silently shrink"
+    );
+}

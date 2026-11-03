@@ -20,8 +20,7 @@ use ryo_values::domain::stores::types::{
 };
 
 use super::service::{
-    decide, later_from, made_again, records_from, skipped_from, stored_of, unknowns_from,
-    with_fresh,
+    later_from, made_again, records_from, skipped_from, stored_of, unknowns_from, with_fresh,
 };
 use super::types::{Decision, MadeAgain, ToKeep};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -82,6 +81,16 @@ fn entry(path: &str, size: u64, modified: u64) -> CorpusEntry {
         size: FileSize(size),
         modified: Nanoseconds(modified),
     }
+}
+
+/// Existing store fixtures have observed metadata; preserve their decision assertions through the input sum type.
+fn decide(stored: &Stored, rules: &[StoredRule], files: &[CorpusEntry]) -> Decision {
+    let inputs: Vec<_> = files
+        .iter()
+        .cloned()
+        .map(ryo_values::domain::files::types::CorpusInput::Available)
+        .collect();
+    super::service::decide(stored, rules, &inputs)
 }
 
 /// The two files of the store, as the system lists them while they are as they were.
@@ -485,6 +494,27 @@ fn executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_dir
             made_again(&kept, &[fresh], &[], &[], &[]),
             MadeAgain::All,
             "equal byte/interface digests cannot hide changed input observations"
+        );
+    }
+}
+
+#[test]
+fn unavailable_primary_cannot_reuse_a_cached_cross_file_interface() {
+    use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};
+    for failed in [
+        CorpusInput::Unreadable {
+            path: FilePath("a.rs".into()),
+            reason: InputReadFailure("missing".into()),
+        },
+        CorpusInput::ReadFailed {
+            entry: entry("a.rs", 1, 5),
+            reason: InputReadFailure("read denied".into()),
+        },
+    ] {
+        let inputs = [failed, CorpusInput::Available(entry("b.rs", 2, 6))];
+        assert_eq!(
+            super::service::decide(&stored(), &rules(true), &inputs),
+            Decision::Whole
         );
     }
 }

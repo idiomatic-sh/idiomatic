@@ -442,7 +442,9 @@ fn prepare_cases(
                 file_metadata: case.file_metadata,
                 context_manifest,
                 root,
-                files: case.files.keys().cloned().collect(),
+                files: case
+                    .requested_files
+                    .unwrap_or_else(|| case.files.keys().cloned().collect()),
                 state: scratch
                     .join(constants::CACHE)
                     .join(rule.to_string())

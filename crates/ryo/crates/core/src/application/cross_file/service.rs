@@ -21,10 +21,10 @@ use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_texts::types::SourceView;
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_relations::domain::relations::types::{FileId, Value};
 use ryo_language::domain::symbols::service::file_in;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+use ryo_relations::domain::relations::types::{FileId, Value};
+use ryo_values::domain::files::types::{CorpusInput, FileBytes};
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::records::types::RenderedText;
 use ryo_values::domain::records::types::RowTotal;
@@ -79,6 +79,9 @@ impl CrossFile {
                 else {
                     continue;
                 };
+                let CorpusInput::Available(entry) = entry else {
+                    continue;
+                };
                 if self.corpus.read(entry, &mut bytes).is_ok() {
                     place_all(group, &plan.emit, SourceView(&bytes.0), cross);
                 }
@@ -104,21 +107,22 @@ impl CrossFile {
         &self,
         text: &mut RenderedText,
         value: Value,
-        files: &[CorpusEntry],
+        files: &[CorpusInput],
         resolving: &Resolving<'_>,
         loaded: &mut Loaded,
     ) -> Option<Cell<TextRange>> {
         if let Some(file) = source_of(value, resolving)
             && loaded.held != HeldFile::File(file)
         {
-            if let Some(entry) = file_in(files, file) {
-                let mut bytes = FileBytes(std::mem::take(&mut loaded.bytes.0));
-                // A file that can no longer be read shows no text, rather than the last file's.
+            let mut bytes = FileBytes(std::mem::take(&mut loaded.bytes.0));
+            bytes.0.clear();
+            if let Some(CorpusInput::Available(entry)) = file_in(files, file) {
+                // A refusal never exposes this worker's previous file or partial read.
                 if self.corpus.read(entry, &mut bytes).is_err() {
                     bytes.0.clear();
                 }
-                loaded.bytes.0 = bytes.0;
             }
+            loaded.bytes.0 = bytes.0;
             loaded.held = HeldFile::File(file);
         }
         shown_cell(text, value, resolving, loaded)

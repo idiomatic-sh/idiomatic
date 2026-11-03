@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::rules::types::RuleParameters;
 use crate::domain::rules::types::RuleSpec;
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileSize, Nanoseconds};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::runs::types::RuleId;
 
@@ -35,8 +35,11 @@ fn entry(path: &str, size: u64) -> CorpusEntry {
     }
 }
 
-fn files() -> Vec<CorpusEntry> {
+fn files() -> Vec<CorpusInput> {
     vec![entry("c", 3), entry("a", 1), entry("b", 2)]
+        .into_iter()
+        .map(CorpusInput::Available)
+        .collect()
 }
 
 fn rule(id: &str, query: &str) -> RuleSpec {
@@ -51,7 +54,7 @@ fn rule(id: &str, query: &str) -> RuleSpec {
     }
 }
 
-fn files_in_order() -> Vec<CorpusEntry> {
+fn files_in_order() -> Vec<CorpusInput> {
     let mut files = files();
     by_path(&mut files);
     files
@@ -62,6 +65,9 @@ fn subject(scenario: Input) -> Value {
         Scenario::SortedByPath => {
             let mut sorted = [0; 3];
             for (slot, file) in sorted.iter_mut().zip(files_in_order()) {
+                let CorpusInput::Available(file) = file else {
+                    panic!("fixture requires observed metadata");
+                };
                 *slot = i64::try_from(file.size.0).unwrap_or(i64::MAX);
             }
             sorted

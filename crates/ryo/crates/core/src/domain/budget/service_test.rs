@@ -4,7 +4,7 @@ use super::errors::BudgetError;
 use super::service::{fit, repository_size, within};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run, selects};
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileSize, Nanoseconds};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 use ryo_values::domain::runs::types::MemoryBytes;
 use ryo_values::domain::runs::types::RuleId;
 
@@ -40,9 +40,10 @@ fn file(path: &str, size: u64) -> CorpusEntry {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
-        Scenario::SizeOfThreeFiles => {
-            Ok(repository_size(&[file("a", 1), file("b", 20), file("c", 300)]).0)
-        }
+        Scenario::SizeOfThreeFiles => Ok(repository_size(
+            &[file("a", 1), file("b", 20), file("c", 300)].map(CorpusInput::Available),
+        )
+        .0),
         Scenario::FitsExactly => fit(MemoryBytes(10), MemoryBytes(10)).map(|()| 1),
         Scenario::FitsNot => fit(MemoryBytes(11), MemoryBytes(10)).map(|()| 1),
         Scenario::WithinExactly => within(MemoryBytes(10), MemoryBytes(10), Vec::new).map(|()| 1),

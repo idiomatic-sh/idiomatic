@@ -126,6 +126,10 @@ mod static_call {
 mod static_import {
     include!("../../tests/fixtures/relations/static_import/expected.rs");
 }
+/// The rows the `standard-library-import` relation must give for its fixture.
+mod standard_library_import {
+    include!("../../tests/fixtures/relations/standard_library_import/expected.rs");
+}
 /// The rows the `string-literal` relation must give for its fixture.
 mod string_literal {
     include!("../../tests/fixtures/relations/string_literal/expected.rs");
@@ -196,6 +200,7 @@ pub(super) fn expected() -> Vec<Expected> {
         raw_format_field::expected(),
         call_argument::expected(),
         static_import::expected(),
+        standard_library_import::expected(),
         string_literal::expected(),
         syntax_child::expected(),
         semantic_child::expected(),

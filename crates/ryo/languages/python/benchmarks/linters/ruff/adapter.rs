@@ -62,6 +62,12 @@ impl LinterPort for LinterRuffAdapter {
         for file in &request.files {
             relative_path(file.0.as_ref())?;
             let key = file.clone();
+            if request.context_manifest.as_ref().is_some_and(|manifest| {
+                ryo_benchmark::domain::suite::service::declares_missing(manifest, file)
+            }) {
+                // This is a declared, reverified absence, not empty source text.
+                continue;
+            }
             let source = SourceText(
                 std::fs::read_to_string(request.root.join(file.0.as_ref()))?.into_boxed_str(),
             );

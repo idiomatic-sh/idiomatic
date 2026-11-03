@@ -72,6 +72,9 @@ struct CasesSchema {
 #[serde(deny_unknown_fields)]
 /// One independent source example.
 struct CaseSchema {
+    /// Optional explicit primary inventory; absent paths require the shared context absence seal.
+    #[serde(default, rename = "requested-files")]
+    requested_files: Option<Vec<String>>,
     /// Explicit POSIX executable observations for declared source files.
     #[serde(default, rename = "file-metadata")]
     file_metadata: Option<BTreeMap<String, bool>>,
@@ -288,6 +291,12 @@ impl TryFrom<CasesSchema> for types::Cases {
                 .into_iter()
                 .map(|case| {
                     Ok(types::Case {
+                        requested_files: case.requested_files.map(|paths| {
+                            paths
+                                .into_iter()
+                                .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
+                                .collect()
+                        }),
                         file_metadata: case.file_metadata.map(|values| {
                             values
                                 .into_iter()

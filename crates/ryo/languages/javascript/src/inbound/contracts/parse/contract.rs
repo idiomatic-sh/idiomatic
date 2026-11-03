@@ -444,4 +444,9 @@ impl Parse for ParseContract {
             crate::domain::relations::collections::relations::static_import::item::StaticImportItem,
         >()
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        // JavaScript module imports exist; a versioned host-library catalog is not read.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

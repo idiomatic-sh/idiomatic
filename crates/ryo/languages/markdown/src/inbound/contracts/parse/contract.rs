@@ -366,4 +366,9 @@ impl Parse for ParseContract {
         // standard: mdast.md, Nodes: mdast defines no import; a link names a file but does not bring it in.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, Sections>> {
+        // Markdown links are resources, not language standard-library module imports.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
 }

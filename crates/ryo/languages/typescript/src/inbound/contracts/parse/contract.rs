@@ -441,4 +441,9 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::reads::<StaticImportItem>()
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        // TypeScript module imports exist; a versioned host-library catalog is not read.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

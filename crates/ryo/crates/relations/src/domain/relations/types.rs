@@ -527,6 +527,8 @@ pub enum OptionalCapability {
     FormatSpecification,
     /// Parser target version attached to each source file.
     LanguageTarget,
+    /// Positive standard-library membership for imported modules at the selected language target.
+    StandardLibraryImport,
     /// Explicit known file-wide compiler-language feature flags.
     CompilerFeature,
     /// Collision-checked keys for supported parsed constant expressions.

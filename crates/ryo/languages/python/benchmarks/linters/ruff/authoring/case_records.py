@@ -135,7 +135,7 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
                 extra.update(file_metadata=metadata, file_metadata_sha256=metadata_sha)
             if profile.get('file-observation') is not None:
                 extra['file_observation'] = profile['file-observation']
-            inventory.append({**extra, **identity, 'project_context_mode': mode, 'context_identity': expected_context_identity(case, mode), 'case_sha256': hashlib.sha256(encoded.encode()).hexdigest(), 'source_sha256': source_digest.hexdigest(), 'files': sorted(case['files']), 'comparison': case.get('comparison', 'rule'), 'expected': expected, 'reference_discrepancy': reference_discrepancies.validate_reference_discrepancy(profile_root, case, rule_root.name)})
+            inventory.append({**extra, **identity, 'project_context_mode': mode, 'context_identity': expected_context_identity(case, mode), 'case_sha256': hashlib.sha256(encoded.encode()).hexdigest(), 'source_sha256': source_digest.hexdigest(), 'files': sorted(case.get('requested-files', case['files'])), 'comparison': case.get('comparison', 'rule'), 'expected': expected, 'reference_discrepancy': reference_discrepancies.validate_reference_discrepancy(profile_root, case, rule_root.name)})
     inventory.sort(key=lambda case: (case['rule'], case['name']))
     ids = [(case['rule'], case['name']) for case in inventory]
     if not ids or len(ids) != len(set(ids)):

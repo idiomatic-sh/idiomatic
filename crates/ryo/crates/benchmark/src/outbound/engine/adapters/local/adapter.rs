@@ -196,12 +196,18 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let rules = Self::load_rules(
+        let mut rules = Self::load_rules(
             &request.rules,
             &request.query_modules,
             &request.rule_applicability,
             self.frontend_diagnostic.clone(),
         )?;
+        if let Some(projection) = &self.frontend_diagnostic {
+            let frontend = rules
+                .get_mut(&projection.rule)
+                .ok_or_else(|| Error::Invalid("frontend projection was not registered".into()))?;
+            frontend.exclude = frontend_exclusions(&request)?;
+        }
         let selected_rules = rules.keys().cloned().collect();
         let selected_rule_count = rules
             .len()
@@ -240,7 +246,14 @@ impl EnginePort for EngineLocalAdapter {
             },
         )
         .map_err(|error| Error::Invalid(error.to_string()))?;
-        if !report.unknowns.is_empty() || !report.unread.is_empty() {
+        let unexpected_unread = report.unread.iter().any(|unread| {
+            !matches!(&unread.reason, linter::Unreadable::Failed(_))
+                || !request.context_manifest.as_ref().is_some_and(|manifest| {
+                    request.files.contains(&unread.path)
+                        && crate::domain::suite::service::declares_missing(manifest, &unread.path)
+                })
+        });
+        if !report.unknowns.is_empty() || unexpected_unread {
             return Err(Error::Invalid(format!(
                 "incomplete candidate: selected_rule_file_pairs={selected_pairs}; unknown_count={}; unread_count={}; unknowns={:?}; unread={:?}",
                 report.unknowns.len(),
@@ -336,9 +349,23 @@ fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
             let requested: std::collections::BTreeSet<_> = request
                 .files
                 .iter()
-                .map(|file| manifest.logical_root.join(file.0.as_ref()))
+                .map(|file| {
+                    crate::domain::suite::service::context_input_path(&manifest.logical_root, file)
+                })
                 .collect();
-            if requested != manifest.source_files.keys().cloned().collect() {
+            let sealed_sources: std::collections::BTreeSet<_> =
+                manifest.source_files.keys().cloned().collect();
+            let selected_missing: std::collections::BTreeSet<_> = request
+                .files
+                .iter()
+                .filter(|file| crate::domain::suite::service::declares_missing(manifest, file))
+                .map(|file| {
+                    crate::domain::suite::service::context_input_path(&manifest.logical_root, file)
+                })
+                .collect();
+            if !sealed_sources.is_subset(&requested)
+                || requested != sealed_sources.union(&selected_missing).cloned().collect()
+            {
                 return Err(Error::Invalid(
                     "context source seal differs from requested inventory".into(),
                 ));
@@ -372,6 +399,15 @@ fn source_inputs(
                 crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
             ));
         }
+        if request
+            .context_manifest
+            .as_ref()
+            .is_some_and(|manifest| crate::domain::suite::service::declares_missing(manifest, file))
+        {
+            // Context validation already observed this absence. Keep the requested path,
+            // but supply neither bytes nor metadata overlays to the engine.
+            continue;
+        }
         let source = std::fs::read_to_string(request.root.join(file.0.as_ref()))?;
         sources.push(CaseSource {
             executable: executable(&request.root.join(file.0.as_ref()))?,
@@ -379,7 +415,7 @@ fn source_inputs(
             text: SourceText(source.into_boxed_str()),
         });
     }
-    if sources.is_empty() {
+    if accepted.is_empty() {
         return Err(Error::Invalid(constants::EMPTY_CORPUS.into()));
     }
     Ok((sources, accepted))
@@ -440,4 +476,27 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
         let _metadata = metadata;
         Ok(ryo::linter::ExecutablePermission::Unsupported)
     }
+}
+
+/// The auto frontend projection governs only declared readable inputs. Authored rules still
+/// govern the complete primary inventory; an absence seal is not a statement about syntax.
+pub(super) fn frontend_exclusions(request: &WorkerRequest) -> Result<Vec<linter::Glob>, Error> {
+    request
+        .files
+        .iter()
+        .filter(|file| {
+            request.context_manifest.as_ref().is_some_and(|manifest| {
+                crate::domain::suite::service::declares_missing(manifest, file)
+            })
+        })
+        .map(|file| {
+            #[cfg(unix)]
+            let literal = file.0.replace('\\', "\\\\");
+            #[cfg(not(unix))]
+            let literal = file.0.to_string();
+            let pattern = globset::escape(&literal);
+            linter::Glob::try_from(pattern.as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))
+        })
+        .collect()
 }

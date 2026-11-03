@@ -140,6 +140,11 @@ impl Parse for ParseContract {
         languages::reads::<StaticImportItem>()
     }
 
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        // CSS @import names a stylesheet URL, not a language standard-library module.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
         languages::reads::<ReferenceItem>()
     }

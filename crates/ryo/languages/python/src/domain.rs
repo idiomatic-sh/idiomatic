@@ -68,6 +68,8 @@ pub(crate) mod format_syntax;
 pub(crate) mod raw_format;
 /// Target-aware recognition of Python's standard format-specification mini-language.
 pub(crate) mod standard_format_spec;
+/// Python release-specific, platform-independent standard-library names.
+pub(crate) mod standard_library;
 /// Terminal outcomes of function bodies.
 pub(crate) mod terminal_flow;
 

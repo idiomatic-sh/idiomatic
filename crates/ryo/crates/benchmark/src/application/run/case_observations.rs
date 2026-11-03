@@ -59,6 +59,15 @@ pub(super) fn write(
             .request
             .files
             .iter()
+            .filter(|file| {
+                !case
+                    .request
+                    .context_manifest
+                    .as_ref()
+                    .is_some_and(|manifest| {
+                        crate::domain::suite::service::declares_missing(manifest, file)
+                    })
+            })
             .map(|file| std::path::PathBuf::from(file.0.as_ref()))
             .collect::<Vec<_>>(),
     );

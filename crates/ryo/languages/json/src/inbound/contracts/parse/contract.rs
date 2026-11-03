@@ -346,4 +346,9 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, Model>> {
         languages::absent(AbsenceCause::NotCode)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, Model>> {
+        // JSON does not have module imports.
+        languages::absent(AbsenceCause::NotCode)
+    }
 }

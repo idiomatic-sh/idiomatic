@@ -9,7 +9,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, RootPath};
 use ryo_values::domain::descriptions::types::LanguageName;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+use ryo_values::domain::files::types::{CorpusInput, FileBytes};
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
 
 /// A linked language as a listing names it: its name, then its build.
@@ -110,7 +110,7 @@ pub struct ProjectInput<'a> {
     /// The manifests of the repository.
     pub manifests: &'a [ManifestFile],
     /// Every file the run lists, by path, in the order of their places.
-    pub files: &'a [CorpusEntry],
+    pub files: &'a [CorpusInput],
     /// What the language that read each file wrote of it, in the order of `files`.
     pub notes: &'a ProjectNotes,
     /// The relations the run asks for.

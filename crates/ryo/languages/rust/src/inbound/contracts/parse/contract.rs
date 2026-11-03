@@ -322,6 +322,11 @@ impl Parse for ParseContract {
         languages::reads::<StaticImportItem>()
     }
 
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        // Rust imports exist; the provider does not yet classify standard-library crate membership.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn string_literal(&self) -> Support<Reader<languages::StringLiteral, ()>> {
         languages::reads::<StringLiteralItem>()
     }

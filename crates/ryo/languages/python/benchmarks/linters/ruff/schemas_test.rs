@@ -100,3 +100,55 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
+    use ryo::linter::{RelativePath, RuleId};
+    use ryo_benchmark::domain::{
+        measurements::types::{CapturedBytes, ProcessExitCode, ProcessOutput, ResourceObservation},
+        suite::types::{ContextManifest, RunRequest},
+    };
+    let root = std::path::PathBuf::from("/snapshot/project");
+    let file = RelativePath("missing.py".into());
+    let request = RunRequest {
+        file_metadata: None,
+        context_manifest: Some(ContextManifest {
+            boundary: "/snapshot".into(),
+            logical_root: "project".into(),
+            auxiliary_files: Default::default(),
+            source_files: Default::default(),
+            missing: vec!["project/missing.py".into()],
+        }),
+        root: root.clone(),
+        files: vec![file],
+        state: root.join("cache"),
+    };
+    let defaults = [RuleId::try_from("E902").unwrap()].into();
+    let mut finding = serde_json::json!({"code":"E902", "filename":root.join("missing.py"), "location":{"row":1,"column":1}, "end_location":{"row":1,"column":1}, "cell":null, "fix":null});
+    let decode = |request: &RunRequest, finding| {
+        super::schemas::decode(
+            request,
+            &ProcessOutput {
+                signal: None,
+                status: ProcessExitCode(1),
+                stdout: CapturedBytes(serde_json::to_vec(&vec![finding]).unwrap()),
+                stderr: CapturedBytes(Vec::new()),
+                wall: Default::default(),
+                resources: ResourceObservation::WallOnly,
+            },
+            &defaults,
+            &Default::default(),
+        )
+    };
+    let report = decode(&request, finding.clone()).unwrap();
+    assert_eq!(report.diagnostics[0].start.0, 0);
+    assert_eq!(report.diagnostics[0].end.0, 0);
+    let mut undeclared = request.clone();
+    undeclared.context_manifest = None;
+    assert!(decode(&undeclared, finding.clone()).is_err());
+    finding["end_location"]["column"] = serde_json::json!(2);
+    assert!(decode(&request, finding.clone()).is_err());
+    finding["end_location"]["column"] = serde_json::json!(1);
+    finding["fix"] = serde_json::json!({"edits":[]});
+    assert!(decode(&request, finding).is_err());
+}

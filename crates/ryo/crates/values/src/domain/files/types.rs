@@ -30,6 +30,33 @@ pub struct CorpusEntry {
     pub modified: Nanoseconds,
 }
 
+/// A listed input has either real observed metadata or a truthful per-path discovery failure.
+/// Unreadable inputs never carry fabricated file sizes, timestamps or source bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CorpusInput {
+    /// A real file whose metadata the edge observed.
+    Available(CorpusEntry),
+    /// A primary inventoried file failed an earlier read, retaining its real observed metadata.
+    /// This is not a provider refusal or an unrelated consulted dependency.
+    ReadFailed {
+        /// The metadata that was actually observed before the read failed.
+        entry: CorpusEntry,
+        /// The original input-edge diagnostic detail.
+        reason: InputReadFailure,
+    },
+    /// An explicitly requested file could not be observed on disk.
+    Unreadable {
+        /// The exact requested path, relative to the root.
+        path: FilePath,
+        /// The edge's original diagnostic detail.
+        reason: InputReadFailure,
+    },
+}
+
+/// The original detail of an input discovery/read failure, without a provider or lint classification.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InputReadFailure(pub Box<str>);
+
 /// One file of the repository with its bytes: what a fake keeps and hands out on `read`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CorpusFile {

@@ -69,3 +69,24 @@ pub(crate) fn with_consulted(
         }
     }
 }
+
+/// A primary manifest read failure makes demanded project relations incomplete, without
+/// attributing its disk error to the unrelated source paths those relations describe.
+pub(crate) fn unread_manifest_partials(
+    wanted: &[ryo_relations::domain::relations::types::Relation],
+    path: &ryo_language::domain::files::types::FilePath,
+    detail: &str,
+) -> Vec<crate::domain::coverage::types::Partial> {
+    wanted
+        .iter()
+        .filter(|relation| provenance_of(**relation) == Provenance::Manifests)
+        .map(|relation| crate::domain::coverage::types::Partial {
+            relation: *relation,
+            cause: ryo_values::domain::stored_facts::types::PartialCause(
+                format!("cannot read primary manifest `{}`: {detail}", path.0).into(),
+            ),
+            lacking: crate::domain::coverage::types::Lacking::Any,
+            at: None,
+        })
+        .collect()
+}

@@ -91,14 +91,15 @@ use crate::outbound::rows::types::{LentCell, Summary};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
-use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
+use ryo_language::inbound::use_cases::project::types::ManifestFile;
 
 use ryo_relations::domain::relations::types::WorkerNumber;
 
 use ryo_language::domain::symbols::types::Symbols;
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes, Glob};
+use ryo_values::domain::files::service::input_path;
+use ryo_values::domain::files::types::{CorpusInput, FileBytes, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{Heading, InputNumber};
 use ryo_values::domain::plans::types::Plan;
@@ -510,7 +511,7 @@ impl LintUseCaseImpl {
             Answering::Findings => reuse_of(&listing.stored, stored_rules, &listing.files),
             Answering::Rows(_) => Decision::Whole,
         };
-        let changed: Vec<CorpusEntry> = match &decision {
+        let changed: Vec<CorpusInput> = match &decision {
             Decision::Check(places) => places
                 .iter()
                 .filter_map(|place| listing.files.get(place.0).cloned())
@@ -566,20 +567,24 @@ impl LintUseCaseImpl {
             .iter()
             .filter(|file| {
                 let changed = changed
-                    .binary_search_by(|each| each.path.cmp(&file.path))
+                    .binary_search_by(|each| input_path(each).cmp(input_path(file)))
                     .is_ok();
-                let record = match records.binary_search_by(|each| each.path.cmp(&file.path)) {
+                let record = match records.binary_search_by(|each| each.path.cmp(input_path(file)))
+                {
                     Ok(at) => records.get(at),
                     // The search answers where the path would go: the file has no record.
                     Err(_) => None,
                 };
                 changed
-                    || record.is_none_or(|record| {
-                        ryo_values::domain::records::service::is_as_it_was(record, file)
-                            != Freshness::AsItWas
+                    || record.is_none_or(|record| match file {
+                        CorpusInput::Available(entry) => {
+                            ryo_values::domain::records::service::is_as_it_was(record, entry)
+                                != Freshness::AsItWas
+                        }
+                        CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => true,
                     })
             })
-            .map(|file| file.path.clone())
+            .map(|file| input_path(file).clone())
             .collect();
         Ok(Reused {
             again,
@@ -627,7 +632,7 @@ impl LintUseCaseImpl {
     fn read_alone(
         &self,
         setting: &VisitSetting<'_>,
-        files: &[CorpusEntry],
+        files: &[CorpusInput],
         store: Option<&dyn crate::outbound::lint_store::interface::ReadStore>,
     ) -> Result<ReadAlone, LintError> {
         let paths = paths_of(files);
@@ -828,23 +833,6 @@ impl LintUseCaseImpl {
             });
         }
         Ok(compiled)
-    }
-
-    /// The manifests of the run, read once for the whole run.
-    fn manifests_of(&self, files: &[CorpusEntry]) -> Result<Vec<ManifestFile>, LintError> {
-        let mut manifests: Vec<ManifestFile> = Vec::new();
-        let mut text = FileBytes::default();
-        for file in files
-            .iter()
-            .filter(|file| self.language.reads_manifest(&file.path) == ManifestReading::Read)
-        {
-            self.corpus.read(file, &mut text)?;
-            manifests.push(ManifestFile {
-                path: file.path.clone(),
-                text: ManifestText(String::from_utf8_lossy(&text.0).into()),
-            });
-        }
-        Ok(manifests)
     }
 
     /// Reads each file once, whatever the rules read of it, and lets the workers meet. Every worker owns its buffers and its
@@ -1170,12 +1158,30 @@ impl LintUseCaseImpl {
         notes: &mut FreshNotes,
     ) -> Result<Projected, LintError> {
         let mut now = self.projected(run, project, notes)?;
+        // A primary manifest that could not be read is not a complete empty project.
+        // This affects project facts, not the disk-failure diagnosis of unrelated files.
+        for input in &run.listing.files {
+            let detail = match input {
+                CorpusInput::ReadFailed { reason, .. } | CorpusInput::Unreadable { reason, .. }
+                    if self.language.reads_manifest(input_path(input)) == ManifestReading::Read =>
+                {
+                    &reason.0
+                }
+                _ => continue,
+            };
+            now.partials
+                .extend(crate::domain::project::service::unread_manifest_partials(
+                    &run.wants.wanted,
+                    input_path(input),
+                    detail,
+                ));
+        }
         // The files the rows of the project are about: those the run lists, then the manifests it does not.
         let named: Vec<FilePath> = run
             .listing
             .files
             .iter()
-            .map(|file| file.path.clone())
+            .map(|file| input_path(file).clone())
             .chain(now.unlisted.iter().cloned())
             .collect();
         now.unknowns = project_unknowns(&now.partials, &named, run.needs, run.ids);
@@ -1371,12 +1377,12 @@ impl LintUseCase for LintUseCaseImpl {
             AnswerShape::Findings => Answering::Findings,
             AnswerShape::Rows(limit) => Answering::Rows(rows_answer(&plans, limit)),
         };
-        let listing = {
+        let mut listing = {
             let _listing = tracing::info_span!("list").entered();
             self.listing(&answering)?
         };
         let paths = paths_of(&listing.files);
-        let manifests = self.manifests_of(&listing.files)?;
+        let manifests = self.file_analysis.read_manifests(&mut listing.files)?;
         let mut project = ProjectHandle {
             symbols: Symbols::default(),
             facts: self.facts.worker()?,

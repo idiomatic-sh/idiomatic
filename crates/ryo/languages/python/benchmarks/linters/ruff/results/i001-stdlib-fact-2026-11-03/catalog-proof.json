@@ -1,0 +1,236 @@
+{
+  "extraction": "Strict initializer line parser: every noncomment line between static array braces must be a JSON quoted name plus comma; duplicates rejected. Rust concat string lines parsed separately with JSON decoder.",
+  "local_python_3_13": {
+    "count": 290,
+    "exact": true,
+    "only_header": [],
+    "only_runtime": [],
+    "version": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]"
+  },
+  "rebound_at": "2026-11-03",
+  "revalidation": "All CPython initializer lines and every Rust concat literal were parsed; exact sets, counts, header hashes, and local Python 3.13 runtime set match.",
+  "review_source_tree": "63e0ab9f7f68219045e4ca6ded4af31c9bfb71c8",
+  "ruff_comparison": {
+    "by_target": {
+      "10": {
+        "cpython_only": [
+          "__future__"
+        ],
+        "ruff_only": [
+          "__hello__",
+          "__phello__",
+          "_ctypes_test",
+          "_testbuffer",
+          "_testcapi",
+          "_testclinic",
+          "_testconsole",
+          "_testimportmultiple",
+          "_testinternalcapi",
+          "_testmultiphase",
+          "_xxsubinterpreters",
+          "_xxtestfuzz",
+          "xx",
+          "xxlimited",
+          "xxlimited_35",
+          "xxsubtype"
+        ]
+      },
+      "11": {
+        "cpython_only": [
+          "__future__"
+        ],
+        "ruff_only": [
+          "__hello__",
+          "__hello_alias__",
+          "__hello_only__",
+          "__phello__",
+          "__phello_alias__",
+          "_ctypes_test",
+          "_testbuffer",
+          "_testcapi",
+          "_testclinic",
+          "_testconsole",
+          "_testimportmultiple",
+          "_testinternalcapi",
+          "_testmultiphase",
+          "_xxsubinterpreters",
+          "_xxtestfuzz",
+          "xx",
+          "xxlimited",
+          "xxlimited_35",
+          "xxsubtype"
+        ]
+      },
+      "12": {
+        "cpython_only": [
+          "__future__"
+        ],
+        "ruff_only": [
+          "__hello__",
+          "__hello_alias__",
+          "__hello_only__",
+          "__phello__",
+          "__phello_alias__",
+          "_ctypes_test",
+          "_testbuffer",
+          "_testcapi",
+          "_testclinic",
+          "_testconsole",
+          "_testimportmultiple",
+          "_testinternalcapi",
+          "_testmultiphase",
+          "_testsinglephase",
+          "_xxinterpchannels",
+          "_xxsubinterpreters",
+          "_xxtestfuzz",
+          "xx",
+          "xxlimited",
+          "xxlimited_35",
+          "xxsubtype"
+        ]
+      },
+      "13": {
+        "cpython_only": [
+          "__future__"
+        ],
+        "ruff_only": [
+          "__hello__",
+          "__hello_alias__",
+          "__hello_only__",
+          "__phello__",
+          "__phello_alias__",
+          "_ctypes_test",
+          "_testbuffer",
+          "_testcapi",
+          "_testcapi_datetime",
+          "_testclinic",
+          "_testclinic_limited",
+          "_testconsole",
+          "_testexternalinspection",
+          "_testimportmultiple",
+          "_testinternalcapi",
+          "_testlimitedcapi",
+          "_testmultiphase",
+          "_testsinglephase",
+          "_xxtestfuzz",
+          "xx",
+          "xxlimited",
+          "xxlimited_35",
+          "xxsubtype"
+        ]
+      },
+      "14": {
+        "cpython_only": [
+          "__future__"
+        ],
+        "ruff_only": [
+          "__hello__",
+          "__hello_alias__",
+          "__hello_only__",
+          "__phello__",
+          "__phello_alias__",
+          "_ctypes_test",
+          "_testbuffer",
+          "_testcapi",
+          "_testcapi_datetime",
+          "_testclinic",
+          "_testclinic_limited",
+          "_testconsole",
+          "_testimportmultiple",
+          "_testinternalcapi",
+          "_testlimitedcapi",
+          "_testmultiphase",
+          "_testsinglephase",
+          "_xxtestfuzz",
+          "xx",
+          "xxlimited",
+          "xxlimited_35",
+          "xxsubtype"
+        ]
+      },
+      "15": {
+        "cpython_only": [
+          "__future__"
+        ],
+        "ruff_only": [
+          "__hello__",
+          "__hello_alias__",
+          "__hello_only__",
+          "__phello__",
+          "__phello_alias__",
+          "_ctypes_test",
+          "_testbuffer",
+          "_testcapi",
+          "_testcapi_datetime",
+          "_testclinic",
+          "_testclinic_limited",
+          "_testconsole",
+          "_testimportmultiple",
+          "_testinternalcapi",
+          "_testlimitedcapi",
+          "_testmultiphase",
+          "_testsinglephase",
+          "_xxtestfuzz",
+          "xx",
+          "xxlimited",
+          "xxlimited_35",
+          "xxsubtype"
+        ]
+      }
+    },
+    "scope": "Pinned Ruff 0.16.5 generated is_known_standard_library comparison only; its internal/test names are not positive CPython semantic facts.",
+    "source_sha256": "a95adc33f9a13dcb33d37f5a2aaae6e900a93e0c1603b88af0413fb5c8eeaa48"
+  },
+  "source": "crates/ryo/languages/python/src/domain/standard_library/constants.rs",
+  "source_sha256": "75df08228be4c877ea6bf6413a050845c4bb028849222e62555ba8afa505bd26",
+  "versions": {
+    "v3.10.19": {
+      "contains_future": true,
+      "count": 303,
+      "emitted_exact": true,
+      "header_sha256": "8ad82ad88d3ab42532f8cb5a5bdde98e085585f380a5c4c851b029af8e6ea4fc",
+      "sorted_names_sha256": "50a7dfa34df0d9819623ab169ec555b3c4c2318800296426bdfcc479f41dc76a",
+      "source_url": "https://github.com/python/cpython/blob/v3.10.19/Python/stdlib_module_names.h"
+    },
+    "v3.11.14": {
+      "contains_future": true,
+      "count": 305,
+      "emitted_exact": true,
+      "header_sha256": "f58f81abfc73c526744bbbde8fd110c6f97daa9b66737516b6b6ab1686bc6feb",
+      "sorted_names_sha256": "a1dc64a3fd9ca52778578637b95f285fb7e6529439a80100b06a51fe988d3e83",
+      "source_url": "https://github.com/python/cpython/blob/v3.11.14/Python/stdlib_module_names.h"
+    },
+    "v3.12.12": {
+      "contains_future": true,
+      "count": 301,
+      "emitted_exact": true,
+      "header_sha256": "450581463358b2ffaeca45b261c2e59a41cd6546b487445ed5ff9e0a2b4163a6",
+      "sorted_names_sha256": "8c9e3210ccf408b365cbecd391b5a7bf01fd9f1ec4a22b1993f7cc03693cc7b0",
+      "source_url": "https://github.com/python/cpython/blob/v3.12.12/Python/stdlib_module_names.h"
+    },
+    "v3.13.5": {
+      "contains_future": true,
+      "count": 290,
+      "emitted_exact": true,
+      "header_sha256": "9d76028adda37b3b80e1a45ca2fe91aa1179a1d3761b808797824895a60d0ff6",
+      "sorted_names_sha256": "73bfb91acae4965b49a2aef17811467264fa9c6156d53e91f5c56c6c23882f88",
+      "source_url": "https://github.com/python/cpython/blob/v3.13.5/Python/stdlib_module_names.h"
+    },
+    "v3.14.0": {
+      "contains_future": true,
+      "count": 297,
+      "emitted_exact": true,
+      "header_sha256": "ba9c2182638b515bbc97fa01927ca94f4cbecdfa41f0772f32392c4d1208917b",
+      "sorted_names_sha256": "e2ba5190b737aeb8896b8e0deb8e0f2094d2cac52abdadf41a30e05c15f7bba3",
+      "source_url": "https://github.com/python/cpython/blob/v3.14.0/Python/stdlib_module_names.h"
+    },
+    "v3.15.0": {
+      "contains_future": true,
+      "count": 296,
+      "emitted_exact": true,
+      "header_sha256": "618f93e227a3e7edeba95c3695f4cad79045c080667dfb43b498ba6def7239e0",
+      "sorted_names_sha256": "ac36cc88993d0f3cde65511e332aaadbbfb4a422f4bcee1cb66d879056e5c291",
+      "source_url": "https://github.com/python/cpython/blob/v3.15.0/Python/stdlib_module_names.h"
+    }
+  }
+}

@@ -359,4 +359,9 @@ impl Parse for ParseContract {
         // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document nodes, not this programming-language or package construct.
         languages::absent(AbsenceCause::NoSuchConstruct)
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        // HTML resources are URLs, not language standard-library modules.
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
 }
