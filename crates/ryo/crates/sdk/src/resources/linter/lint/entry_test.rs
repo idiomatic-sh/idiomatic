@@ -801,8 +801,10 @@ use ryo_relations::domain::terms::types::NameText;
         &self,
         relation: ryo_relations::domain::relations::types::Relation,
     ) -> Option<ryo_relations::domain::answers::types::AbsenceCause> {
-        use ryo_language::domain::{answers::types::AbsenceCause};
-use ryo_relations::domain::relations::types::{OptionalCapability, Relation};
+        use ryo_relations::domain::{
+            answers::types::AbsenceCause,
+            relations::types::{OptionalCapability, Relation},
+        };
         ((relation == Relation::Identifier && !self.0.contains(&OptionalCapability::Identifier))
             || (relation == Relation::RawFormatSegment
                 && !self.0.contains(&OptionalCapability::RawFormatSegment))
