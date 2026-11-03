@@ -1,5 +1,5 @@
 //! Existing compact adjacency algorithm; generation identity and retention are engine-owned.
-use super::contract::types::{CompactGraph, DerivedFault, RowCells};
+use super::contract::types::{CompactGraph, DerivedFault, FOREST_ROOT, RowCells};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -109,8 +109,7 @@ pub(crate) fn build_borrowed(
 
 /// Validate duplicate-insensitive single-parent ancestry and cycles iteratively once per graph.
 fn forest(offsets: &[u32], neighbors: &[u32]) -> Option<Vec<u32>> {
-    const ABSENT: u32 = u32::MAX;
-    let mut parents = vec![ABSENT; offsets.len().saturating_sub(1)];
+    let mut parents = vec![FOREST_ROOT; offsets.len().saturating_sub(1)];
     for vertex in 0..parents.len() {
         let outgoing = &neighbors[offsets[vertex] as usize..offsets[vertex + 1] as usize];
         if let Some(parent) = outgoing.first() {
@@ -137,7 +136,7 @@ fn forest(offsets: &[u32], neighbors: &[u32]) -> Option<Vec<u32>> {
             }
             state[current] = 1;
             path.push(current);
-            if parents[current] == ABSENT {
+            if parents[current] == FOREST_ROOT {
                 break;
             }
             current = parents[current] as usize;

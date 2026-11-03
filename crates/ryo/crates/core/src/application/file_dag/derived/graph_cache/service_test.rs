@@ -375,3 +375,44 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
     assert_eq!(local.graph.neighbors, shared.graph.neighbors);
     assert_eq!(admitted.counts.builds, 1);
 }
+
+#[test]
+fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
+    let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
+    let rows = rows(&columns);
+    let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
+    let graph = fixture
+        .acquire(SOURCE, &rows, ENDPOINTS, &[])
+        .unwrap()
+        .unwrap();
+    let domain_columns = [FactColumn(vec![2]), FactColumn(vec![0])];
+    let domain_rows = self::rows(&domain_columns);
+    let membership = fixture
+        .domain(
+            &graph,
+            Input::Relation(Relation::Identifier),
+            &domain_rows,
+            ColumnIndex(0),
+        )
+        .unwrap()
+        .unwrap();
+    let mut walk = GraphWalk::default();
+    let mut local = Vec::new();
+    for (root, expected) in [(3, None), (1, Some(2))] {
+        let root = graph.graph.vertex(0, Value::Number(Integer(root))).unwrap();
+        let answer = fixture
+            .nearest(
+                &graph,
+                &membership,
+                root,
+                Orientation::Forward,
+                &mut local,
+                &mut walk,
+            )
+            .unwrap();
+        assert_eq!(
+            answer.map(|id| graph.graph.vertices()[id as usize]),
+            expected.map(|n| Value::Number(Integer(n)))
+        );
+    }
+}

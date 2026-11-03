@@ -72,7 +72,7 @@ impl<'a> GraphTraversal<'a> {
         self.walk.expanded = 0;
         self.walk.examined = 0;
         self.walk.path.clear();
-        let Some(parents) = &self.graph.forests()[direction(orientation)] else {
+        let Some(parents) = self.graph.forest(direction(orientation)) else {
             return (None, false);
         };
         answers.resize(self.graph.vertices().len(), UNKNOWN);
@@ -84,10 +84,9 @@ impl<'a> GraphTraversal<'a> {
         let answer = loop {
             self.walk.path.push(current);
             self.walk.expanded += 1;
-            let parent = parents[current as usize];
-            if parent == ABSENT {
+            let Some(parent) = parents.parent(current) else {
                 break ABSENT;
-            }
+            };
             self.walk.examined += 1;
             if domain.members[parent as usize] {
                 break parent;

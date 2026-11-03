@@ -97,9 +97,10 @@ impl<'a> DemandAnswers<'a> {
         walk: &mut GraphWalk,
     ) -> Result<Option<u32>, OperatingError> {
         crate::application::file_dag::route_counts::event("nearest_request", "graph");
-        if access.graph.forests()
-            [crate::domain::stored_graph::types::traversal::value::direction(orientation)]
-        .is_none()
+        if access
+            .graph
+            .forest(crate::domain::stored_graph::types::traversal::value::direction(orientation))
+            .is_none()
         {
             crate::application::file_dag::route_counts::event("nearest_traversal", "graph");
             let stopped =

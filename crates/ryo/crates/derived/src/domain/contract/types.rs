@@ -347,8 +347,25 @@ impl CompactGraph {
         &self.neighbors
     }
     #[must_use]
-    pub fn forests(&self) -> &[Option<Vec<u32>>; 2] {
-        &self.forests
+    pub fn forest(&self, direction: usize) -> Option<ForestParents<'_>> {
+        self.forests[direction]
+            .as_deref()
+            .map(|parents| ForestParents { parents })
+    }
+}
+
+pub(crate) const FOREST_ROOT: u32 = u32::MAX;
+
+/// Borrowed validated ancestry. Absence is independent of the private storage sentinel.
+#[derive(Clone, Copy, Debug)]
+pub struct ForestParents<'a> {
+    parents: &'a [u32],
+}
+impl ForestParents<'_> {
+    #[must_use]
+    pub fn parent(&self, vertex: u32) -> Option<u32> {
+        let parent = self.parents[vertex as usize];
+        (parent != FOREST_ROOT).then_some(parent)
     }
 }
 
