@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**405 PASS / 8 FAIL / 413 pinned defaults**; run state `complete`. Base worker `ec9611ff64ff2ec72fcebe171cf1dc02a7b9a6db09041067e353525159fd7fb0`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
+**407 PASS / 6 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7450619a87af97a1f01328b150cffa115ef83370937142e6f98f769836618051`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -40,7 +40,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | B026 | PASS | verified intended expectations |
 | B029 | PASS | verified intended expectations |
 | B030 | PASS | verified intended expectations |
-| B031 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
+| B031 | FAIL | [Missing implementation](results/ci-bec4-full-inventory-2026-11-03/summary.json) |
 | B032 | PASS | verified intended expectations |
 | B033 | PASS | verified intended expectations |
 | B035 | PASS | verified intended expectations |
@@ -75,9 +75,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | DTZ012 | PASS | verified intended expectations |
 | DTZ901 | PASS | verified intended expectations |
 | E722 | PASS | verified intended expectations |
-| E902 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
-| EXE001 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
-| EXE002 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
+| E902 | FAIL | [Missing implementation](results/ci-bec4-full-inventory-2026-11-03/summary.json) |
+| EXE001 | PASS | verified intended expectations |
+| EXE002 | PASS | verified intended expectations |
 | EXE004 | PASS | verified intended expectations |
 | EXE005 | PASS | verified intended expectations |
 | F401 | PASS | verified intended expectations |
@@ -143,7 +143,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | G101 | PASS | verified intended expectations |
 | G201 | PASS | verified intended expectations |
 | G202 | PASS | verified intended expectations |
-| I001 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
+| I001 | FAIL | [Missing implementation](results/ci-bec4-full-inventory-2026-11-03/summary.json) |
 | INT001 | PASS | verified intended expectations |
 | INT002 | PASS | verified intended expectations |
 | INT003 | PASS | verified intended expectations |
@@ -329,9 +329,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF059 | PASS | verified intended expectations |
 | RUF063 | PASS | verified intended expectations |
 | RUF068 | PASS | verified intended expectations |
-| RUF100 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
+| RUF100 | FAIL | [Missing implementation](results/ci-bec4-full-inventory-2026-11-03/summary.json) |
 | RUF101 | PASS | verified intended expectations |
-| RUF200 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
+| RUF200 | FAIL | [Missing implementation](results/ci-bec4-full-inventory-2026-11-03/summary.json) |
 | S102 | PASS | verified intended expectations |
 | S110 | PASS | verified intended expectations |
 | S112 | PASS | verified intended expectations |
@@ -353,7 +353,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | SIM221 | PASS | verified intended expectations |
 | SIM222 | PASS | verified intended expectations |
 | SIM223 | PASS | verified intended expectations |
-| SIM401 | FAIL | [Missing implementation](results/ci-ea787-full-inventory-2026-11-03/summary.json) |
+| SIM401 | FAIL | [Missing implementation](results/ci-bec4-full-inventory-2026-11-03/summary.json) |
 | SIM905 | PASS | verified intended expectations |
 | SIM911 | PASS | verified intended expectations |
 | T100 | PASS | verified intended expectations |
