@@ -70,7 +70,6 @@ fn consider(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: pass.matchers,
-        stored_indexes: None,
         bindings: bound,
         symbols: (&mut *pass.symbols).into(),
         source: pass.source,
@@ -221,7 +220,6 @@ pub(crate) fn walk(shared: &mut MergedWalk, walking: Walking<'_>) {
         let mut context = OperatorContext {
             prepared_kinds: room.kind_vocabulary.as_deref(),
             prepared_matchers: room.matchers.as_deref(),
-            stored_indexes: None,
             bindings: bound,
             symbols: (&mut *symbols).into(),
             source: SourceView(source.0),

@@ -99,7 +99,7 @@ fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
         if let Some(previous) = last_set.as_ref() {
             assert!(std::sync::Arc::ptr_eq(previous, set));
         }
-        last_set = Some(std::sync::Arc::clone(set));
+        last_set = Some((set).clone());
     }
 }
 
@@ -153,7 +153,7 @@ fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() 
         assert_eq!(passes(&kinds, KindBits(0)), Verdict::Fails);
         assert_eq!(passes(&kinds, KindBits(1)), Verdict::Fails);
         if first.is_none() {
-            first = Some(std::sync::Arc::clone(&prepared));
+            first = Some((prepared).clone());
         }
     }
     let first = first.unwrap();

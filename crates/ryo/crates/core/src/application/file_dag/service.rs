@@ -1,4 +1,5 @@
 //! Demand a unique dependency schedule; primitive semantics stay in domain.
+use super::executor::PrimitiveExecutor;
 use super::interface::DagExecution;
 use super::types::FileDagExecution;
 use crate::application::file_dag::feed::Feed;
@@ -132,7 +133,7 @@ impl FileDagExecution {
         // A lazy primitive may never request one branch. Cancel that branch's
         // outgoing consumer edges when it becomes unreachable, not at file end.
         if self.executions[node.0] == 0 {
-            let graph = Arc::clone(&self.graph);
+            let graph = (self.graph).clone();
             for input in &graph.nodes[node.0].inputs {
                 if let NodeInput::Node(child) = input {
                     self.consumed(*child);
@@ -144,7 +145,7 @@ impl FileDagExecution {
         if !self.active.get(rule).copied().unwrap_or(false) {
             return;
         }
-        let graph = Arc::clone(&self.graph);
+        let graph = (self.graph).clone();
         for (_, root) in &graph.boundaries[rule] {
             self.consumed(*root);
             self.consume_required(*root);
@@ -165,27 +166,29 @@ impl FileDagExecution {
         &mut self,
         id: NodeId,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &dyn PrimitiveExecutor,
         context: &mut OperatorContext<'_>,
-    ) -> Result<Arc<super::relations::RelationResult>, OperatingError> {
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         self.demands += 1;
         if let Some(table) = self.required.get(id.0).and_then(Option::as_ref) {
             self.hits += 1;
-            return Ok(Arc::clone(table));
+            return Ok((table).clone());
         }
         if let Some(table) = self
             .ready
             .get(id.0)
             .and_then(Option::as_ref)
-            .map(Arc::clone)
+            .map(Clone::clone)
         {
             self.hits += 1;
-            self.pin_required(id, Arc::clone(&table));
+            let table = self.relations.required_publication(&table)?;
+            self.pin_required(id, table.clone());
             return Ok(table);
         }
         if self.visiting.get(id.0).copied().unwrap_or(true) {
             return Err(OperatingError::NotRun);
         }
-        let graph = Arc::clone(&self.graph);
+        let graph = (self.graph).clone();
         let node = &graph.nodes[id.0];
         if crate::domain::features::service::kind_of(&node.operation) != node.contract.kind {
             return Err(OperatingError::WrongOperation);
@@ -201,8 +204,9 @@ impl FileDagExecution {
             inputs: &node.inputs,
             held: &held,
             read,
+            executor,
         };
-        let outcome = super::execution::CommonOperatorEngine.keep_representation(
+        let outcome = executor.keep_representation(
             &node.contract,
             &node.physical,
             &mut feed,
@@ -232,15 +236,20 @@ impl FileDagExecution {
                 }
             }
         }
-        self.pin_required(id, Arc::clone(&table));
+        self.pin_required(id, (table).clone());
         let size = bytes(&table);
-        if self.remaining[id.0] > 0 && self.retained_bytes.saturating_add(size) <= self.limit {
+        let retained = if self.remaining[id.0] > 0 {
+            self.relations.retain_publication(&table, self.limit)?
+        } else {
+            None
+        };
+        if let Some(retained) = retained {
             self.retained_bytes += size;
             self.peak_bytes = self.peak_bytes.max(self.retained_bytes);
             if self.graph.derived_sources[id.0] {
                 self.relations.pin_derived(table.as_ref());
             }
-            self.ready[id.0] = Some(Arc::clone(&table));
+            self.ready[id.0] = Some(retained);
             if self.required[id.0].is_some() {
                 self.overlap_bytes = self.overlap_bytes.saturating_add(size);
             }
@@ -270,19 +279,44 @@ impl FileDagExecution {
 /// Existing primitive Feed contract supplies lazy, borrowed graph dependencies.
 /// OnceCell slots pin returned handles for this primitive invocation without
 /// copying cells; no borrowed provider view survives a rule's keep boundary.
-pub(super) struct GraphInputs<'a, 'f> {
+pub(crate) struct GraphInputs<'a, 'f> {
     execution: &'a mut FileDagExecution,
     graph: &'a RequestGraph,
     inputs: &'a [NodeInput],
-    held: &'a [OnceCell<Arc<super::relations::RelationResult>>],
+    held: &'a [OnceCell<crate::application::file_dag::relations::PublishedInput>],
     read: &'a dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+    executor: &'a dyn PrimitiveExecutor,
 }
 impl<'a> Feed<'a> for GraphInputs<'a, '_> {
     fn relation_owner(&self) -> Option<std::rc::Rc<super::relations::RelationOwner>> {
         Some(std::rc::Rc::clone(&self.execution.relations))
     }
-    fn publication(&self, which: InputPlace) -> Option<Arc<super::relations::RelationResult>> {
-        self.held.get(which.0)?.get().map(Arc::clone)
+    fn origin(&self, which: InputPlace) -> Result<super::feed::InputOrigin, OperatingError> {
+        match self.inputs.get(which.0) {
+            Some(NodeInput::Relation(relation)) => {
+                Ok(super::feed::InputOrigin::Relation(*relation))
+            }
+            Some(NodeInput::Node(_)) => Ok(super::feed::InputOrigin::Internal),
+            None => Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            }),
+        }
+    }
+    fn publication(
+        &self,
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        if which.0 >= self.inputs.len() {
+            return Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            });
+        }
+        Ok(self
+            .held
+            .get(which.0)
+            .and_then(OnceCell::get)
+            .map(Clone::clone))
     }
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
         match self.inputs.get(which.0) {
@@ -328,7 +362,9 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
                 let held = self.held;
                 let slot = &held[which.0];
                 if slot.get().is_none() {
-                    let table = self.execution.demand_result(node, self.read, context)?;
+                    let table =
+                        self.execution
+                            .demand_result(node, self.read, self.executor, context)?;
                     let _installed = slot.set(table);
                 }
                 let table = slot.get().ok_or(OperatingError::NotRun)?;
@@ -354,14 +390,16 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
             NodeInput::Relation(relation) => {
                 let raw = (self.read)(relation)?;
                 let record = self.execution.relations.source(relation, &raw)?;
-                let rows = self.execution.relations.normalize(record.as_ref(), raw)?;
+                let rows = self.execution.relations.normalize(&record, raw)?;
                 scan(&rows, &mut row, context, emit)
             }
             NodeInput::Node(node) => {
                 let held = self.held;
                 let slot = &held[which.0];
                 if slot.get().is_none() {
-                    let table = self.execution.demand_result(node, self.read, context)?;
+                    let table =
+                        self.execution
+                            .demand_result(node, self.read, self.executor, context)?;
                     let _installed = slot.set(table);
                 }
                 let table = slot.get().ok_or(OperatingError::NotRun)?;
@@ -386,8 +424,8 @@ impl DagExecution for std::cell::RefCell<FileDagExecution> {
     fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         std::rc::Rc::clone(&self.borrow().relations)
     }
-    fn begin_rule(&self, rule: usize) {
-        self.borrow_mut().begin_rule(rule);
+    fn begin_rule(&self, rule: usize) -> Result<(), OperatingError> {
+        self.borrow_mut().begin_rule(rule)
     }
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId> {
         self.borrow().owned(rule, step)
@@ -396,9 +434,11 @@ impl DagExecution for std::cell::RefCell<FileDagExecution> {
         &self,
         node: NodeId,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &dyn PrimitiveExecutor,
         context: &mut OperatorContext<'_>,
-    ) -> Result<Arc<super::relations::RelationResult>, OperatingError> {
-        self.borrow_mut().demand_result(node, read, context)
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        self.borrow_mut()
+            .demand_result(node, read, executor, context)
     }
 }
 #[cfg(test)]
@@ -406,8 +446,8 @@ impl DagExecution for std::cell::RefCell<&mut FileDagExecution> {
     fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         std::rc::Rc::clone(&self.borrow().relations)
     }
-    fn begin_rule(&self, rule: usize) {
-        self.borrow_mut().begin_rule(rule);
+    fn begin_rule(&self, rule: usize) -> Result<(), OperatingError> {
+        self.borrow_mut().begin_rule(rule)
     }
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId> {
         self.borrow().owned(rule, step)
@@ -416,9 +456,11 @@ impl DagExecution for std::cell::RefCell<&mut FileDagExecution> {
         &self,
         node: NodeId,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &dyn PrimitiveExecutor,
         context: &mut OperatorContext<'_>,
-    ) -> Result<Arc<super::relations::RelationResult>, OperatingError> {
-        self.borrow_mut().demand_result(node, read, context)
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        self.borrow_mut()
+            .demand_result(node, read, executor, context)
     }
 }
 
@@ -431,7 +473,7 @@ impl GraphInputs<'_, '_> {
         &mut self,
         which: usize,
         context: &mut OperatorContext<'_>,
-    ) -> Result<Arc<super::relations::RelationResult>, OperatingError> {
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         match self
             .inputs
             .get(which)
@@ -446,10 +488,12 @@ impl GraphInputs<'_, '_> {
             NodeInput::Node(node) => {
                 let slot = &self.held[which];
                 if slot.get().is_none() {
-                    let value = self.execution.demand_result(node, self.read, context)?;
+                    let value =
+                        self.execution
+                            .demand_result(node, self.read, self.executor, context)?;
                     let _installed = slot.set(value);
                 }
-                Ok(Arc::clone(slot.get().ok_or(OperatingError::NotRun)?))
+                Ok(slot.get().ok_or(OperatingError::NotRun)?.clone())
             }
         }
     }
@@ -492,7 +536,8 @@ impl FileDagExecution {
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
         context: &mut OperatorContext<'_>,
     ) -> Result<Arc<Table>, OperatingError> {
-        let result = self.demand_result(node, read, context)?;
+        let result =
+            self.demand_result(node, read, &super::execution::CommonOperatorEngine, context)?;
         let rows = self.relations.resolve(result.as_ref(), read)?;
         let mut table = Table::default();
         crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());
@@ -503,3 +548,7 @@ impl FileDagExecution {
 #[cfg(test)]
 #[path = "service/representation_test.rs"]
 mod representation_test;
+
+#[cfg(test)]
+#[path = "service/executor_test.rs"]
+mod executor_test;

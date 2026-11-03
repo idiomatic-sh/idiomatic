@@ -64,3 +64,23 @@ pub(crate) fn appended_values(
     }
     Ok(())
 }
+
+impl super::types::FileDagExecution {
+    pub(crate) fn prepare_resources(
+        &self,
+        enabled: bool,
+        wanted: &[ryo_language::domain::relations::types::Relation],
+        partial: &[crate::domain::coverage::types::Partial],
+        selectable: &[ryo_language::domain::relations::types::Relation],
+        plans: &[ryo_values::domain::plans::types::Plan],
+        pool: &crate::domain::operator::types::PreparedPool,
+        active: impl Fn(usize) -> bool + Copy,
+    ) {
+        self.relations
+            .derived
+            .prepare_file(enabled, wanted, partial, selectable, plans, pool, active);
+    }
+    pub(crate) fn report_resources(&self, file: ryo_language::domain::relations::types::FileId) {
+        self.relations.derived.report(file);
+    }
+}

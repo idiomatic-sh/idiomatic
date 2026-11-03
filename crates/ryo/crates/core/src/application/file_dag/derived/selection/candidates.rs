@@ -2,7 +2,8 @@
 use super::*;
 /// Use a column index only when multiple active descriptors can amortize its build.
 pub(super) fn candidates(
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
+    resources: super::super::owner::selection::SelectionSource<'_>,
     program: &Selector,
     views: &PreparedSelectorViews,
     source: ColumnsView<'_>,
@@ -52,26 +53,27 @@ pub(super) fn candidates(
             path = path.max(SelectionPath::BudgetRefused);
             continue;
         }
-        let mut local = KeyIndex::default();
-        let acquired = super::super::indexes::acquire(
-            &equality,
+        let acquired = resources.acquire(
             cache,
-            program.relation,
-            source,
-            &[column],
-            &mut local,
+            &equality,
+            super::super::owner::ViewContext::default(),
+            DerivedInputs::Rows(&[BorrowedRows::Stored(source)]),
+            &mut DerivedScratch::default(),
+            Some((program.relation, source)),
         )?;
-        if acquired.built {
+        if acquired.was_built() {
             cache.selection_counts.scanned += population as u64;
         }
-        let order = acquired.shared.as_deref().unwrap_or(&local);
+        let DerivedView::Equality(order) = acquired.view()? else {
+            return Err(OperatingError::WrongOperation);
+        };
         let result: Vec<_> = matching_stored(source, &[column], order, &[value])
             .filter_map(|index| u32::try_from(index.0).ok())
             .collect();
         cache.selection_counts.candidates += result.len() as u64;
         return Ok((
             Some(CandidateRows::Owned(result)),
-            if acquired.built {
+            if acquired.was_built() {
                 SelectionPath::IndexBuilt
             } else {
                 SelectionPath::IndexReused

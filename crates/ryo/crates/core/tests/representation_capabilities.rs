@@ -270,7 +270,7 @@ pub mod application {pub(crate) mod file_dag {
   pub(super) use produced::ProducedSelection;
   pub(super) fn control()->(Arc<RelationResult>,ProducedSelection) {
    let result=Arc::new(RelationResult{population:0,producer:OnceLock::new(),generation:Arc::new(()),kind:RepresentationKind::Computed,body:RelationBody::Computed(Arc::new(Table::default())),inspected:OnceLock::from(Ok(PhysicalShape::Complete)),normalized:OnceLock::new()});
-   let token=produced::ProducedSelection{source:Arc::clone(&result),selection:Arc::new(StoredSelection)};
+   let token=produced::ProducedSelection{rows:crate::domain::relations::types::ColumnsView{kinds:&[],columns:&[]},source:Arc::clone(&result),selection:Arc::new(StoredSelection)};
    (result,token)
   }
  }
@@ -329,6 +329,11 @@ fn only_the_actual_application_owner_can_construct_or_modify_admission_state() {
         (
             "rewrite_producer_projection",
             "fn forbidden(token:&mut ProducedSelection){token.selection=Arc::new(Default::default());}",
+            "E0616",
+        ),
+        (
+            "rewrite_producer_rows",
+            "fn forbidden(token:&mut ProducedSelection){token.rows=crate::domain::relations::types::ColumnsView{kinds:&[],columns:&[]};}",
             "E0616",
         ),
         (

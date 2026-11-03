@@ -48,6 +48,7 @@ pub(crate) struct InvocationResources<'f> {
     pub(crate) native_storage: Option<AcquiredView>,
     pub(crate) cycles: Option<AcquiredView>,
     pub(crate) closure: Vec<ClosurePartition>,
+    pub(super) closure_leases: Vec<std::sync::Arc<super::derived::ledger::ResourceLease>>,
     pub(crate) partitioned_closure: Option<super::closure_partitions::PartitionedClosure<'f>>,
     pub(crate) ordered: Option<AcquiredView>,
     pub(crate) dfs: Option<AcquiredView>,
@@ -66,6 +67,7 @@ impl<'f> InvocationResources<'f> {
             native_storage: None,
             cycles: None,
             closure: Vec::new(),
+            closure_leases: Vec::new(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -90,6 +92,7 @@ impl<'f> InvocationResources<'f> {
             native_storage: None,
             cycles: None,
             closure: Vec::new(),
+            closure_leases: Vec::new(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -106,14 +109,13 @@ impl<'f> InvocationResources<'f> {
         let empty_domain=contract.collected_empty.iter().any(|gate|gate.input>0 && gate.representation==crate::domain::operator::contract::types::EmptyRepresentation::Computed &&
           originals.get(gate.input).is_some_and(|rows|matches!(rows,crate::domain::table_model::types::Rows::Computed(table) if table.count.0==0)));
         if !empty_domain {
-            resources.cached_graph = super::cached_graph::CachedGraph::prepare(
+            resources.cached_graph = admission.owner().derived.prepare_graph(
                 contract,
                 admission,
                 mode,
                 program,
                 ryo_values::domain::plans::service::named(&contract.inputs),
                 originals,
-                context.stored_indexes.as_deref_mut(),
             )?;
             if resources.cached_graph.is_some() {
                 return Ok(resources);
@@ -159,10 +161,11 @@ impl<'f> InvocationResources<'f> {
             }) => {
                 let right = input(inputs, 1)?;
                 if let Some(reach) = reach {
-                    let mut cursor =
-                        partitioned(contract, mode, right, inputs, admission, context)?;
+                    let mut cursor = partitioned(contract, mode, right, &admitted, context)?;
                     while cursor.advance()? {
-                        resources.closure.push(cursor.take_current()?);
+                        let (part, lease) = cursor.take_current()?;
+                        resources.closure.push(part);
+                        resources.closure_leases.push(lease);
                     }
                 } else if let BorrowedRows::Tree(tree) = right
                     && tree_finding(&tree, left_on, right_on, view).is_some()
@@ -173,7 +176,7 @@ impl<'f> InvocationResources<'f> {
                         crate::domain::derived_views::types::DerivedKind::NativeLookup,
                     )?;
                     let storage = admitted.acquire_rows(use_, context)?;
-                    let acquired = AcquiredView::new(&use_.plan, storage);
+                    let acquired = storage;
                     let crate::domain::derived_views::types::DerivedView::NativeLookup(finding) =
                         acquired.view()?
                     else {
@@ -207,8 +210,7 @@ impl<'f> InvocationResources<'f> {
                     contract,
                     mode,
                     input(inputs, 0)?,
-                    inputs,
-                    admission,
+                    &admitted,
                     context,
                 )?);
             }
@@ -218,10 +220,7 @@ impl<'f> InvocationResources<'f> {
                     mode,
                     crate::domain::derived_views::types::DerivedKind::CycleAdjacency,
                 )?;
-                resources.cycles = Some(AcquiredView::new(
-                    &use_.plan,
-                    admitted.acquire_rows(use_, context)?,
-                ));
+                resources.cycles = Some(admitted.acquire_rows(use_, context)?);
             }
             ResourceProgram::Ordered { .. } => {
                 use crate::domain::derived_views::types::{DerivedInputs, DerivedKind};
@@ -232,33 +231,25 @@ impl<'f> InvocationResources<'f> {
                     paths: context.paths,
                     arenas: context.arenas,
                 };
-                resources.ordered = Some(AcquiredView::new(
-                    &use_.plan,
-                    admitted.acquire_derived(
-                        use_,
-                        super::derived::owner::ViewContext::default(),
-                        super::workspace::ViewInputs::Text(&texts),
-                        context.stored_indexes.as_deref_mut(),
-                    )?,
-                ));
+                resources.ordered = Some(admitted.acquire_derived(
+                    use_,
+                    super::derived::owner::ViewContext::default(),
+                    super::workspace::ViewInputs::Text(&texts),
+                )?);
             }
             ResourceProgram::Dfs(_) => {
                 use crate::domain::derived_views::types::{DerivedInputs, DerivedKind};
                 let use_ = prepared(contract, mode, DerivedKind::OrderedDfs)?;
-                resources.dfs = Some(AcquiredView::new(
-                    &use_.plan,
-                    admitted.acquire_derived(
-                        use_,
-                        super::derived::owner::ViewContext::default(),
-                        super::workspace::ViewInputs::Dfs {
-                            symbols: &mut context.symbols,
-                            source: context.source,
-                            paths: context.paths,
-                            arenas: context.arenas,
-                        },
-                        context.stored_indexes.as_deref_mut(),
-                    )?,
-                ));
+                resources.dfs = Some(admitted.acquire_derived(
+                    use_,
+                    super::derived::owner::ViewContext::default(),
+                    super::workspace::ViewInputs::Dfs {
+                        symbols: &mut context.symbols,
+                        source: context.source,
+                        paths: context.paths,
+                        arenas: context.arenas,
+                    },
+                )?);
             }
             ResourceProgram::Axis(program) => {
                 use super::axis_resources::{AxisMode, classify};
@@ -297,7 +288,6 @@ impl<'f> InvocationResources<'f> {
                                 ..Default::default()
                             },
                             super::workspace::ViewInputs::MembershipNative,
-                            context.stored_indexes.as_deref_mut(),
                         )?,
                     ),
                     AxisMode::Indexed { .. } => Some(
@@ -307,22 +297,9 @@ impl<'f> InvocationResources<'f> {
                                 .ok_or(OperatingError::NotRun)?,
                             super::derived::owner::ViewContext::default(),
                             super::workspace::ViewInputs::MembershipValues,
-                            context.stored_indexes.as_deref_mut(),
                         )?,
                     ),
                 };
-                let equality = equality
-                    .map(|storage| {
-                        prepared(contract, mode, DerivedKind::Equality)
-                            .map(|use_| AcquiredView::new(&use_.plan, storage))
-                    })
-                    .transpose()?;
-                let membership = membership
-                    .map(|storage| {
-                        prepared(contract, mode, DerivedKind::Membership)
-                            .map(|use_| AcquiredView::new(&use_.plan, storage))
-                    })
-                    .transpose()?;
                 resources.axis = Some(prepare_axis(program, edges, domain, equality, membership)?);
             }
         }
@@ -349,18 +326,18 @@ fn partitioned<'f>(
     contract: &OperatorContract,
     mode: EvaluationMode,
     input: BorrowedRows<'f>,
-    inputs: &[BorrowedRows<'f>],
-    admission: &super::workspace::InvocationWorkspace,
+    admitted: &super::workspace::InputAdmissions<'_, 'f>,
     context: &mut OperatorContext<'_>,
 ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
     use crate::domain::derived_views::types::DerivedKind;
     let order = prepared(contract, mode, DerivedKind::PartitionOrder)?;
     let closure = prepared(contract, mode, DerivedKind::ClosureAdjacency)?;
-    let storage = admission.acquire_rows(order, inputs, context)?;
+    let storage = admitted.acquire_rows(order, context)?;
     super::closure_partitions::PartitionedClosure::from_prepared(
         input,
-        std::sync::Arc::clone(&order.plan),
-        std::sync::Arc::clone(&closure.plan),
+        (order.plan).clone(),
+        (closure.plan).clone(),
         storage,
+        admitted.owner_handle(),
     )
 }

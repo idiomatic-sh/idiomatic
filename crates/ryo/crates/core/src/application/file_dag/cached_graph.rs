@@ -1,5 +1,6 @@
 //! Generation-owned complete graph acquisition and one-row demand answers.
 //! The primitive sees only borrowed values after the mutable cache borrow ends.
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::application::file_dag::derived::{
     graph::{acquire, domain},
     graph_cache::types::roots::value::DemandAnswers,
@@ -13,14 +14,13 @@ use crate::domain::stored_graph::{
     types::traversal::value::GraphTraversal,
     types::{GraphAccess, GraphDomain, GraphWalk, Orientation},
 };
-use crate::domain::stored_indexes::types::FileIndexes;
 use crate::domain::table_model::{service::cell, types::Rows};
 use ryo_language::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input};
 use std::sync::Arc;
 
 /// One request-bound plan with invocation-local traversal buffers. Exact cache
-/// identity and bounded retention remain in `FileIndexes` and `graph_cache`.
+/// identity and bounded retention remain in `CacheBackend` and `graph_cache`.
 pub(crate) enum CachedGraph {
     Reach(ReachGraph),
     Axis(AxisGraph),
@@ -50,14 +50,14 @@ impl CachedGraph {
     /// Called only after the common engine has held and checked the needed
     /// inputs at the operation's declared lazy acquisition boundary. Graph
     /// ineligibility returns `None` so the ordinary/native typed backend runs.
-    pub(crate) fn prepare(
+    pub(in crate::application::file_dag) fn prepare(
         contract: &crate::domain::operator::contract::types::OperatorContract,
         admission: &super::workspace::InvocationWorkspace,
         mode: crate::domain::operator::contract::types::EvaluationMode,
         program: &ResourceProgram,
         logical_inputs: &[Input],
         original_inputs: &[Rows<'_>],
-        mut cache: Option<&mut FileIndexes>,
+        mut cache: Option<&mut CacheBackend>,
     ) -> Result<Option<Self>, OperatingError> {
         use crate::domain::derived_views::{service::slot, types::DerivedKind};
         use crate::domain::operator::contract::types::EvaluationMode;
@@ -173,10 +173,10 @@ impl CachedGraph {
 
     /// A completed demand result borrows only this invocation's value buffers.
     /// Root and nearest memo admission occurs before a downstream row can emit.
-    pub(crate) fn row<'a>(
+    pub(in crate::application::file_dag) fn row<'a>(
         &'a mut self,
         left: &[Value],
-        cache: Option<&mut FileIndexes>,
+        cache: Option<&mut CacheBackend>,
     ) -> Result<CachedGraphRow<'a>, OperatingError> {
         match self {
             Self::Reach(reach) => Ok(CachedGraphRow::Reach(reach.row(left, cache)?)),
@@ -189,7 +189,7 @@ impl ReachGraph {
     fn row<'a>(
         &'a mut self,
         left: &[Value],
-        cache: Option<&mut FileIndexes>,
+        cache: Option<&mut CacheBackend>,
     ) -> Result<ReachResult<'a>, OperatingError> {
         self.key.clear();
         for column in &self.left_on {
@@ -239,7 +239,7 @@ impl AxisGraph {
     fn row<'a>(
         &'a mut self,
         left: &[Value],
-        mut cache: Option<&mut FileIndexes>,
+        mut cache: Option<&mut CacheBackend>,
     ) -> Result<AxisResult<'a>, OperatingError> {
         self.destinations.clear();
         let start = cell(left, self.id)?;
@@ -289,8 +289,7 @@ impl AxisGraph {
                 let _ = traversal.breadth(root, orientation, None);
             }
             if let Some(cache) = cache.as_deref_mut() {
-                cache.graph_counts.expanded += self.walk.expanded;
-                cache.graph_counts.examined += self.walk.examined;
+                cache.observe_graph_walk(self.walk.expanded, self.walk.examined);
             }
             for vertex in &self.walk.reached {
                 if self.domain.members.get(*vertex as usize) == Some(&true) {

@@ -57,7 +57,7 @@ pub(crate) struct LiteralFanout {
     pub kinds: &'static [CellKind],
     pub population: usize,
     pub source_bits: usize,
-    pub literals: Vec<LiteralPostings>,
+    pub literals: Arc<Vec<LiteralPostings>>,
 }
 
 #[derive(Debug)]

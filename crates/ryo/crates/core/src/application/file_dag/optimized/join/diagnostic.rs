@@ -55,16 +55,17 @@ pub(crate) struct StreamJoinStats {
     had_cache: bool,
 }
 impl StreamJoinStats {
-    pub(crate) fn begin(context: &OperatorContext<'_>) -> Self {
-        let cache = context.stored_indexes.as_deref();
+    pub(in crate::application::file_dag) fn begin(
+        observation: crate::application::file_dag::derived::owner::IndexObservation,
+    ) -> Self {
         Self {
             counts: Counts {
                 enabled: tracing::enabled!(target:"ryo::diagnostic::stored_join",tracing::Level::TRACE),
                 ..Counts::default()
             },
-            before_builds: cache.map_or(0, |cache| cache.builds),
-            before_reuses: cache.map_or(0, |cache| cache.reuses),
-            had_cache: cache.is_some(),
+            before_builds: observation.builds,
+            before_reuses: observation.reuses,
+            had_cache: observation.available,
         }
     }
     pub(crate) fn probe(&mut self) {
@@ -77,11 +78,12 @@ impl StreamJoinStats {
             self.counts.hits = self.counts.hits.saturating_add(1);
         }
     }
-    pub(crate) fn finish(
+    pub(in crate::application::file_dag) fn finish(
         mut self,
         contract: &OperatorContract,
         right: &Rows<'_>,
-        context: &OperatorContext<'_>,
+        observation: crate::application::file_dag::derived::owner::IndexObservation,
+        eligible: bool,
         success: bool,
     ) {
         if !self.counts.enabled {
@@ -97,11 +99,10 @@ impl StreamJoinStats {
         {
             return;
         }
-        if let Some(cache) = context.stored_indexes.as_deref() {
-            self.counts.builds = cache.builds.saturating_sub(self.before_builds);
-            self.counts.reuses = cache.reuses.saturating_sub(self.before_reuses);
-            self.counts.eligible=ryo_values::domain::plans::service::named(&contract.inputs)
-                .get(1).is_some_and(|input|matches!(input,Input::Relation(relation) if cache.eligible.contains(relation)));
+        if observation.available {
+            self.counts.builds = observation.builds.saturating_sub(self.before_builds);
+            self.counts.reuses = observation.reuses.saturating_sub(self.before_reuses);
+            self.counts.eligible = eligible;
         } else if !self.had_cache {
             self.counts.builds = u64::from(self.counts.probes > 0 && count_of(right).0 > 0);
         }

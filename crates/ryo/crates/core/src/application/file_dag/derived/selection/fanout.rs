@@ -12,7 +12,7 @@ enum Choice {
     },
 }
 fn choose(
-    cache: &FileIndexes,
+    cache: &CacheBackend,
     program: &Selector,
     source: ColumnsView<'_>,
     context: &OperatorContext<'_>,
@@ -36,7 +36,7 @@ fn choose(
             .literals
             .binary_search_by(|item| item.text.as_str().cmp(wanted))
             .ok()?;
-        return Some(Choice::Reused(Arc::clone(&entry.literals[at].rows)));
+        return Some(Choice::Reused((entry.literals[at].rows).clone()));
     }
     if cache.fanouts.len() >= MAX_FANOUT_GROUPS {
         return None;
@@ -45,7 +45,7 @@ fn choose(
     let prior_text_bytes: usize = cache
         .fanouts
         .iter()
-        .flat_map(|entry| &entry.literals)
+        .flat_map(|entry| entry.literals.iter())
         .map(|entry| entry.text.capacity())
         .sum();
     let mut texts = Vec::<String>::new();
@@ -92,7 +92,7 @@ fn choose(
     })
 }
 pub(super) fn fanout_candidates(
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
     program: &Selector,
     plan: &DerivedContract,
     source: ColumnsView<'_>,
@@ -155,7 +155,7 @@ pub(super) fn fanout_candidates(
     let at = postings
         .binary_search_by(|item| item.text.as_str().cmp(wanted))
         .map_err(|_| OperatingError::WrongOperation)?;
-    let result = Arc::clone(&postings[at].rows);
+    let result = (postings[at].rows).clone();
     let DerivedStorage::Postings(literals) = storage else {
         return Err(OperatingError::WrongOperation);
     };

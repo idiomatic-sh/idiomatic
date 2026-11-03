@@ -24,14 +24,6 @@ pub(crate) fn scan(
     }
     for position in positions(count_of(rows)) {
         if let Some(row) = read_row(rows, position, buffer) {
-            if matches!(rows, Rows::Selected(_))
-                && let Some(cache) = context.stored_indexes.as_mut()
-            {
-                cache.selection_counts.output_cells = cache
-                    .selection_counts
-                    .output_cells
-                    .saturating_add(row.len() as u64);
-            }
             emit.row(context, row)?;
         } else if matches!(rows, Rows::Computed(_)) {
             return Err(OperatingError::ShapeMismatch);

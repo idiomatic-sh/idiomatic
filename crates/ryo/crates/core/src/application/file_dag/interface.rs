@@ -1,4 +1,5 @@
 //! Application-owned shared execution lifetime.
+use super::executor::PrimitiveExecutor;
 use super::relations::{RelationOwner, RelationResult};
 use crate::domain::file_program::types::NodeId;
 use ryo_language::domain::relations::types::Relation;
@@ -9,7 +10,10 @@ use std::sync::Arc;
 pub(crate) trait DagExecution {
     /// Establish required rule-local liveness before any operator demand.
     fn relation_owner(&self) -> Rc<RelationOwner>;
-    fn begin_rule(&self, rule: usize);
+    fn begin_rule(
+        &self,
+        rule: usize,
+    ) -> Result<(), crate::domain::operating::errors::OperatingError>;
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId>;
     fn demand<'f>(
         &self,
@@ -20,6 +24,10 @@ pub(crate) trait DagExecution {
             crate::domain::table_model::types::Rows<'f>,
             crate::domain::operating::errors::OperatingError,
         >,
+        executor: &dyn PrimitiveExecutor,
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
-    ) -> Result<Arc<RelationResult>, crate::domain::operating::errors::OperatingError>;
+    ) -> Result<
+        crate::application::file_dag::relations::PublishedInput,
+        crate::domain::operating::errors::OperatingError,
+    >;
 }

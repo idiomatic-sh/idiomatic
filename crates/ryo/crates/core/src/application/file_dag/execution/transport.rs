@@ -93,7 +93,7 @@ fn stream_scoped(
     if mode.shape == InputShape::RequestSource {
         if contract.external_source {
             let source = feed.hold(InputPlace(0), context, &mut room.held[0])?;
-            workspace.capture(feed, 1);
+            workspace.capture(feed, 1)?;
             let originals = [source];
             let views = originals.iter().map(BorrowedRows::from).collect::<Vec<_>>();
             let mut resources = None;
@@ -121,7 +121,7 @@ fn stream_scoped(
     }
     if mode.publication == Publication::AfterSuccess || mode.shape == InputShape::Views {
         let views = hold(feed, context, &mut room.held, contract.inputs.used.0, false)?;
-        workspace.capture(feed, views.len());
+        workspace.capture(feed, views.len())?;
         return held(
             engine,
             contract,
@@ -166,7 +166,7 @@ fn stream_scoped(
                 || feed.streams(InputPlace(1)) == Supply::Streamed
             {
                 let views = hold(feed, context, &mut room.held, 2, true)?;
-                workspace.capture(feed, views.len());
+                workspace.capture(feed, views.len())?;
                 if views.len() == 1 {
                     return Ok(());
                 }
@@ -183,7 +183,7 @@ fn stream_scoped(
                 )
             } else {
                 let held_right = feed.hold(InputPlace(1), context, &mut room.held[1])?;
-                workspace.capture(feed, 2);
+                workspace.capture(feed, 2)?;
                 let fallback =
                     super::physical_fallbacks(std::slice::from_ref(&held_right), workspace, 1)?;
                 let right = fallback[0].as_ref().map_or_else(
@@ -194,7 +194,9 @@ fn stream_scoped(
                 let sides = originals.iter().map(BorrowedRows::from).collect::<Vec<_>>();
                 let mut resources = None;
                 let mut found = 0;
-                let mut stats = super::super::optimized::join::StreamJoinStats::begin(context);
+                let mut stats = super::super::optimized::join::StreamJoinStats::begin(
+                    workspace.owner().derived.index_observation(),
+                );
                 let native = matches!(&originals[1], Rows::Tree(_));
                 let result = feed.stream(
                     InputPlace(0),
@@ -221,7 +223,7 @@ fn stream_scoped(
                         )
                     }),
                 );
-                stats.finish(contract, &originals[1], context, result.is_ok());
+                stats.finish(contract, &originals[1], workspace.owner().derived.index_observation(), ryo_values::domain::plans::service::named(&contract.inputs).get(1).is_some_and(|input|matches!(input, ryo_values::domain::plan_parts::types::Input::Relation(relation) if workspace.owner().derived.relation_eligible(*relation))), result.is_ok());
                 if native {
                     feed.found(
                         InputPlace(1),
@@ -237,7 +239,7 @@ fn stream_scoped(
                 && feed.streams(InputPlace(2)) == Supply::AtHand;
             if !streaming {
                 let views = hold(feed, context, &mut room.held, 3, true)?;
-                workspace.capture(feed, views.len());
+                workspace.capture(feed, views.len())?;
                 if views.len() == 1 {
                     return Ok(());
                 }
@@ -256,7 +258,7 @@ fn stream_scoped(
                 let [_, edge_table, domain_table] = &mut room.held;
                 let edges = feed.hold(InputPlace(1), context, edge_table)?;
                 let domain = feed.hold(InputPlace(2), context, domain_table)?;
-                workspace.capture(feed, 3);
+                workspace.capture(feed, 3)?;
                 let originals = [Rows::Computed(&EMPTY), edges, domain];
                 let sides = originals.iter().map(BorrowedRows::from).collect::<Vec<_>>();
                 let mut resources = None;
@@ -282,7 +284,7 @@ fn stream_scoped(
         }
         DemandOrder::LeftThenRightUnlessEmptyLeft => {
             let views = hold(feed, context, &mut room.held, 2, true)?;
-            workspace.capture(feed, views.len());
+            workspace.capture(feed, views.len())?;
             if views.len() == 1 {
                 return Ok(());
             }

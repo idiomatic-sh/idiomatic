@@ -100,7 +100,7 @@ fn context<'a>(
     symbols: &'a mut Symbols,
     memo: &'a mut Vec<crate::domain::operating::types::Memo>,
     scratch: &'a mut OperatorScratch,
-    indexes: Option<&'a mut crate::domain::stored_indexes::types::FileIndexes>,
+    indexes: Option<&'a mut crate::application::file_dag::derived::backend::CacheBackend>,
 ) -> OperatorContext<'a> {
     OperatorContext {
         prepared_matchers: None,
@@ -258,7 +258,7 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
 fn incomplete_or_invalid_population_stays_entirely_on_the_residual_executor() {
     let plans = [query(3, false)];
     let graph = Arc::new(compile(&plans));
-    let dag = FileDagExecution::new(Arc::clone(&graph), |_| true, &[]);
+    let dag = FileDagExecution::new((graph).clone(), |_| true, &[]);
     assert!(!dag.active[0]);
     assert!(dag.owned(0, 0).is_none());
     let mut invalid = query(3, false);
@@ -440,7 +440,7 @@ fn registered_union_preserves_bag_contract_and_shares_its_repeated_dependency() 
 fn budget_refusal_is_explicit_recomputation_and_never_stale_generation_reuse() {
     let plans = [query(3, false), query(3, false)];
     let graph = Arc::new(compile(&plans));
-    let mut dag = FileDagExecution::new(Arc::clone(&graph), |_| true, &[Relation::LanguageTarget]);
+    let mut dag = FileDagExecution::new((graph).clone(), |_| true, &[Relation::LanguageTarget]);
     dag.limit = 0;
     let columns = columns();
     let rows = |relation| {

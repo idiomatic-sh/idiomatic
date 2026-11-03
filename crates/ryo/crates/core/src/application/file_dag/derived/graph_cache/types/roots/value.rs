@@ -1,26 +1,28 @@
 //! Successful demand answers and exact-domain forest memoization under the file's existing cap.
 
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::application::file_dag::derived::graph_cache::service::{
     MEMO_LIMIT, replace, room, slot,
 };
-use crate::domain::stored_graph::types::footprint::value::{arc_bytes, vector};
+use crate::application::file_dag::derived::graph_cache::types::footprint::value::{
+    arc_bytes, vector,
+};
 use crate::domain::stored_graph::types::traversal::value::{GraphTraversal, UNKNOWN};
 use crate::domain::stored_graph::types::{
     GraphAccess, GraphDomain, GraphWalk, NearestMemo, Orientation, RootMemo,
 };
-use crate::domain::stored_indexes::types::FileIndexes;
 use ryo_language::domain::relations::types::Value;
 use std::sync::Arc;
 
 /// One generation's mutable memo access; every returned handle releases this borrow before emission.
 pub(crate) struct DemandAnswers<'a> {
     /// Optional sharing never owns the provider population.
-    cache: Option<&'a mut FileIndexes>,
+    cache: Option<&'a mut CacheBackend>,
 }
 
 impl<'a> DemandAnswers<'a> {
     /// Borrow the same bounded owner used for graph/index/selector admission.
-    pub(crate) fn new(cache: Option<&'a mut FileIndexes>) -> Self {
+    pub(in crate::application::file_dag) fn new(cache: Option<&'a mut CacheBackend>) -> Self {
         Self { cache }
     }
 
@@ -52,7 +54,7 @@ impl<'a> DemandAnswers<'a> {
                 .find(|answer| answer.root == root && answer.orientation == access.orientation)
         {
             cache.graph_counts.memo_hits += 1;
-            return Some(Arc::clone(&answer.reached));
+            return Some((answer.reached).clone());
         }
         let mut traversal = GraphTraversal::new(&access.graph, walk);
         let _ = traversal.breadth(root, access.orientation, None);
@@ -159,7 +161,7 @@ impl<'a> DemandAnswers<'a> {
         cache.graphs[index].roots.push(RootMemo {
             root,
             orientation: access.orientation,
-            reached: Arc::clone(&reached),
+            reached: (reached).clone(),
         });
         cache.bytes += cost;
         cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(cache.bytes);
@@ -224,8 +226,8 @@ impl<'a> DemandAnswers<'a> {
         }
         replace(&mut cache.nearest, replacement);
         cache.nearest.push(NearestMemo {
-            graph: Arc::clone(&access.graph),
-            domain: Arc::clone(domain),
+            graph: (access.graph).clone(),
+            domain: (domain).clone(),
             orientation,
             answers,
         });

@@ -1,9 +1,11 @@
 //! Complete preflight, exact payload credit, live handles and metadata-capacity ownership.
 
 use super::value::{GraphAdmission, index_payload, selection_payload};
+use crate::application::file_dag::derived::backend::CacheBackend;
+use crate::application::file_dag::derived::graph_cache::types::footprint::value::{
+    arc_bytes, vector,
+};
 use crate::application::file_dag::derived::indexes::{LIMIT, acquire_fixture as acquire, new};
-use crate::domain::stored_graph::types::footprint::value::{arc_bytes, vector};
-use crate::domain::stored_indexes::types::FileIndexes;
 use crate::domain::stored_selection::types::{Matches, Selector};
 use crate::domain::table_model::types::{KeyIndex, SelectionIdentity};
 use ryo_language::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
@@ -11,7 +13,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
 /// Acquire an ordinary index through its production accounting, keeping its live handle if requested.
-fn indexed() -> (FileIndexes, Arc<KeyIndex>) {
+fn indexed() -> (CacheBackend, Arc<KeyIndex>) {
     let columns = [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![4, 3, 2, 1])];
     let source = ColumnsView {
         kinds: &[CellKind::Number; 2],
@@ -112,7 +114,7 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
         }),
         kinds: &[CellKind::Number],
         population: 3,
-        rows: Arc::clone(&rows),
+        rows: (rows).clone(),
     });
     cache.retained_positions = cache
         .selections

@@ -2,7 +2,6 @@
 //! Primitive output semantics remain the declared left/right projection; index
 //! choice, cache admission, fallback and diagnostics stay at this application edge.
 
-use crate::application::file_dag::derived::indexes as stored_indexes;
 use crate::domain::derived_views::types::DerivedView;
 use crate::domain::operating::{
     errors::OperatingError,
@@ -107,16 +106,17 @@ fn sparse_left(
         return None;
     }
     let eligible = {
-        let cache = context.stored_indexes.as_deref_mut()?;
+        let owner = &admission.owner().derived;
         let complete_right = match right {
-            Rows::Stored(other) => matches!(logical_right, Input::Relation(source)
-                if cache.eligible.contains(&source) && other.kinds==kinds(source)),
+            Rows::Stored(other) => {
+                matches!(logical_right, Input::Relation(source) if owner.relation_eligible(source) && other.kinds==kinds(source))
+            }
             Rows::Computed(_) => true,
             _ => false,
         };
-        cache.eligible.contains(&relation)
+        owner.relation_eligible(relation)
             && complete_right
-            && stored_indexes::can_retain(cache, relation, *view, &join.left_on)
+            && owner.can_retain_equality(relation, *view, &join.left_on)
     };
     if !eligible {
         return None;
@@ -190,9 +190,7 @@ fn ordinary(
     work: &mut Work,
     counts: &mut Counts,
 ) -> Result<(), OperatingError> {
-    let eligible = matches!((logical_right, right, context.stored_indexes.as_deref()),
-        (Input::Relation(relation), Rows::Stored(view), Some(cache))
-            if rectangular(*view) && cache.eligible.contains(&relation));
+    let eligible = matches!((logical_right, right), (Input::Relation(relation), Rows::Stored(view)) if rectangular(*view) && admission.owner().derived.relation_eligible(relation));
     let storage = acquired_index(
         contract, mode, false, left, right, admission, context, counts, eligible,
     )?;

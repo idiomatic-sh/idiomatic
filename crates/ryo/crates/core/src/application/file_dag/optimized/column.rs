@@ -56,6 +56,8 @@ pub(crate) fn execute(
     read: &dyn Reading<'_>,
     selected: &[Option<Arc<StoredSelection>>],
     partial: &[Partial],
+    owner: Option<&crate::application::file_dag::relations::RelationOwner>,
+    publications: &[std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     context: &mut OperatorContext<'_>,
     target: &mut Table,
     kinds: &[CellKind],
@@ -98,48 +100,43 @@ pub(crate) fn execute(
         counts.eligible_chains += 1;
         return Ok(true);
     }
-    let Some(cache) = context.stored_indexes.as_deref_mut() else {
+    let Some(owner) = owner else {
         return Ok(false);
     };
-    if !cache.eligible.contains(&selection.relation)
-        || !cache.eligible.contains(&chain.right)
-        || !indexes::can_retain(cache, chain.right, right_source, &chain.right_on)
+    if !owner.derived.relation_eligible(selection.relation)
+        || !owner.derived.relation_eligible(chain.right)
+        || !owner
+            .derived
+            .can_retain_equality(chain.right, right_source, &chain.right_on)
     {
         return Ok(false);
     }
+    let Some(publication) = publications
+        .get(chain.left_step)
+        .and_then(std::cell::OnceCell::get)
+    else {
+        return Ok(false);
+    };
     let Some(index_plan) = chain.index.as_ref() else {
         return Ok(false);
     };
-    let left = Rows::Selected(SelectedRows {
-        source: left_source,
-        selection: Arc::clone(selection),
-    });
+    let left = owner.selected_rows(publication.as_ref(), left_source)?;
     let right = Rows::Stored(right_source);
-    let mut local = std::mem::take(&mut context.scratch.join_scratch.order);
-    let outcome = indexes::acquire(
-        index_plan,
-        cache,
-        chain.right,
+    let acquired = owner.stored_equality(index_plan, chain.right, right_source)?;
+    let crate::domain::derived_views::types::DerivedView::Equality(index) = acquired.view()? else {
+        return Err(OperatingError::WrongOperation);
+    };
+    let outcome = kernel::execute_with_index(
+        chain,
+        &left,
+        &right,
         right_source,
-        &chain.right_on,
-        &mut local,
-    )
-    .ok()
-    .and_then(|acquired| {
-        let index = acquired.shared.as_deref().unwrap_or(&local);
-        kernel::execute_with_index(
-            chain,
-            &left,
-            &right,
-            right_source,
-            index,
-            context.symbols.as_ref(),
-            ByteSlice(context.source.0),
-            target,
-            kinds,
-        )
-    });
-    context.scratch.join_scratch.order = local;
+        index,
+        context.symbols.as_ref(),
+        ByteSlice(context.source.0),
+        target,
+        kinds,
+    );
     let Some((rows, cells, hits)) = outcome else {
         reset(target, kinds);
         return Ok(false);

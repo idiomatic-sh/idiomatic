@@ -4,16 +4,19 @@ use super::{service::bytes, types::FileDagExecution};
 use crate::domain::file_program::types::{NodeId, NodeInput};
 use std::sync::Arc;
 impl FileDagExecution {
-    pub(crate) fn begin_rule(&mut self, rule: usize) {
+    pub(crate) fn begin_rule(
+        &mut self,
+        rule: usize,
+    ) -> Result<(), crate::domain::operating::errors::OperatingError> {
         if self.current_rule == Some(rule) {
-            return;
+            return Ok(());
         }
         self.clear_required();
         if !self.active.get(rule).copied().unwrap_or(false) {
-            return;
+            return Ok(());
         }
         self.current_rule = Some(rule);
-        let graph = Arc::clone(&self.graph);
+        let graph = (self.graph).clone();
         // Immutable bookkeeping is request-prepared; only these touched slots
         // and dynamic successful cuts change for one physical file/rule.
         for (node, count) in &graph.rule_liveness[rule] {
@@ -27,7 +30,8 @@ impl FileDagExecution {
             if self.required_remaining[node.0] == 0 {
                 continue;
             }
-            if let Some(table) = self.ready[node.0].as_ref().map(Arc::clone) {
+            if let Some(table) = self.ready[node.0].as_ref().map(Clone::clone) {
+                let table = self.relations.required_publication(&table)?;
                 self.pin_required(*node, table);
                 self.required_executed[node.0] = true;
                 self.required_inputs[node.0] = false;
@@ -38,8 +42,13 @@ impl FileDagExecution {
                 }
             }
         }
+        Ok(())
     }
-    pub(super) fn pin_required(&mut self, node: NodeId, table: Arc<RelationResult>) {
+    pub(super) fn pin_required(
+        &mut self,
+        node: NodeId,
+        table: crate::application::file_dag::relations::PublishedInput,
+    ) {
         if self.required_remaining[node.0] == 0 || self.required[node.0].is_some() {
             return;
         }
@@ -56,7 +65,8 @@ impl FileDagExecution {
     }
     /// New required-owner metadata is reported separately from result payloads.
     pub(crate) fn required_metadata_bytes(&self) -> usize {
-        self.required.capacity() * size_of::<Option<Arc<RelationResult>>>()
+        self.required.capacity()
+            * size_of::<Option<crate::application::file_dag::relations::PublishedInput>>()
             + self.required_remaining.capacity() * size_of::<usize>()
             + self.required_executed.capacity() * size_of::<bool>()
             + self.required_inputs.capacity() * size_of::<bool>()
@@ -90,7 +100,7 @@ impl FileDagExecution {
             self.required_releases += 1;
         }
         if !self.required_executed[node.0] && self.required_inputs[node.0] {
-            let graph = Arc::clone(&self.graph);
+            let graph = (self.graph).clone();
             for input in &graph.nodes[node.0].inputs {
                 if let NodeInput::Node(child) = input {
                     self.consume_required(*child);
