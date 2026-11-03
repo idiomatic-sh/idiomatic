@@ -2,6 +2,8 @@ description = "The language-local artifacts and entry points of one benchmark li
 why = "Placed beside the standard adapter spec, this existing artifact spec owns thin Cargo registration/composition, pinned inventory and canonical rules/<id>/query.ryoql with cases.toml. The shared benchmark application owns execution, continuation and PASS/FAIL publication; a linter supplies inventory and its external adapter. The adapter spec retains adapter, settings and schemas roles. Archived profiles preserve exact historical bytes and never become a second active source. Imports and AST capability checks are structural rails, not proof that runtime policy is shared; the shared runner must pass its two-provider behavioral contract."
 specs = []
 templates = [
+  { alias = "host-probe", template = "source", file = "host.rs", count = { min = 0, max = 1 }, description = "Optional external-host observation at the linter process edge; it supplies facts to the applicability decision and never rewrites engine facts." },
+  { alias = "host-policy", template = "source", file = "host_policy.rs", count = { min = 0, max = 1 }, description = "Optional argument-based applicability decision and its own semantic cases; environment and filesystem observation belong in host.rs." },
   { alias = "composition", template = "source", file = "composition.rs", imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] }, description = "Thin dependency wiring and delegation to the shared benchmark use case; no local execution/status policy." },
   { alias = "runner-constants", template = "source", file = "composition/constants.rs", count = { min = 0, max = 1 }, imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] }, description = "Executable command and artifact protocol vocabulary." },
   { alias = "runner-guide", template = "evidence", file = "README.md", count = { min = 0, max = 1 }, description = "Language-local runner commands and the scope of its benchmark claims." },
@@ -30,6 +32,7 @@ templates = [
   { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
 ]
 rules = [
+  { rule = "idiomatic.arch/import-directions@0.1.0", include = ["host_policy.rs"], params = { forbidden = ["std::env", "std::env::*", "std::fs", "std::fs::*", "std::process", "std::process::*", "std::net", "std::net::*", "tokio::fs", "tokio::fs::*", "tokio::process", "tokio::process::*", "tokio::net", "tokio::net::*", "*::host", "*::host::*"] }, description = "The argument-based applicability policy does not obtain ambient host observations or call the probe; review still checks semantic purity and macro limits." },
   { rule = "idiomatic.arch/file-length@0.3.0", include = ["*.rs", "composition/**/*.rs", "verify_profiles.py"], params = { max-lines = { param = "source-line-limit" } }, description = "Apply the existing product file-length rule to active linter sources, including composition." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["*.rs"], description = "Every companion is reachable from its Cargo target." },
   { rule = "companions", include = ["**"], description = "Canonical queries/cases are paired; thin entry/composition roles cannot implement execution capabilities or loops." },
@@ -165,3 +168,17 @@ pub fn run() {
 '''
 then.only = ['idiomatic.arch/file-length']
 then.findings = [{ rule = 'idiomatic.arch/file-length', path = 'composition.rs' }]
+
+[[scenarios]]
+id = "host-probe-and-policy-have-shared-roles"
+scenario = "Every linter can separate host observations from the argument-based applicability decision."
+given.files.'host.rs' = 'pub fn observed() -> bool { std::env::consts::OS == "linux" }'
+given.files.'host_policy.rs' = 'pub fn supported(microsoft: bool, container: bool) -> bool { !microsoft || container }'
+then.only = ['idiomatic.ryo/benchmark-linter#closed', 'idiomatic.arch/import-directions']
+
+[[scenarios]]
+id = "host-policy-cannot-probe-environment"
+scenario = "The applicability decision cannot obtain host observations itself."
+given.files.'host_policy.rs' = 'use std::env::var;'
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [{ rule = 'idiomatic.arch/import-directions', path = 'host_policy.rs', line = 1 }]
