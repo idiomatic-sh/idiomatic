@@ -19,7 +19,9 @@ use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, Supply};
+use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::collections::operators::join::item::JoinItem;
+use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{kinds_of, push_row, row_in};
 use crate::domain::table_model::types::{RowCount, Rows, Table};
@@ -445,6 +447,18 @@ fn stream_with_indexes(
     failures: (bool, bool, bool),
     fixture: Option<&ResourceFixture>,
 ) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
+    stream_with_prepared_indexes(operation, room, left, right, failures, fixture, None)
+}
+
+fn stream_with_prepared_indexes(
+    operation: &Operation,
+    room: &mut Room,
+    left: &Table,
+    right: Rows<'_>,
+    failures: (bool, bool, bool),
+    fixture: Option<&ResourceFixture>,
+    prepared: Option<&OperatorContract>,
+) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
     let (left_fails, right_fails, emit_fails) = failures;
     let mut feed = ControlledFeed {
         left,
@@ -473,14 +487,26 @@ fn stream_with_indexes(
     };
     let inputs = [Rows::Computed(left), right.clone()];
     if let Some(fixture) = fixture {
-        fixture.stream(
-            operation,
-            &inputs,
-            &mut feed,
-            &mut context,
-            room,
-            &mut emitted,
-        )?;
+        if let Some(prepared) = prepared {
+            fixture.stream_prepared(
+                operation,
+                prepared,
+                &inputs,
+                &mut feed,
+                &mut context,
+                room,
+                &mut emitted,
+            )?;
+        } else {
+            fixture.stream(
+                operation,
+                &inputs,
+                &mut feed,
+                &mut context,
+                room,
+                &mut emitted,
+            )?;
+        }
     } else {
         crate::application::file_dag::testing::stream_with_inputs(
             &JoinItem,
@@ -1491,28 +1517,49 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
     });
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
     let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    let schemas = [
+        InputSchema {
+            kinds: &left.kinds,
+            tree: None,
+        },
+        InputSchema {
+            kinds: NUMBER_PAIR_KINDS,
+            tree: None,
+        },
+    ];
+    let prepared = crate::application::file_dag::derived::prepare::operator(
+        crate::domain::operator::service::registered(crate::domain::features::service::kind_of(
+            &operation,
+        )),
+        &operation,
+        &schemas,
+        &[],
+    )
+    .expect("prepare one actual join contract for both invocations");
     let weak = {
         let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("generation");
-        let warmed = stream_with_indexes(
+        let warmed = stream_with_prepared_indexes(
             &operation,
             &mut Room::default(),
             &left,
             right.clone(),
             (false, false, false),
             Some(&fixture),
+            Some(&prepared),
         )
         .expect("owner retains a reusable index");
         assert_eq!(warmed.0, vec![vec![Cell::Number(Integer(10))]]);
         assert!(fixture.no_invocation_index_handles());
         assert_eq!(fixture.shared_index_backings(), 1);
         let owner_refs = fixture.first_index_owners().expect("cached entry");
-        let _fixture_refusal = stream_with_indexes(
+        let _fixture_refusal = stream_with_prepared_indexes(
             &operation,
             &mut Room::default(),
             &left,
             right.clone(),
             (false, false, true),
             Some(&fixture),
+            Some(&prepared),
         )
         .expect_err("fixture refusal must propagate");
         assert!(
