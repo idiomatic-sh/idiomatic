@@ -53,6 +53,52 @@ pub(crate) enum FormatQuantityMode {
     Dot,
 }
 
+/// Standard percent-format flags, retained independently of conversion policy.
+/// Repetition is idempotent; conflicting flags remain present without applying precedence.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FormatFlags {
+    /// Prefix nonnegative numbers with a blank.
+    space_sign: bool,
+    /// Alternate numeric conversion form.
+    alternate_form: bool,
+    /// Prefix nonnegative numbers with a plus sign.
+    sign: bool,
+    /// Left adjustment.
+    left_adjust: bool,
+    /// Zero padding.
+    zero_pad: bool,
+}
+
+impl FormatFlags {
+    /// Retain one recognized grammar flag; false leaves the cursor at the next grammar component.
+    pub(crate) fn insert(&mut self, character: char) -> bool {
+        match character {
+            ' ' => self.space_sign = true,
+            '#' => self.alternate_form = true,
+            '+' => self.sign = true,
+            '-' => self.left_adjust = true,
+            '0' => self.zero_pad = true,
+            _ => return false,
+        }
+        true
+    }
+
+    /// Unique flag characters in ASCII order, with no allocation or semantic simplification.
+    pub(crate) fn canonical(self) -> &'static str {
+        const SPELLINGS: [&str; 32] = [
+            "", " ", "#", " #", "+", " +", "#+", " #+", "-", " -", "#-", " #-", "+-", " +-", "#+-",
+            " #+-", "0", " 0", "#0", " #0", "+0", " +0", "#+0", " #+0", "-0", " -0", "#-0", " #-0",
+            "+-0", " +-0", "#+-0", " #+-0",
+        ];
+        let index = usize::from(self.space_sign)
+            | (usize::from(self.alternate_form) << 1)
+            | (usize::from(self.sign) << 2)
+            | (usize::from(self.left_adjust) << 3)
+            | (usize::from(self.zero_pad) << 4);
+        SPELLINGS[index]
+    }
+}
+
 /// One parsed conversion field.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct FormatFieldValue {
@@ -66,6 +112,8 @@ pub(crate) struct FormatFieldValue {
     pub width: FormatQuantityMode,
     /// Precision consumption.
     pub precision: FormatQuantityMode,
+    /// Parsed flags, without presentation-type precedence or lint policy.
+    pub flags: FormatFlags,
 }
 
 /// Compact consumption facts used beside the individual format fields.

@@ -25,6 +25,7 @@ fn subject(_: Input) -> Result<Vec<Bits>, Failure> {
         width_mode: Symbol(9),
         precision_mode: Symbol(10),
         file: FileId(11),
+        flags: Symbol(14),
         span: Span {
             start: Offset(12),
             end: Offset(13),
@@ -44,7 +45,8 @@ fn subject(_: Input) -> Result<Vec<Bits>, Failure> {
             Bits(9),
             Bits(10),
             Bits(11),
-            Bits((0xc_u64 << 32_u32) | 0xd)
+            Bits((0xc_u64 << 32_u32) | 0xd),
+            Bits(14)
         ]
     );
     Ok(Vec::new())

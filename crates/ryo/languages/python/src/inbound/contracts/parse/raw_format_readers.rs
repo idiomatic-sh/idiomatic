@@ -53,12 +53,13 @@ ryo::reads! {
                             given argument_kind = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "positional", FormatArgument::Mapping(_) => "mapping" });
                             given mapping_key = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "", FormatArgument::Mapping(key) => key });
                             given conversion = intern_character(symbols, tree.source, Some(field.conversion));
+                            given flags = intern(symbols, tree.source, field.flags.canonical());
                             given width = intern(symbols, tree.source, width_mode(field.width));
                             given precision = intern(symbols, tree.source, width_mode(field.precision));
                             given segment_ordinal = languages::Integer(i64::try_from(segment.ordinal).unwrap_or(i64::MAX));
                             given ordinal = languages::Integer(i64::try_from(segment.first_field + field.ordinal).unwrap_or(i64::MAX));
                             given local = languages::Integer(i64::try_from(field.ordinal).unwrap_or(i64::MAX));
-                            row { id: node(occurrence.node), segment: node(segment.token), segment_ordinal: value(segment_ordinal), ordinal: value(ordinal), segment_field_ordinal: value(local), argument_kind: value(argument_kind), mapping_key: value(mapping_key), conversion: value(conversion), width_mode: value(width), precision_mode: value(precision), file: file, span: span(segment.token), }
+                            row { id: node(occurrence.node), segment: node(segment.token), segment_ordinal: value(segment_ordinal), ordinal: value(ordinal), segment_field_ordinal: value(local), argument_kind: value(argument_kind), mapping_key: value(mapping_key), conversion: value(conversion), width_mode: value(width), precision_mode: value(precision), file: file, span: span(segment.token), flags: value(flags), }
                         }
                     }
                     Some(FormatParseResult::Malformed(_) | FormatParseResult::Unavailable) => {}

@@ -7,8 +7,8 @@
 
 use crate::domain::format_syntax::interface::FormatSyntax;
 use crate::domain::format_syntax::types::{
-    FormatArgument, FormatDialect, FormatErrorKind, FormatFieldValue, FormatParseError,
-    FormatParseResult, FormatQuantityMode, FormatSummary, ParsedFormat,
+    FormatArgument, FormatDialect, FormatErrorKind, FormatFieldValue, FormatFlags,
+    FormatParseError, FormatParseResult, FormatQuantityMode, FormatSummary, ParsedFormat,
 };
 
 /// The parser used by the Python language composition.
@@ -149,9 +149,10 @@ fn quantity(cursor: &mut Cursor<'_>) -> Result<FormatQuantityMode, Failure> {
 fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, Failure> {
     let key = mapping_key(cursor)?;
 
+    let mut flags = FormatFlags::default();
     while cursor
         .peek()
-        .is_some_and(|character| matches!(character.value, '#' | '0' | '-' | ' ' | '+'))
+        .is_some_and(|character| flags.insert(character.value))
     {
         let _flag = cursor.next();
     }
@@ -219,6 +220,7 @@ fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, F
             conversion: conversion.value,
             width,
             precision,
+            flags,
         },
     })
 }

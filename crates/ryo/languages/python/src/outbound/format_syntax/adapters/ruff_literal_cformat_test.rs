@@ -97,3 +97,20 @@ fn unmatched_mapping_and_overflow_are_diagnostics() {
         })
     ));
 }
+
+#[test]
+fn flags_are_preserved_without_reordering_the_grammar_or_applying_precedence() {
+    let plain = parsed("%s");
+    assert_eq!(plain.fields[0].flags.canonical(), "");
+    let combined = parsed("%0- +#10r");
+    assert_eq!(combined.fields[0].flags.canonical(), " #+-0");
+    assert_eq!(combined.fields[0].width, FormatQuantityMode::Fixed);
+    assert_eq!(combined.fields[0].precision, FormatQuantityMode::None);
+    let repeated = parsed("%##00--++  r");
+    assert_eq!(repeated.fields[0].flags, combined.fields[0].flags);
+    assert_eq!(repeated.fields[0].width, FormatQuantityMode::None);
+    let zero = parsed("%0s");
+    assert_eq!(zero.fields[0].flags.canonical(), "0");
+    assert_eq!(zero.fields[0].width, FormatQuantityMode::None);
+    assert!(parsed("%%").fields.is_empty());
+}

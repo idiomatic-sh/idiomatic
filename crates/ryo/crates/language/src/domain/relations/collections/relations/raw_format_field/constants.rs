@@ -26,5 +26,6 @@ pub fn column_name(column: RawFormatFieldColumn) -> &'static str {
         RawFormatFieldColumn::PrecisionMode => "precision-mode",
         RawFormatFieldColumn::File => "file",
         RawFormatFieldColumn::Span => "span",
+        RawFormatFieldColumn::Flags => "flags",
     }
 }
