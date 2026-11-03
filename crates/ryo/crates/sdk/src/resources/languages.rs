@@ -307,3 +307,8 @@ pub use ryo_language::domain::relations::types::Locatedness;
 pub use ryo_language::domain::answers::service::{native_semantic_child, native_semantic_syntax};
 
 pub use ryo_language::domain::relations::types::OptionalCapability;
+
+/// Lend the file model prepared by the common completion boundary; it cannot initialize or mark readiness.
+pub use ryo_language::application::completion::service::with_file_model;
+/// Append embedded syntax without resetting the native population.
+pub use ryo_language::domain::expansions::service::append_embedded;

@@ -16,6 +16,8 @@ pub(crate) enum TypingForm {
     TypeAlias,
     /// A local, unknown, or unrelated imported object.
     Other,
+    /// A resolved generic type constructor whose subscription operands are types.
+    Generic,
 }
 
 /// Membership in the explicit semantic syntax projection.

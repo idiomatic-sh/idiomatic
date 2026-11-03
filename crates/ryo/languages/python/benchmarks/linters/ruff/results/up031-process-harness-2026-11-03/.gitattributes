@@ -1,0 +1,2 @@
+# Captured process streams are byte artifacts, including intentional trailing newlines.
+**/*.bin binary

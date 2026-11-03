@@ -120,6 +120,18 @@ fn refuses() {
 struct CapturingSyntax(Arc<Mutex<Vec<(PythonSourceKind, String)>>>);
 
 impl SyntaxPort for CapturingSyntax {
+    fn expand_annotations(
+        &self,
+        _source: SourceText<'_>,
+        carriers: &[crate::outbound::syntax::types::DeferredAnnotation],
+        _builder: &mut ryo::languages::TableBuilder<'_>,
+    ) {
+        assert!(
+            carriers.is_empty(),
+            "this syntax fixture supplies no deferred type carrier"
+        );
+    }
+
     fn read(
         &self,
         _text: SourceText<'_>,

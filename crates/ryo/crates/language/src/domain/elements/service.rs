@@ -24,6 +24,8 @@ use crate::domain::terms::types::Symbol;
 
 /// Empties an element table, keeping its room for the next file.
 pub fn clear_elements(elements: &mut Elements) {
+    // Invalidate before touching the old population; stale models never survive a refill.
+    engine_mut(elements).model_preparation.ready = false;
     elements.kind.as_mut().values.clear();
     elements.flags.as_mut().values.clear();
     elements.start.as_mut().values.clear();
@@ -53,6 +55,10 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.expanded.clear();
     engine.embedded.clear();
     engine.decoded.clear();
+    #[cfg(test)]
+    {
+        engine.decoded_intern_visits = 0;
+    }
     engine.decoded_text.0.clear();
     engine.names.clear();
     engine.vocabulary = KindSum(0);

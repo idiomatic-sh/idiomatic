@@ -284,6 +284,9 @@ pub(crate) struct ElementsEngine {
     /// The text a token stands for, as its language's library decoded it (a string's value with its escapes resolved), for the tokens it
     /// decoded one of, in the order of their positions.
     pub decoded: Vec<DecodedProperty>,
+    /// Actual decoded-entry visits by the interning algorithm, observed only in tests.
+    #[cfg(test)]
+    pub decoded_intern_visits: usize,
     /// The bytes of the decoded texts.
     pub decoded_text: Bytes,
     /// The elements a macro expansion produced, in the order of their positions; none for a file no expansion touched.
@@ -294,6 +297,8 @@ pub(crate) struct ElementsEngine {
     pub open: Vec<OpenNode>,
     /// The model the worker keeps for the language between files; the engine's, which the language never sees but through `file_model`.
     pub scratch: LanguageScratch,
+    /// Engine-owned initialization identity for the current native population.
+    pub model_preparation: ModelPreparation,
     /// What the language wrote of the file besides its tree, bytes only it reads, when the request asked for them.
     pub notes: Bytes,
     /// What the parser reported.
@@ -327,6 +332,18 @@ impl std::fmt::Debug for LanguageScratch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(SCRATCH)
     }
+}
+
+/// Whether the worker's model has been initialized for the current native table.
+/// Completion appends do not change this identity; a native clear invalidates it first.
+#[derive(Debug, Default)]
+pub(crate) struct ModelPreparation {
+    /// Canonical parser settings, with room reused across generations.
+    pub configuration: String,
+    /// Only native elements participate; appended expressions do not require a second resolver.
+    pub native_count: Count,
+    /// Set only by the common preparation boundary after provider initialization returns.
+    pub ready: bool,
 }
 
 /// What a language's syntax adapter builds a file's table through: the table, and the file's bytes

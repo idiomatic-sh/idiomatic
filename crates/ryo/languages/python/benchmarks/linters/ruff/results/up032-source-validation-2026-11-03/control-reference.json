@@ -1,0 +1,649 @@
+{
+  "auto-positionals": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 1,
+    "findings": [
+      {
+        "cell": null,
+        "code": "UP032",
+        "end_location": {
+          "column": 28,
+          "row": 1
+        },
+        "filename": "/workspaces/idiomatic/case.py",
+        "fix": {
+          "applicability": "safe",
+          "edits": [
+            {
+              "content": "f\"{left} {right}\"",
+              "end_location": {
+                "column": 28,
+                "row": 1
+              },
+              "location": {
+                "column": 1,
+                "row": 1
+              }
+            }
+          ],
+          "message": "Convert to f-string"
+        },
+        "location": {
+          "column": 1,
+          "row": 1
+        },
+        "message": "Use f-string instead of `format` call",
+        "name": "f-string",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/f-string"
+      }
+    ],
+    "source": "\"{} {}\".format(left, right)\n",
+    "source_sha256": "69052b86dedfd8af66f3f218934e2ef0783265e4868653a86e37cdfcdaa46c72",
+    "stderr": "",
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP032\",\n    \"end_location\": {\n      \"column\": 28,\n      \"row\": 1\n    },\n    \"filename\": \"/workspaces/idiomatic/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"f\\\"{left} {right}\\\"\",\n          \"end_location\": {\n            \"column\": 28,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Convert to f-string\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Use f-string instead of `format` call\",\n    \"name\": \"f-string\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/f-string\"\n  }\n]"
+  },
+  "escaped-braces": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 1,
+    "findings": [
+      {
+        "cell": null,
+        "code": "UP032",
+        "end_location": {
+          "column": 24,
+          "row": 1
+        },
+        "filename": "/workspaces/idiomatic/case.py",
+        "fix": {
+          "applicability": "safe",
+          "edits": [
+            {
+              "content": "f\"{{}} {value}\"",
+              "end_location": {
+                "column": 24,
+                "row": 1
+              },
+              "location": {
+                "column": 1,
+                "row": 1
+              }
+            }
+          ],
+          "message": "Convert to f-string"
+        },
+        "location": {
+          "column": 1,
+          "row": 1
+        },
+        "message": "Use f-string instead of `format` call",
+        "name": "f-string",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/f-string"
+      }
+    ],
+    "source": "\"{{}} {}\".format(value)\n",
+    "source_sha256": "3a9842827069c98d6d2478973d0dce6b3ce2e1f6ab38c1f7085f2d691a2f6b75",
+    "stderr": "",
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP032\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 1\n    },\n    \"filename\": \"/workspaces/idiomatic/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"f\\\"{{}} {value}\\\"\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Convert to f-string\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Use f-string instead of `format` call\",\n    \"name\": \"f-string\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/f-string\"\n  }\n]"
+  },
+  "keyword-unpack": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{item}\".format(**values)\n",
+    "source_sha256": "b61147bf19ac33fccdf0311f4d97a7972edd12540993f97804c4f67171f6e71a",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "line-suppressed": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{}\".format(value)  # noqa: UP032\n",
+    "source_sha256": "e25261f671a582a36b2d21647452d0df2dc51d3310c885f672296882a7c73983",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "missing-argument": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{}\".format()\n",
+    "source_sha256": "bd109812731c9a77fb51ec4dd9ef2825f35d4eaac4c1623793ae43083f28ea7b",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "missing-index": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{2}\".format(value)\n",
+    "source_sha256": "d8055e751d0078109cf6e88297bde465e89547d9549924aace0d9b6ed84efeab",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "named-keyword": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 1,
+    "findings": [
+      {
+        "cell": null,
+        "code": "UP032",
+        "end_location": {
+          "column": 28,
+          "row": 1
+        },
+        "filename": "/workspaces/idiomatic/case.py",
+        "fix": {
+          "applicability": "safe",
+          "edits": [
+            {
+              "content": "f\"{value}\"",
+              "end_location": {
+                "column": 28,
+                "row": 1
+              },
+              "location": {
+                "column": 1,
+                "row": 1
+              }
+            }
+          ],
+          "message": "Convert to f-string"
+        },
+        "location": {
+          "column": 1,
+          "row": 1
+        },
+        "message": "Use f-string instead of `format` call",
+        "name": "f-string",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/f-string"
+      }
+    ],
+    "source": "\"{item}\".format(item=value)\n",
+    "source_sha256": "a4e5e650f7c7baa1396ec98716c74c1f3ec9d0cf929b2ed26330b685ea9b35e9",
+    "stderr": "",
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP032\",\n    \"end_location\": {\n      \"column\": 28,\n      \"row\": 1\n    },\n    \"filename\": \"/workspaces/idiomatic/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"f\\\"{value}\\\"\",\n          \"end_location\": {\n            \"column\": 28,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Convert to f-string\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Use f-string instead of `format` call\",\n    \"name\": \"f-string\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/f-string\"\n  }\n]"
+  },
+  "nested-field": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{0:{1}}\".format(value, width)\n",
+    "source_sha256": "5165734530fd66ac5bc2e0a6001b31244bf3b25a8512ff9d5120779d01ddb564",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "no-fields": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"plain\".format()\n",
+    "source_sha256": "7b65834e697a99c43bf6a277c2644353b688ee0c51d9189450a452197e3e821e",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "nonliteral-receiver": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "template.format(value)\n",
+    "source_sha256": "649a5949af626c874434db8edc1f4502bfebbbf5ad517809d32d4be9a4ed3a90",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "quoted-field-text": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{item}\".format(item=\"quoted\")\n",
+    "source_sha256": "bca367dddc258d40b9db60d8e9e4945e53263fef2191c20be6a4cb9a58f49028",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "reused-effectful": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{0} {0}\".format(next(items))\n",
+    "source_sha256": "c93e24266191922cda4ea961be8ca5397ff0e9612e1501d5816f455c326e436b",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "reused-pure": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 1,
+    "findings": [
+      {
+        "cell": null,
+        "code": "UP032",
+        "end_location": {
+          "column": 24,
+          "row": 1
+        },
+        "filename": "/workspaces/idiomatic/case.py",
+        "fix": {
+          "applicability": "safe",
+          "edits": [
+            {
+              "content": "f\"{value} {value}\"",
+              "end_location": {
+                "column": 24,
+                "row": 1
+              },
+              "location": {
+                "column": 1,
+                "row": 1
+              }
+            }
+          ],
+          "message": "Convert to f-string"
+        },
+        "location": {
+          "column": 1,
+          "row": 1
+        },
+        "message": "Use f-string instead of `format` call",
+        "name": "f-string",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/f-string"
+      }
+    ],
+    "source": "\"{0} {0}\".format(value)\n",
+    "source_sha256": "fa1d8bae843144cb14593a7ff7a291be9f3b4150d69418db9f0d7fde01883236",
+    "stderr": "",
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP032\",\n    \"end_location\": {\n      \"column\": 24,\n      \"row\": 1\n    },\n    \"filename\": \"/workspaces/idiomatic/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"f\\\"{value} {value}\\\"\",\n          \"end_location\": {\n            \"column\": 24,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Convert to f-string\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Use f-string instead of `format` call\",\n    \"name\": \"f-string\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/f-string\"\n  }\n]"
+  },
+  "starred-arguments": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{}\".format(*values)\n",
+    "source_sha256": "8900f03da17de7f9078f14eb55956114e171757c7969b5af639076c436cff56d",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "string-literal-argument": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "\"{0}\".format(\"hello\")\n",
+    "source_sha256": "aee94c7d1a7ca1b506bdeeb86f33f1b81fa1b3a535c9f3de170e8b08145c9cc0",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "translated": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 0,
+    "findings": [],
+    "source": "from django.utils.translation import gettext\ngettext(\"{}\".format(value))\n",
+    "source_sha256": "4f1913d2d48bf3943b39d4a13847ba643d3cfdd614f7fa89483ba52645c2911e",
+    "stderr": "",
+    "stdout": "[]"
+  },
+  "two-calls": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 1,
+    "findings": [
+      {
+        "cell": null,
+        "code": "UP032",
+        "end_location": {
+          "column": 19,
+          "row": 1
+        },
+        "filename": "/workspaces/idiomatic/case.py",
+        "fix": {
+          "applicability": "safe",
+          "edits": [
+            {
+              "content": "f\"{first}\"",
+              "end_location": {
+                "column": 19,
+                "row": 1
+              },
+              "location": {
+                "column": 1,
+                "row": 1
+              }
+            }
+          ],
+          "message": "Convert to f-string"
+        },
+        "location": {
+          "column": 1,
+          "row": 1
+        },
+        "message": "Use f-string instead of `format` call",
+        "name": "f-string",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/f-string"
+      },
+      {
+        "cell": null,
+        "code": "UP032",
+        "end_location": {
+          "column": 23,
+          "row": 2
+        },
+        "filename": "/workspaces/idiomatic/case.py",
+        "fix": {
+          "applicability": "safe",
+          "edits": [
+            {
+              "content": "f\"{second}\"",
+              "end_location": {
+                "column": 23,
+                "row": 2
+              },
+              "location": {
+                "column": 1,
+                "row": 2
+              }
+            }
+          ],
+          "message": "Convert to f-string"
+        },
+        "location": {
+          "column": 1,
+          "row": 2
+        },
+        "message": "Use f-string instead of `format` call",
+        "name": "f-string",
+        "noqa_row": 2,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/f-string"
+      }
+    ],
+    "source": "\"{}\".format(first)\n\"{x}\".format(x=second)\n",
+    "source_sha256": "2316a117e88ad041f840465a20792af1e15cd5e7851f76f72909be67e38506e8",
+    "stderr": "",
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP032\",\n    \"end_location\": {\n      \"column\": 19,\n      \"row\": 1\n    },\n    \"filename\": \"/workspaces/idiomatic/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"f\\\"{first}\\\"\",\n          \"end_location\": {\n            \"column\": 19,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Convert to f-string\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Use f-string instead of `format` call\",\n    \"name\": \"f-string\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/f-string\"\n  },\n  {\n    \"cell\": null,\n    \"code\": \"UP032\",\n    \"end_location\": {\n      \"column\": 23,\n      \"row\": 2\n    },\n    \"filename\": \"/workspaces/idiomatic/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"f\\\"{second}\\\"\",\n          \"end_location\": {\n            \"column\": 23,\n            \"row\": 2\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 2\n          }\n        }\n      ],\n      \"message\": \"Convert to f-string\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 2\n    },\n    \"message\": \"Use f-string instead of `format` call\",\n    \"name\": \"f-string\",\n    \"noqa_row\": 2,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/f-string\"\n  }\n]"
+  },
+  "two-positionals": {
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--select",
+      "UP032",
+      "--target-version",
+      "py310",
+      "--output-format",
+      "json",
+      "--stdin-filename",
+      "case.py",
+      "-"
+    ],
+    "exit": 1,
+    "findings": [
+      {
+        "cell": null,
+        "code": "UP032",
+        "end_location": {
+          "column": 30,
+          "row": 1
+        },
+        "filename": "/workspaces/idiomatic/case.py",
+        "fix": {
+          "applicability": "safe",
+          "edits": [
+            {
+              "content": "f\"{left} {right}\"",
+              "end_location": {
+                "column": 30,
+                "row": 1
+              },
+              "location": {
+                "column": 1,
+                "row": 1
+              }
+            }
+          ],
+          "message": "Convert to f-string"
+        },
+        "location": {
+          "column": 1,
+          "row": 1
+        },
+        "message": "Use f-string instead of `format` call",
+        "name": "f-string",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/f-string"
+      }
+    ],
+    "source": "\"{0} {1}\".format(left, right)\n",
+    "source_sha256": "cff7e195e13a93f59887d395101e360244513f6910c7d37d086058fec5093617",
+    "stderr": "",
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP032\",\n    \"end_location\": {\n      \"column\": 30,\n      \"row\": 1\n    },\n    \"filename\": \"/workspaces/idiomatic/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"f\\\"{left} {right}\\\"\",\n          \"end_location\": {\n            \"column\": 30,\n            \"row\": 1\n          },\n          \"location\": {\n            \"column\": 1,\n            \"row\": 1\n          }\n        }\n      ],\n      \"message\": \"Convert to f-string\"\n    },\n    \"location\": {\n      \"column\": 1,\n      \"row\": 1\n    },\n    \"message\": \"Use f-string instead of `format` call\",\n    \"name\": \"f-string\",\n    \"noqa_row\": 1,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/f-string\"\n  }\n]"
+  }
+}

@@ -18,7 +18,7 @@ use ryo::languages::{self, ByteSlice, Elements, Symbols, TreeImpact};
 #[test]
 fn preserves_async_statement_kinds() {
     let source = "async def f(items):\n    async for item in items:\n        async with manager():\n            pass\n    def g():\n        for item in items:\n            with manager():\n                pass\n";
-    let seen = elements_of(&SyntaxRuffPythonParserAdapter, source);
+    let seen = elements_of(&SyntaxRuffPythonParserAdapter::default(), source);
     let kinds: Vec<_> = seen.into_iter().map(|(kind, _)| kind).collect();
 
     assert!(kinds.contains(&Kind::Node(Node::AsyncFunctionDef)));
@@ -36,7 +36,7 @@ fn target_version_syntax_warning_preserves_the_tree() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter.read(
+        SyntaxRuffPythonParserAdapter::default().read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
             &PythonParserSettings::new(target),
@@ -77,7 +77,7 @@ fn semantic_syntax_checks_only_run_after_an_accepted_parse() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter.read(
+        SyntaxRuffPythonParserAdapter::default().read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
             &PythonParserSettings::new(PythonTargetVersion::Py310),
@@ -141,7 +141,7 @@ fn comprehension_rebinding_preserves_ast_and_respects_lambda_scope() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter.read(
+        SyntaxRuffPythonParserAdapter::default().read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
             &PythonParserSettings::new(PythonTargetVersion::Py310),
@@ -175,7 +175,7 @@ fn named_expression_annotation_validity_does_not_depend_on_filename() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter.read(
+        SyntaxRuffPythonParserAdapter::default().read(
             SourceText(source.as_bytes()),
             source_kind,
             &PythonParserSettings::new(PythonTargetVersion::Py310),
@@ -238,7 +238,7 @@ fn parser_errors_distinguish_complete_tokens_from_lexical_failure() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter.read(
+        SyntaxRuffPythonParserAdapter::default().read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
             &PythonParserSettings::new(PythonTargetVersion::Py310),
@@ -303,7 +303,7 @@ fn parser_refusal_with_complete_tokens_keeps_lexical_facts_available() {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-    SyntaxRuffPythonParserAdapter.read(
+    SyntaxRuffPythonParserAdapter::default().read(
         SourceText(source.as_bytes()),
         PythonSourceKind::Python,
         &PythonParserSettings::default(),
@@ -374,7 +374,7 @@ enum Seen {
 fn round_trip(bytes: &'static [u8]) -> Seen {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
-    SyntaxRuffPythonParserAdapter.read(
+    SyntaxRuffPythonParserAdapter::default().read(
         SourceText(bytes),
         PythonSourceKind::Python,
         &PythonParserSettings::default(),
@@ -997,7 +997,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-            SyntaxRuffPythonParserAdapter.read(
+            SyntaxRuffPythonParserAdapter::default().read(
                 SourceText(text.as_bytes()),
                 PythonSourceKind::Python,
                 &PythonParserSettings::default(),
@@ -1027,7 +1027,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         }
         Given::Tree(text) => {
             let elements: Vec<(Kind, &'static str)> =
-                elements_of(&SyntaxRuffPythonParserAdapter, text)
+                elements_of(&SyntaxRuffPythonParserAdapter::default(), text)
                     .into_iter()
                     .map(|(kind, text)| (kind, &*Box::leak(text.into_boxed_str())))
                     .collect();
@@ -1044,7 +1044,7 @@ fn diagnostics_of(
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-    SyntaxRuffPythonParserAdapter.read(
+    SyntaxRuffPythonParserAdapter::default().read(
         SourceText(text.as_bytes()),
         source_kind,
         &settings,
@@ -1065,7 +1065,7 @@ fn diagnostics_of(
 
 #[test]
 fn succeeds() {
-    check(&SyntaxRuffPythonParserAdapter);
+    check(&SyntaxRuffPythonParserAdapter::default());
     run(CASES, Word::Succeeds, subject);
 }
 
@@ -1203,7 +1203,7 @@ fn future_annotations_use_only_valid_compiler_directives() {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-            SyntaxRuffPythonParserAdapter.read(
+            SyntaxRuffPythonParserAdapter::default().read(
                 SourceText(source.as_bytes()),
                 source_kind,
                 &PythonParserSettings::new(PythonTargetVersion::Py313),
@@ -1254,7 +1254,7 @@ fn native_annotation_scopes_are_version_sensitive() {
         let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
         let mut builder =
             languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-        SyntaxRuffPythonParserAdapter.read(
+        SyntaxRuffPythonParserAdapter::default().read(
             SourceText(source.as_bytes()),
             PythonSourceKind::Python,
             &PythonParserSettings::new(target),
@@ -1282,7 +1282,7 @@ fn malformed_future_import_never_enables_a_compiler_feature() {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-    SyntaxRuffPythonParserAdapter.read(
+    SyntaxRuffPythonParserAdapter::default().read(
         SourceText(source.as_bytes()),
         PythonSourceKind::Python,
         &PythonParserSettings::new(PythonTargetVersion::Py310),
@@ -1308,7 +1308,7 @@ fn bare_starred_loop_target_preserves_accepted_ast_with_validation_error() {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-            SyntaxRuffPythonParserAdapter.read(
+            SyntaxRuffPythonParserAdapter::default().read(
                 SourceText(source.as_bytes()),
                 source_kind,
                 &PythonParserSettings::new(target),
@@ -1353,7 +1353,7 @@ fn starred_targets_require_unpacking_containers_without_affecting_expression_sta
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder =
                 languages::table_builder(&mut elements, &mut symbols, ByteSlice(source.as_bytes()));
-            SyntaxRuffPythonParserAdapter.read(
+            SyntaxRuffPythonParserAdapter::default().read(
                 SourceText(source.as_bytes()),
                 PythonSourceKind::Python,
                 &PythonParserSettings::new(target),
@@ -1397,7 +1397,7 @@ fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
     let source = b"x = ( # before invalid byte\n\xff\n";
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = languages::table_builder(&mut elements, &mut symbols, ByteSlice(source));
-    SyntaxRuffPythonParserAdapter.read(
+    SyntaxRuffPythonParserAdapter::default().read(
         SourceText(source),
         PythonSourceKind::Python,
         &PythonParserSettings::default(),
@@ -1410,7 +1410,7 @@ fn invalid_utf8_never_certifies_a_complete_lexical_stream() {
 #[test]
 fn invalid_syntax_keeps_actual_comment_tokens() {
     let source = "if ( # retained comment\n";
-    let elements = elements_of(&SyntaxRuffPythonParserAdapter, source);
+    let elements = elements_of(&SyntaxRuffPythonParserAdapter::default(), source);
     assert!(elements.iter().any(|(kind, text)| {
         *kind == Kind::Token(Token::Comment) && text == "# retained comment"
     }));

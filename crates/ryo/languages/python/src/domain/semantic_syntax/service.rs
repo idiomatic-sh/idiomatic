@@ -71,6 +71,9 @@ fn typing_name(
     let Some(path) = languages::text_of(symbols, tree.source, answer.path) else {
         return TypingForm::Other;
     };
+    if super::generic_subscription::is_type_constructor(path.0) {
+        return TypingForm::Generic;
+    }
     match path
         .0
         .strip_prefix(TYPING)
@@ -88,7 +91,7 @@ fn typing_name(
 
 /// `Literal` arguments and `Annotated` metadata are values. Ordinary callable
 /// arguments also leave type context; `cast`'s first argument remains a type.
-fn type_position(
+pub(crate) fn type_position(
     tree: &Tree<'_>,
     model: &Declarations,
     provenance: &crate::domain::model::types::QualificationIndex,
@@ -101,6 +104,10 @@ fn type_position(
     let mut below = host;
     let mut ancestor = parent(tree, below);
     while ancestor != below {
+        // Slice bounds are runtime values even when their receiver is a known generic class.
+        if kind(tree, ancestor) == Kind::Node(Node::Slice) {
+            return TypeContext::Value;
+        }
         if kind(tree, ancestor) == Kind::Node(Node::Subscript)
             && let Some(base) = nth(tree, ancestor, Category::Expression, CategoryIndex(0))
         {
@@ -108,11 +115,19 @@ fn type_position(
             if name == TypingForm::Literal {
                 return TypeContext::Value;
             }
-            if name == TypingForm::Annotated
+            if name == TypingForm::Annotated && !established {
+                if annotated_operand(tree, ancestor, host) == TypeContext::Value {
+                    return TypeContext::Value;
+                }
+                allowed = true;
+                established = true;
+            }
+            if name == TypingForm::Generic
                 && !established
-                && annotated_operand(tree, ancestor, host) == TypeContext::Value
+                && nth(tree, ancestor, Category::Expression, CategoryIndex(1)) == Some(below)
             {
-                return TypeContext::Value;
+                allowed = true;
+                established = true;
             }
         }
         if kind(tree, ancestor) == Kind::Extra(Extra::CallArguments) && !established {
@@ -179,9 +194,11 @@ fn type_argument(
         TypingForm::Cast => source_position == Some(0),
         TypingForm::NewType => source_position == Some(1),
         TypingForm::TypeVar => positional.is_some_and(|position| position > 0),
-        TypingForm::Literal | TypingForm::Annotated | TypingForm::TypeAlias | TypingForm::Other => {
-            false
-        }
+        TypingForm::Literal
+        | TypingForm::Annotated
+        | TypingForm::TypeAlias
+        | TypingForm::Other
+        | TypingForm::Generic => false,
     };
     if is_type {
         TypeContext::Type
@@ -210,4 +227,26 @@ fn annotated_operand(tree: &Tree<'_>, subscription: Position, host: Position) ->
     } else {
         TypeContext::Value
     }
+}
+
+/// Resolved native type carriers not already expanded by the native writer.
+/// This classification intentionally leaves the semantic-root cache Fresh until publication.
+pub(crate) fn completion_hosts(
+    tree: &Tree<'_>,
+    model: &Declarations,
+    symbols: &mut Symbols,
+) -> Vec<Position> {
+    let provenance = prepare(tree, model);
+    let expanded = languages::embedded_expressions(tree.elements)
+        .map(|source| source.host)
+        .collect::<std::collections::HashSet<_>>();
+    languages::positions(tree.elements)
+        .filter(|&host| {
+            kind(tree, host) == Kind::Node(Node::Constant)
+                && crate::domain::syntax::service::literal(tree, host)
+                    == crate::domain::syntax::types::Literal::String
+                && !expanded.contains(&host)
+                && type_position(tree, model, &provenance, host, symbols) == TypeContext::Type
+        })
+        .collect()
 }

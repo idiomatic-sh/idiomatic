@@ -14,7 +14,13 @@ use crate::domain::syntax::types::Kind;
 /// Index each declaration once, after scope redirects have been collected.
 pub(crate) fn index(tree: &Tree<'_>, model: &mut Declarations) {
     model.bindings.clear();
-    for at in (0..languages::end_of(tree.elements).0).map(Position) {
+    extend(tree, Position(0), model);
+}
+
+/// Index only newly appended definitions; native declarations and qualification remain unchanged.
+pub(crate) fn extend(tree: &Tree<'_>, from: Position, model: &mut Declarations) {
+    let previous = model.bindings.len();
+    for at in (from.0..languages::end_of(tree.elements).0).map(Position) {
         if let Some(found) = definition(tree, model, at) {
             model.bindings.push(LexicalBinding {
                 key: BindingKey {
@@ -25,7 +31,9 @@ pub(crate) fn index(tree: &Tree<'_>, model: &mut Declarations) {
             });
         }
     }
-    model.bindings.sort_unstable();
+    if model.bindings.len() != previous {
+        model.bindings.sort_unstable();
+    }
 }
 
 /// A parsed string's bindings apply within its own expression and nested parsed
