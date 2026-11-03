@@ -1,0 +1,15 @@
+[
+  {
+    "cell": null,
+    "code": "panic",
+    "end_location": null,
+    "filename": "/tmp/.tmpqZwigH/UP031/0/case.py",
+    "fix": null,
+    "location": null,
+    "message": "Panicked at crates/ruff_linter/src/rules/pyupgrade/rules/printf_string_formatting.rs:474:32 when checking `/tmp/.tmpqZwigH/UP031/0/case.py`: `assertion failed: start.raw <= end.raw`",
+    "name": "panic",
+    "noqa_row": null,
+    "severity": "error",
+    "url": null
+  }
+]

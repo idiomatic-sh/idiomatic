@@ -86,6 +86,39 @@ jobs:
           PY
             done
           done
+      - name: Verify both complete target profiles and offline process receipts
+        run: |
+          set -euo pipefail
+          root="$PWD/target/checks/up031-process"
+          cd crates/ryo
+          CARGO_BUILD_JOBS=6 cargo build --release --locked -j6 -p idiomatic-sh-ryo-benchmark \
+            --bin ryo-benchmark-collector --message-format=json \
+            > ../../target/checks/up031-process/collector-build.jsonl \
+            2> ../../target/checks/up031-process/collector-build.stderr
+          python3 ../../.github/scripts/seal_cargo_artifact.py \
+            ../../target/checks/up031-process/collector-build.jsonl \
+            ryo-benchmark-collector bin /crates/benchmark/src/main.rs false \
+            ../../target/checks/up031-process/collector
+          cd ../..
+          for target in py310 py37; do
+            profile="$PWD/.github/fixtures/up031-process-certified/$target/repro"
+            registration="$PWD/.github/fixtures/up031-process-certified/$target/registration.json"
+            output="$root/certified-$target"
+            mkdir -p "$output"
+            RYO_VERIFY_CASE_RESULTS="$output/cases.jsonl" "$root/worker" verify-cases \
+              "$(command -v ruff)" "$profile" > "$output/stdout.txt" 2> "$output/stderr.txt"
+            "$root/collector" validate-case-receipts "$registration" "$output/cases.jsonl" \
+              > "$output/offline-audit.json" 2> "$output/offline-audit.stderr"
+            python3 - "$output" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          root = Path(sys.argv[1])
+          assert (root / 'stdout.txt').read_text().strip() == '43 cases passed against both contestants'
+          audit = json.loads((root / 'offline-audit.json').read_text())
+          assert (audit['case_count'], audit['raw_exact'], audit['documented_discrepancies'], audit['contract_only'], audit['errors']) == (43, 41, 2, 0, [])
+          PY
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
