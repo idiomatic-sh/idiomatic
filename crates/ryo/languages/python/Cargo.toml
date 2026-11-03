@@ -57,6 +57,7 @@ path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
+diagnostic-row-progress = ["ryo/diagnostic-row-progress"]
 fixtures = ["ryo/fixtures", "dep:serde_json"]
 
 [lints]
