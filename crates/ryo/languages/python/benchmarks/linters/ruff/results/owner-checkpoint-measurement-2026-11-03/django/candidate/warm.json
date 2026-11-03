@@ -1,0 +1,37 @@
+{
+  "capped": false,
+  "collector_exit_code": 0,
+  "coverage": {
+    "evaluated": 890943,
+    "selected": 891250,
+    "skipped": 307,
+    "unknown_or_unread": 0
+  },
+  "cpu_seconds": 2.067404,
+  "diagnostics": 2327,
+  "load_after": [
+    0.96484375,
+    1.14794921875,
+    1.2392578125
+  ],
+  "load_before": [
+    0.96142578125,
+    1.15087890625,
+    1.24072265625
+  ],
+  "matches_retained_baseline_report": true,
+  "observation_sha256": "13a589948bae28b81f6acf7ae88be23711428f5e46b052e61afd25ec4c8218cc",
+  "orchestration_wall_seconds": 2.097992939998221,
+  "peak_rss_bytes": 409407488,
+  "phase": "warm",
+  "raw_report_bytes_equal": true,
+  "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+  "request_sha256": "12a367aa342727fd8975c85cf815a41e6d683a523ca0f72a48e51d3d5ae36b7e",
+  "script_sha256": "21979496d21e51188d81632bcf78be84b3a59f13c2e38b9ff762fda2d6c29899",
+  "source_commit": "f09b48b3a924e20b36987f74fd6100dbbc84cd66",
+  "target_kind": "bench",
+  "variant": "candidate",
+  "wall_seconds": 2.067670607,
+  "worker_exit_code": 0,
+  "worker_sha256": "aaace83ca21a1726a0f5ea7a25f88c10466f4c8fc82b36488ee76d1b88bda207"
+}

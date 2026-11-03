@@ -22,8 +22,9 @@ Cells are **proven: test/receipt**, **falsified: file:line**, or **unknown**; an
 
 | Current route / resource | Severity | Evidence and next fix |
 | --- | --- | --- |
-| Admission/publication, derived acquisition and terminal ownership | ?; correctness first | Known bypasses remain; inventory every producer/consumer, remove mutable-cache escape and competing owners. |
-| Repeated file/rule demand and materialization | ? | [One-file route counts](../../languages/python/benchmarks/linters/ruff/results/resource-route-diagnostic-2026-11-03/README.md): 47,620 graph requests, 24,555 traversals, 2,088 builds; consumer identity and cost remain mostly unknown. |
+| Admission/publication, derived acquisition and terminal ownership | ?; correctness first | Known bypasses remain; predicate workspace application ownership is unchecked pending production-route enumeration. |
+| Corrected owner checkpoint, frozen Django/Rust | 3 observed; cause unknown | [Matched receipts](../../languages/python/benchmarks/linters/ruff/results/owner-checkpoint-measurement-2026-11-03/README.md): Django cold +12.33%; Rust spike CPU +16.67% above guard. Graph/fanout ownership remains unchecked. |
+| Repeated file/rule demand and materialization | ? | [Whole-corpus diagnostic](../../languages/python/benchmarks/linters/ruff/results/owner-checkpoint-measurement-2026-11-03/routes-summary.json): rules/frontiers dominates instrumented phase time; PredicateMatches 1.172M, Equality 759k, DistinctRepresentatives 633k builds are hypotheses. Predicate memo setup applicability/cost and comparative route costs are unknown; fast paths may bypass memo. |
 | Narrow native/projection experiments | ? | Local options.py reached only 4 native segments / 11 projections; parked, no production or whole-workload gain credit. |
 | Historical required-live recomputation | 5, guarded | [Recorded failure and repair](../../languages/python/benchmarks/linters/ruff/results/required-live-2026-11-02/README.md); preserve zero-optional-budget regression controls. |
 
