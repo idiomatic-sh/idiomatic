@@ -25,6 +25,19 @@
 | Persistent lint snapshot | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles. |
 | Outbound reports and jobs | ☑ | — | ☑ | ☑ | ☐ | Scheduler adapter still owns executor resources. |
 
+### Proposed remaining boundaries
+
+These signatures describe the authority to consolidate; they are **proposed**, not implemented or ownership proof. Domain types state meaning. Application operations own scheduling, admission, cache identity and last release. Outbound ports supply external facts and effects. Engine handles, budgets, indexes and scheduler choices stay internal and never become language provider contracts.
+
+| Family | Semantic contract | Proposed application operation and open route |
+| --- | --- | --- |
+| Terminal and frontier rows | Existing `Input` names a relation or step; output remains an ordered bag with explicit absence, partiality and error order. | `publish(input) -> PublishedInput`, then `resolve(&publication) -> Rows<'owner>` and `scan(rows, sink)`; the application retains the publication through its last consumer. Reconcile [`run`, `deliver`, `keep` and `hand_over`](../../crates/core/src/application/file_dag/pipeline/service.rs), including selected, residual, exported terminal and cross-file frontier paths. Delivery does not create a new ownership handle after rows have escaped. |
+| Native evaluation | Typed tree rows, rule demand and completeness have the same meaning as ordinary operator input. | `evaluate_native(demand, tree, sink) -> RuleOutcome` publishes through the same result path. The [shared walk and residual mask](../../crates/core/src/application/file_analysis/service.rs) remain application scheduling choices; the provider supplies the typed tree and partial-fact proof. |
+| Derived views and traversal | Existing `ViewRequest`, graph demand and admitted input proof define the result; aliases retain one physical backing. | `acquire(request, proof) -> Result<Option<DerivedHandle>>` and `reach(graph, demand) -> Result<RootAnswer>` are application-owned admission and lifetime operations. The graph, index and memo storage layouts stay private. |
+| Candidate fanout | A candidate request specifies relation, column, literal set and ordered row positions. Optional decline means ordinary selection can run; unknown facts and execution errors remain distinct. | `acquire_candidates(request, proof) -> Result<CandidateDecision>` returns a leased answer or explicit decline. Move [local fanout choice, retained capacity and reuse](../../crates/core/src/application/file_dag/derived/selection/fanout.rs) under the common owner without changing bag order. |
+| Keyed semantic answers | Existing `RenderRequest`, `RenderOutcome` and `RenderError` define syntax roles, Known, NotApplicable and Unsupported. | `render_batch(file_generation, consuming_rule, requests) -> Result<Vec<RenderOutcome>>` admits and shares answers by generation/context. Unsupported marks that consuming rule incomplete before publication and prevents a complete persisted snapshot. The outbound `SemanticSession` renders syntax only; current batch-local dedup does not close answer lifetime. |
+| External resources | Corpus, facts, language, store, rows and scheduler remain separate outbound ports with typed results. | The application opens and ends each file/request scope, retaining only its declared leases and committing only complete outcomes. Adapters own external handles; the domain sees no file descriptor, worker, cache or transaction type. |
+
 ## 2. Rubric
 
 Each row is **execution route × resource family/representation**. Enumerate actual registry, acquire/select, publication/Selected constructors, cache accesses and terminal drivers; map every resolved site exactly once. Unmapped sites block closure.
