@@ -1,6 +1,6 @@
 # Extension ownership contracts
 
-The engine should own scheduling, sharing, invalidation, and lifetime so a language provider or RyoQL primitive can plug in facts or typed row semantics. This table records **current ownership**, not the desired performance or type-safety level. `☑` means the generic engine owns the responsibility today; `☐` means a language, primitive, compiler extension, or outbound adapter still owns part of that responsibility; `—` means it does not apply. Producing correct facts or row semantics alone does not make an implementor the owner of stored data or scheduling. A checked cell is not a performance claim.
+The engine should own scheduling, sharing, invalidation, and lifetime so a language provider or RyoQL primitive can plug in facts or typed row semantics. This table records **current ownership**, not the desired performance or type-safety level. `☑` means the generic engine owns and enforces the responsibility today; `☐` means a provider, primitive, adapter, or parallel engine route still holds part of it, or single-owner enforcement is unproven; `—` means it does not apply. Producing correct facts or row semantics alone does not make an implementor the owner of stored data or scheduling. A checked cell is not a performance claim.
 
 | Contract | Scheduling | Sharing / cache | Invalidation | Data ownership | Resource lifetime | Residual implementor ownership or central gap |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |
@@ -11,16 +11,19 @@ The engine should own scheduling, sharing, invalidation, and lifetime so a langu
 | Source bytes and spans | ☑ | — | ☑ | ☑ | ☑ | Engine holds the file buffer; provider supplies token coordinates and lexical meaning, not a retained cache. |
 | Source and derived symbols | — | — | ☑ | ☑ | ☑ | Engine owns one file's symbol table and query mutation capability; provider supplies source name semantics. |
 | Query grammar and typed plan | ☑ | — | ☑ | ☑ | ☑ | Compiler is an engine component; new syntax still requires compile/typecheck error mapping. |
-| Primitive schema and evaluator | ☑ | ☑ | ☑ | ☑ | ☑ | All 24 kinds use request-prepared contracts and the mandatory application executor; primitives receive borrowed semantic capabilities. Behavioral, generation/lifetime and compile-negative capability controls pass; internal optimized algorithms remain behind the same owner. |
+| Primitive schema and evaluator | ☐ | ☐ | ☑ | ☑ | ☐ | All 24 kinds have contracts and a tested item path, but optimized Fragment, column and join routes also evaluate semantics. The all-kind route test does not enter the production file DAG. One execution and resource-lifetime owner remains unproven. |
 | Operator inputs and absence | ☑ | — | — | ☑ | — | Prepared contracts declare dependencies and absence requirements. Actual production-route tests cover positive partial facts and refusal of partial absence; provider truthfulness and relation semantics remain separate obligations. |
 | Ordinary plan and frontier | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns ordering, rule-local tables, frontier handover, and opt-in sharing; complete DAG coverage across all operators is still open. |
-| Request-wide file graph | ☑ | ☑ | ☑ | ☑ | ☑ | Every kind enters the common application owner. DAG retention remains selectable. The measured relation worker took 222.59 s cold versus the required-live worker's 244.70 s; it remains above the older 214.56 s pre-contract observation. |
-| Stored selections and indexes | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns predicate/index state, bounds, fallback, and release; provider only supplies complete resident columns. |
+| Request-wide file graph | ☐ | ☐ | ☐ | ☑ | ☐ | The application DAG owns its admitted nodes, but terminal/frontier work still runs in the Stepper with separate rooms, held rows and selections. An error return can skip explicit epoch release. The measured relation worker took 222.59 s cold versus 244.70 s for required-live. |
+| Stored selections and indexes | ☐ | ☐ | ☐ | ☑ | ☐ | The DAG relation owner admits selections, while the residual Stepper can mint a selected result directly and the column kernel can acquire an index through FileIndexes outside DerivedOwner pins. Single-owner acquisition, invalidation and release need production-route controls. |
+| Derived view acquisition | ☐ | ☐ | ☐ | ☑ | ☐ | DAG consumers use prepared DerivedOwner views, but the column kernel still acquires an index through FileIndexes. A production-route negative must prove that every applicable consumer uses the same admission and lifetime owner before these cells are checked. |
 | Graph adjacency and traversal | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns typed per-file graph views and memo. Alternate storage remains unmeasured. |
 | Persistent lint snapshot | ☑ | ☑ | ☑ | ☐ | ☐ | Engine chooses digests/reuse; outbound adapter owns framing, snapshot file handles, and atomic byte replacement behind the port. |
 | Outbound reports and jobs | ☑ | — | ☑ | ☑ | ☐ | Engine owns reports and visit order; scheduler adapter still owns executor resources behind its port. |
 
 The open ownership cells identify code that a new implementor must still coordinate. A provider supplies facts and completeness evidence; a primitive supplies typed row semantics. The engine should validate inputs and outputs, schedule their dependencies, share safe work, invalidate it, and release each file generation. Incomplete performance or type-safety evidence is named in the last column and does not by itself turn an engine-owned cell into an implementor-owned cell.
+
+For each consolidation, first name the semantic interface and enumerate every implementation that must satisfy it. Move all applicable implementations to that interface while the application engine remains the sole owner of scheduling, caching, invalidation, stored data and resource lifetime. Each review finding needs a source fix and a test that fails on the bypass; capability tests must reject bypasses, and measured behavior must be recorded separately. Repeat review until no blocking ownership gap remains. A checked ownership cell requires enforced routes and lifecycle tests; declaring an interface alone is insufficient.
 
 ## Executable evidence and open gates
 
@@ -37,6 +40,8 @@ The open ownership cells identify code that a new implementor must still coordin
 The [Ryo design](../README.md) is the architectural source. The tested boundary registers all **24 operator kinds** and all **four representations across 61 catalog relations**. Update this table only when a passing executable contract changes ownership. Keep source-bound fixture, lifecycle, and performance receipts separate; do not mark an opt-in strategy production-ready from one-file parity alone.
 
 ## Mandatory operator boundary: accepted implementation decision
+
+This section records the interface decision and its tested item path. The matrix above remains the current ownership status: optimized execution and residual Stepper routes still need migration and bypass controls before a single execution-owner claim is accepted.
 
 The implementation replaces the pilot with one mandatory contract for all 24 kinds. Its required-live gate passed 444 core, three capability and 205 Python tests; the later relation gate passed 463 core, seven capability, 33 SDK, 206 Python and 107 benchmark tests. The measured relation worker completed frozen Django with byte-identical cold, warm and retained-edit reports. Cold wall time was 222.59 s versus 244.70 s for required-live, while the older pre-contract observation was 214.56 s. Performance acceptance remains open.
 
@@ -177,7 +182,7 @@ The intended avoided work is repeated representation admission and decoding-poli
 
 ### Relation and layer migration checkpoint
 
-The relation batch implements the mandatory representation trait for Stored, Selected, Tree, and Computed together. Application owns private admission/publication state and resident population epochs; only the actual selector producer can mint a trusted selected result. Stable partial populations may reuse structural proofs without gaining absence/completeness authority. DAG delivery retains representation handles and prepared physical recipes instead of requiring every node result to become a Table. Provider `Stable` promises cover `keep`; descriptors are invalidated before release/refill, and unstable providers do not retain borrowed alias results.
+The relation batch implements the mandatory representation trait for Stored, Selected, Tree, and Computed together. The DAG application owns private admission/publication state and resident population epochs; its selector producer mints trusted selected results. The residual Stepper still constructs stored selections directly, so this ownership route remains open. Stable partial populations may reuse structural proofs without gaining absence/completeness authority. DAG delivery retains representation handles and prepared physical recipes instead of requiring every node result to become a Table. Provider `Stable` promises cover `keep`; descriptors are invalidated before release/refill, and unstable providers do not retain borrowed alias results.
 
 Runtime Feed, PrimitiveExecutor, DagExecution, pipeline/Stepper, and rule/cross-file orchestration move to application. Domain retains representation semantics, pure plan/index/traversal algorithms, immutable contract data, and the borrowed Reading port. Engine-driven behavioral tests move with orchestration; domain tests do not receive an application import exception.
 
