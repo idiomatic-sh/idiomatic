@@ -272,7 +272,10 @@ pub(crate) fn request_fixture(
 ) -> std::sync::Arc<crate::domain::operator::contract::types::RequestOperators> {
     std::sync::Arc::new(
         crate::domain::operator::contract::types::RequestOperators::prepare(
-            plans, bindings, hosted,
+            plans,
+            bindings,
+            hosted,
+            crate::outbound::derived::factory::test_port(),
         )
         .expect("fixture metadata"),
     )

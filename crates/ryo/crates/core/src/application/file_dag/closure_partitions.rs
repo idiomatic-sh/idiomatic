@@ -39,11 +39,11 @@ impl<'f> PartitionedClosure<'f> {
         owner: Rc<RelationOwner>,
     ) -> Result<Self, OperatingError> {
         crate::domain::derived_views::service::validate(
-            crate::domain::derived_views::types::DerivedKind::PartitionOrder,
+            ryo_derived::domain::contract::types::DerivedKind::PartitionOrder,
             &partition_plan,
         )?;
         crate::domain::derived_views::service::validate(
-            crate::domain::derived_views::types::DerivedKind::ClosureAdjacency,
+            ryo_derived::domain::contract::types::DerivedKind::ClosureAdjacency,
             &closure_plan,
         )?;
         if !std::ptr::eq(ordered.contract(), partition_plan.as_ref())
@@ -96,9 +96,8 @@ impl<'f> PartitionedClosure<'f> {
         source: ColumnIndex,
         destination: ColumnIndex,
     ) -> Result<Self, OperatingError> {
-        use crate::domain::derived_views::{
-            collections::views::registration::registered, types::DerivedKind,
-        };
+        use crate::domain::derived_views::collections::views::registration::registered;
+        use ryo_derived::domain::contract::types::DerivedKind;
         input.validate()?;
         let schema = [crate::domain::operation_schema::types::InputSchema {
             kinds: input.kinds(),

@@ -18,7 +18,7 @@ macro_rules! kinds {
     };
 }
 kinds!(
-    KeyIndex,
+    Equality,
     PredicateMatches,
     CandidatePostings,
     DistinctRepresentatives,
@@ -71,6 +71,12 @@ impl WeakPositions {
     }
 }
 impl SharedPositions {
+    /// Borrow the immutable backing for engine publication; this does not certify a derived payload.
+    #[must_use]
+    pub fn backing(&self) -> &Arc<Vec<u32>> {
+        &self.0
+    }
+
     #[must_use]
     pub fn as_slice(&self) -> &[u32] {
         self.0.as_slice()
@@ -345,6 +351,12 @@ impl Adjacency {
 #[derive(Clone, Debug)]
 pub struct SharedMarks(pub(crate) Arc<Vec<bool>>);
 impl SharedMarks {
+    /// Borrow the immutable backing for engine domain publication.
+    #[must_use]
+    pub fn backing(&self) -> &Arc<Vec<bool>> {
+        &self.0
+    }
+
     #[must_use]
     pub fn as_slice(&self) -> &[bool] {
         &self.0
@@ -515,7 +527,7 @@ pub enum OrderedKey {
 pub struct OrderedRow {
     pub(crate) keys: Vec<OrderedKey>,
     pub(crate) order: ryo_relations::domain::relations::types::Integer,
-    pub(crate) row: usize,
+    pub(crate) row: RowIndex,
 }
 impl OrderedRow {
     #[must_use]
@@ -527,7 +539,7 @@ impl OrderedRow {
         self.order
     }
     #[must_use]
-    pub fn row(&self) -> usize {
+    pub fn row(&self) -> RowIndex {
         self.row
     }
 }
@@ -557,8 +569,8 @@ pub struct PreparedDfs {
     pub(crate) edges: Table,
     pub(crate) root_index: KeyIndex,
     pub(crate) edge_index: KeyIndex,
-    pub(crate) root_order: Vec<usize>,
-    pub(crate) edge_order: Vec<usize>,
+    pub(crate) root_order: Vec<RowIndex>,
+    pub(crate) edge_order: Vec<RowIndex>,
     pub(crate) root_columns: Vec<ColumnIndex>,
     pub(crate) edge_columns: Vec<ColumnIndex>,
     pub(crate) adjacency: Vec<std::ops::Range<usize>>,
@@ -581,11 +593,11 @@ impl PreparedDfs {
         &self.edge_index
     }
     #[must_use]
-    pub fn root_order(&self) -> &[usize] {
+    pub fn root_order(&self) -> &[RowIndex] {
         &self.root_order
     }
     #[must_use]
-    pub fn edge_order(&self) -> &[usize] {
+    pub fn edge_order(&self) -> &[RowIndex] {
         &self.edge_order
     }
     #[must_use]
@@ -615,7 +627,7 @@ pub(crate) enum PayloadData {
     DistinctRepresentatives(SharedPositions),
     Adjacency(Arc<Adjacency>),
     Membership(Membership),
-    PartitionOrder(Vec<usize>),
+    PartitionOrder(Vec<RowIndex>),
     ClosureAdjacency(Arc<ClosurePartition>),
     CycleAdjacency(Arc<CycleGraph>),
     OrderedKeys(Arc<OrderedMatching>),
@@ -636,7 +648,7 @@ pub enum DerivedView<'a> {
     Postings(&'a [LiteralPostings]),
     Adjacency(&'a Adjacency),
     Membership(MembershipView<'a>),
-    PartitionOrder(&'a [usize]),
+    PartitionOrder(&'a [RowIndex]),
     ClosureAdjacency(&'a ClosurePartition),
     CycleAdjacency(&'a CycleGraph),
     OrderedKeys(&'a OrderedMatching),
@@ -666,7 +678,7 @@ pub enum DerivedInputs<'a> {
     },
     Partition {
         rows: &'a dyn RowCells,
-        positions: Option<&'a [usize]>,
+        positions: Option<&'a [RowIndex]>,
         key: &'a [ryo_relations::domain::relations::types::Value],
     },
     Ordered {

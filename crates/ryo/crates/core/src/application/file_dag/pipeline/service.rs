@@ -569,6 +569,7 @@ fn evaluate_file_with_fixture<'f, const LEGACY: bool>(
                 |view| view.kinds,
             )
         },
+        crate::outbound::derived::factory::test_port(),
     )?;
     evaluate_file_inner::<LEGACY>(
         plan,
@@ -694,6 +695,7 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
             let kernel = crate::application::file_dag::optimized::column::compile(
                 plan,
                 prepared.layouts.last().ok_or(OperatingError::NotRun)?,
+                executor.derived_port(),
             );
             prepared.kernel_counts.compiled_chains +=
                 kernel.0.iter().filter(|chain| chain.is_some()).count() as u64;

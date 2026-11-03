@@ -2,8 +2,7 @@
 use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::{
     derived_views::types::{
-        DerivedContract, DerivedInputs, DerivedKind, DerivedScratch, DerivedStorage, DerivedView,
-        ViewRequest,
+        DerivedContract, DerivedInputs, DerivedScratch, DerivedStorage, DerivedView, ViewRequest,
     },
     operating::{
         errors::OperatingError,
@@ -19,6 +18,7 @@ use crate::domain::{
     },
     table_texts::types::Texts,
 };
+use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::{
     service::{find_hashed, hash_of, name_count},
     types::ByteSlice,

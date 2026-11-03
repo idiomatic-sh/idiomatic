@@ -17,13 +17,23 @@ use std::sync::Arc;
 #[path = "request/identity.rs"]
 mod identity;
 use identity::same_request;
-#[derive(Default)]
 pub(in crate::application::file_dag) struct RequestViews {
+    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     plans: Vec<Arc<DerivedContract>>,
     bindings: Vec<Arc<PreparedViewUse>>,
     logical: Vec<ryo_values::domain::plan_parts::types::Input>,
 }
 impl RequestViews {
+    pub(in crate::application::file_dag) fn new(
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
+        Self {
+            semantic,
+            plans: Vec::new(),
+            bindings: Vec::new(),
+            logical: Vec::new(),
+        }
+    }
     /// Bind finite semantic requirements once per compiled operator. No rows or cache are read here.
     pub(in crate::application::file_dag) fn bind(
         &mut self,
@@ -45,8 +55,9 @@ impl RequestViews {
         &mut self,
         program: &ResourceProgram,
         kinds: &[Vec<ryo_relations::domain::relations::types::CellKind>],
-    ) -> Result<[Option<Arc<PreparedViewGroup>>; 12], OperatingError> {
-        let mut slots: [Option<Arc<PreparedViewGroup>>; 12] = std::array::from_fn(|_| None);
+    ) -> Result<[Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()], OperatingError> {
+        let mut slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()] =
+            std::array::from_fn(|_| None);
         match program {
             ResourceProgram::Index { input, columns } => {
                 let columns = match columns {
@@ -230,7 +241,7 @@ impl RequestViews {
 
     fn add(
         &mut self,
-        slots: &mut [Option<Arc<PreparedViewGroup>>; 12],
+        slots: &mut [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
         kinds: &[Vec<ryo_relations::domain::relations::types::CellKind>],
         request: ViewRequest,
         positions: &[usize],
@@ -322,7 +333,7 @@ impl RequestViews {
         }) {
             return Ok((plan).clone());
         }
-        let mut plan = registered(kind(request)).prepare(request, schemas)?;
+        let mut plan = super::prepare::view(Arc::clone(&self.semantic), request, schemas)?;
         plan.metadata = Err(error);
         let plan = Arc::new(plan);
         self.plans.push((plan).clone());
@@ -344,7 +355,11 @@ impl RequestViews {
         }) {
             return Ok((plan).clone());
         }
-        let plan = Arc::new(registered(kind(request)).prepare(request, schemas)?);
+        let plan = Arc::new(super::prepare::view(
+            Arc::clone(&self.semantic),
+            request,
+            schemas,
+        )?);
         self.plans.push((plan).clone());
         Ok(plan)
     }
@@ -357,3 +372,5 @@ impl RequestViews {
 #[cfg(test)]
 #[path = "request/tests.rs"]
 mod tests;
+
+use ryo_derived::domain::contract::types::DerivedKind;

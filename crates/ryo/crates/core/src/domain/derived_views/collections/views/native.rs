@@ -51,3 +51,5 @@ impl DerivedViewsItem for NativeLookupItem {
         service::view(DerivedKind::NativeLookup, contract, storage)
     }
 }
+
+use ryo_derived::domain::contract::types::DerivedKind;

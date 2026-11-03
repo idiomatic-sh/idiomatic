@@ -80,3 +80,5 @@ impl DerivedViewsItem for EqualityItem {
         service::view(DerivedKind::Equality, contract, storage)
     }
 }
+
+use ryo_derived::domain::contract::types::DerivedKind;

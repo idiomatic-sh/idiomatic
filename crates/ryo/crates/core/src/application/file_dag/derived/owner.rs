@@ -304,3 +304,5 @@ pub(in crate::application::file_dag) fn build_scoped(
 }
 
 pub(in crate::application::file_dag) mod raw_scope;
+
+use ryo_derived::domain::contract::types::DerivedKind;

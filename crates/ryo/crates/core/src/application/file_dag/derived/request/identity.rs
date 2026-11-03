@@ -2,6 +2,7 @@
 use super::*;
 pub(super) fn same_request(left: &ViewRequest, right: &ViewRequest) -> bool {
     match (left, right) {
+        (ViewRequest::RawKeyOrder { stride: a }, ViewRequest::RawKeyOrder { stride: b }) => a == b,
         (ViewRequest::Equality { columns: a }, ViewRequest::Equality { columns: b })
         | (
             ViewRequest::DistinctRepresentatives { columns: a },

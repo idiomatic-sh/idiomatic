@@ -4,7 +4,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) fn build(
     input: &dyn RowCells,
-    positions: Option<&[usize]>,
+    positions: Option<&[ryo_values::domain::rows::types::RowIndex]>,
     key: &[Value],
     source: ColumnIndex,
     destination: ColumnIndex,
@@ -34,9 +34,12 @@ pub(crate) fn build(
     part.table.cells.clear();
     part.table.count.0 = 0;
     part.sources.clear();
-    for at in 0..positions.map_or(input.count(), <[usize]>::len) {
+    for at in 0..positions.map_or(
+        input.count(),
+        <[ryo_values::domain::rows::types::RowIndex]>::len,
+    ) {
         let row = input
-            .read_row(positions.map_or(at, |positions| positions[at]), buffer)
+            .read_row(positions.map_or(at, |positions| positions[at].0), buffer)
             .ok_or(DerivedFault::ShapeMismatch)?;
         let from = *row
             .get(source.0 as usize)

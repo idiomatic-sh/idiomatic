@@ -271,8 +271,8 @@ pub(crate) fn observe<T, E>(
     update(route, family, if result.is_ok() { 1 } else { 2 });
     result
 }
-pub(crate) fn derived(kind: crate::domain::derived_views::types::DerivedKind) -> &'static str {
-    use crate::domain::derived_views::types::DerivedKind::*;
+pub(crate) fn derived(kind: ryo_derived::domain::contract::types::DerivedKind) -> &'static str {
+    use ryo_derived::domain::contract::types::DerivedKind::*;
     match kind {
         Equality => "Equality",
         PredicateMatches => "PredicateMatches",

@@ -50,7 +50,7 @@ fn ordered_rows(
         rows.push(OrderedRow {
             keys: group,
             order,
-            row: at,
+            row: ryo_values::domain::rows::types::RowIndex(at),
         });
     }
     rows.sort_unstable();

@@ -121,3 +121,5 @@ mod tests {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_derived::domain::contract::types::DerivedKind;

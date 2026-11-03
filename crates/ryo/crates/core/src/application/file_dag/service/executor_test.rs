@@ -96,6 +96,7 @@ fn dag_root_and_recursive_child_use_injected_executor() {
             &[vec![]],
             &[],
             &ryo_relations::domain::relations::service::kinds,
+            crate::outbound::derived::factory::test_port(),
         )
         .unwrap();
     let graph = Arc::new(crate::domain::file_program::service::compile_prepared(

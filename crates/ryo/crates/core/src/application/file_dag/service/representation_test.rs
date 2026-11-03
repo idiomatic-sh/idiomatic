@@ -116,6 +116,7 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
                     &[vec![], vec![]],
                     &[],
                     &|_| crate::domain::table_model::service::kinds_of(&input),
+                    crate::outbound::derived::factory::test_port(),
                 )
                 .unwrap();
             let graph = Arc::new(crate::domain::file_program::service::compile_prepared(

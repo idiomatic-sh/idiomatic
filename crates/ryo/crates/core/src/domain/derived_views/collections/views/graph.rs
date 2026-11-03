@@ -315,3 +315,5 @@ impl DerivedViewsItem for OrderedDfsItem {
         service::view(DerivedKind::OrderedDfs, contract, storage)
     }
 }
+
+use ryo_derived::domain::contract::types::DerivedKind;

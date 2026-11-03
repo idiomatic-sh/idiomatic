@@ -44,7 +44,7 @@ fn program(direction: Direction) -> AxisResources {
 }
 
 fn acquired(
-    kind: crate::domain::derived_views::types::DerivedKind,
+    kind: ryo_derived::domain::contract::types::DerivedKind,
     request: crate::domain::derived_views::types::ViewRequest,
     rows: BorrowedRows<'_>,
 ) -> crate::application::file_dag::derived::view::AcquiredView {
@@ -66,7 +66,7 @@ fn acquired(
     let proof = owner.admit_external(rows).unwrap();
     let (population, _) = proof.identity(&owner).unwrap();
     let inputs = [rows];
-    let data = if kind == crate::domain::derived_views::types::DerivedKind::Membership {
+    let data = if kind == ryo_derived::domain::contract::types::DerivedKind::Membership {
         DerivedInputs::Membership {
             rows,
             space: MembershipSpace::Values,
@@ -96,14 +96,14 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
         BorrowedRows::Computed(&edges),
         BorrowedRows::Computed(&domain),
         Some(acquired(
-            crate::domain::derived_views::types::DerivedKind::Equality,
+            ryo_derived::domain::contract::types::DerivedKind::Equality,
             crate::domain::derived_views::types::ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
             BorrowedRows::Computed(&edges),
         )),
         Some(acquired(
-            crate::domain::derived_views::types::DerivedKind::Membership,
+            ryo_derived::domain::contract::types::DerivedKind::Membership,
             crate::domain::derived_views::types::ViewRequest::Membership {
                 column: ColumnIndex(0),
             },

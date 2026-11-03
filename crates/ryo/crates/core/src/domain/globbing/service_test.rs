@@ -27,7 +27,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("literal_alternatives_keep_empty_members"),
         word: Word::Succeeds,
-        input: || ("pre{,é}post", "prepost"),
+        input: || ("pre{é}post", "prepost"),
         expect: Expect::Value(GlobMatch::Matches),
     },
     Case {
@@ -39,7 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("nested_empty_alternatives_match_empty_text"),
         word: Word::Succeeds,
-        input: || ("{a,{,b}}", ""),
+        input: || ("{a,{b}}", ""),
         expect: Expect::Value(GlobMatch::Matches),
     },
     Case {

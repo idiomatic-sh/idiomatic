@@ -15,7 +15,7 @@ fn kinds() -> Vec<Vec<CellKind>> {
 
 #[test]
 fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
-    let mut views = RequestViews::default();
+    let mut views = RequestViews::new(crate::outbound::derived::factory::test_port());
     let program = ResourceProgram::Index {
         input: 1,
         columns: IndexColumns::Whole,
@@ -44,7 +44,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
 
 #[test]
 fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
-    let mut views = RequestViews::default();
+    let mut views = RequestViews::new(crate::outbound::derived::factory::test_port());
     let kinds = kinds();
     let join = ResourceProgram::Join(JoinResources {
         output: vec![],
@@ -102,7 +102,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
 #[test]
 fn family_slots_hold_compact_shared_binding_handles() {
     assert_eq!(size_of::<DerivedSlots>(), 24 * size_of::<usize>());
-    let mut views = RequestViews::default();
+    let mut views = RequestViews::new(crate::outbound::derived::factory::test_port());
     let schema = kinds();
     let first = views
         .bind_mode(

@@ -22,7 +22,8 @@ impl<'f> IndexResource<'f> {
         context: &mut OperatorContext<'_>,
         skip_empty: bool,
     ) -> Result<Self, OperatingError> {
-        use crate::domain::derived_views::types::{DerivedKind, DerivedStorage};
+        use crate::domain::derived_views::types::DerivedStorage;
+        use ryo_derived::domain::contract::types::DerivedKind;
         let use_ = prepared(contract, mode, DerivedKind::Equality)?;
         let place = use_.inputs[0];
         let source = admission.input(place)?;

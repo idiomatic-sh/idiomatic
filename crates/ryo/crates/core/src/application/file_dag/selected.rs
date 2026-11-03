@@ -131,3 +131,5 @@ impl<'f> SelectedInput<'f> {
 
 #[cfg(test)]
 mod tests;
+
+use ryo_derived::domain::contract::types::DerivedKind;

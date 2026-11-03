@@ -10,6 +10,7 @@ use std::collections::HashMap;
 pub(crate) fn prepare_views_with_schemas<'s>(
     selectors: impl IntoIterator<Item = Arc<Selector>>,
     resolver: &dyn Fn(Relation) -> &'s [CellKind],
+    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
 ) -> Result<Arc<PreparedSelectionViews>, OperatingError> {
     let selectors = selectors.into_iter().collect::<Vec<_>>();
     let mut literals = HashMap::<(Relation, ColumnIndex), Vec<LiteralText>>::new();
@@ -54,10 +55,11 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         let predicate = if let Some(prepared) = predicates.get(group) {
             prepared.clone()
         } else {
-            let prepared = Arc::new(
-                registered(DerivedKind::PredicateMatches)
-                    .prepare(&ViewRequest::PredicateMatches(selector.clone()), &schema)?,
-            );
+            let prepared = Arc::new(super::super::prepare::view(
+                Arc::clone(&semantic),
+                &ViewRequest::PredicateMatches(selector.clone()),
+                &schema,
+            )?);
             predicates.push(prepared.clone());
             prepared
         };
@@ -67,7 +69,8 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         let candidate = if let Some(plan) = postings.get(&key) {
             (plan).clone()
         } else {
-            let plan = Arc::new(registered(DerivedKind::CandidatePostings).prepare(
+            let plan = Arc::new(super::super::prepare::view(
+                Arc::clone(&semantic),
                 &ViewRequest::CandidatePostings {
                     column,
                     literals: literals.remove(&key).unwrap_or_default(),
@@ -77,7 +80,8 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             postings.insert(key, (plan).clone());
             plan
         };
-        let distinct = Arc::new(registered(DerivedKind::DistinctRepresentatives).prepare(
+        let distinct = Arc::new(super::super::prepare::view(
+            Arc::clone(&semantic),
             &ViewRequest::DistinctRepresentatives {
                 columns: selector.columns.clone(),
             },
@@ -96,7 +100,8 @@ pub(crate) fn prepare_views_with_schemas<'s>(
                 let plan = if let Some(plan) = equalities.get(&key) {
                     (plan).clone()
                 } else {
-                    let plan = Arc::new(registered(DerivedKind::Equality).prepare(
+                    let plan = Arc::new(super::super::prepare::view(
+                        Arc::clone(&semantic),
                         &ViewRequest::Equality {
                             columns: vec![*column],
                         },

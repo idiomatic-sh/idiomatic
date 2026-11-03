@@ -2,7 +2,7 @@
 use super::diagnostic::Counts;
 use crate::application::file_dag::derived::view::AcquiredView;
 use crate::domain::{
-    derived_views::{service::slot, types::DerivedKind},
+    derived_views::service::slot,
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::{
         types::{EvaluationMode, OperatorContract},
@@ -10,6 +10,7 @@ use crate::domain::{
     },
     table_model::types::Rows,
 };
+use ryo_derived::domain::contract::types::DerivedKind;
 
 pub(super) fn acquired_index(
     contract: &OperatorContract,

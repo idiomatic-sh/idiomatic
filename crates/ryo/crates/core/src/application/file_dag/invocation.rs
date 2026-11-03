@@ -169,7 +169,7 @@ impl<'f> InvocationResources<'f> {
                     let use_ = prepared(
                         contract,
                         mode,
-                        crate::domain::derived_views::types::DerivedKind::NativeLookup,
+                        ryo_derived::domain::contract::types::DerivedKind::NativeLookup,
                     )?;
                     let storage = admitted.acquire_rows(use_, context)?;
                     let acquired = storage;
@@ -214,12 +214,13 @@ impl<'f> InvocationResources<'f> {
                 let use_ = prepared(
                     contract,
                     mode,
-                    crate::domain::derived_views::types::DerivedKind::CycleAdjacency,
+                    ryo_derived::domain::contract::types::DerivedKind::CycleAdjacency,
                 )?;
                 resources.cycles = Some(admitted.acquire_rows(use_, context)?);
             }
             ResourceProgram::Ordered { .. } => {
-                use crate::domain::derived_views::types::{DerivedInputs, DerivedKind};
+                use crate::domain::derived_views::types::DerivedInputs;
+                use ryo_derived::domain::contract::types::DerivedKind;
                 let use_ = prepared(contract, mode, DerivedKind::OrderedKeys)?;
                 let texts = Texts {
                     symbols: context.symbols.as_ref(),
@@ -234,7 +235,8 @@ impl<'f> InvocationResources<'f> {
                 )?);
             }
             ResourceProgram::Dfs(_) => {
-                use crate::domain::derived_views::types::{DerivedInputs, DerivedKind};
+                use crate::domain::derived_views::types::DerivedInputs;
+                use ryo_derived::domain::contract::types::DerivedKind;
                 let use_ = prepared(contract, mode, DerivedKind::OrderedDfs)?;
                 resources.dfs = Some(admitted.acquire_derived(
                     use_,
@@ -251,8 +253,9 @@ impl<'f> InvocationResources<'f> {
                 use super::axis_resources::{AxisMode, classify};
                 use crate::domain::derived_views::{
                     service::slot,
-                    types::{DerivedInputs, DerivedKind, MembershipSpace},
+                    types::{DerivedInputs, MembershipSpace},
                 };
+                use ryo_derived::domain::contract::types::DerivedKind;
                 let edges = input(inputs, 1)?;
                 let domain = input(inputs, 2)?;
                 let mode_axis = classify(program, edges, domain)?;
@@ -306,7 +309,7 @@ impl<'f> InvocationResources<'f> {
 fn prepared(
     contract: &OperatorContract,
     mode: EvaluationMode,
-    kind: crate::domain::derived_views::types::DerivedKind,
+    kind: ryo_derived::domain::contract::types::DerivedKind,
 ) -> Result<&crate::domain::derived_views::types::PreparedViewUse, OperatingError> {
     let slots = match mode {
         EvaluationMode::Streaming => &contract.derived.streaming,
@@ -325,7 +328,7 @@ fn partitioned<'f>(
     admitted: &super::workspace::InputAdmissions<'_, 'f>,
     context: &mut OperatorContext<'_>,
 ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
-    use crate::domain::derived_views::types::DerivedKind;
+    use ryo_derived::domain::contract::types::DerivedKind;
     let order = prepared(contract, mode, DerivedKind::PartitionOrder)?;
     let closure = prepared(contract, mode, DerivedKind::ClosureAdjacency)?;
     let storage = admitted.acquire_rows(order, context)?;

@@ -8,6 +8,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) fn kind(request: &ViewRequest) -> DerivedKind {
     match request {
+        ViewRequest::RawKeyOrder { .. } => DerivedKind::RawKeyOrder,
         ViewRequest::Equality { .. } => DerivedKind::Equality,
         ViewRequest::PredicateMatches(_) => DerivedKind::PredicateMatches,
         ViewRequest::CandidatePostings { .. } => DerivedKind::CandidatePostings,
@@ -176,25 +177,7 @@ pub(crate) fn view<'a>(
 
 /// Constant prepared-slot lookup; runtime hits never scan or clone request metadata.
 pub(crate) fn slot(kind: DerivedKind) -> usize {
-    match kind {
-        DerivedKind::Equality => 0,
-        DerivedKind::PredicateMatches => 1,
-        DerivedKind::CandidatePostings => 2,
-        DerivedKind::DistinctRepresentatives => 3,
-        DerivedKind::Adjacency => 4,
-        DerivedKind::Membership => 5,
-        DerivedKind::PartitionOrder => 6,
-        DerivedKind::ClosureAdjacency => 7,
-        DerivedKind::CycleAdjacency => 8,
-        DerivedKind::OrderedKeys => 9,
-        DerivedKind::OrderedDfs => 10,
-        DerivedKind::NativeLookup => 11,
-    }
+    kind.ordinal()
 }
 
-impl std::ops::Deref for super::types::PreparedViewGroup {
-    type Target = super::types::PreparedViewUse;
-    fn deref(&self) -> &Self::Target {
-        &self.primary
-    }
-}
+use ryo_derived::domain::contract::types::DerivedKind;

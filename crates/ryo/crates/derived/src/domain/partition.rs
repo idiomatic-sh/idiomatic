@@ -1,6 +1,7 @@
 //! Typed partition order; clustered order is deliberately distinct from RawKeyOrder.
 use super::contract::types::{DerivedFault, RowCells};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::RowIndex;
 fn check_columns(
     kinds: &[ryo_relations::domain::relations::types::CellKind],
     columns: &[ColumnIndex],
@@ -12,7 +13,7 @@ fn check_columns(
     }
     Ok(())
 }
-fn hash_at(input: &dyn RowCells, row: usize, keys: &[ColumnIndex]) -> Result<u64, DerivedFault> {
+fn hash_at(input: &dyn RowCells, row: RowIndex, keys: &[ColumnIndex]) -> Result<u64, DerivedFault> {
     keys.iter().try_fold(0_u64, |hash, column| {
         let value = input
             .cell(row, *column)
@@ -24,9 +25,9 @@ fn hash_at(input: &dyn RowCells, row: usize, keys: &[ColumnIndex]) -> Result<u64
     })
 }
 
-fn same_key(input: &dyn RowCells, left: usize, right: usize, keys: &[ColumnIndex]) -> bool {
+fn same_key(input: &dyn RowCells, left: RowIndex, right: RowIndex, keys: &[ColumnIndex]) -> bool {
     keys.iter()
-        .all(|column| input.cell(left, *column) == input.cell(right, *column))
+        .all(|column| input.cell(left.0, *column) == input.cell(right.0, *column))
 }
 
 /// Match `sort_rows` exactly: a clustered stream keeps its original order;
@@ -34,7 +35,7 @@ fn same_key(input: &dyn RowCells, left: usize, right: usize, keys: &[ColumnIndex
 pub(crate) fn ordered_positions(
     input: &dyn RowCells,
     keys: &[ColumnIndex],
-) -> Result<Vec<usize>, DerivedFault> {
+) -> Result<Vec<RowIndex>, DerivedFault> {
     input.validate()?;
     check_columns(input.kinds(), keys)?;
     let mut ordered = Vec::with_capacity(input.count());
@@ -42,7 +43,7 @@ pub(crate) fn ordered_positions(
     let mut head = None;
     let mut clustered = true;
     for at in 0..input.count() {
-        let row = at;
+        let row = RowIndex(at);
         if head.is_none_or(|previous| !same_key(input, previous, row, keys)) {
             if !runs.insert(hash_at(input, row, keys)?) {
                 clustered = false;
@@ -57,7 +58,7 @@ pub(crate) fn ordered_positions(
     }
     let mut pairs = (0..input.count())
         .map(|at| {
-            let row = at;
+            let row = RowIndex(at);
             Ok((hash_at(input, row, keys)?, row))
         })
         .collect::<Result<Vec<_>, DerivedFault>>()?;
@@ -70,7 +71,11 @@ pub(crate) fn ordered_positions(
         if let Some(rows) = ordered.get_mut(start..end) {
             rows.sort_by(|left, right| {
                 keys.iter()
-                    .map(|column| input.cell(*left, *column).cmp(&input.cell(*right, *column)))
+                    .map(|column| {
+                        input
+                            .cell(left.0, *column)
+                            .cmp(&input.cell(right.0, *column))
+                    })
                     .find(|ordering| ordering.is_ne())
                     .unwrap_or(std::cmp::Ordering::Equal)
                     .then(left.cmp(right))

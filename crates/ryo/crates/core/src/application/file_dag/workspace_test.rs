@@ -357,3 +357,5 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
 }
 
 use ryo_values::domain::rows::types::RowCount;
+
+use ryo_derived::domain::contract::types::DerivedKind;

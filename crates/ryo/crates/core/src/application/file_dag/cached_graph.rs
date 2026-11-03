@@ -58,8 +58,9 @@ impl CachedGraph {
         original_inputs: &[Rows<'_>],
         mut cache: Option<&mut CacheBackend>,
     ) -> Result<Option<Self>, OperatingError> {
-        use crate::domain::derived_views::{service::slot, types::DerivedKind};
+        use crate::domain::derived_views::service::slot;
         use crate::domain::operator::contract::types::EvaluationMode;
+        use ryo_derived::domain::contract::types::DerivedKind;
         let slots = match mode {
             EvaluationMode::Streaming => &contract.derived.streaming,
             EvaluationMode::Collected => &contract.derived.collected,

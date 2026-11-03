@@ -1407,6 +1407,7 @@ impl LintUseCase for LintUseCaseImpl {
                 &plans,
                 &bindings,
                 &request.hosted,
+                std::sync::Arc::clone(&self.derived),
             )
             .map_err(|error| {
                 crate::domain::rules::service::failed(

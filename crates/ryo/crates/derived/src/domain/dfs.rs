@@ -154,7 +154,7 @@ pub(crate) fn build(
             let next = *edge_order.get(end).ok_or(DerivedFault::ShapeMismatch)?;
             if !from
                 .iter()
-                .all(|column| edges.cell(head, *column) == edges.cell(next, *column))
+                .all(|column| edges.cell(head.0, *column) == edges.cell(next.0, *column))
             {
                 break;
             }
@@ -163,15 +163,17 @@ pub(crate) fn build(
         let group = edge_order
             .get_mut(begin..end)
             .ok_or(DerivedFault::ShapeMismatch)?;
-        group.sort_unstable_by_key(|at| edges.cell(*at, *order));
+        group.sort_unstable_by_key(|at| edges.cell(at.0, *order));
         if group
             .windows(2)
-            .any(|pair| edges.cell(pair[0], *order) == edges.cell(pair[1], *order))
+            .any(|pair| edges.cell(pair[0].0, *order) == edges.cell(pair[1].0, *order))
         {
             return Err(DerivedFault::DuplicateDfsOrder);
         }
         for row in group {
-            *adjacency.get_mut(*row).ok_or(DerivedFault::ShapeMismatch)? = begin..end;
+            *adjacency
+                .get_mut(row.0)
+                .ok_or(DerivedFault::ShapeMismatch)? = begin..end;
         }
         begin = end;
     }

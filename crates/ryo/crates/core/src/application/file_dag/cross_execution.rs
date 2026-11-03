@@ -190,6 +190,7 @@ pub(crate) fn evaluate_cross(
         std::slice::from_ref(plan),
         &bindings,
         &[],
+        crate::outbound::derived::factory::test_port(),
     )?;
     evaluate_cross_with_executor(
         plan,

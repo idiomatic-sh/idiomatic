@@ -61,8 +61,13 @@ fn diamond() -> Plan {
 fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
     for allowance in [0, 1, 2 * 1024 * 1024] {
         let plan = diamond();
-        let operators =
-            RequestOperators::prepare(std::slice::from_ref(&plan), &[vec![]], &[]).unwrap();
+        let operators = RequestOperators::prepare(
+            std::slice::from_ref(&plan),
+            &[vec![]],
+            &[],
+            crate::outbound::derived::factory::test_port(),
+        )
+        .unwrap();
         let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &operators));
         let [producer, left, right, root] = [0, 1, 2, 3].map(|at| graph.cuts[0][at].unwrap());
         let mut dag = FileDagExecution::new(graph, |_| true, &[Relation::LanguageTarget]);
@@ -160,7 +165,13 @@ fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
 #[test]
 fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let plan = diamond();
-    let ops = RequestOperators::prepare(std::slice::from_ref(&plan), &[vec![]], &[]).unwrap();
+    let ops = RequestOperators::prepare(
+        std::slice::from_ref(&plan),
+        &[vec![]],
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &ops));
     let child = graph.cuts[0][0].unwrap();
     let mut dag = FileDagExecution::new((graph).clone(), |_| true, &[Relation::LanguageTarget]);
@@ -288,6 +299,7 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
         &[vec![]],
         &[],
         &|_| &[CellKind::Span],
+        crate::outbound::derived::factory::test_port(),
     )
     .unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &ops));

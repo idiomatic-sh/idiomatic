@@ -38,7 +38,13 @@ impl PrimitiveExecutor for Refuse {
 fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_reading_sources() {
     for refuse in [false, true] {
         let plans = [plan(false), plan(true)];
-        let request = RequestOperators::prepare(&plans, &[vec![], vec![]], &[]).unwrap();
+        let request = RequestOperators::prepare(
+            &plans,
+            &[vec![], vec![]],
+            &[],
+            crate::outbound::derived::factory::test_port(),
+        )
+        .unwrap();
         let graph = Arc::new(compile_prepared(&plans, &request));
         let roots = [graph.cuts[0][2].unwrap(), graph.cuts[1][2].unwrap()];
         let dag = std::cell::RefCell::new(FileDagExecution::new(
@@ -103,7 +109,7 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         dag.borrow_mut().finish_rule(0);
         let weak = owner
             .derived
-            .view_weak(crate::domain::derived_views::types::DerivedKind::Equality)
+            .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality)
             .unwrap();
         assert!(
             weak.upgrade().is_some(),

@@ -386,10 +386,11 @@ impl InvocationWorkspace {
     ) -> Result<super::derived::view::AcquiredView, OperatingError> {
         use super::derived::owner::PopulationId;
         use crate::domain::{
-            derived_views::types::{DerivedInputs, DerivedKind, MembershipSpace},
+            derived_views::types::{DerivedInputs, MembershipSpace},
             operating::errors::OperatingError,
             operator::contract::views::BorrowedRows,
         };
+        use ryo_derived::domain::contract::types::DerivedKind;
         let count = usize::from(use_.len);
         if !(1..=2).contains(&count) {
             return Err(OperatingError::WrongOperation);

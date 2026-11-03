@@ -24,39 +24,11 @@ use ryo_values::domain::{
 };
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum DerivedKind {
-    Equality,
-    PredicateMatches,
-    CandidatePostings,
-    DistinctRepresentatives,
-    Adjacency,
-    Membership,
-    PartitionOrder,
-    ClosureAdjacency,
-    CycleAdjacency,
-    OrderedKeys,
-    OrderedDfs,
-    NativeLookup,
-}
-impl DerivedKind {
-    pub(crate) const ALL: &'static [Self] = &[
-        Self::Equality,
-        Self::PredicateMatches,
-        Self::CandidatePostings,
-        Self::DistinctRepresentatives,
-        Self::Adjacency,
-        Self::Membership,
-        Self::PartitionOrder,
-        Self::ClosureAdjacency,
-        Self::CycleAdjacency,
-        Self::OrderedKeys,
-        Self::OrderedDfs,
-        Self::NativeLookup,
-    ];
-}
 #[derive(Clone, Debug)]
 pub(crate) enum ViewRequest {
+    RawKeyOrder {
+        stride: usize,
+    },
     Equality {
         columns: Vec<ColumnIndex>,
     },
@@ -101,6 +73,7 @@ pub(crate) enum ViewRequest {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct DerivedContract {
+    pub semantic: Arc<ryo_derived::domain::contract::types::PreparedDerived>,
     pub kind: DerivedKind,
     pub request: ViewRequest,
     pub schemas: Vec<Vec<CellKind>>,
@@ -218,8 +191,10 @@ pub(crate) struct PreparedViewGroup {
 }
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DerivedSlots {
-    pub streaming: [Option<Arc<PreparedViewGroup>>; 12],
-    pub collected: [Option<Arc<PreparedViewGroup>>; 12],
+    pub streaming: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
+    pub collected: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
 }
 
 use ryo_values::domain::rows::types::RowIndex;
+
+use ryo_derived::domain::contract::types::DerivedKind;

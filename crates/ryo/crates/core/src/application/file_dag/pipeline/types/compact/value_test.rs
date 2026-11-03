@@ -171,6 +171,7 @@ fn subject_with_counting(
                 |view| view.kinds,
             )
         },
+        crate::outbound::derived::factory::test_port(),
     )?;
     prepare_request(&mut prepared, &request);
     assert_eq!(

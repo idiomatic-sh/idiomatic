@@ -98,7 +98,7 @@ impl RelationOwner {
         let mut owner = Self::new(stable, Arc::clone(&semantic));
         owner.max_views = views;
         owner.derived = super::derived::owner::DerivedOwner::new(
-            views.saturating_mul(crate::domain::derived_views::types::DerivedKind::ALL.len()),
+            views.saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()),
             semantic,
         );
         owner

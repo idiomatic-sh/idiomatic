@@ -35,6 +35,7 @@ fn request(
                 ryo_relations::domain::relations::service::kinds(relation)
             }
         },
+        crate::outbound::derived::factory::test_port(),
     )
     .expect("custom fixture schema")
 }

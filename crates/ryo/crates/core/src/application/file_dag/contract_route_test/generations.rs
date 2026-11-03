@@ -88,7 +88,13 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() {
         vec![ParameterBinding::Number(WholeNumber(3))],
         vec![ParameterBinding::Number(WholeNumber(2))],
     ];
-    let operators = RequestOperators::prepare(&plans, &bindings, &[]).unwrap();
+    let operators = RequestOperators::prepare(
+        &plans,
+        &bindings,
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
     let graph = Arc::new(compile_prepared(&plans, &operators));
     assert_ne!(graph.cuts[0][0], graph.cuts[1][0]);
     let mut dag = FileDagExecution::new(graph, |_| true, &[Relation::LanguageTarget]);
@@ -116,7 +122,13 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() {
 fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
     let plans = [binding_plan()];
     let bindings = vec![vec![ParameterBinding::Number(WholeNumber(3))]];
-    let operators = RequestOperators::prepare(&plans, &bindings, &[]).unwrap();
+    let operators = RequestOperators::prepare(
+        &plans,
+        &bindings,
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
     let graph = Arc::new(compile_prepared(&plans, &operators));
     let mut first = FileDagExecution::new((graph).clone(), |_| true, &[Relation::LanguageTarget]);
     let mut second = FileDagExecution::new(graph, |_| true, &[Relation::LanguageTarget]);

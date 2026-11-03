@@ -202,7 +202,7 @@ pub(in crate::application::file_dag::derived) fn acquire(
         return Err(OperatingError::WrongOperation);
     }
     crate::domain::derived_views::service::validate(
-        crate::domain::derived_views::types::DerivedKind::Equality,
+        ryo_derived::domain::contract::types::DerivedKind::Equality,
         plan,
     )?;
     check_columns(view.kinds, columns)?;
@@ -350,7 +350,7 @@ pub(in crate::application::file_dag) fn acquire_fixture(
     into: &mut KeyIndex,
 ) -> Result<Acquired, OperatingError> {
     let plan = Arc::new(crate::domain::derived_views::service::prepare(
-        crate::domain::derived_views::types::DerivedKind::Equality,
+        ryo_derived::domain::contract::types::DerivedKind::Equality,
         &crate::domain::derived_views::types::ViewRequest::Equality {
             columns: columns.to_vec(),
         },

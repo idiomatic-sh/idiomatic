@@ -73,3 +73,5 @@ impl DerivedViewsItem for MembershipItem {
 }
 
 use ryo_values::domain::rows::types::RowIndex;
+
+use ryo_derived::domain::contract::types::DerivedKind;

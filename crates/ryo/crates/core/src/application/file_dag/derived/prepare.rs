@@ -17,6 +17,116 @@ pub(crate) fn operator<T: OperatorsItem + ?Sized>(
     bindings: &[ParameterBinding],
 ) -> Result<OperatorContract, OperatingError> {
     let mut contract = item.prepare(operation, schemas, bindings)?;
-    super::request::RequestViews::default().bind(&mut contract)?;
+    super::request::RequestViews::new(crate::outbound::derived::factory::test_port())
+        .bind(&mut contract)?;
     Ok(contract)
+}
+
+/// All preparation routes delegate semantic metadata to the injected capability.
+pub(in crate::application::file_dag) fn view(
+    semantic: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    request: &crate::domain::derived_views::types::ViewRequest,
+    schemas: &[InputSchema<'_>],
+) -> Result<crate::domain::derived_views::types::DerivedContract, OperatingError> {
+    use crate::domain::derived_views::types::{DerivedContract, ViewRequest};
+    use ryo_derived::domain::contract::types::ViewRequest as SemanticRequest;
+    let mut needed = crate::domain::table_cells::types::ColumnPlaces::default();
+    let meaning = match request {
+        ViewRequest::RawKeyOrder { stride } => SemanticRequest::RawKeyOrder { stride: *stride },
+        ViewRequest::Equality { columns } => SemanticRequest::Equality {
+            columns: columns.clone(),
+        },
+        ViewRequest::PredicateMatches(selector) => {
+            crate::domain::text_gate::service::needed_of(
+                &selector.identity.comparisons,
+                &mut needed,
+            );
+            SemanticRequest::PredicateMatches {
+                needed: needed
+                    .0
+                    .iter()
+                    .map(|at| {
+                        ryo_values::domain::plan_parts::types::ColumnIndex(
+                            u32::try_from(*at).unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect(),
+            }
+        }
+        ViewRequest::CandidatePostings { column, literals } => SemanticRequest::CandidatePostings {
+            column: *column,
+            literals: literals.clone(),
+        },
+        ViewRequest::DistinctRepresentatives { columns } => {
+            SemanticRequest::DistinctRepresentatives {
+                columns: columns.clone(),
+            }
+        }
+        ViewRequest::Adjacency { endpoints, keys } => SemanticRequest::Adjacency {
+            endpoints: *endpoints,
+            keys: keys.clone(),
+        },
+        ViewRequest::Membership { column } => SemanticRequest::Membership { column: *column },
+        ViewRequest::PartitionOrder { keys } => {
+            SemanticRequest::PartitionOrder { keys: keys.clone() }
+        }
+        ViewRequest::ClosureAdjacency {
+            source,
+            destination,
+        } => SemanticRequest::ClosureAdjacency {
+            source: *source,
+            destination: *destination,
+        },
+        ViewRequest::CycleAdjacency {
+            source,
+            destination,
+        } => SemanticRequest::CycleAdjacency {
+            source: *source,
+            destination: *destination,
+        },
+        ViewRequest::OrderedKeys {
+            left_on,
+            right_on,
+            left_order,
+            right_order,
+        } => SemanticRequest::OrderedKeys {
+            left_on: left_on.clone(),
+            right_on: right_on.clone(),
+            left_order: *left_order,
+            right_order: *right_order,
+        },
+        ViewRequest::OrderedDfs(program) => SemanticRequest::OrderedDfs {
+            root: program.root,
+            root_keys: program.root_keys.clone(),
+            source: program.source,
+            destination: program.destination,
+            order: program.order,
+            edge: program.edge,
+            edge_keys: program.edge_keys.clone(),
+        },
+        ViewRequest::NativeLookup {
+            left_on,
+            right_on,
+            view,
+        } => SemanticRequest::NativeLookup {
+            left_on: left_on.clone(),
+            right_on: right_on.clone(),
+            view: view.clone(),
+        },
+    };
+    let prepared = semantic.prepare(
+        meaning,
+        schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
+    );
+    let metadata = prepared
+        .validate()
+        .map_err(crate::domain::operator::contract::derived::portable_fault);
+    Ok(DerivedContract {
+        kind: crate::domain::derived_views::service::kind(request),
+        request: request.clone(),
+        schemas: schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
+        metadata,
+        needed,
+        semantic: prepared,
+    })
 }

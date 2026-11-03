@@ -75,7 +75,11 @@ impl SelectionFixture {
         let mut cache = super::super::indexes::new(wanted, partials, super::super::indexes::LIMIT)
             .ok_or(OperatingError::ShapeMismatch)?;
         cache.selectors = active;
-        let prepared = super::super::selection::prepare_views_with_schemas(authored, &|_| kinds)?;
+        let prepared = super::super::selection::prepare_views_with_schemas(
+            authored,
+            &|_| kinds,
+            crate::outbound::derived::factory::test_port(),
+        )?;
         super::super::selection::install_views(&mut cache, prepared);
         super::super::indexes::candidate_columns(&mut cache);
         *owner.derived.backend.borrow_mut() = Some(cache);

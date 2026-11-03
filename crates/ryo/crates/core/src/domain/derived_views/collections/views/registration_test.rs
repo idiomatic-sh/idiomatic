@@ -173,3 +173,5 @@ fn borrowed_positions_preserve_bag_order_and_cannot_change_family() {
         Err(OperatingError::WrongOperation)
     ));
 }
+
+use ryo_derived::domain::contract::types::DerivedKind;

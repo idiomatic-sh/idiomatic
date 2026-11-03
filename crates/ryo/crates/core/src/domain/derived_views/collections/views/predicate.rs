@@ -269,3 +269,5 @@ impl DerivedViewsItem for DistinctRepresentativesItem {
 }
 
 use ryo_values::domain::rows::types::RowIndex;
+
+use ryo_derived::domain::contract::types::DerivedKind;

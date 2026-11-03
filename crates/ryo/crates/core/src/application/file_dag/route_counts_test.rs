@@ -217,3 +217,5 @@ fn owner_routes_count_each_physical_equality_build_once() {
         assert_eq!(count.failures, 0);
     }
 }
+
+use ryo_derived::domain::contract::types::DerivedKind;

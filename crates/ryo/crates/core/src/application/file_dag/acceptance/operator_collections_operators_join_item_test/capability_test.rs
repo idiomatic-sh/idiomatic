@@ -552,6 +552,7 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         std::slice::from_ref(&plan),
         &[vec![]],
         &[],
+        crate::outbound::derived::factory::test_port(),
     )
     .expect("request preparation");
     let mut prepared = PreparedPool {

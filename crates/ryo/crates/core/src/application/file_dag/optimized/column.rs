@@ -8,8 +8,7 @@ use crate::domain::column_kernel::{
 };
 use crate::domain::coverage::types::Partial;
 use crate::domain::derived_views::{
-    collections::views::registration::registered,
-    types::{DerivedKind, ViewRequest},
+    collections::views::registration::registered, types::ViewRequest,
 };
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputSchema;
@@ -20,6 +19,7 @@ use crate::domain::table_model::{
     service::{column_in, rectangular, reset},
     types::{Rows, SelectedRows, StoredSelection},
 };
+use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::{service::kinds as relation_kinds, types::CellKind};
 use ryo_values::domain::plans::types::Plan;
@@ -28,7 +28,11 @@ use std::sync::Arc;
 /// Prepare one immutable equality requirement per admitted physical chain.
 /// Invalid optional metadata leaves the ordinary executor in charge.
 #[must_use]
-pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
+pub(crate) fn compile(
+    plan: &Plan,
+    layout: &PlanLayout,
+    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+) -> KernelPlan {
     let mut prepared = kernel::compile(plan, layout);
     for chain in prepared.0.iter_mut().flatten() {
         let schema = [InputSchema {
@@ -38,8 +42,11 @@ pub(crate) fn compile(plan: &Plan, layout: &PlanLayout) -> KernelPlan {
         let request = ViewRequest::Equality {
             columns: chain.right_on.clone(),
         };
-        if let Ok(index) = registered(DerivedKind::Equality).prepare(&request, &schema)
-            && index.metadata.is_ok()
+        if let Ok(index) = crate::application::file_dag::derived::prepare::view(
+            Arc::clone(&semantic),
+            &request,
+            &schema,
+        ) && index.metadata.is_ok()
         {
             chain.index = Some(Arc::new(index));
         }

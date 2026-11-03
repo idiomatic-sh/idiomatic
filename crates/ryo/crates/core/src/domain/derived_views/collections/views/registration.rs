@@ -1,6 +1,6 @@
 //! One closed inventory; no implementation may opt out or select a legacy owner.
 use super::{interface::DerivedViewsItem, items};
-use crate::domain::derived_views::types::DerivedKind;
+use ryo_derived::domain::contract::types::DerivedKind;
 static ITEMS: [&dyn DerivedViewsItem; DerivedKind::ALL.len()] = [
     &items::EqualityItem,
     &items::PredicateMatchesItem,

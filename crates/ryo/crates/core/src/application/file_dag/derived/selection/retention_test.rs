@@ -275,15 +275,18 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
         bindings: vec![],
     });
     let selector = Arc::new(selector);
-    let views =
-        super::prepare_views_with_schemas([(selector).clone()], &|_| &[CellKind::Number; 3])?;
+    let views = super::prepare_views_with_schemas(
+        [(selector).clone()],
+        &|_| &[CellKind::Number; 3],
+        crate::outbound::derived::factory::test_port(),
+    )?;
     let plans = &views.by_selector[&(Arc::as_ptr(&selector) as usize)].equalities;
     assert_eq!(plans.len(), 2);
     for column in [ColumnIndex(1), ColumnIndex(2)] {
         let plan = &plans[&column];
         assert_eq!(
             plan.kind,
-            crate::domain::derived_views::types::DerivedKind::Equality
+            ryo_derived::domain::contract::types::DerivedKind::Equality
         );
         let crate::domain::derived_views::types::ViewRequest::Equality { columns } = &plan.request
         else {
@@ -440,3 +443,5 @@ fn empty_retention_counts_no_position_slots_and_invalid_group_is_not_allocation_
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+
+use ryo_derived::domain::contract::types::DerivedKind;

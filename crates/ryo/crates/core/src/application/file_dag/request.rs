@@ -25,14 +25,16 @@ impl RequestOperators {
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         hosted: &[HostRelation],
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Result<Self, OperatingError> {
-        Self::prepare_with_schemas(plans, bindings, hosted, &kinds)
+        Self::prepare_with_schemas(plans, bindings, hosted, &kinds, semantic)
     }
     pub(crate) fn prepare_with_schemas<'s>(
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         hosted: &[HostRelation],
         relation_kinds: &dyn Fn(Relation) -> &'s [CellKind],
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Result<Self, OperatingError> {
         let host_kinds = hosted
             .iter()
@@ -48,7 +50,7 @@ impl RequestOperators {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        let mut views = super::derived::request::RequestViews::default();
+        let mut views = super::derived::request::RequestViews::new(Arc::clone(&semantic));
         let mut rules = Vec::with_capacity(plans.len());
         let mut preparations = 0;
         for (rule, plan) in plans.iter().enumerate() {
@@ -138,6 +140,7 @@ impl RequestOperators {
                 .flat_map(|plan| plan.steps.iter().flatten())
                 .cloned(),
             relation_kinds,
+            semantic,
         )?;
         let physical=plans.iter().enumerate().map(|(rule,plan)| {
             let selectors = &selection_plans[rule];
@@ -168,8 +171,12 @@ impl RequestOperators {
 #[cfg(test)]
 pub(crate) fn compile(plans: &[Plan]) -> crate::domain::file_program::types::RequestGraph {
     let bindings = vec![Vec::new(); plans.len()];
-    let request =
-        crate::domain::operator::contract::types::RequestOperators::prepare(plans, &bindings, &[])
-            .expect("fixture request metadata");
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare(
+        plans,
+        &bindings,
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .expect("fixture request metadata");
     crate::domain::file_program::service::compile_prepared(plans, &request)
 }

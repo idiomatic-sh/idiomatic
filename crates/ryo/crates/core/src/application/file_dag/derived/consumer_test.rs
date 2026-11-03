@@ -81,7 +81,13 @@ fn number(value: i64) -> Value {
 #[test]
 fn different_rule_consumers_share_the_canonical_computed_producer_index() {
     let plans = [plan(false), plan(true)];
-    let request = RequestOperators::prepare(&plans, &[vec![], vec![]], &[]).unwrap();
+    let request = RequestOperators::prepare(
+        &plans,
+        &[vec![], vec![]],
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
     let graph = Arc::new(compile_prepared(&plans, &request));
     assert_eq!(
         graph.cuts[0][1], graph.cuts[1][1],

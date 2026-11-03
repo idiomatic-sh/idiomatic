@@ -147,6 +147,7 @@ fn run_with_port<'f>(
                 |view| view.kinds,
             )
         },
+        crate::outbound::derived::factory::test_port(),
     )?;
     prepare_request(&mut prepared, &request);
     let frame = (strategy == KernelStrategy::Column).then(|| {
