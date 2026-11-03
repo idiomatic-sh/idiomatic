@@ -63,7 +63,7 @@ FULL_INVENTORY_ACTIONS = [
     ("actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "575dd3621a9046d2565240ed6cd1a03f836bdb30bf621ee41116f601aa13b2c1"),
     ("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "4ff5f58fc47d55df93511f6dfea5db27c569b98f43b84e380960801b15c1761d"),
     ("astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", "39393228bcaf4b2e15bc14f2fadb3501c81f8966ef57502f9be19f86dbc3fa10"),
-    ("Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "718e42abe3becf8d18261fccbddbeb60c2d193ea0589a62cfb255468cffcef79"),
+    ("Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0", "93dc05c5ffb39e0b24acd9de22bbdda46c973841166ede158a8d8ea3f01ca63e"),
     ("actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "c8ee43c3c99e776f1742d16763c36999907144bc3b69900a90461778414a683e"),
     ("actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "109b67da612eaa7e25df38fbc0f69727c3f6bdfc18638720ec49c2e924c7ab2b"),
     ("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9", "b9cf3ef4ae00784578aec3c3df418ccd2be3bec3c9518457e0c5f8d60856b14f"),
