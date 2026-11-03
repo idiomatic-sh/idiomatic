@@ -106,7 +106,6 @@ struct LintReportSchema {
 impl From<ParameterValueSchema> for CoreValue {
     fn from(schema: ParameterValueSchema) -> Self {
         match schema.0 {
-            CoreError::Execution { reason } => Self::Execution { reason },
             ParameterValue::Number(number) => Self::Number(WholeNumber(number.0)),
             ParameterValue::Flag(flag) => Self::Flag(match flag {
                 FlagState::On => CoreFlag::Raised,
@@ -275,6 +274,7 @@ impl From<LintErrorSchema> for LintError {
         let io = |what: Port, reason: String| Self::Io { what, reason };
         match schema.0 {
             CoreError::Execution { reason } => Self::Execution { reason },
+
             CoreError::SourceLanguage { name } => Self::SourceLanguage { name },
             CoreError::Query { id, error } => Self::Rule {
                 id: RuleId::from_text(id.into()),
@@ -335,7 +335,6 @@ impl From<LintErrorSchema> for LintError {
 impl From<OpenErrorSchema> for LintError {
     fn from(schema: OpenErrorSchema) -> Self {
         let (what, reason) = match schema.0 {
-            CoreError::Execution { reason } => Self::Execution { reason },
             OpenError::Language { reason } => (Port::Language, reason),
             OpenError::Memory { reason } => (Port::Memory, reason),
         };
