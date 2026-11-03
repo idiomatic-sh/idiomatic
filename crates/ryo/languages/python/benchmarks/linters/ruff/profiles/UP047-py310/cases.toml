@@ -1,0 +1,79 @@
+[[cases]]
+name = "upstream-UP047_0.py"
+files = { "UP047_0.py" = "from collections.abc import Callable\nfrom typing import Any, AnyStr, ParamSpec, TypeVar, TypeVarTuple\n\nfrom somewhere import Something\n\nS = TypeVar(\"S\", str, bytes)  # constrained type variable\nT = TypeVar(\"T\", bound=float)\nTs = TypeVarTuple(\"Ts\")\nP = ParamSpec(\"P\")\n\n\ndef f(t: T) -> T:\n    return t\n\n\ndef g(ts: tuple[*Ts]) -> tuple[*Ts]:\n    return ts\n\n\ndef h(\n    p: Callable[P, T],\n    # Comment in the middle of a parameter list should be preserved\n    another_param,\n    and_another,\n) -> Callable[P, T]:\n    return p\n\n\ndef i(s: S) -> S:\n    return s\n\n\n# NOTE this case is the reason the fix is marked unsafe. If we can't confirm\n# that one of the type parameters (`Something` in this case) is a TypeVar,\n# which we can't do across module boundaries, we will not convert it to a\n# generic type parameter. This leads to code that mixes old-style standalone\n# TypeVars with the new-style generic syntax and will be rejected by type\n# checkers\ndef broken_fix(okay: T, bad: Something) -> tuple[T, Something]:\n    return (okay, bad)\n\n\ndef any_str_param(s: AnyStr) -> AnyStr:\n    return s\n\n\n# default requires 3.13\nV = TypeVar(\"V\", default=Any, bound=str)\n\n\ndef default_var(v: V) -> V:\n    return v\n\n\n# TypeVar used in multiple parameter annotations should still be detected\ndef multi_param(t: list[T], c: Callable[[T], None]) -> T:\n    c(t[0])\n    return t[1]\n\n\n# these cases are not handled\n\ndef outer():\n    def inner(t: T) -> T:\n        return t\n" }
+expected = [{ rule = "invalid-syntax", file = "UP047_0.py", start = 318, end = 321 }, { rule = "invalid-syntax", file = "UP047_0.py", start = 333, end = 336 }]
+
+[[cases]]
+name = "upstream-UP047_1.py"
+files = { "UP047_1.py" = "\"\"\"This is placed in a separate fixture as `TypeVar` needs to be imported\nfrom `typing_extensions` to support default arguments in Python version < 3.13.\nWe verify that UP047 doesn't apply in this case.\n\"\"\"\n\nfrom typing_extensions import TypeVar\n\nT = TypeVar(\"T\", default=int)\n\n\ndef default_var(var: T) -> T:\n    return var\n" }
+expected = []
+
+[[cases]]
+name = "positive"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef f(x:T)->T: ...\n" }
+expected = []
+
+[[cases]]
+name = "return-only"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef f()->T: ...\n" }
+expected = []
+
+[[cases]]
+name = "string-annotation"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef f(x:\"T\"): ...\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from typing import TypeVar as V\nT=V(\"T\")\ndef f(x:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "anystr"
+files = { "case.py" = "from typing import AnyStr\ndef f(x:AnyStr): ...\n" }
+expected = []
+
+[[cases]]
+name = "shadow-anystr"
+files = { "case.py" = "from typing import AnyStr\nstr=1\ndef f(x:AnyStr): ...\n" }
+expected = []
+
+[[cases]]
+name = "default"
+files = { "case.py" = "from typing_extensions import TypeVar\nT=TypeVar(\"T\",default=int)\ndef f(x:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef outer():\n def f(x:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "method"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nclass C:\n def f(self,x:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "suppressed"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef f(x:T): ... # noqa: UP047\n" }
+expected = []
+
+[[cases]]
+name = "already-pep695"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef f[S](x:T): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.py", start = 66, end = 69 }]
+
+[[cases]]
+name = "shadow-typevar"
+files = { "case.py" = "TypeVar=list\nT=TypeVar(\"T\")\ndef f(x:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "repeated"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\ndef f(x:T,y:T): ...\n" }
+expected = []
+
+[[cases]]
+name = "async"
+files = { "case.py" = "from typing import Generic, TypeVar, AnyStr\nT = TypeVar(\"T\")\nasync def f(x:T): ...\n" }
+expected = []

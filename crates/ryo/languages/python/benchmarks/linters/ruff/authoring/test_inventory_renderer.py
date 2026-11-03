@@ -57,7 +57,7 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**391 PASS / 22 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**393 PASS / 20 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
 
@@ -89,3 +89,23 @@ class InventoryRendererTests(unittest.TestCase):
                              receipt.parent / "f811-f841-target-supplement")
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("F811", 120, 111, 9), ("F841", 106, 77, 29)])
+
+    def test_pep695_proof_checks_both_targets_without_dropping_unsupported_sources(self):
+        receipt = renderer.LATEST_FULL_RESULT
+        directory = receipt.parent / "up046-up047-target-supplement"
+        proof = json.loads((directory / "proof.json").read_text())
+        self.assertEqual(proof["requirements"], {"UP046": ["py312", "py310"], "UP047": ["py312", "py310"]})
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        from authoring.target_supplement import verified_rows
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous, directory)
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("UP046", 14, 14, 0), ("UP047", 16, 16, 0)])
+        counter_syntax = 0
+        for rule in ["UP046", "UP047"]:
+            default = tomllib.loads((renderer.RUFF / "rules" / rule / "cases.toml").read_text())["cases"]
+            counter = tomllib.loads((renderer.RUFF / "profiles" / (rule + "-py310") / "cases.toml").read_text())["cases"]
+            self.assertEqual({case["name"]: case["files"] for case in default},
+                             {case["name"]: case["files"] for case in counter})
+            self.assertFalse(any(finding["rule"] == rule for case in counter for finding in case["expected"]))
+            counter_syntax += sum(finding["rule"] == "invalid-syntax" for case in counter for finding in case["expected"])
+        self.assertEqual(counter_syntax, 11)

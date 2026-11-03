@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**391 PASS / 22 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**393 PASS / 20 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -404,8 +404,8 @@ Generated from canonical source and the existing full-inventory runner's results
 | UP043 | PASS | verified intended expectations |
 | UP044 | PASS | verified intended expectations |
 | UP045 | PASS | verified intended expectations |
-| UP046 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
-| UP047 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| UP046 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/up046-up047-target-supplement/summary.json) |
+| UP047 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/up046-up047-target-supplement/summary.json) |
 | UP049 | PASS | verified intended expectations |
 | UP050 | PASS | verified intended expectations |
 | W605 | PASS | verified intended expectations |
