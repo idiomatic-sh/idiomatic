@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import tomllib
+import tarfile
 import unittest
 
 from authoring import generate_rule_inventory as renderer
@@ -57,9 +58,31 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**396 PASS / 17 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**397 PASS / 16 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
+
+    def test_ruf041_proof_preserves_original_sources_and_scope_controls(self):
+        from authoring.target_supplement import verified_rows
+        receipt = renderer.LATEST_FULL_RESULT
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        target = receipt.parent / "ruf041-target-supplement"
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous, target)
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("RUF041", 43, 36, 7)])
+        controls = json.loads((target / "controls.json").read_text())["controls"]
+        self.assertEqual([(item["target"], item["case_count"]) for item in controls],
+                         [("py310", 43), ("py312", 43)])
+        cases = tomllib.loads((renderer.RUFF / "rules/RUF041/cases.toml").read_text())["cases"]
+        positives = [case for case in cases if "unrelated-generic-literal-positive" in case["name"]]
+        self.assertEqual(len(positives), 2)
+        self.assertTrue(all(any(finding["rule"] == "RUF041" for finding in case["expected"])
+                            for case in positives))
+        with tarfile.open(target / "raw-receipts.tar.gz", "r:gz") as archive:
+            source = archive.extractfile("history/RUF041/profiles/RUF041/repro/rules/RUF041/cases.toml")
+            original = tomllib.loads(source.read().decode())["cases"]
+        self.assertEqual([case["files"] for case in cases[:41]],
+                         [case["files"] for case in original])
 
     def test_tc004_proof_retains_full_fixtures_and_both_target_controls(self):
         from authoring.target_supplement import verified_rows
