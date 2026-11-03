@@ -1,2 +1,2 @@
 //! Adapters to primitive capability use cases.
-pub(crate) mod use_case;
+pub(super) mod use_case;

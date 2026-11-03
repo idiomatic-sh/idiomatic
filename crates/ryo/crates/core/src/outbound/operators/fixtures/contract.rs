@@ -1,29 +1,29 @@
 //! Behavioral contract shared by the injected operator adapter and test fake.
 use super::super::interface::OperatorsPort;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_relations::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-type Input = (Vec<Value>, Vec<ColumnIndex>);
-type Answer = [Value; 3];
+type Input = (Vec<CellValue>, Vec<ColumnIndex>);
+type Value = [CellValue; 3];
 type Failure = PortableOperatorFault;
 
 /// Observable projection order and first missing-column refusal across the port.
-pub const CASES: &[Case<Input, Answer, Failure>] = &[
+pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("repeated_columns_keep_order"),
         word: Word::Succeeds,
         input: || {
             (
-                vec![Value::Number(Integer(7)), Value::Number(Integer(9))],
+                vec![CellValue::Number(Integer(7)), CellValue::Number(Integer(9))],
                 vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
             )
         },
         expect: Expect::Value([
-            Value::Number(Integer(9)),
-            Value::Number(Integer(7)),
-            Value::Number(Integer(9)),
+            CellValue::Number(Integer(9)),
+            CellValue::Number(Integer(7)),
+            CellValue::Number(Integer(9)),
         ]),
     },
     Case {
@@ -31,7 +31,7 @@ pub const CASES: &[Case<Input, Answer, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                vec![Value::Number(Integer(7))],
+                vec![CellValue::Number(Integer(7))],
                 vec![ColumnIndex(3), ColumnIndex(2)],
             )
         },

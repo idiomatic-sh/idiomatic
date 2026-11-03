@@ -10,15 +10,19 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 pub struct OperatorsFake {
     /// Number of semantic calls made by the engine.
     pub calls: AtomicUsize,
-    /// Optional controlled refusal before the portable implementation runs.
-    pub refusal: Option<PortableOperatorFault>,
+    /// Refuse before the portable implementation runs.
+    pub refuses: bool,
 }
 impl OperatorsPort for OperatorsFake {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         self.calls.fetch_add(1, Ordering::Relaxed);
-        if let Some(refusal) = self.refusal {
-            return Err(refusal);
+        if self.refuses {
+            return Err(PortableOperatorFault::NoSuchColumn { index: 8 });
         }
         OperatorsUseCaseImpl::new().operators(call)
     }
 }
+
+#[cfg(test)]
+#[path = "fake_test.rs"]
+mod tests;

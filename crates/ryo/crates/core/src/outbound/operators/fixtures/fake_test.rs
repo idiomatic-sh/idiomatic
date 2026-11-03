@@ -1,37 +1,56 @@
-//! The fake and the production adapter obey the same port contract.
-use super::{contract, fake::OperatorsFake};
-use crate::outbound::operators::{
-    adapters::use_case::adapter::OperatorsUseCaseAdapter, interface::OperatorsPort,
-};
-use ryo_relations::domain::relations::types::{Integer, Value};
-use ryo_operators::domain::contract::types::{OperatorCall, PortableOperatorFault};
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
+//! The operator fake preserves the port contract and a controlled refusal.
+use super::{super::contract, OperatorsFake};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
+use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::atomic::Ordering;
 
-#[test]
-fn both_adapters_preserve_the_port_contract() {
-    contract::check(&OperatorsFake::default());
-    contract::check(&OperatorsUseCaseAdapter::new(OperatorsUseCaseImpl::new()));
-}
+type Input = bool;
+type Value = usize;
+type Failure = PortableOperatorFault;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("available_fake_projects_and_records_once"),
+        word: Word::Succeeds,
+        input: || false,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("refusing_fake_keeps_scratch_and_records_once"),
+        word: Word::Refuses,
+        input: || true,
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 8 }),
+    },
+];
 
 #[test]
-fn controlled_refusal_precedes_mutation_and_records_one_call() {
-    let fake = OperatorsFake {
-        refusal: Some(PortableOperatorFault::NoSuchColumn { index: 8 }),
-        ..OperatorsFake::default()
+fn fake_obeys_contract_and_refusal_boundary() {
+    contract::check(&OperatorsFake::default());
+    let subject = |refuses: Input| {
+        let fake = OperatorsFake {
+            refuses,
+            ..OperatorsFake::default()
+        };
+        let row = [CellValue::Number(Integer(3))];
+        let initial = CellValue::Number(Integer(9));
+        let mut target = vec![initial];
+        let result = fake.operators(OperatorCall::Project {
+            row: &row,
+            columns: &[ColumnIndex(0)],
+            target: &mut target,
+        });
+        assert_eq!(fake.calls.load(Ordering::Relaxed), 1);
+        if refuses {
+            assert_eq!(target, vec![initial]);
+        } else {
+            assert_eq!(result, Ok(OperatorAnswer::Written));
+            assert_eq!(target, vec![row[0]]);
+        }
+        result.map(|_| 1)
     };
-    let row = [Value::Number(Integer(3))];
-    let mut target = vec![Value::Number(Integer(9))];
-    let answer = fake.operators(OperatorCall::Project {
-        row: &row,
-        columns: &[ColumnIndex(0)],
-        target: &mut target,
-    });
-    assert_eq!(
-        answer,
-        Err(PortableOperatorFault::NoSuchColumn { index: 8 })
-    );
-    assert_eq!(target, vec![Value::Number(Integer(9))]);
-    assert_eq!(fake.calls.load(Ordering::Relaxed), 1);
+    run(CASES, Word::Succeeds, subject);
+    run(CASES, Word::Refuses, subject);
 }
