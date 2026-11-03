@@ -167,6 +167,7 @@ impl FileDagExecution {
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
         context: &mut OperatorContext<'_>,
     ) -> Result<Arc<super::relations::RelationResult>, OperatingError> {
+        let _route_node = super::route_counts::node(id.0);
         self.demands += 1;
         if let Some(table) = self.required.get(id.0).and_then(Option::as_ref) {
             self.hits += 1;
@@ -495,6 +496,7 @@ impl FileDagExecution {
         let result = self.demand_result(node, read, context)?;
         let rows = self.relations.resolve(result.as_ref(), read)?;
         let mut table = Table::default();
+        crate::application::file_dag::route_counts::event("materialize", "rows");
         crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());
         Ok(Arc::new(table))
     }

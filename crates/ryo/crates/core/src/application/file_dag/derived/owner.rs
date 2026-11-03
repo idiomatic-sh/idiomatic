@@ -1,5 +1,6 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use super::footprint::storage_bytes;
+use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::{
     derived_views::{collections::views::registration::registered, types::*},
     operating::errors::OperatingError,
@@ -95,11 +96,23 @@ impl DerivedOwner {
         )>,
         mut cache: Option<&mut FileIndexes>,
     ) -> Result<Arc<DerivedStorage>, OperatingError> {
+        let _route_owner = super::super::route_counts::owner(std::ptr::from_ref(self).addr());
         if populations.is_empty() || populations.len() > 2 {
             return Err(OperatingError::ShapeMismatch);
         }
         let mut ids = [PopulationId(usize::MAX); 2];
         ids[..populations.len()].copy_from_slice(populations);
+        let _route_identity = super::super::route_counts::identity(
+            Arc::as_ptr(plan) as usize,
+            [
+                populations.first().map(|id| id.0),
+                populations.get(1).map(|id| id.0),
+            ],
+        );
+        super::super::route_counts::event(
+            "owner_request",
+            super::super::route_counts::derived(plan.kind),
+        );
         let key = Key {
             plan: Arc::as_ptr(plan) as usize,
             populations: ids,
@@ -135,6 +148,10 @@ impl DerivedOwner {
                     state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
                 }
                 state.hits += 1;
+                super::super::route_counts::event(
+                    "owner_hit",
+                    super::super::route_counts::derived(plan.kind),
+                );
                 if stored.is_some() && plan.kind == DerivedKind::Equality {
                     if let Some(cache) = cache.as_deref_mut() {
                         cache.reuses = cache.reuses.saturating_add(1);
@@ -153,8 +170,15 @@ impl DerivedOwner {
                 return Err(OperatingError::WrongOperation);
             };
             let mut index = crate::domain::table_model::types::KeyIndex::default();
-            let acquired =
-                super::indexes::acquire(plan, cache, relation, source, columns, &mut index)?;
+            let acquired = super::indexes::acquire(
+                BuildRoute::OwnerAcquire,
+                plan,
+                cache,
+                relation,
+                source,
+                columns,
+                &mut index,
+            )?;
             built = acquired.built;
             backend = true;
             storage = acquired.shared.map_or(
@@ -162,7 +186,11 @@ impl DerivedOwner {
                 DerivedStorage::EqualityShared,
             );
         } else {
-            registered(plan.kind).build(plan, inputs, &mut storage, scratch)?;
+            super::super::route_counts::observe(
+                BuildRoute::OwnerAcquire.label(),
+                super::super::route_counts::derived(plan.kind),
+                || registered(plan.kind).build(plan, inputs, &mut storage, scratch),
+            )?;
         }
         // A family implementation cannot publish an unbuilt or different-kind object.
         let _checked = registered(plan.kind).view(plan, &storage)?;
@@ -353,12 +381,17 @@ mod owner_test;
 /// Current-partition work is mandatory but deliberately not retained past its cursor window.
 /// The application supplies and reuses the complete owned storage; semantics cannot schedule it.
 pub(in crate::application::file_dag) fn build_scoped(
+    route: BuildRoute,
     plan: &DerivedContract,
     inputs: DerivedInputs<'_, '_>,
     storage: &mut DerivedStorage,
     scratch: &mut DerivedScratch,
 ) -> Result<(), OperatingError> {
-    registered(plan.kind).build(plan, inputs, storage, scratch)?;
+    super::super::route_counts::observe(
+        route.label(),
+        super::super::route_counts::derived(plan.kind),
+        || registered(plan.kind).build(plan, inputs, storage, scratch),
+    )?;
     let _ready = registered(plan.kind).view(plan, storage)?;
     Ok(())
 }

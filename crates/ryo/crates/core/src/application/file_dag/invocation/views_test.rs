@@ -34,6 +34,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let mut storage = DerivedStorage::Unbuilt;
     crate::application::file_dag::derived::owner::build_scoped(
+        crate::application::file_dag::route_counts::BuildRoute::Fixture,
         &plan,
         DerivedInputs::Rows(&[BorrowedRows::Computed(&table)]),
         &mut storage,

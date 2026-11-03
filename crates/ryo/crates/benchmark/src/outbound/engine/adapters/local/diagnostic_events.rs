@@ -32,6 +32,7 @@ const GRAPH_TARGET: &str = "ryo::diagnostic::graph";
 /// Request-wide file-program sharing and retained cells in explicit diagnostic runs.
 const FILE_PROGRAM_TARGET: &str = "ryo::diagnostic::file_program";
 /// Coarse retention/decoding/store phases for an explicit lifecycle diagnostic.
+const RESOURCE_ROUTES_TARGET: &str = "ryo::diagnostic::resource_routes";
 const LIFECYCLE_TARGET: &str = "ryo::diagnostic::lifecycle_memory";
 
 /// Shared append-only file writer; each event holds the lock until its JSON line is complete.
@@ -62,7 +63,9 @@ pub(super) fn subscriber(
         };
     let lifecycle_only =
         std::env::var_os("RYO_DIAGNOSTIC_LIFECYCLE_MEMORY").is_some_and(|value| value == "1");
-    subscriber_with_aggregates(path, aggregate_level, lifecycle_only)
+    let resource_routes =
+        std::env::var_os("RYO_DIAGNOSTIC_RESOURCE_ROUTES").is_some_and(|value| value == "1");
+    subscriber_with_aggregates(path, aggregate_level, lifecycle_only, resource_routes)
 }
 
 /// Admit aggregate targets only for an explicitly selected diagnostic profile.
@@ -70,6 +73,7 @@ fn subscriber_with_aggregates(
     path: &Path,
     aggregate_level: tracing_subscriber::filter::LevelFilter,
     lifecycle_only: bool,
+    resource_routes: bool,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
     use tracing_subscriber::Layer as _;
     use tracing_subscriber::layer::SubscriberExt as _;
@@ -104,6 +108,14 @@ fn subscriber_with_aggregates(
         .with_writer(writer)
         .with_filter(
             tracing_subscriber::filter::Targets::new()
+                .with_target(
+                    RESOURCE_ROUTES_TARGET,
+                    if resource_routes && !lifecycle_only {
+                        tracing_subscriber::filter::LevelFilter::TRACE
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    },
+                )
                 .with_target(EXECUTION_TARGET, aggregate_level)
                 .with_target(SELECTION_TARGET, aggregate_level)
                 .with_target(

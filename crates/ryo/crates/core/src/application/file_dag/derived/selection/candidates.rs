@@ -53,7 +53,10 @@ pub(super) fn candidates(
             continue;
         }
         let mut local = KeyIndex::default();
+        let _route_consumer =
+            crate::application::file_dag::route_counts::consumer("selector_candidate");
         let acquired = super::super::indexes::acquire(
+            crate::application::file_dag::route_counts::BuildRoute::SelectorCandidate,
             &equality,
             cache,
             program.relation,

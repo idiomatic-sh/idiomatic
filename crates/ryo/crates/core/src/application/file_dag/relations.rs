@@ -131,7 +131,11 @@ impl RelationOwner {
     pub(super) fn computed(&self, table: Table) -> Result<Arc<RelationResult>, OperatingError> {
         let input = BorrowedRows::Computed(&table);
         let contract = input.contract()?;
-        registered(contract.kind).inspect(&contract)?;
+        super::route_counts::observe(
+            "representation_inspect",
+            super::route_counts::representation(contract.kind),
+            || registered(contract.kind).inspect(&contract),
+        )?;
         Ok(Arc::new(RelationResult {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
@@ -250,6 +254,12 @@ impl RelationOwner {
         result: &dyn PublishedRelation,
         input: BorrowedRows<'_>,
     ) -> Result<PhysicalShape, OperatingError> {
+        super::route_counts::event(
+            "inspection_request",
+            super::route_counts::representation(
+                crate::domain::table_model::collections::representations::service::kind(input),
+            ),
+        );
         let result = self.private(result)?;
         if !self.matches_current(result, input) {
             return Err(OperatingError::NotRead);
@@ -261,6 +271,12 @@ impl RelationOwner {
         result: &dyn PublishedRelation,
         input: BorrowedRows<'a>,
     ) -> Result<AdmittedInput<'a>, OperatingError> {
+        super::route_counts::event(
+            "admission_request",
+            super::route_counts::representation(
+                crate::domain::table_model::collections::representations::service::kind(input),
+            ),
+        );
         let result = self.private(result)?;
         if !self.matches_current(result, input) {
             return Err(OperatingError::NotRead);
@@ -294,7 +310,11 @@ impl RelationOwner {
             .get_or_init(|| {
                 self.checks.set(self.checks.get() + 1);
                 let contract = input.contract()?;
-                registered(contract.kind).inspect(&contract)
+                super::route_counts::observe(
+                    "representation_inspect",
+                    super::route_counts::representation(contract.kind),
+                    || registered(contract.kind).inspect(&contract),
+                )
             })
             .clone();
         if outcome != Ok(PhysicalShape::Complete) {
@@ -325,6 +345,7 @@ impl RelationOwner {
             PhysicalShape::ReadablePhysicalFallback => {
                 let table = result.normalized.get_or_init(|| {
                     let mut table = Table::default();
+                    super::route_counts::event("normalization_materialize", "population");
                     materialize(&rows, &mut table, &mut Vec::new());
                     Arc::new(table)
                 });

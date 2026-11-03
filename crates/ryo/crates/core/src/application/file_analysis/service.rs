@@ -358,6 +358,8 @@ impl FileAnalysis {
         visit: &FileVisit<'_>,
         file: FileId,
     ) -> Result<(), FileAnalysisError> {
+        let _route_counts =
+            crate::application::file_dag::route_counts::FileScope::begin(file.0 as usize);
         let (tables, facts) = (&mut worker.tables, &mut worker.facts);
         crate::application::file_dag::derived::selection::prepare_request(
             &mut tables.pool,

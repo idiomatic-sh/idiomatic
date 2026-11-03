@@ -48,6 +48,7 @@ impl<'f> SelectedInput<'f> {
         )?);
         let mut storage = DerivedStorage::Unbuilt;
         super::derived::owner::build_scoped(
+            crate::application::file_dag::route_counts::BuildRoute::Fixture,
             &plan,
             DerivedInputs::Rows(&[rows]),
             &mut storage,

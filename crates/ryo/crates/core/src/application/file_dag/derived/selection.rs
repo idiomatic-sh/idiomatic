@@ -218,6 +218,7 @@ fn make<'a>(
     let rows = if program.distinct {
         let mut storage = DerivedStorage::Unbuilt;
         super::owner::build_scoped(
+            crate::application::file_dag::route_counts::BuildRoute::SelectorDistinct,
             &views.distinct,
             DerivedInputs::Distinct {
                 rows: BorrowedRows::Stored(source),

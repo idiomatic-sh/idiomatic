@@ -38,6 +38,7 @@ impl<'a> DemandAnswers<'a> {
         if let Some(cache) = self.cache.as_mut() {
             cache.graph_counts.roots += 1;
         }
+        crate::application::file_dag::route_counts::event("reach_request", "graph");
         let partition = access.graph.partition_ids.get(partition)?;
         let root = *access.graph.vertex_ids.get(&(*partition, root))?;
         if access.shared
@@ -51,9 +52,11 @@ impl<'a> DemandAnswers<'a> {
                 .iter()
                 .find(|answer| answer.root == root && answer.orientation == access.orientation)
         {
+            crate::application::file_dag::route_counts::event("reach_memo_hit", "graph");
             cache.graph_counts.memo_hits += 1;
             return Some(Arc::clone(&answer.reached));
         }
+        crate::application::file_dag::route_counts::event("reach_traversal", "graph");
         let mut traversal = GraphTraversal::new(&access.graph, walk);
         let _ = traversal.breadth(root, access.orientation, None);
         traversal.sort();
@@ -78,10 +81,12 @@ impl<'a> DemandAnswers<'a> {
         local: &mut Vec<u32>,
         walk: &mut GraphWalk,
     ) -> Option<u32> {
+        crate::application::file_dag::route_counts::event("nearest_request", "graph");
         if access.graph.forests
             [crate::domain::stored_graph::types::traversal::value::direction(orientation)]
         .is_none()
         {
+            crate::application::file_dag::route_counts::event("nearest_traversal", "graph");
             let stopped =
                 GraphTraversal::new(&access.graph, walk).breadth(root, orientation, Some(domain));
             if let Some(cache) = self.cache.as_mut() {
@@ -102,6 +107,14 @@ impl<'a> DemandAnswers<'a> {
         } else {
             GraphTraversal::new(&access.graph, walk).nearest(root, orientation, domain, local)
         };
+        crate::application::file_dag::route_counts::event(
+            if hit {
+                "nearest_memo_hit"
+            } else {
+                "nearest_traversal"
+            },
+            "graph",
+        );
         if let Some(cache) = self.cache.as_mut() {
             cache.graph_counts.forest_hits += u64::from(hit);
             cache.graph_counts.expanded += walk.expanded;

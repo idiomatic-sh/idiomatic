@@ -103,6 +103,7 @@ impl<'f> PartitionedClosure<'f> {
         )?);
         let mut ordered = DerivedStorage::Unbuilt;
         super::derived::owner::build_scoped(
+            crate::application::file_dag::route_counts::BuildRoute::ClosurePartition,
             &partition_plan,
             DerivedInputs::Rows(&[input]),
             &mut ordered,
@@ -157,6 +158,7 @@ impl<'f> PartitionedClosure<'f> {
             return Err(OperatingError::WrongOperation);
         };
         super::derived::owner::build_scoped(
+            crate::application::file_dag::route_counts::BuildRoute::ClosurePartition,
             &self.closure_plan,
             DerivedInputs::Partition {
                 rows: self.input,

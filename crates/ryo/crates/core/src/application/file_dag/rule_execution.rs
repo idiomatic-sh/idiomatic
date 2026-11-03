@@ -95,6 +95,13 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
 ) -> Result<Vec<Table>, RulesError> {
+    let _route_rule = super::route_counts::rule(
+        rule.0,
+        setting
+            .ids
+            .get(rule.0)
+            .map_or("<unknown>", |id| id.0.as_ref()),
+    );
     let (Some(plan), Some(bound)) = (setting.plans.get(rule.0), setting.bindings.get(rule.0))
     else {
         return Ok(Vec::new());

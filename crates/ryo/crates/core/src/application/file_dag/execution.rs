@@ -63,6 +63,7 @@ fn physical_fallbacks(
             if missing_selected_row || physical.is_some_and(|view| !crate::domain::table_model::service::rectangular(view))
             {
                 let mut table = Table::default();
+                crate::application::file_dag::route_counts::event("materialize", "rows");
                 crate::domain::table_model::service::materialize(
                     input,
                     &mut table,

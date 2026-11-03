@@ -79,6 +79,7 @@ pub(super) fn matches(
     };
     let mut storage = DerivedStorage::Unbuilt;
     let outcome = super::super::owner::build_scoped(
+        crate::application::file_dag::route_counts::BuildRoute::SelectorPredicate,
         &views.predicate,
         DerivedInputs::Predicate {
             rows: BorrowedRows::Stored(source),

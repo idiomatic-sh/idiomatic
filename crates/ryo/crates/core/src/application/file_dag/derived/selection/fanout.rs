@@ -129,6 +129,7 @@ pub(super) fn fanout_candidates(
     };
     let mut storage = DerivedStorage::Unbuilt;
     super::super::owner::build_scoped(
+        crate::application::file_dag::route_counts::BuildRoute::SelectorPostings,
         plan,
         DerivedInputs::Postings {
             rows: BorrowedRows::Stored(source),

@@ -51,14 +51,21 @@ pub(in crate::application::file_dag) fn acquire(
     let orientation = source.orientation;
     let expected_identity = source.identity.clone();
     let mut storage = crate::domain::derived_views::types::DerivedStorage::Unbuilt;
-    crate::domain::derived_views::collections::views::registration::registered(plan.kind).build(
-        plan,
-        crate::domain::derived_views::types::DerivedInputs::Adjacency {
-            rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
-            source,
+    super::super::route_counts::observe(
+        super::super::route_counts::BuildRoute::GraphAdjacency.label(),
+        super::super::route_counts::derived(plan.kind),
+        || {
+            crate::domain::derived_views::collections::views::registration::registered(plan.kind)
+                .build(
+                    plan,
+                    crate::domain::derived_views::types::DerivedInputs::Adjacency {
+                        rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                        source,
+                    },
+                    &mut storage,
+                    &mut crate::domain::derived_views::types::DerivedScratch::default(),
+                )
         },
-        &mut storage,
-        &mut crate::domain::derived_views::types::DerivedScratch::default(),
     )?;
     let crate::domain::derived_views::types::DerivedView::Adjacency(graph) =
         crate::domain::derived_views::collections::views::registration::registered(plan.kind)
@@ -133,16 +140,23 @@ pub(in crate::application::file_dag) fn domain(
         return Ok(Arc::clone(&entry.domain));
     }
     let mut storage = crate::domain::derived_views::types::DerivedStorage::Unbuilt;
-    crate::domain::derived_views::collections::views::registration::registered(plan.kind).build(
-        plan,
-        crate::domain::derived_views::types::DerivedInputs::Membership {
-            rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
-            space: crate::domain::derived_views::types::MembershipSpace::Dense(
-                &access.graph.vertices,
-            ),
+    super::super::route_counts::observe(
+        super::super::route_counts::BuildRoute::GraphDomain.label(),
+        super::super::route_counts::derived(plan.kind),
+        || {
+            crate::domain::derived_views::collections::views::registration::registered(plan.kind)
+                .build(
+                    plan,
+                    crate::domain::derived_views::types::DerivedInputs::Membership {
+                        rows: crate::domain::operator::contract::views::BorrowedRows::from(rows),
+                        space: crate::domain::derived_views::types::MembershipSpace::Dense(
+                            &access.graph.vertices,
+                        ),
+                    },
+                    &mut storage,
+                    &mut crate::domain::derived_views::types::DerivedScratch::default(),
+                )
         },
-        &mut storage,
-        &mut crate::domain::derived_views::types::DerivedScratch::default(),
     )?;
     let crate::domain::derived_views::types::DerivedView::Membership(
         crate::domain::derived_views::types::MembershipData::Dense(members),

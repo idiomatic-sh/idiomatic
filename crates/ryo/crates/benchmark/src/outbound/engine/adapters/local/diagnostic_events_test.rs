@@ -96,9 +96,10 @@ fn ordinary_info_subscriber_does_not_enable_diagnostic_step_events() {
         || tracing::enabled!(target: RULE_STEP_TARGET, tracing::Level::TRACE),
     );
     assert!(!enabled);
-    let file_program_enabled = tracing::dispatcher::with_default(&dispatch, || {
-        tracing::enabled!(target: super::FILE_PROGRAM_TARGET, tracing::Level::TRACE)
-    });
+    let file_program_enabled = tracing::dispatcher::with_default(
+        &dispatch,
+        || tracing::enabled!(target: super::FILE_PROGRAM_TARGET, tracing::Level::TRACE),
+    );
     assert!(!file_program_enabled);
 }
 
@@ -112,8 +113,9 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
         tracing_subscriber::filter::LevelFilter::TRACE,
     ] {
         let path = directory.path().join(format!("{level}.jsonl"));
-        let dispatch =
-            tracing::Dispatch::new(super::subscriber_with_aggregates(&path, level, false)?);
+        let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(
+            &path, level, false, false,
+        )?);
         tracing::dispatcher::with_default(&dispatch, || {
             tracing::trace!(target: super::EXECUTION_TARGET, phase = "provider_parse", elapsed_ns = 3_u64);
             tracing::trace!(target: super::SELECTION_TARGET, event = "file_selections", scanned_rows = 7_u64);
@@ -166,6 +168,7 @@ fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
         &path,
         tracing_subscriber::filter::LevelFilter::TRACE,
         true,
+        false,
     )?);
     tracing::dispatcher::with_default(&dispatch, || {
         tracing::trace!(target: RULE_FILE_TARGET, event = "rule_file_start");
@@ -182,5 +185,38 @@ fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
     assert_eq!(events.len(), 1);
     assert_eq!(events[0]["target"], super::LIFECYCLE_TARGET);
     assert_eq!(events[0]["fields"]["retained_bytes"], 17);
+    Ok(())
+}
+
+#[test]
+fn resource_route_profile_preserves_generic_aggregate_payload()
+-> Result<(), Box<dyn std::error::Error>> {
+    for enabled in [false, true] {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("routes.jsonl");
+        let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(
+            &path,
+            tracing_subscriber::filter::LevelFilter::OFF,
+            false,
+            enabled,
+        )?);
+        tracing::dispatcher::with_default(&dispatch, || {
+            tracing::trace!(target: super::RESOURCE_ROUTES_TARGET, event="resource_routes", file=7, overflow=0, counts="[{\"rule\":2,\"node\":41,\"owner\":false,\"route\":\"scoped_build\",\"family\":\"Equality\",\"calls\":1,\"successes\":1,\"failures\":0}]");
+        });
+        let text = std::fs::read_to_string(path)?;
+        if enabled {
+            let event: serde_json::Value = serde_json::from_str(text.trim())?;
+            let counts: serde_json::Value = serde_json::from_str(
+                event["fields"]["counts"]
+                    .as_str()
+                    .ok_or("missing route aggregate")?,
+            )?;
+            assert_eq!(counts[0]["node"], 41);
+            assert_eq!(counts[0]["calls"], 1);
+            assert_eq!(event["fields"]["overflow"], 0);
+        } else {
+            assert!(text.is_empty());
+        }
+    }
     Ok(())
 }

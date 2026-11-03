@@ -98,6 +98,7 @@ pub(crate) fn execute(
         counts.eligible_chains += 1;
         return Ok(true);
     }
+    let _route_consumer = crate::application::file_dag::route_counts::consumer("column");
     let Some(cache) = context.stored_indexes.as_deref_mut() else {
         return Ok(false);
     };
@@ -117,6 +118,7 @@ pub(crate) fn execute(
     let right = Rows::Stored(right_source);
     let mut local = std::mem::take(&mut context.scratch.join_scratch.order);
     let outcome = indexes::acquire(
+        crate::application::file_dag::route_counts::BuildRoute::Column,
         index_plan,
         cache,
         chain.right,

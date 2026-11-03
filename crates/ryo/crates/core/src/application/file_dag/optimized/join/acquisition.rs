@@ -22,6 +22,7 @@ pub(super) fn acquired_index(
     counts: &mut Counts,
     eligible: bool,
 ) -> Result<AcquiredView, OperatingError> {
+    let _route_consumer = crate::application::file_dag::route_counts::consumer("join");
     let slots = match mode {
         EvaluationMode::Streaming => &contract.derived.streaming,
         EvaluationMode::Collected => &contract.derived.collected,

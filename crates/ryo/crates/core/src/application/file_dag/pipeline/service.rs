@@ -879,6 +879,7 @@ pub(crate) fn evaluate_file_with_executor<'f>(
             return Err(OperatingError::WrongOperation);
         };
         if let Some(target) = steps.get_mut(plan.emit.step.0 as usize) {
+            crate::application::file_dag::route_counts::event("materialize", "rows");
             materialize(
                 &Rows::Selected(crate::domain::table_model::types::SelectedRows {
                     source,
@@ -908,6 +909,7 @@ fn hand_over<'f>(
     for (input, into) in plan.frontier.iter().zip(frontier.iter_mut()) {
         match input {
             Input::Relation(relation) => {
+                crate::application::file_dag::route_counts::event("materialize", "rows");
                 materialize(&read(*relation)?, into, &mut context.scratch.row);
             }
             Input::Step(id) => {
@@ -915,6 +917,7 @@ fn hand_over<'f>(
                     let Rows::Stored(source) = read(selection.relation)? else {
                         return Err(OperatingError::WrongOperation);
                     };
+                    crate::application::file_dag::route_counts::event("materialize", "rows");
                     materialize(
                         &Rows::Selected(crate::domain::table_model::types::SelectedRows {
                             source,
