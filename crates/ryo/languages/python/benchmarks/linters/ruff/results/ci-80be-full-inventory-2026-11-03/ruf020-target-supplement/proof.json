@@ -1,0 +1,32 @@
+{
+  "schema": "benchmark-inventory-target-supplement/v1",
+  "rule_ids": [
+    "RUF020"
+  ],
+  "requirements": {
+    "RUF020": [
+      "py310",
+      "py312"
+    ]
+  },
+  "prior_summaries_sha256": {
+    "summary.json": "ea3396b368a4e0197d6c4308ac53e6d13e736f491ffaf082d9a1c04827618c67",
+    "f811-f841-target-supplement/summary.json": "e0112aa3daf127fe2919a259014f74c29f71f2f63537d76922c3667ee50e159b",
+    "ple0115-ple0117-target-supplement/summary.json": "21c2953181244dde5c9adca7423b6b861665e325fa3ac6035691637a4460c8e5",
+    "pyi019-pyi034-target-supplement/summary.json": "5201a2f315c49c5598779c8617979413e6925e2763da860adf4829d08d21ba6b",
+    "ruf022-ruf023-target-supplement/summary.json": "3ed5916a67e54311602e60d4373a2409776cbb82f19548f1f9e91368d9f8d285",
+    "speed-evidence/summary.json": "b29d89b86833a98dc322e8abe18874a10b0a4ad24242836da296adef57c5d96f",
+    "up046-up047-target-supplement/summary.json": "97315a4830c4297f355326d75c0cee1838c99c4317a447e01e60aa3016cdc42b"
+  },
+  "identity": {
+    "worker_sha256": "82341f24076f38c30dd593b0d5084665470bf8d6f63b8596ed9841f71b8ee107",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "default_case_results_sha256": {
+    "RUF020": "9e77c71d64c475f350b1d1ff5f0ab6d2e071c6a13be22f09bb9f6100c51ea61c"
+  },
+  "summary_sha256": "f3b585d7ced34b3abe2abf0dbb19fe4a5e22f6742df44836a34269c847fa9a50",
+  "controls_sha256": "6d475638c9b128adfbd23f29f929be7e095421ac5022672e46750056cdf5f93f",
+  "provenance_sha256": "6fd125b83a703a5f7c95c32a91d809eb4d27dc9eeef1fc4a2b7b88b878c6838e",
+  "raw_receipts_sha256": "63858110068ec096e680f56e34b8896b6823fed2124212a8da33a196cdaf38a0"
+}

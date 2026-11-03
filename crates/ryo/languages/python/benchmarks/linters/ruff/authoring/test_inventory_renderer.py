@@ -57,7 +57,7 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**393 PASS / 20 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**394 PASS / 19 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
 
@@ -109,3 +109,27 @@ class InventoryRendererTests(unittest.TestCase):
             self.assertFalse(any(finding["rule"] == rule for case in counter for finding in case["expected"]))
             counter_syntax += sum(finding["rule"] == "invalid-syntax" for case in counter for finding in case["expected"])
         self.assertEqual(counter_syntax, 11)
+
+    def test_never_union_proof_preserves_all_sources_and_documents_scope_policy(self):
+        receipt = renderer.LATEST_FULL_RESULT
+        directory = receipt.parent / "ruf020-target-supplement"
+        proof = json.loads((directory / "proof.json").read_text())
+        self.assertEqual(proof["requirements"], {"RUF020": ["py310", "py312"]})
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        from authoring.target_supplement import verified_rows
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous, directory)
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("RUF020", 42, 33, 9)])
+        default = tomllib.loads((renderer.RUFF / "rules/RUF020/cases.toml").read_text())["cases"]
+        counter = tomllib.loads((renderer.RUFF / "profiles/RUF020-py312/cases.toml").read_text())["cases"]
+        self.assertEqual({case["name"]: case["files"] for case in default},
+                         {case["name"]: case["files"] for case in counter})
+        for cases in [default, counter]:
+            documented = [case for case in cases if "reference-discrepancy" in case]
+            self.assertEqual(len(documented), 9)
+            scope = next(case for case in documented if case["name"] == "ruf020-forward-module-value-overrides-local")
+            self.assertIn("scope-policy difference", scope["reference-discrepancy"]["reason"])
+            self.assertEqual(scope["reference-discrepancy"]["expected"], [])
+            self.assertEqual(scope["expected"], [{"rule": "RUF020", "file": "case.py", "start": 97, "end": 102}])
+        self.assertEqual(sum(finding["rule"] == "invalid-syntax" for case in default for finding in case["expected"]), 15)
+        self.assertFalse(any(finding["rule"] == "invalid-syntax" for case in counter for finding in case["expected"]))
