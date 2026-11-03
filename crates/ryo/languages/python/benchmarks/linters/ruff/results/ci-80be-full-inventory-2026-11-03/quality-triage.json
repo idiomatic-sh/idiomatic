@@ -43,5 +43,21 @@
     "clippy": "e1ff75ad30a71e27f3da076eae91fc454ce847372d4bfea7738248d2f62799c1",
     "lint": "62b769dc2e5d01cdfb41ccb1f895bf6c3fa4f407651ed37f47ab11ad37338c01",
     "api": "a60d77cecb877ee67b8696b50689d9640d58bf4162d9e060457feb9c14e0bcef"
-  }
+  },
+  "final_workflow_conclusion": "cancelled after exact-head run 41556074310 was dispatched",
+  "superseded_by_run_id": 41556074310,
+  "cancelled_unproven_jobs": [
+    {
+      "name": "check (windows-2025, check)",
+      "job_id": 125650384647
+    },
+    {
+      "name": "check (macos-26, check)",
+      "job_id": 125650384682
+    },
+    {
+      "name": "check (ubuntu-26.04, check)",
+      "job_id": 125650384737
+    }
+  ]
 }
