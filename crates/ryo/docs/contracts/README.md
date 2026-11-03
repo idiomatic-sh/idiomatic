@@ -25,6 +25,32 @@
 | Persistent lint snapshot | `ryo-core` + SDK adapter | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles. |
 | Outbound reports and jobs | `ryo-core` + SDK adapter | ☑ | — | ☑ | ☑ | ☐ | Scheduler adapter still owns executor resources. |
 
+### Capability crate inventory (pending independent route audit)
+
+This maps the matrix to the seven existing workspace crates, all ten language-provider members, and two proposed capability crates. Every ownership proof remains unchecked until the named routes and consumers are audited; a crate's existence or a compiling port does not close a cell above. `—` in Migration means no crate move is proposed, not an ownership proof. Dependencies shown are the intended direction, with proposed crates explicitly marked.
+
+| Crate / status | Semantic responsibility and public contract | Allowed dependency direction | Engine owned schedule / cache / invalidation / data / lifetime | Migration | Ownership proof / evidence |
+| --- | --- | --- | --- | :---: | :---: |
+| `ryo-language` / existing | Typed base relation catalog, parse/project, partial facts, source names, syntax semantics | Existing declared dependencies; no `ryo-core` | `ryo-core` owns demand and stored fact generations; provider owns parser state | — | ☐ Catalog and all reader routes need independent enumeration. |
+| `ryo-values` / existing | Query plan, inputs, bindings and typed value meanings | `ryo-language`; no `ryo-core` | `ryo-core` owns prepared-plan admission and execution | — | ☐ Plan and input routes remain in the matrix. |
+| `ryo-query_language` / existing | RyoQL compile/typecheck and plan construction | `ryo-language`, `ryo-values`; no `ryo-core` | `ryo-core` owns compile result retention and request execution | — | ☐ Grammar and plan boundary evidence above. |
+| `ryo-operators` / proposed, isolated extraction | Portable primitive meanings through one typed inbound use case | `ryo-language`, `ryo-values`; no engine implementation imports | `ryo-core` retains primitive scheduling, scratch, publication and leases | ☐ | ☐ First Project/Append/Span extraction is not family closure. |
+| `ryo-derived` / proposed | Pure derived relation/index/graph/traversal algorithms and typed requests | Language/value/operator semantic contracts only; no engine owner | `ryo-core` retains admission, physical backings, memo, invalidation and last release | ☐ | ☐ Relations and acquisition paths require independent audit before this split is approved. |
+| `ryo-core` / existing engine | Use cases, ordinary/native evaluation, terminal/frontier, selections, derived owner, fanout and persistence | Semantic capability crates and outbound port interfaces; never provider internals | Sole intended authority for all five axes; the matrix marks actual proven routes only | ☐ | ☐ Terminal, native, traversal demand and fanout remain open. |
+| `ryo-sdk` / existing edge | Public entrypoints and composition of injected ports | Inward contracts; no engine-private backends | Starts/ends scopes; engine owns execution resources | — | ☐ Adapter handles and query/lint entrypoints need route audit. |
+| `ryo-cli` / existing edge | Commands and composition of injected use cases | SDK-facing contract only where declared; no engine-private backends | Starts jobs; engine owns execution resources | — | ☐ Job lifetime and command routes remain open. |
+| `ryo-css` / existing provider | CSS typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-go` / existing provider | Go typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-html` / existing provider | HTML typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-javascript` / existing provider | JavaScript typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-json` / existing provider | JSON typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-markdown` / existing provider | Markdown typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-python` / existing provider | Python parser, typed base facts, recovery, syntax rendering | SDK language-author API; no engine internals | Engine owns storage/demand; provider supplies fact meaning and parser session | — | ☐ Complete/partial and keyed rendering ownership differ. |
+| `ryo-rust` / existing provider | Rust typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-toml` / existing provider | TOML typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-typescript` / existing provider | TypeScript typed facts and parser adapter | SDK language-author API; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
+| `ryo-benchmark` / existing shared harness | Inventory, receipt, comparison and performance protocol | SDK/CLI-facing worker contract; no rule-specific evaluator ownership | Does not own engine execution cache or facts | — | ☐ Full 413-rule and final workload gates remain open. |
+
 ### Proposed remaining boundaries
 
 These signatures describe the authority to consolidate; they are **proposed**, not implemented or ownership proof. Domain types state meaning. Application operations own scheduling, admission, cache identity and last release. Outbound ports supply external facts and effects. Engine handles, budgets, indexes and scheduler choices stay internal and never become language provider contracts.
