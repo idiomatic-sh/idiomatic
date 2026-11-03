@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**389 PASS / 24 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**391 PASS / 22 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -112,11 +112,11 @@ Generated from canonical source and the existing full-inventory runner's results
 | F704 | PASS | verified intended expectations |
 | F706 | PASS | verified intended expectations |
 | F707 | PASS | verified intended expectations |
-| F811 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| F811 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/f811-f841-target-supplement/summary.json) |
 | F821 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | F822 | PASS | verified intended expectations |
 | F823 | PASS | verified intended expectations |
-| F841 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| F841 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/f811-f841-target-supplement/summary.json) |
 | F842 | PASS | verified intended expectations |
 | F901 | PASS | verified intended expectations |
 | FA100 | PASS | verified intended expectations |

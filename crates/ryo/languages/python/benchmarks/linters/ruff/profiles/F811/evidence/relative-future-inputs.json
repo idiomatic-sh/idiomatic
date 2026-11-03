@@ -1,0 +1,44 @@
+[
+  {
+    "name": "absolute-prefix",
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f(x:Later): pass\n"
+    },
+    "consumers": []
+  },
+  {
+    "name": "relative-prefix",
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:Later): pass\n"
+    },
+    "consumers": []
+  },
+  {
+    "name": "relative-dotdot-prefix",
+    "files": {
+      "case.py": "from ..__future__ import annotations\ndef f(x:Later): pass\n"
+    },
+    "consumers": []
+  },
+  {
+    "name": "ordinary-relative",
+    "files": {
+      "case.py": "from .other import annotations\ndef f(x:Later): pass\n"
+    },
+    "consumers": []
+  },
+  {
+    "name": "late-relative",
+    "files": {
+      "case.py": "x=1\nfrom .__future__ import annotations\ndef f(x:Later): pass\n"
+    },
+    "consumers": []
+  },
+  {
+    "name": "nested-relative",
+    "files": {
+      "case.py": "def outer():\n from .__future__ import annotations\n def f(x:Later): pass\n"
+    },
+    "consumers": []
+  }
+]

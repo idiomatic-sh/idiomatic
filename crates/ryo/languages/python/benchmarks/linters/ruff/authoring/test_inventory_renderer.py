@@ -57,7 +57,7 @@ class InventoryRendererTests(unittest.TestCase):
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
         rendered = renderer.render_full_inventory(receipt)
-        self.assertIn("**389 PASS / 24 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("**391 PASS / 22 FAIL / 413 pinned defaults**", rendered)
         self.assertIn("no combined replay is claimed", rendered)
         self.assertEqual(json.loads(receipt.read_text()), original)
 
@@ -80,3 +80,12 @@ class InventoryRendererTests(unittest.TestCase):
                              receipt.parent / "pyi019-pyi034-target-supplement")
         self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
                           for row in rows], [("PYI019", 139, 138, 1), ("PYI034", 72, 71, 1)])
+
+    def test_binding_validity_proof_preserves_selected_findings_and_complete_fixtures(self):
+        receipt = renderer.LATEST_FULL_RESULT
+        previous = {row["rule_id"]: row for row in json.loads(receipt.read_text())["rules"]}
+        from authoring.target_supplement import verified_rows
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous,
+                             receipt.parent / "f811-f841-target-supplement")
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("F811", 120, 111, 9), ("F841", 106, 77, 29)])
