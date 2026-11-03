@@ -87,6 +87,8 @@ pub(crate) struct PlanLayout {
     /// Which steps keep their rows in the pool's table of the step: those the plan emits or hands over, and those more than one
     /// step reads that are not cheap to read again.
     pub kept: KeptSteps,
+    /// Whether a later operation consumes this result, excluding emit/frontier exports.
+    pub consumed: Vec<bool>,
     /// The kinds of the columns each step answers.
     pub kinds: Vec<Vec<CellKind>>,
     /// The steps that run over the positions of the tree, not as operators.

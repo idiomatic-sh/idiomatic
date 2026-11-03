@@ -330,7 +330,7 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 &executor,
                 &prepared.rules[0],
             )
-            .unwrap();
+            .unwrap_or_else(|error| panic!("DAG-owned {kind:?}: {error:?}"));
             pool.steps.remove(1)
         };
         assert!(actual.count.0 > 0, "actual nonempty {kind:?} route");

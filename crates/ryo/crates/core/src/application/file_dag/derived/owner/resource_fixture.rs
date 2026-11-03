@@ -114,6 +114,12 @@ impl ResourceFixture {
             graph_early_stops: cache.graph_counts.early_stops,
         }
     }
+    pub(crate) fn no_invocation_index_handles(&self) -> bool {
+        self.owner.derived.no_invocation_index_handles()
+    }
+    pub(crate) fn shared_index_backings(&self) -> usize {
+        self.owner.derived.shared_index_backings()
+    }
     pub(crate) fn first_index_weak(&self) -> Option<Weak<KeyIndex>> {
         self.owner
             .derived

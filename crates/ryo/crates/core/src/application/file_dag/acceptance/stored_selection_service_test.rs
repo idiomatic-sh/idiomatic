@@ -232,7 +232,35 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         let snapshot = fixture.snapshot(None);
         assert_eq!(snapshot.bytes, snapshot.limit);
         assert_eq!(snapshot.selections, 0);
-        assert_eq!(snapshot.counts.reuses, 0);
+        assert_eq!(snapshot.optional_bytes, 0);
+        assert_eq!(
+            snapshot.counts.reuses, 1,
+            "live publications share without optional retention"
+        );
+        assert!(Arc::ptr_eq(&selected.selection.rows, &next.selection.rows));
+        let old = Arc::downgrade(&selected.selection.rows);
+        let builds = snapshot.counts.builds;
+        drop(selected);
+        drop(next);
+        assert!(
+            old.upgrade().is_none(),
+            "last consumer releases uncached positions"
+        );
+        let fresh = fixture
+            .select(&first, source, &mut context)?
+            .expect("valid fresh required view");
+        let mut fresh_table = Table::default();
+        materialize(
+            &Rows::Selected(fresh.rows.clone()),
+            &mut fresh_table,
+            &mut Vec::new(),
+        );
+        assert_eq!(fresh_table, baseline(source, &first)?);
+        let after = fixture.snapshot(None);
+        assert_eq!(after.counts.builds, builds + 1);
+        assert_eq!(after.optional_bytes, 0);
+        assert_eq!(after.selections, 0);
+        return Ok(1);
     }
     if matches!(scenario, Scenario::Bindings) {
         assert_ne!(selected.selection.rows, next.selection.rows);

@@ -75,12 +75,8 @@ impl DerivedOwner {
         if backend.selector_repetition_failed {
             return Ok(None);
         }
-        let repeated = backend
-            .selector_repetition
-            .get(views.group)
-            .ok_or(OperatingError::NotRun)?;
-        if *repeated == 0 {
-            return Ok(None);
+        if backend.selector_repetition.get(views.group).is_none() {
+            return Err(OperatingError::NotRun);
         }
         Ok(Some(Arc::clone(&views.predicate)))
     }

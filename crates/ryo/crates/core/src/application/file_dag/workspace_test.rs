@@ -298,3 +298,47 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
     assert_eq!(view.matching(&[Value::Number(Integer(4))]).count(), 1);
     assert_eq!(view.matching(&[Value::Number(Integer(9))]).count(), 0);
 }
+
+#[test]
+fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication() {
+    let owner = Rc::new(RelationOwner::new(true));
+    let values = table(&[7], 1);
+    let rows = [BorrowedRows::Computed(&values)];
+    let use_ = use_(
+        DerivedKind::Equality,
+        ViewRequest::Equality {
+            columns: vec![ColumnIndex(0)],
+        },
+        &[&[CellKind::Number]],
+        1,
+    );
+    let mut workspace = InvocationWorkspace::default();
+    workspace.relation_owner = Some(Rc::clone(&owner));
+    workspace.origins = vec![crate::application::file_dag::feed::InputOrigin::Temporary];
+    workspace.publications = vec![None];
+    let (mut symbols, mut scratch, mut memo) = (Symbols::default(), Default::default(), vec![]);
+    let mut context = context(&mut symbols, &mut scratch, &mut memo);
+    drop(workspace.acquire_rows(&use_, &rows, &mut context).unwrap());
+    let builds = owner.derived.counts().0;
+    workspace.origins[0] = crate::application::file_dag::feed::InputOrigin::Internal;
+    assert!(matches!(
+        workspace.acquire_rows(&use_, &rows, &mut context),
+        Err(OperatingError::NotRun)
+    ));
+    assert_eq!(
+        owner.derived.counts().0,
+        builds,
+        "missing producer never reaches construction"
+    );
+    workspace.origins[0] = crate::application::file_dag::feed::InputOrigin::Temporary;
+    workspace.publications[0] = Some(owner.computed(table(&[9], 1)).unwrap());
+    assert!(matches!(
+        workspace.acquire_rows(&use_, &rows, &mut context),
+        Err(OperatingError::NotRead)
+    ));
+    assert_eq!(
+        owner.derived.counts().0,
+        builds,
+        "a supplied publication cannot silently become temporary"
+    );
+}

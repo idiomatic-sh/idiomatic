@@ -17,7 +17,8 @@ use std::sync::Arc;
 type Failure = OperatingError;
 /// Entries append into spare owned capacity instead of moving every retained entry.
 #[test]
-fn retained_selections_keep_spare_vector_capacity() -> Result<(), Failure> {
+fn retained_selections_keep_spare_owner_capacity_and_bounded_reacquisition() -> Result<(), Failure>
+{
     let columns: Vec<_> = (0_i64..3)
         .map(|column| {
             FactColumn(
@@ -43,7 +44,7 @@ fn retained_selections_keep_spare_vector_capacity() -> Result<(), Failure> {
     fixture.reserve_spare_selections(8);
     let initial = fixture.snapshot(Some(&first));
     assert!(initial.selections_capacity >= 8);
-    let storage = initial.selections_address;
+    let storage_capacity = initial.selections_capacity;
     let mut symbols = Symbols::default();
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
@@ -91,10 +92,29 @@ fn retained_selections_keep_spare_vector_capacity() -> Result<(), Failure> {
         retained.retained_positions,
         retained.retained_positions_capacity
     );
-    assert_eq!(retained.selections_address, storage);
+    assert_eq!(retained.selections_capacity, storage_capacity);
+    assert!(retained.bytes > initial.bytes && retained.bytes <= retained.limit);
+    assert!(retained.owner_metadata_bytes >= initial.owner_metadata_bytes);
+    for _ in 0..32 {
+        for program in [&first, &second] {
+            drop(
+                fixture
+                    .select(program, source, &mut context)?
+                    .expect("retained result"),
+            );
+        }
+    }
+    let repeated = fixture.snapshot(Some(&first));
+    assert_eq!(repeated.selections_capacity, retained.selections_capacity);
+    assert_eq!(repeated.owner_metadata_bytes, retained.owner_metadata_bytes);
+    assert_eq!(repeated.optional_bytes, retained.optional_bytes);
     assert_eq!(
-        retained.bytes,
-        initial.bytes + super::RETAINED_SELECTION_RESERVATION
+        repeated.retained_positions_capacity,
+        retained.retained_positions_capacity
+    );
+    assert_eq!(
+        repeated.counts.predicate_cells,
+        retained.counts.predicate_cells
     );
     Ok(())
 }

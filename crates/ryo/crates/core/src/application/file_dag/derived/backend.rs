@@ -17,6 +17,7 @@ pub(in crate::application::file_dag::derived) struct Entry {
     pub rows: usize,
     /// Immutable index; callers own a handle before releasing the mutable cache borrow.
     pub index: Arc<KeyIndex>,
+    pub payload_lease: Option<Arc<super::ledger::ResourceLease>>,
 }
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
@@ -80,6 +81,7 @@ pub(in crate::application::file_dag) struct CacheBackend {
 pub(in crate::application::file_dag) struct Acquired {
     /// A shared index, or the already-built index in the caller's local scratch.
     pub shared: Option<Arc<KeyIndex>>,
+    pub slot: Option<usize>,
     /// Whether this acquisition physically built an index.
     pub built: bool,
     /// Test observation of the admission decision; production policy updates counters directly.

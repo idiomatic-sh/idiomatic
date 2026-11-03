@@ -93,7 +93,18 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
     fn origin(&self, which: InputPlace) -> Result<super::super::feed::InputOrigin, OperatingError> {
         Ok(match input(self, which)? {
             Input::Relation(relation) => super::super::feed::InputOrigin::Relation(relation),
-            Input::Step(_) => super::super::feed::InputOrigin::Internal,
+            Input::Step(id) => {
+                let id = id.0 as usize;
+                if self.layout.kept.0.get(id) == Some(&true)
+                    || self
+                        .dag
+                        .is_some_and(|dag| dag.owned(self.rule, id).is_some())
+                {
+                    super::super::feed::InputOrigin::Internal
+                } else {
+                    super::super::feed::InputOrigin::Temporary
+                }
+            }
         })
     }
     fn publication(

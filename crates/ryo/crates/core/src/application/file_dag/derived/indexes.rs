@@ -170,6 +170,7 @@ fn local(
     }
     Ok(Acquired {
         shared: None,
+        slot: None,
         built: true,
         #[cfg(test)]
         eligible,
@@ -209,7 +210,7 @@ pub(in crate::application::file_dag::derived) fn acquire(
         return local(route, plan, cache, view, columns, into, false);
     }
     let rows = view.columns.first().map_or(0, |column| column.0.len());
-    if let Some(entry) = cache.entries.iter().find(|entry| {
+    if let Some((slot, entry)) = cache.entries.iter().enumerate().find(|(_, entry)| {
         entry.relation == relation
             && entry.columns.as_slice() == columns
             && entry.kinds == view.kinds
@@ -220,6 +221,7 @@ pub(in crate::application::file_dag::derived) fn acquire(
         cache.reuses = cache.reuses.saturating_add(1);
         return Ok(Acquired {
             shared: Some(index),
+            slot: Some(slot),
             built: false,
             #[cfg(test)]
             eligible: true,
@@ -286,6 +288,7 @@ fn build(
         cache.refusals = cache.refusals.saturating_add(1);
         return Ok(Acquired {
             shared: None,
+            slot: None,
             built: true,
             #[cfg(test)]
             eligible: true,
@@ -302,11 +305,13 @@ fn build(
         kinds: view.kinds,
         rows,
         index: (index).clone(),
+        payload_lease: None,
     });
     cache.bytes = bytes;
     cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
     Ok(Acquired {
         shared: Some(index),
+        slot: Some(cache.entries.len() - 1),
         built: true,
         #[cfg(test)]
         eligible: true,

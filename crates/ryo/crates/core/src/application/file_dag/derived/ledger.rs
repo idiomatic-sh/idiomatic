@@ -104,6 +104,10 @@ impl Default for Ledger {
 }
 
 impl Ledger {
+    #[cfg(test)]
+    pub(super) fn backing_count(&self, tag: u8) -> usize {
+        self.entries.keys().filter(|(kind, _)| *kind == tag).count()
+    }
     /// Bytes newly retained by the view optional class. A required-only or
     /// node-only backing is charged because a view lease may outlive it.
     pub(super) fn incremental_optional_bytes(

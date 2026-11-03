@@ -21,6 +21,9 @@ pub(in crate::application::file_dag) use observations::IndexObservation;
 mod acquisition;
 mod backings;
 mod graph;
+#[cfg(test)]
+#[path = "owner/index_lifetime_test.rs"]
+mod index_lifetime_test;
 mod leases;
 #[cfg(test)]
 pub(crate) mod resource_fixture;

@@ -45,7 +45,8 @@ pub(crate) struct SelectionSnapshot {
     pub entries: usize,
     pub selections: usize,
     pub selections_capacity: usize,
-    pub selections_address: usize,
+    pub owner_metadata_bytes: usize,
+    pub optional_bytes: usize,
     pub retained_positions: usize,
     pub retained_positions_capacity: usize,
     pub first_retained_rows_address: Option<usize>,
@@ -130,13 +131,11 @@ impl SelectionFixture {
     pub(crate) fn reserve_spare_selections(&self, extra: usize) {
         self.owner
             .derived
-            .backend
+            .state
             .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .selections
-            .try_reserve_exact(extra)
-            .expect("test spare capacity");
+            .entries
+            .try_reserve(extra)
+            .expect("test spare metadata capacity");
     }
 
     pub(crate) fn snapshot(&self, descriptor: Option<&Arc<Selector>>) -> SelectionSnapshot {
@@ -145,34 +144,58 @@ impl SelectionFixture {
             return SelectionSnapshot::default();
         };
         let counts = &cache.selection_counts;
+        let state = self.owner.derived.state.borrow();
+        let mut rows = Vec::new();
+        let mut predicates = Vec::new();
+        let mut add_rows = |value: &Arc<Vec<u32>>| {
+            let address = Arc::as_ptr(value) as usize;
+            if !rows.iter().any(|(known, _)| *known == address) {
+                rows.push((address, value.capacity()));
+            }
+        };
+        for entry in state.entries.values() {
+            let Some(retained) = &entry.retained else {
+                continue;
+            };
+            match retained.storage.as_ref() {
+                DerivedStorage::RowIds { rows, .. } => {
+                    add_rows(rows);
+                    if entry._plan.kind == DerivedKind::PredicateMatches {
+                        predicates.push(Arc::as_ptr(rows) as usize);
+                    }
+                }
+                DerivedStorage::Postings(postings) => {
+                    for entry in postings.iter() {
+                        add_rows(&entry.rows);
+                    }
+                }
+                DerivedStorage::Adjacency(graph) => {
+                    if let Some(rows) = &graph.identity.population.positions {
+                        add_rows(rows);
+                    }
+                }
+                _ => {}
+            }
+        }
+        for fanout in &cache.fanouts {
+            for entry in fanout.literals.iter() {
+                add_rows(&entry.rows);
+            }
+        }
+        let capacity = rows.iter().map(|(_, capacity)| capacity).sum();
+        let optional = self.owner.derived.ledger.borrow().snapshot();
         SelectionSnapshot {
             bytes: cache.bytes,
             limit: cache.limit,
             index_builds: cache.builds,
             entries: cache.entries.len(),
-            selections: cache.selections.len(),
-            selections_capacity: cache.selections.capacity(),
-            selections_address: cache.selections.as_ptr() as usize,
-            retained_positions: cache.retained_positions,
-            first_retained_rows_address: cache
-                .selections
-                .first()
-                .map(|entry| Arc::as_ptr(&entry.rows) as usize),
-            retained_positions_capacity: cache
-                .selections
-                .iter()
-                .map(|entry| entry.rows.capacity())
-                .sum::<usize>()
-                + cache
-                    .fanouts
-                    .iter()
-                    .flat_map(|fanout| {
-                        fanout
-                            .literals
-                            .iter()
-                            .map(|posting| posting.rows.capacity())
-                    })
-                    .sum::<usize>(),
+            selections: predicates.len(),
+            selections_capacity: state.entries.capacity(),
+            owner_metadata_bytes: self.owner.derived.metadata_bytes(),
+            optional_bytes: optional.view_optional_bytes,
+            retained_positions: optional.optional_units + cache.retained_positions,
+            first_retained_rows_address: predicates.first().copied(),
+            retained_positions_capacity: capacity,
             fanouts: cache.fanouts.len(),
             fanouts_capacity: cache.fanouts.capacity(),
             descriptor_address: cache.selector_descriptor,

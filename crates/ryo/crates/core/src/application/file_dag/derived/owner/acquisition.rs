@@ -83,6 +83,27 @@ impl DerivedOwner {
                         let acquired = indexes::acquire(
                             route, plan, cache, relation, source, columns, &mut index,
                         )?;
+                        if let Some(slot) = acquired.slot {
+                            let entry = cache.entries.get(slot).ok_or(OperatingError::NotRun)?;
+                            if entry.payload_lease.is_none() {
+                                let backing = backings::shared_index(&entry.index)?;
+                                let ledger = self.ledger.borrow();
+                                let allowed = ledger.snapshot().view_optional_bytes
+                                    .checked_add(ledger.incremental_optional_bytes(&[backing])?)
+                                    .is_some_and(|bytes| bytes <= cache.limit);
+                                drop(ledger);
+                                if allowed {
+                                    cache.entries[slot].payload_lease = Some(self.optional_lease(&[backing])?);
+                                } else {
+                                    let removed = cache.entries.remove(slot);
+                                    let cost = crate::application::file_dag::derived::graph_cache::types::reclamation::value::index_payload(&removed)
+                                        .ok_or(OperatingError::ShapeMismatch)?;
+                                    cache.bytes = cache.bytes.checked_sub(cost).ok_or(OperatingError::ShapeMismatch)?;
+                                    cache.refusals += 1;
+                                    drop(removed);
+                                }
+                            }
+                        }
                         storage = acquired.shared.map_or(
                             DerivedStorage::Equality(index),
                             DerivedStorage::EqualityShared,
