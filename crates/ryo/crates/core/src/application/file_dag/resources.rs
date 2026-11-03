@@ -66,6 +66,16 @@ pub(crate) fn appended_values(
 }
 
 impl super::types::FileDagExecution {
+    #[cfg(test)]
+    pub(crate) fn resource_eligibility(
+        &self,
+        relation: ryo_language::domain::relations::types::Relation,
+    ) -> (bool, bool) {
+        (
+            self.relations.derived.index_observation().available,
+            self.relations.derived.relation_eligible(relation),
+        )
+    }
     pub(crate) fn prepare_resources(
         &self,
         enabled: bool,

@@ -41,7 +41,6 @@ fn collect(operation: &Operation, tables: &[Table]) -> Result<Table, OperatingEr
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),

@@ -59,7 +59,6 @@ fn compute(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -106,7 +105,6 @@ fn appends_a_text_and_a_text_parameter() -> Result<Value, OperatingError> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -155,7 +153,6 @@ fn appends_a_name_that_compares_with_the_names_of_the_files() -> Result<Value, O
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),

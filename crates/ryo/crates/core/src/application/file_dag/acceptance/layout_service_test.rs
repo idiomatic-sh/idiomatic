@@ -53,7 +53,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
@@ -179,7 +178,6 @@ fn metadata_only() -> Result<Value, Failure> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
@@ -246,7 +244,6 @@ fn probe_order() -> Result<Value, Failure> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
@@ -304,7 +301,6 @@ fn native_frontier() -> Result<Value, Failure> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -353,7 +349,6 @@ fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -438,7 +433,6 @@ fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),

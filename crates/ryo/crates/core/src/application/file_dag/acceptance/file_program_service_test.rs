@@ -78,7 +78,6 @@ fn global_dag_keeps_a_prefix_with_one_reader_per_rule() {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(SOURCE),
@@ -146,7 +145,6 @@ fn failed_pure_cut_is_never_published_or_replayed() {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(SOURCE),
@@ -253,7 +251,6 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(SOURCE),
@@ -293,7 +290,6 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(SOURCE),
@@ -436,7 +432,6 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),

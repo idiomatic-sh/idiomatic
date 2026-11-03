@@ -274,15 +274,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     return Err(());
                 };
                 if matches!(scenario, Scenario::MissingReferenced) && matches!(rule, 0 | 2) {
-                    let result = crate::application::file_dag::rule_execution::evaluate_rule(
-                        &mut tables,
-                        &setting,
-                        RuleIndex(rule),
-                        FileId(0),
-                        None,
-                        &|_| None,
-                        &classes,
-                    );
+                    let result =
+                        crate::application::file_dag::rule_execution::evaluate_rule_with_graph(
+                            &mut tables,
+                            &setting,
+                            RuleIndex(rule),
+                            FileId(0),
+                            None,
+                            &|_| None,
+                            &classes,
+                        );
                     let error =
                         result.expect_err("the member's referenced parameter remains missing");
                     shown.push(format!(
@@ -301,7 +302,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let mut context = OperatorContext {
                     prepared_kinds: None,
                     prepared_matchers: None,
-                    stored_indexes: None,
                     bindings: &bindings[rule],
                     symbols: (&mut tables.symbols).into(),
                     source: SourceView(SMALL_SOURCE),

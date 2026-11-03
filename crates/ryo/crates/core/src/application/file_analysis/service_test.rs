@@ -753,6 +753,35 @@ impl crate::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
     }
 }
 
+fn prepared_resource_state(
+    enabled: bool,
+    partial: &[crate::domain::coverage::types::Partial],
+) -> (bool, bool) {
+    use crate::application::file_dag::types::FileDagExecution;
+    use crate::domain::file_program::types::RequestGraph;
+    use crate::domain::operator::types::PreparedPool;
+    let graph = RequestGraph {
+        derived_sources: Vec::new(),
+        plans: Vec::new(),
+        nodes: Vec::new(),
+        cuts: Vec::new(),
+        consumers: Vec::new(),
+        boundaries: Vec::new(),
+        rule_liveness: Vec::new(),
+    };
+    let dag = FileDagExecution::new_for_population(Arc::new(graph), |_| true, &[], true);
+    dag.prepare_resources(
+        enabled,
+        &[Relation::Function],
+        partial,
+        &[Relation::Function],
+        &[],
+        &PreparedPool::default(),
+        |_| true,
+    );
+    dag.resource_eligibility(Relation::Function)
+}
+
 #[test]
 fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_coverage() {
     use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
@@ -772,26 +801,20 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
     });
 
     let facts = FactsFake::default().worker().expect("facts");
-    let findings = FileAnalysis::indexes_for(
-        &tables,
-        facts.as_ref(),
-        &[Relation::Function],
-        &tables.partials,
-    )
-    .expect("stable generation");
-    let rows = FileAnalysis::indexes_for(
-        &tables,
-        facts.as_ref(),
-        &[Relation::Function],
-        &tables.partials,
-    )
-    .expect("same physical generation");
-    assert_eq!(findings.eligible, rows.eligible);
-    assert!(rows.eligible.is_empty());
+    let enabled = tables.language.is_some()
+        && facts.resident_stability() == crate::outbound::facts::types::ResidentStability::Stable;
+    let findings = prepared_resource_state(enabled, &tables.partials);
+    let rows = prepared_resource_state(enabled, &tables.partials);
+    assert_eq!(findings, rows);
+    assert_eq!(
+        rows,
+        (true, false),
+        "partial physical rows cannot be eligible"
+    );
     tables.language = None;
-    assert!(
-        FileAnalysis::indexes_for(&tables, facts.as_ref(), &[Relation::Function], &[]).is_none(),
-        "failed/unsupported source never opens an index generation"
+    assert_eq!(
+        prepared_resource_state(tables.language.is_some(), &[]),
+        (false, false)
     );
 }
 
@@ -833,7 +856,9 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
         .expect("first column")
         .0
         .clone();
-    assert!(FileAnalysis::indexes_for(&tables, &facts, &[Relation::Function], &[]).is_none());
+    let enabled = tables.language.is_some()
+        && facts.resident_stability() == crate::outbound::facts::types::ResidentStability::Stable;
+    assert_eq!(prepared_resource_state(enabled, &[]), (false, false));
     let second = facts
         .rows(Relation::Function)
         .expect("changed population")

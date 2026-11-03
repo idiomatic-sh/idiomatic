@@ -1,5 +1,5 @@
 //! The `reading` service's cases, on values alone.
-use crate::application::file_dag::rule_execution::evaluate_rule;
+use crate::application::file_dag::rule_execution::evaluate_rule_with_graph as evaluate_rule;
 
 use crate::domain::table_words::service::pack;
 use crate::domain::table_words::types::WordSlice;

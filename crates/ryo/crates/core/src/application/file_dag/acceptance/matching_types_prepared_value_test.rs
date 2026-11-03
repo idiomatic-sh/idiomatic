@@ -63,7 +63,6 @@ fn evaluate(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: prepared,
-        stored_indexes: None,
         bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(b""),

@@ -54,7 +54,6 @@ fn run_dag(
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),

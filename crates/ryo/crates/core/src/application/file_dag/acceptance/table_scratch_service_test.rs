@@ -88,7 +88,6 @@ fn projection_constructs_only_the_group_it_uses_and_keeps_bags() {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(&[]),
@@ -171,7 +170,6 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(&[]),
@@ -219,7 +217,6 @@ fn aggregation_resources_are_engine_owned_and_released() {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &case.bindings,
             symbols: (&mut case.symbols).into(),
             source: SourceView(SOURCE),

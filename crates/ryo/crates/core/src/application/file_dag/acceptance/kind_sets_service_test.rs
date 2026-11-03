@@ -87,7 +87,6 @@ fn finds_the_elements_of_a_named_kind() -> Result<Value, OperatingError> {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(source),
@@ -161,7 +160,6 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -203,7 +201,6 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
     let mut built_context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut built_symbols).into(),
         source: SourceView(source),
@@ -264,7 +261,6 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(b"abcd"),

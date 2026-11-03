@@ -24,7 +24,6 @@ fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
     run(&mut OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),

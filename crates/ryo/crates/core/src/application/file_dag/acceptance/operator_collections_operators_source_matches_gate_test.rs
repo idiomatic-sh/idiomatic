@@ -66,7 +66,6 @@ fn run(source_span: Option<Span>, line: i64, stream: bool) -> (Result<(), Operat
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: Some(&prepared),
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b"x"),
