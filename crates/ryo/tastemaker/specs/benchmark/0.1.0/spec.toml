@@ -4,6 +4,9 @@ specs = [
   { spec = "idiomatic.ryo/benchmark-linter@0.1.0", include = ["linters/{linter}"], count = { min = 0 }, params = { source-line-limit = 400 }, description = "The pinned inventory, external adapter and canonical rule assets of each linter." },
   { alias = "linter-adapter", spec = "idiomatic.arch/adapter@0.2.0", include = ["linters/{linter}"], count = { min = 0 }, params = { core = "ryo_benchmark", port = "linter" }, description = "The shared harness owns the port; the existing adapter spec governs its external implementation." },
 ]
+rules = [
+  { rule = "comparative-shared-inputs", include = ["benchmark.toml", "patches/**", "linters/*/bench.rs"], description = "A comparative linter runner requires the shared project profile and at least two pinned edit patches; a provider-only workload does not invent them." },
+]
 templates = [
   { template = "language-bench-provider", file = "provider/bench.rs", params = { lang = { param = "lang" } }, description = "Every language provider has one generated all-relations workload and growth check." },
   { template = "provider-support", file = "provider/performance/{*support}", count = { min = 0 }, description = "Optional provider workload modules remain below the provider runner." },
