@@ -15,5 +15,6 @@
   },
   "archive_scope": "all 413 profile result/stdout/stderr/cases receipts, summary, registration, worker and runner seals; staged repro inputs remain in GitHub artifact and source commit",
   "n999_invalid_local_gate_sha256": "45c03611e4491ed717b8d6b6cf9edcfba736faa061ffe4327f8d0972fa2c9e44",
-  "n999_verified_local_gate_sha256": "c77c9b3d6f37c96919bc6587c76c3004ce10c24d83ce54cc8e3e610fb5afd128"
+  "n999_verified_local_gate_sha256": "c77c9b3d6f37c96919bc6587c76c3004ce10c24d83ce54cc8e3e610fb5afd128",
+  "registration_archive_sha256": "b22e964840a3496947852e65e65ea255afd0638cff0d2f230606f8e722df55e9"
 }
