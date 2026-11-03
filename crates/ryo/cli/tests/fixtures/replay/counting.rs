@@ -203,6 +203,9 @@ pub(crate) fn lint_observing<T>(
                 )),
             )),
             Arc::clone(&analysis_memory),
+            Arc::new(ryo_core::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
                 ryo_values::domain::runs::types::WorkersAsked(workers),
             ))),
