@@ -1,6 +1,6 @@
 //! Validate both located operands before propagating an absent span.
 use crate::domain::contract::types::PortableOperatorFault;
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     constants::NO_SPAN,
     types::{Span, Value},
 };

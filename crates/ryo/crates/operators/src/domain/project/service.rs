@@ -1,6 +1,6 @@
 //! Select columns in plan order, preserving duplicates and the first missing-column error.
 use crate::domain::contract::types::PortableOperatorFault;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Append the selected cells to an engine-owned scratch row.

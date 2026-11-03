@@ -1,7 +1,7 @@
 //! The family entry dispatches borrowed semantic requests without replacing scratch ownership.
 use super::{interface::OperatorsUseCase as _, use_case::OperatorsUseCaseImpl};
 use crate::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
-use ryo_language::domain::relations::types::{Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

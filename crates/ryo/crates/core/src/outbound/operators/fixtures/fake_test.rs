@@ -3,7 +3,7 @@ use super::{contract, fake::OperatorsFake};
 use crate::outbound::operators::{
     adapters::use_case::adapter::OperatorsUseCaseAdapter, interface::OperatorsPort,
 };
-use ryo_language::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_operators::domain::contract::types::{OperatorCall, PortableOperatorFault};
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

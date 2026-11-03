@@ -1,7 +1,7 @@
 //! Executable acceptance steps for the borrowed operator family entry.
 use crate::Behavior;
 use cucumber::{given, then, when};
-use ryo_language::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
