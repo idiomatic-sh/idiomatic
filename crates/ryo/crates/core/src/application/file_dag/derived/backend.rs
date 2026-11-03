@@ -59,3 +59,14 @@ pub(super) struct ActivePostings {
     pub column: ryo_values::domain::plan_parts::types::ColumnIndex,
     pub literals: Arc<[ryo_values::domain::plan_parts::types::LiteralText]>,
 }
+
+impl CacheBackend {
+    pub(in crate::application::file_dag) fn observe_graph_walk(
+        &mut self,
+        expanded: u64,
+        examined: u64,
+    ) {
+        self.graph_counts.expanded += expanded;
+        self.graph_counts.examined += examined;
+    }
+}

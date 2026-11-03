@@ -281,7 +281,7 @@ pub(crate) struct OperatorScratch {
 #[derive(Debug, Default)]
 pub(crate) struct JoinScratch {
     /// The rows already kept, found by what they hold.
-    pub seen: hashbrown::HashTable,
+    pub seen: hashbrown::HashTable<RowIndex>,
 
     /// Reused by the engine's prepared Join lookup across rows in this invocation.
     pub key: Vec<Value>,

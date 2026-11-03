@@ -163,7 +163,7 @@ impl OperatorsItem for JoinItem {
                                     let at = column.0 as usize;
                                     right.push(if at < partition.key().len() {
                                         *partition
-                                            .key
+                                            .key()
                                             .get(at)
                                             .ok_or(OperatingError::ShapeMismatch)?
                                     } else if at == partition.key().len() {

@@ -7,9 +7,7 @@ use crate::domain::column_kernel::{
     types::{Chain, KernelCounts, KernelPlan},
 };
 use crate::domain::coverage::types::Partial;
-use crate::domain::derived_views::{
-    collections::views::registration::registered, types::ViewRequest,
-};
+use crate::domain::derived_views::types::ViewRequest;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::types::PlanLayout;
@@ -130,7 +128,8 @@ pub(crate) fn execute(
     let right = Rows::Stored(right_source);
     let _consumer = crate::application::file_dag::route_counts::consumer("column");
     let acquired = owner.stored_equality(index_plan, chain.right, right_source)?;
-    let ryo_derived::domain::contract::types::DerivedView::Equality(index) = acquired.view()? else {
+    let ryo_derived::domain::contract::types::DerivedView::Equality(index) = acquired.view()?
+    else {
         return Err(OperatingError::WrongOperation);
     };
     let outcome = kernel::execute_with_index(

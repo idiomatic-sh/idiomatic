@@ -286,6 +286,7 @@ pub(crate) fn derived(kind: ryo_derived::domain::contract::types::DerivedKind) -
         OrderedKeys => "OrderedKeys",
         OrderedDfs => "OrderedDfs",
         NativeLookup => "NativeLookup",
+        RawKeyOrder => "RawKeyOrder",
     }
 }
 pub(crate) fn representation(

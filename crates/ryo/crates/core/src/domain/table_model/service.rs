@@ -27,7 +27,8 @@ use super::types::Rows;
 use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use ryo_derived::domain::contract::types::{ChainLink, HashWord, KeyCellsHash, KeyIndex, On};
+use ryo_derived::domain::contract::key::hash_key;
+use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// The one of `items` that the column `index` names, when there is one: the one conversion between a column number and a place.

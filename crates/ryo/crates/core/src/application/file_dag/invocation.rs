@@ -292,7 +292,9 @@ impl<'f> InvocationResources<'f> {
                         admitted.acquire_rows(
                             slots[slot(DerivedKind::Equality)]
                                 .as_ref()
-                                .ok_or(OperatingError::NotRun)?,
+                                .ok_or(OperatingError::NotRun)?
+                                .primary
+                                .as_ref(),
                             context,
                         )?,
                     )
@@ -305,7 +307,9 @@ impl<'f> InvocationResources<'f> {
                         admitted.acquire_derived(
                             slots[slot(DerivedKind::Membership)]
                                 .as_ref()
-                                .ok_or(OperatingError::NotRun)?,
+                                .ok_or(OperatingError::NotRun)?
+                                .primary
+                                .as_ref(),
                             super::derived::owner::ViewContext {
                                 membership_order: Some(1),
                                 ..Default::default()
@@ -317,7 +321,9 @@ impl<'f> InvocationResources<'f> {
                         admitted.acquire_derived(
                             slots[slot(DerivedKind::Membership)]
                                 .as_ref()
-                                .ok_or(OperatingError::NotRun)?,
+                                .ok_or(OperatingError::NotRun)?
+                                .primary
+                                .as_ref(),
                             super::derived::owner::ViewContext::default(),
                             super::workspace::ViewInputs::MembershipValues,
                         )?,

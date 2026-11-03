@@ -120,7 +120,7 @@ fn minimum_bytes(rows: usize, columns: usize) -> Option<usize> {
             size_of::<RowIndex>() + size_of::<KeyCellsHash>() + size_of::<ChainLink>(),
         )?)?
         .checked_add(buckets.checked_mul(size_of::<ChainLink>())?)?
-        .checked_add(columns.checked_mul(size_of::<ColumnIndex>())?)?
+        .checked_add(columns.checked_mul(size_of::<ColumnIndex>())?)
 }
 
 /// A selector should scan instead of building an index that cannot possibly be shared.

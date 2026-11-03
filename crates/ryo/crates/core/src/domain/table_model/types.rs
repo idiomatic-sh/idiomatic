@@ -2,6 +2,7 @@
 //! constructor and no inherent impl.
 
 use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_values::domain::rows::types::Table;
 
 use crate::domain::table_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::ColumnsView;
