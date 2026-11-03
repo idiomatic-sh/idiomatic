@@ -609,3 +609,12 @@ files = { "case.py" = "import typing\ntyping.TYPE_CHECKING=True\nf=open(\"x\")\n
 expected = []
 reference-discrepancy = { "expected" = [{ "end" = 114, "file" = "case.py", "rule" = "FURB122", "start" = 85 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61027584a03dfbd5df22a51dd7a87d19489b31399c14e3e7edad9238af6409dd", "settings-sha256" = "2f123e871ec765d8e35bd46b097fd33c70d2620ce64c4d2f2d05027a63bd5262", "source-sha256" = "646dd8c8aa4c808241dc555407b500626b323bc7d46edc57d9106dc39da7632a", "reference-output-sha256" = "c65d8d97c1d938ed40fc1a976333d7784e06d7d4b8ca12c84b820f046adf4182", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "The exact source rebinds typing.TYPE_CHECKING to True before the guard; CPython 3.10 empty-row control retains x=0, proving the branch can bind the loop target. The candidate declines the pinned reference finding." }
 
+[[cases]]
+name = "context-different-return-uninferred"
+files = { "case.py" = "import io\nclass Sink:\n def __init__(self): self.values=[]\n def write(self,value): self.values.append(value)\n def writelines(self,values): raise AssertionError(\"not equivalent\")\nclass Manager(io.StringIO):\n def __enter__(self): return Sink()\nwith Manager() as fp:\n for line in [\"a\",\"b\"]:\n  fp.write(line)\nassert fp.values==[\"a\",\"b\"] and not isinstance(fp,io.IOBase)\n" }
+expected = []
+
+[[cases]]
+name = "async-standard-iobase-has-no-aenter"
+files = { "case.py" = "import io\nasync def f():\n async with io.StringIO() as fp:\n  for line in [\"a\",\"b\"]:\n   fp.write(line)\n" }
+expected = []

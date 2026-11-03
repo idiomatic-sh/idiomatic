@@ -838,3 +838,12 @@ files = { "case.py" = "def use(fp: \"Handle\"):\n    for line in fp.readlines():
 expected = [{ "rule" = "FURB129", "file" = "case.py", "start" = 39, "end" = 53 }]
 reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "55c316b34290df5cde4686bd247ed71144091f0eb22c92039303d8897032a40e", "settings-sha256" = "f8fd3f93564744dbb4b6ce47f7e055481ab690a42ac6e298ad521034837e9231", "source-sha256" = "64edb6c7433984235bd03a0fd1d3960af6ec7c4af2634a1ccda47f7f41a1cf19", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "4a4ee8b970735a0f574a1615a9cc7a27be7f4721433259af0d893840d2a4621c" }, "evidence" = [{ "path" = "evidence/cpython310-annotation-context.json", "sha256" = "0def2f553a9e5668b1bdb2917391386a735666957fcb6c784003faa4744e09e9", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Target CPython 3.10.19 records the exact source and its receiver, annotation, callable, or conditional behavior. The rule applies a bounded static IO policy; universal rewrite equivalence is not claimed." }], "reason" = "The exact string forward annotation resolves to io.TextIOBase after the later import under typing.get_type_hints. The candidate recognizes the declared standard IO interface; the pinned reference omits it." }
 
+[[cases]]
+name = "context-different-return-uninferred"
+files = { "case.py" = "import io\nclass Source:\n def readlines(self): return [\"a\"]\n def __iter__(self): raise AssertionError(\"not equivalent\")\nclass Manager(io.StringIO):\n def __enter__(self): return Source()\nseen=[]\nwith Manager() as fp:\n for line in fp.readlines():\n  seen.append(line)\nassert seen==[\"a\"] and not isinstance(fp,io.IOBase)\n" }
+expected = []
+
+[[cases]]
+name = "async-standard-iobase-has-no-aenter"
+files = { "case.py" = "import io\nasync def f():\n async with io.StringIO(\"a\") as fp:\n  for line in fp.readlines():\n   pass\n" }
+expected = []

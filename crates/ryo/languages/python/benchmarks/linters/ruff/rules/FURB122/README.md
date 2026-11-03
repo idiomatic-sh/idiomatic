@@ -64,3 +64,7 @@ for x in rows:
 - Intended: none. Pinned Ruff observed: FURB122 case.py:38–67.
 - Basis: The exact source has no import or binding for TYPE_CHECKING; CPython raises NameError at the guard. Primary evidence: [qualified-guard-cpython310.json](../../profiles/FURB122/evidence/qualified-guard-cpython310.json).
 - Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+
+## Context-result regression controls
+
+The shared helper distinguishes a context manager from its enter result. Existing resolved standard IOBase initialization remains available for synchronous with because that protocol returns the stream itself. Unknown custom manager results remain uninferred; standard IOBase has no asynchronous enter protocol. Valid different-return managers and async StringIO negative controls are retained in cases.toml alongside every original source. [Current targeted evidence](../../results/context-target-inference-2026-11-03/README.md) includes the complete superseding IO replays and actual CPython3.10/3.13 controls. Fresh full413 proof remains required before publication.

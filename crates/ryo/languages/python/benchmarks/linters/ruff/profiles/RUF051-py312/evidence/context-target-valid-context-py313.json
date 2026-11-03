@@ -1,0 +1,35 @@
+{
+  "python": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "results": [
+    {
+      "rule": "RUF051",
+      "name": "context-self-return-uninferred",
+      "passed": true
+    },
+    {
+      "rule": "RUF051",
+      "name": "context-different-return-uninferred",
+      "passed": true
+    },
+    {
+      "rule": "RUF051",
+      "name": "async-context-self-return-uninferred",
+      "passed": true
+    },
+    {
+      "rule": "RUF051",
+      "name": "async-context-different-return-uninferred",
+      "passed": true
+    },
+    {
+      "rule": "FURB122",
+      "name": "context-different-return-uninferred",
+      "passed": true
+    },
+    {
+      "rule": "FURB129",
+      "name": "context-different-return-uninferred",
+      "passed": true
+    }
+  ]
+}

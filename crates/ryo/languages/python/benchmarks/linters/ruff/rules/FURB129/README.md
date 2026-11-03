@@ -81,3 +81,7 @@ for line in fp.readlines():
 - Intended: none. Pinned Ruff observed: FURB129 case.py:59–73.
 - Basis: CPython 3.10 exact-source branch controls produce either a standard file or a divergent reader whose readlines and iteration return different values. Primary evidence: [exact-contract-cpython310.json](../../profiles/FURB129/evidence/exact-contract-cpython310.json), [cpython310-io-contract.json](../../profiles/FURB129/evidence/cpython310-io-contract.json).
 - Reproduce: use the [profile](../../profiles/FURB129/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+
+## Context-result regression controls
+
+The shared helper distinguishes a context manager from its enter result. Existing resolved standard IOBase initialization remains available for synchronous with because that protocol returns the stream itself. Unknown custom manager results remain uninferred; standard IOBase has no asynchronous enter protocol. Valid different-return managers and async StringIO negative controls are retained in cases.toml alongside every original source. [Current targeted evidence](../../results/context-target-inference-2026-11-03/README.md) includes the complete superseding IO replays and actual CPython3.10/3.13 controls. Fresh full413 proof remains required before publication.
