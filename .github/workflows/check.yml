@@ -162,20 +162,15 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup toolchain install
-      # A cache per machine, group and product, since each group builds with its own toolchain, features or flags, and each
-      # product its own crates.
+      # Match release.yml's cache for this machine, group and product. Clean only the product's workspace.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
-          prefix-key: v1-rust-workspace
           cache-workspace-crates: true
           shared-key: ${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}
           save-if: true
           cache-on-failure: true
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
+          workspaces: crates/${{ matrix.product }} -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -231,15 +226,11 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
-          prefix-key: v1-rust-workspace
           cache-workspace-crates: true
-          shared-key: ubuntu-26.04-check-ryo
+          shared-key: ubuntu-26.04-ruff-candidates-ryo
           save-if: true
           cache-on-failure: true
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
+          workspaces: crates/ryo -> ../../target
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -281,16 +272,12 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
-          # Refresh dependency-only archives once; retain reusable workspace libraries too.
-          prefix-key: v1-rust-workspace
+          # Keep this release-mode cache separate from check and the other Ruff jobs.
           cache-workspace-crates: true
-          shared-key: ubuntu-26.04-check-ryo
+          shared-key: ubuntu-26.04-speed-ryo
           save-if: true
           cache-on-failure: true
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
+          workspaces: crates/ryo -> ../../target
       # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
       # version as it is.
       - id: cargo_bin_cache
@@ -389,15 +376,11 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-bin: false
-          prefix-key: v1-rust-workspace
           cache-workspace-crates: true
-          shared-key: ubuntu-26.04-check-ryo
+          shared-key: ubuntu-26.04-ruff-all-defaults-ryo
           save-if: true
           cache-on-failure: true
-          workspaces: |
-            crates/asymptote -> ../../target
-            crates/tastemaker -> ../../target
-            crates/ryo -> ../../target
+          workspaces: crates/ryo -> ../../target
       - id: cargo_bin_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

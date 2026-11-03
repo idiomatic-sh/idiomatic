@@ -63,7 +63,7 @@ FULL_INVENTORY_ACTIONS = [
     ("actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "575dd3621a9046d2565240ed6cd1a03f836bdb30bf621ee41116f601aa13b2c1"),
     ("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "4ff5f58fc47d55df93511f6dfea5db27c569b98f43b84e380960801b15c1761d"),
     ("astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7", "39393228bcaf4b2e15bc14f2fadb3501c81f8966ef57502f9be19f86dbc3fa10"),
-    ("Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "f0d36acf2fb55a0aadcadf4b1f08b4ded0dc036fc0fd2f97abdeaf9addd54d1c"),
+    ("Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6", "718e42abe3becf8d18261fccbddbeb60c2d193ea0589a62cfb255468cffcef79"),
     ("actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "c8ee43c3c99e776f1742d16763c36999907144bc3b69900a90461778414a683e"),
     ("actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9", "109b67da612eaa7e25df38fbc0f69727c3f6bdfc18638720ec49c2e924c7ab2b"),
     ("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9", "b9cf3ef4ae00784578aec3c3df418ccd2be3bec3c9518457e0c5f8d60856b14f"),
@@ -840,19 +840,32 @@ def test_ruff_authoring_guard_cannot_be_orphaned_by_product_selection() -> None:
     assert all(not ruff_candidates_covered(changed) for changed in (missing, detached, skipped, wrong_group))
 
 
-def test_rust_build_cache_has_compatible_writers_even_when_parity_fails() -> None:
+def test_rust_build_caches_keep_each_product_and_profile_separate() -> None:
+    def one_workspace(cache: dict, source: str) -> bool:
+        return cache.get("workspaces", "").splitlines() == [f"{source} -> ../../target"]
+
     jobs = yaml.safe_load((DIRECTORY / "check.yml").read_text())["jobs"]
-    expected_workspaces = "crates/asymptote -> ../../target\ncrates/tastemaker -> ../../target\ncrates/ryo -> ../../target\n"
+    keys = set()
     for name in ("check", "speed", "ruff-candidates", "ruff-all-defaults"):
         cache = next(step for step in jobs[name]["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
-        assert cache["prefix-key"] == "v1-rust-workspace"
+        assert "prefix-key" not in cache
         assert cache["cache-workspace-crates"] is True
-        assert cache["workspaces"] == expected_workspaces
+        assert one_workspace(cache, "crates/${{ matrix.product }}" if name == "check" else "crates/ryo")
         assert cache["save-if"] is True and cache["cache-on-failure"] is True
         assert cache["shared-key"] == (
             "${{ matrix.check.runner }}-${{ matrix.check.group }}-${{ matrix.product }}" if name == "check"
-            else "ubuntu-26.04-check-ryo"
+            else f"ubuntu-26.04-{name}-ryo"
         )
+        keys.add(cache["shared-key"])
+    assert len(keys) == 4
+    duplicate_target = deepcopy(cache)
+    duplicate_target["workspaces"] += "\ncrates/asymptote -> ../../target"
+    assert not one_workspace(duplicate_target, "crates/ryo")
+    release = next(step for step in release_check()["steps"] if step.get("uses", "").startswith("Swatinem/rust-cache@"))["with"]
+    assert "prefix-key" not in release
+    assert release["cache-workspace-crates"] is True
+    assert one_workspace(release, "crates/${{ inputs.product }}")
+    assert release["shared-key"] == "${{ matrix.runner }}-${{ matrix.group }}-${{ inputs.product }}"
 
 
 def release_check() -> dict:
