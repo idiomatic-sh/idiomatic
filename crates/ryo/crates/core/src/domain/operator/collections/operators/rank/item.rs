@@ -8,7 +8,7 @@ use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
-use ryo_language::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct RankItem;
 impl OperatorsItem for RankItem {

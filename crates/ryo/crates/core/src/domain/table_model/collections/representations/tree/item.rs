@@ -1,7 +1,7 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::{operating::errors::OperatingError, table_cells::types::RowIndex};
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct TreeItem;
 impl RepresentationsItem for TreeItem {
@@ -21,16 +21,16 @@ impl RepresentationsItem for TreeItem {
         };
         let relation = match tree.form {
             crate::domain::table_cells::types::TreeForm::Elements => {
-                ryo_language::domain::relations::types::Relation::SyntaxTree
+                ryo_relations::domain::relations::types::Relation::SyntaxTree
             }
             crate::domain::table_cells::types::TreeForm::Edges => {
-                ryo_language::domain::relations::types::Relation::SyntaxChild
+                ryo_relations::domain::relations::types::Relation::SyntaxChild
             }
         };
         Ok(RelationContract {
             input,
             kind: RepresentationKind::Tree,
-            kinds: ryo_language::domain::relations::service::kinds(relation),
+            kinds: ryo_relations::domain::relations::service::kinds(relation),
             rows: tree.elements.kind.len().saturating_sub(usize::from(
                 tree.form == crate::domain::table_cells::types::TreeForm::Edges,
             )),
@@ -63,7 +63,7 @@ impl RepresentationsItem for TreeItem {
         row: RowIndex,
         column: ColumnIndex,
     ) -> Result<CellRead, OperatingError> {
-        let mut decode = [Value::Number(ryo_language::domain::relations::types::Integer(0)); 5];
+        let mut decode = [Value::Number(ryo_relations::domain::relations::types::Integer(0)); 5];
         Ok(match self.row(input, row, &mut decode)? {
             RowRead::Borrowed(values) | RowRead::Decoded(values) => values
                 .get(column.0 as usize)
@@ -96,7 +96,7 @@ impl RepresentationsItem for TreeItem {
         if place as usize >= tree.elements.kind.len() {
             return Ok(RowRead::MissingPhysical);
         }
-        let at = ryo_language::domain::relations::types::Position(place);
+        let at = ryo_relations::domain::relations::types::Position(place);
         let values = match tree.form {
             crate::domain::table_cells::types::TreeForm::Elements => {
                 crate::domain::table_cells::service::element_of(&tree, at)

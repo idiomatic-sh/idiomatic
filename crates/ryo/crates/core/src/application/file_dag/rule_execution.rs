@@ -25,7 +25,7 @@ use crate::domain::table_words::types::WordSlice;
 use crate::domain::value_cells::types::Scene;
 use crate::domain::workers::types::Tables;
 use ryo_language::domain::elements::service::clear_elements;
-use ryo_language::domain::relations::types::{ColumnsView, FileId, Relation};
+use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::Kept;

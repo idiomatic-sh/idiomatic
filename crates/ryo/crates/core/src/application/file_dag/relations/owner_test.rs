@@ -13,7 +13,7 @@ use crate::domain::{
         types::{Rows, SelectedRows, StoredSelection},
     },
 };
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     service::{all, kinds, to_bits},
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
 };

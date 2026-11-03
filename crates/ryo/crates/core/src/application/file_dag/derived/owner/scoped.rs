@@ -24,7 +24,7 @@ impl DerivedOwner {
                 scratch
                     .row
                     .capacity()
-                    .saturating_mul(size_of::<ryo_language::domain::relations::types::Value>()),
+                    .saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()),
             )
             .ok_or(OperatingError::ShapeMismatch)?;
         self.required_lease(&[Backing {

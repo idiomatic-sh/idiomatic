@@ -1,6 +1,6 @@
 //! The `fusing` service: free functions named by verb over the filters and lookups of a plan that are read where they are found, instead of being made into tables first.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use crate::domain::rewriting::types::StepIndex;
 use ryo_values::domain::plan_parts::service::remapped;

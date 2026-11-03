@@ -5,7 +5,7 @@ use crate::domain::storing::service::stored_of;
 use crate::domain::storing::types::ToKeep;
 use crate::domain::table_model::types::{Frontier, RowCount, Table};
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{CellKind, Integer, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::records::types::{

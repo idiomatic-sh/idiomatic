@@ -1,8 +1,8 @@
 //! The `idioms` service: the pairs whose two functions have equal sets of texts, said as a comparison of
 //! digests instead of two antijoins.
 
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::constants::{Added, added};
 use crate::domain::lowering::types::{

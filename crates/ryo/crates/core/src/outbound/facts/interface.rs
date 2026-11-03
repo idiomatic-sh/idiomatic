@@ -1,11 +1,11 @@
 //! What the `facts` port asks of the outside: for each worker a handle of its own to put the rows of the file it is reading and the
 //! words it keeps of it, and the cross-file finish where the workers' words meet. Nothing here locks: a handle belongs to one worker.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::FactsError;
 use super::types::{ColumnsMut, ResidentStability, WordsToKeep};
-use ryo_language::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 
 /// What every `facts` adapter implements.

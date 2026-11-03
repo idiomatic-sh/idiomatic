@@ -621,14 +621,14 @@ fn shared() -> Value {
 
 /// A provider with the same name/build whose advertised optional contract changes.
 struct CapabilityProvider(
-    &'static [ryo_language::domain::relations::types::OptionalCapability],
+    &'static [ryo_relations::domain::relations::types::OptionalCapability],
     &'static str,
     &'static str,
 );
 impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityProvider {
     fn capabilities(
         &self,
-    ) -> &'static [ryo_language::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         self.0
     }
     fn configuration_identity(
@@ -645,19 +645,19 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
     fn skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory] {
         &[]
     }
-    fn kind_count(&self) -> ryo_language::domain::relations::types::Count {
-        ryo_language::domain::relations::types::Count(1)
+    fn kind_count(&self) -> ryo_relations::domain::relations::types::Count {
+        ryo_relations::domain::relations::types::Count(1)
     }
     fn kind_names(&self) -> ryo_language::inbound::use_cases::parse::types::KindNames {
         ryo_language::inbound::use_cases::parse::types::KindNames(vec![
-            ryo_language::domain::terms::types::NameText("root"),
+            ryo_relations::domain::terms::types::NameText("root"),
         ])
     }
-    fn unknown_reasons(&self) -> &'static [ryo_language::domain::terms::types::UnknownName] {
+    fn unknown_reasons(&self) -> &'static [ryo_relations::domain::terms::types::UnknownName] {
         &[]
     }
-    fn reader_kinds(&self) -> Vec<ryo_language::domain::relations::types::KindBits> {
-        vec![ryo_language::domain::relations::types::KindBits(0)]
+    fn reader_kinds(&self) -> Vec<ryo_relations::domain::relations::types::KindBits> {
+        vec![ryo_relations::domain::relations::types::KindBits(0)]
     }
     fn build_file(
         &self,
@@ -665,10 +665,8 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
-        use ryo_language::domain::{
-            elements::service::{enter_node, leave_node, table_builder},
-            relations::types::{KindBits, Offset},
-        };
+        use ryo_language::domain::{elements::service::{enter_node, leave_node, table_builder}};
+use ryo_relations::domain::relations::types::{KindBits, Offset};
         let mut builder = table_builder(table, symbols, request.bytes);
         enter_node(&mut builder, KindBits(0), Offset(0));
         leave_node(&mut builder, Offset(1));
@@ -680,7 +678,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
                 request.file,
             ),
             KindBits(0),
-            ryo_language::domain::terms::types::NameText("root"),
+            ryo_relations::domain::terms::types::NameText("root"),
         );
         Ok(())
     }
@@ -695,8 +693,8 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         request: ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        wanted: &[ryo_language::domain::relations::types::Relation],
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        wanted: &[ryo_relations::domain::relations::types::Relation],
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
         let source = request.bytes;
         let file = request.file;
@@ -709,23 +707,21 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         _: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         source: ryo_language::domain::symbols::types::ByteSlice<'_>,
-        file: ryo_language::domain::relations::types::FileId,
-        wanted: &[ryo_language::domain::relations::types::Relation],
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        file: ryo_relations::domain::relations::types::FileId,
+        wanted: &[ryo_relations::domain::relations::types::Relation],
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) {
-        use ryo_language::domain::{
-            relations::{
+        use ryo_relations::domain::relations::{
                 collections::relations::identifier::item::IdentifierRow,
                 types::{
                     Missing, Offset, OptionalCapability, Position, Relation, ReportText, Rows, Span,
                 },
-            },
-            terms::types::NameText,
-        };
+            };
+use ryo_relations::domain::terms::types::NameText;
         if wanted.contains(&Relation::Identifier) {
             if self.0.contains(&OptionalCapability::Identifier) {
                 out.write(IdentifierRow {
-                    id: ryo_language::domain::relations::service::node_id(file, Position(0)),
+                    id: ryo_relations::domain::relations::service::node_id(file, Position(0)),
                     name: ryo_language::domain::symbols::service::intern_derived(
                         symbols,
                         source,
@@ -738,7 +734,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
                     },
                 });
             } else {
-                <dyn ryo_language::domain::relations::types::RowWriter as Rows<IdentifierRow>>::partial_at(out,file,ReportText("unadvertised fixture capability"),Missing::Any);
+                <dyn ryo_relations::domain::relations::types::RowWriter as Rows<IdentifierRow>>::partial_at(out,file,ReportText("unadvertised fixture capability"),Missing::Any);
             }
         }
         if wanted.contains(&Relation::LiteralExpressionParse) {
@@ -751,7 +747,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
             );
         }
         if wanted.contains(&Relation::RawFormatSegment) {
-            use ryo_language::domain::relations::collections::relations::raw_format_segment::item::RawFormatSegmentRow;
+            use ryo_relations::domain::relations::collections::relations::raw_format_segment::item::RawFormatSegmentRow;
             if self.0.contains(&OptionalCapability::RawFormatSegment) {
                 let intern =
                     |interned_symbols: &mut ryo_language::domain::symbols::types::Symbols,
@@ -762,20 +758,20 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
                             NameText(text),
                         )
                     };
-                let id = ryo_language::domain::relations::service::node_id(file, Position(0));
+                let id = ryo_relations::domain::relations::service::node_id(file, Position(0));
                 out.write(RawFormatSegmentRow {
                     id,
                     segment: id,
-                    segment_ordinal: ryo_language::domain::relations::types::Integer(0),
+                    segment_ordinal: ryo_relations::domain::relations::types::Integer(0),
                     dialect: intern(symbols, "percent-string"),
                     outcome: intern(symbols, "parsed"),
                     error_category: intern(symbols, "none"),
                     error_character: intern(symbols, ""),
-                    error_index: ryo_language::domain::relations::types::Integer(0),
-                    positional_consumption: ryo_language::domain::relations::types::Integer(0),
-                    mapping_present: ryo_language::domain::relations::types::Flag::Lowered,
-                    dynamic_width: ryo_language::domain::relations::types::Flag::Lowered,
-                    dynamic_precision: ryo_language::domain::relations::types::Flag::Lowered,
+                    error_index: ryo_relations::domain::relations::types::Integer(0),
+                    positional_consumption: ryo_relations::domain::relations::types::Integer(0),
+                    mapping_present: ryo_relations::domain::relations::types::Flag::Lowered,
+                    dynamic_width: ryo_relations::domain::relations::types::Flag::Lowered,
+                    dynamic_precision: ryo_relations::domain::relations::types::Flag::Lowered,
                     file,
                     span: Span {
                         start: Offset(0),
@@ -783,7 +779,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
                     },
                 });
             } else {
-                <dyn ryo_language::domain::relations::types::RowWriter as Rows<
+                <dyn ryo_relations::domain::relations::types::RowWriter as Rows<
                     RawFormatSegmentRow,
                 >>::partial_at(
                     out,
@@ -796,12 +792,10 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
     }
     fn absence_of(
         &self,
-        relation: ryo_language::domain::relations::types::Relation,
-    ) -> Option<ryo_language::domain::answers::types::AbsenceCause> {
-        use ryo_language::domain::{
-            answers::types::AbsenceCause,
-            relations::types::{OptionalCapability, Relation},
-        };
+        relation: ryo_relations::domain::relations::types::Relation,
+    ) -> Option<ryo_relations::domain::answers::types::AbsenceCause> {
+        use ryo_language::domain::{answers::types::AbsenceCause};
+use ryo_relations::domain::relations::types::{OptionalCapability, Relation};
         ((relation == Relation::Identifier && !self.0.contains(&OptionalCapability::Identifier))
             || (relation == Relation::RawFormatSegment
                 && !self.0.contains(&OptionalCapability::RawFormatSegment))
@@ -815,17 +809,15 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
 fn literal_parse_capability_row(
     available: bool,
     source: ryo_language::domain::symbols::types::ByteSlice<'_>,
-    file: ryo_language::domain::relations::types::FileId,
+    file: ryo_relations::domain::relations::types::FileId,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+    out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
 ) {
-    use ryo_language::domain::{
-        relations::{
+    use ryo_relations::domain::relations::{
             collections::relations::literal_expression_parse::item::LiteralExpressionParseRow,
             types::{Missing, Offset, Position, ReportText, Rows, Span},
-        },
-        terms::types::NameText,
-    };
+        };
+use ryo_relations::domain::terms::types::NameText;
     if available {
         let dialect = ryo_language::domain::symbols::service::intern_derived(
             symbols,
@@ -838,7 +830,7 @@ fn literal_parse_capability_row(
             NameText("parsed"),
         );
         out.write(LiteralExpressionParseRow {
-            id: ryo_language::domain::relations::service::node_id(file, Position(0)),
+            id: ryo_relations::domain::relations::service::node_id(file, Position(0)),
             dialect,
             outcome,
             file,
@@ -848,7 +840,7 @@ fn literal_parse_capability_row(
             },
         });
     } else {
-        <dyn ryo_language::domain::relations::types::RowWriter as Rows<
+        <dyn ryo_relations::domain::relations::types::RowWriter as Rows<
             LiteralExpressionParseRow,
         >>::partial_at(
             out,
@@ -865,7 +857,7 @@ fn literal_parse_capability_row(
     reason = "this regression keeps cold, warm, and changed-capability cache paths in one scenario"
 )]
 fn capability_cache(query: &str) -> Value {
-    use ryo_language::domain::relations::types::OptionalCapability;
+    use ryo_relations::domain::relations::types::OptionalCapability;
     let advertised_capabilities: &'static [OptionalCapability] = if query == RAW_FORMAT_POSITIVE {
         &[
             OptionalCapability::RawFormatSegment,

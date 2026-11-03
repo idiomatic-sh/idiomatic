@@ -3,13 +3,11 @@ use super::*;
 use crate::application::file_dag::executor::PrimitiveExecutor;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{
-    relations::{
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::{
         service::to_bits,
         types::{ColumnsView, FactColumn, FileId, Integer},
-    },
-    symbols::types::Symbols,
-};
+    };
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
     plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
@@ -92,7 +90,7 @@ fn dag_root_and_recursive_child_use_injected_executor() {
             &[plan.clone()],
             &[vec![]],
             &[],
-            &ryo_language::domain::relations::service::kinds,
+            &ryo_relations::domain::relations::service::kinds,
         )
         .unwrap();
     let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
@@ -108,7 +106,7 @@ fn dag_root_and_recursive_child_use_injected_executor() {
     let read = |asked| {
         if asked == relation {
             Ok(Rows::Stored(ColumnsView {
-                kinds: ryo_language::domain::relations::service::kinds(relation),
+                kinds: ryo_relations::domain::relations::service::kinds(relation),
                 columns: &columns,
             }))
         } else {

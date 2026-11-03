@@ -33,8 +33,8 @@ fn prepared_dag(
 use crate::domain::table_words::service::pack;
 use crate::domain::table_words::types::WordSlice;
 use crate::outbound::matching::interface::MatchingPort as _;
-use ryo_language::domain::relations::service::to_bits;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, Integer, Offset, Relation, Value as Cell,
     WorkerNumber,
 };
@@ -205,7 +205,7 @@ fn setting<'a>(
                     if relation == Relation::Function {
                         KINDS
                     } else {
-                        ryo_language::domain::relations::service::kinds(relation)
+                        ryo_relations::domain::relations::service::kinds(relation)
                     }
                 },
             )

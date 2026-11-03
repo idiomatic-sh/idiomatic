@@ -72,8 +72,8 @@ pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
                     .capabilities()
                     .iter()
                     .map(|capability| {
-                        ryo_language::domain::relations::service::name(
-                            ryo_language::domain::relations::service::capability_relation(
+                        ryo_relations::domain::relations::service::name(
+                            ryo_relations::domain::relations::service::capability_relation(
                                 *capability,
                             ),
                         )

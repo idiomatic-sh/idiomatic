@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::fixtures::contract::check;
 use crate::outbound::facts::interface::FactsPort as _;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]
@@ -56,7 +56,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 writable.function[1].0.resize(1024, 3);
             }
             worker.release()?;
-            let capacity = ryo_language::domain::relations::service::all()
+            let capacity = ryo_relations::domain::relations::service::all()
                 .iter()
                 .try_fold(0_usize, |bytes, relation| {
                     let rows = worker.rows(*relation)?;

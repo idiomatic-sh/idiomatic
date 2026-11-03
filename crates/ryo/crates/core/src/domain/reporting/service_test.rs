@@ -1,6 +1,6 @@
 //! The `reporting` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::{FileId, Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
 
 use ryo_values::domain::records::types::RowTotal;
 

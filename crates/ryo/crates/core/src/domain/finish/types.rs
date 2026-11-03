@@ -3,9 +3,9 @@
 //! rule it is of. Text is read back only when the report is written.
 
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::{FileId, NamePlace, Value, WorkerNumber};
+use ryo_relations::domain::relations::types::{FileId, NamePlace, Value, WorkerNumber};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::FileBytes;

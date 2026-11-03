@@ -9,7 +9,7 @@ use super::use_case::ParseUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::FileId;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 

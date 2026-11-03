@@ -1,6 +1,6 @@
 //! Axis traversal over an immutable borrowed edge population and engine-owned index.
 use crate::domain::{operator::contract::views::IndexedRows, table_reach::types::Walk};
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) fn follow(

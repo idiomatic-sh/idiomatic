@@ -1,7 +1,7 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::{operating::errors::OperatingError, table_cells::types::RowIndex};
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct SelectedItem;
 impl RepresentationsItem for SelectedItem {
@@ -102,9 +102,9 @@ impl RepresentationsItem for SelectedItem {
                     .and_then(|c| c.0.get(*physical as usize)),
             ) {
                 Some((kind, bits)) => {
-                    CellRead::Value(ryo_language::domain::relations::service::from_bits(
+                    CellRead::Value(ryo_relations::domain::relations::service::from_bits(
                         *kind,
-                        ryo_language::domain::relations::types::Bits(*bits),
+                        ryo_relations::domain::relations::types::Bits(*bits),
                     ))
                 }
                 None => CellRead::MissingPhysical,

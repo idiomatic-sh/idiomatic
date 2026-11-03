@@ -15,7 +15,7 @@ use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{Words, WorkerNumber};
+use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Hits};
 use ryo_values::domain::plans::types::Plan;

@@ -1,9 +1,9 @@
 //! The types of the `facts` port: plain data, public fields and derives, with no constructor and
 //! no inherent impl.
 
-use ryo_language::domain::relations::types::{FileId, Relation, Rows};
+use ryo_relations::domain::relations::types::{FileId, Relation, Rows};
 
-use ryo_language::domain::relations::types::FactColumn;
+use ryo_relations::domain::relations::types::FactColumn;
 
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
@@ -55,26 +55,26 @@ macro_rules! columns_mut {
         }
 
         $( $(
-            impl Rows<::ryo_language::domain::relations::collections::relations::$module::item::$row> for ColumnsMut<'_> {
-                fn write(&mut self, row: ::ryo_language::domain::relations::collections::relations::$module::item::$row) {
-                    let words = <::ryo_language::domain::relations::collections::relations::$module::item::$variant as ::ryo_language::domain::relations::collections::relations::interface::RelationsItem>::words(row);
-                    let row_numbers: &[::ryo_language::domain::relations::types::Bits] = words.as_ref();
+            impl Rows<::ryo_relations::domain::relations::collections::relations::$module::item::$row> for ColumnsMut<'_> {
+                fn write(&mut self, row: ::ryo_relations::domain::relations::collections::relations::$module::item::$row) {
+                    let words = <::ryo_relations::domain::relations::collections::relations::$module::item::$variant as ::ryo_relations::domain::relations::collections::relations::interface::RelationsItem>::words(row);
+                    let row_numbers: &[::ryo_relations::domain::relations::types::Bits] = words.as_ref();
                     for (column, number) in self.$module.iter_mut().zip(row_numbers) {
                         column.0.push(number.0);
                     }
                 }
 
-                fn partial(&mut self, cause: ::ryo_language::domain::relations::types::ReportText<'_>, missing: ::ryo_language::domain::relations::types::Missing) {
+                fn partial(&mut self, cause: ::ryo_relations::domain::relations::types::ReportText<'_>, missing: ::ryo_relations::domain::relations::types::Missing) {
                     let (cause, at) = (cause.0, PartialScope::Repository);
-                    let relation = <::ryo_language::domain::relations::collections::relations::$module::item::$variant as ::ryo_language::domain::relations::collections::relations::interface::RelationsItem>::relation();
+                    let relation = <::ryo_relations::domain::relations::collections::relations::$module::item::$variant as ::ryo_relations::domain::relations::collections::relations::interface::RelationsItem>::relation();
                     if !self.partials.iter().any(|each| each.relation == relation && &*each.cause.0 == cause && each.lacking == missing && each.at == at) {
                         self.partials.push(ReadInPart { relation, cause: PartialCause(cause.into()), lacking: missing, at });
                     }
                 }
 
-                fn partial_at(&mut self, file: FileId, cause: ::ryo_language::domain::relations::types::ReportText<'_>, missing: ::ryo_language::domain::relations::types::Missing) {
+                fn partial_at(&mut self, file: FileId, cause: ::ryo_relations::domain::relations::types::ReportText<'_>, missing: ::ryo_relations::domain::relations::types::Missing) {
                     let (cause, at) = (cause.0, PartialScope::OneFile(PartialAt(file.0)));
-                    let relation = <::ryo_language::domain::relations::collections::relations::$module::item::$variant as ::ryo_language::domain::relations::collections::relations::interface::RelationsItem>::relation();
+                    let relation = <::ryo_relations::domain::relations::collections::relations::$module::item::$variant as ::ryo_relations::domain::relations::collections::relations::interface::RelationsItem>::relation();
                     if !self.partials.iter().any(|each| each.relation == relation && &*each.cause.0 == cause && each.lacking == missing && each.at == at) {
                         self.partials.push(ReadInPart { relation, cause: PartialCause(cause.into()), lacking: missing, at });
                     }
@@ -84,4 +84,4 @@ macro_rules! columns_mut {
     };
 }
 
-::ryo_language::each_relation!(columns_mut);
+::ryo_relations::each_relation!(columns_mut);

@@ -1,7 +1,7 @@
 //! Read-only physical inputs expose no owned cache or retained selection handle.
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::types::KeyIndex;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) use crate::domain::table_model::collections::representations::types::RepresentationInput as BorrowedRows;

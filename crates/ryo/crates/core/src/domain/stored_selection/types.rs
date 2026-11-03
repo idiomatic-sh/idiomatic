@@ -1,6 +1,6 @@
 //! Plain selector program and cache data, independent of borrowed provider storage.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 

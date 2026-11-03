@@ -6,7 +6,7 @@ use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::service::registered;
 use crate::domain::table_cells::types::TreeForm;
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, Relation},
 };

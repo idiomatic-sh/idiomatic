@@ -6,7 +6,7 @@ use crate::outbound::rows::errors::RowsError;
 use crate::outbound::rows::fixtures::contract::check;
 use crate::outbound::rows::interface::RowsPort as _;
 use crate::outbound::rows::types::{Collector, LentCell, Row, Summary};
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::records::types::{Cell, CellText};
 
 /// A row's cells, lent.

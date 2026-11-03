@@ -2,17 +2,17 @@
 
 use super::super::findings::Findings;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::collections::relations::entry::item::EntryRow;
-use crate::domain::relations::constants::NO_SYMBOL;
-use crate::domain::relations::service::node_id;
-use crate::domain::relations::types::{
+use ryo_relations::domain::relations::collections::relations::entry::item::EntryRow;
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
     FileId, Flag, Integer, KindBits, Offset, Position, Relation, Rows as _, Span,
 };
 use crate::domain::symbols::service::intern_derived;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::NameText;
-use crate::domain::terms::types::ValueKind;
+use ryo_relations::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::ValueKind;
 use crate::inbound::use_cases::parse::fixtures::contract::Collect;
 use crate::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures};
 use crate::inbound::use_cases::parse::fixtures::expected::{Leafness, Shape, Walked};
@@ -110,6 +110,7 @@ fn the_language_that_reads_nothing_is_refused() -> usize {
                 kinds: Vec::new(),
                 relations: Vec::new(),
                 manifests: Vec::new(),
+                semantic: Vec::new(),
                 shape: Shape::Walk(|_| Walked {
                     kind: KindBits(0),
                     leaf: Leafness::Node,
@@ -180,7 +181,7 @@ fn succeeds() {
 /// The same local node IDs remain distinct through explicit per-input file cells.
 #[test]
 fn multiple_inputs_preserve_file_identity_and_reject_ambiguous_shapes() {
-    use crate::domain::relations::types::CellKind;
+    use ryo_relations::domain::relations::types::CellKind;
     let left = rows_of_relation(&two_entries(), Relation::Entry, "entry/a.py");
     let right = rows_of_relation(&two_entries(), Relation::Entry, "entry/b.py");
     assert_eq!(left.len(), 2);

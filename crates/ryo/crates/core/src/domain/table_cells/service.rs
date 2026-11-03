@@ -6,13 +6,13 @@ use ryo_language::domain::elements::service::{
 };
 use ryo_language::domain::elements::types::Elements;
 
-use ryo_language::domain::relations::service::from_bits;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::{Bits, Integer, Position, Span, Value};
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::service::from_bits;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{Bits, Integer, Position, Span, Value};
+use ryo_relations::domain::terms::types::Symbol;
 
 use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex, TreeForm, TreeRows};
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 
 /// The name of the kind of the element at `at`, as the table's vocabulary names it.
 ///

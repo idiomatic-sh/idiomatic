@@ -8,10 +8,8 @@ use crate::domain::{
     table_texts::types::SourceView,
 };
 use resource_fixture::ResourceFixture;
-use ryo_language::domain::{
-    relations::types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value},
-    symbols::types::Symbols,
-};
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, JoinColumn, Side},
     plans::types::Operation,

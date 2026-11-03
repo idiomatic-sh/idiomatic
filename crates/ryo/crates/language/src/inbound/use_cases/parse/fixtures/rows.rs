@@ -9,15 +9,15 @@ use super::expected::{Cell, Point};
 use super::findings::Findings;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::constants::NO_FILE;
-use crate::domain::relations::service::from_bits;
-use crate::domain::relations::service::{all, kinds, node_position};
-use crate::domain::relations::types::{Bits, FileId, Flag, Name, Origin, Relation, Value};
+use ryo_relations::domain::relations::constants::NO_FILE;
+use ryo_relations::domain::relations::service::from_bits;
+use ryo_relations::domain::relations::service::{all, kinds, node_position};
+use ryo_relations::domain::relations::types::{Bits, FileId, Flag, Name, Origin, Relation, Value};
 use crate::domain::symbols::service::{derived_of, place_of, places_of, text_of};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::service::unknown_reason;
-use crate::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::service::unknown_reason;
+use ryo_relations::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 use std::path::PathBuf;
 
@@ -40,11 +40,11 @@ pub(super) struct Read {
 /// Independent inputs may share local node numbers only when every row names its file.
 pub(super) fn check_input_identity(
     count: usize,
-    kinds: &[crate::domain::relations::types::CellKind],
+    kinds: &[ryo_relations::domain::relations::types::CellKind],
     folder: &str,
     findings: &mut Findings,
 ) -> bool {
-    if count <= 1 || kinds.contains(&crate::domain::relations::types::CellKind::File) {
+    if count <= 1 || kinds.contains(&ryo_relations::domain::relations::types::CellKind::File) {
         return true;
     }
     findings.0.push(format!(
@@ -246,8 +246,8 @@ pub(super) fn cell(value: Value, shown: &str, read: &Read, text: &[u8]) -> Cell 
                 .map_or_else(|| shown.to_owned(), Clone::clone),
         ),
         Value::Span(span) => {
-            if crate::domain::relations::service::location(span)
-                == crate::domain::relations::types::Locatedness::Located
+            if ryo_relations::domain::relations::service::location(span)
+                == ryo_relations::domain::relations::types::Locatedness::Located
             {
                 Cell::Span(point_of(text, span.start.0), point_of(text, span.end.0))
             } else {

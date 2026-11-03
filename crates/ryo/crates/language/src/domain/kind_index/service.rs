@@ -2,7 +2,7 @@
 
 use crate::domain::elements::service::{engine, engine_mut};
 use crate::domain::elements::types::Elements;
-use crate::domain::relations::types::{Count, KindBits, Position};
+use ryo_relations::domain::relations::types::{Count, KindBits, Position};
 
 /// Groups the positions of the table by kind, so the elements of a kind are found without a pass over the table.
 /// Done once for a file, when its table is built.

@@ -3,7 +3,7 @@
 use super::errors::SpellingError;
 use crate::domain::finish::types::Resolving;
 use crate::domain::table_model::types::Table;
-use ryo_language::domain::relations::types::{CROSS_FILE, Origin, TextHash, Value};
+use ryo_relations::domain::relations::types::{CROSS_FILE, Origin, TextHash, Value};
 use ryo_language::domain::symbols::service::{derived_of, place_of, places_of};
 
 /// Checks that the names the files handed over are the same entity exactly when they are spelled the same: the cross-file steps

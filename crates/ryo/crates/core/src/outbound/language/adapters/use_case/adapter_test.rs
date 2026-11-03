@@ -1,6 +1,6 @@
 //! The `use_case` adapter of the language port: the port's contract rows run through it, then the cases specific to it.
 
-use ryo_language::domain::relations::service::all;
+use ryo_relations::domain::relations::service::all;
 
 use super::adapter::LanguageUseCaseAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};

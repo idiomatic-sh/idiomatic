@@ -10,13 +10,11 @@ use crate::domain::table_model::{
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{
-    relations::{
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::{
         service::node_id,
         types::{CellKind, FileId, Integer, Position, Relation, Value},
-    },
-    symbols::types::Symbols,
-};
+    };
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, RepeatedRows},
     plans::types::Operation,

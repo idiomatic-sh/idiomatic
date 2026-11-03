@@ -317,7 +317,7 @@ pub(crate) fn prepare_for(
         )
         .unwrap_or_default(),
         Operation::Project { columns, .. } => collected_kinds.clone().unwrap_or_else(|_| {
-            vec![ryo_language::domain::relations::types::CellKind::Number; columns.len()]
+            vec![ryo_relations::domain::relations::types::CellKind::Number; columns.len()]
         }),
         _ => collected_kinds.clone().unwrap_or_default(),
     };

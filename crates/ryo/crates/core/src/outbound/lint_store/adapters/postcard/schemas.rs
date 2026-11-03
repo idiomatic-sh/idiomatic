@@ -10,7 +10,7 @@ use std::borrow::Cow;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
-use ryo_language::domain::relations::types::{Integer, Offset, Span};
+use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};

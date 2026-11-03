@@ -18,7 +18,7 @@ use crate::domain::table_model::{
     types::{Rows, Table},
 };
 use crate::domain::table_texts::types::Texts;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 pub(super) fn stream(
     engine: &CommonOperatorEngine,

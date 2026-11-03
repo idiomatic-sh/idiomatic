@@ -1,7 +1,7 @@
 //! The types of the `table_reach` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::table_model::types::{KeyIndex, Table};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

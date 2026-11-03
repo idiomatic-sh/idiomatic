@@ -181,7 +181,7 @@ impl RetainedBytes {
         for input in inputs {
             bytes.metadata += capacity(&input.table.kinds);
             bytes.cells_live += input.table.cells.len()
-                * size_of::<ryo_language::domain::relations::types::Value>();
+                * size_of::<ryo_relations::domain::relations::types::Value>();
             bytes.cells_capacity += capacity(&input.table.cells);
             bytes.rows += input.table.count.0;
         }
@@ -194,7 +194,7 @@ impl RetainedBytes {
             objects: 1,
             metadata: capacity(&table.kinds),
             cells_live: table.cells.len()
-                * size_of::<ryo_language::domain::relations::types::Value>(),
+                * size_of::<ryo_relations::domain::relations::types::Value>(),
             cells_capacity: capacity(&table.cells),
             rows: table.count.0,
             ..Self::default()

@@ -1,6 +1,6 @@
 //! The fake of the `catalog` port: what the core's tests stand in for it with.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::super::errors::CatalogError;
 use super::super::interface::CatalogPort;

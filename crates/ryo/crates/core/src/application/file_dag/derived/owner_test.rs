@@ -10,7 +10,7 @@ use crate::domain::{
     operator::contract::views::BorrowedRows,
     table_model::{service::push_row, types::Table},
 };
-use ryo_language::domain::relations::types::{CellKind, Integer, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 fn source() -> Table {

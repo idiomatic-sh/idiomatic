@@ -2,10 +2,10 @@
 //! where a relation it reads is read only in part. It drops the rows that the missing ones could change, and the plan answers
 //! that it could not decide.
 
-use ryo_language::domain::relations::constants::{SYNTAX_ERRORS, UNPARSED};
-use ryo_language::domain::relations::service::{class_of, node_file};
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{CellKind, Class, FileId, Missing, Relation, Value};
+use ryo_relations::domain::relations::constants::{SYNTAX_ERRORS, UNPARSED};
+use ryo_relations::domain::relations::service::{class_of, node_file};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{CellKind, Class, FileId, Missing, Relation, Value};
 
 use super::constants::REPOSITORY;
 use super::constants::{UNKNOWN_BECAUSE, UNKNOWN_IN};
@@ -190,7 +190,7 @@ pub(crate) fn unknown_message(partial: &Partial, scope: CoverageScope<'_>) -> Me
     };
     Message(
         [
-            ryo_language::domain::relations::service::name(partial.relation).0,
+            ryo_relations::domain::relations::service::name(partial.relation).0,
             UNKNOWN_IN,
             path,
             UNKNOWN_BECAUSE,

@@ -27,14 +27,14 @@ pub(crate) fn family_of(test: Test) -> Family {
 #[must_use]
 pub(crate) fn minted(
     symbols: &ryo_language::domain::symbols::types::Symbols,
-    symbol: ryo_language::domain::terms::types::Symbol,
+    symbol: ryo_relations::domain::terms::types::Symbol,
     after_the_files: super::types::AfterTheFiles,
-) -> ryo_language::domain::relations::types::Value {
+) -> ryo_relations::domain::relations::types::Value {
     if after_the_files == super::types::AfterTheFiles::After
         && let Some(name) =
             ryo_language::domain::symbols::service::name_made_across(symbols, symbol)
     {
-        return ryo_language::domain::relations::types::Value::Name(name);
+        return ryo_relations::domain::relations::types::Value::Name(name);
     }
-    ryo_language::domain::relations::types::Value::Symbol(symbol)
+    ryo_relations::domain::relations::types::Value::Symbol(symbol)
 }

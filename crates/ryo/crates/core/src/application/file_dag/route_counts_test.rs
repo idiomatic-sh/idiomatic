@@ -122,7 +122,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
         operator::contract::views::BorrowedRows,
         operator::types::PreparedPool,
     };
-    use ryo_language::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
+    use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     use std::sync::Arc;
     let columns = [FactColumn(vec![3, 1, 3])];

@@ -4,13 +4,13 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
     FileId, KindBits, Offset, Position, Relation, Value as Cell,
 };
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 
 use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};

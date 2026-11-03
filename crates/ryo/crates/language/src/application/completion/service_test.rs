@@ -1,16 +1,11 @@
 //! Real preparation/append algorithms: identity, interning, ordinary-provider and failure controls.
 use super::service::*;
-use crate::domain::{
-    completion::service::completion,
-    elements::{service::*, types::*},
-    expansions::service::{append_embedded, write_embedded},
-    relations::{constants::NO_SYMBOL, types::*},
-    symbols::{
+use crate::domain::{completion::service::completion, elements::{service::*, types::*}, expansions::service::{append_embedded, write_embedded}, symbols::{
         service::text_of,
         types::{ByteSlice, Symbols},
-    },
-    terms::types::NameText,
-};
+    }};
+use ryo_relations::domain::relations::{constants::NO_SYMBOL, types::*};
+use ryo_relations::domain::terms::types::NameText;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[derive(Default)]

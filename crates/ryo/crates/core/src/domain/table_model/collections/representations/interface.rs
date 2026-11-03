@@ -4,7 +4,7 @@ use super::types::{
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::RowIndex;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) trait RepresentationsItem: Sync {

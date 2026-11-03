@@ -4,7 +4,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::bindings::value::BindingSchema;
 use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
-use ryo_language::domain::relations::types::{CellKind, Integer};
+use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, FlagState, LiteralText, Operand, ParameterId, QueryLiteral, TableKey,
     Test, WholeNumber,
@@ -218,7 +218,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     use crate::domain::table_model::types::{Rows, Table};
     use crate::domain::table_scratch::types::OperatorScratch;
     use crate::domain::table_texts::types::SourceView;
-    use ryo_language::domain::relations::{
+    use ryo_relations::domain::relations::{
         service::to_bits,
         types::{ColumnsView, FactColumn, Relation, Value as Cell},
     };
@@ -226,7 +226,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         service::intern_derived,
         types::{ByteSlice, Symbols},
     };
-    use ryo_language::domain::terms::types::NameText;
+    use ryo_relations::domain::terms::types::NameText;
     use ryo_values::domain::plans::types::Operation;
     let mut symbols = Symbols::default();
     let word = intern_derived(&mut symbols, ByteSlice(b""), NameText("word"));

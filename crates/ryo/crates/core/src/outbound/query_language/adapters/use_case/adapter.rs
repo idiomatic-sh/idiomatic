@@ -10,7 +10,7 @@ use ryo_query_language::inbound::use_cases::typecheck::types::TypecheckRequest;
 
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
-use ryo_language::domain::relations::types::{Offset, Span};
+use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types as parts;

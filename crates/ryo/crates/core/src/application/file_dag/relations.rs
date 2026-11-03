@@ -11,7 +11,7 @@ use crate::domain::table_model::{
     types::{Rows, SelectedRows, StoredSelection, Table},
 };
 use crate::domain::{file_program::types::NodeId, operating::errors::OperatingError};
-use ryo_language::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,

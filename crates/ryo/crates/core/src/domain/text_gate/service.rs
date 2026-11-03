@@ -1,9 +1,9 @@
 //! The `text_gate` service: which elements of a tree their text admits, with no IO and no ports.
 
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::constants::NO_SYMBOL;
-use ryo_language::domain::relations::types::{CellKind, Value};
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::terms::types::Symbol;
 
 use crate::domain::comparing::service::holds_some;
 use crate::domain::kind_sets::service::names_a_kind;

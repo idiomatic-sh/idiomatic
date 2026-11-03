@@ -1,8 +1,8 @@
 //! The `table_dedup` service's cases, on values alone.
 
 use hashbrown::HashTable;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{CellKind, Value as Cell};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::service::distinct;
 use crate::cases::{Case, CaseName, Expect, Word, run};

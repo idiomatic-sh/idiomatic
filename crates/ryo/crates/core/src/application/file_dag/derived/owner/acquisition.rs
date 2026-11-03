@@ -11,8 +11,8 @@ impl DerivedOwner {
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
         stored: Option<(
-            ryo_language::domain::relations::types::Relation,
-            ryo_language::domain::relations::types::ColumnsView<'_>,
+            ryo_relations::domain::relations::types::Relation,
+            ryo_relations::domain::relations::types::ColumnsView<'_>,
         )>,
     ) -> Result<AcquiredView, OperatingError> {
         self.acquire_stored_with_route(
@@ -34,8 +34,8 @@ impl DerivedOwner {
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
         stored: Option<(
-            ryo_language::domain::relations::types::Relation,
-            ryo_language::domain::relations::types::ColumnsView<'_>,
+            ryo_relations::domain::relations::types::Relation,
+            ryo_relations::domain::relations::types::ColumnsView<'_>,
         )>,
     ) -> Result<AcquiredView, OperatingError> {
         let mut backend = self.backend.borrow_mut();
@@ -59,8 +59,8 @@ impl DerivedOwner {
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
         stored: Option<(
-            ryo_language::domain::relations::types::Relation,
-            ryo_language::domain::relations::types::ColumnsView<'_>,
+            ryo_relations::domain::relations::types::Relation,
+            ryo_relations::domain::relations::types::ColumnsView<'_>,
         )>,
         cache: Option<&mut CacheBackend>,
     ) -> Result<AcquiredView, OperatingError> {

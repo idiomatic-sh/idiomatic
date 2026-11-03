@@ -24,7 +24,7 @@ use crate::domain::trust::types::{Needs, RelationRead};
 use crate::domain::workers::service::tables_for;
 use crate::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
-use ryo_language::domain::relations::types::{Relation, WorkerNumber};
+use ryo_relations::domain::relations::types::{Relation, WorkerNumber};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::{Emit, Plan};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
@@ -124,7 +124,7 @@ fn assert_gated_acceptance(
     let skipped = FileAnalysis::gate_rules(
         &mut tables,
         setting,
-        ryo_language::domain::relations::types::FileId(0),
+        ryo_relations::domain::relations::types::FileId(0),
         acceptance,
     );
     assert_eq!(skipped, [true, false]);
@@ -165,7 +165,7 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
         FileAnalysis::gate_rules(
             &mut tables,
             setting,
-            ryo_language::domain::relations::types::FileId(0),
+            ryo_relations::domain::relations::types::FileId(0),
             SyntaxAcceptance::Accepted,
         ),
         [false, false]
@@ -230,7 +230,7 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
         FileAnalysis::gate_rules(
             &mut missing_tables,
             &missing_policy,
-            ryo_language::domain::relations::types::FileId(0),
+            ryo_relations::domain::relations::types::FileId(0),
             SyntaxAcceptance::Accepted,
         ),
         [true, true]
@@ -259,7 +259,7 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     use ryo_language::domain::elements::types::{
         DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
     };
-    use ryo_language::domain::relations::types::{Offset, ReportText};
+    use ryo_relations::domain::relations::types::{Offset, ReportText};
     use ryo_language::domain::symbols::types::ByteSlice;
 
     let source = ByteSlice(b"x");
@@ -716,7 +716,7 @@ struct UnstableResidentFacts {
     /// Delegate mutation/retained-word operations without promising resident identity.
     inner: Box<dyn crate::outbound::facts::interface::FactsWorker>,
     /// Distinguishable same-shape populations selected by read order.
-    alternatives: [Vec<ryo_language::domain::relations::types::FactColumn>; 2],
+    alternatives: [Vec<ryo_relations::domain::relations::types::FactColumn>; 2],
     /// Source reads remain observable even when their shapes agree.
     reads: std::sync::atomic::AtomicUsize,
 }
@@ -736,10 +736,10 @@ impl crate::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
         &self,
         relation: Relation,
     ) -> Result<
-        ryo_language::domain::relations::types::ColumnsView<'_>,
+        ryo_relations::domain::relations::types::ColumnsView<'_>,
         crate::outbound::facts::errors::FactsError,
     > {
-        use ryo_language::domain::relations::{service::kinds, types::ColumnsView};
+        use ryo_relations::domain::relations::{service::kinds, types::ColumnsView};
         if relation != Relation::Function {
             return self.inner.rows(relation);
         }
@@ -843,7 +843,7 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
 #[test]
 fn unstable_same_shape_resident_populations_decline_generation_reuse() {
     use crate::outbound::facts::interface::FactsWorker as _;
-    use ryo_language::domain::relations::types::FactColumn;
+    use ryo_relations::domain::relations::types::FactColumn;
     use ryo_values::domain::stored_facts::types::LanguageNumber;
     let mut tables = tables_for(
         WorkerNumber(0),
@@ -899,7 +899,7 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
     use crate::application::file_dag::resources::take_resource_setup;
     use crate::domain::render::types::Answering;
     use crate::domain::visit::types::Keeping;
-    use ryo_language::domain::relations::types::FactColumn;
+    use ryo_relations::domain::relations::types::FactColumn;
     let _previous = take_resource_setup();
     let (stable, _) = visited_as(
         &["stable.rs"],
@@ -960,7 +960,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     use crate::domain::table_words::types::WordSlice;
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use crate::outbound::digest::fixtures::fake::DigestCounting;
-    use ryo_language::domain::relations::types::{
+    use ryo_relations::domain::relations::types::{
         CellKind, FileId, Integer, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value,
         Words,
     };
@@ -1225,7 +1225,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     use crate::domain::workers::types::FileOrder;
     use crate::outbound::lint_store::interface::LintStorePort as _;
     use crate::outbound::lint_store::types::{BuildIdentity, CacheDirectory, Store};
-    use ryo_language::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
+    use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value, Words};
     use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
     use ryo_values::domain::records::types::{
         FileOutcome, FindingRows, Handed, HandedWords, Handing, Ran, Record, RecordWords,

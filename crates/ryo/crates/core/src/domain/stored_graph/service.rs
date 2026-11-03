@@ -4,7 +4,7 @@ use super::types::{CompactGraph, GraphIdentity};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::service::{cell_at, check_columns, count_of, kinds_of};
 use crate::domain::table_model::types::Rows;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 

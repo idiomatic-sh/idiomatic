@@ -1,6 +1,6 @@
 //! The `inlining` service's cases, on plans written by hand.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::inline_views;
 use crate::cases::{Case, CaseName, Expect, Word, run};

@@ -7,11 +7,15 @@ use super::service::{
 };
 use super::types::{CellKind, NodeId, Offset, Provenance, Relation, Span, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::answers::service::is_key;
+use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
+use crate::domain::relations::collections::relations::function::item::FunctionColumn;
 use crate::domain::relations::service::from_bits;
+use crate::domain::relations::service::is_key;
 use crate::domain::relations::service::to_bits;
+use crate::domain::relations::types::Column;
 use crate::domain::relations::types::NameRef;
 use crate::domain::relations::types::{ColumnKeyness, Flag, Integer};
+use crate::domain::terms::types::{Vocabulary, WordBlock};
 
 fn a_key_column_says_which_row_it_is() -> usize {
     let key = |relation: Relation, name_of: &str| {
@@ -103,8 +107,26 @@ fn the_catalog_lists_exactly_the_folders_of_its_items() -> usize {
     usize::from(folders == listed)
 }
 
+/// Declaration kinds are closed; row identities remain open and keyness is per column.
+fn a_column_has_its_vocabulary_and_its_keyness() -> usize {
+    usize::from(
+        super::service::vocabulary_of(Column::Defines(DefinesColumn::Kind))
+            == Vocabulary::Closed(WordBlock::Declaration)
+            && super::service::vocabulary_of(Column::Defines(DefinesColumn::Id))
+                == Vocabulary::Open
+            && is_key(Column::Function(FunctionColumn::Id)) == ColumnKeyness::Key
+            && is_key(Column::Defines(DefinesColumn::Kind)) == ColumnKeyness::Plain,
+    )
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_column_has_its_vocabulary_and_its_keyness"),
+        word: Word::Succeeds,
+        input: || a_column_has_its_vocabulary_and_its_keyness,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("optional capability identities round trip without weakening baseline"),
         word: Word::Succeeds,

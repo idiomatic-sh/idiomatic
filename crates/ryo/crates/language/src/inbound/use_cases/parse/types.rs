@@ -2,14 +2,14 @@
 //! and no inherent impl.
 
 use super::errors::ParseError;
-use crate::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::types::FileId;
-use crate::domain::relations::types::{Count, KindBits, Relation, RowWriter};
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::{Count, KindBits, Relation, RowWriter};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use crate::domain::semantics::interface::SemanticSession;
 
 /// The canonical, immutable identity of parser settings that can change the tree or diagnostics.
@@ -138,13 +138,13 @@ pub struct SkippedDirectory(pub &'static str);
 
 /// The names of the kinds a language's trees have, each once.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KindNames(pub Vec<crate::domain::terms::types::NameText<'static>>);
+pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'static>>);
 
 /// What the engine asks of a language: the same reading as `ParseUseCase`, behind an interface alone and with what the language works
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
     /// Explicit optional promises, preserved across the erased provider boundary.
-    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability];
+    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability];
 
     /// Canonical parser settings included in persisted-result cache identity.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
@@ -245,9 +245,9 @@ macro_rules! reader_slots {
         /// The reader of one syntax relation, whichever it is.
         #[derive(Clone, Copy)]
         pub(super) enum Slot<M: 'static> {
-            $( $variant(crate::domain::answers::types::Reader<$crate::domain::relations::collections::relations::$module::item::$variant, M>), )*
+            $( $variant(crate::domain::answers::types::Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, M>), )*
         }
 
     };
 }
-crate::each_relation!(reader_slots);
+ryo_relations::each_relation!(reader_slots);

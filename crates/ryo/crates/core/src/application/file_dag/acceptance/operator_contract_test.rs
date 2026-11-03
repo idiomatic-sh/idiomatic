@@ -7,7 +7,8 @@ use crate::domain::operator::service::registered;
 use crate::domain::table_model::types::Table;
 use fixtures::*;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
-use ryo_language::domain::{relations::types::Value, symbols::types::Symbols};
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     plans::types::{Operation, OperationKind},
@@ -57,7 +58,7 @@ fn unsupported_semantic_batch_publishes_no_prefix() {
         ) -> Result<Vec<RenderOutcome>, OperatingError> {
             Ok(vec![
                 RenderOutcome::Known(Arc::from("a")),
-                RenderOutcome::Unsupported(ryo_language::domain::terms::types::UnknownReason(24)),
+                RenderOutcome::Unsupported(ryo_relations::domain::terms::types::UnknownReason(24)),
             ])
         }
     }
@@ -65,9 +66,9 @@ fn unsupported_semantic_batch_publishes_no_prefix() {
     crate::domain::table_model::service::push_row(
         &mut case.inputs[0],
         &[Value::Node(
-            ryo_language::domain::relations::service::node_id(
-                ryo_language::domain::relations::types::FileId(0),
-                ryo_language::domain::relations::types::Position(1),
+            ryo_relations::domain::relations::service::node_id(
+                ryo_relations::domain::relations::types::FileId(0),
+                ryo_relations::domain::relations::types::Position(1),
             ),
         )],
     );

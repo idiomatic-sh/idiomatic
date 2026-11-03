@@ -16,10 +16,8 @@ use crate::domain::table_model::{
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{
-    relations::types::{CellKind, Value},
-    symbols::types::Symbols,
-};
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plans::types::Operation;
 
 pub(crate) struct Held<'a> {

@@ -11,7 +11,7 @@ use crate::domain::table_model::{
     service::{joined_selected, key_of, matching_selected},
     types::{KeyIndex, On, SelectedRows},
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 
 /// One complete selected population and an index over only its declared key cells.

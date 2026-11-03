@@ -5,13 +5,13 @@ use super::service::{
     name_count, name_made_across, name_of, place_of, query_intern_derived, text_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
 };
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::{QuerySymbols, Symbols, SymbolsEngine};
-use crate::domain::terms::service::term_symbol;
-use crate::domain::terms::types::{DeclarationKind, NameText};
+use ryo_relations::domain::terms::service::term_symbol;
+use ryo_relations::domain::terms::types::{DeclarationKind, NameText};
 
 /// A scenario: what a row asks of the service.
 type Input = fn() -> usize;

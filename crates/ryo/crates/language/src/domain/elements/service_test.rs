@@ -8,9 +8,9 @@ use super::service::{
     positions, start_at, table_builder, text_at, token,
 };
 use super::types::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact};
-use crate::domain::relations::types::{KindBits, Offset, Position, ReportText};
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -46,7 +46,7 @@ impl std::fmt::Display for RefusingScalar {
 }
 fn formatted_properties_are_atomic_and_reuse_storage() -> usize {
     use super::service::{node_property_fmt, property_at};
-    use crate::domain::relations::types::PropertyId;
+    use ryo_relations::domain::relations::types::PropertyId;
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
     enter_node(&mut builder, KindBits(1), Offset(0));
@@ -129,7 +129,7 @@ fn implied_nodes_keep_properties_without_claiming_bytes() -> usize {
     use super::service::{enter_implied_node, node_property, origin_at, property_at, source_order};
     use super::types::SourceOrder;
     use crate::domain::completion::service::intern_decoded;
-    use crate::domain::relations::{
+    use ryo_relations::domain::relations::{
         constants::NO_SPAN,
         types::{ElementOrigin, PropertyId},
     };
@@ -237,7 +237,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn a_write_past_the_table_crashes() -> usize {
     let message = crash_of(|| {
         let mut elements = Elements::default();
-        *number_mut(&mut elements.size, Position(3)) = crate::domain::relations::types::Extent(1);
+        *number_mut(&mut elements.size, Position(3)) = ryo_relations::domain::relations::types::Extent(1);
     });
     usize::from(message == "a position this table gave")
 }

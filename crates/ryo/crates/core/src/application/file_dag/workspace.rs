@@ -15,7 +15,7 @@ use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::types::{Rows, Table};
 use crate::domain::table_reach::types::Walk;
 use crate::domain::table_scratch::types::{ScratchWord, Stretches};
-use ryo_language::domain::relations::types::{Position, Value};
+use ryo_relations::domain::relations::types::{Position, Value};
 #[derive(Default)]
 pub(crate) struct InvocationWorkspace {
     external_owner: std::cell::OnceCell<std::rc::Rc<super::relations::RelationOwner>>,
@@ -183,7 +183,7 @@ impl InvocationWorkspace {
 pub(super) struct GraphInput<'a> {
     rows: &'a crate::domain::table_model::types::Rows<'a>,
     proof: AdmittedInput<'a>,
-    relation: Option<ryo_language::domain::relations::types::Relation>,
+    relation: Option<ryo_relations::domain::relations::types::Relation>,
     owner: &'a super::relations::RelationOwner,
 }
 impl<'a> GraphInput<'a> {
@@ -199,7 +199,7 @@ impl<'a> GraphInput<'a> {
     pub(super) fn population(&self) -> Result<super::derived::owner::PopulationId, OperatingError> {
         self.proof.backing_population(self.owner)
     }
-    pub(super) fn relation(&self) -> Option<ryo_language::domain::relations::types::Relation> {
+    pub(super) fn relation(&self) -> Option<ryo_relations::domain::relations::types::Relation> {
         self.relation
     }
     pub(super) fn generation(&self) -> Arc<()> {

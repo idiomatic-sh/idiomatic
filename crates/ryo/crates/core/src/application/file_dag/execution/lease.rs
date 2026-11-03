@@ -16,7 +16,7 @@ use crate::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::symbols::service::query_reborrow;
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.

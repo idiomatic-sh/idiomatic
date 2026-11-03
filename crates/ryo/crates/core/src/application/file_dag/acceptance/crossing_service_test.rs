@@ -15,7 +15,7 @@ use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::service::files_for;
 use crate::domain::trust::types::{Needs, RelationRead};
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
     Value as Cell, Words, WorkerNumber,
 };

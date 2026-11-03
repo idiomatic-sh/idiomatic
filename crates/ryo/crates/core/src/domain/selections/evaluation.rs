@@ -1,7 +1,7 @@
 //! The `select` operator: keep the rows for which every comparison holds.
 
 use ryo_language::domain::elements::service::kind_names;
-use ryo_language::domain::relations::types::{CellKind, Flag, Value};
+use ryo_relations::domain::relations::types::{CellKind, Flag, Value};
 use ryo_language::domain::symbols::service::name_count;
 
 use crate::domain::comparing::service::{holds_all, holds_some};

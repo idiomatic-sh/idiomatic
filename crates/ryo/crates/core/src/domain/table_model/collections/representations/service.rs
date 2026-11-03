@@ -58,17 +58,17 @@ impl<'f> RepresentationInput<'f> {
             Self::Computed(table) => table.count.0,
         }
     }
-    pub(crate) fn kinds(self) -> &'f [ryo_language::domain::relations::types::CellKind] {
+    pub(crate) fn kinds(self) -> &'f [ryo_relations::domain::relations::types::CellKind] {
         match self {
             Self::Stored(view) => view.kinds,
             Self::Selected { kinds, .. } => kinds,
             Self::Computed(table) => &table.kinds,
-            Self::Tree(tree) => ryo_language::domain::relations::service::kinds(match tree.form {
+            Self::Tree(tree) => ryo_relations::domain::relations::service::kinds(match tree.form {
                 crate::domain::table_cells::types::TreeForm::Elements => {
-                    ryo_language::domain::relations::types::Relation::SyntaxTree
+                    ryo_relations::domain::relations::types::Relation::SyntaxTree
                 }
                 crate::domain::table_cells::types::TreeForm::Edges => {
-                    ryo_language::domain::relations::types::Relation::SyntaxChild
+                    ryo_relations::domain::relations::types::Relation::SyntaxChild
                 }
             }),
         }
@@ -77,7 +77,7 @@ impl<'f> RepresentationInput<'f> {
         self,
         row: crate::domain::table_cells::types::RowIndex,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    ) -> Option<ryo_language::domain::relations::types::Value> {
+    ) -> Option<ryo_relations::domain::relations::types::Value> {
         match registered(kind(self)).cell(self, row, column).ok()? {
             super::types::CellRead::Value(value) => Some(value),
             super::types::CellRead::MissingPhysical => None,
@@ -86,16 +86,16 @@ impl<'f> RepresentationInput<'f> {
     pub(crate) fn read<'r>(
         self,
         row: crate::domain::table_cells::types::RowIndex,
-        decode: &'r mut Vec<ryo_language::domain::relations::types::Value>,
-    ) -> Option<&'r [ryo_language::domain::relations::types::Value]>
+        decode: &'r mut Vec<ryo_relations::domain::relations::types::Value>,
+    ) -> Option<&'r [ryo_relations::domain::relations::types::Value]>
     where
         'f: 'r,
     {
         if !matches!(self, Self::Computed(_)) {
             decode.resize(
                 self.kinds().len(),
-                ryo_language::domain::relations::types::Value::Flag(
-                    ryo_language::domain::relations::types::Flag::Lowered,
+                ryo_relations::domain::relations::types::Value::Flag(
+                    ryo_relations::domain::relations::types::Flag::Lowered,
                 ),
             );
         }

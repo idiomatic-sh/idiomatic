@@ -1,8 +1,8 @@
 //! The `keeping` service's cases, on values alone.
 
-use ryo_language::domain::relations::service::{node_file, node_id};
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::{node_file, node_id};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Position, Span, TextHash,
     Value as Cell, WorkerNumber,
 };
@@ -22,7 +22,7 @@ use crate::domain::table_words::types::WordSlice;
 use ryo_values::domain::records::types::RenderedText;
 use ryo_values::domain::records::types::{RowEnds, RowsTextAt, TextRange};
 
-use ryo_language::domain::relations::types::Words;
+use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::program::types::ColumnName;

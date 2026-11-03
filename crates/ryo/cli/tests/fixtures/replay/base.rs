@@ -472,10 +472,10 @@ pub(crate) fn finding_texts(
         Some(Cell::File(each) | Cell::Text(each)) => each.to_string(),
         Some(Cell::Number(number)) => number.0.to_string(),
         Some(Cell::Span(span))
-            if ryo_language::domain::relations::service::location(*span)
-                == ryo_language::domain::relations::types::Locatedness::Absent =>
+            if ryo_relations::domain::relations::service::location(*span)
+                == ryo_relations::domain::relations::types::Locatedness::Absent =>
         {
-            ryo_language::domain::relations::constants::UNLOCATED.to_owned()
+            ryo_relations::domain::relations::constants::UNLOCATED.to_owned()
         }
         Some(Cell::Span(span)) => format!("{}..{}", span.start.0, span.end.0),
         None => String::new(),

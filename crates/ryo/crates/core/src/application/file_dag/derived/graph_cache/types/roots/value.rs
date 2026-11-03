@@ -19,7 +19,7 @@ use crate::domain::{
         traversal::value::{GraphTraversal, UNKNOWN},
     },
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use std::sync::Arc;
 
 /// The owner supplies both the retained storage and every admission decision.

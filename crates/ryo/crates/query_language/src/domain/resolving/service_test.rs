@@ -1,6 +1,6 @@
 //! The `resolving` service's cases, on query text read by the real syntax adapter: the names a query writes, and what is refused when they name nothing.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::lowering::errors::LoweringError;

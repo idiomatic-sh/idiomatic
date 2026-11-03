@@ -19,17 +19,15 @@ use crate::domain::{
     },
     table_texts::types::Texts,
 };
-use ryo_language::domain::{
-    relations::{
-        service::from_bits,
-        types::{Bits, CellKind, ColumnsView, Integer, Value},
-    },
-    symbols::{
+use ryo_language::domain::{symbols::{
         service::{find_hashed, hash_of, name_count},
         types::ByteSlice,
-    },
-    terms::service::symbols_with_text,
-};
+    }};
+use ryo_relations::domain::relations::{
+        service::from_bits,
+        types::{Bits, CellKind, ColumnsView, Integer, Value},
+    };
+use ryo_relations::domain::terms::service::symbols_with_text;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, LiteralText, Operand, QueryLiteral, Test,
 };

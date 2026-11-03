@@ -1,7 +1,7 @@
 //! The types of the `positions` concept: the rows of a lowered step, as the positions of the elements of the file each is made of, and
 //! the room the lowered steps work in.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::lowering::types::RowWidth;
 use crate::domain::operating::types::OperatorContext;

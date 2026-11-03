@@ -8,7 +8,7 @@ use crate::domain::table_model::{
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     service::to_bits,
     types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value},
 };

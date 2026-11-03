@@ -1,7 +1,7 @@
 //! The types of the `trees` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::elements::types::TableBuilder;
-use crate::domain::relations::types::Offset;
+use ryo_relations::domain::relations::types::Offset;
 
 /// A tree written from a library's events and the text between them: the builder it is written through, and where the last token
 /// it wrote ends. Every byte before `end` is in one token; the text no event spans is written as the tokens of the language's gap

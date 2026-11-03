@@ -72,7 +72,7 @@ impl RootAnswer {
     ) -> Result<
         impl Iterator<
             Item = Result<
-                ryo_language::domain::relations::types::Value,
+                ryo_relations::domain::relations::types::Value,
                 crate::domain::operating::errors::OperatingError,
             >,
         > + '_,

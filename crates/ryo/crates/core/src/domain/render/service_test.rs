@@ -3,8 +3,8 @@
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, KindBits, Offset, Position, Span, Value as Cell,
 };
 use ryo_language::domain::symbols::service::intern;

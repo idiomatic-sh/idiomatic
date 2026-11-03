@@ -12,7 +12,7 @@ use crate::domain::table_model::{
     service::{push_row, reset},
     types::{RowCount, Rows, Table},
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 mod lease;
 mod transport;
 #[derive(Debug)]

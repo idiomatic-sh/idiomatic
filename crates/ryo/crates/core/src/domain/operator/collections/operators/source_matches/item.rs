@@ -5,10 +5,10 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::types::{Integer, Offset, Span, Value};
+use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 /// Advance only to the next match start. CRLF counts once after LF; a match at
 /// the LF byte still belongs to the preceding physical line.

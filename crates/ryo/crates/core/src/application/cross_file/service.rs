@@ -21,7 +21,7 @@ use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_texts::types::SourceView;
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_language::domain::relations::types::{FileId, Value};
+use ryo_relations::domain::relations::types::{FileId, Value};
 use ryo_language::domain::symbols::service::file_in;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes};

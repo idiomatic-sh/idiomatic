@@ -2,10 +2,10 @@
 //! findings, with no IO and no ports. A finding is numbers until a report is written.
 
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::service::{node_file, node_position};
-use ryo_language::domain::relations::types::Bytes;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::Bytes;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{
     CROSS_FILE, FileId, Name, NamePlace, NodeId, Offset, Origin, Value, WorkerNumber,
 };
 use ryo_language::domain::symbols::service::derived_of;
@@ -15,7 +15,7 @@ use ryo_language::domain::symbols::service::{
 };
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::service::unknown_reason;
+use ryo_relations::domain::terms::service::unknown_reason;
 
 use super::errors::FinishError;
 use super::types::{
@@ -166,8 +166,8 @@ pub(crate) fn offset_of(
         .iter()
         .chain(std::iter::once(&emit.subject))
         .find_map(|index| match column_in(row, *index).copied()? {
-            Value::Span(span) => (ryo_language::domain::relations::service::location(span)
-                == ryo_language::domain::relations::types::Locatedness::Located)
+            Value::Span(span) => (ryo_relations::domain::relations::service::location(span)
+                == ryo_relations::domain::relations::types::Locatedness::Located)
                 .then_some(span.start),
             Value::Node(node) => nodes(node),
             Value::Name(name) => names(name)

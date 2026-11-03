@@ -1,6 +1,6 @@
 //! The `relation_lookup` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::RelationLookupError;
 use super::service::resolve;
@@ -62,7 +62,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(question: Input) -> Result<Value, Failure> {
     let relation = resolve(question.known, &RelationName(question.text.into()))?;
-    Ok(ryo_language::domain::relations::service::columns(relation).len())
+    Ok(ryo_relations::domain::relations::service::columns(relation).len())
 }
 
 #[test]

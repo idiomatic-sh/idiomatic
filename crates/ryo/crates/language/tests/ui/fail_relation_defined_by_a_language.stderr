@@ -8,62 +8,52 @@ help: the following other types implement trait `AsRef<T>`
   --> $RUST/core/src/convert/mod.rs
    |
    | impl<T> const AsRef<[T]> for [T] {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `[T]` implements `AsRef<[T]>`
-   |
-  ::: $CARGO/winnow-$VERSION/src/stream/bstr.rs
-   |
-   | impl AsRef<BStr> for [u8] {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^ `[u8]` implements `AsRef<winnow::stream::bstr::BStr>`
-   |
-  ::: $CARGO/winnow-$VERSION/src/stream/bytes.rs
-   |
-   | impl AsRef<Bytes> for [u8] {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `[u8]` implements `AsRef<winnow::stream::bytes::Bytes>`
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `[T]`
    |
   ::: $RUST/core/src/array/mod.rs
    |
    | impl<T, const N: usize> const AsRef<[T]> for [T; N] {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `[T; N]` implements `AsRef<[T]>`
-note: required by a bound in `ryo_language::domain::relations::collections::relations::interface::RelationsItem::Words`
-  --> src/domain/relations/collections/relations/interface.rs
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `[T; N]`
+note: required by a bound in `ryo_relations::domain::relations::collections::relations::interface::RelationsItem::Words`
+  --> $WORKSPACE/crates/relations/src/domain/relations/collections/relations/interface.rs
    |
    |     type Words: AsRef<[Bits]>;
    |                 ^^^^^^^^^^^^^ required by this bound in `RelationsItem::Words`
 
-error[E0277]: the trait bound `Mine: ryo_language::domain::relations::collections::relations::interface::sealed::Sealed` is not satisfied
+error[E0277]: the trait bound `Mine: interface::sealed::Sealed` is not satisfied
  --> tests/ui/fail_relation_defined_by_a_language.rs:9:24
   |
 9 | impl RelationsItem for Mine {
   |                        ^^^^ unsatisfied trait bound
   |
-help: the trait `ryo_language::domain::relations::collections::relations::interface::sealed::Sealed` is not implemented for `Mine`
+help: the trait `interface::sealed::Sealed` is not implemented for `Mine`
  --> tests/ui/fail_relation_defined_by_a_language.rs:7:1
   |
 7 | struct Mine;
   | ^^^^^^^^^^^
-  = help: the following other types implement trait `ryo_language::domain::relations::collections::relations::interface::sealed::Sealed`:
-            ryo_language::domain::relations::collections::relations::analyzed_source::item::AnalyzedSource
-            ryo_language::domain::relations::collections::relations::annotates::item::Annotates
-            ryo_language::domain::relations::collections::relations::assigns::item::Assigns
-            ryo_language::domain::relations::collections::relations::binding_event::item::BindingEvent
-            ryo_language::domain::relations::collections::relations::binding_read::item::BindingRead
-            ryo_language::domain::relations::collections::relations::binding_shadow::item::BindingShadow
-            ryo_language::domain::relations::collections::relations::binding_use::item::BindingUse
-            ryo_language::domain::relations::collections::relations::brace_format_field::item::BraceFormatField
+  = help: the following other types implement trait `interface::sealed::Sealed`:
+            ryo_relations::domain::relations::collections::relations::analyzed_source::item::AnalyzedSource
+            ryo_relations::domain::relations::collections::relations::annotates::item::Annotates
+            ryo_relations::domain::relations::collections::relations::assigns::item::Assigns
+            ryo_relations::domain::relations::collections::relations::binding_event::item::BindingEvent
+            ryo_relations::domain::relations::collections::relations::binding_read::item::BindingRead
+            ryo_relations::domain::relations::collections::relations::binding_shadow::item::BindingShadow
+            ryo_relations::domain::relations::collections::relations::binding_use::item::BindingUse
+            ryo_relations::domain::relations::collections::relations::brace_format_field::item::BraceFormatField
           and $N others
 note: required by a bound in `RelationsItem`
- --> src/domain/relations/collections/relations/interface.rs
+ --> $WORKSPACE/crates/relations/src/domain/relations/collections/relations/interface.rs
   |
   | pub trait RelationsItem: sealed::Sealed + 'static {
   |                          ^^^^^^^^^^^^^^ required by this bound in `RelationsItem`
-  = note: `RelationsItem` is a "sealed trait", because to implement it you also need to implement `ryo_language::domain::relations::collections::relations::interface::sealed::Sealed`, which is not accessible; this is usually done to force you to use one of the provided types that already implement it
+  = note: `RelationsItem` is a "sealed trait", because to implement it you also need to implement `ryo_relations::domain::relations::collections::relations::interface::sealed::Sealed`, which is not accessible; this is usually done to force you to use one of the provided types that already implement it
   = help: the following types implement the trait:
-            ryo_language::domain::relations::collections::relations::analyzed_source::item::AnalyzedSource
-            ryo_language::domain::relations::collections::relations::annotates::item::Annotates
-            ryo_language::domain::relations::collections::relations::assigns::item::Assigns
-            ryo_language::domain::relations::collections::relations::brace_format_field::item::BraceFormatField
-            ryo_language::domain::relations::collections::relations::brace_format_parse::item::BraceFormatParse
-            ryo_language::domain::relations::collections::relations::call_argument::item::CallArgument
-            ryo_language::domain::relations::collections::relations::comment::item::Comment
-            ryo_language::domain::relations::collections::relations::decorates::item::Decorates
+            ryo_relations::domain::relations::collections::relations::analyzed_source::item::AnalyzedSource
+            ryo_relations::domain::relations::collections::relations::annotates::item::Annotates
+            ryo_relations::domain::relations::collections::relations::assigns::item::Assigns
+            ryo_relations::domain::relations::collections::relations::brace_format_field::item::BraceFormatField
+            ryo_relations::domain::relations::collections::relations::brace_format_parse::item::BraceFormatParse
+            ryo_relations::domain::relations::collections::relations::bytes_literal::item::BytesLiteral
+            ryo_relations::domain::relations::collections::relations::call_argument::item::CallArgument
+            ryo_relations::domain::relations::collections::relations::comment::item::Comment
           and $N others

@@ -1,7 +1,7 @@
 //! The `workers` service's cases, on values alone.
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::WorkerNumber;
+use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::{
     CorpusEntry, FileNumber, FileSize, Glob, Hits, Nanoseconds,
 };
@@ -91,7 +91,7 @@ fn plan(steps: usize) -> Plan {
         steps: std::iter::repeat_with(|| PlanStep {
             operation: Operation::Project {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(
-                    ryo_language::domain::relations::types::Relation::Function,
+                    ryo_relations::domain::relations::types::Relation::Function,
                 ),
                 columns: vec![ColumnIndex(0)],
                 distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,

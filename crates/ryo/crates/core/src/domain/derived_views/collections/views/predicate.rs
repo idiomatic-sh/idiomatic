@@ -8,10 +8,8 @@ use crate::domain::{
     table_cells::types::RowIndex,
     table_model::types::Verdict,
 };
-use ryo_language::domain::{
-    relations::types::{CellKind, Value},
-    symbols::{service::text_of, types::ByteSlice},
-};
+use ryo_language::domain::{symbols::{service::text_of, types::ByteSlice}};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use std::sync::Arc;
 
 pub(crate) struct PredicateMatchesItem;
@@ -55,7 +53,7 @@ impl DerivedViewsItem for PredicateMatchesItem {
             {
                 scratch.row.resize(
                     source.kinds.len(),
-                    Value::Flag(ryo_language::domain::relations::types::Flag::Lowered),
+                    Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
                 );
                 if crate::domain::table_cells::service::read_cells(
                     &source,

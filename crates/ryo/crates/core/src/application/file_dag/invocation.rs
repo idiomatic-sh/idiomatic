@@ -21,7 +21,7 @@ use crate::domain::table_groups::types::Group;
 use crate::domain::table_model::types::{KeyIndex, ParameterBinding, Table};
 use crate::domain::table_texts::types::Texts;
 use crate::domain::tree_join::service::tree_finding;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::{
         service::parameter_in,

@@ -1,13 +1,13 @@
 //! The `finish` service's cases, on values alone.
 
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Offset, Origin, Span, Value as Cell, WorkerNumber,
 };
 use ryo_language::domain::symbols::service::{intern, intern_derived, places_mut};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_language::domain::terms::service::unknown_symbol;
-use ryo_language::domain::terms::types::{NameText, ReasonName, UnknownName, UnknownReason};
+use ryo_relations::domain::terms::service::unknown_symbol;
+use ryo_relations::domain::terms::types::{NameText, ReasonName, UnknownName, UnknownReason};
 
 use super::errors::FinishError;
 use super::service::{carry, escape, founds, place_all, shown_cell};

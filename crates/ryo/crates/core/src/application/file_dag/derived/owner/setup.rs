@@ -1,7 +1,7 @@
 //! File setup carries request metadata; demanded representation admission remains separate.
 use super::*;
 use crate::domain::{coverage::types::Partial, operator::types::PreparedPool};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plans::types::Plan;
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn prepare_file(

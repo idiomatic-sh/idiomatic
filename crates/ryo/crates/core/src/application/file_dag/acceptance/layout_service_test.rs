@@ -1,6 +1,6 @@
 //! The `layout` service's cases, on the plans of the `pipeline`'s cases.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_language::domain::symbols::types::Symbols;
 
 use crate::application::file_dag::pipeline::service_test::{
@@ -14,7 +14,7 @@ use crate::domain::operator::types::{PlanIdentity, StepPlace};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::ColumnsView;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]
@@ -156,7 +156,7 @@ fn refuses() {
 
 /// Probe real nonempty Stored views without filtering, interning text or traversing a graph.
 fn metadata_only() -> Result<Value, Failure> {
-    use ryo_language::domain::relations::types::{Integer, Value as Cell};
+    use ryo_relations::domain::relations::types::{Integer, Value as Cell};
     use ryo_language::domain::symbols::service::{derived_of, name_count};
     use ryo_values::domain::plan_parts::types::{
         ColumnIndex, Input as Source, LiteralText, Operand, QueryLiteral, StepId,
@@ -335,11 +335,11 @@ fn native_frontier() -> Result<Value, Failure> {
     }];
     shaped(&plan, &mut frontier, &mut context)?;
     let answer = frontier;
-    let expected = ryo_language::domain::relations::service::kinds(Relation::SyntaxTree);
+    let expected = ryo_relations::domain::relations::service::kinds(Relation::SyntaxTree);
     assert_eq!(answer[0].table.kinds[..expected.len()], *expected);
     assert_eq!(
         answer[0].table.kinds.last(),
-        Some(&ryo_language::domain::relations::types::CellKind::Node)
+        Some(&ryo_relations::domain::relations::types::CellKind::Node)
     );
     Ok(answer[0].table.kinds.len())
 }
@@ -347,7 +347,7 @@ fn native_frontier() -> Result<Value, Failure> {
 #[test]
 fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
     use crate::domain::table_model::types::{Frontier, RowCount, Table};
-    use ryo_language::domain::relations::types::{CellKind, Integer, Value};
+    use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
@@ -367,19 +367,19 @@ fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
     let pointer = cells.as_ptr();
     let capacity = cells.capacity();
     let native_kinds =
-        ryo_language::domain::relations::service::kinds(Relation::SyntaxTree).to_vec();
+        ryo_relations::domain::relations::service::kinds(Relation::SyntaxTree).to_vec();
     let mut native_cells = Vec::with_capacity(79);
     for kind in &native_kinds {
         native_cells.push(match kind {
-            CellKind::Node => Value::Node(ryo_language::domain::relations::service::node_id(
-                ryo_language::domain::relations::types::FileId(0),
-                ryo_language::domain::relations::types::Position(0),
+            CellKind::Node => Value::Node(ryo_relations::domain::relations::service::node_id(
+                ryo_relations::domain::relations::types::FileId(0),
+                ryo_relations::domain::relations::types::Position(0),
             )),
-            CellKind::Symbol => Value::Symbol(ryo_language::domain::terms::types::Symbol(0)),
-            CellKind::File => Value::File(ryo_language::domain::relations::types::FileId(0)),
-            CellKind::Span => Value::Span(ryo_language::domain::relations::constants::NO_SPAN),
+            CellKind::Symbol => Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
+            CellKind::File => Value::File(ryo_relations::domain::relations::types::FileId(0)),
+            CellKind::Span => Value::Span(ryo_relations::domain::relations::constants::NO_SPAN),
             CellKind::Number => Value::Number(Integer(0)),
-            CellKind::Flag => Value::Flag(ryo_language::domain::relations::types::Flag::Lowered),
+            CellKind::Flag => Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
         });
     }
     let native_pointer = native_cells.as_ptr();
@@ -415,7 +415,7 @@ fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
     assert_eq!(frontier[1].table.cells.capacity(), native_capacity);
     assert_eq!(
         frontier[2].table.kinds,
-        ryo_language::domain::relations::service::kinds(Relation::SyntaxChild)
+        ryo_relations::domain::relations::service::kinds(Relation::SyntaxChild)
     );
     let native_kinds = frontier[1].table.kinds.as_ptr();
     let owned = frontier;

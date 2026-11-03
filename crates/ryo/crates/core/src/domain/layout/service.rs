@@ -1,7 +1,7 @@
 //! The `layout` service: free functions named by verb that lay a plan out for the worker that runs it.
 
-use ryo_language::domain::relations::service::kinds as relation_kinds;
-use ryo_language::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::service::kinds as relation_kinds;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use crate::domain::lowering::service::lower;
 use crate::domain::operating::errors::OperatingError;
@@ -91,7 +91,7 @@ pub(crate) fn layout_of<'f>(
                 tree: None,
             },
             Rows::Tree(tree) => InputSchema {
-                kinds: ryo_language::domain::relations::service::kinds(match tree.form {
+                kinds: ryo_relations::domain::relations::service::kinds(match tree.form {
                     TreeForm::Elements => Relation::SyntaxTree,
                     TreeForm::Edges => Relation::SyntaxChild,
                 }),

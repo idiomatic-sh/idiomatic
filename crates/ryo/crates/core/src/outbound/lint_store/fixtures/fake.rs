@@ -8,7 +8,7 @@ use super::super::interface::{LintStorePort, ReadStore};
 use super::super::types::StoreKeeping;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
-use ryo_language::domain::relations::types::{Offset, Span};
+use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::descriptions::types::{LanguageName, RelationName};
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
 use ryo_values::domain::program::types::ColumnName;

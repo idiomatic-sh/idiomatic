@@ -5,7 +5,7 @@ use crate::domain::{
     table_model::types::Rows,
 };
 use graph_fixture::GraphFixture;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};

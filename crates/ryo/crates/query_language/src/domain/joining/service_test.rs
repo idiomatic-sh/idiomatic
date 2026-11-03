@@ -1,7 +1,7 @@
 //! The `joining` service's cases, on query text read by the real syntax adapter: the steps a join makes, and the sides its
 //! `where` reads.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::joining::service::{select_join, shown_of};

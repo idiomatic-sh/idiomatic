@@ -3,7 +3,7 @@
 use super::service::merge;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Comparison, Function, Input as PlanInput, LiteralText, Operand,
     ParameterId, QueryLiteral, StepId, Test, WholeNumber,

@@ -123,9 +123,9 @@ pub(super) fn observed_inputs(
             crate::domain::recording::types::retention::value::RetainedBytes::inputs(inputs);
         let places = ryo_language::domain::symbols::service::places_mut(symbols);
         bytes.places_live =
-            places.len() * size_of::<ryo_language::domain::relations::types::NamePlace>();
+            places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
         bytes.places_capacity =
-            places.capacity() * size_of::<ryo_language::domain::relations::types::NamePlace>();
+            places.capacity() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
         let text = ryo_language::domain::symbols::service::derived_of(symbols);
         bytes.text_live = text.0.len();
         bytes.text_capacity = text.0.capacity();

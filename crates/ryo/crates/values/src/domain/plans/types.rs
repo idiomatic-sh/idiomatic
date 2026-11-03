@@ -451,7 +451,7 @@ pub enum Feature {
     /// A direction of an `axis`.
     Direction(Direction),
     /// A relation a step reads.
-    Relation(ryo_language::domain::relations::types::Relation),
+    Relation(ryo_relations::domain::relations::types::Relation),
 }
 
 /// What the query emits.

@@ -2,7 +2,7 @@
 
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, KindBits, Offset,
 };
 use ryo_language::domain::symbols::types::ByteSlice;

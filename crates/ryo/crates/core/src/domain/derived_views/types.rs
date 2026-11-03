@@ -13,11 +13,8 @@ use crate::domain::{
     table_texts::types::{SourceView, Texts},
     tree_join::collections::strategies::types::Finding,
 };
-use ryo_language::domain::{
-    files::types::FilePath,
-    relations::types::{CellKind, Value},
-    symbols::types::{QuerySymbols, Symbols},
-};
+use ryo_language::domain::{files::types::FilePath, symbols::types::{QuerySymbols, Symbols}};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, LiteralText},
     stored_facts::types::ArenaBytes,
@@ -208,7 +205,7 @@ pub(crate) enum DerivedView<'a> {
 pub(crate) struct PreparedViewUse {
     pub plan: Arc<DerivedContract>,
     pub inputs: [usize; 2],
-    pub relations: [Option<ryo_language::domain::relations::types::Relation>; 2],
+    pub relations: [Option<ryo_relations::domain::relations::types::Relation>; 2],
     pub len: u8,
 }
 #[derive(Clone, Debug)]

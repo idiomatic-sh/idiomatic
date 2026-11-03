@@ -8,7 +8,7 @@ use crate::domain::lowering::types::Builder;
 use crate::domain::syntax::constants::operator_named;
 use crate::outbound::syntax::factory::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::program::types::QueryView;
 
@@ -222,7 +222,7 @@ fn span_between_types_and_arguments() {
 
 #[test]
 fn span_between_checks_instantiated_fragment_scope() {
-    use ryo_language::domain::relations::types::CellKind;
+    use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::hosted::types::{
         ColumnLabel, HostedColumn, HostedName, HostedRelation,
     };
@@ -263,7 +263,7 @@ let a = compose(rows=rows); emit a subject file key(diagnostic);"#;
 
 #[test]
 fn source_matches_types_arguments_pattern_and_scope() {
-    use ryo_language::domain::relations::types::CellKind;
+    use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::hosted::types::{
         ColumnLabel, HostedColumn, HostedName, HostedRelation,
     };
@@ -370,7 +370,7 @@ fn source_matches_named_capture_is_typed_and_validated() {
 
 #[test]
 fn span_bounds_types_outputs_and_file_scope() {
-    use ryo_language::domain::relations::types::CellKind;
+    use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::hosted::types::{
         ColumnLabel, HostedColumn, HostedName, HostedRelation,
     };

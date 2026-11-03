@@ -25,7 +25,7 @@ pub(crate) fn kind(request: &ViewRequest) -> DerivedKind {
 fn schema<'a>(
     schemas: &'a [InputSchema<'_>],
     at: usize,
-) -> Result<&'a [ryo_language::domain::relations::types::CellKind], OperatingError> {
+) -> Result<&'a [ryo_relations::domain::relations::types::CellKind], OperatingError> {
     schemas
         .get(at)
         .map(|schema| schema.kinds)

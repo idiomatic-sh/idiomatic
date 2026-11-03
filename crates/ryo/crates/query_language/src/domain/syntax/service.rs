@@ -1,9 +1,9 @@
 //! The `syntax` service: what RyoQL's operations look like, and what a program reads. Free
 //! functions over the domain's types, with no IO and no ports.
 
-use ryo_language::domain::relations::service::relation_named;
-use ryo_language::domain::relations::types::NameRef;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::relation_named;
+use ryo_relations::domain::relations::types::NameRef;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::operator_named;
 use super::types::{ArgumentRole, ArgumentSlot, OperationShape};

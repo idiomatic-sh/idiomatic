@@ -1,6 +1,6 @@
 //! The `lowering` service's cases, on values alone: which steps of a plan are lowered.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::lower;
 use super::types::Counting;

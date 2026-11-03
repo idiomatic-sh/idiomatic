@@ -17,8 +17,8 @@ use ryo_language::domain::elements::service::{
     has_incomplete_syntax, kind_names, real_count, syntax_acceptance,
 };
 use ryo_language::domain::elements::types::SyntaxAcceptance;
-use ryo_language::domain::relations::service::{from_bits, kinds};
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::{from_bits, kinds};
+use ryo_relations::domain::relations::types::{
     Bits, CellKind, ColumnsView, Flag, Integer, Position, Relation, Value,
 };
 
@@ -187,8 +187,8 @@ pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<V
     }
     tracing::trace!(target: "ryo::diagnostic::selection", event = "materialized",
         rows = into.count.0, columns = into.kinds.len(),
-        cell_bytes = into.cells.len().saturating_mul(size_of::<ryo_language::domain::relations::types::Value>()),
-        capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_language::domain::relations::types::Value>()));
+        cell_bytes = into.cells.len().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()),
+        capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()));
 }
 
 /// The cells of `row` that `on` names, written into `key`, whose room is reused.

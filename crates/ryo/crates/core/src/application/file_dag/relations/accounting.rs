@@ -148,18 +148,18 @@ pub(in crate::application::file_dag) fn bytes(result: &RelationResult) -> usize 
         RelationBody::Source(source) => {
             source.storage.capacity() * size_of::<(usize, usize)>()
                 + source.kinds.capacity()
-                    * size_of::<ryo_language::domain::relations::types::CellKind>()
+                    * size_of::<ryo_relations::domain::relations::types::CellKind>()
                 + source.projection.capacity()
                     * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
                 + source.source_kinds.capacity()
-                    * size_of::<ryo_language::domain::relations::types::CellKind>()
+                    * size_of::<ryo_relations::domain::relations::types::CellKind>()
         }
         RelationBody::Selected { selection, .. } => {
             selection.rows.capacity() * size_of::<u32>()
                 + selection.columns.capacity()
                     * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
                 + selection.kinds.capacity()
-                    * size_of::<ryo_language::domain::relations::types::CellKind>()
+                    * size_of::<ryo_relations::domain::relations::types::CellKind>()
                 + size_of::<StoredSelection>()
         }
     };

@@ -1,7 +1,7 @@
 //! The types of the `operator` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 
 use crate::domain::lowering::types::Counting;
 use crate::domain::table_model::types::Table;

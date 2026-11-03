@@ -2,17 +2,17 @@
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::collections::relations::function::item::FunctionRow;
-use ryo_language::domain::relations::service::all;
-use ryo_language::domain::relations::types::RowWriter;
-use ryo_language::domain::relations::types::{KindBits, Offset, Position, Relation, Span};
+use ryo_relations::domain::relations::collections::relations::function::item::FunctionRow;
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position, Relation, Span};
 use ryo_language::domain::symbols::types::Symbols;
 
 use super::super::errors::LanguageError;
@@ -195,7 +195,7 @@ impl LanguagePort for LanguageFake {
                 step
             };
             out.write(FunctionRow {
-                id: ryo_language::domain::relations::service::node_id(file.file, Position(place)),
+                id: ryo_relations::domain::relations::service::node_id(file.file, Position(place)),
                 name,
                 file: file.file,
                 span: Span {

@@ -8,10 +8,8 @@ use crate::domain::{
     operator::contract::views::BorrowedRows,
     table_model::types::{ParameterBinding, RowCount, Rows},
 };
-use ryo_language::domain::{
-    relations::types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value},
-    symbols::types::Symbols,
-};
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::{rc::Rc, sync::Arc};
 fn table(values: &[i64], width: usize) -> Table {

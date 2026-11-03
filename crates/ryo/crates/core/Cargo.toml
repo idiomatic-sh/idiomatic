@@ -15,6 +15,7 @@ autobenches = false
 name = "ryo_core"
 
 [dependencies]
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
 thiserror.workspace = true
 ignore.workspace = true
 rayon.workspace = true

@@ -2,7 +2,7 @@
 
 use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::operator::types::PreparedPool;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
 

@@ -2,7 +2,7 @@
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::types::{KeyIndex, Table};
 use crate::domain::table_scratch::types::WalkStep;
-use ryo_language::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value};
 #[derive(Debug, Default)]
 pub(crate) struct CycleGraph {
     pub(crate) values: Vec<Value>,

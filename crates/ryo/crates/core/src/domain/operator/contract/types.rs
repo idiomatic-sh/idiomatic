@@ -4,7 +4,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
@@ -204,7 +204,7 @@ pub(crate) struct PrimitiveWorkspace<'a> {
     pub stretches: &'a mut crate::domain::table_scratch::types::Stretches,
     pub captured: &'a mut Vec<Value>,
     pub axis: Option<&'a mut super::axis::AxisWorkspace>,
-    pub positions: &'a mut Vec<ryo_language::domain::relations::types::Position>,
+    pub positions: &'a mut Vec<ryo_relations::domain::relations::types::Position>,
     pub dfs: Option<&'a mut super::graph::DfsWorkspace>,
     pub cycles: Option<&'a mut super::graph::CycleMarks>,
     pub closure_walk: Option<&'a mut crate::domain::table_reach::types::Walk>,

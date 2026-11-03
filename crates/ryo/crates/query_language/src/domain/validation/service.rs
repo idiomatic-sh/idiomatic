@@ -2,9 +2,9 @@
 //! with no IO and no ports. It checks that every name a query writes names something; the types
 //! are checked where the names are resolved, in `lowering`.
 
-use ryo_language::domain::relations::service::relation_named;
-use ryo_language::domain::relations::types::NameRef;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::relation_named;
+use ryo_relations::domain::relations::types::NameRef;
+use ryo_relations::domain::relations::types::Relation;
 
 use ryo_values::domain::hosted::types::HostedName;
 

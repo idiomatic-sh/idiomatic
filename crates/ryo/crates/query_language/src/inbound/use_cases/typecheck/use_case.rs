@@ -13,7 +13,7 @@ use crate::domain::validation::service::validate;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
-use ryo_language::domain::relations::service::name;
+use ryo_relations::domain::relations::service::name;
 use ryo_values::domain::descriptions::types::{
     OperatorName, RelationName, StepCount, ValidateReport,
 };

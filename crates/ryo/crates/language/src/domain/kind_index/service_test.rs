@@ -3,7 +3,7 @@
 use super::service::{index_kinds, of_kind};
 use crate::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use crate::domain::elements::types::Elements;
-use crate::domain::relations::types::{KindBits, Offset, Position};
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 

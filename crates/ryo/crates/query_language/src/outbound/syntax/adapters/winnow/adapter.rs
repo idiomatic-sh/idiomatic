@@ -11,7 +11,7 @@ use winnow::token::{take_till, take_while};
 use super::constants::{GRAMMAR, Keyword, Mark, expectation, keyword_text, mark_text};
 use crate::outbound::syntax::errors::SyntaxError;
 use crate::outbound::syntax::interface::SyntaxPort;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::descriptions::types::{
     Example, Grammar, Production, ProductionForm, ProductionName,
 };

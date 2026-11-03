@@ -1,11 +1,11 @@
 //! The types of the `table_model` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_cells::types::TreeRows;
-use ryo_language::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::FlagState;
 use ryo_values::domain::plan_parts::types::Input;
@@ -108,7 +108,7 @@ pub(crate) struct SelectedView<'a> {
 #[derive(Debug)]
 pub(crate) struct StoredSelection {
     /// Provider to reacquire before replay, preserving availability/error checks.
-    pub relation: ryo_language::domain::relations::types::Relation,
+    pub relation: ryo_relations::domain::relations::types::Relation,
     /// Original row IDs in source order, including repeated positions when present.
     pub rows: std::sync::Arc<Vec<u32>>,
     /// Physical source columns, in output order and with repeats retained.

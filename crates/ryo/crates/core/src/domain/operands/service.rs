@@ -1,6 +1,6 @@
 //! The `operands` service: what one side of a comparison is for one row, with no IO and no ports.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::functions::service::apply;
 use crate::domain::functions::types::MadeText;

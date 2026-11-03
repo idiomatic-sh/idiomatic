@@ -1,7 +1,7 @@
 //! The `operator` service's cases: the dispatch of an operation to its operator, what an operation reads, and the cross-file
 //! steps on the rows the files handed over. The per-file steps are the `pipeline`'s.
 
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, PlaceNumber, Relation, TextHash, Value as Cell,
 };
 use ryo_language::domain::symbols::types::Symbols;
@@ -250,8 +250,8 @@ fn refuses() {
 /// How many of the relations the operators' examples name, a quoted name after `from`, `left`, `right`, `edges`, `relation` or
 /// `domain`, are no relation of the catalog: an example runs as it is printed only when none is.
 fn examples_naming_no_relation() -> Value {
-    use ryo_language::domain::relations::service::relation_named;
-    use ryo_language::domain::relations::types::NameRef;
+    use ryo_relations::domain::relations::service::relation_named;
+    use ryo_relations::domain::relations::types::NameRef;
     let fields = [
         "from",
         "from=",

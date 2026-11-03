@@ -9,8 +9,8 @@ use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
-use ryo_language::domain::relations::constants::NO_SPAN;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::constants::NO_SPAN;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 use unicode_width::UnicodeWidthChar;
 

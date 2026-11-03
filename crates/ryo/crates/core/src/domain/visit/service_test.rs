@@ -1,6 +1,6 @@
 //! The `visit` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::VisitError;
 use super::service::{lines_in, roles_of, walked, wanted, wants};

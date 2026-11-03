@@ -2,7 +2,7 @@
 use super::SourceDescriptor;
 use crate::domain::operator::contract::views::BorrowedRows;
 use crate::domain::table_model::collections::representations::service::kind;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDescriptor {
     let (storage, projection, source_kinds) = match input {
@@ -69,7 +69,7 @@ pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> boo
     if source.kind != kind(input) || source.kinds != input.kinds() || source.rows != input.count() {
         return false;
     }
-    let equal_columns = |columns: &[ryo_language::domain::relations::types::FactColumn],
+    let equal_columns = |columns: &[ryo_relations::domain::relations::types::FactColumn],
                          stored: &[(usize, usize)]| {
         columns.len() == stored.len()
             && columns.iter().zip(stored).all(|(column, (address, len))| {

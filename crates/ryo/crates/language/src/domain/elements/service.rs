@@ -11,16 +11,16 @@ use crate::domain::elements::types::{
     ElementPlacement, Elements, ElementsEngine, KindSum, Numbers, OpenNode, Parent, SourceOrder,
     TableBuilder, TableWriting, TreeImpact,
 };
-use crate::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SPAN, NO_SYMBOL, TOKEN};
-use crate::domain::relations::types::ReportText;
-use crate::domain::relations::types::{
+use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SPAN, NO_SYMBOL, TOKEN};
+use ryo_relations::domain::relations::types::ReportText;
+use ryo_relations::domain::relations::types::{
     Bytes, Count, ElementOrigin, Extent, FieldId, Flags, KindBits, Offset, Position, PropertyId,
 };
 use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::ChildOrdinal;
-use crate::domain::terms::types::NameText;
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::types::ChildOrdinal;
+use ryo_relations::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::Symbol;
 
 /// Empties an element table, keeping its room for the next file.
 pub fn clear_elements(elements: &mut Elements) {
@@ -707,7 +707,7 @@ pub fn origin_at(elements: &Elements, at: Position) -> ElementOrigin {
 pub fn embedded_source_at(
     elements: &Elements,
     at: Position,
-) -> Option<crate::domain::relations::types::EmbeddedSource> {
+) -> Option<ryo_relations::domain::relations::types::EmbeddedSource> {
     let sources = &engine(elements).embedded;
     let next = sources.partition_point(|source| source.root <= at);
     next.checked_sub(1)

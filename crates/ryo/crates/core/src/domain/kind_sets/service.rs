@@ -2,8 +2,8 @@
 
 use ryo_language::domain::elements::service::{kind_names, kind_vocabulary};
 use ryo_language::domain::kind_index::service::of_kind;
-use ryo_language::domain::relations::constants::NO_SYMBOL;
-use ryo_language::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::types::KindBits;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
 

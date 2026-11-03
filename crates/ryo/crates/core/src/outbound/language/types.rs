@@ -1,9 +1,9 @@
 //! The types of the `language` port: plain data, public fields and derives, with no constructor
 //! and no inherent impl.
 
-use ryo_language::domain::answers::types::AbsenceCause;
-use ryo_language::domain::relations::types::{FileId, Relation};
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::terms::types::UnknownName;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;

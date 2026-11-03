@@ -4,13 +4,11 @@ use crate::domain::file_program::service::compile_prepared;
 use crate::domain::operator::contract::types::RequestOperators;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{
-    relations::{
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::{
         service::{kinds, to_bits},
         types::{ColumnsView, FactColumn, FileId, Integer},
-    },
-    symbols::types::Symbols,
-};
+    };
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
     plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
@@ -250,7 +248,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
 
 #[test]
 fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
-    use ryo_language::domain::relations::types::{CellKind, Offset, Span};
+    use ryo_relations::domain::relations::types::{CellKind, Offset, Span};
     use ryo_values::domain::plan_parts::types::LiteralText;
     let plan = Plan {
         parameters: vec![],

@@ -4,30 +4,30 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::kind_names;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::constants::NO_SYMBOL;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::Flag;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::Flag;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Span, Value as Cell,
 };
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 
 use super::errors::TableModelError;
 use super::service::{cell, count_of, index, kinds_of, matching, push_row, read_row, reset};
 use super::types::{KeyIndex, On, RowCount, Rows, Table};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[test]
 fn compact_materialization_decodes_projected_cells_without_full_row_reads() {
     use super::service::{materialize, take_read_row_counts};
     use super::types::{SelectedRows, StoredSelection};
-    use ryo_language::domain::relations::{service::to_bits, types::Relation};
+    use ryo_relations::domain::relations::{service::to_bits, types::Relation};
     use std::sync::Arc;
 
     let physical = [
@@ -93,7 +93,7 @@ fn compact_materialization_decodes_projected_cells_without_full_row_reads() {
 fn compact_materialization_preserves_ragged_and_zero_width_legacy_rows() {
     use super::service::materialize;
     use super::types::{SelectedRows, StoredSelection};
-    use ryo_language::domain::relations::{service::to_bits, types::Relation};
+    use ryo_relations::domain::relations::{service::to_bits, types::Relation};
     use std::sync::Arc;
 
     let physical = [
@@ -598,8 +598,8 @@ fn complete_source_contract_covers_native_and_stored_without_promoting_partial_o
     use crate::domain::coverage::types::{Lacking, Partial};
     use ryo_language::domain::elements::service::{diagnose, set_syntax_acceptance};
     use ryo_language::domain::elements::types::SyntaxAcceptance;
-    use ryo_language::domain::relations::service::{kinds, to_bits};
-    use ryo_language::domain::relations::types::{Relation, ReportText};
+    use ryo_relations::domain::relations::service::{kinds, to_bits};
+    use ryo_relations::domain::relations::types::{Relation, ReportText};
     use ryo_values::domain::stored_facts::types::PartialCause;
 
     fn tree(acceptance: SyntaxAcceptance, recovered: bool) -> Elements {

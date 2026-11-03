@@ -1,6 +1,6 @@
 //! The types of the `plan_parts` concept: the numbers, text and comparisons a query plan is made of. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{Integer, Relation, Span};
+use ryo_relations::domain::relations::types::{Integer, Relation, Span};
 
 /// The text of a RyoQL query.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -9,12 +9,12 @@ use crate::domain::{
         types::{Rows, StoredSelection},
     },
 };
-use ryo_language::domain::relations::{service::kinds, types::Relation};
+use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use std::sync::Arc;
 
 /// Fields are visible only to the producer and its private owner, not primitive items.
 pub(crate) struct ProducedSelection<'f> {
-    pub(super) rows: ryo_language::domain::relations::types::ColumnsView<'f>,
+    pub(super) rows: ryo_relations::domain::relations::types::ColumnsView<'f>,
     pub(super) source: PublishedInput,
     pub(super) selection: Arc<StoredSelection>,
     pub(super) resources: [Option<crate::application::file_dag::derived::view::AcquiredView>; 2],

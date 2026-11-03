@@ -1,6 +1,6 @@
 //! Observer normalization preserves column mappings, bag semantics and diagnostic ownership.
 use super::prefix;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Comparison, ComparisonOriginId, Function, Input, LiteralText, Operand,
     ParameterId, QueryLiteral, RepeatedRows, StepId, Test,

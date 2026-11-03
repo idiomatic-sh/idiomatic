@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 use std::hash::Hasher as _;
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use super::types::{Group, Hashes, SetDigest, ValueHash};
 use crate::domain::table_cells::types::RowIndex;
@@ -167,7 +167,7 @@ pub(crate) fn hash_of(value: Value, texts: &Texts<'_>) -> ValueHash {
     let mut hasher = rustc_hash::FxHasher::default();
     match datum(value, texts) {
         Datum::Unlocated => {
-            hasher.write(ryo_language::domain::relations::constants::UNLOCATED.as_bytes());
+            hasher.write(ryo_relations::domain::relations::constants::UNLOCATED.as_bytes());
         }
         Datum::Text(text) => hasher.write(text.0.as_bytes()),
         Datum::Number(number) => hasher.write_i64(number.0),

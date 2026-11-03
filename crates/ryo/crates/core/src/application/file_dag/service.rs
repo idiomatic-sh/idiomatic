@@ -10,7 +10,7 @@ use crate::domain::replay::service::scan;
 use crate::domain::replay::types::Collect;
 use crate::domain::table_model::service::reset;
 use crate::domain::table_model::types::{RowCount, Rows, Table};
-use ryo_language::domain::relations::types::{CellKind, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use std::cell::OnceCell;
 use std::sync::Arc;
 

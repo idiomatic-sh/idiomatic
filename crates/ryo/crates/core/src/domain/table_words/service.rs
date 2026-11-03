@@ -1,7 +1,7 @@
 //! The service of the `table_words` concept: free functions named by verb that write tables as
 //! words, so they can wait in a bucket of the store, and read them back, with no IO and no ports.
 
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     Bits, Integer, Name, NamePlace, PlaceNumber, Value, Words,
 };
 use ryo_language::domain::words::service::{

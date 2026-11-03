@@ -16,7 +16,7 @@ use crate::domain::table_model::{
     types::{Addition, RowCount, Table},
 };
 use crate::domain::table_texts::types::Texts;
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use std::hash::Hasher as _;
 
 pub(crate) struct Aggregation {
@@ -162,7 +162,8 @@ impl Aggregation {
 mod tests {
     use super::*;
     use crate::domain::table_texts::types::SourceView;
-    use ryo_language::domain::{relations::types::Integer, symbols::types::Symbols};
+    use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     fn n(value: i64) -> Value {
         Value::Number(Integer(value))

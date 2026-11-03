@@ -4,7 +4,7 @@ use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::service::matching_stored;
 use crate::domain::table_model::types::KeyIndex;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -301,7 +301,7 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
         service::intern_derived,
         types::{ByteSlice, Symbols},
     };
-    use ryo_language::domain::terms::types::NameText;
+    use ryo_relations::domain::terms::types::NameText;
     let mut symbols = Symbols::default();
     let original = intern_derived(&mut symbols, ByteSlice(b""), NameText("original"));
     let columns = [FactColumn(vec![u64::from(original.0)])];

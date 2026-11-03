@@ -1,9 +1,9 @@
 //! The `positions` service: free functions named by verb that read the rows of a lowered step and key them, with no IO and no ports.
 
 use ryo_language::domain::elements::service::{field_name_at, parent_at, text_at};
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::service::to_bits;
-use ryo_language::domain::relations::types::{Flag, Position, Value};
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{Flag, Position, Value};
 
 use super::constants::{COLUMN_OF_STEP, POSITION_OF_TREE, ROW_OF_POSITIONS, SLOT_OF_ROW};
 use super::types::{

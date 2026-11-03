@@ -6,7 +6,7 @@ use super::errors::DescribeRelationError;
 use super::interface::DescribeRelationUseCase as _;
 use super::types::DescribeRelationRequest;
 use super::use_case::DescribeRelationUseCaseImpl;
-use ryo_language::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_values::domain::descriptions::types::RelationReadability;
 
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};

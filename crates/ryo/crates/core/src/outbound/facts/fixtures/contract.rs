@@ -1,8 +1,8 @@
 //! What every `facts` adapter must pass.
 
 use super::fake::one_function;
-use ryo_language::domain::relations::types::FileId;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::super::errors::FactsError;
 use super::super::interface::FactsPort;

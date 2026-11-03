@@ -1,7 +1,7 @@
 //! The `table_reach` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{CellKind, Value as Cell};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::borrowed::reach_breadth;
 use super::service::reach_all;

@@ -3,16 +3,14 @@ use crate::domain::table_model::{
     service::{count_of, read_row},
     types::{Rows, SelectedRows, StoredSelection},
 };
-use ryo_language::domain::{
-    relations::{
+use ryo_relations::domain::relations::{
         service::{node_id, to_bits},
         types::{
             CellKind, ColumnsView, FactColumn, FileId, Flag, Integer, Offset, Position, Relation,
             Span, Value,
         },
-    },
-    terms::types::Symbol,
-};
+    };
+use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
@@ -25,7 +23,7 @@ macro_rules! catalog_groups {
         }
     };
 }
-ryo_language::each_relation!(catalog_groups);
+ryo_relations::each_relation!(catalog_groups);
 
 pub(super) fn row(schema: &[CellKind], at: u32) -> Vec<Value> {
     schema

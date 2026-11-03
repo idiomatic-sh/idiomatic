@@ -2,8 +2,8 @@
 //! the elements the element is, so that no table of them is made and no key is hashed.
 
 use ryo_language::domain::elements::service::children;
-use ryo_language::domain::relations::service::{node_file, node_position};
-use ryo_language::domain::relations::types::{Position, Value};
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::{Position, Value};
 
 use super::super::interface::StrategiesItem;
 use super::super::types::NodeColumns;

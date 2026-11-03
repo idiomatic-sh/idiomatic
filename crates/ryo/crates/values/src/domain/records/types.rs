@@ -9,7 +9,7 @@ use crate::domain::stored_facts::types::ReadFailure;
 use crate::domain::stored_facts::types::{ArenaBytes, FileNotes, StoredPartial};
 use crate::domain::stored_facts::types::{KeptWords, PackedWords};
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{Integer, Span};
+use ryo_relations::domain::relations::types::{Integer, Span};
 
 /// One value of a row of the answer, typed: a row of a rule's own columns and a finding's row are these, and only the command line
 /// writes them as text. `T` holds the text of a file or a text cell: `Box<str>` where the cell is owned, `&str` where a row is lent,

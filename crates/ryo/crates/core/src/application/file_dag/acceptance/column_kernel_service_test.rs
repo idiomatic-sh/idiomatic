@@ -11,13 +11,13 @@ use crate::domain::operator::types::{Pool, PreparedPool};
 use crate::domain::table_model::service::take_read_row_counts;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::service::{node_id, to_bits};
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::{node_id, to_bits};
+use ryo_relations::domain::relations::types::{
     ColumnsView, FactColumn, FileId, Integer, Offset, Position, Relation, Span, Value as Cell,
 };
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input, JoinColumn, LiteralText, Operand, QueryLiteral, RepeatedRows,
     Side, StepId, Test,
@@ -126,7 +126,7 @@ fn run<'f>(
         &[],
         &|relation| {
             read(relation).map_or_else(
-                || ryo_language::domain::relations::service::kinds(relation),
+                || ryo_relations::domain::relations::service::kinds(relation),
                 |view| view.kinds,
             )
         },
@@ -227,11 +227,11 @@ fn selected_stored_chain_matches_executor_and_reduces_full_row_reads() -> Result
         FactColumn(files),
     ];
     let function_view = ColumnsView {
-        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::Function),
         columns: &functions,
     };
     let edge_view = ColumnsView {
-        kinds: ryo_language::domain::relations::service::kinds(Relation::SemanticChild),
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::SemanticChild),
         columns: &edges,
     };
     let read = |relation| match relation {
@@ -300,13 +300,13 @@ fn no_hit_and_ragged_right_keep_exact_fallback() -> Result<(), OperatingError> {
         FactColumn(vec![to_bits(Cell::File(file)).0; 2]),
     ];
     let function_view = ColumnsView {
-        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::Function),
         columns: &functions,
     };
     let full = |relation| match relation {
         Relation::Function => Some(function_view),
         Relation::SemanticChild => Some(ColumnsView {
-            kinds: ryo_language::domain::relations::service::kinds(relation),
+            kinds: ryo_relations::domain::relations::service::kinds(relation),
             columns: &full_edges,
         }),
         _ => None,
@@ -329,7 +329,7 @@ fn no_hit_and_ragged_right_keep_exact_fallback() -> Result<(), OperatingError> {
     let ragged = |relation| match relation {
         Relation::Function => Some(function_view),
         Relation::SemanticChild => Some(ColumnsView {
-            kinds: ryo_language::domain::relations::service::kinds(relation),
+            kinds: ryo_relations::domain::relations::service::kinds(relation),
             columns: &ragged_edges,
         }),
         _ => None,
@@ -381,11 +381,11 @@ fn missing_provider_and_partial_file_keep_executor_failure_boundary() -> Result<
     ];
     let read_empty = |relation| match relation {
         Relation::Function => Some(ColumnsView {
-            kinds: ryo_language::domain::relations::service::kinds(relation),
+            kinds: ryo_relations::domain::relations::service::kinds(relation),
             columns: &empty_function,
         }),
         Relation::SemanticChild => Some(ColumnsView {
-            kinds: ryo_language::domain::relations::service::kinds(relation),
+            kinds: ryo_relations::domain::relations::service::kinds(relation),
             columns: &empty_edges,
         }),
         _ => None,

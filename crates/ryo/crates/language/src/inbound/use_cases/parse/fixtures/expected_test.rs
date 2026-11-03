@@ -2,7 +2,7 @@
 
 use super::{Cell, name, node, shown, span, unknown};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 /// What the case writes.
 type Input = fn() -> String;

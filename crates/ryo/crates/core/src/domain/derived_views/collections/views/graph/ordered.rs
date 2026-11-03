@@ -12,7 +12,7 @@ use crate::domain::{
         types::{Datum, Texts},
     },
 };
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 fn ordered_rows(

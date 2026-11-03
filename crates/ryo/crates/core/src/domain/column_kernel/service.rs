@@ -7,8 +7,8 @@ use crate::domain::operator::types::PlanLayout;
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::service::{cell_at, column_in, matching_stored, push_row, reset};
 use crate::domain::table_model::types::{KeyIndex, Rows, Table};
-use ryo_language::domain::relations::service::kinds;
-use ryo_language::domain::relations::types::{CellKind, ColumnsView, Value};
+use ryo_relations::domain::relations::service::kinds;
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_values::domain::plan_parts::types::{

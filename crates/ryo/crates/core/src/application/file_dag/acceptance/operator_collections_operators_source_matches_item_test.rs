@@ -10,8 +10,8 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{RowCount, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::constants::NO_SPAN;
-use ryo_language::domain::relations::types::{CellKind, Offset, Relation, Span, Value};
+use ryo_relations::domain::relations::constants::NO_SPAN;
+use ryo_relations::domain::relations::types::{CellKind, Offset, Relation, Span, Value};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, LiteralText};
 use ryo_values::domain::plans::types::{Operation, QueryOperator};
@@ -185,7 +185,7 @@ fn evaluate_lines(
         &mut input,
         &[
             Value::Span(source_span),
-            Value::Number(ryo_language::domain::relations::types::Integer(base_line)),
+            Value::Number(ryo_relations::domain::relations::types::Integer(base_line)),
         ],
     );
     let operation = Operation::SourceMatches {
@@ -266,7 +266,7 @@ fn captured(
 ) -> Result<Vec<(Span, Span, String)>, OperatingError> {
     use ryo_language::domain::symbols::service::{intern_derived, text_of};
     use ryo_language::domain::symbols::types::ByteSlice;
-    use ryo_language::domain::terms::types::NameText;
+    use ryo_relations::domain::terms::types::NameText;
     let mut input = Table {
         kinds: vec![CellKind::Span],
         ..Table::default()

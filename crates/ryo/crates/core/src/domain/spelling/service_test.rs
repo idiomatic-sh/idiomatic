@@ -1,6 +1,6 @@
 //! The `spelling` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value as Cell,
     WorkerNumber,
 };

@@ -1,7 +1,7 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::{operating::errors::OperatingError, table_cells::types::RowIndex};
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct StoredItem;
 impl RepresentationsItem for StoredItem {
@@ -62,9 +62,9 @@ impl RepresentationsItem for StoredItem {
                 .zip(view.columns.get(at).and_then(|c| c.0.get(row.0)))
             {
                 Some((kind, bits)) => {
-                    CellRead::Value(ryo_language::domain::relations::service::from_bits(
+                    CellRead::Value(ryo_relations::domain::relations::service::from_bits(
                         *kind,
-                        ryo_language::domain::relations::types::Bits(*bits),
+                        ryo_relations::domain::relations::types::Bits(*bits),
                     ))
                 }
                 None => CellRead::MissingPhysical,
@@ -87,9 +87,9 @@ impl RepresentationsItem for StoredItem {
             let Some(bits) = view.columns.get(at).and_then(|c| c.0.get(row.0)) else {
                 return Ok(RowRead::MissingPhysical);
             };
-            decode[at] = ryo_language::domain::relations::service::from_bits(
+            decode[at] = ryo_relations::domain::relations::service::from_bits(
                 *kind,
-                ryo_language::domain::relations::types::Bits(*bits),
+                ryo_relations::domain::relations::types::Bits(*bits),
             );
         }
         Ok(RowRead::Decoded(&decode[..view.kinds.len()]))

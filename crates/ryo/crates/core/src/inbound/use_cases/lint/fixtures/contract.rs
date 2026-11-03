@@ -18,8 +18,8 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::service::{column_name, columns, name, provenance_of};
-use ryo_language::domain::relations::types::{Integer, Provenance};
+use ryo_relations::domain::relations::service::{column_name, columns, name, provenance_of};
+use ryo_relations::domain::relations::types::{Integer, Provenance};
 use ryo_language::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures, Point};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
@@ -251,8 +251,8 @@ fn compared(cell: Option<&Typed>) -> String {
         Some(Typed::File(text) | Typed::Text(text)) => text.to_string(),
         Some(Typed::Number(number)) => number.0.to_string(),
         Some(Typed::Span(span))
-            if ryo_language::domain::relations::service::location(*span)
-                == ryo_language::domain::relations::types::Locatedness::Absent =>
+            if ryo_relations::domain::relations::service::location(*span)
+                == ryo_relations::domain::relations::types::Locatedness::Absent =>
         {
             "unlocated".to_owned()
         }

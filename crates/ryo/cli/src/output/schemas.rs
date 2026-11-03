@@ -12,9 +12,9 @@ use std::sync::{Mutex, PoisonError};
 use ryo_core::outbound::rows::errors::RowsError;
 use ryo_core::outbound::rows::interface::RowsPort;
 use ryo_core::outbound::rows::types::{LentCell, Summary};
-use ryo_language::domain::relations::constants::UNLOCATED;
-use ryo_language::domain::relations::service::location;
-use ryo_language::domain::relations::types::Locatedness;
+use ryo_relations::domain::relations::constants::UNLOCATED;
+use ryo_relations::domain::relations::service::location;
+use ryo_relations::domain::relations::types::Locatedness;
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::{Cell, CellText, RowTotal, Unread, Unreadable};
 

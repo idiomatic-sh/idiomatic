@@ -4,15 +4,15 @@
 
 use std::collections::BTreeMap;
 
-use ryo_language::domain::relations::service::{all, columns, kinds};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::{all, columns, kinds};
+use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::SCHEMAS;
 use super::types::RefusalText;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
 use crate::outbound::facts::types::{ColumnsMut, WordsToKeep};
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 
 /// The memory facts adapter: it holds nothing, so workers share nothing through it.

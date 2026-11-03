@@ -15,7 +15,7 @@ use crate::domain::{
     stored_graph::types::{GraphCounts, GraphWalk, Orientation},
     table_model::{service::kinds_of, types::Rows},
 };
-use ryo_language::domain::relations::types::{Relation, Value};
+use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, StepId},
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},

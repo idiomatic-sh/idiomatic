@@ -11,7 +11,7 @@ use crate::domain::kind_sets::service::satisfies;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::TextView;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindWord};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, ComparisonOriginId, Input, Operand, ParameterId, QueryLiteral, Test,

@@ -3,8 +3,8 @@
 //! `Relation`, a column becomes its position, a step becomes its number, a test becomes an enum.
 //! Nothing after this works on names.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
 use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};

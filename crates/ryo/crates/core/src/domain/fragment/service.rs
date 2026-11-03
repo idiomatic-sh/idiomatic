@@ -2,8 +2,8 @@
 //! made only where a comparison, a key or the step that takes the rows asks for one.
 
 use super::constants::COUNTING_OF_STEP;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Value;
 
 use super::types::FragmentRun;
 use crate::domain::joins::service::{antijoin, join, union};

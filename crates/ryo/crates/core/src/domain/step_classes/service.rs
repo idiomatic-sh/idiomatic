@@ -7,7 +7,7 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::positions::types::ClassPlace;
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Applied, ColumnIndex, Comparison, Input, Operand};
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
 

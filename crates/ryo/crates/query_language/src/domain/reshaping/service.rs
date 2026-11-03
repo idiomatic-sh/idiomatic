@@ -1,7 +1,7 @@
 //! The `reshaping` service: the calls that count, digest, capture, split or rank rows, lowered to steps.
 
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{

@@ -13,7 +13,7 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{RowCount, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, RepeatedRows, Side};
 use ryo_values::domain::plans::types::Operation;

@@ -1,7 +1,7 @@
 //! The types of the `keeping` concept: plain data, public fields and derives, with no constructor
 //! and no inherent impl.
 
-use ryo_language::domain::relations::types::{FileId, WorkerNumber};
+use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
 
 use crate::domain::rules::types::RuleSpec;
 

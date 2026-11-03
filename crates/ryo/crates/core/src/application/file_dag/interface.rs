@@ -2,7 +2,7 @@
 use super::executor::PrimitiveExecutor;
 use super::relations::{RelationOwner, RelationResult};
 use crate::domain::file_program::types::NodeId;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 use std::sync::Arc;
 /// The domain executor asks its application owner for an already scheduled DAG

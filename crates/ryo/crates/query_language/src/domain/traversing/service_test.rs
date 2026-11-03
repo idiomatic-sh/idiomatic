@@ -1,6 +1,6 @@
 //! The `traversing` service's cases, on query text read by the real syntax adapter: the calls that walk an axis.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::lowering::errors::LoweringError;
@@ -451,7 +451,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         );
         assert_eq!(
             fields.last().expect("ordinal exists").kind,
-            ryo_language::domain::relations::types::CellKind::Number
+            ryo_relations::domain::relations::types::CellKind::Number
         );
         return Ok("ordered-dfs");
     }

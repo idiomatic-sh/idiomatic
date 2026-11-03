@@ -2,7 +2,7 @@
 use super::types::*;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputSchema;
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plans::types::Operation;
 pub(crate) fn empty_results(operation: &Operation, inputs: &[InputSchema<'_>]) -> Vec<EmptyResult> {
     match operation {
@@ -65,14 +65,14 @@ pub(crate) fn collected_layout(
     operation: &ryo_values::domain::plans::types::Operation,
     inputs: &[crate::domain::operation_schema::types::InputSchema<'_>],
     checked: &Result<
-        Vec<ryo_language::domain::relations::types::CellKind>,
+        Vec<ryo_relations::domain::relations::types::CellKind>,
         crate::domain::operating::errors::OperatingError,
     >,
 ) -> Result<
-    Vec<ryo_language::domain::relations::types::CellKind>,
+    Vec<ryo_relations::domain::relations::types::CellKind>,
     crate::domain::operating::errors::OperatingError,
 > {
-    use ryo_language::domain::relations::types::CellKind;
+    use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::plans::types::Operation;
     let mut kinds = inputs.first().map_or(&[][..], |input| input.kinds).to_vec();
     match operation {

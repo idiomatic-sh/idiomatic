@@ -2,8 +2,8 @@
 
 use std::marker::PhantomData;
 
-use ryo_language::domain::relations::collections::relations::package_dependency::item::PackageDependency;
-use ryo_language::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::collections::relations::package_dependency::item::PackageDependency;
+use ryo_relations::domain::relations::types::RowWriter;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::project::types::{ManifestInput, ManifestReader};
 

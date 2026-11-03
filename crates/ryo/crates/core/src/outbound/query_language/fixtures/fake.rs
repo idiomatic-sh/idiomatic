@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::super::errors::QueryLanguageError;
 use super::super::interface::QueryLanguagePort;
-use ryo_language::domain::relations::types::{Integer, Offset, Relation, Span};
+use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span};
 use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::RefusalMessage;

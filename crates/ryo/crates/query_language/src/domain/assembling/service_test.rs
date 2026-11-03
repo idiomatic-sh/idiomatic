@@ -1,6 +1,6 @@
 //! The `assembling` service's cases, on query text read by the real syntax adapter.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use super::service::lower;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};

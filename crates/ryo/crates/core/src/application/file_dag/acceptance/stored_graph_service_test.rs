@@ -9,7 +9,7 @@ use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, 
 use crate::domain::table_model::service::{push_row, row_in};
 use crate::domain::table_model::types::{Rows, Table};
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::{CellKind, Integer, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 use ryo_values::domain::plans::types::Operation;
@@ -181,7 +181,7 @@ fn typed_endpoint_identity_never_coalesces_equal_payload_words() {
         ..Default::default()
     };
     let number = Value::Number(Integer(0));
-    let flag = Value::Flag(ryo_language::domain::relations::types::Flag::Lowered);
+    let flag = Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered);
     push_row(&mut edges, &[number, flag]);
     push_row(&mut edges, &[flag, number]);
     let graph = build(

@@ -51,13 +51,13 @@ fn subject_with_counting(
     use crate::domain::operator::service::pool_for;
     use crate::domain::table_scratch::types::OperatorScratch;
     use crate::domain::table_texts::types::SourceView;
-    use ryo_language::domain::relations::service::{node_id, to_bits};
-    use ryo_language::domain::relations::types::{
+    use ryo_relations::domain::relations::service::{node_id, to_bits};
+    use ryo_relations::domain::relations::types::{
         CellKind, ColumnsView, FactColumn, FileId, Offset, Position, Relation, Span, Value as Cell,
     };
     use ryo_language::domain::symbols::service::intern_derived;
     use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-    use ryo_language::domain::terms::types::NameText;
+    use ryo_relations::domain::terms::types::NameText;
     use ryo_values::domain::plan_parts::types::{JoinColumn, LiteralText, QueryLiteral, Side};
     use ryo_values::domain::plans::types::{Emit, Plan};
     let mut symbols = Symbols::default();
@@ -87,7 +87,7 @@ fn subject_with_counting(
                 .collect(),
         ),
     ];
-    let schema: &[CellKind] = ryo_language::domain::relations::service::kinds(Relation::Function);
+    let schema: &[CellKind] = ryo_relations::domain::relations::service::kinds(Relation::Function);
     let source = ColumnsView {
         kinds: schema,
         columns: &columns,
@@ -167,7 +167,7 @@ fn subject_with_counting(
         &[],
         &|relation| {
             read(relation).map_or_else(
-                || ryo_language::domain::relations::service::kinds(relation),
+                || ryo_relations::domain::relations::service::kinds(relation),
                 |view| view.kinds,
             )
         },

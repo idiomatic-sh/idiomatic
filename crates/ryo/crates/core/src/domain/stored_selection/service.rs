@@ -3,7 +3,7 @@ use crate::domain::table_model::{
     service::{check_columns, mix, rectangular, word_of},
     types::KeyCellsHash,
 };
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     service::from_bits,
     types::{Bits, ColumnsView, Value},
 };

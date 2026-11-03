@@ -2,8 +2,8 @@
 
 use super::{answers, duplicates, listed, needs_answer, ships};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::answers::types::AbsenceCause;
-use crate::domain::relations::types::{OptionalCapability, Relation};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{OptionalCapability, Relation};
 
 /// What the case gives: the answers of a language, as a function of the relation; or the command line's manifest a language
 /// `go` is looked for in, as its text, or as a directory where the file should be.

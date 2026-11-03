@@ -12,7 +12,7 @@ use ryo_core::inbound::use_cases::lint::types::LintReport as CoreReport;
 use ryo_core::outbound::rows::factory::collect;
 use ryo_core::outbound::rows::interface::RowsPort as _;
 use ryo_core::outbound::rows::types::LentCell;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::records::types::{Cell, CellText};
 
 /// A text and what it is offered as.

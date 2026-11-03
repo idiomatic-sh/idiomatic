@@ -1,7 +1,7 @@
 //! The `axis` item's cases.
 
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plans::types::QueryOperator;
@@ -19,9 +19,9 @@ use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{FileId, KindBits, Offset, Position};
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Position};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction;
@@ -489,7 +489,7 @@ fn refuses() {
 fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
     use crate::application::file_dag::derived::indexes::LIMIT;
     use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
-    use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+    use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
     let columns = [
         FactColumn(vec![1, 1, 1, 9, 2, 4, 90]),
         FactColumn(vec![9, 2, 9, 4, 4, 1, 91]),

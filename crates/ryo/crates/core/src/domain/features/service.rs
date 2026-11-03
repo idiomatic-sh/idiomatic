@@ -1,6 +1,6 @@
 //! The `features` service: free functions over a plan and the rows its steps were fed, with no IO and no ports.
 
-use ryo_language::domain::relations::service::all;
+use ryo_relations::domain::relations::service::all;
 
 use super::types::{FeatureRows, StepWork};
 use crate::domain::operator::types::RowsFed;

@@ -24,7 +24,7 @@ use ryo_core::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_core::outbound::rows;
 use ryo_core::outbound::rows::interface::RowsPort;
 use ryo_core::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::QueryText;

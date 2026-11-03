@@ -1,6 +1,6 @@
 //! Pure borrowed relation reader port.
 use crate::domain::{operating::errors::OperatingError, table_model::types::Rows};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 /// What gives the rows of a relation, where the store keeps them.
 pub(crate) trait Reading<'f> {
     /// The rows of the relation.

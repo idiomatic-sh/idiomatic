@@ -6,7 +6,7 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::{service::cell, types::ParameterBinding};
-use ryo_language::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct GroupCountItem;
 impl OperatorsItem for GroupCountItem {

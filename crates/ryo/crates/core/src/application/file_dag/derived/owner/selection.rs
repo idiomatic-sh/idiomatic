@@ -1,7 +1,7 @@
 //! Owner-bound selector acquisition; immutable views leave this scope, never the backend.
 use super::*;
 use crate::domain::{operating::types::OperatorContext, stored_selection::types::Selector};
-use ryo_language::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::ColumnsView;
 #[derive(Clone, Copy)]
 pub(in crate::application::file_dag::derived) struct SelectionSource<'a> {
     owner: &'a DerivedOwner,
@@ -41,7 +41,7 @@ impl SelectionSource<'_> {
         inputs: DerivedInputs<'_, '_>,
         scratch: &mut DerivedScratch,
         stored: Option<(
-            ryo_language::domain::relations::types::Relation,
+            ryo_relations::domain::relations::types::Relation,
             ColumnsView<'_>,
         )>,
     ) -> Result<super::super::view::AcquiredView, OperatingError> {

@@ -1,6 +1,6 @@
 //! Conservatively fuse exclusively source-keyed closure consumers into physical demand joins.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ReachLookup, RepeatedRows, StepId, Test,
 };

@@ -33,14 +33,15 @@ use super::not_yet_read::report_not_yet_read;
 use super::rails::judge_rails;
 use super::rows::{compare, rows_of_inputs_with};
 use super::samples::samples_in;
+use super::semantics::judge as judge_semantics;
 use super::unread;
 use crate::domain::elements::service::{kind_at, positions};
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::constants::TOKEN;
-use crate::domain::relations::service::{KIND_LIMIT, all, folder_of, provenance_of};
-use crate::domain::relations::types::Provenance;
-use crate::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::relations::constants::TOKEN;
+use ryo_relations::domain::relations::service::{KIND_LIMIT, all, folder_of, provenance_of};
+use ryo_relations::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::types::{FileId, Relation};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::project::types::ProjectEngine;
@@ -338,7 +339,8 @@ pub fn conformance_with(
     judge_presence(parse, language, fixtures, &mut findings);
     judge_reasons(parse, language, &mut findings);
     judge_classes(parse, language, &mut findings);
-    judge_unknowns(parse, expected, &mut findings);
+    let semantic_reasons = judge_semantics(parse, &expected.semantic, &mut findings);
+    judge_unknowns(parse, expected, &semantic_reasons, &mut findings);
     if syntax
         .iter()
         .any(|relation| parse_absence(parse, *relation).is_none())

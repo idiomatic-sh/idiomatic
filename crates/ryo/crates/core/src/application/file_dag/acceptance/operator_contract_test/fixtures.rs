@@ -3,8 +3,8 @@ use crate::domain::table_model::{
     service::push_row,
     types::{BindingCell, BindingTable, ParameterBinding, Table},
 };
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
 };
 use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
@@ -12,7 +12,7 @@ use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, Symbols},
 };
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, HostedNumber, Input, JoinColumn, LiteralText, Operand, ParameterId,
     QueryLiteral, RepeatedRows, Side, TableKey, WholeNumber,

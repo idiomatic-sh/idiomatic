@@ -48,7 +48,7 @@ impl language::interface::LanguagePort for Counting {
 
     fn supports(
         &self,
-        relation: ryo_language::domain::relations::types::Relation,
+        relation: ryo_relations::domain::relations::types::Relation,
     ) -> language::types::Answers {
         self.language.supports(relation)
     }
@@ -65,7 +65,7 @@ impl language::interface::LanguagePort for Counting {
         file: language::types::FileToRead<'_>,
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> language::types::FileReading {
         let _before = self
             .reads
@@ -77,7 +77,7 @@ impl language::interface::LanguagePort for Counting {
         &self,
         input: &language::types::ProjectInput<'_>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        out: &mut dyn ryo_language::domain::relations::types::RowWriter,
+        out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) -> Result<language::types::ProjectAnswer, language::errors::LanguageError> {
         let _before = self
             .projects

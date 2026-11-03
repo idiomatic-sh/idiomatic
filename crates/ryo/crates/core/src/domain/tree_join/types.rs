@@ -1,6 +1,6 @@
 //! The types of the `tree_join` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{Position, Value};
+use ryo_relations::domain::relations::types::{Position, Value};
 
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::types::MissingColumn;

@@ -4,13 +4,13 @@ use crate::domain::operating::{
     types::{Emit, InputPlace, OperatorContext, Supply},
 };
 use crate::domain::table_model::types::{RowCount, Rows, Table};
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 /// What a step reads its inputs through: it can ask for the rows of an input one at a time, or hold them whole.
 /// Declared provenance determines whether a missing publication is an error.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum InputOrigin {
     External,
-    Relation(ryo_language::domain::relations::types::Relation),
+    Relation(ryo_relations::domain::relations::types::Relation),
     Internal,
     /// A streamed producer materialized only for this input demand, with no promised resident publication.
     Temporary,

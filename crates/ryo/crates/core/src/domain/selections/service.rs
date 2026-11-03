@@ -1,6 +1,6 @@
 //! The `selections` service: the lowered steps that keep rows, with no IO and no ports.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::symbols::service::name_count;
 
 use super::evaluation::tree_each;
@@ -15,7 +15,7 @@ use crate::domain::positions::types::{LoweredRoom, Slots, Stride, Work};
 use crate::domain::table_cells::types::{RowIndex, TreeRows};
 use crate::domain::table_model::service::positions;
 use crate::domain::table_model::types::Verdict;
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::{Comparison, StepId};
 

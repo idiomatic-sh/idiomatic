@@ -1,7 +1,7 @@
 //! Type and pattern validation for the replacement projection.
 
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::program::types::{Call, QuerySpelling, StepName};

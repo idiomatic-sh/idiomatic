@@ -8,7 +8,7 @@ use crate::domain::table_model::{
     types::{KeyIndex, On, Table},
 };
 use crate::domain::table_texts::types::Texts;
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// Append canonical lookup identities while retaining every original output cell.
 fn canonical_columns(
@@ -194,9 +194,9 @@ pub(super) fn prepare(
 
 use crate::domain::table_scratch::types::ScratchText;
 use crate::domain::table_texts::service::{name_text, symbol_text};
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, QuerySymbols},
 };
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;

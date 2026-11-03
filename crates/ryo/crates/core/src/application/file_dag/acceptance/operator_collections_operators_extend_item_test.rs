@@ -1,6 +1,6 @@
 //! The `extend` item's cases.
 
-use ryo_language::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_values::domain::plans::types::QueryOperator;
 
@@ -15,7 +15,7 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
@@ -173,7 +173,7 @@ fn appends_a_name_that_compares_with_the_names_of_the_files() -> Result<Value, O
     // The file handed over `here` as text in worker 0's arena, with the hash of the text.
     let handed = ryo_language::domain::symbols::service::hash_in(
         &symbols,
-        ryo_language::domain::terms::types::Symbol(0),
+        ryo_relations::domain::terms::types::Symbol(0),
     );
     let Some(Cell::Name(made)) = out.cells.get(1).copied() else {
         return Ok(0);
@@ -188,8 +188,8 @@ fn appends_a_name_that_compares_with_the_names_of_the_files() -> Result<Value, O
     Ok(usize::from(
         made_here.is_some_and(|place| {
             place.origin
-                == ryo_language::domain::relations::types::Origin::Derived(
-                    ryo_language::domain::relations::types::CROSS_FILE,
+                == ryo_relations::domain::relations::types::Origin::Derived(
+                    ryo_relations::domain::relations::types::CROSS_FILE,
                 )
         }) && Some(made.hash) == handed
             && crate::domain::table_texts::service::datum(Cell::Name(made), &texts)

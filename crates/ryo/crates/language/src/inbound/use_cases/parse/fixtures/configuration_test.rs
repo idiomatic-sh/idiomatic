@@ -5,11 +5,9 @@ use super::super::{
     rows::rows_of_inputs_with,
 };
 use super::{ConfiguredFixture, Selection};
-use crate::domain::{
-    elements::types::{Completion, TableBuilder, Tree},
-    relations::types::{Count, KindBits, Offset},
-    terms::types::UnknownName,
-};
+use crate::domain::{elements::types::{Completion, TableBuilder, Tree}};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
+use ryo_relations::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::{
     interface::ParseUseCase,
     types::{KindNames, ParseConfigurationIdentity, ParseRequest, Recognition, SkippedDirectory},
@@ -20,7 +18,7 @@ use std::{cell::RefCell, sync::Arc};
 struct SelectedParser(&'static str);
 impl ParseUseCase for SelectedParser {
     type FileModel = ();
-    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
@@ -54,7 +52,7 @@ impl ParseUseCase for SelectedParser {
         Ok(())
     }
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
-    crate::each_relation!(absent_syntax);
+    ryo_relations::each_relation!(absent_syntax);
 }
 
 /// References are not invoked by a rows-only read.
@@ -100,7 +98,7 @@ fn singleton_and_multiinput_forward_their_own_target_once() -> std::io::Result<(
         let rows = rows_of_inputs_with(
             &selection,
             &inputs,
-            crate::domain::relations::types::Relation::Entry,
+            ryo_relations::domain::relations::types::Relation::Entry,
             "entry",
             &mut findings,
         );

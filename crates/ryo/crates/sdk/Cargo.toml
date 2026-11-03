@@ -15,6 +15,7 @@ autobenches = false
 name = "ryo"
 
 [dependencies]
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.1.2" }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }

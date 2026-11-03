@@ -2,8 +2,8 @@
 
 use super::types::PlanReads;
 use crate::domain::storing::types::MadeAgain;
-use ryo_language::domain::relations::service::provenance_of;
-use ryo_language::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::relations::types::Provenance;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Freshness, PlacedRule};

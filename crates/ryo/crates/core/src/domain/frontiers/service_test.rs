@@ -6,12 +6,12 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Table;
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Name, PlaceNumber, Relation, TextHash, Value as Cell, Words,
 };
 use ryo_language::domain::symbols::service::{hash_of, intern_derived};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{Input as PlanInput, StepId};
 use ryo_values::domain::stored_facts::types::KeptWords;
 

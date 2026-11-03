@@ -1,7 +1,7 @@
 //! The `select` item's cases.
 
-use ryo_language::domain::relations::service::to_bits;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Offset, Relation, Value as Cell,
 };
 use ryo_language::domain::symbols::service::intern;
@@ -21,7 +21,7 @@ use crate::domain::table_model::types::{
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::Applied;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;

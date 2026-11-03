@@ -6,7 +6,7 @@ use crate::domain::{
     operation_schema::types::InputSchema,
     table_cells::types::RowIndex,
 };
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     service::{node_file, node_position},
     types::Value,
 };

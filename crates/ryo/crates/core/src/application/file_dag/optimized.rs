@@ -22,7 +22,7 @@ use crate::domain::table_model::{
     service::reset,
     types::{Rows, Table},
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::StepId;
 
 impl CommonOperatorEngine {

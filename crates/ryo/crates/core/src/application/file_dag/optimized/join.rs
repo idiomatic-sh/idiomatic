@@ -18,7 +18,7 @@ use crate::domain::table_model::{
     },
     types::{On, RowCount, Rows},
 };
-use ryo_language::domain::relations::{service::kinds, types::Value};
+use ryo_relations::domain::relations::{service::kinds, types::Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side};
 
 const SPARSE_PAIR_LIMIT: usize = 65_536;

@@ -2,7 +2,7 @@
 //! positions of the elements of the file: no row of values is made between them, a value is made only where a comparison, a key
 //! or the step that takes the rows asks for one. A step with an input outside the fragment is not lowered, and runs as an operator.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use super::constants::{EDGE, ELEMENT};
 use super::types::{

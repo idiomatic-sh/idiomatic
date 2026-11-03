@@ -8,12 +8,12 @@ struct Ordered {
 }
 macro_rules! forward {
     (syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* } manifest { $( $manifest:tt )* } engine { $( $engine:tt )* }) => {
-        $(fn $module(&self) -> Support<Reader<crate::domain::relations::collections::relations::$module::item::$variant, Seen>> { Small.$module() })*
+        $(fn $module(&self) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Seen>> { Small.$module() })*
     };
 }
 impl ParseUseCase for Ordered {
     type FileModel = Seen;
-    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         Small.capabilities()
     }
     fn configuration_identity(
@@ -55,7 +55,7 @@ impl ParseUseCase for Ordered {
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {
         self.events.lock().unwrap().push("complete");
     }
-    crate::each_relation!(forward);
+    ryo_relations::each_relation!(forward);
 }
 #[test]
 fn default_requirement_preserves_completion_before_each_model_and_real_reader_results() {

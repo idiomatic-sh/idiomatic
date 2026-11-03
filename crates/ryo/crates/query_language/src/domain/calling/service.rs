@@ -1,7 +1,7 @@
 //! The `calling` service: the calls that shape rows (`project`, `extend`, `join` and `antijoin`) and the dispatch of every call to its lowering.
 
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::combining::service::call_set;
 use crate::domain::idioms::service::push_same_sets;
@@ -129,7 +129,7 @@ pub(crate) fn call_extend(
         let (operand, kind) = match &value.value {
             syntax::ArgumentValue::Number(number) => (
                 parts::Operand::Literal(parts::QueryLiteral::Number(
-                    ryo_language::domain::relations::types::Integer(number.0),
+                    ryo_relations::domain::relations::types::Integer(number.0),
                 )),
                 CellKind::Number,
             ),

@@ -1,13 +1,14 @@
 //! every_relation_answered: the compiler accepts this.
 
-use ryo_language::domain::answers::types::{AbsenceCause, ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
-use ryo_language::domain::relations::collections::relations::function::item::{
+use ryo_relations::domain::relations::collections::relations::function::item::{
     Function, FunctionRow,
 };
-use ryo_language::domain::relations::types::{Count, Position, Rows};
+use ryo_relations::domain::relations::types::{Count, Position, Rows};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
@@ -27,7 +28,7 @@ macro_rules! no_manifests {
                 &self,
             ) -> Support<
                 ryo_language::inbound::use_cases::project::types::ManifestReader<
-                    ryo_language::domain::relations::collections::relations::$module::item::$variant,
+                    ryo_relations::domain::relations::collections::relations::$module::item::$variant,
                 >,
             > {
                 ryo_language::domain::answers::service::absent(AbsenceCause::NoManifests)
@@ -49,8 +50,8 @@ macro_rules! all_but_function {
     (@one $module:ident $variant:ident) => {
         fn $module(
             &self,
-        ) -> Support<Reader<ryo_language::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
-            ryo_language::domain::answers::service::absent(ryo_language::domain::answers::types::AbsenceCause::NoSuchConstruct)
+        ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
+            ryo_language::domain::answers::service::absent(ryo_relations::domain::answers::types::AbsenceCause::NoSuchConstruct)
         }
     };
 }
@@ -102,7 +103,7 @@ impl ParseUseCase for Language {
 
     fn capabilities(
         &self,
-    ) -> &'static [ryo_language::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
 
@@ -152,7 +153,7 @@ impl ParseUseCase for Language {
         ryo_language::domain::answers::service::reads::<FunctionItem>()
     }
 
-    ryo_language::each_relation!(all_but_function);
+    ryo_relations::each_relation!(all_but_function);
 }
 
 impl ProjectUseCase for Language {
@@ -174,7 +175,7 @@ impl ProjectUseCase for Language {
         })
     }
 
-    ryo_language::each_relation!(no_manifests);
+    ryo_relations::each_relation!(no_manifests);
 }
 
 fn main() {}

@@ -7,7 +7,7 @@ use crate::domain::{
     stored_selection::types::Selector,
     table_model::types::{Rows, SelectedRows},
 };
-use ryo_language::domain::relations::types::{CellKind, ColumnsView, Relation};
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Relation};
 use std::{ops::Deref, rc::Rc, sync::Arc};
 
 pub(crate) struct SelectionFixture {

@@ -2,9 +2,9 @@
 //! whether a relation read in part could change what such a read makes, with no IO and no ports.
 
 use super::constants::READS_OF_EARLIER_STEP;
-use ryo_language::domain::relations::service::columns;
-use ryo_language::domain::relations::service::kind_column;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::columns;
+use ryo_relations::domain::relations::service::kind_column;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{Bearing, Blocking, Needs, Passage, ReadIndex, RelationRead, StepReads};
 use crate::domain::coverage::constants::REPOSITORY;
@@ -14,7 +14,7 @@ use crate::domain::coverage::types::{
 };
 use crate::domain::rules::service::id_at;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;

@@ -3,11 +3,11 @@
 use crate::domain::elements::service::{builder_engine, children, end_of, engine, engine_mut};
 use crate::domain::elements::types::{BuilderEngine, Elements};
 use crate::domain::elements::types::{OpenNode, TableBuilder, TableWriting};
-use crate::domain::relations::types::Expanded;
-use crate::domain::relations::types::{Count, ExpansionId, Position};
-use crate::domain::relations::types::{EmbeddedMapping, EmbeddedSource, Offset};
+use ryo_relations::domain::relations::types::Expanded;
+use ryo_relations::domain::relations::types::{Count, ExpansionId, Position};
+use ryo_relations::domain::relations::types::{EmbeddedMapping, EmbeddedSource, Offset};
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::terms::types::ChildOrdinal;
+use ryo_relations::domain::terms::types::ChildOrdinal;
 
 /// Adds trees for reading under the element at `host`, which the parser already closed: until [`release`], what is entered or added
 /// is a child of `host` that comes after all its own, and is not an element of the file's own tree.

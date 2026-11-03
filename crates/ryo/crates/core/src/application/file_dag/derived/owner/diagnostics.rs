@@ -1,6 +1,6 @@
 //! Read-only diagnostic reporting stays inside the private resource owner.
 use super::*;
-use ryo_language::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::FileId;
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn report(&self, file: FileId) {
         if let Some(indexes) = self.backend.borrow().as_ref() {
@@ -19,7 +19,7 @@ impl DerivedOwner {
                 predicate_cells_decoded = indexes.selection_counts.predicate_cells, output_cells_decoded = indexes.selection_counts.output_cells,
                 selections_built = indexes.selection_counts.builds, selections_reused = indexes.selection_counts.reuses,
                 selections_refused = indexes.selection_counts.refusals, cache_bytes = indexes.bytes,
-                collected_cell_bytes = indexes.selection_counts.collected_cells.saturating_mul(size_of::<ryo_language::domain::relations::types::Value>() as u64),
+                collected_cell_bytes = indexes.selection_counts.collected_cells.saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>() as u64),
                 compact_id_bytes = indexes.selections.iter().map(|entry| entry.rows.capacity().saturating_mul(size_of::<u32>())).sum::<usize>());
             tracing::trace!(target: "ryo::diagnostic::stored_join", event = "file_indexes", file = file.0,
                 entries = indexes.entries.len(), eligible_relations = indexes.eligible.len(),

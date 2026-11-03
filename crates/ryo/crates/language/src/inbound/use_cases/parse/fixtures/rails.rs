@@ -22,9 +22,9 @@ use crate::domain::elements::service::{
 };
 use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::constants::TOKEN;
-use crate::domain::relations::service::{all, provenance_of};
-use crate::domain::relations::types::{FileId, Position, Provenance};
+use ryo_relations::domain::relations::constants::TOKEN;
+use ryo_relations::domain::relations::service::{all, provenance_of};
+use ryo_relations::domain::relations::types::{FileId, Position, Provenance};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 
 /// The kind of file a rail reads.

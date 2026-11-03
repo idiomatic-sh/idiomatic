@@ -5,7 +5,7 @@ use crate::domain::{
     operation_schema::types::InputSchema,
     table_model::{service::push_row, types::Table},
 };
-use ryo_language::domain::relations::types::{CellKind, Integer};
+use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 #[test]

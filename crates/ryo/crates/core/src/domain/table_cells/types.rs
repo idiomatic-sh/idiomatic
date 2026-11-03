@@ -1,7 +1,7 @@
 //! The types of the `table_cells` concept: the rows of a tree and the cells read from them. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::FileId;
 
 /// A place in a table: the number of a row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

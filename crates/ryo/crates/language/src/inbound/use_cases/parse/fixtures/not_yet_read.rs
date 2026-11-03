@@ -7,9 +7,9 @@ use std::path::Path;
 use super::super::service::absence as parse_absence;
 use super::super::types::ParseEngine;
 use super::findings::Findings;
-use crate::domain::answers::types::AbsenceCause;
-use crate::domain::relations::service::{all, folder_of, provenance_of};
-use crate::domain::relations::types::{OptionalCapability, Provenance, Relation};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::service::{all, folder_of, provenance_of};
+use ryo_relations::domain::relations::types::{OptionalCapability, Provenance, Relation};
 use crate::inbound::use_cases::project::types::ProjectEngine;
 
 /// Where the command line's manifest is from a language's directory: its default features are the languages that ship.
@@ -109,7 +109,7 @@ pub(super) fn report_not_yet_read(
 
 /// Optional promises are required even when a language is not a default CLI feature.
 fn needs_answer(relation: Relation, promises: &[OptionalCapability], shipped: bool) -> bool {
-    crate::domain::relations::service::optional_capability(relation)
+    ryo_relations::domain::relations::service::optional_capability(relation)
         .map_or(shipped, |capability| promises.contains(&capability))
 }
 /// Duplicate declarations are an invalid provider inventory, not extra support.

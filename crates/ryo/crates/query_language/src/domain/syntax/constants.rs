@@ -1,7 +1,7 @@
 //! The names of the `syntax` concept: the one place where an operation or an argument is mapped
 //! to the text a query writes and back. Text enters the engine here and becomes a variant.
 
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 
 use super::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types::Direction;
@@ -129,7 +129,7 @@ pub(crate) fn slot_name(slot: ArgumentSlot) -> &'static str {
         ArgumentSlot::Direction => "direction",
         ArgumentSlot::Domain => "domain",
         ArgumentSlot::Edges => "edges",
-        ArgumentSlot::Source => ryo_language::domain::relations::constants::SOURCE,
+        ArgumentSlot::Source => ryo_relations::domain::relations::constants::SOURCE,
         ArgumentSlot::Destination => "destination",
         ArgumentSlot::Column => ryo_values::domain::descriptions::constants::COLUMN,
         ArgumentSlot::Sets => "sets",
@@ -156,7 +156,7 @@ pub(crate) fn direction_named(text: &str) -> Option<Direction> {
 #[must_use]
 pub(crate) fn direction_name(direction: Direction) -> &'static str {
     match direction {
-        Direction::Parent => ryo_language::domain::relations::constants::PARENT,
+        Direction::Parent => ryo_relations::domain::relations::constants::PARENT,
         Direction::Child => "child",
         Direction::Ancestor => "ancestor",
         Direction::Descendant => "descendant",

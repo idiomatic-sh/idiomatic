@@ -14,13 +14,11 @@ use crate::domain::table_model::{
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{
-    relations::{
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::{
         constants::NO_SPAN,
         types::{CellKind, Integer, Relation, Span, Value},
-    },
-    symbols::types::Symbols,
-};
+    };
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, LiteralText, StepId},
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},

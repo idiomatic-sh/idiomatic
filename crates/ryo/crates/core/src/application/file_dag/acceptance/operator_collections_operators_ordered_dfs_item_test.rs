@@ -10,10 +10,8 @@ use crate::domain::table_model::{
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{
-    relations::types::{CellKind, Integer, Relation, Value as Cell},
-    symbols::types::Symbols,
-};
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as Source},
     plans::types::{Operation, QueryOperator},
@@ -292,7 +290,7 @@ fn empty_input_kind_mismatch_is_rejected() -> Result<usize, OperatingError> {
 }
 fn nonnumeric_order_cell_is_rejected() -> Result<usize, OperatingError> {
     let mut edges = numbers(4, &[&[1, 2, 0, 12]]);
-    edges.cells[2] = Cell::Flag(ryo_language::domain::relations::types::Flag::Raised);
+    edges.cells[2] = Cell::Flag(ryo_relations::domain::relations::types::Flag::Raised);
     compute(
         &operation(&[], &[]),
         &numbers(1, &[&[1]]),
@@ -445,13 +443,10 @@ fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<us
     next_ordered(&edges, &graph, &[], &mut walk).map(|_| 0)
 }
 fn retained_text_fixture(source: &[u8]) -> (Symbols, Table, Table) {
-    use ryo_language::domain::{
-        relations::types::{
+    use ryo_language::domain::{symbols::service::{intern, places_mut}, symbols::types::ByteSlice};
+use ryo_relations::domain::relations::types::{
             FileId, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, WorkerNumber,
-        },
-        symbols::service::{intern, places_mut},
-        symbols::types::ByteSlice,
-    };
+        };
     let mut symbols = Symbols::default();
     let left = Cell::Symbol(intern(
         &mut symbols,
@@ -538,7 +533,7 @@ fn retained_text_fixture(source: &[u8]) -> (Symbols, Table, Table) {
 }
 
 fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, OperatingError> {
-    use ryo_language::domain::relations::types::{Name, PlaceNumber};
+    use ryo_relations::domain::relations::types::{Name, PlaceNumber};
     use ryo_values::domain::stored_facts::types::ArenaBytes;
     let source = b"abcctxedge";
     let arenas = vec![ArenaBytes(source.to_vec())];
@@ -596,7 +591,7 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
     Ok(out.count.0)
 }
 fn file_keys_keep_reused_nodes_separate() -> Result<usize, OperatingError> {
-    use ryo_language::domain::relations::types::{FileId, NodeId};
+    use ryo_relations::domain::relations::types::{FileId, NodeId};
     let mut roots = Table {
         kinds: vec![CellKind::Node, CellKind::File],
         ..Table::default()

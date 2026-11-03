@@ -5,7 +5,7 @@ use super::super::interface::ComparisonsItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::Datum;
-use ryo_language::domain::relations::constants::{LOWERED, RAISED};
+use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
 use ryo_values::domain::plan_parts::types::{FlagState, Test};
 
 /// Whether two values are the same: by their kind and value, or a flag and the word it is shown as.

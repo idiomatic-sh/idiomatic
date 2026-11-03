@@ -15,7 +15,7 @@ pub use ryo_language::domain::elements::service::{
 pub use ryo_language::domain::symbols::service::name_count;
 pub use ryo_language::inbound::use_cases::parse::fixtures::contract::{Collect, Discard};
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
-    Cell, Count, Expected, ExpectedRow, FileName, Fixtures, ManifestExpected, Point, Stretch, Text,
+    Cell, Count, Expected, ExpectedRow, FileName, Fixtures, ManifestExpected, Point, SemanticExpected, Stretch, Text,
     Unfilled, Unshown, Want, Wanted, expected_rows, file, kept, name, node, number, span, unknown,
     unlocated, want_file, want_flag, want_name, want_node, want_number, want_span, want_unknown,
 };

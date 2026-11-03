@@ -1,5 +1,8 @@
 //! Pinned reference applicability belongs to its process edge, never Python facts.
 #[cfg(unix)]
+use super::host_policy::supported;
+
+#[cfg(unix)]
 pub(crate) fn permission_checks_supported() -> bool {
     if std::env::consts::OS != "linux" {
         return true;
@@ -20,17 +23,4 @@ pub(crate) fn permission_checks_supported() -> bool {
 #[cfg(not(unix))]
 pub(crate) fn permission_checks_supported() -> bool {
     false
-}
-
-#[cfg(unix)]
-fn supported(microsoft: bool, container: bool) -> bool {
-    !microsoft || container
-}
-
-#[cfg(all(test, unix))]
-#[test]
-fn wsl_reference_policy_does_not_misclassify_containers_or_rewrite_facts() {
-    assert!(supported(false, false));
-    assert!(!supported(true, false));
-    assert!(supported(true, true));
 }

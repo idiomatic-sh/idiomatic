@@ -1,6 +1,6 @@
 # idiomatic-sh-ryo-language
 
-The relations ryo owns, and the two traits a language implements to fulfil them: `Parse` and `Project`, one required method for each relation of the catalog.
+The `Parse` and `Project` language contracts answer the portable relation catalog. Provider parsing, completion and model readiness remain language responsibilities.
 
 ## Domains
 
@@ -28,10 +28,6 @@ The language domain's `files` concept: the path every part of the engine names a
 
 The language domain's `kind_index` concept: the positions of a table grouped by kind.
 
-### kinds
-
-The language domain's `kinds` concept: how a language's kinds of node and token are numbered in the element table, named and listed, made from its own vocabularies.
-
 ### location
 
 Indexed source byte offsets, physical lines, and columns shared by every language provider.
@@ -40,9 +36,9 @@ Indexed source byte offsets, physical lines, and columns shared by every languag
 
 The language domain's `reasons` concept: what a language's tool or library said when a use case failed.
 
-### relations
+### semantics
 
-The language domain's `relations` concept: the catalog of the relations ryo owns, typed.
+The language domain's `semantics` concept: typed requests and outcomes for provider-owned semantic rendering.
 
 ### symbols
 
@@ -51,10 +47,6 @@ The language domain's `symbols` concept: the names of a file.
 ### targets
 
 The language domain's `targets` concept: what a target a file writes (a link, an import, a url) names, as a path of the run.
-
-### terms
-
-The language domain's `terms` concept: the closed sets of words every language answers in (what a declaration is, how a parameter is taken, what a value is), as enums.
 
 ### trees
 

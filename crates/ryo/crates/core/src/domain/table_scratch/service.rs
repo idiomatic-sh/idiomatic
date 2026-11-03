@@ -2,7 +2,7 @@
 
 use super::types::KindSet;
 use crate::domain::table_model::types::SetMembership;
-use ryo_language::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::types::KindBits;
 
 /// Whether the kind numbered `kind` is in the set.
 #[must_use]

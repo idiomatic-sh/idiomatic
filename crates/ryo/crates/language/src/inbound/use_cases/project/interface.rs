@@ -17,7 +17,7 @@ macro_rules! manifest_methods {
     ) => {
         $(
             #[doc = stringify!($module)]
-            fn $module(&self) -> Support<ManifestReader<$crate::domain::relations::collections::relations::$module::item::$variant, Self::Derived>>;
+            fn $module(&self) -> Support<ManifestReader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::Derived>>;
         )*
     };
 }
@@ -40,5 +40,5 @@ pub trait ProjectUseCase: Send + Sync {
     /// `Manifest` when the tools cannot run at all.
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Self::Derived>, ProjectError>;
 
-    crate::each_relation!(manifest_methods);
+    ryo_relations::each_relation!(manifest_methods);
 }

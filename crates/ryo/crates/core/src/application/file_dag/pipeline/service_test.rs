@@ -2,8 +2,8 @@
 //! file's rows and the cross-file steps on the rows the files handed over.
 
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::service::to_bits;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, Offset, PlaceNumber, Relation, TextHash, Value as Cell,
 };
 use ryo_language::domain::symbols::service::intern;
@@ -23,7 +23,7 @@ use crate::domain::operator::service::{emitted, pool_for};
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Frontier, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;

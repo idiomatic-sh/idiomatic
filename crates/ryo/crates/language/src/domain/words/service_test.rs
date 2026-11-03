@@ -4,11 +4,11 @@ use super::service::{
     decode_kind, decode_places, decode_value, encode_kind, encode_places, encode_value,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     Bits, CellKind, FileId, Flag, Integer, Name, NamePlace, NodeId, Offset, Origin, PlaceNumber,
     Span, TextHash, Value as Cell, Words, WorkerNumber,
 };
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::types::Symbol;
 
 /// What a row of the cases writes and reads back.
 type Input = fn() -> Vec<Cell>;

@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ryo_language::domain::relations::service::{all, columns, kinds};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::{all, columns, kinds};
+use ryo_relations::domain::relations::types::Relation;
 
 use super::constants::{FILE, FLUSH_AT, MISSING};
 use super::types::{
@@ -16,7 +16,7 @@ use super::types::{
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
 use crate::outbound::facts::types::{ColumnsMut, WordsToKeep};
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 
 /// The spill facts adapter: the rows of each worker in memory, a file of the adapter's directory for its words.

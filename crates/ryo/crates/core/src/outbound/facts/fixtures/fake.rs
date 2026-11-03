@@ -1,22 +1,22 @@
 //! The fake of the `facts` port: what the core's tests stand in for it with. It keeps its numbers in memory, and fails when told to.
 
-use ryo_language::domain::relations::collections::relations::function::item::{
+use ryo_relations::domain::relations::collections::relations::function::item::{
     Function, FunctionRow,
 };
-use ryo_language::domain::relations::collections::relations::interface::RelationsItem as _;
-use ryo_language::domain::relations::types::{FileId, NodeId, Offset, Span};
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem as _;
+use ryo_relations::domain::relations::types::{FileId, NodeId, Offset, Span};
+use ryo_relations::domain::terms::types::Symbol;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ryo_language::domain::relations::service::{all, columns, kinds};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::{all, columns, kinds};
+use ryo_relations::domain::relations::types::Relation;
 
 use super::super::errors::FactsError;
 use super::super::interface::{FactsFinish, FactsPort, FactsWorker};
 use super::super::types::{ColumnsMut, WordsToKeep};
-use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 

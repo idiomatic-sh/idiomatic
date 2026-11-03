@@ -5,7 +5,7 @@ use crate::domain::{
     table_cells::types::RowIndex,
     table_model::service::{cell, check_columns},
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(super) fn prepare(

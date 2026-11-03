@@ -2,7 +2,7 @@
 
 use crate::domain::stored_selection::types::{PreparedPlan, SelectionPlanId, Selector};
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::service::kinds;
+use ryo_relations::domain::relations::service::kinds;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ParameterId, RepeatedRows, Test,
 };
@@ -49,8 +49,8 @@ impl<'a> SelectionProgram<'a> {
                 .filter(|selector| !selector.distinct)
                 .cloned(),
             Input::Relation(
-                ryo_language::domain::relations::types::Relation::SyntaxTree
-                | ryo_language::domain::relations::types::Relation::SyntaxChild,
+                ryo_relations::domain::relations::types::Relation::SyntaxTree
+                | ryo_relations::domain::relations::types::Relation::SyntaxChild,
             ) => None,
             Input::Relation(relation) => Some(Selector {
                 relation,

@@ -1,9 +1,9 @@
 //! The `keeping` service: free functions named by verb that turn what a run came to into what the next
 //! can use, with no IO and no ports.
 
-use ryo_language::domain::relations::service::{node_file, node_id, node_position};
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{Bits, NamePlace, Offset, Origin, Value, Words};
+use ryo_relations::domain::relations::service::{node_file, node_id, node_position};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{Bits, NamePlace, Offset, Origin, Value, Words};
 use ryo_language::domain::words::service::{
     decode_kind, decode_places, decode_value, encode_kind, encode_places, encode_value,
 };

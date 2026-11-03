@@ -17,10 +17,10 @@ use super::super::service::{absence, build, read as read_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
-use crate::domain::relations::collections::relations::interface::RelationsItem;
-use crate::domain::relations::service::{all, columns, is_declaring, provenance_of};
-use crate::domain::relations::types::Provenance;
-use crate::domain::relations::types::{Bits, FileId, Missing, Relation, RelationDeclaring, Rows};
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
+use ryo_relations::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::types::{Bits, FileId, Missing, Relation, RelationDeclaring, Rows};
 use crate::domain::symbols::types::Symbols;
 
 /// A writer that keeps nothing: the contract looks at what the language answers, not at what it wrote.
@@ -140,28 +140,28 @@ macro_rules! writers {
         $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )*
     ) => {
         $( $(
-            impl Rows<$crate::domain::relations::collections::relations::$module::item::$row> for Discard {
-                fn write(&mut self, _row: $crate::domain::relations::collections::relations::$module::item::$row) {}
+            impl Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row> for Discard {
+                fn write(&mut self, _row: ryo_relations::domain::relations::collections::relations::$module::item::$row) {}
 
-                fn partial(&mut self, _cause: $crate::domain::relations::types::ReportText<'_>, _missing: Missing) {}
+                fn partial(&mut self, _cause: ryo_relations::domain::relations::types::ReportText<'_>, _missing: Missing) {}
 
-                fn partial_at(&mut self, _file: $crate::domain::relations::types::FileId, _cause: $crate::domain::relations::types::ReportText<'_>, _missing: Missing) {}
+                fn partial_at(&mut self, _file: ryo_relations::domain::relations::types::FileId, _cause: ryo_relations::domain::relations::types::ReportText<'_>, _missing: Missing) {}
             }
 
-            impl Rows<$crate::domain::relations::collections::relations::$module::item::$row> for Collect {
-                fn write(&mut self, row: $crate::domain::relations::collections::relations::$module::item::$row) {
-                    let words = <$crate::domain::relations::collections::relations::$module::item::$variant as RelationsItem>::words(row);
+            impl Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row> for Collect {
+                fn write(&mut self, row: ryo_relations::domain::relations::collections::relations::$module::item::$row) {
+                    let words = <ryo_relations::domain::relations::collections::relations::$module::item::$variant as RelationsItem>::words(row);
                     self.keep(Relation::$variant, words.as_ref());
                 }
 
-                fn partial(&mut self, cause: $crate::domain::relations::types::ReportText<'_>, missing: Missing) {
+                fn partial(&mut self, cause: ryo_relations::domain::relations::types::ReportText<'_>, missing: Missing) {
                     if !self.partials.iter().any(|(relation, each, how)| *relation == Relation::$variant && each == cause.0 && *how == missing) {
                         let cause = self.cause(cause.0);
                         self.partials.push((Relation::$variant, cause, missing));
                     }
                 }
 
-                fn partial_at(&mut self, file: $crate::domain::relations::types::FileId, cause: $crate::domain::relations::types::ReportText<'_>, _missing: Missing) {
+                fn partial_at(&mut self, file: ryo_relations::domain::relations::types::FileId, cause: ryo_relations::domain::relations::types::ReportText<'_>, _missing: Missing) {
                     if !self.partials_at.iter().any(|(relation, at, each)| *relation == Relation::$variant && *at == file && each == cause.0) {
                         let cause = self.cause(cause.0);
                         self.partials_at.push((Relation::$variant, file, cause));
@@ -172,7 +172,7 @@ macro_rules! writers {
     };
 }
 
-crate::each_relation!(writers);
+ryo_relations::each_relation!(writers);
 
 /// What a sample row of the contract does with the samples.
 #[derive(Clone, Copy, Debug)]
@@ -260,9 +260,9 @@ fn read(
                 bytes.0.len(),
                 wanted.contains(&Relation::SourceLocation),
                 |id| positions(&elements).any(|position| {
-                    crate::domain::relations::service::node_id(FileId(0), position).0 == id
+                    ryo_relations::domain::relations::service::node_id(FileId(0), position).0 == id
                         && crate::domain::elements::service::flags_at(&elements, position).0
-                            & crate::domain::relations::constants::IMPLIED.0
+                            & ryo_relations::domain::relations::constants::IMPLIED.0
                             != 0
                 })
             ),
@@ -406,7 +406,7 @@ fn identifier_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bo
     crate::domain::symbols::service::text_of(
         symbols,
         source,
-        crate::domain::terms::types::Symbol(name),
+        ryo_relations::domain::terms::types::Symbol(name),
     )
     .is_some_and(|name| !name.0.is_empty())
         && start < end
@@ -416,7 +416,7 @@ fn identifier_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bo
 /// Every provider must distinguish a proven lexical path from an unknown value and explicit builtin availability.
 fn qualified_name_valid(row: &[u64], symbols: &Symbols, source: ByteSlice<'_>) -> bool {
     use crate::domain::symbols::service::text_of;
-    use crate::domain::terms::{service::unknown_reason, types::Symbol};
+    use ryo_relations::domain::terms::{service::unknown_reason, types::Symbol};
     let [_, path, provenance, major, minor, _, _] = row else {
         return false;
     };
@@ -672,7 +672,7 @@ mod tests;
 
 /// Unknown or cross-file class sentinels cannot silently compare equal as structural identities.
 fn shape_representatives_valid(out: &Collect) -> bool {
-    use crate::domain::relations::{service::node_file, types::NodeId};
+    use ryo_relations::domain::relations::{service::node_file, types::NodeId};
     let representatives: std::collections::BTreeSet<_> = out
         .rows()
         .into_iter()
@@ -707,7 +707,7 @@ fn embedded_roots_valid(elements: &Elements) -> bool {
     use crate::domain::elements::service::{flags_at, parent_at};
     crate::domain::expansions::service::embedded_expressions(elements).all(|embedded| {
         embedded.root < embedded.end
-            && flags_at(elements, embedded.root).0 & crate::domain::relations::constants::TOKEN.0
+            && flags_at(elements, embedded.root).0 & ryo_relations::domain::relations::constants::TOKEN.0
                 == 0
             && parent_at(elements, embedded.root) == embedded.host
     })

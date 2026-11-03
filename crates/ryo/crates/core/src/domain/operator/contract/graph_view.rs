@@ -1,5 +1,5 @@
 //! Complete graph answers are borrowed from one engine invocation, never from its cache.
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 /// A single source request for a logical closure join. The request contains
 /// partition keys followed by the source; destinations retain typed sort order.

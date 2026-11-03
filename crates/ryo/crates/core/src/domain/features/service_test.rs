@@ -1,6 +1,6 @@
 //! The `features` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::{catalog, fed_over, kind_of, tally};
 use crate::cases::{Case, CaseName, Expect, Word, run};

@@ -11,7 +11,7 @@ use crate::domain::{
         types::{KeyIndex, Rows, Table},
     },
 };
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, StepId},
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
@@ -174,7 +174,7 @@ impl<'f> crate::application::file_dag::feed::Feed<'f> for OwnedFeed<'_, 'f> {
     fn kinds(
         &self,
         place: crate::domain::operating::types::InputPlace,
-    ) -> Result<&[ryo_language::domain::relations::types::CellKind], OperatingError> {
+    ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
         self.inner.kinds(place)
     }
     fn streams(

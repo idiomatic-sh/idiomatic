@@ -3,14 +3,14 @@
 
 use super::constants::TWO_LANGUAGES_UNLISTED;
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
 
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::relations::service::all;
-use ryo_language::domain::relations::types::RowWriter;
-use ryo_language::domain::relations::types::{Bytes, Relation};
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::types::{Bytes, Relation};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::semantics::interface::SemanticSession;

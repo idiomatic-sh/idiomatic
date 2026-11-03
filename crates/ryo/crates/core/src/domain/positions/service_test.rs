@@ -4,11 +4,11 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
-use ryo_language::domain::relations::types::Value as Cell;
-use ryo_language::domain::relations::types::{FileId, Flag, KindBits, Offset, Position};
+use ryo_relations::domain::relations::types::Value as Cell;
+use ryo_relations::domain::relations::types::{FileId, Flag, KindBits, Offset, Position};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 
 use super::service::{count, firsts, hits, in_tree, row, sorted, value};
 use super::types::{Keeps, KeyOrder, Keys, LoweredRoom, Positions, Readiness, Slots, Stride};

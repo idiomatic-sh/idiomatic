@@ -10,10 +10,10 @@ use crate::domain::table_model::types::{Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, SourceView, Texts};
-use ryo_language::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, LiteralText};
 use ryo_values::domain::plans::types::{Operation, QueryOperator};
 

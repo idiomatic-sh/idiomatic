@@ -2,8 +2,8 @@
 
 use crate::domain::lowering::types::Counting;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{Relation, Value as Cell};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::LiteralText;
 
 use super::service::{counts, emit, emit_counts, make};

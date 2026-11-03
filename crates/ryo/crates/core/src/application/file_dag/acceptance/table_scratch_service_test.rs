@@ -1,6 +1,6 @@
 //! The `table_scratch` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::types::KindBits;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_model::types::SetMembership;
@@ -65,7 +65,7 @@ fn projection_constructs_only_the_group_it_uses_and_keeps_bags() {
     use crate::domain::table_model::service::push_row;
     use crate::domain::table_model::types::{Rows, Table};
     use crate::domain::table_texts::types::SourceView;
-    use ryo_language::domain::relations::types::{CellKind, Integer, Relation, Value};
+    use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
     use ryo_language::domain::symbols::types::Symbols;
     use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows};
     use ryo_values::domain::plans::types::Operation;
@@ -140,10 +140,10 @@ fn dynamic_regex_initialization_is_execution_local_and_lazy() {
     use crate::domain::table_model::service::push_row;
     use crate::domain::table_model::types::{Rows, Table};
     use crate::domain::table_texts::types::SourceView;
-    use ryo_language::domain::relations::types::{CellKind, Relation, Value};
+    use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
     use ryo_language::domain::symbols::service::intern_derived;
     use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-    use ryo_language::domain::terms::types::NameText;
+    use ryo_relations::domain::terms::types::NameText;
     use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison, Input, Operand, Test};
     use ryo_values::domain::plans::types::Operation;
     let operation = Operation::Select {

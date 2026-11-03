@@ -7,7 +7,7 @@ use crate::domain::operating::{errors::OperatingError, types::InputPlace};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{check_columns, column_in};
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use ryo_values::domain::plans::service::inputs_of;

@@ -1267,6 +1267,7 @@ dependencies = [
  "idiomatic-sh-ryo-markdown",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-rust",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-toml",
@@ -1299,6 +1300,7 @@ dependencies = [
  "cucumber",
  "divan",
  "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
  "serde",
  "serde_json",
@@ -1328,6 +1330,7 @@ dependencies = [
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "ignore",
  "memchr",
@@ -1435,6 +1438,7 @@ dependencies = [
  "dhat",
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
  "rustc-hash 2.1.3",
  "strum",
  "thiserror",
@@ -1488,11 +1492,20 @@ dependencies = [
  "cucumber",
  "divan",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "regex-automata",
  "thiserror",
  "tokio",
  "winnow 0.7.15",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-relations"
+version = "0.1.2"
+dependencies = [
+ "idiomatic-sh-ryo-relations",
+ "strum",
 ]
 
 [[package]]
@@ -1527,6 +1540,7 @@ dependencies = [
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "rayon",
  "tempfile",
@@ -1576,6 +1590,7 @@ name = "idiomatic-sh-ryo-values"
 version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
 ]
 

@@ -3,7 +3,7 @@
 use crate::application::file_dag::derived::{indexes::LIMIT, owner::graph_fixture::GraphFixture};
 use crate::domain::stored_graph::types::{GraphWalk, Orientation};
 use crate::domain::table_model::types::{Rows, SelectedRows, SelectionIdentity, StoredSelection};
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};

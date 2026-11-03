@@ -5,8 +5,8 @@ use crate::domain::table_cells::types::{ColumnPlaces, RowIndex};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_model::types::{KeyIndex, Table};
 use ryo_language::domain::elements::types::KindSum;
-use ryo_language::domain::relations::types::{FileId, KindBits, TextHash, Value};
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::types::{FileId, KindBits, TextHash, Value};
+use ryo_relations::domain::terms::types::Symbol;
 
 /// Text being made in the room the operators work in: cleared and grown in place for every row, so it is a `String` and not a `Box<str>`.
 #[derive(Debug, Default)]

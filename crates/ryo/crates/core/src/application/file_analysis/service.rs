@@ -33,7 +33,7 @@ use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::pack_onto;
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::workers::types::{Replaying, Tables};
-use ryo_language::domain::relations::types::Words;
+use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::records::types::{
     GoverningRules, HandedNotes, Handing, PlacedRule, Record, RuleFrontier,
 };
@@ -59,7 +59,7 @@ use crate::outbound::digest::types::{DigestBytes, DigestWords};
 use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
-use ryo_language::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
+use ryo_relations::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
 use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
@@ -75,10 +75,10 @@ use ryo_language::domain::elements::service::{
 };
 use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
 use ryo_language::domain::kind_index::service::index_kinds;
-use ryo_language::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
-use ryo_language::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
-use ryo_language::domain::relations::types::Rows as _;
-use ryo_language::domain::relations::types::{FileId, Integer, Relation};
+use ryo_relations::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
+use ryo_relations::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
+use ryo_relations::domain::relations::types::Rows as _;
+use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 use ryo_language::domain::symbols::service::clear_symbols;
 use ryo_language::domain::symbols::types::Symbols;
 
@@ -391,7 +391,7 @@ impl FileAnalysis {
         for relation in active_wanted.iter() {
             let view = facts.rows(*relation)?;
             if crate::domain::table_model::service::rectangular(view)
-                && view.kinds == ryo_language::domain::relations::service::kinds(*relation)
+                && view.kinds == ryo_relations::domain::relations::service::kinds(*relation)
                 && view
                     .columns
                     .first()
@@ -1139,9 +1139,9 @@ impl FileAnalysis {
                     worker.facts.columns_mut()?.write(FilesystemExecutableRow {
                         path: number,
                         executable: if value {
-                            ryo_language::domain::relations::types::Flag::Raised
+                            ryo_relations::domain::relations::types::Flag::Raised
                         } else {
-                            ryo_language::domain::relations::types::Flag::Lowered
+                            ryo_relations::domain::relations::types::Flag::Lowered
                         },
                     })
                 }
@@ -1151,7 +1151,7 @@ impl FileAnalysis {
                     cause: PartialCause(
                         "input edge did not supply executable permission metadata".into(),
                     ),
-                    lacking: ryo_language::domain::relations::types::Missing::Any,
+                    lacking: ryo_relations::domain::relations::types::Missing::Any,
                     at: PartialScope::OneFile(PartialAt(number.0)),
                 }),
             }

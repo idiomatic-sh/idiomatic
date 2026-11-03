@@ -8,7 +8,7 @@ use crate::domain::table_model::{
     types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex},
 };
 use crate::domain::{derived_views::types::DerivedContract, operating::errors::OperatingError};
-use ryo_language::domain::relations::types::{ColumnsView, Relation};
+use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 

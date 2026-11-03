@@ -11,7 +11,7 @@ use ryo_core::inbound::use_cases::open::errors::OpenError;
 use ryo_core::outbound::matching::errors::MatchingError;
 use ryo_core::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_language::inbound::use_cases::project::types::Repository;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::files::types::Glob as CoreGlob;
@@ -341,7 +341,7 @@ impl From<OpenErrorSchema> for LintError {
 }
 
 /// Where a compiler refusal points, as the caller says it.
-fn refusal_span(span: ryo_language::domain::relations::types::Span) -> QuerySpan {
+fn refusal_span(span: ryo_relations::domain::relations::types::Span) -> QuerySpan {
     QuerySpan {
         start: ByteOffset(usize::try_from(span.start.0).unwrap_or(usize::MAX)),
         end: ByteOffset(usize::try_from(span.end.0).unwrap_or(usize::MAX)),

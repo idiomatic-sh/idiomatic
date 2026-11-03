@@ -17,8 +17,8 @@ use ryo_language::domain::elements::{
     service::{enter_node, leave_node, table_builder, token},
     types::Elements,
 };
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Relation, Value as Cell,
 };
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
@@ -113,12 +113,12 @@ fn native_tree() -> (Elements, Symbols) {
     ryo_language::domain::completion::service::name_kind(
         &mut finish,
         KindBits(1),
-        ryo_language::domain::terms::types::NameText("root"),
+        ryo_relations::domain::terms::types::NameText("root"),
     );
     ryo_language::domain::completion::service::name_kind(
         &mut finish,
         KindBits(2),
-        ryo_language::domain::terms::types::NameText("token"),
+        ryo_relations::domain::terms::types::NameText("token"),
     );
     ryo_language::domain::kind_index::service::index_kinds(&mut elements);
     (elements, symbols)

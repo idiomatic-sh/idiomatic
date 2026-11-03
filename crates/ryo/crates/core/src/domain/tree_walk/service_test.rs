@@ -1,6 +1,6 @@
 //! The `tree_walk` service's cases, on the columns a walk makes.
 
-use ryo_language::domain::relations::types::{CellKind, Position};
+use ryo_relations::domain::relations::types::{CellKind, Position};
 
 use super::service::{nearest_at, walk_kinds};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};

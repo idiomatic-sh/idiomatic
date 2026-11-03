@@ -2,7 +2,7 @@
 
 use super::types::{FileProgram, Node, NodeId, NodeInput, RequestGraph};
 use crate::domain::table_model::types::Table;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};

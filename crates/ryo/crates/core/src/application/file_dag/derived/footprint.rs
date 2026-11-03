@@ -50,7 +50,7 @@ fn ordered(rows: &Vec<crate::domain::operator::contract::graph::OwnedOrderedRow>
             .sum::<usize>()
 }
 pub(super) fn storage_bytes(storage: &DerivedStorage) -> Result<usize, OperatingError> {
-    use ryo_language::domain::relations::types::Value;
+    use ryo_relations::domain::relations::types::Value;
     let payload = match storage {
         DerivedStorage::Unbuilt => return Err(OperatingError::NotRun),
         DerivedStorage::Equality(data) => index(data),

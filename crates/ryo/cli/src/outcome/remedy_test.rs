@@ -44,7 +44,7 @@ fn a_blank_query_refuses_with_the_text_flag() {
 #[test]
 fn only_a_kind_refusal_is_told_to_correct_the_kind() {
     use ryo_core::inbound::use_cases::validate::errors::ValidateError;
-    use ryo_language::domain::relations::types::{Offset, Span};
+    use ryo_relations::domain::relations::types::{Offset, Span};
     use ryo_values::domain::plan_parts::types::{RefusalMessage, RefusedKind, RefusedQuery};
     assert_eq!(
         ValidateError::UnknownKind {

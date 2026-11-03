@@ -14,7 +14,7 @@ use crate::domain::table_scratch::types::{ComparisonNumbers, OperatorScratch, Te
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{CellKind, FileId, Value};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plans::types::Plan;
 

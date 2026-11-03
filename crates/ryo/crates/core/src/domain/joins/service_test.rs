@@ -11,7 +11,7 @@ use crate::domain::positions::service_test::{
 use crate::domain::positions::types::{KeyColumns, Sides, Slots, Work};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::JoinColumn;

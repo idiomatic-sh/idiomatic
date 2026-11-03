@@ -1,7 +1,7 @@
 //! What every `language` adapter must pass.
 
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::fixtures::contract::Discard;
 

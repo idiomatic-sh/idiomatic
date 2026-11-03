@@ -13,7 +13,7 @@ use crate::{
         table_model::types::Rows,
     },
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 impl DerivedOwner {
     pub(in crate::application::file_dag) fn prepare_graph(
         &self,

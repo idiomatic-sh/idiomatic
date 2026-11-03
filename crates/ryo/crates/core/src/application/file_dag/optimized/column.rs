@@ -20,10 +20,8 @@ use crate::domain::table_model::{
     service::{column_in, rectangular, reset},
     types::{Rows, SelectedRows, StoredSelection, Table},
 };
-use ryo_language::domain::{
-    relations::{service::kinds as relation_kinds, types::CellKind},
-    symbols::types::ByteSlice,
-};
+use ryo_language::domain::{symbols::types::ByteSlice};
+use ryo_relations::domain::relations::{service::kinds as relation_kinds, types::CellKind};
 use ryo_values::domain::plans::types::Plan;
 use std::sync::Arc;
 

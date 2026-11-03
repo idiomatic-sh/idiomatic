@@ -19,7 +19,7 @@ pub struct HostedColumn {
     /// The name a query writes for it: text that came from the host.
     pub name: ColumnLabel,
     /// What it holds.
-    pub kind: ryo_language::domain::relations::types::CellKind,
+    pub kind: ryo_relations::domain::relations::types::CellKind,
 }
 
 /// The name of a column of a relation the host declares: text that came from the host.

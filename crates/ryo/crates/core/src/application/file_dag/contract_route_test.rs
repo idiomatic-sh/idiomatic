@@ -26,20 +26,17 @@ use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use fixtures::{SOURCE, fixture};
 use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_language::domain::terms::types::NameText;
-use ryo_language::domain::{
-    elements::{
+use ryo_relations::domain::terms::types::NameText;
+use ryo_language::domain::{elements::{
         service::{enter_node, leave_node, table_builder, token},
         types::Elements,
-    },
-    relations::{
+    }, symbols::types::{ByteSlice, Symbols}};
+use ryo_relations::domain::relations::{
         service::{kinds, to_bits},
         types::{
             CellKind, ColumnsView, FactColumn, FileId, Integer, KindBits, Offset, Relation, Value,
         },
-    },
-    symbols::types::{ByteSlice, Symbols},
-};
+    };
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation},
     plan_parts::types::{

@@ -4,7 +4,7 @@ use super::super::errors::RowsError;
 use super::super::interface::RowsPort;
 use super::super::types::{LentCell, Summary};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_language::domain::relations::types::{Offset, Span};
+use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::{Cell, CellText, RowTotal};
 

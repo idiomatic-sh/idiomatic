@@ -6,8 +6,8 @@ use crate::domain::operator::contract::types::{
 };
 use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::constants::NO_SPAN;
-use ryo_language::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::constants::NO_SPAN;
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], OperatingError> {

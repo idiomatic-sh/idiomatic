@@ -1,8 +1,8 @@
 // ignore: idiomatic.arch/file-length - the three cuts of the rows handed over (a step's columns, a relation's columns, a view read in place) share the reading of what an operation reads of an input, which is one match over the operations; splitting it would repeat that match.
 //! The `inlining` service: free functions named by verb over the views of a relation read in place, and the rows handed over cut to the columns asked.
 
-use ryo_language::domain::relations::service::provenance_of;
-use ryo_language::domain::relations::types::{Provenance, Relation};
+use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::relations::types::{Provenance, Relation};
 
 use super::types::StepReading;
 use crate::domain::pruning::service::each_input;
@@ -528,7 +528,7 @@ pub(crate) fn cut_relations(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pl
         used.dedup();
         if !cut
             || used.is_empty()
-            || used.len() >= ryo_language::domain::relations::service::columns(relation).len()
+            || used.len() >= ryo_relations::domain::relations::service::columns(relation).len()
         {
             continue;
         }

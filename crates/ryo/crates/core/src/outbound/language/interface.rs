@@ -3,8 +3,8 @@
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::Relation;
-use ryo_language::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::RowWriter;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::semantics::interface::SemanticSession;
 

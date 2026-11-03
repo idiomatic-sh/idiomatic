@@ -2,7 +2,7 @@
 //! text that leaves the engine in `operator list` and `operator describe`.
 
 use crate::domain::describing::constants::{described, field};
-use ryo_language::domain::relations::constants::SOURCE;
+use ryo_relations::domain::relations::constants::SOURCE;
 use ryo_values::domain::descriptions::constants::{COLUMN, COLUMNS, DIGEST};
 use ryo_values::domain::descriptions::types::{FieldRequirement, OperatorDescription};
 use ryo_values::domain::plans::types::QueryOperator;

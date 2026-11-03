@@ -1,9 +1,9 @@
 //! The `planning` service: a step is added to the plan under construction, and where it runs is
 //! decided: per file, or after the files.
 
-use ryo_language::domain::relations::service::provenance_of;
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::relations::types::Provenance;
+use ryo_relations::domain::relations::service::provenance_of;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Provenance;
 
 use crate::domain::lowering::types::{
     Builder, FileOrigin, LoweredStep, PlannedColumn, ScopedInput, StepLabel,

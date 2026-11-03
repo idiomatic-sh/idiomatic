@@ -1,6 +1,6 @@
 //! The `cycles` item's cases.
 
-use ryo_language::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_values::domain::plans::types::QueryOperator;
 
 use ryo_language::domain::symbols::types::Symbols;
@@ -14,7 +14,7 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plans::types::Operation;

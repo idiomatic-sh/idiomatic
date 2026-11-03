@@ -1,5 +1,5 @@
 //! The pure projected tuple kernel retains collision and invalid-cell controls.
-use ryo_language::domain::relations::types::{CellKind, ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 #[test]
 fn distinct_representatives_handle_collisions_and_invalid_cells() {

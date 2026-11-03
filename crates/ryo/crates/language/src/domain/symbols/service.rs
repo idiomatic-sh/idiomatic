@@ -2,23 +2,23 @@
 //! The `symbols` service: free functions named by verb over a file's names, with no IO and no
 //! ports. A name is a number: its text is in the file or, when it is made, beside it.
 
-use crate::domain::terms::types::Wordness;
+use ryo_relations::domain::terms::types::Wordness;
 use std::hash::Hasher as _;
 
 use hashbrown::hash_table::OccupiedEntry;
 use rustc_hash::FxHasher;
 
-use crate::domain::relations::constants::NO_SYMBOL;
-use crate::domain::relations::types::{
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::types::{
     Bits, Bytes, CROSS_FILE, CROSS_PLACE, Count, FileId, KindBits, Name, NameNote, NamePlace,
     Offset, Origin, PlaceNumber, Span, TextHash, WorkerNumber,
 };
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::SymbolsEngine;
 use crate::domain::symbols::types::{NameStart, Noted, QuerySymbols, Symbols};
-use crate::domain::terms::service::{is_term, term_text};
-use crate::domain::terms::types::NameText;
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::service::{is_term, term_text};
+use ryo_relations::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::Symbol;
 
 /// Empties the names, keeping their room for the next file.
 pub fn clear_symbols(symbols: &mut Symbols) {
@@ -229,7 +229,7 @@ pub fn query_reborrow<'a>(symbols: &'a mut QuerySymbols<'_>) -> QuerySymbols<'a>
 /// ```
 /// use ryo_language::domain::symbols::service::{query_intern_derived, text_of};
 /// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
-/// use ryo_language::domain::terms::types::NameText;
+/// use ryo_relations::domain::terms::types::NameText;
 /// let mut file = Symbols::default();
 /// let mut query = QuerySymbols::from(&mut file);
 /// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));
@@ -239,8 +239,8 @@ pub fn query_reborrow<'a>(symbols: &'a mut QuerySymbols<'_>) -> QuerySymbols<'a>
 /// ```compile_fail
 /// use ryo_language::domain::symbols::service::{intern, query_intern_derived, text_of};
 /// use ryo_language::domain::symbols::types::{ByteSlice, QuerySymbols, Symbols};
-/// use ryo_language::domain::relations::types::Offset;
-/// use ryo_language::domain::terms::types::NameText;
+/// use ryo_relations::domain::relations::types::Offset;
+/// use ryo_relations::domain::terms::types::NameText;
 /// let mut file = Symbols::default();
 /// let mut query = QuerySymbols::from(&mut file);
 /// let made = query_intern_derived(&mut query, ByteSlice(b""), NameText("name"));

@@ -78,10 +78,10 @@ fn kept_and_lent() -> bool {
     let cells = [
         Cell::File(CellText("src/a.rs")),
         Cell::Text(CellText("main")),
-        Cell::Number(ryo_language::domain::relations::types::Integer(-7)),
-        Cell::Span(ryo_language::domain::relations::types::Span {
-            start: ryo_language::domain::relations::types::Offset(3),
-            end: ryo_language::domain::relations::types::Offset(4),
+        Cell::Number(ryo_relations::domain::relations::types::Integer(-7)),
+        Cell::Span(ryo_relations::domain::relations::types::Span {
+            start: ryo_relations::domain::relations::types::Offset(3),
+            end: ryo_relations::domain::relations::types::Offset(4),
         }),
     ];
     let mut text = RenderedText::default();

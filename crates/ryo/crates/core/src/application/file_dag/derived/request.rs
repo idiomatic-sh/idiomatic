@@ -44,7 +44,7 @@ impl RequestViews {
     fn bind_mode(
         &mut self,
         program: &ResourceProgram,
-        kinds: &[Vec<ryo_language::domain::relations::types::CellKind>],
+        kinds: &[Vec<ryo_relations::domain::relations::types::CellKind>],
     ) -> Result<[Option<Arc<PreparedViewGroup>>; 12], OperatingError> {
         let mut slots: [Option<Arc<PreparedViewGroup>>; 12] = std::array::from_fn(|_| None);
         match program {
@@ -231,7 +231,7 @@ impl RequestViews {
     fn add(
         &mut self,
         slots: &mut [Option<Arc<PreparedViewGroup>>; 12],
-        kinds: &[Vec<ryo_language::domain::relations::types::CellKind>],
+        kinds: &[Vec<ryo_relations::domain::relations::types::CellKind>],
         request: ViewRequest,
         positions: &[usize],
     ) -> Result<(), OperatingError> {

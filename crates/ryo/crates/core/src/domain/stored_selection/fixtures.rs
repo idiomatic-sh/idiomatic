@@ -1,7 +1,7 @@
 //! Pure immutable selector fixture shared by domain and application tests.
 use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Operand, ParameterId, Test, WholeNumber,
 };

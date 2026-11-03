@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::FileId;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::parse::types::{
     FieldRequest, NoteRequest, ParseConfigurationIdentity, ParseEngine, ParseRequest, Recognition,

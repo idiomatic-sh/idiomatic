@@ -1,6 +1,6 @@
 //! The `table_texts` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::{FileId, Offset, Value as Cell};
+use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::service::{name_count, places_mut};
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -22,7 +22,7 @@ type Failure = TableModelError;
 
 /// A name that left its file reads as text where its worker's arena holds it, and as its hash where nothing does.
 fn a_name_that_left_its_file_reads_from_the_arena() -> Value {
-    use ryo_language::domain::relations::types::{NamePlace, Origin, PlaceNumber, WorkerNumber};
+    use ryo_relations::domain::relations::types::{NamePlace, Origin, PlaceNumber, WorkerNumber};
     let arenas = vec![ArenaBytes(b"xxhello".to_vec())];
     let place = |origin| NamePlace {
         origin,
@@ -30,8 +30,8 @@ fn a_name_that_left_its_file_reads_from_the_arena() -> Value {
         start: Offset(2),
         end: Offset(7),
     };
-    let name = Cell::Name(ryo_language::domain::relations::types::Name {
-        hash: ryo_language::domain::relations::types::TextHash(5),
+    let name = Cell::Name(ryo_relations::domain::relations::types::Name {
+        hash: ryo_relations::domain::relations::types::TextHash(5),
         place: PlaceNumber(0),
     });
     let mut derived = Symbols::default();

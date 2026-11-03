@@ -1,10 +1,10 @@
 //! The `hosted` service: free functions over the relations the host declares, with no IO and no ports.
 
-use ryo_language::domain::relations::types::{CellKind, FileId, Value};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 
 use super::constants::tab;
 use super::types::NumberedFiles;

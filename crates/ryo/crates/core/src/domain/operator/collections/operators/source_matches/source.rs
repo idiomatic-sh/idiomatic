@@ -1,8 +1,8 @@
 //! Checked physical-source gate, shared by the engine and occurrence evaluator.
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::service::cell;
-use ryo_language::domain::relations::constants::NO_SPAN;
-use ryo_language::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::constants::NO_SPAN;
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[derive(Clone, Copy, Debug)]
@@ -66,7 +66,7 @@ pub(crate) fn validate<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ryo_language::domain::relations::types::{Offset, Span};
+    use ryo_relations::domain::relations::types::{Offset, Span};
     fn span(start: u32, end: u32) -> Value {
         Value::Span(Span {
             start: Offset(start),

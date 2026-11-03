@@ -1,7 +1,7 @@
 //! The `visit` service: free functions named by verb that decide what a visit of a file must
 //! build, with no IO and no ports.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::VisitError;
 use super::types::{

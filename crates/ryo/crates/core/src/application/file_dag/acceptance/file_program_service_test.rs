@@ -11,7 +11,7 @@ use crate::domain::operator::types::PreparedPool;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use legacy::program;
-use ryo_language::domain::relations::types::{ColumnsView, Relation};
+use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOriginId, Input, LiteralText, Operand, ParameterId, QueryLiteral,
@@ -32,7 +32,7 @@ fn request(
             if relation == Relation::Function {
                 KINDS
             } else {
-                ryo_language::domain::relations::service::kinds(relation)
+                ryo_relations::domain::relations::service::kinds(relation)
             }
         },
     )
@@ -343,7 +343,7 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
 #[test]
 fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
     use crate::domain::table_model::types::{RowCount, Table};
-    use ryo_language::domain::relations::types::{CellKind, FileId, Value};
+    use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());
     query.emit.step = StepId(2);
@@ -376,7 +376,7 @@ fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
 fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (usize, u64) {
     use crate::domain::table_model::service::push_row;
     use crate::domain::table_model::types::Table;
-    use ryo_language::domain::relations::types::{CellKind, FileId, Value};
+    use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
     let mut query = plan();
     query.steps.push(PlanStep {
         operation: Operation::Project {

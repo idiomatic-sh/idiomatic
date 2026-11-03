@@ -22,9 +22,9 @@ use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables,
 use ryo_language::domain::elements::service::{notes_of, take_notes};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::service::{name, relation_named};
-use ryo_language::domain::relations::types::NameRef;
-use ryo_language::domain::relations::types::{FileId, Words, WorkerNumber};
+use ryo_relations::domain::relations::service::{name, relation_named};
+use ryo_relations::domain::relations::types::NameRef;
+use ryo_relations::domain::relations::types::{FileId, Words, WorkerNumber};
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber};
 use ryo_values::domain::records::types::HandedNotes;

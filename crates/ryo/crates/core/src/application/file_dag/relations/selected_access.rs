@@ -4,7 +4,7 @@ impl RelationOwner {
     pub(in crate::application::file_dag) fn selected_rows<'f>(
         &self,
         publication: &RelationResult,
-        source_rows: ryo_language::domain::relations::types::ColumnsView<'f>,
+        source_rows: ryo_relations::domain::relations::types::ColumnsView<'f>,
     ) -> Result<Rows<'f>, OperatingError> {
         self.generation(publication)?;
         let RelationBody::Selected { source, selection } = &publication.body else {
@@ -23,7 +23,7 @@ impl RelationOwner {
         &self,
         plan: &Arc<crate::domain::derived_views::types::DerivedContract>,
         relation: Relation,
-        source: ryo_language::domain::relations::types::ColumnsView<'_>,
+        source: ryo_relations::domain::relations::types::ColumnsView<'_>,
     ) -> Result<super::super::derived::view::AcquiredView, OperatingError> {
         use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch};
         let proof = self.admit_relation(relation, BorrowedRows::Stored(source))?;

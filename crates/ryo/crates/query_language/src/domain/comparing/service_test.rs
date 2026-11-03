@@ -1,6 +1,6 @@
 //! The `comparing` service's cases, on query text read by the real syntax adapter: a comparison is accepted or refused by the types of its sides.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::comparing::service::comparison_of;

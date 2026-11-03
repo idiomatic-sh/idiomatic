@@ -6,7 +6,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::{service::pool_for, types::PreparedPool};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
     types::{ColumnsView, FactColumn, FileId, Integer, Relation, Value},
 };
@@ -321,7 +321,7 @@ fn opaque_first_failure_prevents_later_rule_graph_work() {
         &[Relation::LanguageTarget],
     );
     let columns = columns();
-    use ryo_language::domain::relations::types::{NodeId, Offset, Span};
+    use ryo_relations::domain::relations::types::{NodeId, Offset, Span};
     let source = [
         Value::Node(NodeId(0)),
         Value::File(FileId(0)),

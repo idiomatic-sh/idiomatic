@@ -2,18 +2,18 @@
 
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::Flag;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::Flag;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{
     FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Position, Span, TextHash,
     Value as EngineValue,
 };
 use ryo_language::domain::symbols::service::{intern, places_mut};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::service::unknown_symbol;
-use ryo_language::domain::terms::types::{ReasonName, UnknownName, UnknownReason};
+use ryo_relations::domain::terms::service::unknown_symbol;
+use ryo_relations::domain::terms::types::{ReasonName, UnknownName, UnknownReason};
 
 use super::service::value_cell;
 use crate::cases::{Case, CaseName, Expect, Word, run};

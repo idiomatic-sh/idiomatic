@@ -1,6 +1,6 @@
 //! The types of the `walks` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::types::NameCount;

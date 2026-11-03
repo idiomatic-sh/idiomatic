@@ -3,19 +3,20 @@
 //! `read_tree` that allocates a scratch buffer in every file passes; a reader that allocates in every file fails. It runs alone in its
 //! process, with `dhat` as the global allocator, so nothing else counts.
 
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ryo_language::domain::answers::service::{absent, reads};
-use ryo_language::domain::answers::types::{AbsenceCause, ReadItem, Reader, Reads, Support};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_language::domain::elements::service::{enter_node, leave_node, token};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::relations::collections::relations::function::item::{
+use ryo_relations::domain::relations::collections::relations::function::item::{
     Function, FunctionRow,
 };
-use ryo_language::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
@@ -42,7 +43,7 @@ macro_rules! all_but_function {
     (@one $module:ident $variant:ident) => {
         fn $module(
             &self,
-        ) -> Support<Reader<ryo_language::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
+        ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
             absent(AbsenceCause::NoSuchConstruct)
         }
     };
@@ -148,7 +149,7 @@ impl ParseUseCase for Language {
 
     fn capabilities(
         &self,
-    ) -> &'static [ryo_language::domain::relations::types::OptionalCapability] {
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
 
@@ -206,7 +207,7 @@ impl ParseUseCase for Language {
         }
     }
 
-    ryo_language::each_relation!(all_but_function);
+    ryo_relations::each_relation!(all_but_function);
 }
 
 /// Runs the allocation row over the double and says whether it held.
@@ -224,7 +225,7 @@ fn held(language: &Language) -> bool {
                 language,
                 &ParseRequest {
                     path: sample.path,
-                    file: ryo_language::domain::relations::types::FileId(0),
+                    file: ryo_relations::domain::relations::types::FileId(0),
                     bytes,
                     notes: ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted,
                     fields: ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted,

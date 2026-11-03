@@ -14,3 +14,7 @@ pub fn reason_name(reason: AbsenceCause) -> &'static str {
         AbsenceCause::NoManifests => "no-manifests",
     }
 }
+
+#[cfg(test)]
+#[path = "constants_test.rs"]
+mod tests;

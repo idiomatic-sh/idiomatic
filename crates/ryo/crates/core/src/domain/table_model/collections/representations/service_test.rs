@@ -11,7 +11,7 @@ use ryo_language::domain::elements::{
     service::{enter_node, leave_node, table_builder, token},
     types::Elements,
 };
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     constants::NO_SYMBOL,
     service::{node_id, to_bits},
     types::{
@@ -20,7 +20,7 @@ use ryo_language::domain::relations::{
     },
 };
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 

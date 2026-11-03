@@ -5,8 +5,8 @@ use super::super::interface::ProjectUseCase;
 use super::super::service::project;
 use super::super::types::{ProjectRequest, RootPath};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::service::{all, class_of};
-use crate::domain::relations::types::{Class, Relation};
+use ryo_relations::domain::relations::service::{all, class_of};
+use ryo_relations::domain::relations::types::{Class, Relation};
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Collect;
 

@@ -23,7 +23,7 @@ use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::{Replaying, Tables};
 use crate::outbound::matching::fixtures::fake::MatchingFake;
 use crate::outbound::matching::interface::MatchingPort as _;
-use ryo_language::domain::relations::types::{FileId, Relation, WorkerNumber};
+use ryo_relations::domain::relations::types::{FileId, Relation, WorkerNumber};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId, Test,
 };

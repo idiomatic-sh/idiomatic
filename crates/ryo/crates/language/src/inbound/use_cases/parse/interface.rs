@@ -9,9 +9,9 @@ use super::errors::ParseError;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
 use crate::domain::answers::types::{Reader, Support};
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
-use crate::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::Count;
 use crate::domain::semantics::interface::SemanticSession;
-use crate::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::Recognition;
 
 /// What the methods of a trait are made of, one for each syntax relation of the catalog.
@@ -25,7 +25,7 @@ macro_rules! syntax_methods {
             #[doc = stringify!($module)]
             fn $module(
                 &self,
-            ) -> Support<Reader<$crate::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>>;
+            ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>>;
         )*
     };
 }
@@ -33,7 +33,7 @@ macro_rules! syntax_methods {
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
     /// Optional semantic capabilities this provider promises to answer, including proven language absence.
-    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability];
+    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability];
 
     /// Canonical immutable parser settings that can change the tree or diagnostics.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
@@ -68,7 +68,7 @@ pub trait ParseUseCase: Send + Sync {
     fn extend_file_model(
         &self,
         _tree: &Tree<'_>,
-        _from: crate::domain::relations::types::Position,
+        _from: ryo_relations::domain::relations::types::Position,
         _model: &mut Self::FileModel,
     ) {
     }
@@ -119,5 +119,5 @@ pub trait ParseUseCase: Send + Sync {
     /// request asks for, bytes only the language reads (`write_notes`). It reaches nothing else of the table.
     fn complete(&self, request: &ParseRequest<'_>, completion: &mut Completion<'_>);
 
-    crate::each_relation!(syntax_methods);
+    ryo_relations::each_relation!(syntax_methods);
 }

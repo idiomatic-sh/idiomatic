@@ -2,13 +2,13 @@
 //! The types of the `elements` concept: the element table of a file and what builds and reads it.
 
 use super::constants::SCRATCH;
-use crate::domain::relations::types::Expanded;
-use crate::domain::relations::types::{
+use ryo_relations::domain::relations::types::Expanded;
+use ryo_relations::domain::relations::types::{
     Bytes, Count, Extent, FieldId, FileId, Flags, KindBits, Offset, Position, PropertyId,
 };
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::terms::types::ChildOrdinal;
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::types::ChildOrdinal;
+use ryo_relations::domain::terms::types::Symbol;
 
 use crate::domain::symbols::types::Symbols;
 
@@ -238,7 +238,7 @@ pub enum SyntaxAcceptance {
 pub struct Elements {
     /// What kind of node or token the element is, in the language's own numbering.
     pub kind: Numbers<KindBits>,
-    /// Bit flags; [`TOKEN`](crate::domain::relations::constants::TOKEN) marks a token.
+    /// Bit flags; [`TOKEN`](ryo_relations::domain::relations::constants::TOKEN) marks a token.
     pub flags: Numbers<Flags>,
     /// Where it starts, in bytes.
     pub start: Numbers<Offset>,
@@ -250,9 +250,9 @@ pub struct Elements {
     pub parent: Numbers<Position>,
     /// Its position among its parent's children.
     pub ordinal: Numbers<ChildOrdinal>,
-    /// Its role under its parent, in the language's own vocabulary; [`NO_FIELD`](crate::domain::relations::constants::NO_FIELD) where it has none. Empty until the language is asked for the roles (`FieldRequest::Wanted`).
+    /// Its role under its parent, in the language's own vocabulary; [`NO_FIELD`](ryo_relations::domain::relations::constants::NO_FIELD) where it has none. Empty until the language is asked for the roles (`FieldRequest::Wanted`).
     pub field: Numbers<FieldId>,
-    /// The text of a token, interned; [`NO_SYMBOL`](crate::domain::relations::constants::NO_SYMBOL) for a node and for a token nobody reads.
+    /// The text of a token, interned; [`NO_SYMBOL`](ryo_relations::domain::relations::constants::NO_SYMBOL) for a node and for a token nobody reads.
     pub text: Numbers<Symbol>,
     /// What the engine keeps of the table beside its columns, which a language holds but never reaches into.
     pub state: TableState,
@@ -292,7 +292,7 @@ pub(crate) struct ElementsEngine {
     /// The elements a macro expansion produced, in the order of their positions; none for a file no expansion touched.
     pub expanded: Vec<Expanded>,
     /// Separately parsed expressions, kept outside the native lossless tree.
-    pub embedded: Vec<crate::domain::relations::types::EmbeddedSource>,
+    pub embedded: Vec<ryo_relations::domain::relations::types::EmbeddedSource>,
     /// The open nodes while the table is built.
     pub open: Vec<OpenNode>,
     /// The model the worker keeps for the language between files; the engine's, which the language never sees but through `file_model`.

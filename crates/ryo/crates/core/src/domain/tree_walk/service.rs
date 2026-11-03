@@ -3,8 +3,8 @@
 use ryo_language::domain::elements::service::{
     children, kind_names, next_sibling, previous_sibling,
 };
-use ryo_language::domain::relations::service::{node_file, node_id, node_position};
-use ryo_language::domain::relations::types::{CellKind, Position, Value};
+use ryo_relations::domain::relations::service::{node_file, node_id, node_position};
+use ryo_relations::domain::relations::types::{CellKind, Position, Value};
 
 use super::constants::{NONE, SLOT_OF_ELEMENT, UNKNOWN};
 use crate::domain::kind_sets::service::kind_tests;

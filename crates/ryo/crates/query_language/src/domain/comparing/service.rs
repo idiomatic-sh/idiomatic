@@ -1,10 +1,10 @@
 //! The `comparing` service: the sides of a comparison are resolved, and the test is checked against
 //! the types of its sides.
 
-use ryo_language::domain::relations::constants::{LOWERED, RAISED};
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::service::{owner_of, words_of};
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::service::{owner_of, words_of};
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use super::constants::{ENDS_WITH, MATCHES, STARTS_WITH, WORD_SEPARATOR, arity, function_name};
 use crate::domain::lowering::errors::LoweringError;
@@ -208,7 +208,7 @@ pub(crate) fn operand_of(
         }),
         syntax::WrittenOperand::Number(number) => Ok(ResolvedOperand {
             operand: parts::Operand::Literal(parts::QueryLiteral::Number(
-                ryo_language::domain::relations::types::Integer(number.0),
+                ryo_relations::domain::relations::types::Integer(number.0),
             )),
             typed: Typed::Number,
         }),

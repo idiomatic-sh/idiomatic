@@ -1,6 +1,6 @@
 //! Immutable policy answers and diagnostic values; no backend reference escapes.
 use super::*;
-use ryo_language::domain::relations::types::{ColumnsView, Relation};
+use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 #[derive(Clone, Copy, Debug, Default)]
 pub(in crate::application::file_dag) struct IndexObservation {

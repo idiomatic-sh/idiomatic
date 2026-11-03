@@ -4,7 +4,7 @@ use super::constants::MARK_OF_ELEMENT;
 use ryo_language::domain::elements::service::{
     children, kind_names, next_sibling, previous_sibling,
 };
-use ryo_language::domain::relations::types::{Flag, Position, Value};
+use ryo_relations::domain::relations::types::{Flag, Position, Value};
 use ryo_language::domain::symbols::service::name_count;
 
 use super::types::{Admission, Admit, FilterScratch, Marked};

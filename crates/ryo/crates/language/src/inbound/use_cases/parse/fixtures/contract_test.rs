@@ -1,7 +1,7 @@
 //! Clearing collected partial observations retains storage without retaining stale causes.
 use super::Collect;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::{
+use ryo_relations::domain::relations::{
     collections::relations::indent_region::item::IndentRegionRow,
     types::{FileId, Missing, Relation, ReportText, Rows},
 };
@@ -192,7 +192,7 @@ fn qualified(origin: &str, path: Option<&str>, major: u64, minor: u64) -> Result
         service::intern_derived,
         types::{ByteSlice, Symbols},
     };
-    use crate::domain::terms::{
+    use ryo_relations::domain::terms::{
         service::unknown_symbol,
         types::{NameText, UnknownReason},
     };
@@ -225,15 +225,11 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let mut output = Collect::default();
     match operation {
         Operation::EmbeddedRoot(leading_token) => {
-            use crate::domain::{
-                elements::{
+            use crate::domain::{elements::{
                     service::{enter_node, leave_node, table_builder, token},
                     types::Elements,
-                },
-                expansions::service::write_embedded,
-                relations::types::{EmbeddedMapping, KindBits, Offset, Position},
-                symbols::types::{ByteSlice, Symbols},
-            };
+                }, expansions::service::write_embedded, symbols::types::{ByteSlice, Symbols}};
+use ryo_relations::domain::relations::types::{EmbeddedMapping, KindBits, Offset, Position};
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
             enter_node(&mut builder, KindBits(1), Offset(0));
@@ -256,7 +252,7 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         }
 
         Operation::Shapes(class_file, representative) => {
-            use crate::domain::relations::{
+            use ryo_relations::domain::relations::{
                 collections::relations::expression_shape::item::ExpressionShapeRow,
                 service::node_id,
                 types::{Offset, Position, Span},
@@ -306,16 +302,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             Ok(super::semantic_spans_valid(&output, 6, false, |id| id == 3))
         }
         Operation::Identifier(name, span) => {
-            use crate::domain::{
-                symbols::{
+            use crate::domain::{symbols::{
                     service::intern_derived,
                     types::{ByteSlice, Symbols},
-                },
-                terms::{
+                }};
+use ryo_relations::domain::terms::{
                     service::unknown_symbol,
                     types::{NameText, UnknownReason},
-                },
-            };
+                };
             let source = ByteSlice("𝗲𝘅𝗲𝗰".as_bytes());
             let mut symbols = Symbols::default();
             let name = name.map_or_else(

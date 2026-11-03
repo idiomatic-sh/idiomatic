@@ -1,6 +1,6 @@
 //! The `replay` service: free functions named by verb that pass the rows of a step on, one by one.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, OperatorContext};

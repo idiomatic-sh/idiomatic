@@ -1,6 +1,6 @@
 //! The types of the `trust` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use ryo_values::domain::plan_parts::types::Comparison;
 

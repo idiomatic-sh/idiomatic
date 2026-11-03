@@ -6,7 +6,7 @@ use crate::domain::{
     operator::contract::views::BorrowedRows,
     table_model::{service::push_row, types::Table},
 };
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 fn prepare_cycles(
     input: BorrowedRows<'_>,
@@ -69,7 +69,7 @@ fn prepare_closure(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ryo_language::domain::relations::types::Integer;
+    use ryo_relations::domain::relations::types::Integer;
     fn number(value: i64) -> Value {
         Value::Number(Integer(value))
     }

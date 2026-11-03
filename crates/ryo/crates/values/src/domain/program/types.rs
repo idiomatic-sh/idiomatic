@@ -1,7 +1,7 @@
 //! The types of the `program` concept: the shape of RyoQL text once it is read. Plain data, public
 //! fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use std::collections::BTreeMap;
 
 /// A place in the query text, counted in bytes from its start.

@@ -68,9 +68,9 @@ pub(crate) enum Noting {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Wants {
     /// The relations the plans read.
-    pub wanted: Vec<ryo_language::domain::relations::types::Relation>,
+    pub wanted: Vec<ryo_relations::domain::relations::types::Relation>,
     /// The relations the languages are asked to walk the files for.
-    pub walked: Vec<ryo_language::domain::relations::types::Relation>,
+    pub walked: Vec<ryo_relations::domain::relations::types::Relation>,
     /// Whether the languages write their notes of the files.
     pub noted: Noting,
     /// Whether the languages give the elements their roles.

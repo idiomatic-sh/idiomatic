@@ -3,8 +3,8 @@
 
 use hashbrown::HashTable;
 
-use crate::domain::relations::types::{Bytes, Count, NameNote, NamePlace, Offset, TextHash, Words};
-use crate::domain::terms::types::Symbol;
+use ryo_relations::domain::relations::types::{Bytes, Count, NameNote, NamePlace, Offset, TextHash, Words};
+use ryo_relations::domain::terms::types::Symbol;
 
 /// What readers keep between the visits of one file, so that a row which depends on elements
 /// visited after it is written once the file is read: values indexed by the number of a name, and

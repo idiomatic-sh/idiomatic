@@ -1,6 +1,6 @@
 //! The types of the `replay` concept: what takes the rows of a step as they come.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, OperatorContext};

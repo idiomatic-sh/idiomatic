@@ -5,9 +5,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{PredicateProgram, PreparedPredicates};
 use crate::domain::table_model::types::{ParameterBinding, Verdict};
 use crate::domain::table_texts::types::{SourceView, Texts};
-use ryo_language::domain::{
-    files::types::FilePath, relations::types::Value, symbols::types::Symbols,
-};
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 pub(crate) struct BoundPredicate<'a> {
@@ -63,7 +62,7 @@ impl PredicateProgram for BoundPredicate<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ryo_language::domain::relations::types::Relation;
+    use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{
         Comparison, Input, LiteralText, Operand, QueryLiteral, Test,
     };
@@ -97,18 +96,18 @@ mod tests {
         let prepared = PreparedMatchers::new(&[plan]);
         let program = PreparedPredicates {
             comparisons,
-            kinds: vec![ryo_language::domain::relations::types::CellKind::Symbol],
+            kinds: vec![ryo_relations::domain::relations::types::CellKind::Symbol],
         };
         let mut symbols = Symbols::default();
         let stop = ryo_language::domain::symbols::service::intern_derived(
             &mut symbols,
             ryo_language::domain::symbols::types::ByteSlice(b""),
-            ryo_language::domain::terms::types::NameText("stop"),
+            ryo_relations::domain::terms::types::NameText("stop"),
         );
         let pass = ryo_language::domain::symbols::service::intern_derived(
             &mut symbols,
             ryo_language::domain::symbols::types::ByteSlice(b""),
-            ryo_language::domain::terms::types::NameText("pass"),
+            ryo_relations::domain::terms::types::NameText("pass"),
         );
         let mut state = Default::default();
         let mut memo = Vec::new();

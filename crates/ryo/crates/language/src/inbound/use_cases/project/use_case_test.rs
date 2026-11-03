@@ -9,7 +9,7 @@ use super::types::{ManifestName, ProjectRequest, Resolved, RootPath};
 use super::use_case::ProjectUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::reasons::types::ToolMessage;
-use crate::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::Count;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Discard;
 
@@ -29,7 +29,7 @@ impl ProjectUseCase for Broken {
         })
     }
 
-    crate::each_relation!(crate::absent_manifests);
+    ryo_relations::each_relation!(absent_manifests);
 }
 
 /// What a row of the cases is given.

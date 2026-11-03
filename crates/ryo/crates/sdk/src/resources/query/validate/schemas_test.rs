@@ -2,7 +2,7 @@
 
 use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
-use ryo_language::domain::relations::types::{CellKind, Offset, Span as CoreSpan};
+use ryo_relations::domain::relations::types::{CellKind, Offset, Span as CoreSpan};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::{
     plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery},

@@ -5,9 +5,9 @@ use crate::domain::operating::{
     types::{AfterTheFiles, OperatorContext},
 };
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::types::{Flag, Integer, Value};
+use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::{
     service::parameter_in,
     types::{FlagState, Operand, QueryLiteral},
@@ -83,7 +83,7 @@ impl super::types::FileDagExecution {
     #[cfg(test)]
     pub(crate) fn resource_eligibility(
         &self,
-        relation: ryo_language::domain::relations::types::Relation,
+        relation: ryo_relations::domain::relations::types::Relation,
     ) -> (bool, bool) {
         (
             self.relations.derived.index_observation().available,
@@ -93,9 +93,9 @@ impl super::types::FileDagExecution {
     pub(crate) fn prepare_resources(
         &self,
         enabled: bool,
-        wanted: &[ryo_language::domain::relations::types::Relation],
+        wanted: &[ryo_relations::domain::relations::types::Relation],
         partial: &[crate::domain::coverage::types::Partial],
-        selectable: &[ryo_language::domain::relations::types::Relation],
+        selectable: &[ryo_relations::domain::relations::types::Relation],
         plans: &[ryo_values::domain::plans::types::Plan],
         pool: &crate::domain::operator::types::PreparedPool,
         active: impl Fn(usize) -> bool + Copy,
@@ -111,7 +111,7 @@ impl super::types::FileDagExecution {
             )));
         });
     }
-    pub(crate) fn report_resources(&self, file: ryo_language::domain::relations::types::FileId) {
+    pub(crate) fn report_resources(&self, file: ryo_relations::domain::relations::types::FileId) {
         self.relations.derived.report(file);
     }
 }

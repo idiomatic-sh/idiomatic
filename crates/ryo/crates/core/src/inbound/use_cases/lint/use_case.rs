@@ -92,7 +92,7 @@ use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::{JobCount, JobNumber, WorkerCount};
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
 
-use ryo_language::domain::relations::types::WorkerNumber;
+use ryo_relations::domain::relations::types::WorkerNumber;
 
 use ryo_language::domain::symbols::types::Symbols;
 

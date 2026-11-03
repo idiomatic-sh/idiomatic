@@ -9,7 +9,7 @@ pub(super) fn source(
     input: &GraphInput<'_>,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
-    eligible: &[ryo_language::domain::relations::types::Relation],
+    eligible: &[ryo_relations::domain::relations::types::Relation],
 ) -> Option<graph::GraphSource> {
     let (population, columns) = population(input, eligible, false)?;
     let mapped = |column: ColumnIndex| columns.get(column.0 as usize).copied();
@@ -46,7 +46,7 @@ pub(super) fn source(
 pub(super) fn domain_identity(
     input: &GraphInput<'_>,
     column: ColumnIndex,
-    eligible: &[ryo_language::domain::relations::types::Relation],
+    eligible: &[ryo_relations::domain::relations::types::Relation],
 ) -> Option<graph::DomainIdentity> {
     let (population, columns) = population(input, eligible, true)?;
     Some(graph::DomainIdentity {
@@ -58,11 +58,11 @@ pub(super) fn domain_identity(
 /// Rows never acquire identity from pointers or cardinality alone; native and semantic populations differ.
 fn population(
     input: &GraphInput<'_>,
-    eligible: &[ryo_language::domain::relations::types::Relation],
+    eligible: &[ryo_relations::domain::relations::types::Relation],
     native: bool,
 ) -> Option<(graph::Population, Vec<ColumnIndex>)> {
     use crate::domain::table_cells::types::TreeForm;
-    use ryo_language::domain::relations::{service::kinds, types::Relation};
+    use ryo_relations::domain::relations::{service::kinds, types::Relation};
     let relation = input.relation()?;
     if !eligible.contains(&relation) {
         return None;

@@ -23,6 +23,18 @@ pub fn expected() -> Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
         manifests: stated_manifests(),
+        semantic: vec![ryo::languages::contract::SemanticExpected {
+            source: ryo::languages::SourceFile {
+                path: ryo::languages::SourcePath("semantics/unsupported.py"),
+                bytes: ryo::languages::ByteSlice(include_bytes!(
+                    "../tests/fixtures/semantics/unsupported.py"
+                )),
+            },
+            start: ryo::languages::Offset(9),
+            end: ryo::languages::Offset(21),
+            context: ryo::languages::RenderContext::AttributeReceiver,
+            outcome: ryo::languages::RenderOutcome::Unsupported(ryo::languages::UnknownReason(24)),
+        }],
         shape: Shape::Walk(library::walk()),
         oracle: library::oracle(),
         unfilled: stated_unfilled(),

@@ -1,7 +1,7 @@
 //! The `walking` service: free functions named by verb over the descents and neighbour lookups of the syntax tree made one walk.
 
-use ryo_language::domain::relations::service::columns;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::columns;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{ElementDemand, InputWidth, StartingRow};
 use crate::domain::fusing::service::source_column;

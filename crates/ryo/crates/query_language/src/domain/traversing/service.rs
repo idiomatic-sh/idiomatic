@@ -1,7 +1,7 @@
 //! The `traversing` service: the calls that walk an axis or close a relation (`axis`, `closure` and `cycles`), lowered to steps.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::constants::{HierarchyColumn, heading};
 use crate::domain::lowering::errors::LoweringError;

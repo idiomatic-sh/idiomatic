@@ -13,15 +13,15 @@ use crate::domain::table_model::types::{
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::service::to_bits;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell,
 };
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::service::term_symbol;
-use ryo_language::domain::terms::types::{DeclarationKind, NameText, Symbol};
+use ryo_relations::domain::terms::service::term_symbol;
+use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, LiteralText, Operand, ParameterId, QueryLiteral,
     RepeatedRows, Test, WholeNumber,

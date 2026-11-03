@@ -5,10 +5,8 @@ use crate::domain::operating::types::Memo;
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{
-    relations::types::{CellKind, Integer, Relation},
-    symbols::types::Symbols,
-};
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, RepeatedRows},
     plans::types::Operation,
@@ -227,7 +225,7 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
 #[test]
 fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
     use crate::domain::table_model::types::{SelectedRows, StoredSelection};
-    use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
+    use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
     use std::sync::Arc;
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![3])];
     let selection = Arc::new(StoredSelection {

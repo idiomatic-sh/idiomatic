@@ -6,13 +6,11 @@ use crate::domain::{
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
-use ryo_language::domain::{
-    relations::{
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::{
         service::to_bits,
         types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell},
-    },
-    symbols::types::Symbols,
-};
+    };
 use std::sync::Arc;
 type Failure = OperatingError;
 /// Entries append into spare owned capacity instead of moving every retained entry.
@@ -132,7 +130,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
         stored_selection::types::Selector,
         table_model::types::{RowCount, SelectionIdentity, Table, Verdict},
     };
-    use ryo_language::domain::relations::types::Value;
+    use ryo_relations::domain::relations::types::Value;
 
     struct AlwaysHolds;
     impl PredicateProgram for AlwaysHolds {

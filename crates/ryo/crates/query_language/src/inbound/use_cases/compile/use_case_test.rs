@@ -9,8 +9,8 @@ use super::use_case::CompileUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::program::types::{
     Alias, ByteOffset, ColumnName, ColumnReference, Columns, Condition, Expression, Filter,

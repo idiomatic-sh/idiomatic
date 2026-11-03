@@ -5,13 +5,14 @@ use super::constants::{COUNT, WORDS};
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
 use super::types::{ParseEngine, ParseRequest, Slot};
-use crate::domain::answers::types::{AbsenceCause, Answer, Expansions, Reads};
+use crate::domain::answers::types::{Answer, Expansions, Reads};
+use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::completion::service::completion;
 use crate::domain::elements::service::{discarding_builder, engine_mut, kind_at};
 use crate::domain::elements::service::{expanded_positions, positions, table_builder};
 use crate::domain::elements::types::{Elements, Tree};
-use crate::domain::relations::service::{KIND_LIMIT, all, number_of, optional_capability};
-use crate::domain::relations::types::{Count, FileId, KindBits, Relation, RowWriter};
+use ryo_relations::domain::relations::service::{KIND_LIMIT, all, number_of, optional_capability};
+use ryo_relations::domain::relations::types::{Count, FileId, KindBits, Relation, RowWriter};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::parse::types::Recognition;
 
@@ -44,8 +45,8 @@ macro_rules! syntax_slots {
 
         fn unsupported(relation: Relation, file: FileId, out: &mut dyn RowWriter) {
             match relation {
-                $( Relation::$variant => <dyn RowWriter as crate::domain::relations::types::Rows<$crate::domain::relations::collections::relations::$module::item::$row>>::partial_at(
-                    out, file, crate::domain::relations::types::ReportText(super::constants::UNAVAILABLE_CAPABILITY), crate::domain::relations::types::Missing::Any), )*
+                $( Relation::$variant => <dyn RowWriter as ryo_relations::domain::relations::types::Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row>>::partial_at(
+                    out, file, ryo_relations::domain::relations::types::ReportText(super::constants::UNAVAILABLE_CAPABILITY), ryo_relations::domain::relations::types::Missing::Any), )*
                 $( Relation::$manifest_variant => {}, )*
                 $( Relation::$engine_variant => {}, )*
             }
@@ -64,7 +65,7 @@ macro_rules! syntax_slots {
             tree: &Tree<'_>,
             model: &M,
             symbols: &mut Symbols,
-            position: crate::domain::relations::types::Position,
+            position: ryo_relations::domain::relations::types::Position,
             out: &mut dyn RowWriter,
         ) where M: 'static {
             match slot {
@@ -98,7 +99,7 @@ macro_rules! syntax_slots {
         }
     };
 }
-crate::each_relation!(syntax_slots);
+ryo_relations::each_relation!(syntax_slots);
 
 /// The kinds the readers of the language look at, every reader's declared `kinds:` together. A reader of every element names none: it
 /// reads all and models nothing, so it does not count.

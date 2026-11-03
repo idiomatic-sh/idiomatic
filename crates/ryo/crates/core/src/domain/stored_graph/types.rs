@@ -1,7 +1,7 @@
 //! Plain compact graph, population, traversal and bounded memo data.
 
 use crate::domain::table_model::types::SelectionIdentity;
-use ryo_language::domain::relations::types::{CellKind, FileId, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 

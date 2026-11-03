@@ -15,18 +15,18 @@ use ryo_language::domain::symbols::{
     service::intern_derived,
     types::{ByteSlice, Symbols},
 };
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
 
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{
     BindingCell, BindingTable, ParameterBinding, RowCount, Table,
 };
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell,
 };
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::{
     CapturePattern, ColumnIndex, Direction, FlagState, HostedNumber, Input as Source, JoinColumn,
     LiteralText, Operand, ParameterId, QueryLiteral, RepeatedRows, Side, TableKey, WholeNumber,

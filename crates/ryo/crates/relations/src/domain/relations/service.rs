@@ -9,6 +9,28 @@ use super::types::{
 };
 use crate::domain::terms::types::{ChildOrdinal, Symbol};
 
+use crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralColumn;
+use crate::domain::relations::collections::relations::call_argument::item::CallArgumentColumn;
+use crate::domain::relations::collections::relations::comment::item::CommentColumn;
+use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
+use crate::domain::relations::collections::relations::entry::item::EntryColumn;
+use crate::domain::relations::collections::relations::function::item::FunctionColumn;
+use crate::domain::relations::collections::relations::mapping::item::MappingColumn;
+use crate::domain::relations::collections::relations::mention::item::MentionColumn;
+use crate::domain::relations::collections::relations::package_dependency::item::PackageDependencyColumn;
+use crate::domain::relations::collections::relations::parameter::item::ParameterColumn;
+use crate::domain::relations::collections::relations::prose::item::ProseColumn;
+use crate::domain::relations::collections::relations::reference::item::ReferenceColumn;
+use crate::domain::relations::collections::relations::resolves::item::ResolvesColumn;
+use crate::domain::relations::collections::relations::sequence_element::item::SequenceElementColumn;
+use crate::domain::relations::collections::relations::source_location::item::SourceLocationColumn;
+use crate::domain::relations::collections::relations::static_call::item::StaticCallColumn;
+use crate::domain::relations::collections::relations::string_literal::item::StringLiteralColumn;
+use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildColumn;
+use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeColumn;
+use crate::domain::relations::types::ColumnKeyness;
+use crate::domain::terms::types::{Vocabulary, WordBlock};
+
 /// Hands the catalog to `$callback`, which is a macro that takes the three groups.
 #[macro_export]
 macro_rules! each_relation {
@@ -441,5 +463,61 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::RawFormatField => Relation::RawFormatField,
         OptionalCapability::ModuleIdentity => Relation::ModuleIdentity,
         OptionalCapability::LiteralExpressionParse => Relation::LiteralExpressionParse,
+    }
+}
+
+/// The words a column holds: one of a closed set for the columns that hold a kind the catalog shares across languages, any name or
+/// number for the rest.
+#[must_use]
+pub fn vocabulary_of(column: Column) -> Vocabulary {
+    if matches!(column, Column::Defines(DefinesColumn::Kind)) {
+        Vocabulary::Closed(WordBlock::Declaration)
+    } else if matches!(column, Column::Parameter(ParameterColumn::Kind)) {
+        Vocabulary::Closed(WordBlock::Parameter)
+    } else if matches!(
+        column,
+        Column::Entry(EntryColumn::Kind) | Column::SequenceElement(SequenceElementColumn::Kind)
+    ) {
+        Vocabulary::Closed(WordBlock::Value)
+    } else if matches!(column, Column::Mapping(MappingColumn::Kind)) {
+        Vocabulary::Closed(WordBlock::Mapping)
+    } else if matches!(
+        column,
+        Column::PackageDependency(PackageDependencyColumn::Kind)
+    ) {
+        Vocabulary::Closed(WordBlock::Dependency)
+    } else if matches!(
+        column,
+        Column::PackageDependency(PackageDependencyColumn::Origin)
+    ) {
+        Vocabulary::Closed(WordBlock::Origin)
+    } else {
+        Vocabulary::Open
+    }
+}
+
+/// Whether a column says which row a row is: no two rows of the relation hold the same value in it,
+/// so a projection that keeps it has no repeated rows to drop.
+#[must_use]
+pub fn is_key(column: Column) -> ColumnKeyness {
+    if matches!(
+        column,
+        Column::SyntaxTree(SyntaxTreeColumn::Id)
+            | Column::SourceLocation(SourceLocationColumn::Id)
+            | Column::SyntaxChild(SyntaxChildColumn::Child)
+            | Column::Function(FunctionColumn::Id)
+            | Column::Comment(CommentColumn::Id)
+            | Column::Prose(ProseColumn::Id)
+            | Column::Reference(ReferenceColumn::Occurrence)
+            | Column::Mention(MentionColumn::Occurrence)
+            | Column::StaticCall(StaticCallColumn::Occurrence)
+            | Column::CallArgument(CallArgumentColumn::Expression)
+            | Column::Resolves(ResolvesColumn::Occurrence)
+            | Column::StringLiteral(StringLiteralColumn::Occurrence)
+            | Column::BytesLiteral(BytesLiteralColumn::Occurrence)
+    ) {
+        ColumnKeyness::Key
+    } else {
+        ColumnKeyness::Plain
     }
 }

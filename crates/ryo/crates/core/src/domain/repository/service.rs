@@ -31,7 +31,7 @@ pub(crate) fn paths_of(files: &[CorpusEntry]) -> Vec<FilePath> {
 /// Column order is semantic; length framing prevents adjacent names from aliasing.
 #[must_use]
 pub(crate) fn catalog_schema() -> DigestInput {
-    use ryo_language::domain::relations::service::{all, column_name, columns, kind, name};
+    use ryo_relations::domain::relations::service::{all, column_name, columns, kind, name};
     let relations = all()
         .iter()
         .map(|relation| {
@@ -49,10 +49,10 @@ pub(crate) fn catalog_schema() -> DigestInput {
 fn schema_bytes(
     relations: &[(
         &str,
-        Vec<(&str, ryo_language::domain::relations::types::CellKind)>,
+        Vec<(&str, ryo_relations::domain::relations::types::CellKind)>,
     )],
 ) -> DigestInput {
-    use ryo_language::domain::relations::types::CellKind;
+    use ryo_relations::domain::relations::types::CellKind;
     fn number(bytes: &mut Vec<u8>, value: usize) {
         bytes.extend_from_slice(&(value as u64).to_le_bytes());
     }
@@ -83,7 +83,7 @@ fn schema_bytes(
 #[cfg(test)]
 mod schema_identity_tests {
     use super::*;
-    use ryo_language::domain::relations::types::CellKind;
+    use ryo_relations::domain::relations::types::CellKind;
     #[test]
     fn names_kinds_and_column_order_are_part_of_snapshot_identity() {
         let original = [(
@@ -126,7 +126,7 @@ mod schema_identity_tests {
     }
     #[test]
     fn current_module_context_schema_rejects_its_legacy_two_column_identity() {
-        use ryo_language::domain::relations::{
+        use ryo_relations::domain::relations::{
             service::{column_name, columns, kind},
             types::Relation,
         };

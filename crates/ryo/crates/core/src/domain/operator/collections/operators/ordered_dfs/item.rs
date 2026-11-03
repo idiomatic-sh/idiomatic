@@ -10,7 +10,7 @@ use crate::domain::table_reach::{
     service::{begin_ordered, next_ordered},
     types::Edges,
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct OrderedDfsItem;
 impl OperatorsItem for OrderedDfsItem {

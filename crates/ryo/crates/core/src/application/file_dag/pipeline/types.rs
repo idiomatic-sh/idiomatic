@@ -2,7 +2,7 @@
 //! The types of the `pipeline` concept: the steps of a plan being run for a file, and what they read their inputs through.
 use crate::application::file_dag::feed::Feed;
 
-use ryo_language::domain::relations::types::{CellKind, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 
 use crate::application::file_dag::pipeline::service::{deliver, feed, input, keep};
 use crate::domain::coverage::types::Partial;
@@ -130,7 +130,7 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
             Input::Relation(relation) => match self.read.rows(relation)? {
                 Rows::Stored(view) => view.kinds,
                 Rows::Tree(tree) => {
-                    ryo_language::domain::relations::service::kinds(match tree.form {
+                    ryo_relations::domain::relations::service::kinds(match tree.form {
                         crate::domain::table_cells::types::TreeForm::Elements => {
                             Relation::SyntaxTree
                         }

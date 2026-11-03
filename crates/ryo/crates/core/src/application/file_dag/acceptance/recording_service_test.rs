@@ -2,7 +2,7 @@
 
 use ryo_language::domain::elements::service::notes_mut;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, Relation, Value as Cell, Words, WorkerNumber,
 };
 use ryo_values::domain::descriptions::types::RelationName;
@@ -239,7 +239,7 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
     use crate::domain::placement::types::Mask;
     use crate::domain::trust::types::{Needs, RelationRead};
     use ryo_language::domain::elements::types::SyntaxAcceptance;
-    use ryo_language::domain::relations::types::Relation;
+    use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 
     let placed = placed().expect("empty placement is valid");
@@ -505,8 +505,8 @@ fn prepared_packed_buckets_preserve_legacy_flat_digests_store_bytes_and_move_own
     use crate::outbound::digest::fixtures::fake::DigestFake;
     use crate::outbound::digest::interface::DigestPort as _;
     use crate::outbound::digest::types::DigestWords;
-    use ryo_language::domain::relations::service::node_id;
-    use ryo_language::domain::relations::types::{
+    use ryo_relations::domain::relations::service::node_id;
+    use ryo_relations::domain::relations::types::{
         Flag, Name, NamePlace, Offset, Origin, PlaceNumber, Position, Span, TextHash,
     };
     let mut worker = tables();
@@ -668,7 +668,7 @@ fn incremental_normalization_preserves_every_truncated_complete_prefix() {
 #[test]
 fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
     use crate::domain::table_model::types::RowCount;
-    use ryo_language::domain::relations::types::{
+    use ryo_relations::domain::relations::types::{
         Name, NamePlace, Offset, Origin, PlaceNumber, TextHash,
     };
     let mut worker = tables();

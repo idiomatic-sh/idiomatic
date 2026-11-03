@@ -2,7 +2,7 @@
 
 use hashbrown::HashTable;
 use hashbrown::hash_table::OccupiedEntry;
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 
 use super::types::RowFound;
 use crate::domain::table_cells::types::RowIndex;

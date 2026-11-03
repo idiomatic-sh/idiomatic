@@ -5,7 +5,7 @@ use crate::domain::table_model::{
     service::push_row,
     types::{KeyIndex, On, Table},
 };
-use ryo_language::domain::relations::types::{CellKind, Integer, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 fn table(keys: &[i64]) -> Table {

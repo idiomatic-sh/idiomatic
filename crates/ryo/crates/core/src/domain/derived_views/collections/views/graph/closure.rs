@@ -8,7 +8,7 @@ use crate::domain::{
         types::{KeyIndex, On, Table},
     },
 };
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(super) fn prepare(

@@ -14,7 +14,7 @@ use crate::domain::tree_join::service::tree_value;
 use ryo_language::domain::elements::service::{
     children, next_sibling, parent_at, previous_sibling, size_at,
 };
-use ryo_language::domain::relations::{
+use ryo_relations::domain::relations::{
     service::{node_file, node_id, node_position},
     types::{Position, Value},
 };

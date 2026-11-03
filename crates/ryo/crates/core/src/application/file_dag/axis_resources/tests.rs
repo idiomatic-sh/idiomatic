@@ -9,7 +9,7 @@ use crate::domain::{
         types::Walk,
     },
 };
-use ryo_language::domain::relations::types::{CellKind, Integer, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use std::sync::Arc;
 
 fn number(value: i64) -> Value {

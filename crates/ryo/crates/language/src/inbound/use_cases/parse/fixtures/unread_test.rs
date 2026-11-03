@@ -2,7 +2,7 @@
 
 use super::findings;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::types::KindBits;
 use crate::inbound::use_cases::parse::types::{KindName, KindSample, Sample, SampleText, Why};
 
 /// What the case gives: the kinds of the language and the numbers its readers look at.

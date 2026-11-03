@@ -5,7 +5,8 @@ use crate::domain::table_texts::{
     service::datum,
     types::{Datum, SourceView, Texts},
 };
-use ryo_language::domain::{relations::types::Value, symbols::types::Symbols};
+use ryo_language::domain::{symbols::types::Symbols};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
 #[derive(Clone)]
 pub(crate) enum Expected {

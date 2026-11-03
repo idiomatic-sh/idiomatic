@@ -1,7 +1,7 @@
 //! The syntax roles and outcomes shared by language providers and their consumers.
 
-use crate::domain::relations::types::{FileId, NodeId};
-use crate::domain::terms::types::UnknownReason;
+use ryo_relations::domain::relations::types::{FileId, NodeId};
+use ryo_relations::domain::terms::types::UnknownReason;
 use std::sync::Arc;
 
 /// The role in which a rendered syntax node will be embedded.

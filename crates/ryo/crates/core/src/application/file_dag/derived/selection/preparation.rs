@@ -4,7 +4,7 @@ use crate::domain::{
     derived_views::collections::views::registration::registered,
     operation_schema::types::InputSchema, operator::contract::types::RequestOperators,
 };
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use std::collections::HashMap;
 
 pub(crate) fn prepare_views_with_schemas<'s>(

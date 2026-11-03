@@ -1,6 +1,6 @@
 //! Immutable kernel programs and request-owned execution counters.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, LiteralText};
 use std::sync::Arc;
 

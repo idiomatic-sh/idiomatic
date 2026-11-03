@@ -16,7 +16,7 @@ use crate::domain::stored_graph::{
     types::{GraphWalk, Orientation},
 };
 use crate::domain::table_model::{service::cell, types::Rows};
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 /// One request-bound plan with invocation-local traversal buffers. Exact cache

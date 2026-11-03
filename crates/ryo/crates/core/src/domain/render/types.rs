@@ -1,7 +1,7 @@
 //! The types of the `render` concept: plain data, public fields and derives, with no constructor
 //! and no inherent impl. The rows one file gave, as typed cells, waiting for their turn to leave.
 
-use ryo_language::domain::relations::types::Offset;
+use ryo_relations::domain::relations::types::Offset;
 
 use crate::domain::finish::types::{ColumnNumber, FileLine, RuleNumber};
 

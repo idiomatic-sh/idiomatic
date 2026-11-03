@@ -1,6 +1,6 @@
 //! The `closure` item's cases.
 
-use ryo_language::domain::relations::types::{CellKind, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_values::domain::plans::types::QueryOperator;
 
 use ryo_language::domain::symbols::types::Symbols;
@@ -14,7 +14,7 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plans::types::Operation;
@@ -384,7 +384,7 @@ fn partitioned_and_old_paths_reuse_scratch() -> Result<Value, OperatingError> {
 }
 
 fn file_partitions_keep_reused_node_ids_separate() -> Result<Value, OperatingError> {
-    use ryo_language::domain::relations::types::{FileId, NodeId};
+    use ryo_relations::domain::relations::types::{FileId, NodeId};
     let mut edges = Table {
         kinds: vec![CellKind::Node, CellKind::Node, CellKind::File],
         ..Table::default()

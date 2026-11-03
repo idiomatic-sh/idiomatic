@@ -4,7 +4,7 @@ use crate::domain::coverage::types::{Covered, Partial};
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::trust::types::Needs;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::CorpusEntry;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;

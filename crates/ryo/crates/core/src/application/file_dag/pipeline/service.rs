@@ -3,7 +3,7 @@
 use crate::application::file_dag::feed::Feed;
 
 // ignore: idiomatic.arch/idiomatic-rust/module-cycles - the steps feed on the steps they run: the service runs a step through the `Feed` impl of `Stepper`, which reads its input by running the service's steps again (`run`, `operate`, `deliver`), one ring by design
-use ryo_language::domain::relations::types::{Relation, Value};
+use ryo_relations::domain::relations::types::{Relation, Value};
 
 use crate::application::file_dag::pipeline::types::compact::value::CompactInput;
 use crate::application::file_dag::pipeline::types::{LoweredTree, Stepper};
@@ -25,7 +25,7 @@ use crate::domain::table_model::service::{copy_table, materialize, reset};
 use crate::domain::table_model::types::{RowCount, Rows, Table};
 use crate::domain::trust::service::blocked;
 use crate::domain::trust::types::Blocking;
-use ryo_language::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::{inputs_of, named};
@@ -565,7 +565,7 @@ fn evaluate_file_with_fixture<'f, const LEGACY: bool>(
         &[],
         &|relation| {
             relations(relation).map_or_else(
-                || ryo_language::domain::relations::service::kinds(relation),
+                || ryo_relations::domain::relations::service::kinds(relation),
                 |view| view.kinds,
             )
         },

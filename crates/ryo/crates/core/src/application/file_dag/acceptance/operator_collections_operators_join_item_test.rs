@@ -6,13 +6,13 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
-use ryo_language::domain::relations::service::{node_id, to_bits};
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::service::{node_id, to_bits};
+use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, Integer, KindBits, Offset, Position, Relation, Span,
     Value as Cell,
 };
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::QueryOperator;
 
 use crate::application::file_dag::testing::TestOperator as _;
@@ -834,19 +834,19 @@ fn stored_right_joins_match_computed_order_for_composite_reordered_and_empty_key
         &[
             &[
                 number(1),
-                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+                Cell::Flag(ryo_relations::domain::relations::types::Flag::Raised),
             ],
             &[
                 number(1),
-                Cell::Flag(ryo_language::domain::relations::types::Flag::Lowered),
+                Cell::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
             ],
             &[
                 number(1),
-                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+                Cell::Flag(ryo_relations::domain::relations::types::Flag::Raised),
             ],
             &[
                 number(9),
-                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+                Cell::Flag(ryo_relations::domain::relations::types::Flag::Raised),
             ],
         ],
     );
@@ -903,11 +903,11 @@ fn compact_right_joins_preserve_duplicate_positions_reordered_keys_and_typed_fla
         &[
             &[
                 Cell::Number(Integer(1)),
-                Cell::Flag(ryo_language::domain::relations::types::Flag::Lowered),
+                Cell::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
             ],
             &[
                 Cell::Number(Integer(1)),
-                Cell::Flag(ryo_language::domain::relations::types::Flag::Raised),
+                Cell::Flag(ryo_relations::domain::relations::types::Flag::Raised),
             ],
         ],
     );
@@ -1068,7 +1068,7 @@ fn sparse_function_columns(count: usize) -> [FactColumn; 4] {
     for place in 0..count {
         let row = [
             node((place % 8 + 1) as u32),
-            Cell::Symbol(ryo_language::domain::terms::types::Symbol(1)),
+            Cell::Symbol(ryo_relations::domain::terms::types::Symbol(1)),
             Cell::File(FileId((place % 2) as u32)),
             stretch(place as u32, place as u32 + 1),
         ];
@@ -1086,7 +1086,7 @@ fn sparse_left_matches_computed_bag_order_for_composite_typed_duplicate_keys() {
     use crate::domain::table_model::service::materialize;
     let columns = sparse_function_columns(256);
     let left = Rows::Stored(ColumnsView {
-        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::Function),
         columns: &columns,
     });
     let right = table_of(
@@ -1134,7 +1134,7 @@ fn sparse_left_falls_back_for_partial_or_unretained_sources_and_empty_results() 
     use ryo_values::domain::stored_facts::types::PartialCause;
     let columns = sparse_function_columns(256);
     let left = Rows::Stored(ColumnsView {
-        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::Function),
         columns: &columns,
     });
     let right = table_of(&[CellKind::Node], &[&[node(99)]]);
@@ -1180,7 +1180,7 @@ fn sparse_left_dense_pairs_fall_back_before_emitting_and_keep_bag_order() {
     let mut columns = sparse_function_columns(4_097);
     columns[0].0.fill(to_bits(node(1)).0);
     let left = Rows::Stored(ColumnsView {
-        kinds: ryo_language::domain::relations::service::kinds(Relation::Function),
+        kinds: ryo_relations::domain::relations::service::kinds(Relation::Function),
         columns: &columns,
     });
     let mut right = Table {

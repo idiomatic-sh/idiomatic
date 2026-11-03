@@ -1,6 +1,6 @@
 //! The `trust` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
 use super::service::{blocked, matters};

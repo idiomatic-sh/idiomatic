@@ -1,11 +1,11 @@
 //! The `table_texts` service: how a value reads as text or as a number when it is compared, with no IO and no ports.
 
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CROSS_FILE, FileId, Flag, Integer, Name, Origin, Value,
 };
 use ryo_language::domain::symbols::service::{derived_of, file_in, place_of, places_of, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::terms::types::Symbol;
+use ryo_relations::domain::terms::types::Symbol;
 
 use crate::domain::table_texts::types::{Datum, TextView, Texts};
 use ryo_values::domain::plan_parts::types::{FlagState, WholeNumber};
@@ -58,8 +58,8 @@ pub(crate) fn datum<'a>(value: Value, texts: &Texts<'a>) -> Datum<'a> {
         ),
         Value::File(file) => Datum::Text(file_text(texts, file).unwrap_or_default()),
         Value::Span(span) => {
-            if ryo_language::domain::relations::service::location(span)
-                == ryo_language::domain::relations::types::Locatedness::Located
+            if ryo_relations::domain::relations::service::location(span)
+                == ryo_relations::domain::relations::types::Locatedness::Located
             {
                 Datum::Number(WholeNumber(i64::from(span.start.0)))
             } else {

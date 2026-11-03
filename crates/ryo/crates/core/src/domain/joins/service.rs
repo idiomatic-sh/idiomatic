@@ -1,8 +1,8 @@
 //! The `joins` service: the lowered steps that combine the rows of two steps, with no IO and no ports.
 
 use ryo_language::domain::elements::service::children;
-use ryo_language::domain::relations::service::to_bits;
-use ryo_language::domain::relations::types::{CellKind, Position, Relation, Value};
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{CellKind, Position, Relation, Value};
 use ryo_language::domain::symbols::service::name_count;
 
 use crate::domain::comparing::service::holds_all;

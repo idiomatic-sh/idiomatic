@@ -6,14 +6,14 @@ use super::interface::ParseUseCase;
 use super::service::{absence_in, baseline_in, build_in, kinds_read_in, read_in, walk_in};
 use super::types::ParseEngine;
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
-use crate::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::elements::types::Elements;
 use crate::domain::elements::types::{Completion, TableBuilder, Tree};
-use crate::domain::relations::types::Count;
-use crate::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
+use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, RowWriter};
 use crate::domain::semantics::interface::SemanticSession;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
-use crate::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::Recognition;
 
 /// A language that reads no file.
@@ -23,7 +23,7 @@ pub struct ParseUseCaseImpl;
 impl ParseUseCase for ParseUseCaseImpl {
     type FileModel = ();
 
-    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
 
@@ -63,12 +63,12 @@ impl ParseUseCase for ParseUseCaseImpl {
 
     fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
 
-    crate::each_relation!(absent_syntax);
+    ryo_relations::each_relation!(absent_syntax);
 }
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
-    fn capabilities(&self) -> &'static [crate::domain::relations::types::OptionalCapability] {
+    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         ParseUseCase::capabilities(self)
     }
 

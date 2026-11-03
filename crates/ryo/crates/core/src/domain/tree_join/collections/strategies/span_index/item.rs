@@ -2,7 +2,7 @@
 //! the order of the text, so those that start where the stretch does are together, found by a search in the starts.
 
 use crate::domain::table_cells::service::span_at;
-use ryo_language::domain::relations::types::{Position, Value};
+use ryo_relations::domain::relations::types::{Position, Value};
 
 use super::super::interface::StrategiesItem;
 use crate::domain::operating::errors::OperatingError;

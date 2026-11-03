@@ -1,6 +1,6 @@
 //! The types of the `coverage` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{FileId, Relation};
+use ryo_relations::domain::relations::types::{FileId, Relation};
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::runs::types::RuleId;

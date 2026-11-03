@@ -3,7 +3,7 @@ use crate::domain::{
     derived_views::{collections::views::registration::registered, types::DerivedStorage},
     operator::contract::resources::{AxisResources, JoinResources},
 };
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 
 fn kinds() -> Vec<Vec<CellKind>> {
     vec![

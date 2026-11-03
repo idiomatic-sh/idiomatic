@@ -1,12 +1,9 @@
 //! Common preparation owns a model's generation, configuration and lifetime.
-use crate::domain::{
-    elements::{
+use crate::domain::{elements::{
         service::{end_of, engine, engine_mut, real_count},
         types::{Completion, Elements, Tree},
-    },
-    relations::types::{FileId, Position},
-    symbols::types::{ByteSlice, Symbols},
-};
+    }, symbols::types::{ByteSlice, Symbols}};
+use ryo_relations::domain::relations::types::{FileId, Position};
 
 /// Take the existing worker room, invalidating readiness when its concrete model differs.
 #[expect(

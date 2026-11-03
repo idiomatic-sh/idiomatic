@@ -1,7 +1,7 @@
 // ignore: idiomatic.arch/file-length - the lookups pushed into a join and the filters pushed before a capture are the two pushes the planner makes and share the reading of a chain of filters.
 //! The `pushing` service: free functions named by verb over the lookups into a join of edges and elements made before the join.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{
     FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons, Pushed, Skipped,

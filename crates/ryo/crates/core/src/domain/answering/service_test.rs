@@ -1,5 +1,5 @@
 //! The `answering` service's cases, on values alone.
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
 

@@ -12,7 +12,7 @@ use crate::domain::{
     table_cells::types::RowIndex,
     table_model::types::{ChainLink, HashedRow, KeyCellsHash},
 };
-use ryo_language::domain::relations::types::{CellKind, Value};
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::{rc::Rc, sync::Arc};
 

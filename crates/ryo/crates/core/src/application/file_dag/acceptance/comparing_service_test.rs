@@ -1,7 +1,7 @@
 //! The `comparing` service's cases: what is decided for a name or a text is remembered, and a comparison of what is not bound is refused.
 
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{
     CellKind, Name, Offset, PlaceNumber, Relation, TextHash, Value as Cell,
 };
 use ryo_language::domain::symbols::service::intern;

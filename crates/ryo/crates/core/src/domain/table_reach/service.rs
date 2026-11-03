@@ -1,6 +1,6 @@
 //! The `table_reach` service: following edges from an entity to the ones it leads to, with no IO and no ports.
 
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 use super::types::{Edges, Walk};
 use crate::domain::table_model::service::{column_in, matching, row_in};
@@ -163,7 +163,7 @@ pub(crate) fn next_ordered(
 ) -> Result<
     Option<(
         crate::domain::table_cells::types::RowIndex,
-        ryo_language::domain::relations::types::Integer,
+        ryo_relations::domain::relations::types::Integer,
     )>,
     crate::domain::operating::errors::OperatingError,
 > {
@@ -194,7 +194,7 @@ pub(crate) fn next_ordered(
         )?);
         return Ok(Some((
             at,
-            ryo_language::domain::relations::types::Integer(ordinal),
+            ryo_relations::domain::relations::types::Integer(ordinal),
         )));
     }
     Ok(None)

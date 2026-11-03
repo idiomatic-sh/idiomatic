@@ -1,6 +1,6 @@
 //! The `idioms` service's cases, on query text read by the real syntax adapter: the pairs of functions with equal sets of texts.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::calling::service::lower_call;

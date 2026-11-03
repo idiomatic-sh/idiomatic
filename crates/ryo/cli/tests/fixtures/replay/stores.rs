@@ -10,8 +10,8 @@ use ryo_core::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
 use ryo_core::outbound::facts::types::{ColumnsMut, WordsToKeep};
 use ryo_core::outbound::lint_store::errors::LintStoreError;
 use ryo_core::outbound::lint_store::interface::{LintStorePort, ReadStore};
-use ryo_language::domain::relations::types::ColumnsView;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::ColumnsView;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
 

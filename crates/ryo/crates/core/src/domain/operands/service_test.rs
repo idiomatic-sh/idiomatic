@@ -1,6 +1,6 @@
 //! The `operands` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_language::domain::symbols::types::Symbols;
 
 use super::service::resolve;

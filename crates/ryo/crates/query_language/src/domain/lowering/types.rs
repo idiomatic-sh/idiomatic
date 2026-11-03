@@ -1,8 +1,8 @@
 //! The types of the `lowering` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::{CellKind, Relation};
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

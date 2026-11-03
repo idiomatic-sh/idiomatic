@@ -1,7 +1,7 @@
 //! The `coverage` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{CellKind, FileId, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value as Cell};
 
 use super::service::{drop_uncertain, partial_of};
 use super::types::Recovery;
@@ -115,7 +115,7 @@ fn succeeds() {
 
 #[test]
 fn lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty() {
-    use ryo_language::domain::relations::types::Missing;
+    use ryo_relations::domain::relations::types::Missing;
     use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
 
     let wanted = [

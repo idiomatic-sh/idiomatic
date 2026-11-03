@@ -6,7 +6,7 @@ macro_rules! catalog_names {
         $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )*
     ) => {
         $( $(
-            pub use ::ryo_language::domain::relations::collections::relations::$module::item::{$variant, $row, $column};
+            pub use ::ryo_relations::domain::relations::collections::relations::$module::item::{$variant, $row, $column};
         )* )*
     };
 }

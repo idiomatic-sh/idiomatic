@@ -3,7 +3,7 @@
 use super::service::{declarations, kind_of};
 use super::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]

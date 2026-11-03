@@ -1,7 +1,7 @@
 //! Explicitly enabled compiled-prefix evidence; this observes plans and never executes or caches them.
 use crate::domain::rules::types::RuleSpec;
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_language::domain::relations::{service::kinds, types::Relation};
+use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::{
     service::remapped,

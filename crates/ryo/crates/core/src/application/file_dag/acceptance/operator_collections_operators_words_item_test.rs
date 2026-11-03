@@ -1,6 +1,6 @@
 //! The `words` item's cases.
 
-use ryo_language::domain::relations::types::{CellKind, Offset, Relation, Value as Cell};
+use ryo_relations::domain::relations::types::{CellKind, Offset, Relation, Value as Cell};
 use ryo_language::domain::symbols::service::{intern, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;

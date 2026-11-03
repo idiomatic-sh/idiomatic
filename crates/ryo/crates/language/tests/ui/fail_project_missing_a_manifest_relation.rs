@@ -1,6 +1,7 @@
 //! project_missing_a_manifest_relation: the compiler rejects this.
 
-use ryo_language::domain::answers::types::{AbsenceCause, Support};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_language::domain::answers::types::{Support};
 use ryo_language::inbound::use_cases::project::errors::ProjectError;
 use ryo_language::inbound::use_cases::project::interface::ProjectUseCase;
 use ryo_language::inbound::use_cases::project::types::{ManifestName, ManifestReader, ProjectRequest};
@@ -18,7 +19,7 @@ macro_rules! all_but_package_dependency {
     (@one $module:ident $variant:ident) => {
         fn $module(
             &self,
-        ) -> Support<ManifestReader<ryo_language::domain::relations::collections::relations::$module::item::$variant>> {
+        ) -> Support<ManifestReader<ryo_relations::domain::relations::collections::relations::$module::item::$variant>> {
             ryo_language::domain::answers::service::absent(AbsenceCause::NoManifests)
         }
     };
@@ -37,7 +38,7 @@ impl ProjectUseCase for Missing {
         Ok(ryo_language::inbound::use_cases::project::types::Resolved { refused: Vec::new(), unlisted: Vec::new(), consulted: Vec::new(), derived: () })
     }
 
-    ryo_language::each_relation!(all_but_package_dependency);
+    ryo_relations::each_relation!(all_but_package_dependency);
 }
 
 fn main() {}

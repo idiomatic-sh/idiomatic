@@ -3,16 +3,16 @@
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::constants::NO_SYMBOL;
-use ryo_language::domain::relations::service::node_id;
-use ryo_language::domain::relations::types::Flag;
-use ryo_language::domain::relations::types::Integer;
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::Flag;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{
     FileId, KindBits, Offset, Position, Span, Value as Cell,
 };
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 
 use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -25,7 +25,7 @@ use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::tree_join::collections::strategies::types::Finding;
 use crate::domain::tree_join::service::{source_column, tree_finding, tree_value};
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{
     Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand, QueryLiteral, Side, Test,
@@ -127,8 +127,8 @@ fn either_side() {
     };
     let join = |filter: Vec<Comparison>, view: Vec<ColumnIndex>, output: Vec<JoinColumn>| {
         Operation::Join {
-            left: PlanInput::Relation(ryo_language::domain::relations::types::Relation::Function),
-            right: PlanInput::Relation(ryo_language::domain::relations::types::Relation::Function),
+            left: PlanInput::Relation(ryo_relations::domain::relations::types::Relation::Function),
+            right: PlanInput::Relation(ryo_relations::domain::relations::types::Relation::Function),
             left_on: vec![column(0)],
             right_on: vec![column(0)],
             output,

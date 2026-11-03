@@ -9,9 +9,9 @@ use crate::domain::relation_lookup::errors::RelationLookupError;
 use crate::domain::relation_lookup::service::resolve;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::language::types::Absence;
-use ryo_language::domain::answers::constants::reason_name;
-use ryo_language::domain::relations::service::class_of;
-use ryo_language::domain::relations::types::Class;
+use ryo_relations::domain::answers::constants::reason_name;
+use ryo_relations::domain::relations::service::class_of;
+use ryo_relations::domain::relations::types::Class;
 use ryo_values::domain::descriptions::service::describe;
 use ryo_values::domain::descriptions::types::{
     AbsenceReason, LanguageDescription, RelationReadability,

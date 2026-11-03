@@ -1,6 +1,6 @@
 //! The `table_words` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::{
+use ryo_relations::domain::relations::types::{
     CellKind, FileId, Offset, Span, Value as Cell, Words,
 };
 

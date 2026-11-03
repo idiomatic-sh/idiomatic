@@ -25,5 +25,5 @@ impl ProjectUseCase for ProjectUseCaseImpl {
         })
     }
 
-    crate::each_relation!(crate::absent_manifests);
+    ryo_relations::each_relation!(absent_manifests);
 }

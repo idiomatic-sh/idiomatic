@@ -4,7 +4,7 @@
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::types::KeyIndex;
 use crate::domain::table_model::types::RowCount;
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 
 /// The digest of the set of distinct values a group holds; zero when none was asked for.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

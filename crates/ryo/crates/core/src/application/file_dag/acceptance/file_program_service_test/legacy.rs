@@ -1,7 +1,7 @@
 //! Explicit legacy retention oracle for existing acceptance comparisons.
 //! Production file execution uses FileDagExecution and never constructs this state.
 use crate::domain::file_program::types::{FileProgram, RequestGraph};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
 pub(super) fn program(

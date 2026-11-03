@@ -3,12 +3,12 @@
 use super::service::{completion, name_kind};
 use crate::domain::elements::service::{clear_elements, kind_names};
 use crate::domain::elements::types::Elements;
-use crate::domain::relations::constants::NO_SYMBOL;
-use crate::domain::relations::types::{FileId, KindBits};
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::types::{FileId, KindBits};
 use crate::domain::symbols::service::{clear_symbols, derived_of};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 

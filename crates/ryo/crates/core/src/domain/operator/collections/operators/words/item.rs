@@ -14,7 +14,7 @@ use crate::domain::table_texts::types::TextView;
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 /// Gives `each` the words of `text`: runs of letters and digits, split where a lower case letter or a
 /// digit meets an upper case one, in lower case. `_`, `-`, spaces and punctuation separate words.

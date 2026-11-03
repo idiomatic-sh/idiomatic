@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::graph_cache::types::handles::GraphAcc
 use crate::domain::stored_graph::service::build;
 use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, Population};
 use crate::domain::table_model::types::{Rows, Table};
-use ryo_language::domain::relations::types::{CellKind, Integer, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 

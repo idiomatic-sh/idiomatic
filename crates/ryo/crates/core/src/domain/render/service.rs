@@ -3,8 +3,8 @@
 //! time, as the row is made; no cell becomes text for a reader in the core.
 
 use ryo_language::domain::elements::service::start_at;
-use ryo_language::domain::relations::service::{node_file, node_position};
-use ryo_language::domain::relations::types::{Integer, Name, NodeId, Value};
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::{Integer, Name, NodeId, Value};
 use ryo_language::domain::symbols::service::{place_of, places_of};
 
 use super::constants::rule_heading;
@@ -161,7 +161,7 @@ pub(crate) fn render_rows(
         let implied = (at < scene.elements.start.len())
             .then(|| scene.elements.flags.get(at))
             .flatten()
-            .map(|flags| flags.0 & ryo_language::domain::relations::constants::IMPLIED.0 != 0);
+            .map(|flags| flags.0 & ryo_relations::domain::relations::constants::IMPLIED.0 != 0);
         (node_file(node) == scene.file && implied == Some(false))
             .then(|| start_at(scene.elements, position))
     };

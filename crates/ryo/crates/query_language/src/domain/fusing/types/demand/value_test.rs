@@ -1,7 +1,7 @@
 //! Only exclusively source-bound closure consumers may abandon all-pairs evaluation.
 
 use super::value::DemandClosure;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input, JoinColumn, Operand, RepeatedRows, Side, StepId, Test,
 };

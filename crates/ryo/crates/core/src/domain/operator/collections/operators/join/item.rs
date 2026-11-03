@@ -16,7 +16,7 @@ use crate::domain::tree_join::collections::strategies::{
     types::{Finding, NodeColumns},
 };
 use crate::domain::tree_join::service::{source_column, tree_value};
-use ryo_language::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct JoinItem;

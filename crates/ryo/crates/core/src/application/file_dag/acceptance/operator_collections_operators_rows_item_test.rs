@@ -1,6 +1,6 @@
 //! The `rows` item's cases.
 
-use ryo_language::domain::relations::types::Value as Cell;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 

@@ -8,7 +8,7 @@ use crate::domain::plan_parts::types::HostedNumber;
 use crate::domain::plan_parts::types::Input as PlanInput;
 use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]

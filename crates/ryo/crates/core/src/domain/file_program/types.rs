@@ -1,7 +1,7 @@
 //! Immutable request graph and bounded, invocation-local shared results.
 
 use crate::domain::table_model::types::Table;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

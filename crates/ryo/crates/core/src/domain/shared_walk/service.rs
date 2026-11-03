@@ -28,7 +28,7 @@ use crate::domain::table_texts::types::SourceView;
 use crate::domain::text_gate::service::{needed_of_rest, text_admitted, text_gate, undecided};
 use ryo_language::domain::elements::service::{kind_names, positions};
 use ryo_language::domain::kind_index::service::of_kind;
-use ryo_language::domain::relations::types::{Flag, KindBits, Position, Value};
+use ryo_relations::domain::relations::types::{Flag, KindBits, Position, Value};
 use ryo_language::domain::symbols::service::name_count;
 
 /// Readies the room for the steps of the rule `rule`: which of them the walk has decided.

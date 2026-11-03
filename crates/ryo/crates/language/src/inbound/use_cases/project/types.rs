@@ -2,12 +2,12 @@
 //! constructor and no inherent impl.
 
 use super::errors::ProjectError;
-use crate::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::files::types::FilePath;
 use crate::domain::reasons::types::ToolMessage;
-use crate::domain::relations::collections::relations::interface::RelationsItem;
-use crate::domain::relations::types::{Bytes, Rows};
-use crate::domain::relations::types::{Relation, RowWriter};
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::types::{Bytes, Rows};
+use ryo_relations::domain::relations::types::{Relation, RowWriter};
 use crate::domain::symbols::types::Symbols;
 
 /// The repository's manifests, read once per run.
