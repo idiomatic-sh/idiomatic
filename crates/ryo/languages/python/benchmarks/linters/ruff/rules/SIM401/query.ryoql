@@ -8,7 +8,9 @@ let elif_headers = source-matches(from=ifs, span="span", pattern="^elif\\b", out
 let plain_ifs = antijoin(left=ifs, right=elif_headers, left-on=["id","file"], right-on=["id","file"]);
 let bodies = select parent, child, file from edges where field = "body";
 let else_clauses = select parent, child, file from edges where field = "orelse";
-let alternatives = select l.parent as parent, r.child as child, l.file as file from else_clauses as l join edges as r on l.child = r.parent and l.file = r.file where r.field = "body";
+let clause_tokens = select l.parent as parent, l.child as clause, l.file as file, r.child as token from else_clauses as l join edges as r on l.child = r.parent and l.file = r.file;
+let actual_else = select l.parent as parent, l.clause as clause, l.file as file from clause_tokens as l join "semantic-syntax" as r on l.token = r.id and l.file = r.file where r.text = "else";
+let alternatives = select l.parent as parent, r.child as child, l.file as file from actual_else as l join edges as r on l.clause = r.parent and l.file = r.file where r.field = "body";
 let body_counts = group-count(from=bodies, keys=["parent","file"], count="count");
 let else_counts = group-count(from=alternatives, keys=["parent","file"], count="count");
 let body_single = select l.id as id, l.file as file from plain_ifs as l join body_counts as r on l.id = r.parent and l.file = r.file where r.count = 1;

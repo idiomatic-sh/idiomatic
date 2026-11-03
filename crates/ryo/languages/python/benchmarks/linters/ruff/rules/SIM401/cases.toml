@@ -94,3 +94,15 @@ name = "pure-lambda-default"
 comparison = "full"
 files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelse:\n    value = lambda x=0: x\n" }
 expected = [{ "rule" = "SIM401", "file" = "case.py", "start" = 7, "end" = 70 }]
+
+[[cases]]
+name = "elif-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key in d:\n    value = d[key]\nelif other:\n    value = 0\n" }
+expected = []
+
+[[cases]]
+name = "elif-not-in-branch-negative"
+comparison = "full"
+files = { "case.py" = "d = {}\nif key not in d:\n    value = 0\nelif other:\n    value = d[key]\n" }
+expected = []
