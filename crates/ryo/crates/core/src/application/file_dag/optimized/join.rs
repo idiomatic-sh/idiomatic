@@ -261,14 +261,17 @@ fn ordinary(
         index: lookup,
     };
     for left_at in positions(count_of(left)) {
-        #[cfg(feature = "diagnostic-row-progress")]
-        (semantics.progress())(
-            crate::domain::operator::contract::views::ProgressCounter::InputRows,
-            1,
-        );
         let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
             continue;
         };
+        #[cfg(feature = "diagnostic-row-progress")]
+        {
+            crate::application::file_dag::route_counts::row_file(left_row, context.paths);
+            (semantics.progress())(
+                crate::domain::operator::contract::views::ProgressCounter::InputRows,
+                1,
+            );
+        }
         if counts.enabled {
             counts.probes = counts.probes.saturating_add(1);
         }
