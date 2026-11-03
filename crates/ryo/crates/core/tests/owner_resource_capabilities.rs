@@ -64,7 +64,7 @@ pub mod domain {
   #[derive(Debug)]pub struct GraphEntry;
   #[derive(Debug)]pub struct DomainEntry;
   #[derive(Debug)]pub struct NearestMemo;
-  #[derive(Debug)]pub struct GraphCounts;
+  #[derive(Debug)]pub struct GraphCounts {pub expanded:u64,pub examined:u64}
  }}
 }
 pub mod application {pub mod file_dag {
