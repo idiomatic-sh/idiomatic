@@ -2,28 +2,52 @@
 
 ## 1. Ownership matrix
 
-`☑` means the engine is the sole authority for that cell on the named **actual route**, with source and test evidence. `☐` means split or unproved ownership; `—` means the axis does not apply. A checked cell is not a speed claim. The crate column identifies the current semantic home and any proposed isolation; it does not transfer the engine's scheduling or storage authority. The [common-owner tests and review](../../languages/python/benchmarks/linters/ruff/results/common-owner-graph-2026-11-03/README.md) cover the scoped selection, derived-view, and graph rows; fanout and remaining terminal paths stay open.
+`☑` means the engine is the sole authority for that cell on the named **actual route**, with source and test evidence. `☐` means split or unproved ownership; `—` means the axis does not apply. A checked cell is not a speed claim. The numbered rows cover 34 audited contract families; letters keep narrow proven subroutes separate from broader unproved work. The crate column identifies the current semantic home and any proposed isolation; it does not transfer the engine's scheduling or storage authority. The [common-owner tests and review](../../languages/python/benchmarks/linters/ruff/results/common-owner-graph-2026-11-03/README.md) cover the scoped selection, derived-view, and graph rows; fanout and remaining terminal paths stay open.
 
 | Contract / route | Capability crate (actual → proposed) | Scheduling | Caching | Invalidation | Data ownership | Lifetime | Remaining implementor responsibility |
 | --- | --- | :---: | :---: | :---: | :---: | :---: | --- |
-| Language parse and project | `ryo-language` + provider | ☑ | — | ☑ | ☐ | ☐ | Provider parser state and scratch stay local. |
-| Typed relation catalog | `ryo-language` | ☑ | — | — | ☑ | ☑ | Provider supplies values through typed relations. |
-| Complete and partial facts | `ryo-language` + `ryo-core` | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns typed storage; provider still certifies recovery and partials. |
-| Provider walk versus execution demand | `ryo-language` + `ryo-core` | ☑ | — | — | ☑ | — | Engine owns demand rows; provider still certifies deferred-fact completeness. |
-| Source bytes and spans | `ryo-language` + `ryo-core` | ☑ | — | ☑ | ☑ | ☑ | Engine owns stored spans; provider still supplies token coordinates. |
-| Source and derived symbols | `ryo-language` + `ryo-core` | — | — | ☑ | ☑ | ☑ | Engine owns symbol storage; provider still supplies source-name meaning. |
-| Query grammar and typed plan | `ryo-query_language` + `ryo-values` | ☑ | — | ☑ | ☑ | ☑ | Map compile errors without changing query semantics. |
-| Primitive schema and evaluator | `ryo-core` → proposed `ryo-operators` semantics | ☐ | ☐ | ☑ | ☑ | ☐ | Close remaining native and fanout bypass routes. |
-| Operator inputs and absence | `ryo-values` + `ryo-core` | ☑ | — | — | ☑ | — | Preserve declared absence and lazy error order. |
-| Ordinary plan, frontier, and terminal output | `ryo-core` | ☐ | ☐ | ☐ | ☑ | ☐ | Finish one scheduler and output lifetime across residual paths. |
-| Request-wide file graph | `ryo-core` | ☐ | ☐ | ☐ | ☑ | ☐ | Consolidate remaining request and Stepper work/release. |
-| Stored selections and selector views | `ryo-core` | ☑ | ☑ | ☑ | ☑ | ☑ | Extend the proven owner path to CandidatePostings fanout. |
-| Derived predicate/equality/distinct views | `ryo-core` → proposed `ryo-derived` semantics | ☐ | ☑ | ☑ | ☑ | ☑ | Remove remaining caller-local scheduling choices. |
-| Graph adjacency, domain, and memo retention | `ryo-core` → proposed `ryo-derived` semantics | ☐ | ☑ | ☑ | ☑ | ☑ | Finish traversal-demand scheduling; measure cost separately. |
-| Keyed semantic rendering demand | `ryo-language` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Add engine-owned keyed requests, per-rule incompleteness and lifetime; providers supply syntax rendering only. |
-| CandidatePostings fanout | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Move admission, materialization, reuse, and release into the common owner. |
-| Persistent lint snapshot | `ryo-core` + SDK adapter | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles. |
-| Outbound reports and jobs | `ryo-core` + SDK adapter | ☑ | — | ☑ | ☑ | ☐ | Scheduler adapter still owns executor resources. |
+| 1. Typed relation catalog (65 relations) | `ryo-language` | ☑ | — | — | ☑ | ☑ | Providers supply values through the catalog; retain its typed identity. |
+| 2. Provider answers and absence | `ryo-language` + providers | ☐ | — | ☐ | ☐ | ☐ | Enumerate every reader and typed absence path, including supported but unavailable facts. |
+| 3. Optional capability declarations | `ryo-language` + providers | ☐ | — | ☐ | — | — | Make declaration and refusal explicit; audit default trait methods. |
+| 4. Readiness, completion and file model | `ryo-language` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Engine owns preparation order; providers declare required model and completion. |
+| 5. Parse route and explicit assignment | `ryo-language` + providers | ☑ | — | ☑ | ☐ | ☐ | Preserve recognized language, read outcome, parser state and scratch boundaries. |
+| 6a. Typed complete and partial fact storage | `ryo-language` + `ryo-core` | ☑ | ☑ | ☑ | ☑ | ☑ | Existing proof covers typed storage and provider-certified partial facts. |
+| 6b. Trust, rule gating and persisted incompleteness | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Audit Unknown propagation through every consuming rule and persisted result. |
+| 7. Project and manifest relations | `ryo-language` + providers | ☐ | ☐ | ☐ | ☐ | ☐ | Separate manifest semantics from engine once-per-run reads and consulted-file digests. |
+| 8. Engine-given relations | `ryo-language` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Engine owns filesystem file, line count and executable facts and corpus walk. |
+| 9. Host-declared relations | `ryo-values` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Preserve host schema and rows while engine controls request-source admission. |
+| 10a. Query grammar and typed plan | `ryo-query_language` + `ryo-values` | ☑ | — | ☑ | ☑ | ☑ | Preserve typed plan meaning and compile errors. |
+| 10b. Compile-result cache | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Prove cache identity and retention independently of grammar ownership. |
+| 11. Relation lookup, kinds and features | `ryo-language` + `ryo-core` | ☐ | — | ☐ | — | — | Refuse undeclared relations, kinds and features before reads. |
+| 12. Primitive operator semantics (26 kinds) | `ryo-core` → proposed `ryo-operators` | ☐ | ☐ | ☐ | ☐ | ☐ | Move every row meaning through one port; row 13 retains narrower common-input proof while timing, leases and publication stay in engine. |
+| 13. Operator inputs and absence | `ryo-values` + `ryo-core` | ☑ | — | — | ☑ | — | Preserve declared absence, bindings and lazy error order. |
+| 14a. Scoped derived equality, predicate and distinct views | `ryo-core` → proposed `ryo-derived` semantics | ☐ | ☑ | ☑ | ☑ | ☑ | Existing common-owner proof covers Equality, PredicateMatches and DistinctRepresentatives only. |
+| 14b. Remaining derived kinds and traversal | `ryo-core` → proposed `ryo-derived` semantics | ☐ | ☐ | ☐ | ☐ | ☐ | Audit CandidatePostings, Adjacency, Membership, PartitionOrder, ClosureAdjacency, CycleAdjacency, OrderedKeys, OrderedDfs and NativeLookup; all 12 kinds are now named. |
+| 15. Candidate fanout | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Move ordered postings, policy decline, retained capacity and release into one owner. |
+| 16. Stored selections and selectors | `ryo-core` | ☑ | ☑ | ☑ | ☑ | ☑ | Extend the proven owner route to all candidate consumers. |
+| 17. Graph population and memo | `ryo-core` → proposed `ryo-derived` semantics | ☐ | ☑ | ☑ | ☑ | ☑ | Finish traversal demand; keep backing, memo budget and release in engine. |
+| 18. Physical representations and publication | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Consolidate RelationOwner publish, admit and release for every representation. |
+| 19. Predicates, comparisons and matching | `ryo-core` + matching adapter | ☐ | ☐ | ☐ | ☐ | ☐ | Separate comparison meaning from prepared matcher lifetime and request reuse. |
+| 20a. Provider walk versus execution demand | `ryo-language` + `ryo-core` | ☑ | — | — | ☑ | — | Existing proof covers engine demand rows and provider-certified deferred-fact completeness. |
+| 20b. Native and shared tree walk | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Prove every residual native route and shared-walk representation under the same evaluator contract. |
+| 21a. Common ordinary frontier bag | `ryo-core` | ☐ | ☐ | ☐ | ☑ | ☐ | Existing proof covers the ordinary frontier representation only. |
+| 21b. Five per-file routes and terminal output | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Consolidate `evaluate_file`, `with_graph`, `with_dag`, `with_executor` and `with_legacy_oracle`; prove Stepper, ordered bags and last release. |
+| 22. Cross-file execution | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Prove frontier handover and materialization under one application owner. |
+| 23a. Source bytes and spans | `ryo-language` + `ryo-core` | ☑ | — | ☑ | ☑ | ☑ | Engine owns stored spans; providers supply token coordinates. |
+| 23b. Source and derived symbols | `ryo-language` + `ryo-core` | — | — | ☑ | ☑ | ☑ | Engine owns symbol storage; providers supply source-name meaning. |
+| 24. Keyed semantic rendering | `ryo-language` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Current SIM source has typed requests; close answer admission, per-rule incompleteness and lifetime. |
+| 25. Source identity and read outcomes | `ryo-values` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Unify generation, digest, re-read and stored snapshot decisions. |
+| 26. Persistent lint store | `ryo-core` + SDK adapter | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles; preserve partial and unread records. |
+| 27. Typed facts spill | `ryo-core` + facts adapter | ☐ | ☐ | ☐ | ☐ | ☐ | Engine owns spill admission and release; adapter owns external handles. |
+| 28. Memory budget and admission | `ryo-core` + memory adapter | ☐ | ☐ | ☐ | ☐ | ☐ | Prove one budget and refusal authority across all resource families. |
+| 29. Reporting and rows out | `ryo-core` + rows adapter | ☐ | — | ☐ | ☐ | ☐ | Preserve heading, row and summary order; prove output-handle release separately. |
+| 30. Jobs and scheduler | `ryo-core` + scheduler adapter | ☐ | — | ☐ | — | ☐ | Prove worker boundaries and executor lifetime independently of reporting. |
+| 31. Core inbound use cases | `ryo-core` | ☐ | — | — | — | ☐ | Audit all seven use cases and injected ports, including CLI composition. |
+| 32. SDK and CLI composition | `ryo-sdk` + `ryo-cli` | ☐ | — | — | — | ☐ | Compose each port once at the edge; do not expose engine-private implementation. |
+| 33. Shared benchmark harness | `ryo-benchmark` | — | — | — | — | — | Verify final 413-rule inventory and workload with source-bound receipts. |
+| 34. Provider internals | ten provider crates | — | — | — | — | — | Parser sessions and source meaning stay local; audit each declared relation route. |
+
+The counts come from the [65-relation catalog](../../crates/language/src/domain/relations/service.rs), [26 operation kinds and 25 public query operators](../../crates/values/src/domain/plans/types.rs), and [12 derived kinds](../../crates/core/src/domain/derived_views/types.rs). The [relation owner](../../crates/core/src/application/file_dag/relations.rs) and [five per-file entry routes](../../crates/core/src/application/file_dag/pipeline/service.rs) anchor the engine side. These inventories identify work to prove; they do not certify every route.
 
 ### Capability crate inventory (pending independent route audit)
 
@@ -37,8 +61,8 @@ This maps the matrix to the seven existing workspace crates, all ten language-pr
 | `ryo-operators` / proposed, isolated extraction | Portable primitive meanings through one typed inbound use case | `ryo-language`, `ryo-values`; no engine implementation imports | `ryo-core` retains primitive scheduling, scratch, publication and leases | ☐ | ☐ First Project/Append/Span extraction is not family closure. |
 | `ryo-derived` / proposed | Pure derived relation/index/graph/traversal algorithms and typed requests | `ryo-language`, `ryo-values` only; no `ryo-operators` or engine owner | `ryo-core` retains admission, physical backings, memo, invalidation and last release | ☐ | ☐ Relations and acquisition paths require independent audit before this split is approved. |
 | `ryo-core` / existing engine | Use cases, ordinary/native evaluation, terminal/frontier, selections, derived owner, fanout and persistence | `ryo-language`, `ryo-values`, `ryo-query_language`; proposed `ryo-operators` and `ryo-derived`; never provider internals | Sole intended authority for all five axes; the matrix marks actual proven routes only | ☐ | ☐ Terminal, native, traversal demand and fanout remain open. |
-| `ryo-sdk` / existing edge | Public entrypoints and composition of injected ports | `ryo-core`, `ryo-language`, `ryo-values`, `ryo-query_language`; no engine-private backends | Starts/ends scopes; engine owns execution resources | — | ☐ Adapter handles and query/lint entrypoints need route audit. |
-| `ryo-cli` / existing edge | Commands and composition of injected use cases | `ryo-core`, `ryo-language`, `ryo-values`, `ryo-query_language`, ten optional providers; SDK only in dev dependencies | Starts jobs; engine owns execution resources | — | ☐ Job lifetime and command routes remain open. |
+| `ryo-sdk` / existing edge | Public entrypoints and composition of injected ports | `ryo-core`, `ryo-language`, `ryo-values`, `ryo-query_language`; proposed `ryo-operators` only to construct the injected use case; no engine-private backends | Starts/ends scopes; engine owns execution resources | — | ☐ Adapter handles and query/lint entrypoints need route audit. |
+| `ryo-cli` / existing edge | Commands and composition of injected use cases | `ryo-core`, `ryo-language`, `ryo-values`, `ryo-query_language`, ten optional providers; proposed `ryo-operators` only at composition; SDK only in dev dependencies | Starts jobs; engine owns execution resources | — | ☐ Job lifetime and command routes remain open. |
 | `ryo-css` / existing provider | CSS typed facts and parser adapter | `ryo-sdk` only as an internal Ryo dependency; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
 | `ryo-go` / existing provider | Go typed facts and parser adapter | `ryo-sdk` only as an internal Ryo dependency; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
 | `ryo-html` / existing provider | HTML typed facts and parser adapter | `ryo-sdk` only as an internal Ryo dependency; no engine internals | Engine owns storage/demand; provider owns parser session | — | ☐ Audit its reader/catalog routes. |
