@@ -116,13 +116,13 @@ fn generated_every_relation(bencher: divan::Bencher<'_, '_>, packages: usize) {
 lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
 
 [given]
-file = 'benches/performance.rs'
+file = 'provider/bench.rs'
 params = { lang = 'demo' }
 
 [[scenarios]]
 id = 'rendered-template-passes'
 scenario = 'The rendered template passes.'
-given.files.'benches/performance.rs' = '''
+given.files.'provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -237,7 +237,7 @@ fn generated_every_relation(bencher: divan::Bencher<'_, '_>, packages: usize) {
 [[scenarios]]
 id = 'extra-content'
 scenario = 'A file may carry more than its template.'
-given.files.'benches/performance.rs' = '''
+given.files.'provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -355,5 +355,5 @@ fn generated_every_relation(bencher: divan::Bencher<'_, '_>, packages: usize) {
 id = 'file-missing'
 scenario = 'The file is missing.'
 then.findings = [
-  { rule = 'language-benches-performance#count', path = '.' },
+  { rule = 'language-bench-provider#count', path = '.' },
 ]

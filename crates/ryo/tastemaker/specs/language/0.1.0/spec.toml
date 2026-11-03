@@ -2,7 +2,7 @@ description = "A language: the crate that fulfils ryo's concepts for one languag
 why = "Ryo owns the concepts, the language fulfils them. The compiler holds that `Parse` and `Project` answer every relation of the catalog; the conformance holds each answer to the language's fixtures; this spec holds the rest, so that a language added by the directory is complete or says what it lacks: no part is optional, none is left for an author to remember, and no list of languages, of parsers or of rules is kept anywhere else. Shared-engine changes must pass every established language's declared correctness, allocation, and performance gates. Discover language benchmarks from their declarations; absent, skipped, incomplete, or failed evidence is not a pass. Preserve pinned workloads, settings, source and executable identities and enforce each supported CPU, wall, and memory bound independently, including cold, retained-cache warm, and edit conditions where established. A gain in one language or metric cannot offset a regression in another; existing thresholds must not be weakened to admit an engine change."
 closed = false
 specs = [
-  { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.1.0", include = ["benchmarks"], count = { min = 0 }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
+  { alias = "benchmark", spec = "idiomatic.ryo/benchmark@0.1.0", include = ["benchmarks"], count = { min = 1 }, params = { lang = { param = "lang" } }, description = "Comparative lint benchmarks, when this language has begun its rollout; the shared harness audits completeness." },
   { alias = "parse-contract", spec = "idiomatic.ryo/contract@0.1.0", include = ["src/inbound/contracts/parse"], params = { trait = "ryo::languages::Parse" }, description = "The parse contract: the language's implementation of `ryo::languages::Parse`, which answers every syntax relation of the catalog." },
   { alias = "project-contract", spec = "idiomatic.ryo/contract@0.1.0", include = ["src/inbound/contracts/project"], params = { trait = "ryo::languages::Project" }, description = "The project contract: the language's implementation of `ryo::languages::Project`, which answers every manifest relation of the catalog." },
 ]
@@ -27,7 +27,6 @@ templates = [
   { template = "language-conformance-test", file = "tests/conformance.rs", params = { lang = { param = "lang" } }, description = "The conformance row of the language contract: each answer the language gives for the catalog is held to its fixtures." },
   { template = "language-cargo", file = "Cargo.toml", params = { lang = { param = "lang" } }, description = "The crate's manifest: the SDK and the derives it uses, the closed test targets, the bench and the `fixtures` feature." },
   { template = "language-readme", file = "README.md", params = { lang = { param = "lang" } }, description = "The crate's README: its name, what it is for, how a program links it, one runnable example and a line for each of its domains." },
-  { template = "language-benches-performance", file = "benches/performance.rs", params = { lang = { param = "lang" } }, description = "The bench: the language's workload, a generated file read through the linked language with every relation asked, held to a growth limit." },
   { template = "language-cases", file = "src/cases.rs", description = "The test support of the crate: the `Case` rows, the four case words, the expectation and the `run` every unit test calls." },
   { template = "language-domain", file = "src/domain.rs", params = { lang = { param = "lang" } }, description = "The list of the domain's concepts, one module each." },
   { template = "language-domain-extras", file = "src/domain/extras.rs", params = { lang = { param = "lang" } }, description = "The module file of the `extras` concept: the kinds of the language's trees that its standard has no name for: it declares the files beside it." },
@@ -99,9 +98,9 @@ rules = [
   { rule = "idiomatic.arch/adapter-writer-layering@0.1.0", include = ["src/outbound/syntax/adapters/*/*.rs"], description = "The parser adapter orchestrates its writer; schemas and data never call the traversal back." },
   { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["src/outbound/syntax/adapters/*/writer.rs"], description = "Serialization entry points remain inside the owning adapter." },
   { rule = "idiomatic.ryo/benchmark-outside-runtime@0.1.0", include = ["src/**"], description = "The benchmark is allowed only in the development edge, never provider source." },
-  { rule = "idiomatic.ryo/benchmark-targets@0.1.0", include = ["Cargo.toml", "benchmarks/linters/*/bench.rs", "benchmarks/linters/*/tests.rs"], description = "Each local benchmark executable is reachable through Cargo." },
-  { rule = "bench-registers-workloads", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, registers at least one workload, a function with `#[divan::bench]`." },
-  { rule = "bench-checks-growth", include = ["benches/performance.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },
+  { rule = "idiomatic.ryo/benchmark-targets@0.1.0", include = ["Cargo.toml", "benches/**", "benchmarks/provider/bench.rs", "benchmarks/linters/*/bench.rs", "benchmarks/linters/*/tests.rs"], description = "Provider and linter benchmark executables are distinct named Cargo targets; the former benches/performance.rs cannot coexist." },
+  { rule = "bench-registers-workloads", include = ["benchmarks/provider/bench.rs"], description = "A language's bench, which exists exactly when it has a workload, registers at least one workload, a function with `#[divan::bench]`." },
+  { rule = "bench-checks-growth", include = ["benchmarks/provider/bench.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/schemas.rs", "**/*_test.rs"], description = "Nothing in the core's namespace files validates: a `TryFrom`, an `impl FromStr` or a fallible constructor stands only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/*_test.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
@@ -205,7 +204,7 @@ rules = [
   { rule = "thiserror-in-errors", include = ["**"], exclude = ["**/errors.rs", "**/schemas.rs"], description = "Outside a part's errors.rs nothing in the crate names `thiserror`. The refusal of a conversion, `<Name>SchemaError`, is derived in the schemas.rs it belongs to. (Held over the language's crate parts.)" },
   { rule = "error-shape", include = ["**"], description = "Every error type of the crate is a `thiserror` derive, never a hand-written `Error` or `Display` impl. (Held over the language's crate parts.)" },
   { rule = "fixtures-feature", include = ["Cargo.toml"], description = "The crate's `fixtures` feature is switched on only from `[dev-dependencies]`, so its fakes never ship. (Held over the language's crate parts.)" },
-  { rule = "idiomatic.ryo/language-parts@0.1.0", include = ["Cargo.toml", "tastemaker.toml", "src/**", "benches/performance.rs", "tests/fixtures/relations/**", "tests/fixtures/manifests/**", "tests/fixtures/allocation/**"], description = "What a placement cannot say of a language, held over its tree: no directory of kinds, the manifest reading adapter and its cases when it has manifest items, the sample files its allocation test reads, and the `model` concept when its file model is not `()`." },
+  { rule = "idiomatic.ryo/language-parts@0.1.0", include = ["Cargo.toml", "tastemaker.toml", "src/**", "benchmarks/provider/bench.rs", "tests/fixtures/relations/**", "tests/fixtures/manifests/**", "tests/fixtures/allocation/**"], description = "What a placement cannot say of a language, held over its tree: no directory of kinds, the manifest reading adapter and its cases when it has manifest items, the sample files its allocation test reads, and the `model` concept when its file model is not `()`." },
   { rule = "idiomatic.ryo/extras-iff-variant@0.1.0", include = ["src/domain/syntax/types.rs", "src/domain/extras/**"], description = "A language has the concept `extras` exactly when its kind enum has an `Extra` variant." },
   { rule = "idiomatic.ryo/readers-in-items@0.1.0", include = ["src/**/*.rs"], exclude = ["**/fixtures/**", "**/*_test.rs"], description = "A reader is an item in `domain/{relations,manifests,links}/collections/<collection>/<name>/item.rs`, the one answer to where it lives, and nowhere else." },
   { rule = "idiomatic.ryo/language-depends-on-ryo-only@0.1.0", include = ["Cargo.toml"], description = "A language depends on the SDK, `ryo`, and on no other crate of ryo: the engine's macros and types are the engine's, so that a relation added to the catalog is a compile error in every language until it answers it." },
@@ -270,8 +269,8 @@ name = "conformance"
 harness = false
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
@@ -2227,7 +2226,7 @@ specs = [
 [[scenarios]]
 id = 'complete-minimal-language'
 scenario = 'A complete minimal language.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -2583,8 +2582,8 @@ The release or commit of the suite that is pinned here.
 '''
 
 [[scenarios]]
-id = 'complete-without-bench'
-scenario = 'A language without a bench.'
+id = 'missing-provider-bench'
+scenario = 'Every language must declare its provider workload.'
 given.files.'demo/src/fixtures/kinds.rs' = '''
 //! How each kind of the language's trees is shown: the source whose tree holds it, or the reason no relation reads it.
 
@@ -2829,13 +2828,13 @@ The official test suite of the language and where it is published.
 The release or commit of the suite that is pinned here.
 '''
 then.findings = [
-  { rule = 'idiomatic.ryo/language/language-benches-performance#count', path = 'demo' },
+  { rule = 'idiomatic.ryo/benchmark(benchmark)#count', path = 'demo' },
 ]
 
 [[scenarios]]
 id = 'missing-allocation-test'
 scenario = 'The language has no allocation test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -3124,7 +3123,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-conformance-test'
 scenario = 'The language has no conformance test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -3416,7 +3415,7 @@ then.findings = [
 [[scenarios]]
 id = 'conformance-with-extra-test'
 scenario = "The conformance test carries a test of the language's own."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -3694,7 +3693,7 @@ then.findings = [
 [[scenarios]]
 id = 'allocation-with-extra-logic'
 scenario = "The allocation test carries logic of the language's own."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -3972,7 +3971,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-tastemaker'
 scenario = 'The language has no placement of its own.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -4322,7 +4321,7 @@ then.findings = [
 [[scenarios]]
 id = 'project-contract-missing'
 scenario = 'The language has no project contract.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -4580,7 +4579,7 @@ then.findings = [
 [[scenarios]]
 id = 'project-contract-not-implemented'
 scenario = "The project contract does not implement the engine's Project trait."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -4908,7 +4907,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-suite-readme'
 scenario = 'The language has no page pinning its test suite.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -5258,7 +5257,7 @@ then.findings = [
 [[scenarios]]
 id = 'bench-without-workload'
 scenario = 'The bench registers no workload.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its parse.
 
 /// The size of the generated input the growth check starts from.
@@ -5549,13 +5548,13 @@ The release or commit of the suite that is pinned here.
 '''
 then.only = ['idiomatic.ryo/language/bench-registers-workloads']
 then.findings = [
-  { rule = 'idiomatic.ryo/language/bench-registers-workloads', path = 'demo/benches/performance.rs' },
+  { rule = 'idiomatic.ryo/language/bench-registers-workloads', path = 'demo/benchmarks/provider/bench.rs' },
 ]
 
 [[scenarios]]
 id = 'missing-suite-notice'
 scenario = 'The language has the README of its suite but no notice beside it.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -5914,7 +5913,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-corpus-notice'
 scenario = 'The language has no notice of its real-world corpus.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -6273,7 +6272,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-corpus-readme'
 scenario = 'The language has no page pinning its real-world corpus.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -6624,7 +6623,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-kinds'
 scenario = 'The language has no file saying how its kinds are shown.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -6950,7 +6949,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-relations'
 scenario = 'The language has no file of the rows its relations must give.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -7324,8 +7323,8 @@ idiomatic-sh-ryo-demo = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
@@ -7343,7 +7342,7 @@ schema = "divan-timing/v1"
 workloads = { generated_every_relation = [2500, 10000] }
 metrics = ["median-ns"]
 '''
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -7709,7 +7708,7 @@ then.findings = [
 [[scenarios]]
 id = 'crate-without-linked'
 scenario = 'The library root does not link the language.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -8115,8 +8114,8 @@ name = "conformance"
 harness = false
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]
@@ -8153,7 +8152,7 @@ use ryo_demo as _;
 
 What syntax does, in one line.
 '''
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads: the growth of its reading, and a generated file read with every relation asked, through the linked language.
 
 #![expect(
@@ -8570,7 +8569,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-standard-readme'
 scenario = 'The pinned standard has no README.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -8920,7 +8919,7 @@ then.findings = [
 [[scenarios]]
 id = 'missing-standard-notice'
 scenario = 'The pinned standard has no notice.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -9278,7 +9277,7 @@ then.findings = [
 [[scenarios]]
 id = 'relation-input-without-rows'
 scenario = 'A relation fixture has its input and no rows.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -9630,7 +9629,7 @@ then.findings = [
 [[scenarios]]
 id = 'relation-rows-without-input'
 scenario = 'A relation fixture has its rows and no input.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -9988,7 +9987,7 @@ then.findings = [
 [[scenarios]]
 id = 'concept-wrapped-failure-without-fails'
 scenario = 'A concept constructs a wrapped dependency error and its test has no fails row.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -10426,7 +10425,7 @@ then.findings = [
 [[scenarios]]
 id = 'adapter-wrapped-failure-without-fails'
 scenario = 'An adapter constructs a wrapped library error and its test has no fails row.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -10857,7 +10856,7 @@ then.findings = [
 [[scenarios]]
 id = 'concept-test-with-empty-cases'
 scenario = "A concept's test runs an empty table of cases."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -11272,7 +11271,7 @@ then.findings = [
 [[scenarios]]
 id = 'runner-compares-discriminants'
 scenario = "The language's case runner compares errors by their discriminant alone."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -11727,7 +11726,7 @@ then.findings = [
 [[scenarios]]
 id = 'project-adapter'
 scenario = 'A manifest reading adapter is a module file, an adapter and a test; a language without an embedded port owes nothing for it.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -12130,7 +12129,7 @@ then.only = ['idiomatic.ryo/language-parts', 'idiomatic.ryo/language/adapter-con
 [[scenarios]]
 id = 'project-adapter-without-test'
 scenario = 'A manifest reading adapter has no test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -12509,7 +12508,7 @@ then.findings = [
 [[scenarios]]
 id = 'project-adapter-test-without-contract'
 scenario = "A manifest reading adapter's test never runs the port's contract."
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -12912,7 +12911,7 @@ then.findings = [
 [[scenarios]]
 id = 'embedded-adapter'
 scenario = 'An embedded adapter is held the same way where the embedded port exists.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -13315,7 +13314,7 @@ then.only = ['idiomatic.ryo/language-parts', 'idiomatic.ryo/language/adapter-con
 [[scenarios]]
 id = 'embedded-adapter-without-test'
 scenario = 'An embedded adapter has no test.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -13694,7 +13693,7 @@ then.findings = [
 [[scenarios]]
 id = 'thiserror-in-errors-reaches-a-contract-part'
 scenario = 'A thiserror derive outside errors.rs in a contract part.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -14723,7 +14722,7 @@ then.findings = [
 [[scenarios]]
 id = 'error-shape-reaches-a-contract-part'
 scenario = 'A hand-written Error impl in a contract part.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -15753,7 +15752,7 @@ then.findings = [
 [[scenarios]]
 id = 'language-parts-reads-a-contract-part'
 scenario = 'A parse contract with a file model and no model concept.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -16779,7 +16778,7 @@ then.findings = [
 [[scenarios]]
 id = 'readers-in-items-reaches-a-contract-part'
 scenario = 'A reader constant in a contract part instead of an item folder.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 
@@ -17806,7 +17805,7 @@ then.findings = [
 [[scenarios]]
 id = 'io-at-boundary-reaches-a-contract-part'
 scenario = 'A contract part that reads a file through std::fs.'
-given.files.'demo/benches/performance.rs' = '''
+given.files.'demo/benchmarks/provider/bench.rs' = '''
 //! demo's workloads and the growth of its reading: a generated file, every relation asked, through
 //! the linked language.
 

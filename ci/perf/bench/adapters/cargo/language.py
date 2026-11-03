@@ -26,6 +26,8 @@ class LanguageBench:
     name: str
     package: str
     directory: Path
+    target: str
+    source_path: str
     source: bytes
     workloads: dict[str, list[int]]
     legacy: bool
@@ -63,10 +65,26 @@ def registry(tree: Path, fallback: dict[str, LanguageBench] | None = None) -> li
             raise Refused(f"language {directory.name} is absent from the Cargo workspace")
         try:
             package = tomllib.loads((directory / "Cargo.toml").read_text())
-            targets = [target for target in package.get("bench", []) if target.get("name") == "performance"]
-            if targets != [{"name": "performance", "path": "benches/performance.rs", "harness": False}]:
-                raise Refused(f"{directory.name}: one explicit performance target is required")
-            source = (directory / "benches/performance.rs").read_bytes()
+            all_targets = package.get("bench", [])
+            targets = [target for target in all_targets if target.get("name") in {"provider", "performance"}]
+            current = [{"name": "provider", "path": "benchmarks/provider/bench.rs", "harness": False}]
+            historical = [{"name": "performance", "path": "benches/performance.rs", "harness": False}]
+            if targets == current:
+                target, source_path = "provider", "benchmarks/provider/bench.rs"
+            elif fallback is not None and targets == historical:
+                target, source_path = "performance", "benches/performance.rs"
+            else:
+                raise Refused(f"{directory.name}: one explicit provider target is required")
+            other_targets = [item for item in all_targets if item not in targets]
+            for item in other_targets:
+                parts = Path(item.get("path", "")).parts
+                if (len(parts) != 4 or parts[:2] != ("benchmarks", "linters")
+                        or parts[3] != "bench.rs" or item.get("name") != parts[2]
+                        or item.get("harness") is not False):
+                    raise Refused(f"{directory.name}: misplaced or ambiguous benchmark target")
+            if (directory / "benches/performance.rs").exists() and target != "performance":
+                raise Refused(f"{directory.name}: legacy provider bench remains beside the provider target")
+            source = (directory / source_path).read_bytes()
             declared = package["package"].get("metadata", {}).get("ryo", {}).get("performance")
             name = package["package"]["name"]
         except (OSError, ValueError, KeyError) as error:
@@ -91,7 +109,7 @@ def registry(tree: Path, fallback: dict[str, LanguageBench] | None = None) -> li
                     raise Refused(f"{directory.name}: malformed workload declaration")
                 if any(type(value) is not int or value <= 0 for value in arguments) or len(set(arguments)) != len(arguments):
                     raise Refused(f"{directory.name}: arguments must be distinct positive integers")
-        found.append(LanguageBench(directory.name, name, directory, source, workloads, legacy))
+        found.append(LanguageBench(directory.name, name, directory, target, source_path, source, workloads, legacy))
     if fallback is not None:
         if {entry.name for entry in found} != set(fallback):
             raise Refused("baseline-required; base and head language inventories differ")
@@ -134,7 +152,7 @@ def decode(document: str, benchmark: LanguageBench) -> dict[str, float]:
             raise Refused(f"{benchmark.name}: malformed Divan table row {raw!r}")
         first = columns[0]
         if first.endswith("fastest"):
-            if heading or first.removesuffix("fastest").strip() != "performance" or columns[1:] != ["slowest", "median", "mean", "samples", "iters"]:
+            if heading or first.removesuffix("fastest").strip() != benchmark.target or columns[1:] != ["slowest", "median", "mean", "samples", "iters"]:
                 raise Refused(f"{benchmark.name}: invalid or duplicate Divan heading")
             heading = True
             continue
@@ -181,7 +199,7 @@ def measure_languages(head: Path, tree: Path, output: Path | None, label: str, c
     workspace_path = tree / "crates/ryo/Cargo.toml"
     lock_bytes, workspace_bytes = lock_path.read_bytes(), workspace_path.read_bytes()
     for entry in selected:
-        command = ["cargo", "bench", "--locked", "--package", entry.package, "--bench", "performance", "--", "--color", "never"]
+        command = ["cargo", "bench", "--locked", "--package", entry.package, "--bench", entry.target, "--", "--color", "never"]
         manifest_bytes = (entry.directory / "Cargo.toml").read_bytes()
         result = subprocess.run(command, cwd=tree / "crates/ryo", env={**os.environ, "RUSTUP_TOOLCHAIN": channel},
                                 check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
@@ -189,7 +207,8 @@ def measure_languages(head: Path, tree: Path, output: Path | None, label: str, c
         (output / f"{stem}.stdout.txt").write_text(result.stdout)
         (output / f"{stem}.stderr.txt").write_text(result.stderr)
         evidence = {"schema": SCHEMA, "divan": DIVAN, "command": command, "status": result.returncode,
-                    "language": entry.name, "package": entry.package, "required_metrics": sorted(entry.keys()),
+                    "language": entry.name, "package": entry.package, "target": entry.target,
+                    "source_path": entry.source_path, "required_metrics": sorted(entry.keys()),
                     "workload_source_sha256": digest(entry.source),
                     "cargo_manifest_sha256": digest(manifest_bytes),
                     "cargo_lock_sha256": digest(lock_bytes),
@@ -203,7 +222,7 @@ def measure_languages(head: Path, tree: Path, output: Path | None, label: str, c
             raise Refused(f"{entry.name}: benchmark workspace or lock changed during measurement")
         if (entry.directory / "Cargo.toml").read_bytes() != manifest_bytes:
             raise Refused(f"{entry.name}: benchmark registry changed during measurement")
-        if (entry.directory / "benches/performance.rs").read_bytes() != entry.source:
+        if (entry.directory / entry.source_path).read_bytes() != entry.source:
             raise Refused(f"{entry.name}: benchmark source changed during measurement")
         measured.update(decode(result.stdout, entry))
     if measured.keys() != {key for entry in required.values() for key in entry.keys()}:

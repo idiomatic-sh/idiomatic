@@ -1,4 +1,4 @@
-description = "A language's benches/performance.rs registers at least one workload: a function with `#[divan::bench]`."
+description = "A language's benchmarks/provider/bench.rs registers at least one workload: a function with `#[divan::bench]`."
 why = "A bench with no workload holds nothing: it builds, runs and reports no time, so a language's speed is unwatched while its gate is green. At least one function carries the `bench` attribute of `divan` (`#[divan::bench]`, with or without arguments), so the numbers the bench reports exist. Read as written: an identifier `bench` in an attribute of the file; a workload registered in a macro or in another file is not seen."
 
 query = '''
@@ -6,7 +6,7 @@ let listed-files = select l."path" as "file" from "filesystem.file" as l;
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let files = project(from=listed-files, columns=["file"]);
-let benches = select * from files where glob_any(file, "{benches/performance.rs,**/benches/performance.rs}");
+let benches = select * from files where glob_any(file, "{benchmarks/provider/bench.rs,**/benchmarks/provider/bench.rs}");
 let idents = select * from tree-tokens where kind = "ident";
 let named = select * from idents where text = "bench";
 let refs = select r."parent" as "id" from named as l join "syntax-child" as r on l."id" = r."child";
@@ -24,12 +24,12 @@ message = "this bench registers no workload"
 help = "Register the workloads the language is held to: a function with `#[divan::bench]` that reads a generated or a fixture input through the linked language. A bench with none measures nothing. An ignore is never the fix."
 
 [given]
-include = ['benches/performance.rs']
+include = ['benchmarks/provider/bench.rs']
 
 [[scenarios]]
 id = 'workload-registered'
 scenario = 'A workload is registered.'
-given.files.'benches/performance.rs' = '''
+given.files.'benchmarks/provider/bench.rs' = '''
 fn main() {
     divan::main();
 }
@@ -43,7 +43,7 @@ fn read() -> usize {
 [[scenarios]]
 id = 'registered-with-args'
 scenario = 'A workload with arguments is registered.'
-given.files.'benches/performance.rs' = '''
+given.files.'benchmarks/provider/bench.rs' = '''
 fn main() {
     divan::main();
 }
@@ -57,11 +57,11 @@ fn read(size: usize) -> usize {
 [[scenarios]]
 id = 'empty-bench'
 scenario = 'The bench only runs the harness.'
-given.files.'benches/performance.rs' = '''
+given.files.'benchmarks/provider/bench.rs' = '''
 fn main() {
     divan::Divan::default().config_with_args().main();
 }
 '''
 then.findings = [
-  { path = 'benches/performance.rs' },
+  { path = 'benchmarks/provider/bench.rs' },
 ]

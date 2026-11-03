@@ -53,8 +53,8 @@ harness = false
 
 
 [[bench]]
-name = "performance"
-path = "benches/performance.rs"
+name = "provider"
+path = "benchmarks/provider/bench.rs"
 harness = false
 
 [features]

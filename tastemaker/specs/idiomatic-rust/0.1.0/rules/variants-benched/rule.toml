@@ -49,14 +49,28 @@ let nested-bench = project(from=nested-bench-rows, columns=["file", "text", "cra
 let root-bench-rows = capture(from=identifiers, path="file", pattern="benches/performance/{workload}/bench.rs", captures=["workload"]);
 let root-bench-crates = extend(from=root-bench-rows, values={"crate": ""});
 let root-bench = project(from=root-bench-crates, columns=["file", "text", "crate", "workload"]);
-let bench-identifiers = union(left=nested-bench, right=root-bench);
+let nested-provider-bench-rows = capture(from=identifiers, path="file", pattern="{*crate}/benchmarks/provider/performance/{workload}/bench.rs", captures=["crate", "workload"]);
+let nested-provider-bench = project(from=nested-provider-bench-rows, columns=["file", "text", "crate", "workload"]);
+let root-provider-bench-rows = capture(from=identifiers, path="file", pattern="benchmarks/provider/performance/{workload}/bench.rs", captures=["workload"]);
+let root-provider-bench-crates = extend(from=root-provider-bench-rows, values={"crate": ""});
+let root-provider-bench = project(from=root-provider-bench-crates, columns=["file", "text", "crate", "workload"]);
+let old-bench-identifiers = union(left=nested-bench, right=root-bench);
+let provider-bench-identifiers = union(left=nested-provider-bench, right=root-provider-bench);
+let bench-identifiers = union(left=old-bench-identifiers, right=provider-bench-identifiers);
 let files = project(from=listed-files, columns=["file"]);
 let nested-bench-files = capture(from=files, path="file", pattern="{*crate}/benches/performance/{workload}/bench.rs", captures=["crate", "workload"]);
 let nested-benches = project(from=nested-bench-files, columns=["file", "crate", "workload"]);
 let root-bench-files = capture(from=files, path="file", pattern="benches/performance/{workload}/bench.rs", captures=["workload"]);
 let root-bench-file-crates = extend(from=root-bench-files, values={"crate": ""});
 let root-benches = project(from=root-bench-file-crates, columns=["file", "crate", "workload"]);
-let benches = union(left=nested-benches, right=root-benches);
+let nested-provider-bench-files = capture(from=files, path="file", pattern="{*crate}/benchmarks/provider/performance/{workload}/bench.rs", captures=["crate", "workload"]);
+let nested-provider-benches = project(from=nested-provider-bench-files, columns=["file", "crate", "workload"]);
+let root-provider-bench-files = capture(from=files, path="file", pattern="benchmarks/provider/performance/{workload}/bench.rs", captures=["workload"]);
+let root-provider-bench-file-crates = extend(from=root-provider-bench-files, values={"crate": ""});
+let root-provider-benches = project(from=root-provider-bench-file-crates, columns=["file", "crate", "workload"]);
+let old-benches = union(left=nested-benches, right=root-benches);
+let provider-benches = union(left=nested-provider-benches, right=root-provider-benches);
+let benches = union(left=old-benches, right=provider-benches);
 let unbenched-hexes = antijoin(left=several, right=benches, left-on=["crate", "hex"], right-on=["crate", "workload"]);
 let unbenched-rows = project(from=unbenched-hexes, columns=["file", "hex"]);
 let unbenched-labelled = extend(from=unbenched-rows, values={"problem": "builds several adapters, and its crate has no benches/performance/<hex>/bench.rs running them back to back"});
@@ -88,7 +102,7 @@ name = "fixture"
 version = "0.1.0"
 edition = "2024"
 '''
-given.files.'benches/performance/storage/bench.rs' = '''
+given.files.'benchmarks/provider/performance/storage/bench.rs' = '''
 #[derive(Clone, Copy, Debug)]
 enum Variant {
     Memory,
