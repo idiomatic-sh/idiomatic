@@ -109,8 +109,8 @@ impl OperatorsItem for JoinItem {
                     }
                     if let Some(distinct) = lease.workspace.distinct.as_mut()
                         && crate::domain::table_dedup::service::first_time(
-                            distinct.rows,
-                            distinct.seen,
+                            &mut distinct.rows,
+                            &mut distinct.seen,
                             &right,
                         ) != Addition::Added
                     {
@@ -122,7 +122,7 @@ impl OperatorsItem for JoinItem {
                 return Ok(());
             }
             if let Some(reach) = reach {
-                let walk = lease
+                let mut walk = lease
                     .workspace
                     .closure_walk
                     .take()
@@ -155,7 +155,7 @@ impl OperatorsItem for JoinItem {
                                     to: ColumnIndex(1),
                                 },
                                 *source,
-                                walk,
+                                &mut walk,
                             );
                             for reached in &walk.reached {
                                 right.clear();
@@ -183,8 +183,8 @@ impl OperatorsItem for JoinItem {
                                 // this bounded distinct workspace at the next left-row invocation.
                                 if let Some(distinct) = lease.workspace.distinct.as_mut()
                                     && crate::domain::table_dedup::service::first_time(
-                                        distinct.rows,
-                                        distinct.seen,
+                                        &mut distinct.rows,
+                                        &mut distinct.seen,
                                         &right,
                                     ) != Addition::Added
                                 {

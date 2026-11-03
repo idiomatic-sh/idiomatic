@@ -39,7 +39,9 @@ impl OperatorsItem for RankItem {
             return Err(OperatingError::WrongOperation);
         };
         let layers = lease
-            .views.resources.rank_layers()
+            .views
+            .resources
+            .rank_layers()
             .ok_or(OperatingError::WrongBinding)?;
         let texts = Texts {
             symbols: lease.derived.as_ref(),

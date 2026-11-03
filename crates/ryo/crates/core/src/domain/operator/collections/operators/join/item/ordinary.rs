@@ -92,7 +92,9 @@ impl JoinDriver for Driver<'_, '_> {
         if self.error.is_some() {
             return None;
         }
-        if let (Some(native), Some(position)) = (self.lease.views.resources.native_join(), self.position) {
+        if let (Some(native), Some(position)) =
+            (self.lease.views.resources.native_join(), self.position)
+        {
             Some(tree_value(&native.tree, position, column))
         } else {
             self.current
@@ -156,9 +158,9 @@ pub(super) fn evaluate(
         },
     });
     let error = driver.error.take();
-    *driver.lease.workspace.positions = std::mem::take(&mut driver.positions);
-    *driver.lease.workspace.row = key;
-    *driver.lease.workspace.other = target;
+    driver.lease.workspace.positions = std::mem::take(&mut driver.positions);
+    driver.lease.workspace.row = key;
+    driver.lease.workspace.other = target;
     join_result(answer, error)
 }
 

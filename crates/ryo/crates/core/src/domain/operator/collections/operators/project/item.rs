@@ -50,7 +50,7 @@ impl OperatorsItem for ProjectItem {
                     .distinct
                     .as_mut()
                     .ok_or(OperatingError::WrongBinding)?;
-                if first_time(state.rows, state.seen, &projected) != Addition::Added {
+                if first_time(&mut state.rows, &mut state.seen, &projected) != Addition::Added {
                     return Ok(());
                 }
             }

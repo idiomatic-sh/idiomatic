@@ -22,7 +22,9 @@ impl SetRowDriver for EngineRows<'_, '_> {
             .run(|| {
                 let index = self
                     .lease
-                    .views.resources.index()
+                    .views
+                    .resources
+                    .index()
                     .ok_or(OperatingError::WrongBinding)?;
                 Ok(index.rows.count() == 0)
             })
@@ -34,7 +36,9 @@ impl SetRowDriver for EngineRows<'_, '_> {
             .run(|| {
                 let index = self
                     .lease
-                    .views.resources.index()
+                    .views
+                    .resources
+                    .index()
                     .ok_or(OperatingError::WrongBinding)?;
                 Ok(index.contains(key))
             })
@@ -50,7 +54,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
                     .distinct
                     .as_mut()
                     .ok_or(OperatingError::WrongBinding)?;
-                Ok(first_time(state.rows, state.seen, row) == Addition::Added)
+                Ok(first_time(&mut state.rows, &mut state.seen, row) == Addition::Added)
             })
             .map_err(|()| SetInterrupted)
     }

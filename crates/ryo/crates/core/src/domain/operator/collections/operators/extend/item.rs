@@ -34,7 +34,11 @@ impl OperatorsItem for ExtendItem {
         if !matches!(operation, Operation::Extend { .. }) {
             return Err(OperatingError::WrongOperation);
         }
-        let appended = lease.views.resources.appended().ok_or(OperatingError::WrongBinding)?;
+        let appended = lease
+            .views
+            .resources
+            .appended()
+            .ok_or(OperatingError::WrongBinding)?;
         let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = lease
             .append(row, appended, &mut joined)

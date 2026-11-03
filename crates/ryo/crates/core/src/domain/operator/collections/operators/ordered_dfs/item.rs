@@ -48,7 +48,11 @@ impl OperatorsItem for OrderedDfsItem {
         if !matches!(inputs, PreparedInputs::Views(_)) {
             return Err(OperatingError::WrongOperation);
         }
-        let prepared = lease.views.resources.dfs()?.ok_or(OperatingError::WrongBinding)?;
+        let prepared = lease
+            .views
+            .resources
+            .dfs()?
+            .ok_or(OperatingError::WrongBinding)?;
         let graph = prepared;
         let columns = graph
             .edge_columns()

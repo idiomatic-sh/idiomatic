@@ -127,7 +127,11 @@ impl OperatorsItem for CyclesItem {
         {
             return Err(OperatingError::WrongOperation);
         }
-        let graph = lease.views.resources.cycles()?.ok_or(OperatingError::WrongBinding)?;
+        let graph = lease
+            .views
+            .resources
+            .cycles()?
+            .ok_or(OperatingError::WrongBinding)?;
         let marks = lease
             .workspace
             .cycles

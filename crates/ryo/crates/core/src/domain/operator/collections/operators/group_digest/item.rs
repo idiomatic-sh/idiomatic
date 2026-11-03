@@ -37,7 +37,11 @@ impl OperatorsItem for GroupDigestItem {
             return Err(OperatingError::WrongOperation);
         };
         let source = inputs.first().ok_or(OperatingError::NotRun)?;
-        let groups = lease.views.resources.groups().ok_or(OperatingError::NotRun)?;
+        let groups = lease
+            .views
+            .resources
+            .groups()
+            .ok_or(OperatingError::NotRun)?;
         let mut row = std::mem::take(&mut lease.workspace.row);
         let mut answer = std::mem::take(&mut lease.workspace.other);
         let outcome = (|| {
