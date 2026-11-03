@@ -16,7 +16,7 @@ fn check_columns(
 fn hash_at(input: &dyn RowCells, row: RowIndex, keys: &[ColumnIndex]) -> Result<u64, DerivedFault> {
     keys.iter().try_fold(0_u64, |hash, column| {
         let value = input
-            .cell(row, *column)
+            .cell(row.0, *column)
             .ok_or(DerivedFault::ShapeMismatch)?;
         Ok(
             (hash.rotate_left(5) ^ super::equality::word(value))

@@ -1259,6 +1259,7 @@ dependencies = [
  "idiomatic-sh-ryo",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-css",
+ "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
  "idiomatic-sh-ryo-javascript",
@@ -1328,6 +1329,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "heck",
  "idiomatic-sh-ryo-core",
+ "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
@@ -1359,6 +1361,16 @@ dependencies = [
  "idiomatic-sh-ryo-css",
  "idiomatic-sh-ryo-sdk",
  "strum",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-derived"
+version = "0.1.2"
+dependencies = [
+ "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
 ]
 
 [[package]]
@@ -1550,6 +1562,7 @@ version = "0.1.2"
 dependencies = [
  "divan",
  "idiomatic-sh-ryo-core",
+ "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
