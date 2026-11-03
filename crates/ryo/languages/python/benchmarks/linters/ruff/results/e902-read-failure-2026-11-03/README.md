@@ -1,3 +1,9 @@
+# E902 targeted evidence
+
+The [current-source strict eight proof](final-current-source/README.md) supersedes the earlier runtime receipt for acceptance: clean `e8db8440`, eight Full raw-exact cases, matching offline audit errors[]. The earlier evidence below remains immutable history; it is not relabeled as current-source execution. Full inventory remains pending.
+
+## Earlier targeted evidence
+
 # E902 targeted read-failure proof
 
 Eight complete Full-comparison cases pass raw-exact against both contestants, with zero documented discrepancies or contract-only cases. The current shared collector independently validates all eight identities with errors[]. [Summary](summary.json), [native receipts](cases.jsonl), [offline audit](offline.json) and [invocation](invocation.json) retain the exact evidence.
