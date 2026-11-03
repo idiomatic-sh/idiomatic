@@ -1,0 +1,19 @@
+{
+  "archive_scope": "execution receipts, registration, summaries and build/seal metadata; staged repro inputs remain in GitHub artifact and source commit",
+  "archived_receipt_files": 1609,
+  "artifact_id": 13191897432,
+  "artifact_zip_sha256": "82f1c23a8c059240ee2e648e5f5870de0e944b52f3d95d38257cbe5e12067b17",
+  "counts": {
+    "FAIL": 30,
+    "PASS": 383
+  },
+  "head_sha": "80be817bcc1c252f0c718bb6bbf045546faf1af5",
+  "job_id": 125637398435,
+  "raw_archive_sha256": "9b5714ee6a4dbbd0bc798c3c3016070e01c64de024f37bd210eeb91bdbb1dc18",
+  "run_state": "complete",
+  "run_url": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41550736630",
+  "schema": "ruff-ci-artifact/v1",
+  "summary_sha256": "ea3396b368a4e0197d6c4308ac53e6d13e736f491ffaf082d9a1c04827618c67",
+  "triage_sha256": "0002b3a1334d8ef82c57518fb5b8f6e5409654b95544e737edde99aab458eb51",
+  "worker_sha256": "7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd"
+}

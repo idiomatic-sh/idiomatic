@@ -13,6 +13,7 @@ import tomllib
 RUFF = Path(__file__).resolve().parents[1]
 RESULTS = RUFF / "results"
 REPOSITORY = RUFF.parents[6]
+LATEST_FULL_RESULT = RESULTS / "ci-80be-full-inventory-2026-11-03/summary.json"
 
 
 def sha(path: Path) -> str:
@@ -383,7 +384,7 @@ def main() -> int:
     parser.add_argument("--full-inventory-result", type=Path, help="render all 413 PASS/FAIL rows from a completed or interrupted full-inventory summary")
     args = parser.parse_args()
     destination = RUFF / "RULES.md"
-    full_result = args.full_inventory_result or RESULTS / "full-inventory-current/summary.json"
+    full_result = args.full_inventory_result or LATEST_FULL_RESULT
     rendered = render_full_inventory(full_result) if full_result.is_file() else render()
     if args.full_inventory_result is not None and not full_result.is_file():
         raise ValueError("requested full-inventory result does not exist")

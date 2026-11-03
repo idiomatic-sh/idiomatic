@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**385 PASS / 28 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d43a5760d6c9388d7ba307416417268fbf1cacb92ae6fbe9bf70dffdf0d686b8`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
+**383 PASS / 30 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -40,7 +40,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | B026 | PASS | verified intended expectations |
 | B029 | PASS | verified intended expectations |
 | B030 | PASS | verified intended expectations |
-| B031 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| B031 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | B032 | PASS | verified intended expectations |
 | B033 | PASS | verified intended expectations |
 | B035 | PASS | verified intended expectations |
@@ -75,15 +75,15 @@ Generated from canonical source and the existing full-inventory runner's results
 | DTZ012 | PASS | verified intended expectations |
 | DTZ901 | PASS | verified intended expectations |
 | E722 | PASS | verified intended expectations |
-| E902 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| EXE001 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| EXE002 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| E902 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| EXE001 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| EXE002 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | EXE004 | PASS | verified intended expectations |
 | EXE005 | PASS | verified intended expectations |
 | F401 | PASS | verified intended expectations |
 | F402 | PASS | verified intended expectations |
-| F404 | PASS | [separate source-bound fixture proof](results/full-inventory-current/future-directive-supplement/summary.json) |
-| F407 | PASS | [separate source-bound fixture proof](results/full-inventory-current/future-directive-supplement/summary.json) |
+| F404 | PASS | verified intended expectations |
+| F407 | PASS | verified intended expectations |
 | F501 | PASS | verified intended expectations |
 | F502 | PASS | verified intended expectations |
 | F503 | PASS | verified intended expectations |
@@ -101,7 +101,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | F541 | PASS | verified intended expectations |
 | F601 | PASS | verified intended expectations |
 | F602 | PASS | verified intended expectations |
-| F621 | PASS | [separate declared-contract fixture proof](results/full-inventory-current/f621-target-supplement/summary.json) |
+| F621 | PASS | verified intended expectations |
 | F622 | PASS | verified intended expectations |
 | F631 | PASS | verified intended expectations |
 | F632 | PASS | verified intended expectations |
@@ -112,20 +112,20 @@ Generated from canonical source and the existing full-inventory runner's results
 | F704 | PASS | verified intended expectations |
 | F706 | PASS | verified intended expectations |
 | F707 | PASS | verified intended expectations |
-| F811 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
-| F821 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
+| F811 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| F821 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | F822 | PASS | verified intended expectations |
 | F823 | PASS | verified intended expectations |
-| F841 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
-| F842 | PASS | [separate source-bound fixture proof](results/full-inventory-current/match-or-supplement/summary.json) |
+| F841 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| F842 | PASS | verified intended expectations |
 | F901 | PASS | verified intended expectations |
-| FA100 | PASS | [separate py37 fixture and py310 control proof](results/full-inventory-current/fa-target-supplement/summary.json) |
-| FA102 | PASS | [separate py37 fixture and py310 control proof](results/full-inventory-current/fa-target-supplement/summary.json) |
+| FA100 | PASS | verified intended expectations |
+| FA102 | PASS | verified intended expectations |
 | FLY002 | PASS | verified intended expectations |
 | FURB105 | PASS | verified intended expectations |
 | FURB122 | PASS | verified intended expectations |
 | FURB129 | PASS | verified intended expectations |
-| FURB132 | PASS | [separate source-bound fixture proof](results/full-inventory-current/match-or-supplement/summary.json) |
+| FURB132 | PASS | verified intended expectations |
 | FURB136 | PASS | verified intended expectations |
 | FURB157 | PASS | verified intended expectations |
 | FURB161 | PASS | verified intended expectations |
@@ -137,13 +137,13 @@ Generated from canonical source and the existing full-inventory runner's results
 | FURB169 | PASS | verified intended expectations |
 | FURB177 | PASS | verified intended expectations |
 | FURB181 | PASS | verified intended expectations |
-| FURB188 | PASS | [separate fixture and py38 inactive-rule control proof](results/full-inventory-current/furb188-target-supplement/summary.json) |
+| FURB188 | PASS | verified intended expectations |
 | FURB192 | PASS | verified intended expectations |
 | G010 | PASS | verified intended expectations |
 | G101 | PASS | verified intended expectations |
 | G201 | PASS | verified intended expectations |
 | G202 | PASS | verified intended expectations |
-| I001 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| I001 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | INT001 | PASS | verified intended expectations |
 | INT002 | PASS | verified intended expectations |
 | INT003 | PASS | verified intended expectations |
@@ -153,10 +153,10 @@ Generated from canonical source and the existing full-inventory runner's results
 | LOG009 | PASS | verified intended expectations |
 | LOG014 | PASS | verified intended expectations |
 | LOG015 | PASS | verified intended expectations |
-| N999 | FAIL | [Fixture mismatch](results/full-inventory-current/latest-failed-observations/provenance.json) |
+| N999 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | PERF101 | PASS | verified intended expectations |
 | PERF102 | PASS | verified intended expectations |
-| PERF402 | PASS | [separate source-bound fixture proof](results/full-inventory-current/match-or-supplement/summary.json) |
+| PERF402 | PASS | verified intended expectations |
 | PGH005 | PASS | verified intended expectations |
 | PIE790 | PASS | verified intended expectations |
 | PIE794 | PASS | verified intended expectations |
@@ -176,9 +176,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | PLC3002 | PASS | verified intended expectations |
 | PLE0100 | PASS | verified intended expectations |
 | PLE0101 | PASS | verified intended expectations |
-| PLE0115 | PASS | verified intended expectations |
-| PLE0116 | PASS | [separate py37 fixture and py310 control proof](results/full-inventory-current/ple0116-target-supplement/summary.json) |
-| PLE0117 | PASS | verified intended expectations |
+| PLE0115 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| PLE0116 | PASS | verified intended expectations |
+| PLE0117 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | PLE0118 | PASS | verified intended expectations |
 | PLE0303 | PASS | verified intended expectations |
 | PLE0304 | PASS | verified intended expectations |
@@ -194,9 +194,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | PLE1142 | PASS | verified intended expectations |
 | PLE1205 | PASS | verified intended expectations |
 | PLE1206 | PASS | verified intended expectations |
-| PLE1300 | PASS | [separate full fixture and target-version control proof](results/full-inventory-current/ple1300-ple1310-target-supplement/summary.json) |
+| PLE1300 | PASS | verified intended expectations |
 | PLE1307 | PASS | verified intended expectations |
-| PLE1310 | PASS | [separate full fixture and target-version control proof](results/full-inventory-current/ple1300-ple1310-target-supplement/summary.json) |
+| PLE1310 | PASS | verified intended expectations |
 | PLE1507 | PASS | verified intended expectations |
 | PLE1519 | PASS | verified intended expectations |
 | PLE1520 | PASS | verified intended expectations |
@@ -226,11 +226,11 @@ Generated from canonical source and the existing full-inventory runner's results
 | PLW0129 | PASS | verified intended expectations |
 | PLW0131 | PASS | verified intended expectations |
 | PLW0133 | PASS | verified intended expectations |
-| PLW0177 | PASS | [separate source-bound fixture proof](results/full-inventory-current/match-or-supplement/summary.json) |
+| PLW0177 | PASS | verified intended expectations |
 | PLW0211 | PASS | verified intended expectations |
 | PLW0245 | PASS | verified intended expectations |
 | PLW0406 | PASS | verified intended expectations |
-| PLW0602 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
+| PLW0602 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | PLW0604 | PASS | verified intended expectations |
 | PLW0642 | PASS | verified intended expectations |
 | PLW0711 | PASS | verified intended expectations |
@@ -264,15 +264,15 @@ Generated from canonical source and the existing full-inventory runner's results
 | PYI016 | PASS | verified intended expectations |
 | PYI017 | PASS | verified intended expectations |
 | PYI018 | PASS | verified intended expectations |
-| PYI019 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
-| PYI020 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
+| PYI019 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| PYI020 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | PYI025 | PASS | verified intended expectations |
 | PYI026 | PASS | verified intended expectations |
 | PYI029 | PASS | verified intended expectations |
 | PYI030 | PASS | verified intended expectations |
 | PYI032 | PASS | verified intended expectations |
 | PYI033 | PASS | verified intended expectations |
-| PYI034 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
+| PYI034 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | PYI035 | PASS | verified intended expectations |
 | PYI036 | PASS | verified intended expectations |
 | PYI041 | PASS | verified intended expectations |
@@ -298,7 +298,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | RET501 | PASS | verified intended expectations |
 | RUF007 | PASS | verified intended expectations |
 | RUF008 | PASS | verified intended expectations |
-| RUF009 | PASS | [separate raw-exact fixture proof](results/full-inventory-current/ruf009-target-supplement/summary.json) |
+| RUF009 | PASS | verified intended expectations |
 | RUF010 | PASS | verified intended expectations |
 | RUF012 | PASS | verified intended expectations |
 | RUF013 | PASS | verified intended expectations |
@@ -307,9 +307,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF017 | PASS | verified intended expectations |
 | RUF018 | PASS | verified intended expectations |
 | RUF019 | PASS | verified intended expectations |
-| RUF020 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
-| RUF022 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| RUF023 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| RUF020 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| RUF022 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| RUF023 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | RUF024 | PASS | verified intended expectations |
 | RUF026 | PASS | verified intended expectations |
 | RUF028 | PASS | verified intended expectations |
@@ -318,20 +318,20 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF033 | PASS | verified intended expectations |
 | RUF034 | PASS | verified intended expectations |
 | RUF040 | PASS | verified intended expectations |
-| RUF041 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
+| RUF041 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | RUF046 | PASS | verified intended expectations |
 | RUF048 | PASS | verified intended expectations |
 | RUF049 | PASS | verified intended expectations |
-| RUF051 | FAIL | [Fixture mismatch](results/full-inventory-current/summary.json) |
+| RUF051 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | RUF053 | PASS | verified intended expectations |
 | RUF057 | PASS | verified intended expectations |
 | RUF058 | PASS | verified intended expectations |
 | RUF059 | PASS | verified intended expectations |
 | RUF063 | PASS | verified intended expectations |
 | RUF068 | PASS | verified intended expectations |
-| RUF100 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| RUF101 | PASS | [separate raw-exact fixture proof](results/full-inventory-current/ruf101-target-supplement/summary.json) |
-| RUF200 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| RUF100 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| RUF101 | PASS | verified intended expectations |
+| RUF200 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | S102 | PASS | verified intended expectations |
 | S110 | PASS | verified intended expectations |
 | S112 | PASS | verified intended expectations |
@@ -341,7 +341,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | SIM107 | PASS | verified intended expectations |
 | SIM113 | PASS | verified intended expectations |
 | SIM114 | PASS | verified intended expectations |
-| SIM115 | PASS | [separate raw-exact fixture proof](results/full-inventory-current/sim115-target-supplement/summary.json) |
+| SIM115 | PASS | verified intended expectations |
 | SIM117 | PASS | verified intended expectations |
 | SIM118 | PASS | verified intended expectations |
 | SIM201 | PASS | verified intended expectations |
@@ -351,15 +351,15 @@ Generated from canonical source and the existing full-inventory runner's results
 | SIM211 | PASS | verified intended expectations |
 | SIM220 | PASS | verified intended expectations |
 | SIM221 | PASS | verified intended expectations |
-| SIM222 | PASS | [separate 17/17 raw-exact proof](results/full-inventory-current/sim222-sim223-supplement/summary.json) |
-| SIM223 | PASS | [separate 17/17 raw-exact proof](results/full-inventory-current/sim222-sim223-supplement/summary.json) |
-| SIM401 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| SIM222 | PASS | verified intended expectations |
+| SIM223 | PASS | verified intended expectations |
+| SIM401 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | SIM905 | PASS | verified intended expectations |
 | SIM911 | PASS | verified intended expectations |
 | T100 | PASS | verified intended expectations |
-| TC004 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| TC004 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | TC005 | PASS | verified intended expectations |
-| TC007 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| TC007 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | TC010 | PASS | verified intended expectations |
 | TRY002 | PASS | verified intended expectations |
 | TRY004 | PASS | verified intended expectations |
@@ -371,14 +371,14 @@ Generated from canonical source and the existing full-inventory runner's results
 | UP004 | PASS | verified intended expectations |
 | UP005 | PASS | verified intended expectations |
 | UP006 | PASS | verified intended expectations |
-| UP007 | PASS | [separate source-bound fixture proof](results/full-inventory-current/future-directive-supplement/summary.json) |
+| UP007 | PASS | verified intended expectations |
 | UP008 | PASS | verified intended expectations |
 | UP009 | PASS | verified intended expectations |
-| UP010 | PASS | [separate source-bound fixture proof](results/full-inventory-current/future-directive-supplement/summary.json) |
+| UP010 | PASS | verified intended expectations |
 | UP011 | PASS | verified intended expectations |
 | UP012 | PASS | verified intended expectations |
 | UP014 | PASS | verified intended expectations |
-| UP017 | PASS | [separate py311 fixture and py310 control proof](results/full-inventory-current/up017-target-supplement/summary.json) |
+| UP017 | PASS | verified intended expectations |
 | UP018 | PASS | verified intended expectations |
 | UP019 | PASS | verified intended expectations |
 | UP020 | PASS | verified intended expectations |
@@ -391,12 +391,12 @@ Generated from canonical source and the existing full-inventory runner's results
 | UP028 | PASS | verified intended expectations |
 | UP029 | PASS | verified intended expectations |
 | UP030 | PASS | verified intended expectations |
-| UP031 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| UP032 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| UP031 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| UP032 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | UP033 | PASS | verified intended expectations |
-| UP034 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| UP035 | PASS | [separate full target-version fixture proof](results/full-inventory-current/up035-up036-target-supplement/summary.json) |
-| UP036 | PASS | [separate full target-version fixture proof](results/full-inventory-current/up035-up036-target-supplement/summary.json) |
+| UP034 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| UP035 | PASS | verified intended expectations |
+| UP036 | PASS | verified intended expectations |
 | UP037 | PASS | verified intended expectations |
 | UP039 | PASS | verified intended expectations |
 | UP040 | PASS | verified intended expectations |
@@ -404,8 +404,8 @@ Generated from canonical source and the existing full-inventory runner's results
 | UP043 | PASS | verified intended expectations |
 | UP044 | PASS | verified intended expectations |
 | UP045 | PASS | verified intended expectations |
-| UP046 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
-| UP047 | FAIL | [Missing implementation](results/full-inventory-current/summary.json) |
+| UP046 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| UP047 | FAIL | [Missing implementation](results/ci-80be-full-inventory-2026-11-03/summary.json) |
 | UP049 | PASS | verified intended expectations |
 | UP050 | PASS | verified intended expectations |
 | W605 | PASS | verified intended expectations |

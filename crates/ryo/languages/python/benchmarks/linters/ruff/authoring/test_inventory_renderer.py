@@ -24,7 +24,7 @@ class InventoryRendererTests(unittest.TestCase):
                 self.assertEqual(renderer.failure_category(reason), expected)
 
     def test_snapshot_has_every_pinned_id_and_receipt_links_without_changing_receipts(self):
-        receipt = renderer.RESULTS / "full-inventory-current/summary.json"
+        receipt = renderer.LATEST_FULL_RESULT
         before = hashlib.sha256(receipt.read_bytes()).hexdigest()
         rendered = renderer.render_full_inventory(receipt)
         self.assertEqual(rendered, (renderer.RUFF / "RULES.md").read_text())
@@ -35,7 +35,7 @@ class InventoryRendererTests(unittest.TestCase):
         for _, status, reason in rows:
             if status == "FAIL":
                 self.assertLess(len(reason), 140)
-                target = re.fullmatch(r"\[[^]]+\]\((results/full-inventory-current/[^)]+)\)", reason)
+                target = re.fullmatch(r"\[[^]]+\]\((results/ci-80be-full-inventory-2026-11-03/summary\.json)\)", reason)
                 self.assertIsNotNone(target)
                 self.assertTrue((renderer.RUFF / target.group(1)).is_file())
                 self.assertNotIn("BenchmarkFinding", reason)
