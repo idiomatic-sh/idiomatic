@@ -18,7 +18,7 @@ let following_openings = select l.id as outer_id, r.target as inner_id, l.file a
 let attempts = select l.outer_id as outer_id, l.inner_id as inner_id, l.file as file, r.begin as begin, r.span as start_span from following_openings as l join openings as r on l.inner_id = r.id;
 let pairs = select source as inner_id, target as close_id from "token-link" as t where t."link-kind" = "matching-delimiter";
 let grouped = select l.outer_id as outer_id, l.inner_id as inner_id, l.file as file, l.begin as begin, l.start_span as start_span, r.close_id as close_id from attempts as l join pairs as r on l.inner_id = r.inner_id;
-let blocker_tokens = select id from significant where kind = "comma" or text = "yield";
+let blocker_tokens = select id from significant where kind = "comma" or (kind = "name-token" and text = "yield");
 let enclosure = select source as id, target as inner_id from "token-link" as t where t."link-kind" = "enclosing-delimiter";
 let blockers0 = select l.id as id, r.inner_id as inner_id from blocker_tokens as l join enclosure as r on l.id = r.id;
 let blockers = select l.id as id, l.inner_id as inner_id, r.begin as begin from blockers0 as l join locations as r on l.id = r.id;

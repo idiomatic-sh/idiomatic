@@ -1,0 +1,21 @@
+{
+  "reference_only": true,
+  "canonical_py310": {
+    "cases": 19,
+    "exact": 19
+  },
+  "counter_py314": {
+    "cases": 21,
+    "exact": 21
+  },
+  "candidate": "not replayed after token-kind correction",
+  "sources": {
+    "rules/UP034/query.ryoql": "2319c230c0d1274be3761233103d3d7c3570018713dfb9dfbdb22ea811bff463",
+    "rules/UP034/cases.toml": "b16017a4cd99e24663de214a56c61784e196f08ef18c72450e734ac2ebd83abb",
+    "profiles/UP034-py314/benchmark.toml": "3161ef9f28bb175d0e4b14fddc25d8deb1a2a550f6f506283669d4662da55bc3",
+    "profiles/UP034-py314/cases.toml": "3490703e241fc5bc4ffcccd639d5eec1617a822fcc3028646cfc210b6933ad2f"
+  },
+  "raw_sha256": "08c79295ed9f6f2e0446d98f7ec11b0ec217d48f4de2e2044a80e66978b360a0",
+  "provider_contract_source": "languages/python/src/outbound/syntax/adapters/ruff_python_parser/schemas.rs:204",
+  "rule_reference": "Ruff0.16.5 source9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a"
+}

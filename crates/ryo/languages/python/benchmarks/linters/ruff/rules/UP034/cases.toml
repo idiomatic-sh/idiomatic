@@ -100,3 +100,13 @@ name = "unicode-span"
 comparison = "full"
 files = { "case.py" = "é = f((\"💣\"))\n" }
 expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 7, "end" = 15 }]
+
+[[cases]]
+name = "fstring-middle-yield-is-not-keyword"
+files = { "case.py" = "f((f\"yield\"))\n" }
+expected = [{ rule = "UP034", file = "case.py", start = 2, end = 12 }]
+
+[[cases]]
+name = "interpolated-fstring-middle-yield-is-not-keyword"
+files = { "case.py" = "f((f\"{a}yield\"))\n" }
+expected = [{ rule = "UP034", file = "case.py", start = 2, end = 15 }]
