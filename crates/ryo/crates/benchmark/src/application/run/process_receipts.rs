@@ -109,13 +109,16 @@ pub(super) fn validate(
     if !invocation["metadata_error"].is_null() {
         return Err("process metadata capture failed".into());
     }
+    // Unspecified historical observations omit this optional field; required metadata remains exact.
+    if invocation["file_metadata_sha256"] != case["file_metadata_sha256"] {
+        return Err("raw process invocation differs at file_metadata_sha256".into());
+    }
     for (key, required) in [
         ("tool", &identity["tool"]),
         ("version", &identity["version"]),
         ("actual_request_root", &reference["actual_request_root"]),
         ("files", &case["files"]),
         ("source_sha256", &case["source_sha256"]),
-        ("file_metadata_sha256", &case["file_metadata_sha256"]),
         ("executable_sha256", &proof["actual_executable_sha256"]),
         ("settings_sha256", &identity["settings-sha256"]),
         ("profile_sha256", &identity["profile-sha256"]),

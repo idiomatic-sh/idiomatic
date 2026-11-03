@@ -219,7 +219,10 @@ fn damage_contents(
 ) {
     let file = directory.join("lint.store");
     let bytes = std::fs::read(&file).expect("the store");
-    let (body, trailer) = bytes.split_at(bytes.len() - 8);
+    let tagged = bytes
+        .strip_suffix(super::constants::FORMAT)
+        .expect("current version trailer");
+    let (body, trailer) = tagged.split_at(tagged.len() - 8);
     let mut word = [0_u8; 8];
     word.copy_from_slice(trailer);
     let length = usize::try_from(u64::from_le_bytes(word)).expect("a table of contents length");
@@ -230,6 +233,7 @@ fn damage_contents(
     let mut damaged = sections.to_vec();
     damaged.extend_from_slice(&toc);
     damaged.extend_from_slice(&u64::try_from(toc.len()).expect("a length").to_le_bytes());
+    damaged.extend_from_slice(super::constants::FORMAT);
     std::fs::write(&file, damaged).expect("a damaged store");
 }
 
@@ -238,7 +242,10 @@ fn damage_contents(
 fn damage_bucket(directory: &std::path::Path, build: &str, bucket: Bucket) {
     let file = directory.join("lint.store");
     let mut bytes = std::fs::read(&file).expect("the store");
-    let (body, trailer) = bytes.split_at(bytes.len() - 8);
+    let tagged = bytes
+        .strip_suffix(super::constants::FORMAT)
+        .expect("current version trailer");
+    let (body, trailer) = tagged.split_at(tagged.len() - 8);
     let mut word = [0_u8; 8];
     word.copy_from_slice(trailer);
     let length = usize::try_from(u64::from_le_bytes(word)).expect("a table of contents length");
