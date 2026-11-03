@@ -311,38 +311,6 @@ pub(crate) fn compile_prepared(
 }
 
 impl FileProgram {
-    pub(crate) fn new(
-        graph: Arc<RequestGraph>,
-        active: impl Fn(usize) -> bool,
-        complete: &[Relation],
-    ) -> Self {
-        tracing::trace!(target: "ryo::diagnostic::file_program", event = "complete_relations",
-            complete = ?complete);
-        let mut remaining = vec![0_usize; graph.nodes.len()];
-        for (rule, consumers) in graph.consumers.iter().enumerate() {
-            if !active(rule) {
-                continue;
-            }
-            for node in consumers {
-                if !graph.nodes[node.0]
-                    .relations
-                    .iter()
-                    .all(|relation| complete.contains(relation))
-                {
-                    continue;
-                }
-                remaining[node.0] += 1;
-            }
-        }
-        Self {
-            graph,
-            remaining,
-            entries: Vec::new(),
-            shared_executions: 0,
-            peak_retained_cells: 0,
-        }
-    }
-
     pub(crate) fn cut(&self, rule: usize, step: usize) -> Option<NodeId> {
         let id = self
             .graph

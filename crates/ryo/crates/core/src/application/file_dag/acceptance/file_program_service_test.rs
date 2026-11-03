@@ -3,12 +3,14 @@
 use crate::application::file_dag::pipeline::service::{evaluate_file, evaluate_file_with_graph};
 use crate::application::file_dag::pipeline::service_test::{KINDS, SOURCE, functions, plan};
 use crate::domain::file_program::service::compile_prepared;
-use crate::domain::file_program::types::FileProgram;
+#[path = "file_program_service_test/legacy.rs"]
+mod legacy;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::pool_for;
 use crate::domain::operator::types::PreparedPool;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
+use legacy::program;
 use ryo_language::domain::relations::types::{ColumnsView, Relation};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{
@@ -60,7 +62,7 @@ fn global_dag_keeps_a_prefix_with_one_reader_per_rule() {
     let graph = Arc::new(compile(&plans));
     let shared = graph.cuts[0][0].expect("select before one local projection");
     assert_eq!(graph.cuts[1][0], Some(shared));
-    let mut program = FileProgram::new(graph, |_| true, &[Relation::Function]);
+    let mut program = program(graph, |_| true, &[Relation::Function]);
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
     let rows = |relation| {
@@ -128,7 +130,7 @@ fn failed_pure_cut_is_never_published_or_replayed() {
     }
     let plans = [first.clone(), first];
     let graph = Arc::new(compile(&plans));
-    let mut program = FileProgram::new(graph, |_| true, &[Relation::Function]);
+    let mut program = program(graph, |_| true, &[Relation::Function]);
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
     let rows = |relation| {
@@ -200,7 +202,7 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         Some(shared),
         "source origins are caller owned"
     );
-    let incomplete = FileProgram::new(Arc::clone(&graph), |_| true, &[]);
+    let incomplete = program(Arc::clone(&graph), |_| true, &[]);
     assert_eq!(
         incomplete.remaining[shared.0], 0,
         "partial facts never mean complete empty"
@@ -227,7 +229,7 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         first_bound, second_bound,
         "different bound values cannot share a node"
     );
-    let bound_program = FileProgram::new(bound_graph, |_| true, &[Relation::Function]);
+    let bound_program = program(bound_graph, |_| true, &[Relation::Function]);
     assert!(
         bound_program.cut(0, 0).is_none() && bound_program.cut(1, 0).is_none(),
         "rule-owned parameter nodes cannot become cross-rule cache cuts"
@@ -241,7 +243,7 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
             columns: &columns,
         })
     };
-    let mut program = FileProgram::new(Arc::clone(&graph), |_| true, &[Relation::Function]);
+    let mut program = program(Arc::clone(&graph), |_| true, &[Relation::Function]);
     let mut prepared = PreparedPool::default();
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
@@ -327,11 +329,11 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
         "duplicate occurrence stays addressable"
     );
     assert_eq!(graph.consumers, vec![vec![node], vec![node]]);
-    let complete = FileProgram::new(Arc::clone(&graph), |_| true, &[Relation::Function]);
+    let complete = program(Arc::clone(&graph), |_| true, &[Relation::Function]);
     assert_eq!(complete.remaining[node.0], 2, "two rules, not four cuts");
-    let inactive = FileProgram::new(Arc::clone(&graph), |rule| rule == 1, &[Relation::Function]);
+    let inactive = program(Arc::clone(&graph), |rule| rule == 1, &[Relation::Function]);
     assert_eq!(inactive.remaining[node.0], 1);
-    let partial = FileProgram::new(graph, |_| true, &[]);
+    let partial = program(graph, |_| true, &[]);
     assert_eq!(
         partial.remaining[node.0], 0,
         "partial populations have no consumers"
@@ -347,7 +349,7 @@ fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
     query.emit.step = StepId(2);
     let graph = Arc::new(compile(&[query.clone(), query]));
     let node = graph.cuts[0][0].expect("internal cut");
-    let mut program = FileProgram::new(graph, |_| true, &[Relation::Function]);
+    let mut program = program(graph, |_| true, &[Relation::Function]);
     let mut table = Table {
         kinds: vec![CellKind::File],
         cells: vec![Value::File(FileId(0))],
@@ -399,7 +401,7 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
     let plans = [query.clone(), query];
     // Prepare actual fixture metadata once, before the physical read counter exists.
     let request = request(&plans, &vec![Vec::new(); plans.len()]);
-    let mut program = FileProgram::new(
+    let mut program = program(
         Arc::new(compile_prepared(&plans, &request)),
         |_| true,
         if complete { &[Relation::Function] } else { &[] },

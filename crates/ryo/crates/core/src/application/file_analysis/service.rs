@@ -425,7 +425,7 @@ impl FileAnalysis {
             active_wanted.as_ref(),
             &physical_partials,
         );
-        let mut file_program = if graph_enabled
+        if graph_enabled
             && tables.language.is_some()
             && facts.resident_stability() == ResidentStability::Stable
         {
@@ -453,23 +453,9 @@ impl FileAnalysis {
             if native_tree && !complete.contains(&Relation::SyntaxTree) {
                 complete.push(Relation::SyntaxTree);
             }
-            tables.pool.file_graph.as_ref().map(|graph| {
-                crate::domain::file_program::types::FileProgram::new(
-                    Arc::clone(graph),
-                    |index| {
-                        governs_rule(tables, RuleIndex(index)) == Governing::Governs
-                            && !skipped
-                                .as_ref()
-                                .and_then(|skipped| skipped.get(index))
-                                .copied()
-                                .unwrap_or(false)
-                    },
-                    &complete,
-                )
-            })
-        } else {
-            None
-        };
+            tracing::trace!(target: "ryo::diagnostic::file_program", event = "complete_relations",
+                complete = ?complete);
+        }
         // The generation owner is unconditional. The benchmark switch changes
         // retention only; every class keeps the same executor and semantics.
         let file_dag = tables.pool.file_graph.as_ref().map(|graph| {
@@ -492,7 +478,6 @@ impl FileAnalysis {
             }
             std::cell::RefCell::new(execution)
         });
-        file_program = None;
         if let Some(indexes) = stored_indexes.as_mut() {
             crate::application::file_dag::derived::graph_cache::service::reserve(
                 indexes,
@@ -588,7 +573,7 @@ impl FileAnalysis {
             file,
             skipped.as_deref(),
             stored_indexes.as_mut(),
-            file_program.as_mut(),
+            None,
             file_dag.as_ref(),
             &classes,
         );
@@ -606,12 +591,6 @@ impl FileAnalysis {
                 overlap_bytes=dag.overlap_bytes, peak_owned_bytes=dag.peak_owned_bytes,
                 required_releases=dag.required_releases,
                 required_metadata_bytes=dag.required_metadata_bytes());
-        }
-        if let Some(program) = &file_program {
-            tracing::trace!(target: "ryo::diagnostic::file_program", file = file.0,
-                graph_nodes = program.graph.nodes.len(), shared_executions = program.shared_executions,
-                peak_retained_cells = program.peak_retained_cells,
-                remaining_tables = program.entries.len());
         }
         if let Some(indexes) = stored_indexes.as_ref() {
             tracing::trace!(target: "ryo::diagnostic::graph", event = "file_graphs", file = file.0,
