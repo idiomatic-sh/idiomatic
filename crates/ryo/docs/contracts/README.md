@@ -134,6 +134,8 @@ Correctness/enforcement blockers come first. Otherwise sort **lexicographically*
 - [ ] Invest in the shared benchmark harness: inventory, enumeration, execution, normalization, comparison, reporting and performance belong there; linters supply config/query/cases and necessary protocol adapters only, with no hardcoded rule exceptions.
 - [ ] Repeat independent Fable review and fixes until blockers close; then run Rust/Python correctness and frozen cold/warm/edit performance gates before acceptance.
 
+Checkpoint order: achieve accepted 413/413 Ruff parity, roll out the new capability crates with their separate release prerequisites, then begin Oxlint and continue engine decomposition. Completing every engine ownership row is not an Oxlint prerequisite.
+
 Reuse [measured demand/admission results](../../languages/python/benchmarks/linters/ruff/results/demand-admission-2026-11-03/README.md). The historical [18-workload/five-process spike](https://github.com/idiomatic-sh/idiomatic/blob/85d0a1ad7e/.agents/research/ryo-pvwd-performance-20261001.md) retained two failed timing budgets; [perf-4.2](https://github.com/idiomatic-sh/idiomatic/blob/85d0a1ad7e/crates/ryo/docs/archive/planning/perf-4.2.md) distinguishes measured M from assumed A. Its ≈515 ms is a model, not an achieved result. The [independent rubric review](evidence/fable-review-3-20261103.json) passed; implementation ownership closure remains open.
 
 ## 5. Inspiration
