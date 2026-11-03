@@ -39,8 +39,7 @@ impl OperatorsItem for RankItem {
             return Err(OperatingError::WrongOperation);
         };
         let layers = lease
-            .views
-            .rank_layers
+            .views.resources.rank_layers()
             .ok_or(OperatingError::WrongBinding)?;
         let texts = Texts {
             symbols: lease.derived.as_ref(),
@@ -57,14 +56,14 @@ impl OperatorsItem for RankItem {
         else {
             return Ok(());
         };
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         joined.clear();
         joined.extend_from_slice(row);
         joined.push(Value::Number(Integer(
             i64::try_from(place).unwrap_or(i64::MAX),
         )));
         let result = emit.row(lease, &joined);
-        *lease.workspace.row = joined;
+        lease.workspace.row = joined;
         result
     }
 }

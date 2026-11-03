@@ -35,11 +35,11 @@ impl OperatorsItem for SpanBetweenItem {
             return Err(OperatingError::WrongOperation);
         };
         let projected = lease.span_between(row, *start, *end, lease.views.source.0.len())?;
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = lease
             .append(row, std::slice::from_ref(&projected), &mut joined)
             .and_then(|()| emit.row(lease, &joined));
-        *lease.workspace.row = joined;
+        lease.workspace.row = joined;
         result
     }
 }

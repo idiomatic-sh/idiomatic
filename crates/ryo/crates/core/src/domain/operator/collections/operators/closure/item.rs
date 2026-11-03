@@ -36,8 +36,8 @@ impl OperatorsItem for ClosureItem {
         {
             return Err(OperatingError::WrongOperation);
         }
-        let partitions = lease.views.closure;
-        let mut joined = std::mem::take(lease.workspace.row);
+        let partitions = lease.views.resources.closure();
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = (|| {
             for partition in partitions {
                 let partition = partition?;
@@ -52,7 +52,7 @@ impl OperatorsItem for ClosureItem {
                     let walk = lease
                         .workspace
                         .closure_walk
-                        .as_deref_mut()
+                        .as_mut()
                         .ok_or(OperatingError::WrongBinding)?;
                     reach_all(&edges, *start, walk);
                     let count = walk.reached.len();
@@ -60,7 +60,7 @@ impl OperatorsItem for ClosureItem {
                         let reached = lease
                             .workspace
                             .closure_walk
-                            .as_deref()
+                            .as_ref()
                             .and_then(|walk| walk.reached.get(index))
                             .copied()
                             .ok_or(OperatingError::ShapeMismatch)?;
@@ -73,7 +73,7 @@ impl OperatorsItem for ClosureItem {
             }
             Ok(())
         })();
-        *lease.workspace.row = joined;
+        lease.workspace.row = joined;
         result
     }
 }

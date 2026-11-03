@@ -48,8 +48,8 @@ impl OperatorsItem for RenderSyntaxItem {
         let Operation::RenderSyntax { node, context, .. } = operation else {
             return Err(OperatingError::WrongOperation);
         };
-        let mut row = std::mem::take(lease.workspace.row);
-        let mut joined = std::mem::take(lease.workspace.other);
+        let mut row = std::mem::take(&mut lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.other);
         let outcome = (|| {
             let mut requests = Vec::with_capacity(source.count());
             for position in 0..source.count() {
@@ -116,8 +116,8 @@ impl OperatorsItem for RenderSyntaxItem {
             }
             Ok(())
         })();
-        *lease.workspace.row = row;
-        *lease.workspace.other = joined;
+        lease.workspace.row = row;
+        lease.workspace.other = joined;
         outcome
     }
 }

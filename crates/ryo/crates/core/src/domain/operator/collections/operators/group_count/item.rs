@@ -37,9 +37,9 @@ impl OperatorsItem for GroupCountItem {
             return Err(OperatingError::WrongOperation);
         };
         let source = inputs.first().ok_or(OperatingError::NotRun)?;
-        let groups = lease.views.groups.ok_or(OperatingError::NotRun)?;
-        let mut row = std::mem::take(lease.workspace.row);
-        let mut answer = std::mem::take(lease.workspace.other);
+        let groups = lease.views.resources.groups().ok_or(OperatingError::NotRun)?;
+        let mut row = std::mem::take(&mut lease.workspace.row);
+        let mut answer = std::mem::take(&mut lease.workspace.other);
         let outcome = (|| {
             for group in groups {
                 let first = source
@@ -57,8 +57,8 @@ impl OperatorsItem for GroupCountItem {
             }
             Ok(())
         })();
-        *lease.workspace.row = row;
-        *lease.workspace.other = answer;
+        lease.workspace.row = row;
+        lease.workspace.other = answer;
         outcome
     }
 }

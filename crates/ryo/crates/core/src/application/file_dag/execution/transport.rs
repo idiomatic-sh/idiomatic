@@ -108,7 +108,15 @@ fn stream_scoped(
     if mode.schema_boundary == SchemaBoundary::BeforeDemand {
         contract.schema.as_ref().map_err(Clone::clone)?;
     }
-    reset(&mut workspace.distinct, &contract.set_kinds);
+    reset(
+        &mut workspace
+            .primitive
+            .distinct
+            .as_mut()
+            .ok_or(OperatingError::WrongOperation)?
+            .rows,
+        &contract.set_kinds,
+    );
     let mut resources = None;
     if mode.shape == InputShape::RequestSource {
         if contract.external_source {

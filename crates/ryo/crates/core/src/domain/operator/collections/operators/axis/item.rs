@@ -55,7 +55,7 @@ impl OperatorsItem for AxisItem {
             return Err(OperatingError::WrongOperation);
         };
         if let Some(cached) = lease.views.cached_axis {
-            let mut answer = std::mem::take(lease.workspace.row);
+            let mut answer = std::mem::take(&mut lease.workspace.row);
             let result = (|| {
                 for destination in cached.destinations {
                     answer.clear();
@@ -65,11 +65,12 @@ impl OperatorsItem for AxisItem {
                 }
                 Ok(())
             })();
-            *lease.workspace.row = answer;
+            lease.workspace.row = answer;
             return result;
         }
-        let axis = lease.views.axis.ok_or(OperatingError::WrongBinding)?;
-        let mut answer = std::mem::take(lease.workspace.row);
+        let bound_axis = lease.views.resources.axis()?;
+        let axis = bound_axis.as_ref().ok_or(OperatingError::WrongBinding)?;
+        let mut answer = std::mem::take(&mut lease.workspace.row);
         let result = (|| match axis {
             PreparedAxis::Empty => Ok(()),
             PreparedAxis::Indexed { edges, to, domain } => {
@@ -77,7 +78,7 @@ impl OperatorsItem for AxisItem {
                 let work = lease
                     .workspace
                     .axis
-                    .as_deref_mut()
+                    .as_mut()
                     .ok_or(OperatingError::WrongBinding)?;
                 work.walk.reached.clear();
                 if matches!(direction, Direction::Parent | Direction::Child) {
@@ -96,7 +97,7 @@ impl OperatorsItem for AxisItem {
                     let entity = lease
                         .workspace
                         .axis
-                        .as_deref()
+                        .as_ref()
                         .and_then(|work| work.walk.reached.get(at))
                         .copied()
                         .ok_or(OperatingError::ShapeMismatch)?;
@@ -129,7 +130,7 @@ impl OperatorsItem for AxisItem {
                     &mut lease
                         .workspace
                         .axis
-                        .as_deref_mut()
+                        .as_mut()
                         .ok_or(OperatingError::WrongBinding)?
                         .found,
                 );
@@ -188,13 +189,13 @@ impl OperatorsItem for AxisItem {
                 lease
                     .workspace
                     .axis
-                    .as_deref_mut()
+                    .as_mut()
                     .ok_or(OperatingError::WrongBinding)?
                     .found = found;
                 outcome
             }
         })();
-        *lease.workspace.row = answer;
+        lease.workspace.row = answer;
         result
     }
 }

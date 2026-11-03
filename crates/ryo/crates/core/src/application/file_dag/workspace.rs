@@ -31,19 +31,7 @@ pub(crate) struct InvocationWorkspace {
     pub predicate_memo: Vec<crate::domain::operating::types::Memo>,
     pub predicate_names: Option<crate::domain::operating::types::NameCount>,
     pub literal_regex: Option<regex_automata::meta::Regex>,
-    pub row: Vec<Value>,
-    pub other: Vec<Value>,
-    pub text: String,
-    pub word: ScratchWord,
-    pub stretches: Stretches,
-    pub captured: Vec<Value>,
-    pub positions: Vec<Position>,
-    pub distinct: Table,
-    pub seen: hashbrown::HashTable<RowIndex>,
-    pub cycle: CycleMarks,
-    pub closure: Walk,
-    pub dfs: DfsWorkspace,
-    pub axis: AxisWorkspace,
+    pub primitive: crate::domain::operator::contract::types::PrimitiveWorkspace,
 }
 
 impl InvocationWorkspace {
@@ -59,19 +47,7 @@ impl InvocationWorkspace {
             predicate_memo: Default::default(),
             predicate_names: Default::default(),
             literal_regex: Default::default(),
-            row: Default::default(),
-            other: Default::default(),
-            text: Default::default(),
-            word: Default::default(),
-            stretches: Default::default(),
-            captured: Default::default(),
-            positions: Default::default(),
-            distinct: Default::default(),
-            seen: Default::default(),
-            cycle: Default::default(),
-            closure: Default::default(),
-            dfs: Default::default(),
-            axis: Default::default(),
+            primitive: Default::default(),
             #[cfg(test)]
             observation: Default::default(),
         }
@@ -96,13 +72,31 @@ impl InvocationWorkspace {
             .0
             .get()
             .map_or(0, |state| state.compiled_globs.len());
-        observed.row_capacity = self.row.capacity();
-        observed.other_capacity = self.other.capacity();
-        observed.closure_visited = self.closure.visited.len().max(self.axis.walk.visited.len());
-        observed.dfs_expanded = self.dfs.expanded;
-        observed.dfs_examined = self.dfs.examined;
-        observed.dfs_frames_len = self.dfs.walk.frames.len();
-        observed.dfs_visited_len = self.dfs.walk.visited.len();
+        observed.row_capacity = self.primitive.row.capacity();
+        observed.other_capacity = self.primitive.other.capacity();
+        observed.closure_visited = self
+            .primitive
+            .closure_walk
+            .as_ref()
+            .map_or(0, |walk| walk.visited.len())
+            .max(
+                self.primitive
+                    .axis
+                    .as_ref()
+                    .map_or(0, |axis| axis.walk.visited.len()),
+            );
+        observed.dfs_expanded = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.expanded);
+        observed.dfs_examined = self.primitive.dfs.as_ref().map_or(0, |dfs| dfs.examined);
+        observed.dfs_frames_len = self
+            .primitive
+            .dfs
+            .as_ref()
+            .map_or(0, |dfs| dfs.walk.frames.len());
+        observed.dfs_visited_len = self
+            .primitive
+            .dfs
+            .as_ref()
+            .map_or(0, |dfs| dfs.walk.visited.len());
         observed
     }
 }

@@ -98,15 +98,19 @@ pub(super) fn evaluate(
         && join.reach.is_none()
         && !join.has_filter
         && join.view.is_empty()
-        && let Some(selected) = resources.index.as_ref().and_then(|index| index.selected())
+        && let Some(selected) = resources
+            .inputs
+            .index
+            .as_ref()
+            .and_then(|index| index.selected())
     {
         return selected.emit_join(
             &super::PrimitiveSemanticsBridge { port: operators },
             &join.left_on,
             &join.output,
             row,
-            &mut workspace.row,
-            &mut workspace.other,
+            &mut workspace.primitive.row,
+            &mut workspace.primitive.other,
             context,
             emit,
         );
@@ -116,7 +120,7 @@ pub(super) fn evaluate(
         && join.reach.is_none()
         && !join.has_filter
         && join.view.is_empty()
-        && let Some(index) = resources.index.as_ref()
+        && let Some(index) = resources.inputs.index.as_ref()
     {
         // The invocation already owns its immutable index. Ordinary Join needs
         // only this finite reborrow, not an all-operator lease/predicate bundle.
@@ -126,8 +130,8 @@ pub(super) fn evaluate(
             row,
             &join.left_on,
             &join.output,
-            &mut workspace.row,
-            &mut workspace.other,
+            &mut workspace.primitive.row,
+            &mut workspace.primitive.other,
             context,
             emit,
         );
@@ -146,9 +150,6 @@ pub(super) fn evaluate(
         }
         None => (None, None),
     };
-    let index = resources.index.as_ref().map(|index| index.view());
-    let indices = std::array::from_fn::<_, 1, _>(|_| index);
-    let index_slice = indices[0].as_ref().map_or(&[][..], std::slice::from_ref);
     let mut predicate = BoundPredicate {
         program: &contract.predicates,
         bindings: context.bindings,
@@ -160,52 +161,18 @@ pub(super) fn evaluate(
         memo: &mut workspace.predicate_memo,
         names: &mut workspace.predicate_names,
     };
-    let axis = resources
-        .axis
-        .as_ref()
-        .map(|axis| axis.view())
-        .transpose()?;
+    resources.inputs.validate_declared()?;
     let views = PrimitiveViews {
+        resources: &resources.inputs,
         semantic: context.semantic,
         paths: context.paths,
         arenas: context.arenas,
         source: context.source,
         bindings: context.bindings,
-        indices: index_slice,
         validated_source,
         regex,
-        appended: resources.appended.as_deref(),
-        rank_layers: resources.rank_layers.as_deref(),
-        axis: axis.as_ref(),
-        native_join: resources.native_join,
         cached_reach,
         cached_axis,
-        dfs: InvocationResources::dfs_view(resources.dfs.as_ref())?,
-        cycles: InvocationResources::cycles_view(resources.cycles.as_ref())?,
-        closure: if let Some(parts) = resources.partitioned_closure.as_ref() {
-            crate::domain::operator::contract::views::ClosureViews::One(parts.current())
-        } else {
-            crate::domain::operator::contract::views::ClosureViews::Many(&resources.closure)
-        },
-        ordered: InvocationResources::ordered_view(resources.ordered.as_ref())?,
-        groups: resources.groups.as_deref(),
-    };
-    let scratch = PrimitiveWorkspace {
-        row: &mut workspace.row,
-        other: &mut workspace.other,
-        text: &mut workspace.text,
-        word: &mut workspace.word,
-        stretches: &mut workspace.stretches,
-        captured: &mut workspace.captured,
-        axis: Some(&mut workspace.axis),
-        positions: &mut workspace.positions,
-        dfs: Some(&mut workspace.dfs),
-        cycles: Some(&mut workspace.cycle),
-        closure_walk: Some(&mut workspace.closure),
-        distinct: Some(DistinctWorkspace {
-            rows: &mut workspace.distinct,
-            seen: &mut workspace.seen,
-        }),
     };
     let mut output = OutputBridge {
         emit,
@@ -216,7 +183,7 @@ pub(super) fn evaluate(
     let semantics = super::PrimitiveSemanticsBridge { port: operators };
     let mut lease = PrimitiveLease::new(
         views,
-        scratch,
+        &mut workspace.primitive,
         query_reborrow(&mut context.symbols),
         &mut predicate,
         &semantics,

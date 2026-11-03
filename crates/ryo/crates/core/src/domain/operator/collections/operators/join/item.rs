@@ -79,9 +79,9 @@ impl OperatorsItem for JoinItem {
                 sink,
             );
         }
-        let mut answer = std::mem::take(lease.workspace.other);
-        let mut key = std::mem::take(lease.workspace.row);
-        let mut right = std::mem::take(lease.workspace.captured);
+        let mut answer = std::mem::take(&mut lease.workspace.other);
+        let mut key = std::mem::take(&mut lease.workspace.row);
+        let mut right = std::mem::take(&mut lease.workspace.captured);
         let outcome = (|| {
             key.clear();
             for column in left_on {
@@ -128,7 +128,7 @@ impl OperatorsItem for JoinItem {
                     .take()
                     .ok_or(OperatingError::NotRun)?;
                 let result = (|| {
-                    for partition in lease.views.closure {
+                    for partition in lease.views.resources.closure() {
                         let partition = partition?;
                         for source in partition.sources() {
                             // Bind partition/source before traversal whenever the logical key names them.
@@ -202,9 +202,9 @@ impl OperatorsItem for JoinItem {
             }
             Err(OperatingError::WrongOperation)
         })();
-        *lease.workspace.other = answer;
-        *lease.workspace.row = key;
-        *lease.workspace.captured = right;
+        lease.workspace.other = answer;
+        lease.workspace.row = key;
+        lease.workspace.captured = right;
         outcome
     }
 }

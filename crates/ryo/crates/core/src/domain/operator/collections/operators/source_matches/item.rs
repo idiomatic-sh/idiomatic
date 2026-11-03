@@ -221,7 +221,7 @@ impl OperatorsItem for SourceMatchesItem {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = occurrences(
             row,
             capture.as_ref().map(|name| name.0.as_ref()),
@@ -231,7 +231,7 @@ impl OperatorsItem for SourceMatchesItem {
             &mut joined,
             emit,
         );
-        *lease.workspace.row = joined;
+        lease.workspace.row = joined;
         result
     }
 }

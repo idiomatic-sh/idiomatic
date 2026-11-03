@@ -84,7 +84,7 @@ impl OperatorsItem for WordsItem {
             return Ok(());
         };
         // Own the input while derived interning may grow the symbol table.
-        let mut text = std::mem::take(lease.workspace.text);
+        let mut text = std::mem::take(&mut lease.workspace.text);
         text.clear();
         text.push_str(value.0);
         let after = if lease.views.arenas.is_empty() {
@@ -92,10 +92,10 @@ impl OperatorsItem for WordsItem {
         } else {
             AfterTheFiles::After
         };
-        let mut captured = std::mem::take(lease.workspace.captured);
+        let mut captured = std::mem::take(&mut lease.workspace.captured);
         captured.clear();
         let width = 1;
-        let mut word = std::mem::take(lease.workspace.word);
+        let mut word = std::mem::take(&mut lease.workspace.word);
         split(TextView(&text), &mut word, |each| {
             let made = query_intern_derived(
                 &mut lease.derived,
@@ -105,7 +105,7 @@ impl OperatorsItem for WordsItem {
             captured.push(minted(lease.derived.as_ref(), made, after));
         });
         let ways = captured.len();
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = (|| {
             for way in 0..ways {
                 joined.clear();
@@ -119,10 +119,10 @@ impl OperatorsItem for WordsItem {
             }
             Ok(())
         })();
-        *lease.workspace.row = joined;
-        *lease.workspace.captured = captured;
-        *lease.workspace.text = text;
-        *lease.workspace.word = word;
+        lease.workspace.row = joined;
+        lease.workspace.captured = captured;
+        lease.workspace.text = text;
+        lease.workspace.word = word;
         result
     }
 }

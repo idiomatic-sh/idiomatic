@@ -2,6 +2,7 @@
 use super::{
     axis_resources::prepare_axis, derived::view::AcquiredView, resources::appended_values,
 };
+mod binding;
 mod groups;
 mod index;
 mod views;
@@ -43,6 +44,12 @@ fn input<'f>(inputs: &[BorrowedRows<'f>], at: usize) -> Result<BorrowedRows<'f>,
 /// Regex resources are acquired separately after the checked physical/text row gates.
 pub(crate) struct InvocationResources<'f> {
     pub(crate) cached_graph: Option<super::cached_graph::CachedGraph>,
+    pub(crate) inputs: InvocationInputs<'f>,
+}
+
+/// The invocation binds these acquired handles once. Primitives see only the
+/// immutable reader implemented for this value, never the owner or scheduler.
+pub(crate) struct InvocationInputs<'f> {
     pub(super) index: Option<IndexResource<'f>>,
     pub(crate) appended: Option<Vec<Value>>,
     pub(crate) rank_layers: Option<Vec<Vec<LiteralText>>>,
@@ -61,18 +68,20 @@ impl<'f> InvocationResources<'f> {
     pub(crate) fn with_groups(groups: Vec<Group>) -> Self {
         Self {
             cached_graph: None,
-            index: None,
-            appended: None,
-            rank_layers: None,
-            native_join: None,
-            native_storage: None,
-            cycles: None,
-            closure: Vec::new(),
-            partitioned_closure: None,
-            ordered: None,
-            dfs: None,
-            axis: None,
-            groups: Some(groups),
+            inputs: InvocationInputs {
+                index: None,
+                appended: None,
+                rank_layers: None,
+                native_join: None,
+                native_storage: None,
+                cycles: None,
+                closure: Vec::new(),
+                partitioned_closure: None,
+                ordered: None,
+                dfs: None,
+                axis: None,
+                groups: Some(groups),
+            },
         }
     }
     pub(crate) fn prepare(
@@ -85,18 +94,20 @@ impl<'f> InvocationResources<'f> {
     ) -> Result<Self, OperatingError> {
         let mut resources = Self {
             cached_graph: None,
-            index: None,
-            appended: None,
-            rank_layers: None,
-            native_join: None,
-            native_storage: None,
-            cycles: None,
-            closure: Vec::new(),
-            partitioned_closure: None,
-            ordered: None,
-            dfs: None,
-            axis: None,
-            groups: None,
+            inputs: InvocationInputs {
+                index: None,
+                appended: None,
+                rank_layers: None,
+                native_join: None,
+                native_storage: None,
+                cycles: None,
+                closure: Vec::new(),
+                partitioned_closure: None,
+                ordered: None,
+                dfs: None,
+                axis: None,
+                groups: None,
+            },
         };
         let program = match mode {
             EvaluationMode::Streaming => &contract.resources,
@@ -121,7 +132,7 @@ impl<'f> InvocationResources<'f> {
             ResourceProgram::Appended(values) => {
                 let mut values_out = Vec::with_capacity(values.len());
                 appended_values(values, context, &mut values_out)?;
-                resources.appended = Some(values_out);
+                resources.inputs.appended = Some(values_out);
             }
             ResourceProgram::Rank(sets) => {
                 let ParameterBinding::TextSets(layers) =
@@ -129,7 +140,7 @@ impl<'f> InvocationResources<'f> {
                 else {
                     return Err(OperatingError::WrongBinding);
                 };
-                resources.rank_layers = Some(layers.clone());
+                resources.inputs.rank_layers = Some(layers.clone());
             }
             ResourceProgram::Index {
                 input: place,
@@ -137,7 +148,7 @@ impl<'f> InvocationResources<'f> {
             } => {
                 let source = input(inputs, *place)?;
                 let skip_empty = matches!(columns, IndexColumns::ColumnsUnlessEmpty(_));
-                resources.index = Some(IndexResource::acquired(
+                resources.inputs.index = Some(IndexResource::acquired(
                     contract,
                     mode,
                     originals.get(*place),
@@ -158,7 +169,7 @@ impl<'f> InvocationResources<'f> {
                 if let Some(reach) = reach {
                     let mut cursor = partitioned(contract, mode, right, &admitted, context)?;
                     while cursor.advance()? {
-                        resources.closure.push(cursor.take_current()?);
+                        resources.inputs.closure.push(cursor.take_current()?);
                     }
                 } else {
                     let native = if let BorrowedRows::Tree(tree) = right {
@@ -180,16 +191,16 @@ impl<'f> InvocationResources<'f> {
                         else {
                             return Err(OperatingError::WrongOperation);
                         };
-                        resources.native_join = Some(NativeJoin {
+                        resources.inputs.native_join = Some(NativeJoin {
                             tree,
                             finding: *finding,
                         });
-                        resources.native_storage = Some(acquired);
+                        resources.inputs.native_storage = Some(acquired);
                     } else {
                         if *has_filter || !view.is_empty() {
                             return Err(OperatingError::WrongOperation);
                         }
-                        resources.index = Some(IndexResource::acquired(
+                        resources.inputs.index = Some(IndexResource::acquired(
                             contract,
                             mode,
                             originals.get(1),
@@ -202,7 +213,7 @@ impl<'f> InvocationResources<'f> {
             }
 
             ResourceProgram::Count { keys, distinct } => {
-                resources.groups = Some(groups(
+                resources.inputs.groups = Some(groups(
                     input(inputs, 0)?,
                     keys,
                     *distinct,
@@ -214,7 +225,7 @@ impl<'f> InvocationResources<'f> {
                 )?);
             }
             ResourceProgram::Digest { keys, over } => {
-                resources.groups = Some(groups(
+                resources.inputs.groups = Some(groups(
                     input(inputs, 0)?,
                     keys,
                     None,
@@ -226,7 +237,7 @@ impl<'f> InvocationResources<'f> {
                 )?);
             }
             ResourceProgram::Closure { .. } => {
-                resources.partitioned_closure = Some(partitioned(
+                resources.inputs.partitioned_closure = Some(partitioned(
                     contract,
                     mode,
                     input(inputs, 0)?,
@@ -240,7 +251,7 @@ impl<'f> InvocationResources<'f> {
                     mode,
                     ryo_derived::domain::contract::types::DerivedKind::CycleAdjacency,
                 )?;
-                resources.cycles = Some(admitted.acquire_rows(use_, context)?);
+                resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
             }
             ResourceProgram::Ordered { .. } => {
                 use crate::domain::derived_views::types::DerivedInputs;
@@ -252,7 +263,7 @@ impl<'f> InvocationResources<'f> {
                     paths: context.paths,
                     arenas: context.arenas,
                 };
-                resources.ordered = Some(admitted.acquire_derived(
+                resources.inputs.ordered = Some(admitted.acquire_derived(
                     use_,
                     super::derived::owner::ViewContext::default(),
                     super::workspace::ViewInputs::Text(&texts),
@@ -262,7 +273,7 @@ impl<'f> InvocationResources<'f> {
                 use crate::domain::derived_views::types::DerivedInputs;
                 use ryo_derived::domain::contract::types::DerivedKind;
                 let use_ = prepared(contract, mode, DerivedKind::OrderedDfs)?;
-                resources.dfs = Some(admitted.acquire_derived(
+                resources.inputs.dfs = Some(admitted.acquire_derived(
                     use_,
                     super::derived::owner::ViewContext::default(),
                     super::workspace::ViewInputs::Dfs {
@@ -329,7 +340,8 @@ impl<'f> InvocationResources<'f> {
                         )?,
                     ),
                 };
-                resources.axis = Some(prepare_axis(program, edges, domain, equality, membership)?);
+                resources.inputs.axis =
+                    Some(prepare_axis(program, edges, domain, equality, membership)?);
             }
         }
         Ok(resources)

@@ -35,11 +35,11 @@ impl OperatorsItem for SpanBoundsItem {
             return Err(OperatingError::WrongOperation);
         };
         let projected = lease.span_bounds(row, *span)?;
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = lease
             .append(row, &projected, &mut joined)
             .and_then(|()| emit.row(lease, &joined));
-        *lease.workspace.row = joined;
+        lease.workspace.row = joined;
         result
     }
 }

@@ -48,7 +48,7 @@ impl OperatorsItem for OrderedDfsItem {
         if !matches!(inputs, PreparedInputs::Views(_)) {
             return Err(OperatingError::WrongOperation);
         }
-        let prepared = lease.views.dfs.ok_or(OperatingError::WrongBinding)?;
+        let prepared = lease.views.resources.dfs()?.ok_or(OperatingError::WrongBinding)?;
         let graph = prepared;
         let columns = graph
             .edge_columns()
@@ -74,14 +74,14 @@ impl OperatorsItem for OrderedDfsItem {
             from: columns,
             to: target,
         };
-        let mut key = std::mem::take(lease.workspace.captured);
-        let mut prefix = std::mem::take(lease.workspace.other);
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut key = std::mem::take(&mut lease.workspace.captured);
+        let mut prefix = std::mem::take(&mut lease.workspace.other);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = (|| {
             let work = lease
                 .workspace
                 .dfs
-                .as_deref_mut()
+                .as_mut()
                 .ok_or(OperatingError::WrongBinding)?;
             work.expanded = 0;
             work.examined = 0;
@@ -107,7 +107,7 @@ impl OperatorsItem for OrderedDfsItem {
                 let work = lease
                     .workspace
                     .dfs
-                    .as_deref_mut()
+                    .as_mut()
                     .ok_or(OperatingError::WrongBinding)?;
                 begin_ordered(
                     &walked,
@@ -120,7 +120,7 @@ impl OperatorsItem for OrderedDfsItem {
                     let work = lease
                         .workspace
                         .dfs
-                        .as_deref_mut()
+                        .as_mut()
                         .ok_or(OperatingError::WrongBinding)?;
                     let Some((edge_at, ordinal)) =
                         next_ordered(&walked, graph, partition, &mut work.walk)?
@@ -140,7 +140,7 @@ impl OperatorsItem for OrderedDfsItem {
                 let work = lease
                     .workspace
                     .dfs
-                    .as_deref_mut()
+                    .as_mut()
                     .ok_or(OperatingError::WrongBinding)?;
                 work.expanded += work.walk.expanded;
                 work.examined += work.walk.examined;
@@ -165,9 +165,9 @@ impl OperatorsItem for OrderedDfsItem {
             }
             Ok(())
         })();
-        *lease.workspace.captured = key;
-        *lease.workspace.other = prefix;
-        *lease.workspace.row = joined;
+        lease.workspace.captured = key;
+        lease.workspace.other = prefix;
+        lease.workspace.row = joined;
         result
     }
 }

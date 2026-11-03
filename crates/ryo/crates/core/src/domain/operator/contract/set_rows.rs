@@ -22,9 +22,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
             .run(|| {
                 let index = self
                     .lease
-                    .views
-                    .indices
-                    .first()
+                    .views.resources.index()
                     .ok_or(OperatingError::WrongBinding)?;
                 Ok(index.rows.count() == 0)
             })
@@ -36,9 +34,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
             .run(|| {
                 let index = self
                     .lease
-                    .views
-                    .indices
-                    .first()
+                    .views.resources.index()
                     .ok_or(OperatingError::WrongBinding)?;
                 Ok(index.contains(key))
             })
@@ -75,7 +71,7 @@ pub(crate) fn run(
     emit: &mut dyn RowSink,
 ) -> Result<(), OperatingError> {
     let semantics = lease.semantics();
-    let mut key = std::mem::take(lease.workspace.row);
+    let mut key = std::mem::take(&mut lease.workspace.row);
     let (answer, error) = {
         let mut driver = EngineRows {
             lease,
@@ -93,6 +89,6 @@ pub(crate) fn run(
         });
         (answer, driver.failure.take())
     };
-    *lease.workspace.row = key;
+    lease.workspace.row = key;
     written_result(answer, error)
 }

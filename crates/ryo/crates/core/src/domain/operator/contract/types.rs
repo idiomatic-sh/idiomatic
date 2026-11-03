@@ -227,57 +227,86 @@ pub(crate) enum PreparedInputs<'a> {
     RequestSource(&'a BorrowedRows<'a>),
 }
 
-/// Immutable source/index data selected and acquired by the common engine.
+/// Read-only data borrowed from the application-owned invocation. No owner,
+/// scheduler, acquisition or release operation crosses this interface.
+pub(crate) trait PrimitiveResources {
+    fn validate_declared(&self) -> Result<(), OperatingError>;
+    fn index(&self) -> Option<IndexedRows<'_>>;
+    fn appended(&self) -> Option<&[Value]>;
+    fn rank_layers(&self) -> Option<&[Vec<ryo_values::domain::plan_parts::types::LiteralText>]>;
+    fn axis(&self) -> Result<Option<super::axis::PreparedAxis<'_>>, OperatingError>;
+    fn native_join(&self) -> Option<super::join::NativeJoin<'_>>;
+    fn dfs(
+        &self,
+    ) -> Result<Option<&ryo_derived::domain::contract::types::PreparedDfs>, OperatingError>;
+    fn cycles(
+        &self,
+    ) -> Result<Option<&ryo_derived::domain::contract::types::CycleGraph>, OperatingError>;
+    fn closure(&self) -> super::views::ClosureViews<'_>;
+    fn ordered(
+        &self,
+    ) -> Result<Option<&ryo_derived::domain::contract::types::OrderedMatching>, OperatingError>;
+    fn groups(&self) -> Option<&[crate::domain::table_groups::types::Group]>;
+}
+
+/// Only row-varying context is assembled at row delivery. Acquired resources
+/// remain in the invocation and are reached through a borrowed reader.
 pub(crate) struct PrimitiveViews<'a> {
-    /// File-scoped semantic demand, borrowed only for this invocation.
+    pub resources: &'a dyn PrimitiveResources,
     pub semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     pub paths: &'a [ryo_language::domain::files::types::FilePath],
     pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     pub source: SourceView<'a>,
     pub bindings: &'a [ParameterBinding],
-    pub indices: &'a [IndexedRows<'a>],
-    /// Already acquired by the engine at the declared lazy error boundary.
     pub validated_source: Option<
         crate::domain::operator::collections::operators::source_matches::source::ValidatedSource<
             'a,
         >,
     >,
     pub regex: Option<&'a regex_automata::meta::Regex>,
-    /// Resolved once at the first applicable row (or collected preflight for Extend).
-    pub appended: Option<&'a [Value]>,
-    pub rank_layers: Option<&'a [Vec<ryo_values::domain::plan_parts::types::LiteralText>]>,
-    pub axis: Option<&'a super::axis::PreparedAxis<'a>>,
-    pub native_join: Option<super::join::NativeJoin<'a>>,
     pub cached_reach: Option<super::graph_view::ReachResult<'a>>,
     pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
-    pub dfs: Option<&'a ryo_derived::domain::contract::types::PreparedDfs>,
-    pub cycles: Option<&'a ryo_derived::domain::contract::types::CycleGraph>,
-    pub closure: super::views::ClosureViews<'a>,
-    pub ordered: Option<&'a ryo_derived::domain::contract::types::OrderedMatching>,
-    pub groups: Option<&'a [crate::domain::table_groups::types::Group]>,
 }
 
-/// Mutable algorithm work is invocation-bounded and supplied as borrowed slices.
-/// No cache owner, growable cross-invocation memo or generation identity is reachable.
-pub(crate) struct PrimitiveWorkspace<'a> {
-    pub row: &'a mut Vec<Value>,
-    pub other: &'a mut Vec<Value>,
-    pub text: &'a mut String,
-    pub word: &'a mut crate::domain::table_scratch::types::ScratchWord,
-    pub stretches: &'a mut crate::domain::table_scratch::types::Stretches,
-    pub captured: &'a mut Vec<Value>,
-    pub axis: Option<&'a mut super::axis::AxisWorkspace>,
-    pub positions: &'a mut Vec<ryo_relations::domain::relations::types::Position>,
-    pub dfs: Option<&'a mut super::graph::DfsWorkspace>,
-    pub cycles: Option<&'a mut super::graph::CycleMarks>,
-    pub closure_walk: Option<&'a mut crate::domain::table_reach::types::Walk>,
-    pub distinct: Option<DistinctWorkspace<'a>>,
+/// Allocation slots owned once by the application invocation. A primitive only
+/// receives a reborrow; no cache, owner or generation identity is reachable.
+pub(crate) struct PrimitiveWorkspace {
+    pub row: Vec<Value>,
+    pub other: Vec<Value>,
+    pub text: String,
+    pub word: crate::domain::table_scratch::types::ScratchWord,
+    pub stretches: crate::domain::table_scratch::types::Stretches,
+    pub captured: Vec<Value>,
+    pub axis: Option<super::axis::AxisWorkspace>,
+    pub positions: Vec<ryo_relations::domain::relations::types::Position>,
+    pub dfs: Option<super::graph::DfsWorkspace>,
+    pub cycles: Option<super::graph::CycleMarks>,
+    pub closure_walk: Option<crate::domain::table_reach::types::Walk>,
+    pub distinct: Option<DistinctWorkspace>,
+}
+impl Default for PrimitiveWorkspace {
+    fn default() -> Self {
+        Self {
+            row: Default::default(),
+            other: Default::default(),
+            text: Default::default(),
+            word: Default::default(),
+            stretches: Default::default(),
+            captured: Default::default(),
+            axis: Some(Default::default()),
+            positions: Default::default(),
+            dfs: Some(Default::default()),
+            cycles: Some(Default::default()),
+            closure_walk: Some(Default::default()),
+            distinct: Some(Default::default()),
+        }
+    }
 }
 
 /// The engine constructs and releases this borrow; a primitive owns no service state.
 pub(crate) struct PrimitiveLease<'a> {
     pub views: PrimitiveViews<'a>,
-    pub workspace: PrimitiveWorkspace<'a>,
+    pub workspace: &'a mut PrimitiveWorkspace,
     pub derived: QuerySymbols<'a>,
     predicate: &'a mut dyn PredicateProgram,
     semantics: &'a dyn PrimitiveSemantics,
@@ -316,9 +345,10 @@ pub(crate) trait RowSink {
 }
 
 /// First-occurrence row semantics, bounded and released by the engine invocation.
-pub(crate) struct DistinctWorkspace<'a> {
-    pub rows: &'a mut ryo_values::domain::rows::types::Table,
-    pub seen: &'a mut hashbrown::HashTable<ryo_values::domain::rows::types::RowIndex>,
+#[derive(Default)]
+pub(crate) struct DistinctWorkspace {
+    pub rows: ryo_values::domain::rows::types::Table,
+    pub seen: hashbrown::HashTable<ryo_values::domain::rows::types::RowIndex>,
 }
 
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
@@ -354,7 +384,7 @@ impl<'a> PrimitiveLease<'a> {
 
     pub(crate) fn new(
         views: PrimitiveViews<'a>,
-        workspace: PrimitiveWorkspace<'a>,
+        workspace: &'a mut PrimitiveWorkspace,
         derived: QuerySymbols<'a>,
         predicate: &'a mut dyn PredicateProgram,
         semantics: &'a dyn PrimitiveSemantics,

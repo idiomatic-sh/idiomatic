@@ -84,9 +84,9 @@ impl OperatorsItem for RowsItem {
         if !matches!(inputs, PreparedInputs::RequestSource(_)) {
             return Err(OperatingError::WrongOperation);
         }
-        let mut row = std::mem::take(lease.workspace.row);
+        let mut row = std::mem::take(&mut lease.workspace.row);
         let outcome = tables_rows(operation, lease, &mut row, emit);
-        *lease.workspace.row = row;
+        lease.workspace.row = row;
         outcome
     }
 }

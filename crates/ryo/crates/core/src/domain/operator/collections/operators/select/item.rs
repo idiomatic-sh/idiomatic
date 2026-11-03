@@ -44,7 +44,7 @@ impl OperatorsItem for SelectItem {
         if kept.is_empty() {
             return sink.row(lease, row);
         }
-        let mut projected = std::mem::take(lease.workspace.other);
+        let mut projected = std::mem::take(&mut lease.workspace.other);
         let outcome = (|| {
             projected.clear();
             for column in kept {
@@ -52,7 +52,7 @@ impl OperatorsItem for SelectItem {
             }
             sink.row(lease, &projected)
         })();
-        *lease.workspace.other = projected;
+        lease.workspace.other = projected;
         outcome
     }
 }

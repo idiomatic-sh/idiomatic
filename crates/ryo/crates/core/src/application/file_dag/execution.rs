@@ -220,7 +220,15 @@ impl CommonOperatorEngine<'_> {
                 return result;
             }
         }
-        reset(&mut workspace.distinct, &contract.set_kinds);
+        reset(
+            &mut workspace
+                .primitive
+                .distinct
+                .as_mut()
+                .ok_or(OperatingError::WrongOperation)?
+                .rows,
+            &contract.set_kinds,
+        );
         let mut resources = if mode.acquisition == AcquisitionBoundary::BeforeRows {
             Some(InvocationResources::prepare(
                 contract,
@@ -356,12 +364,12 @@ impl CommonOperatorEngine<'_> {
                 }
                 if resources
                     .as_ref()
-                    .is_some_and(|resources| resources.partitioned_closure.is_some())
+                    .is_some_and(|resources| resources.inputs.partitioned_closure.is_some())
                 {
                     loop {
                         let more = resources
                             .as_mut()
-                            .and_then(|resources| resources.partitioned_closure.as_mut())
+                            .and_then(|resources| resources.inputs.partitioned_closure.as_mut())
                             .ok_or(OperatingError::NotRun)?
                             .advance()?;
                         if !more {
@@ -369,7 +377,7 @@ impl CommonOperatorEngine<'_> {
                         }
                         if let Some(parts) = resources
                             .as_ref()
-                            .and_then(|resources| resources.partitioned_closure.as_ref())
+                            .and_then(|resources| resources.inputs.partitioned_closure.as_ref())
                         {
                             tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="closure_partition",owned_live_cells=parts.working_cells(),owned_capacity_cells=parts.working_capacity(),metadata_retained_bytes=parts.ordering_bytes());
                         }
@@ -447,8 +455,22 @@ impl CommonOperatorEngine<'_> {
             )?);
         }
         if contract.set_scope == SetScope::PrimaryRow {
-            reset(&mut workspace.distinct, &contract.set_kinds);
-            workspace.seen.clear();
+            reset(
+                &mut workspace
+                    .primitive
+                    .distinct
+                    .as_mut()
+                    .ok_or(OperatingError::WrongOperation)?
+                    .rows,
+                &contract.set_kinds,
+            );
+            workspace
+                .primitive
+                .distinct
+                .as_mut()
+                .ok_or(OperatingError::WrongOperation)?
+                .seen
+                .clear();
         }
         lease::evaluate(
             self.operators,

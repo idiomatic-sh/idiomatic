@@ -44,10 +44,10 @@ impl OperatorsItem for OrderedMatchItem {
                 .get(1)
                 .ok_or(OperatingError::MissingInput { position: 2 })?,
         );
-        let ordered = lease.views.ordered.ok_or(OperatingError::WrongBinding)?;
-        let mut left_buffer = std::mem::take(lease.workspace.row);
-        let mut right_buffer = std::mem::take(lease.workspace.other);
-        let mut projected = std::mem::take(lease.workspace.captured);
+        let ordered = lease.views.resources.ordered()?.ok_or(OperatingError::WrongBinding)?;
+        let mut left_buffer = std::mem::take(&mut lease.workspace.row);
+        let mut right_buffer = std::mem::take(&mut lease.workspace.other);
+        let mut projected = std::mem::take(&mut lease.workspace.captured);
         let result = (|| {
             let mut next_right = 0;
             for opened in ordered.left() {
@@ -87,9 +87,9 @@ impl OperatorsItem for OrderedMatchItem {
             }
             Ok(())
         })();
-        *lease.workspace.row = left_buffer;
-        *lease.workspace.other = right_buffer;
-        *lease.workspace.captured = projected;
+        lease.workspace.row = left_buffer;
+        lease.workspace.other = right_buffer;
+        lease.workspace.captured = projected;
         result
     }
 }

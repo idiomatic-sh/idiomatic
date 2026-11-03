@@ -122,7 +122,7 @@ impl OperatorsItem for CaptureItem {
             return Ok(());
         };
         // Own the input while derived interning may grow the symbol table.
-        let mut text = std::mem::take(lease.workspace.text);
+        let mut text = std::mem::take(&mut lease.workspace.text);
         text.clear();
         text.push_str(value.0);
         let after = if lease.views.arenas.is_empty() {
@@ -130,11 +130,11 @@ impl OperatorsItem for CaptureItem {
         } else {
             AfterTheFiles::After
         };
-        let mut captured = std::mem::take(lease.workspace.captured);
+        let mut captured = std::mem::take(&mut lease.workspace.captured);
         captured.clear();
         let width = memchr::memchr_iter(b'{', pattern.0.as_bytes()).count();
         let mut ways = 0;
-        let mut slots = std::mem::take(lease.workspace.stretches);
+        let mut slots = std::mem::take(&mut lease.workspace.stretches);
         slots.0.clear();
         matches(
             SlotPattern(&pattern.0),
@@ -153,7 +153,7 @@ impl OperatorsItem for CaptureItem {
                 ways += 1;
             },
         );
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = (|| {
             for way in 0..ways {
                 joined.clear();
@@ -167,10 +167,10 @@ impl OperatorsItem for CaptureItem {
             }
             Ok(())
         })();
-        *lease.workspace.row = joined;
-        *lease.workspace.captured = captured;
-        *lease.workspace.text = text;
-        *lease.workspace.stretches = slots;
+        lease.workspace.row = joined;
+        lease.workspace.captured = captured;
+        lease.workspace.text = text;
+        lease.workspace.stretches = slots;
         result
     }
 }

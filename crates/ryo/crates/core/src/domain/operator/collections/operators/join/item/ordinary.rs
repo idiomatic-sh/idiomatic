@@ -33,7 +33,7 @@ struct Driver<'a, 'f> {
 }
 impl Driver<'_, '_> {
     fn advance(&mut self, key: &[Value]) -> Result<bool, OperatingError> {
-        if let Some(native) = self.lease.views.native_join {
+        if let Some(native) = self.lease.views.resources.native_join() {
             if !self.started {
                 self.started = true;
                 self.positions.clear();
@@ -92,7 +92,7 @@ impl JoinDriver for Driver<'_, '_> {
         if self.error.is_some() {
             return None;
         }
-        if let (Some(native), Some(position)) = (self.lease.views.native_join, self.position) {
+        if let (Some(native), Some(position)) = (self.lease.views.resources.native_join(), self.position) {
             Some(tree_value(&native.tree, position, column))
         } else {
             self.current
@@ -121,15 +121,15 @@ pub(super) fn evaluate(
     let semantics = lease.semantics();
     // Indexed resources already expose the requested logical RHS view. Native
     // candidates expose physical tree columns and need the declared remapping.
-    let view = if lease.views.native_join.is_some() {
+    let view = if lease.views.resources.native_join().is_some() {
         view
     } else {
         &[]
     };
-    let mut key = std::mem::take(lease.workspace.row);
-    let mut target = std::mem::take(lease.workspace.other);
-    let positions = std::mem::take(lease.workspace.positions);
-    let index = lease.views.indices.first().copied();
+    let mut key = std::mem::take(&mut lease.workspace.row);
+    let mut target = std::mem::take(&mut lease.workspace.other);
+    let positions = std::mem::take(&mut lease.workspace.positions);
+    let index = lease.views.resources.index();
     let mut driver = Driver {
         lease,
         sink,

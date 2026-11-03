@@ -40,7 +40,7 @@ impl OperatorsItem for ProjectItem {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        let mut projected = std::mem::take(lease.workspace.other);
+        let mut projected = std::mem::take(&mut lease.workspace.other);
         let result = (|| {
             projected.clear();
             lease.project(row, columns, &mut projected)?;
@@ -56,7 +56,7 @@ impl OperatorsItem for ProjectItem {
             }
             emit.row(lease, &projected)
         })();
-        *lease.workspace.other = projected;
+        lease.workspace.other = projected;
         result
     }
 }

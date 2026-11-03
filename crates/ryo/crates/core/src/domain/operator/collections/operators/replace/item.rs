@@ -55,7 +55,7 @@ impl OperatorsItem for ReplaceItem {
             return Err(OperatingError::ShapeMismatch);
         };
         let regex = lease.views.regex.ok_or(OperatingError::WrongBinding)?;
-        let mut changed = std::mem::take(lease.workspace.text);
+        let mut changed = std::mem::take(&mut lease.workspace.text);
         let replacement_result = crate::domain::matching::service::replace_compiled(
             regex,
             value.0,
@@ -63,7 +63,7 @@ impl OperatorsItem for ReplaceItem {
             &mut changed,
         );
         if let Err(error) = replacement_result {
-            *lease.workspace.text = changed;
+            lease.workspace.text = changed;
             return Err(error);
         }
         let made = query_intern_derived(
@@ -71,18 +71,18 @@ impl OperatorsItem for ReplaceItem {
             ByteSlice(lease.views.source.0),
             NameText(&changed),
         );
-        *lease.workspace.text = changed;
+        lease.workspace.text = changed;
         let after = if lease.views.arenas.is_empty() {
             AfterTheFiles::Before
         } else {
             AfterTheFiles::After
         };
         let appended = minted(lease.derived.as_ref(), made, after);
-        let mut joined = std::mem::take(lease.workspace.row);
+        let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = lease
             .append(row, std::slice::from_ref(&appended), &mut joined)
             .and_then(|()| emit.row(lease, &joined));
-        *lease.workspace.row = joined;
+        lease.workspace.row = joined;
         result
     }
 }

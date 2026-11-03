@@ -127,11 +127,11 @@ impl OperatorsItem for CyclesItem {
         {
             return Err(OperatingError::WrongOperation);
         }
-        let graph = lease.views.cycles.ok_or(OperatingError::WrongBinding)?;
+        let graph = lease.views.resources.cycles()?.ok_or(OperatingError::WrongBinding)?;
         let marks = lease
             .workspace
             .cycles
-            .as_deref_mut()
+            .as_mut()
             .ok_or(OperatingError::WrongBinding)?;
         let nodes = graph.values().len();
         marks.order.clear();
@@ -161,7 +161,7 @@ impl OperatorsItem for CyclesItem {
             let value = lease
                 .workspace
                 .cycles
-                .as_deref()
+                .as_ref()
                 .and_then(|work| work.ordered.get(index))
                 .copied()
                 .ok_or(OperatingError::ShapeMismatch)?;
