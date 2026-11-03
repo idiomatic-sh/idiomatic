@@ -133,10 +133,21 @@ pub(in crate::application::file_dag) fn view(
         },
         _ => request.clone(),
     };
+    use std::hash::{Hash, Hasher};
+    let mut identity = std::collections::hash_map::DefaultHasher::new();
+    let kind = crate::domain::derived_views::service::kind(&request);
+    kind.hash(&mut identity);
+    let schemas = schemas
+        .iter()
+        .map(|schema| schema.kinds.to_vec())
+        .collect::<Vec<_>>();
+    schemas.hash(&mut identity);
+    super::request::identity::hash_request(&request, &mut identity);
     Ok(DerivedContract {
+        identity_hash: identity.finish(),
         kind: crate::domain::derived_views::service::kind(&request),
         request,
-        schemas: schemas.iter().map(|schema| schema.kinds.to_vec()).collect(),
+        schemas,
         metadata,
         needed,
         semantic: prepared,

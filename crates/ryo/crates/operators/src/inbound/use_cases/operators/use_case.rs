@@ -18,6 +18,21 @@ impl OperatorsUseCaseImpl {
 impl OperatorsUseCase for OperatorsUseCaseImpl {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
+            OperatorCall::SetRow { input } => {
+                match input {
+                    crate::domain::contract::types::SetInput::Values {
+                        kind,
+                        row,
+                        left_on,
+                        driver,
+                        key,
+                    } => crate::domain::set_rows::service::values(kind, row, left_on, driver, key)?,
+                    crate::domain::contract::types::SetInput::Positions { kind, driver } => {
+                        crate::domain::set_rows::service::positions(kind, driver)?
+                    }
+                }
+                Ok(OperatorAnswer::Written)
+            }
             OperatorCall::EqualityJoin { input } => {
                 match input {
                     crate::domain::contract::types::JoinInput::Values {

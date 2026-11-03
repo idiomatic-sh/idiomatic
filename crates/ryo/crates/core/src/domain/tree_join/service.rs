@@ -66,38 +66,6 @@ pub(crate) fn tree_value(tree: &TreeRows<'_>, at: Position, column: ColumnIndex)
     }
 }
 
-/// What finds the elements of the tree for a row of the left input, when the join asks for them by what finds them.
-pub(crate) fn tree_finding(
-    tree: &TreeRows<'_>,
-    left_on: &[ColumnIndex],
-    right_on: &[ColumnIndex],
-    view: &[ColumnIndex],
-) -> Option<Finding> {
-    if let ([left_key], [right_key]) = (left_on, right_on) {
-        let key = source_column(view, *right_key);
-        // The elements that cover the stretch the left row holds.
-        if key == ColumnIndex(4) && tree.form == TreeForm::Elements {
-            return Some(Finding::Span(*left_key));
-        }
-        if key == ColumnIndex(0) || key == ColumnIndex(1) && tree.form == TreeForm::Edges {
-            return Some(Finding::Node(*left_key, key));
-        }
-    }
-    if let ([left_file, left_stretch], [right_file, right_stretch]) = (left_on, right_on)
-        && tree.form == TreeForm::Elements
-    {
-        return match (
-            source_column(view, *right_file),
-            source_column(view, *right_stretch),
-        ) {
-            (ColumnIndex(3), ColumnIndex(4)) => Some(Finding::Stretch(*left_file, *left_stretch)),
-            (ColumnIndex(4), ColumnIndex(3)) => Some(Finding::Stretch(*left_stretch, *left_file)),
-            _ => None,
-        };
-    }
-    None
-}
-
 /// Takes what the join needs from the scratch of `context`, and makes ready what its comparisons decide.
 pub(crate) fn take_state(
     tree: &TreeRows<'_>,

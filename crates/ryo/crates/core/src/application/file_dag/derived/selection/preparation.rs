@@ -1,7 +1,6 @@
 //! Request preparation and bounded activation; never rebuild descriptors in a row path.
 use super::*;
 use crate::domain::{
-    derived_views::collections::views::registration::registered,
     operation_schema::types::InputSchema, operator::contract::types::RequestOperators,
 };
 use ryo_relations::domain::relations::types::Relation;

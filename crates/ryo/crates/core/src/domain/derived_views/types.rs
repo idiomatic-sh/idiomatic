@@ -66,6 +66,8 @@ pub(crate) enum ViewRequest {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct DerivedContract {
+    /// Prepared once; equality still checks the complete semantic descriptor on collisions.
+    pub identity_hash: u64,
     pub semantic: Arc<ryo_derived::domain::contract::types::PreparedDerived>,
     pub kind: DerivedKind,
     pub request: ViewRequest,

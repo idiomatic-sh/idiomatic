@@ -107,7 +107,7 @@ pub(crate) fn next_ordered(
         }
         let at = *edges
             .order
-            .sorted
+            .sorted()
             .get(frame.start)
             .ok_or(OperatingError::ShapeMismatch)?;
         frame.start += 1;

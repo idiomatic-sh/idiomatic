@@ -1,10 +1,12 @@
 //! All classes and the former pilot regressions use the same production executor.
 pub(crate) mod fixtures;
-use crate::application::file_dag::testing::{execute, execute_with_semantic, same_rows};
+use crate::application::file_dag::testing::{
+    execute, execute_with_port, execute_with_semantic, same_rows,
+};
 use crate::domain::features::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::service::registered;
-
+use crate::outbound::operators::interface::OperatorsPort;
 use fixtures::*;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::Symbols;
@@ -14,6 +16,70 @@ use ryo_values::domain::{
     plans::types::{Operation, OperationKind},
 };
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[derive(Debug, Default)]
+struct ContinuesAfterSetFailure {
+    observed_denials: AtomicUsize,
+}
+impl OperatorsPort for ContinuesAfterSetFailure {
+    fn operators(
+        &self,
+        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        use ryo_operators::domain::contract::types::{
+            OperatorAnswer, OperatorCall, SetInput, SetKind,
+        };
+        match call {
+            OperatorCall::SetRow {
+                input:
+                    SetInput::Values {
+                        kind: SetKind::Union,
+                        row,
+                        driver,
+                        ..
+                    },
+            } => {
+                let first = driver.emit(row);
+                let second = driver.emit(row);
+                let after_failure_distinct = driver.first_time(row);
+                let after_failure_lookup = driver.contains_right(row);
+                if first.is_ok()
+                    && second.is_err()
+                    && after_failure_distinct.is_err()
+                    && after_failure_lookup.is_err()
+                {
+                    self.observed_denials.fetch_add(1, Ordering::Relaxed);
+                }
+                Ok(OperatorAnswer::Written)
+            }
+            other => crate::outbound::operators::factory::test_port().operators(other),
+        }
+    }
+}
+
+#[test]
+fn set_delivery_failure_denies_later_callbacks_and_keeps_the_first_error() {
+    let mut case = fixture(OperationKind::Union);
+    let port = ContinuesAfterSetFailure::default();
+    let observed = execute_with_port(
+        &case.operation,
+        &case.inputs,
+        &case.bindings,
+        SOURCE,
+        &mut case.symbols,
+        Some(1),
+        None,
+        Some(&port),
+    )
+    .expect("the prepared Union remains executable");
+    assert_eq!(observed.stream_error, Some(OperatingError::WrongOperation));
+    assert_eq!(observed.rows.len(), 1);
+    assert_eq!(port.observed_denials.load(Ordering::Relaxed), 1);
+}
 #[test]
 fn every_registered_class_runs_real_collect_and_stream_with_independent_expectations() {
     let semantic = KnownSyntax;

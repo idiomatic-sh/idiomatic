@@ -68,6 +68,9 @@ impl RowCells for Rows<'_, '_> {
             .map_err(|()| semantic::DerivedFault::Interrupted)
     }
     fn read_row<'a>(&'a self, row: usize, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
+        if self.failure.borrow().failed() {
+            return None;
+        }
         self.rows.read(RowIndex(row), buffer)
     }
 }
@@ -192,6 +195,7 @@ pub(in crate::application::file_dag::derived) fn build(
     let failure = RefCell::new(FailureLatch::default());
     let recycled = recycled.and_then(DerivedStorage::into_recycled);
     let mut graph_identity = None;
+    let mut built_plan = Arc::clone(&plan.semantic);
     let answer = match inputs {
         DerivedInputs::Rows(inputs) => {
             if let ViewRequest::NativeLookup { .. } = &plan.request {
@@ -434,6 +438,7 @@ pub(in crate::application::file_dag::derived) fn build(
                     plan.schemas.clone(),
                 )
             };
+            built_plan = Arc::clone(&prepared);
             port.build(
                 &prepared,
                 semantic::DerivedInputs::Rows(&rows),
@@ -448,7 +453,7 @@ pub(in crate::application::file_dag::derived) fn build(
     match answer.map_err(portable_fault)? {
         semantic::BuildOutcome::Built(payload) => Ok(Some(DerivedStorage::new(
             port,
-            Arc::clone(&plan.semantic),
+            built_plan,
             payload,
             graph_identity,
         ))),

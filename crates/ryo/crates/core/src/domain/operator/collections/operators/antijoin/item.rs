@@ -4,8 +4,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::ParameterBinding;
+use ryo_operators::domain::contract::types::SetKind;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct AntijoinItem;
 impl OperatorsItem for AntijoinItem {
@@ -35,27 +35,12 @@ impl OperatorsItem for AntijoinItem {
         let Operation::Antijoin { left_on, .. } = operation else {
             return Err(OperatingError::WrongOperation);
         };
-        let index = lease
-            .views
-            .indices
-            .first()
-            .ok_or(OperatingError::WrongBinding)?;
-        // An empty right population keeps every left row without evaluating its keys.
-        if index.rows.count() == 0 {
-            return emit.row(lease, row);
-        }
-        let mut key = std::mem::take(lease.workspace.row);
-        let result = (|| {
-            key.clear();
-            for column in left_on {
-                key.push(cell(row, *column)?);
-            }
-            if !index.contains(&key) {
-                emit.row(lease, row)?;
-            }
-            Ok(())
-        })();
-        *lease.workspace.row = key;
-        result
+        crate::domain::operator::contract::set_rows::run(
+            SetKind::Antijoin,
+            row,
+            left_on,
+            lease,
+            emit,
+        )
     }
 }

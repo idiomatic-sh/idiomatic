@@ -10,14 +10,15 @@ use crate::domain::positions::{
     service::{count, key_into, made_of, row, slot_of, value},
     types::{Keeps, KeyColumns, Keys, LoweredRoom, Positions, Sides, Slots, Stride},
 };
-use crate::domain::table_cells::{types::RowIndex, types::TreeRows};
-use crate::domain::table_model::{service::positions, types::RowCount};
+use crate::domain::table_cells::types::TreeRows;
+use crate::domain::table_model::service::positions;
 use ryo_derived::domain::contract::types::RawOrder;
 use ryo_operators::domain::contract::types::{
     OperatorCall, SetInput, SetInterrupted, SetKind, SetPositionsDriver,
 };
 use ryo_relations::domain::relations::{service::to_bits, types::Position};
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::rows::types::{RowCount, RowIndex};
 
 struct UnionRows<'a> {
     slots: &'a mut Vec<u32>,

@@ -50,27 +50,27 @@ impl OperatorsItem for OrderedMatchItem {
         let mut projected = std::mem::take(lease.workspace.captured);
         let result = (|| {
             let mut next_right = 0;
-            for opened in &ordered.left {
-                while let Some(closed) = ordered.right.get(next_right) {
-                    if closed.keys < opened.keys
-                        || closed.keys == opened.keys && closed.order <= opened.order
+            for opened in ordered.left() {
+                while let Some(closed) = ordered.right().get(next_right) {
+                    if closed.keys() < opened.keys()
+                        || closed.keys() == opened.keys() && closed.order() <= opened.order()
                     {
                         next_right += 1;
                     } else {
                         break;
                     }
                 }
-                let Some(closed) = ordered.right.get(next_right) else {
+                let Some(closed) = ordered.right().get(next_right) else {
                     break;
                 };
-                if closed.keys != opened.keys {
+                if closed.keys() != opened.keys() {
                     continue;
                 }
                 let left_row = left
-                    .read(opened.row, &mut left_buffer)
+                    .read(opened.row(), &mut left_buffer)
                     .ok_or(OperatingError::ShapeMismatch)?;
                 let right_row = right
-                    .read(closed.row, &mut right_buffer)
+                    .read(closed.row(), &mut right_buffer)
                     .ok_or(OperatingError::ShapeMismatch)?;
                 projected.clear();
                 for column in output {

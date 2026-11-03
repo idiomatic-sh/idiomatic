@@ -498,6 +498,17 @@ pub(crate) fn join_result(
     >,
     error: Option<OperatingError>,
 ) -> Result<(), OperatingError> {
+    written_result(answer, error)
+}
+
+/// Preserve the engine's original downstream error ahead of a portable interruption marker.
+pub(crate) fn written_result(
+    answer: Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    >,
+    error: Option<OperatingError>,
+) -> Result<(), OperatingError> {
     if let Some(error) = error {
         return Err(error);
     }

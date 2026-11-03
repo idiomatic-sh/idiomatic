@@ -1,7 +1,6 @@
 //! Request-only interning. Runtime acquisition compares prepared IDs, never request metadata.
 use crate::domain::{
     derived_views::{
-        collections::views::registration::registered,
         service::{kind, slot},
         types::*,
     },

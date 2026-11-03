@@ -4,9 +4,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_dedup::service::first_time;
-use crate::domain::table_model::types::Addition;
 use crate::domain::table_model::types::ParameterBinding;
+use ryo_operators::domain::contract::types::SetKind;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct UnionItem;
 impl OperatorsItem for UnionItem {
@@ -36,14 +35,6 @@ impl OperatorsItem for UnionItem {
         if !matches!(operation, Operation::Union { .. }) {
             return Err(OperatingError::WrongOperation);
         }
-        let state = lease
-            .workspace
-            .distinct
-            .as_mut()
-            .ok_or(OperatingError::WrongBinding)?;
-        if first_time(state.rows, state.seen, row) == Addition::Added {
-            emit.row(lease, row)?;
-        }
-        Ok(())
+        crate::domain::operator::contract::set_rows::run(SetKind::Union, row, &[], lease, emit)
     }
 }
