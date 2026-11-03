@@ -1429,21 +1429,40 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
         .is_empty()
     );
     assert_eq!(fixture.snapshot().reuses, prior_reuses);
-    // Request preparation rejects invalid schema metadata before reading the empty left.
+    // Request preparation records invalid metadata, but raises it only when a row needs the key.
     let invalid = plan(&[0], &[99], &[(Side::Right, 1)], Vec::new(), &[]);
-    assert!(matches!(
-        stream_with_indexes(
-            &invalid,
-            &mut Room::default(),
-            &empty,
-            right.clone(),
-            (false, false, false),
-            Some(&fixture)
+    let invalid_empty = stream_with_indexes(
+        &invalid,
+        &mut Room::default(),
+        &empty,
+        right.clone(),
+        (false, false, false),
+        Some(&fixture),
+    );
+    assert!(
+        invalid_empty
+            .expect("no row demands the invalid key")
+            .0
+            .is_empty()
+    );
+    assert_eq!(fixture.snapshot().reuses, prior_reuses);
+    let invalid_prepared = stream_with_indexes(
+        &invalid,
+        &mut Room::default(),
+        &left,
+        right.clone(),
+        (false, false, false),
+        Some(&fixture),
+    );
+    assert!(
+        matches!(
+            invalid_prepared,
+            Err(OperatingError::Table(
+                crate::domain::table_model::errors::TableModelError::NoSuchColumn { index: 99 }
+            ))
         ),
-        Err(OperatingError::Table(
-            crate::domain::table_model::errors::TableModelError::NoSuchColumn { index: 99 }
-        ))
-    ));
+        "prepared invalid join answered {invalid_prepared:?}"
+    );
     assert_eq!(fixture.snapshot().reuses, prior_reuses);
     // The unprepared primitive retains its historical lazy empty-input behavior.
     assert!(

@@ -916,8 +916,8 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
         alternatives: [alternate(0), alternate(1)],
         reads: std::sync::atomic::AtomicUsize::new(0),
     };
-    let (unstable, _) = visited_as_with_facts(
-        &["unstable.rs"],
+    let (unstable, unstable_language) = visited_as_with_facts(
+        &["volatile.rs"],
         LanguageFake::default(),
         &Answering::Findings,
         Keeping::Discards,
@@ -926,7 +926,28 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
     )
     .expect("unstable file visit");
     assert!(unstable.failure.is_none());
-    assert_eq!(take_resource_setup(), Some((false, false)));
+    assert_eq!(
+        take_resource_setup(),
+        Some((false, false)),
+        "parse calls {}, language {:?}, graph {}, unread {}",
+        unstable_language.parses.load(Ordering::Relaxed),
+        unstable.tables.language,
+        unstable.tables.pool.file_graph.is_some(),
+        unstable.tables.unread.len(),
+    );
+
+    // The corpus fake refuses this path before parsing; no owner is prepared.
+    let (unread, _) = visited_as(
+        &["unstable.rs"],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Discards,
+        Arc::new(DigestFake),
+    )
+    .expect("unread file visit");
+    assert!(unread.failure.is_none());
+    assert_eq!(unread.tables.unread.len(), 1);
+    assert_eq!(take_resource_setup(), None);
 }
 
 #[test]
