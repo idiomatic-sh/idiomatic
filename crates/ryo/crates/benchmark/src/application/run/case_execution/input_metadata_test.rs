@@ -5,10 +5,7 @@ use crate::domain::{
     measurements::types::{Invocation, ProcessOutput},
     suite::types::{CaseComparison, PreparedCase, RunRequest},
 };
-use crate::outbound::{
-    execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort,
-    suite::adapters::local::adapter::SuiteLocalAdapter,
-};
+use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort};
 use std::{cell::Cell, collections::BTreeMap};
 struct ObservedPrepare(Cell<usize>);
 impl LinterPort for ObservedPrepare {
@@ -55,7 +52,7 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
         let execution = ExecutionFake::default();
         let reference = ObservedPrepare(Cell::new(0));
         let result = run(
-            &SuiteLocalAdapter,
+            &crate::outbound::suite::factory::local(),
             &reference,
             &execution,
             &case,
@@ -76,15 +73,26 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
         .unwrap();
         let candidate = ObservedPrepare(Cell::new(0));
         assert!(
-            super::candidate(&SuiteLocalAdapter, &candidate, &execution, &case.request).is_err()
+            super::candidate(
+                &crate::outbound::suite::factory::local(),
+                &candidate,
+                &execution,
+                &case.request
+            )
+            .is_err()
         );
         assert_eq!(candidate.0.get(), 0);
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
         assert!(
-            super::candidate(&SuiteLocalAdapter, &candidate, &execution, &case.request)
-                .unwrap_err()
-                .to_string()
-                .contains("preparation reached")
+            super::candidate(
+                &crate::outbound::suite::factory::local(),
+                &candidate,
+                &execution,
+                &case.request
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("preparation reached")
         );
         assert_eq!(candidate.0.get(), 1);
         assert!(execution.history.lock().unwrap().is_empty());
