@@ -1,6 +1,7 @@
 //! Actual common-engine routes must reach the same injected Join capability.
 use super::*;
 use crate::application::file_dag::{execution::CommonOperatorEngine, executor::PrimitiveExecutor};
+use crate::domain::operating::types::Memo;
 use crate::domain::table_model::types::{SelectedRows, StoredSelection};
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
@@ -514,7 +515,6 @@ impl Emit for NestedOutput {
         context: &mut OperatorContext<'_>,
         row: &[Cell],
     ) -> Result<(), OperatingError> {
-        use crate::domain::operating::types::Memo;
         self.entries += 1;
         // This state belongs to this invocation's downstream consumer. Nested
         // preparation may not replace or mutate it while this callback resumes.
