@@ -12,7 +12,7 @@ pub(crate) struct Worker {
     /// One bounded persisted-frontier reader for this worker's increasing jobs.
     pub old_rows: Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>,
     /// Reusable request topology only; generation data never enters the template.
-    pub activation: crate::application::file_dag::activation::types::ActivationCache,
+    pub(super) activation: crate::application::file_dag::activation::types::ActivationCache,
     /// The failure that stopped the worker, when one did.
     pub failure: Option<FileAnalysisError>,
 }

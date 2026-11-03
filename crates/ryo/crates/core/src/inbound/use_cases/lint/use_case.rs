@@ -646,8 +646,8 @@ impl LintUseCaseImpl {
             store,
             setting: setting.clone(),
         };
-        let mut worker = Worker {
-            tables: {
+        let mut worker = Worker::new(
+            {
                 let mut tables = tables_for(
                     WorkerNumber(0),
                     setting.plans,
@@ -657,11 +657,8 @@ impl LintUseCaseImpl {
                 tables.pool.kernel_strategy = self.file_analysis.kernel_strategy();
                 tables
             },
-            facts: self.facts.worker()?,
-            old_rows: None,
-            activation: Default::default(),
-            failure: None,
-        };
+            self.facts.worker()?,
+        );
         for place in 0..files.len() {
             self.file_analysis.visit_file(
                 &mut worker,
@@ -861,8 +858,8 @@ impl LintUseCaseImpl {
         let _reading = tracing::info_span!("read").entered();
         let mut states = Vec::new();
         for number in 0..self.workers.0 {
-            states.push(Worker {
-                tables: {
+            states.push(Worker::new(
+                {
                     let mut tables = tables_for(
                         WorkerNumber(number),
                         run.plans,
@@ -872,11 +869,8 @@ impl LintUseCaseImpl {
                     tables.pool.kernel_strategy = self.file_analysis.kernel_strategy();
                     tables
                 },
-                facts: self.facts.worker()?,
-                old_rows: None,
-                activation: Default::default(),
-                failure: None,
-            });
+                self.facts.worker()?,
+            ));
         }
         let (mut headings, limit) = match run.answering {
             Answering::Findings => (

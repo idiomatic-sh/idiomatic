@@ -133,6 +133,19 @@ impl std::fmt::Debug for FileAnalysis {
     }
 }
 
+impl Worker {
+    /// The application creates the worker's bounded request-metadata cache.
+    pub(crate) fn new(tables: Tables, facts: Box<dyn FactsWorker>) -> Self {
+        Self {
+            tables,
+            facts,
+            old_rows: None,
+            activation: Default::default(),
+            failure: None,
+        }
+    }
+}
+
 impl FileAnalysis {
     pub(super) fn resource_generation_enabled(tables: &Tables, facts: &dyn FactsWorker) -> bool {
         tables.language.is_some() && facts.resident_stability() == ResidentStability::Stable
