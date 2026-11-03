@@ -10,8 +10,10 @@ from ci.release.use_case import Artifact, Product
 
 def npm_publish(artifact: Artifact, dry_run: bool) -> list[str]:
     """npm's publish of one tarball: its dry run, or an upload with provenance through npm's
-    trusted publishing (OIDC), which only a workflow the registry trusts can do."""
-    mode = ["--dry-run"] if dry_run else ["--provenance"]
+    trusted publishing (OIDC), which only a workflow the registry trusts can do. The dry run's
+    `--force` skips only npm's look at the registry's versions, so a version already published
+    passes, as the npm smoke test's does; npm still packs and reads the tarball."""
+    mode = ["--dry-run", "--force"] if dry_run else ["--provenance"]
     return ["npm", "publish", "--access", "public", *mode, str(artifact.path)]
 
 

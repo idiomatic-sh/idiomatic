@@ -29,7 +29,7 @@ ruff_python_parser = "=0.0.18"
 ruff_python_ast = "=0.0.18"
 ruff_text_size = "=0.0.18"
 unicode-properties = { version = "=0.1.4", default-features = false, features = ["general-category"] }
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.1" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.2" }
 
 [dev-dependencies]
 sha2.workspace = true

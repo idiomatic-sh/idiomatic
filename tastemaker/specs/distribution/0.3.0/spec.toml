@@ -19,6 +19,7 @@ templates = [
   { template = "npm-package", file = "registries/npm/package.json", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" } }, description = "The package a user installs from npm: it runs the launcher and carries neither a binary nor an install script." },
   { template = "npm-launcher", file = "registries/npm/launcher.js", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" } }, description = "The npm command, which finds the platform package installed for this machine and runs its binary." },
   { template = "npm-platform", file = "registries/npm/platforms/{target}/package.json", count = { when = { condition = "npm" }, then = 8, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "One platform's npm package, which carries that platform's binary and installs only on a matching machine." },
+  { template = "npm-platform-readme", file = "registries/npm/platforms/{target}/README.md", count = { when = { condition = "npm" }, then = 8, else = 0 }, params = { organization = { param = "organization" }, product = { param = "product" } }, description = "One platform's npm package's README, which names the binary it carries and sends a user to the product's package." },
   { template = "npm-smoke-test", file = "registries/npm/smoke_test.rs", count = { when = { condition = "npm" }, then = 1, else = 0 }, params = { command = { param = "command" }, organization = { param = "organization" }, product = { param = "product" }, languages = { param = "languages" } }, description = "npm's proof: it packs and installs the packages offline, runs the command and holds its languages; it runs no target." },
   { template = "target-pin", alias = "npm-target-pin", file = "registries/npm/targets/{npm_project}/pin.toml", count = { min = 0 }, description = "A target's pin: the repository, the revision every release is proven on, and the directory the command runs in." },
   { template = "target-configuration", alias = "npm-target-configuration", file = "registries/npm/targets/{npm_project}/configuration.toml", count = { min = 0 }, params = { product = { param = "product" } }, description = "A target's configuration: what the product checks the project with." },
@@ -1510,6 +1511,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -1525,6 +1531,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -1545,6 +1556,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -1561,6 +1577,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -1576,6 +1597,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -1596,6 +1622,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -1615,6 +1646,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -1633,6 +1669,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -1660,7 +1701,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -1756,7 +1797,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -1778,12 +1821,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -1878,7 +1921,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -1888,9 +1931,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -1901,6 +1945,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -4189,6 +4234,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -4204,6 +4254,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -4224,6 +4279,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -4240,6 +4300,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -4255,6 +4320,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -4275,6 +4345,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -4294,6 +4369,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -4312,6 +4392,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -4339,7 +4424,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -4435,7 +4520,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -4457,12 +4544,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -4557,7 +4644,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -4567,9 +4654,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -4580,6 +4668,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -6887,6 +6976,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -6902,6 +6996,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -6922,6 +7021,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -6938,6 +7042,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -6953,6 +7062,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -6973,6 +7087,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -6992,6 +7111,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -7010,6 +7134,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -7037,7 +7166,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -7133,7 +7262,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -7155,12 +7286,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -7255,7 +7386,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -7265,9 +7396,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -7278,6 +7410,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -9585,6 +9718,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -9600,6 +9738,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -9620,6 +9763,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -9636,6 +9784,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -9651,6 +9804,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -9671,6 +9829,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -9690,6 +9853,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -9708,6 +9876,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -9735,7 +9908,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -9831,7 +10004,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -9853,12 +10028,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -9953,7 +10128,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -9963,9 +10138,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -9976,6 +10152,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -12280,6 +12457,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -12295,6 +12477,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -12315,6 +12502,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -12331,6 +12523,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -12346,6 +12543,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -12366,6 +12568,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -12385,6 +12592,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -12403,6 +12615,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/targets/hono/pin.toml' = '''
 repository = "https://github.com/honojs/hono"
@@ -14657,6 +14874,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -14672,6 +14894,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -14692,6 +14919,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -14708,6 +14940,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -14723,6 +14960,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -14743,6 +14985,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -14762,6 +15009,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -14780,6 +15032,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -14807,7 +15064,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -14903,7 +15160,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -14925,12 +15184,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -15025,7 +15284,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -15035,9 +15294,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -15048,6 +15308,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -17357,6 +17618,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -17372,6 +17638,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -17392,6 +17663,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -17408,6 +17684,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -17423,6 +17704,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -17443,6 +17729,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -17462,6 +17753,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -17480,6 +17776,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -17507,7 +17808,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -17603,7 +17904,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -17625,12 +17928,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -17725,7 +18028,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -17735,9 +18038,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -17748,6 +18052,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -20054,6 +20359,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -20069,6 +20379,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -20089,6 +20404,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -20105,6 +20425,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -20120,6 +20445,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -20140,6 +20470,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -20159,6 +20494,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -20177,6 +20517,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -20204,7 +20549,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -20300,7 +20645,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -20322,12 +20669,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -22636,6 +22983,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -22651,6 +23003,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -22671,6 +23028,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -22687,6 +23049,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -22702,6 +23069,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -22722,6 +23094,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -22741,6 +23118,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -22759,6 +23141,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -22786,7 +23173,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -22882,7 +23269,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -22904,12 +23293,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -23004,7 +23393,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -23014,9 +23403,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -23027,6 +23417,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -25343,7 +25734,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -25439,7 +25830,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -25461,12 +25854,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -25561,7 +25954,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -25571,9 +25964,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -25584,6 +25978,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -26437,6 +26832,7 @@ fn prepare_policy(command: &Path, project: &Path) -> std::io::Result<()> {
 '''
 then.findings = [
   { rule = 'idiomatic.arch/distribution/npm-platform#count', path = '.' },
+  { rule = 'idiomatic.arch/distribution/npm-platform-readme#count', path = '.' },
 ]
 
 [[scenarios]]
@@ -27890,6 +28286,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -27905,6 +28306,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -27925,6 +28331,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -27941,6 +28352,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -27956,6 +28372,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -27976,6 +28397,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -27994,6 +28420,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/bin/tm' = '''
 a binary is packed in, never committed
@@ -28016,6 +28447,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -28043,7 +28479,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -28139,7 +28575,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -28161,12 +28599,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -28261,7 +28699,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -28271,9 +28709,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -28284,6 +28723,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -30590,6 +31030,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -30605,6 +31050,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -30625,6 +31075,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -30641,6 +31096,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -30656,6 +31116,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -30676,6 +31141,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -30695,6 +31165,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -30713,6 +31188,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -30740,7 +31220,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -30836,7 +31316,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -30858,12 +31340,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -30958,7 +31440,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -30968,9 +31450,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -30981,6 +31464,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -33290,6 +33774,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -33305,6 +33794,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -33325,6 +33819,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -33341,6 +33840,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -33356,6 +33860,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -33376,6 +33885,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -33395,6 +33909,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -33413,6 +33932,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -33440,7 +33964,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -33536,7 +34060,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -33558,12 +34084,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -33658,7 +34184,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -33668,9 +34194,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -33681,6 +34208,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -35988,6 +36516,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -36003,6 +36536,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -36023,6 +36561,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -36039,6 +36582,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -36054,6 +36602,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -36074,6 +36627,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -36093,6 +36651,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -36111,6 +36674,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -36138,7 +36706,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -36234,7 +36802,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -36256,12 +36826,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -36356,7 +36926,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -36366,9 +36936,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -36379,6 +36950,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -38664,6 +39236,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -38679,6 +39256,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -38699,6 +39281,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -38715,6 +39302,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -38730,6 +39322,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -38750,6 +39347,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -38769,6 +39371,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -38787,6 +39394,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -38814,7 +39426,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -38910,7 +39522,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -38932,12 +39546,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -39032,7 +39646,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -39042,9 +39656,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -39055,6 +39670,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -41360,6 +41976,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -41375,6 +41996,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -41395,6 +42021,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -41411,6 +42042,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -41426,6 +42062,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -41446,6 +42087,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -41465,6 +42111,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -41483,6 +42134,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -41510,7 +42166,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -41606,7 +42262,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -41628,12 +42286,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -41728,7 +42386,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -41738,9 +42396,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -41751,6 +42410,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -44061,6 +44721,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -44076,6 +44741,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -44096,6 +44766,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -44112,6 +44787,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -44127,6 +44807,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -44147,6 +44832,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -44166,6 +44856,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -44184,6 +44879,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -44211,7 +44911,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -44307,7 +45007,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -44329,12 +45031,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -44429,7 +45131,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -44439,9 +45141,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -44452,6 +45155,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),
@@ -46761,6 +47465,11 @@ given.files.'registries/npm/platforms/aarch64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-apple-darwin
+
+The tastemaker binary for aarch64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-pc-windows-msvc",
@@ -46776,6 +47485,11 @@ given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/package.json' = ''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/aarch64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-pc-windows-msvc
+
+The tastemaker binary for aarch64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' = '''
 {
@@ -46796,6 +47510,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/package.json' =
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-musl
+
+The tastemaker binary for aarch64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-apple-darwin",
@@ -46812,6 +47531,11 @@ given.files.'registries/npm/platforms/x86_64-apple-darwin/package.json' = '''
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-apple-darwin/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-apple-darwin
+
+The tastemaker binary for x86_64-apple-darwin. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-pc-windows-msvc",
@@ -46827,6 +47551,11 @@ given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/package.json' = '''
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-pc-windows-msvc/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-pc-windows-msvc
+
+The tastemaker binary for x86_64-pc-windows-msvc. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = '''
 {
@@ -46847,6 +47576,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-musl/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-musl
+
+The tastemaker binary for x86_64-unknown-linux-musl. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu",
@@ -46866,6 +47600,11 @@ given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/package.json' = 
   "preferUnplugged": true
 }
 '''
+given.files.'registries/npm/platforms/aarch64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-aarch64-unknown-linux-gnu
+
+The tastemaker binary for aarch64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
+'''
 given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '''
 {
   "name": "@idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu",
@@ -46884,6 +47623,11 @@ given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/package.json' = '
   ],
   "preferUnplugged": true
 }
+'''
+given.files.'registries/npm/platforms/x86_64-unknown-linux-gnu/README.md' = '''
+# @idiomatic-sh/tastemaker-x86_64-unknown-linux-gnu
+
+The tastemaker binary for x86_64-unknown-linux-gnu. Install [@idiomatic-sh/tastemaker](https://www.npmjs.com/package/@idiomatic-sh/tastemaker) instead: it installs this package on a matching machine and runs its binary.
 '''
 given.files.'registries/npm/smoke_test.rs' = '''
 //! npm: the package `@idiomatic-sh/tastemaker` and one package per platform, each
@@ -46911,7 +47655,7 @@ const LANGUAGES: &[&str] = &["typescript", "javascript", "markdown"];
 struct Installation {
     /// The binary the build made, as the host's archive holds it.
     binary: PathBuf,
-    /// The host's platform package, staged and stamped.
+    /// The host's platform package, staged with its README and stamped.
     platform: PathBuf,
     /// The tarballs `npm pack` made.
     packed: PathBuf,
@@ -47007,7 +47751,9 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
     let platforms = npm.join("platforms");
 
     let platform = directory.join("platform");
-    stage(&platforms.join(host()?), &platform)?;
+    let source = platforms.join(host()?);
+    stage(&source, &platform)?;
+    let _: u64 = std::fs::copy(source.join("README.md"), platform.join("README.md"))?;
     let binary = host_binary(directory)?;
     let bin = platform.join("bin");
     std::fs::create_dir_all(&bin)?;
@@ -47029,12 +47775,12 @@ fn install(directory: &Path) -> std::io::Result<Installation> {
 
     let packed = directory.join("packed");
     std::fs::create_dir_all(&packed)?;
-    for source in [&platform, &staged] {
+    for package in [&platform, &staged] {
         run(Command::new(NPM)
             .arg("pack")
             .arg("--pack-destination")
             .arg(&packed)
-            .current_dir(source))?;
+            .current_dir(package))?;
     }
     let prefix = directory.join("prefix");
     let mut install = Command::new(NPM);
@@ -47124,7 +47870,7 @@ fn installs_and_runs() {
     let installation = install(directory.path()).unwrap();
 
     // No test, target or build file ships: each tarball holds its manifest and its one
-    // payload, the launcher or the binary.
+    // payload, the launcher or the binary, and the platform package its README.
     let mut shipped = Vec::new();
     for tarball in tarballs(&installation.packed).unwrap() {
         shipped.extend(
@@ -47134,9 +47880,10 @@ fn installs_and_runs() {
                 .map(str::to_owned),
         );
         // The dry-run publish: npm reads the tarball as it would publish it and uploads
-        // nothing.
+        // nothing. `--force` skips only npm's look at the registry's versions, so the
+        // crate's version passes whether or not it is already published.
         run(Command::new(NPM)
-            .args(["publish", "--dry-run", "--access", "public"])
+            .args(["publish", "--dry-run", "--force", "--access", "public"])
             .arg(&tarball))
         .unwrap();
     }
@@ -47147,6 +47894,7 @@ fn installs_and_runs() {
         [
             "package/LICENSE".to_owned(),
             "package/LICENSE".to_owned(),
+            "package/README.md".to_owned(),
             format!("package/bin/{binary}"),
             "package/launcher.js".to_owned(),
             "package/package.json".to_owned(),

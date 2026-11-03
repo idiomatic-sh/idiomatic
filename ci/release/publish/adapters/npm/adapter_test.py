@@ -19,8 +19,13 @@ def test_the_npm_adapter_implements_the_port() -> None:
 ARTIFACT = Artifact("npm", Path("/packed/demo-1.2.3.tgz"), "shared")
 
 
-def test_a_dry_run_uploads_nothing() -> None:
-    assert npm_publish(ARTIFACT, True) == ["npm", "publish", "--access", "public", "--dry-run", "/packed/demo-1.2.3.tgz"]
+def test_a_dry_run_uploads_nothing_and_passes_for_a_published_version() -> None:
+    assert npm_publish(ARTIFACT, True) == ["npm", "publish", "--access", "public", "--dry-run", "--force", "/packed/demo-1.2.3.tgz"]
+
+
+def test_an_upload_is_never_forced() -> None:
+    """`--force` belongs to the dry run alone: an upload of a version already published fails."""
+    assert "--force" not in npm_publish(ARTIFACT, False)
 
 
 def test_an_upload_carries_provenance_and_is_no_dry_run() -> None:

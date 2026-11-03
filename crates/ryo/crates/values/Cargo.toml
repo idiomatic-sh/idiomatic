@@ -15,7 +15,7 @@ autobenches = false
 name = "ryo_values"
 
 [dependencies]
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.1" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
 
 [dev-dependencies]
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.

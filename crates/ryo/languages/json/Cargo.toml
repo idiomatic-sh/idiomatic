@@ -23,7 +23,7 @@ jsonc-parser = "=0.34.0"
 # fixtures use them.
 serde_json = { workspace = true, optional = true }                                       # ignore: idiomatic.arch/no-json-in-process - only the jsonc_parser adapter's oracle uses it: the language reads JSON files, and serde_json is the oracle they are compared with
 json5 = { version = "=1.3.3", optional = true }
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.1" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.2" }
 
 [dev-dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }

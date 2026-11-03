@@ -1,0 +1,106 @@
+# The release pull request workflow on GitHub Actions, its thin edge. A maintainer's hand run opens the release pull request of
+# ONE product, the `product` input, or updates the one open: the `check` job runs the product's lint group first, then the
+# `release_pr` job runs `ci/release_pr/command.py --product <product>`, which runs release-plz over the product's workspace with
+# its `crates/<product>/release-plz.toml`. The pull request, from main's changes since the product's release on crates.io, moves
+# every crate of the product to one new version, bumped from the conventional commits, writes them to the product's
+# `CHANGELOG.md`, and is titled `chore(<product>): release <version>`; the job commits the version to the product's
+# `tastemaker.toml` on its branch too. release-plz opens the pull request and nothing else: it publishes nothing, creates no tag
+# and no GitHub Release. Merging the pull request is the release: release.yml tags the version the push to main changes and
+# publishes it. A pull request the workflow's token opens starts no workflow, so the job then starts check.yml by hand on the
+# pull request's branch for the product, and that run's `gate` is the check run of the branch's head commit that branch
+# protection requires. The token is the workflow's own: no secret is kept for it.
+name: release-pr
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: The one product whose release pull request this run opens or updates
+        type: choice
+        required: true
+        options: [ryo, tastemaker, asymptote]
+permissions:
+  contents: read
+concurrency:
+  group: release-pr-${{ inputs.product }}
+  cancel-in-progress: false
+jobs:
+  # The product's lint group, from main: the release pull request is opened from a tree that passes it.
+  check:
+    runs-on: ubuntu-26.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          # No go.mod at the root: there is nothing for the module cache to key on.
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      # The installed tools, restored whole while the tool table is unchanged: the same cache as check.yml's.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+        env:
+          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
+          GH_TOKEN: ${{ github.token }}
+      - run: asymptote check --root crates/${{ inputs.product }} --groups lint
+  # The release pull request, opened or updated, and its check started on its branch.
+  release_pr:
+    needs: check
+    runs-on: ubuntu-26.04
+    permissions:
+      # The release branch and its commits.
+      contents: write
+      # The pull request.
+      pull-requests: write
+      # check.yml started on the release branch.
+      actions: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # release-plz reads the history since the product's release.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: uv run ci/release_pr/command.py --product ${{ inputs.product }}
+        env:
+          # The token release-plz opens the pull request with, and `gh` commits and starts the check with.
+          GH_TOKEN: ${{ github.token }}

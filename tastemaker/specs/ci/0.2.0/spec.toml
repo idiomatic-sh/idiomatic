@@ -16,7 +16,7 @@ templates = [
   # The scripts: the checks with logic no command-line tool provides (the SDK API tool of the products' asymptote.toml)
   # with their tests, and the local test tooling, grouped under the one directory.
   { template = "script", file = "scripts/{*path}", count = { min = 0 }, description = "One script under `ci/scripts/` (a check asymptote runs, its test, or the test tooling), of any content: it is placed, so a script anywhere else under `ci/` is still a finding." },
-  { template = "workflows-test", file = "workflows_test.py", description = "The test that reads every workflow and holds it to its allowed triggers (a hand run, a pull request, a push to main; a schedule only where the test names the workflow; a hand run alone for a workflow that publishes) and to a thin edge over one `asymptote check` call." },
+  { template = "workflows-test", file = "workflows_test.py", description = "The test that reads every workflow and holds it to its allowed triggers (a hand run, a pull request, a push to main; a schedule only where the test names the workflow; a hand run or a push to main alone for a workflow that publishes) and to a thin edge over one `asymptote check` call." },
 ]
 rules = [
   { rule = "step-adapter-present", include = ["**"], description = "Every step's port has at least one adapter, which the adapter count cannot say for a step with none." },
@@ -247,7 +247,8 @@ CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN"}
 # What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
-# workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch", "pull_request", "push"}
 SCHEDULED = {"benchmarks.yml"}
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
@@ -267,7 +268,8 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
-    than main, and anything but a hand run for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
     started = triggers(workflow)
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
     found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
@@ -275,8 +277,8 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
     jobs = workflow["jobs"]
-    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started != {"workflow_dispatch"}:
-        found.append(f"{name} publishes, so it starts only by hand")
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
     return found
 
 
@@ -294,7 +296,8 @@ def needs(job: dict) -> list[str]:
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
-    checking nor waiting for one that does; a workflow no job of which checks."""
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
@@ -317,7 +320,9 @@ def problems(workflow: dict) -> list[str]:
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
 
-    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name)]
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
     if not any(checks(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
     return found
@@ -331,7 +336,7 @@ def job(*run: str, needs: str | None = None) -> dict:
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
     """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
-    a workflow that publishes starts only by hand. The git hook `asymptote init` installs stays the per-change gate."""
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
     assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
@@ -435,14 +440,27 @@ def test_a_push_starts_a_workflow_only_on_main() -> None:
     assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
 
 
-def test_a_workflow_that_publishes_starts_only_by_hand() -> None:
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
-    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand"]
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
-    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
-    assert trigger_problems("release.yml", on_a_push) == ["release.yml publishes, so it starts only by hand"]
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
 '''
 
 [[scenarios]]
@@ -494,7 +512,8 @@ CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN"}
 # What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
-# workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch", "pull_request", "push"}
 SCHEDULED = {"benchmarks.yml"}
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
@@ -514,7 +533,8 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
-    than main, and anything but a hand run for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
     started = triggers(workflow)
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
     found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
@@ -522,8 +542,8 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
     jobs = workflow["jobs"]
-    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started != {"workflow_dispatch"}:
-        found.append(f"{name} publishes, so it starts only by hand")
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
     return found
 
 
@@ -541,7 +561,8 @@ def needs(job: dict) -> list[str]:
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
-    checking nor waiting for one that does; a workflow no job of which checks."""
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
@@ -564,7 +585,9 @@ def problems(workflow: dict) -> list[str]:
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
 
-    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name)]
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
     if not any(checks(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
     return found
@@ -578,7 +601,7 @@ def job(*run: str, needs: str | None = None) -> dict:
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
     """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
-    a workflow that publishes starts only by hand. The git hook `asymptote init` installs stays the per-change gate."""
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
     assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
@@ -682,14 +705,27 @@ def test_a_push_starts_a_workflow_only_on_main() -> None:
     assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
 
 
-def test_a_workflow_that_publishes_starts_only_by_hand() -> None:
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
-    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand"]
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
-    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
-    assert trigger_problems("release.yml", on_a_push) == ["release.yml publishes, so it starts only by hand"]
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
 '''
 then.findings = [
   { rule = 'idiomatic.arch/ci/job-command#count', path = 'ci' },
@@ -798,7 +834,8 @@ CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN"}
 # What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
-# workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch", "pull_request", "push"}
 SCHEDULED = {"benchmarks.yml"}
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
@@ -818,7 +855,8 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
-    than main, and anything but a hand run for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
     started = triggers(workflow)
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
     found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
@@ -826,8 +864,8 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
     jobs = workflow["jobs"]
-    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started != {"workflow_dispatch"}:
-        found.append(f"{name} publishes, so it starts only by hand")
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
     return found
 
 
@@ -845,7 +883,8 @@ def needs(job: dict) -> list[str]:
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
-    checking nor waiting for one that does; a workflow no job of which checks."""
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
@@ -868,7 +907,9 @@ def problems(workflow: dict) -> list[str]:
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
 
-    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name)]
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
     if not any(checks(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
     return found
@@ -882,7 +923,7 @@ def job(*run: str, needs: str | None = None) -> dict:
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
     """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
-    a workflow that publishes starts only by hand. The git hook `asymptote init` installs stays the per-change gate."""
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
     assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
@@ -986,14 +1027,27 @@ def test_a_push_starts_a_workflow_only_on_main() -> None:
     assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
 
 
-def test_a_workflow_that_publishes_starts_only_by_hand() -> None:
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
-    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand"]
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
-    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
-    assert trigger_problems("release.yml", on_a_push) == ["release.yml publishes, so it starts only by hand"]
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
 '''
 then.findings = [
   { rule = 'idiomatic.arch/ci#closed', path = 'ci/demo/helpers.py' },
@@ -1073,7 +1127,8 @@ CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN"}
 # What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
-# workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch", "pull_request", "push"}
 SCHEDULED = {"benchmarks.yml"}
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
@@ -1093,7 +1148,8 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
-    than main, and anything but a hand run for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
     started = triggers(workflow)
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
     found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
@@ -1101,8 +1157,8 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
     jobs = workflow["jobs"]
-    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started != {"workflow_dispatch"}:
-        found.append(f"{name} publishes, so it starts only by hand")
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
     return found
 
 
@@ -1120,7 +1176,8 @@ def needs(job: dict) -> list[str]:
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
-    checking nor waiting for one that does; a workflow no job of which checks."""
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
@@ -1143,7 +1200,9 @@ def problems(workflow: dict) -> list[str]:
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
 
-    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name)]
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
     if not any(checks(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
     return found
@@ -1157,7 +1216,7 @@ def job(*run: str, needs: str | None = None) -> dict:
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
     """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
-    a workflow that publishes starts only by hand. The git hook `asymptote init` installs stays the per-change gate."""
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
     assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
@@ -1261,14 +1320,27 @@ def test_a_push_starts_a_workflow_only_on_main() -> None:
     assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
 
 
-def test_a_workflow_that_publishes_starts_only_by_hand() -> None:
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
-    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand"]
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
-    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
-    assert trigger_problems("release.yml", on_a_push) == ["release.yml publishes, so it starts only by hand"]
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
 '''
 then.findings = [
   { rule = 'idiomatic.arch/ci/step-adapter-present', path = 'ci/demo/run/interface.py' },
@@ -1386,7 +1458,8 @@ CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN"}
 # What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
-# workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch", "pull_request", "push"}
 SCHEDULED = {"benchmarks.yml"}
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
@@ -1406,7 +1479,8 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
-    than main, and anything but a hand run for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
     started = triggers(workflow)
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
     found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
@@ -1414,8 +1488,8 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
     jobs = workflow["jobs"]
-    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started != {"workflow_dispatch"}:
-        found.append(f"{name} publishes, so it starts only by hand")
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
     return found
 
 
@@ -1433,7 +1507,8 @@ def needs(job: dict) -> list[str]:
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
-    checking nor waiting for one that does; a workflow no job of which checks."""
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
@@ -1456,7 +1531,9 @@ def problems(workflow: dict) -> list[str]:
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
 
-    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name)]
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
     if not any(checks(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
     return found
@@ -1470,7 +1547,7 @@ def job(*run: str, needs: str | None = None) -> dict:
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
     """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
-    a workflow that publishes starts only by hand. The git hook `asymptote init` installs stays the per-change gate."""
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
     assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
@@ -1574,14 +1651,27 @@ def test_a_push_starts_a_workflow_only_on_main() -> None:
     assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
 
 
-def test_a_workflow_that_publishes_starts_only_by_hand() -> None:
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
-    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand"]
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
-    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
-    assert trigger_problems("release.yml", on_a_push) == ["release.yml publishes, so it starts only by hand"]
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
 '''
 
 [[scenarios]]
@@ -1687,7 +1777,8 @@ CHECK = re.compile(r"asymptote check( --root [\w./-]+)?( --groups [a-z]+(,[a-z]+
 COMMAND = re.compile(r"uv run ci/[a-z_]+/command\.py( [\w./=-]+)*")
 HANDED = {"CARGO_REGISTRY_TOKEN"}
 # What may start a workflow: a hand run, a pull request, a push to main. A schedule starts only the workflows `SCHEDULED` names, and a
-# workflow that publishes starts only by hand; `pull_request_target`, which runs a fork's code with the repository's secrets, never.
+# workflow that publishes starts only by hand or on a push to main, which only a gated pull request makes; `pull_request_target`,
+# which runs a fork's code with the repository's secrets, never.
 ALLOWED = {"workflow_dispatch", "pull_request", "push"}
 SCHEDULED = {"benchmarks.yml"}
 # What may follow a job's check: uploading what its tools left (a bench's documents) as the run's artifact.
@@ -1707,7 +1798,8 @@ def environment(job: dict) -> str | None:
 
 def trigger_problems(name: str, workflow: dict) -> list[str]:
     """What starts the workflow that may not: a trigger outside `ALLOWED` (a schedule outside `SCHEDULED`), a push to a branch other
-    than main, and anything but a hand run for a workflow that publishes (a `publish` job, or a job in the `release` environment)."""
+    than main, and anything but a hand run or a push to main for a workflow that publishes (a `publish` job, or a job in the
+    `release` environment)."""
     started = triggers(workflow)
     allowed = ALLOWED | ({"schedule"} if name in SCHEDULED else set())
     found = [f"{name} starts on {each}" for each in sorted(started - allowed)]
@@ -1715,8 +1807,8 @@ def trigger_problems(name: str, workflow: dict) -> list[str]:
     if "push" in started and (on.get("push") if isinstance(on, dict) else None) != {"branches": ["main"]}:
         found.append(f"{name} starts on a push to more than main")
     jobs = workflow["jobs"]
-    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started != {"workflow_dispatch"}:
-        found.append(f"{name} publishes, so it starts only by hand")
+    if ("publish" in jobs or any(environment(job) == "release" for job in jobs.values())) and started - {"workflow_dispatch", "push"}:
+        found.append(f"{name} publishes, so it starts only by hand or on a push to main")
     return found
 
 
@@ -1734,7 +1826,8 @@ def needs(job: dict) -> list[str]:
 def problems(workflow: dict) -> list[str]:
     """What keeps the workflow from being a thin edge over `asymptote check`: a job that calls it more than once, anywhere but
     last, or with more than the one command line; a job that does not check and runs more than one job command; a job neither
-    checking nor waiting for one that does; a workflow no job of which checks."""
+    checking, nor waiting for one that does, nor deciding what one runs (a job such a job waits for); a workflow no job of which
+    checks."""
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
@@ -1757,7 +1850,9 @@ def problems(workflow: dict) -> list[str]:
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
 
-    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name)]
+    # The jobs a gated job waits for: the ones that decide what it runs (which products a change reaches, which a push releases).
+    deciding = {each for name in jobs if gated(name) for each in needs(jobs[name])}
+    found += [f"{name} neither checks nor waits for a job that does" for name in jobs if not gated(name) and name not in deciding]
     if not any(checks(job) for job in jobs.values()):
         found.append("no job calls asymptote check")
     return found
@@ -1771,7 +1866,7 @@ def job(*run: str, needs: str | None = None) -> dict:
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_workflow_runs_only_on_its_allowed_triggers(path: Path) -> None:
     """A workflow starts by hand, on a pull request or on a push to main; a schedule starts only the workflows `SCHEDULED` names, and
-    a workflow that publishes starts only by hand. The git hook `asymptote init` installs stays the per-change gate."""
+    a workflow that publishes starts only by hand or on a push to main. The git hook `asymptote init` installs stays the per-change gate."""
     assert trigger_problems(path.name, yaml.safe_load(path.read_text())) == []
 
 
@@ -1875,14 +1970,27 @@ def test_a_push_starts_a_workflow_only_on_main() -> None:
     assert trigger_problems("check.yml", every) == trigger_problems("check.yml", other) == ["check.yml starts on a push to more than main"]
 
 
-def test_a_workflow_that_publishes_starts_only_by_hand() -> None:
+def test_a_workflow_that_publishes_starts_only_by_hand_or_on_a_push_to_main() -> None:
+    """A push to main is a merged pull request, which its gate checked; a pull request's own run never publishes."""
     publish = {"environment": "release", "steps": [{"run": "uv run ci/release/command.py --publish"}]}
     on_a_pull_request = {"on": {"workflow_dispatch": None, "pull_request": None}, "jobs": {"publish": publish}}
-    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand"]
+    assert trigger_problems("release.yml", on_a_pull_request) == ["release.yml publishes, so it starts only by hand or on a push to main"]
     by_hand = {"on": {"workflow_dispatch": None}, "jobs": {"upload": {"environment": {"name": "release"}, "steps": []}}}
     assert trigger_problems("release.yml", by_hand) == []
-    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}}}
-    assert trigger_problems("release.yml", on_a_push) == ["release.yml publishes, so it starts only by hand"]
+    on_a_push = by_hand | {"on": {"push": {"branches": ["main"]}, "workflow_dispatch": None}}
+    assert trigger_problems("release.yml", on_a_push) == []
+    on_any_push = by_hand | {"on": {"push": None}}
+    assert trigger_problems("release.yml", on_any_push) == ["release.yml starts on a push to more than main"]
+
+
+def test_a_job_that_decides_what_a_gated_job_runs_is_gated_by_it() -> None:
+    """The jobs a gated job waits for, such as the one naming the products a change reaches, need not check themselves."""
+    changes = {"steps": [{"uses": "dorny/paths-filter@0000000000000000000000000000000000000000"}]}
+    workflow = {"jobs": {"changes": changes, "check": job("asymptote check", needs="changes")}}
+    assert problems(workflow) == []
+    tagging = {"jobs": {"tag": job("uv run ci/tag/command.py --push"), "check": job("asymptote check"), "build": job(needs="check")}}
+    tagging["jobs"]["build"]["needs"] = ["tag", "check"]
+    assert problems(tagging) == []
 '''
 then.findings = [
   { rule = 'idiomatic.arch/ci#closed', path = 'ci/helper.sh' },

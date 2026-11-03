@@ -78,8 +78,10 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
 # The commit being made is checked at the next commit, or in CI. The run names the range origin/main..HEAD, so its cached run is
-# kept only while those commits are the same.
-run = ["bash", "-c", "[ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD"]
+# kept only while those commits are the same. On GitHub Actions, run for a pull request (the event GITHUB_EVENT_PATH names holds
+# one), the pull request's title is a conventional commit too: a squash merge makes it the commit main keeps, and the changelog
+# is written from those.
+run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -88,7 +90,7 @@ group = "check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["bash", "-c", "mkdir -p target/checks/ci-tests; set +e; pytest --quiet -p no:cacheprovider --import-mode=importlib -o pythonpath=. -o 'python_files=*_test.py' -o python_classes= -o 'norecursedirs=.* __pycache__' ci > target/checks/ci-tests/stdout.log 2> target/checks/ci-tests/stderr.log; tool_status=$?; cat target/checks/ci-tests/stdout.log; cat target/checks/ci-tests/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/ci-tests/status; exit \"$tool_status\""]
 timeout-seconds = 1800
-inputs = ["ci", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["ci", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
 
 [[tools]]
 id = "speed"

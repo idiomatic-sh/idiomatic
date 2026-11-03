@@ -46,7 +46,7 @@ def pack(staged: Path, into: Path) -> Path:
 
 
 class NpmBuild(Build):
-    """`build` through npm: for a target, the platform package holding the binary of its wheel; for
+    """`build` through npm: for a target, the platform package holding the binary of its wheel and its README; for
     what every target shares, the launcher, depending on every planned platform's package at the
     crate's version, published after them. Nothing for a product that has no npm registry."""
 
@@ -70,6 +70,7 @@ class NpmBuild(Build):
         (wheel,) = wheels
         staged = into / "platform"
         stage(npm / "platforms" / target, staged, product, self.root / "LICENSE")
+        shutil.copy(npm / "platforms" / target / "README.md", staged / "README.md")
         (staged / "bin").mkdir()
         name = f"{product.command}.exe" if "-windows-" in target else product.command
         executable = staged / "bin" / name

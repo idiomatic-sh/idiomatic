@@ -36,6 +36,7 @@ def registry(tmp_path):
     for target in PRODUCT.targets:
         (npm / "platforms" / target).mkdir(parents=True)
         (npm / "platforms" / target / "package.json").write_text(json.dumps({"name": f"@scope/demo-{target}"}))
+        (npm / "platforms" / target / "README.md").write_text(f"# @scope/demo-{target}\n")
     (npm / "package.json").write_text(json.dumps({"name": "@scope/demo"}))
     (npm / "launcher.js").write_text("// launcher\n")
     (tmp_path / "LICENSE").write_text("MIT License\n")
@@ -86,6 +87,7 @@ def test_a_target_s_platform_package_holds_the_binary_of_its_wheel(tmp_path, mon
     executable = tmp_path / "out/platform/bin/demo"
     assert executable.read_text() == "binary", "the wheel's binary ships in bin/"
     assert executable.stat().st_mode & 0o111, "and runs"
+    assert (tmp_path / "out/platform/README.md").read_text() == f"# @scope/demo-{target}\n", "its README ships beside it"
 
 
 def test_a_windows_binary_ships_as_an_exe(tmp_path, monkeypatch) -> None:
