@@ -391,6 +391,7 @@ fn verify_discrepancy_fixture(
             root,
             files: &files,
             source_sha256: &wire.discrepancy.identity.source_sha256,
+            file_metadata_files: &[],
             file_metadata_sha256: wire.discrepancy.identity.file_metadata_sha256.as_deref(),
             evidence: &evidence,
         },

@@ -855,3 +855,30 @@ fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidat
         }
     }
 }
+
+#[test]
+fn measurement_path_does_not_claim_to_validate_observation_bearing_requests() {
+    let (suite, _) = prepared(Scenario::Agreement);
+    let mut request = suite.prepared[0].request.clone();
+    let linter = LinterFake::default();
+    let execution = ExecutionFake {
+        status: 0,
+        ..Default::default()
+    };
+    super::service::run(&linter, &execution, &request).unwrap();
+    request.file_metadata = Some(std::collections::BTreeMap::from([(
+        request.files[0].clone(),
+        false,
+    )]));
+    let error = super::service::run(&linter, &execution, &request).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("require verification preparation")
+    );
+    assert_eq!(
+        history_len(&execution),
+        Some(1),
+        "unsupported observation claims must not prepare or execute a measured contestant"
+    );
+}

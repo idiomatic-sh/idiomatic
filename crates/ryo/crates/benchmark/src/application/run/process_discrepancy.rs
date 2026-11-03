@@ -144,11 +144,23 @@ pub(super) fn matches(
     let profile_root = rules
         .parent()
         .ok_or_else(|| Error::Invalid("missing process profile boundary".into()))?;
+    let metadata_files = case
+        .request
+        .file_metadata
+        .as_ref()
+        .map(|values| {
+            values
+                .keys()
+                .map(|file| std::path::PathBuf::from(file.0.as_ref()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     suite
         .verify_discrepancy_artifacts(crate::outbound::suite::types::discrepancy::CaseArtifacts {
             profile: profile_root,
             root: &case.request.root,
             files: &files,
+            file_metadata_files: &metadata_files,
             file_metadata_sha256: validation["file_metadata_sha256"].as_str(),
             source_sha256: validation["source_sha256"]
                 .as_str()

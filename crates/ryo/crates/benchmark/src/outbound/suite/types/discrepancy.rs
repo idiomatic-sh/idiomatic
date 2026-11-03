@@ -111,7 +111,9 @@ pub struct CaseArtifacts<'a> {
     pub files: &'a [PathBuf],
     /// Exact filename/source digest.
     pub source_sha256: &'a str,
-    /// Optional exact digest of all actual file observations.
+    /// Exact declared observation subset, independently bounded by `files`.
+    pub file_metadata_files: &'a [PathBuf],
+    /// Optional exact digest of the declared actual file observations.
     pub file_metadata_sha256: Option<&'a str>,
     /// Explicit independently authored evidence artifacts.
     pub evidence: &'a [EvidenceArtifact],

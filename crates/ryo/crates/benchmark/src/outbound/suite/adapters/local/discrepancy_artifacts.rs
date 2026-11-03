@@ -54,9 +54,20 @@ pub(super) fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), ArtifactError> 
             "stale reference discrepancy source identity".into(),
         ));
     }
+    if artifacts
+        .file_metadata_files
+        .iter()
+        .any(|file| !artifacts.files.contains(file))
+        || (artifacts.file_metadata_sha256.is_none() && !artifacts.file_metadata_files.is_empty())
+    {
+        return Err(ArtifactError::Invalid(
+            "undeclared reference discrepancy observation scope".into(),
+        ));
+    }
     if let Some(expected) = artifacts.file_metadata_sha256 {
-        let actual = super::input_metadata::actual_digest(artifacts.root, artifacts.files)
-            .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
+        let actual =
+            super::input_metadata::actual_digest(artifacts.root, artifacts.file_metadata_files)
+                .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
         if actual != expected {
             return Err(ArtifactError::Invalid(
                 "stale reference discrepancy file metadata identity".into(),

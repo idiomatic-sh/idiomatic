@@ -77,7 +77,12 @@ pub(super) fn actual_digest(root: &Path, files: &[std::path::PathBuf]) -> Result
         let name = file
             .to_str()
             .ok_or_else(|| Error::Invalid("metadata source name is not UTF8".into()))?;
-        values.insert(ryo::linter::RelativePath(name.into()), observed(&path)?);
+        if values
+            .insert(ryo::linter::RelativePath(name.into()), observed(&path)?)
+            .is_some()
+        {
+            return Err(Error::Invalid("duplicate physical metadata source".into()));
+        }
     }
     crate::domain::suite::input_metadata::digest(Some(&values))?
         .map(|digest| digest.0)

@@ -282,11 +282,23 @@ pub(super) fn validate(
             ));
         }
     }
+    let metadata_files = case
+        .request
+        .file_metadata
+        .as_ref()
+        .map(|values| {
+            values
+                .keys()
+                .map(|file| std::path::PathBuf::from(file.0.as_ref()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     suite
         .verify_discrepancy_artifacts(crate::outbound::suite::types::discrepancy::CaseArtifacts {
             profile: profile_root,
             root: &case.request.root,
             files: &files,
+            file_metadata_files: &metadata_files,
             source_sha256: &identity.source_sha256.0,
             file_metadata_sha256: identity
                 .file_metadata_sha256

@@ -5,7 +5,8 @@ use crate::domain::suite::types::RunRequest;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
 
-/// Prepare and execute one contestant, then validate decoded input coverage.
+/// Prepare a measurement request with no declared file observations, then validate decoded coverage.
+/// Observation-bearing verification uses the suite-owned `case_execution::prepare` boundary.
 ///
 /// # Errors
 /// Propagates preparation, launch or decoding errors and refuses invalid input coverage or ranges.
@@ -14,6 +15,11 @@ pub fn run(
     execution: &dyn ExecutionPort,
     request: &RunRequest,
 ) -> Result<Measurement, Error> {
+    if request.file_metadata.is_some() {
+        return Err(Error::Invalid(
+            "declared file observations require verification preparation".into(),
+        ));
+    }
     if let Some(context) = &request.context_manifest {
         crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
     }
