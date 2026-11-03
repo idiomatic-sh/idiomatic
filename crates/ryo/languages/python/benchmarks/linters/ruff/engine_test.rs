@@ -1121,3 +1121,5 @@ mod project_context;
 
 #[path = "compiler_feature_test.rs"]
 mod compiler_features;
+
+mod future_directives;

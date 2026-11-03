@@ -630,14 +630,19 @@ fn module_future_annotations(
     }
 
     impl FutureImports<'_> {
-        fn report(&mut self, range: ruff_text_size::TextRange, message: String) {
+        fn report(
+            &mut self,
+            code: DiagnosticCode,
+            range: ruff_text_size::TextRange,
+            message: String,
+        ) {
             self.valid = false;
             self.errors.push(SemanticSyntaxDiagnostic {
                 message,
                 range,
-                // Compiler-directive placement is checked after a complete AST is parsed.
-                // Keep the validity row without projecting it as a grammar failure.
-                code: super::constants::FUTURE_DIRECTIVE_INVALID,
+                // Future-statement validity is checked after a complete AST is parsed.
+                // Preserve the complete AST; the edge chooses its diagnostic namespace by cause.
+                code,
                 phase: DiagnosticPhase::Validation,
                 impact: TreeImpact::Preserved,
             });
@@ -653,12 +658,14 @@ fn module_future_annotations(
                 let valid_position = self.permitted.contains(&import.range());
                 if !valid_position {
                     self.report(
+                        super::constants::FUTURE_DIRECTIVE_INVALID,
                         import.range(),
                         "from __future__ imports must occur at the beginning of the file".into(),
                     );
                 }
                 if import.is_lazy {
                     self.report(
+                        super::constants::FUTURE_LAZY_INVALID,
                         import.range(),
                         "future statements cannot be lazy imports".into(),
                     );
