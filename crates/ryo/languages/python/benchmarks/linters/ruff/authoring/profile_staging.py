@@ -61,7 +61,7 @@ def stage_binding(manifest: dict[str, object], selected: list[str], stack: conte
         profile_proofs.check_staged_applicability(destination / 'benchmark.toml', [rule], manifest)
         shutil.copyfile(candidate_path, rule_dir / 'query.ryoql')
         shutil.copyfile(cases_path, rule_dir / 'cases.toml')
-        reference_discrepancies.stage_discrepancy_artifacts(profile, destination, cases, rule)
+        reference_discrepancies.stage_discrepancy_artifacts(profile, destination, cases, rule, source_root=profile_config.discrepancy_source_root(rule, profile))
         profile_proofs.check_canonical_standard_suppression(destination / 'benchmark.toml', {rule: candidate_path})
         staged.append((profile_name, destination))
     return staged

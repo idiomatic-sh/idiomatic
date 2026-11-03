@@ -24,7 +24,7 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         native_source_data = tomllib.loads(native_source_profile.read_text(encoding='utf-8'))
         paths.update((profile_sources.module_path(relative) for relative in profile_sources.profile_modules(native_source_data).values()))
         native_cases = tomllib.loads(profile_sources.prepared_case_path(profile['rule_id'], profile).read_text(encoding='utf-8'))['cases']
-        paths.update((source.relative_to(profile_config.REPOSITORY).as_posix() for source, _digest in reference_discrepancies.declared_discrepancy_artifacts(native_source_profile, native_cases).values()))
+        paths.update((source.relative_to(profile_config.REPOSITORY).as_posix() for source, _digest in reference_discrepancies.declared_discrepancy_artifacts(native_source_profile, native_cases, source_root=profile_config.discrepancy_source_root(profile['rule_id'], native_source_profile)).values()))
     paths.add(profile_config.RULE_PHASES_FILE.relative_to(profile_config.REPOSITORY).as_posix())
     paths.add((profile_config.RUFF_DIR / 'results/standard-suppression-policy.json').relative_to(profile_config.REPOSITORY).as_posix())
     base_data = tomllib.loads(base_profile.read_text(encoding='utf-8'))
@@ -36,7 +36,7 @@ def manifest_paths(manifest: dict[str, object], helper_path: str) -> set[str]:
         candidate_file = profile_sources.prepared_candidate_path(rule, recorded)
         paths.update({profile.relative_to(profile_config.REPOSITORY).as_posix(), candidate_file.relative_to(profile_config.REPOSITORY).as_posix(), case_file.relative_to(profile_config.REPOSITORY).as_posix()})
         cases = tomllib.loads(case_file.read_text(encoding='utf-8'))['cases']
-        paths.update((source.relative_to(profile_config.REPOSITORY).as_posix() for source, _digest in reference_discrepancies.declared_discrepancy_artifacts(profile, cases).values()))
+        paths.update((source.relative_to(profile_config.REPOSITORY).as_posix() for source, _digest in reference_discrepancies.declared_discrepancy_artifacts(profile, cases, source_root=profile_config.discrepancy_source_root(rule, profile)).values()))
         profile_data = tomllib.loads(profile.read_text(encoding='utf-8'))
         paths.update((profile_sources.module_path(path) for path in profile_sources.profile_modules(profile_data).values()))
         if 'oracle_file' in recorded:

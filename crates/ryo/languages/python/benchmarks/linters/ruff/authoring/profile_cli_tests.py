@@ -33,7 +33,7 @@ def inventory_registration_source_root_self_test() -> None:
     native = profile_proofs.native_descriptor_json(profile_config.NATIVE_DESCRIPTOR_FILE.read_text(encoding='utf-8'))
     with tempfile.TemporaryDirectory(prefix='ryo-inventory-registration-') as temporary:
         output = Path(temporary)
-        for rule in ('UP031', 'UP032', 'PYI020'):
+        for rule in ('UP031', 'UP032', 'PYI020', 'F821', 'PLW0602'):
             count = len(tomllib.loads((ruff / 'rules' / rule / 'cases.toml').read_text(encoding='utf-8'))['cases'])
             stage, entry = rule_registration.stage_full_inventory_rule(rule, output, base, phases, manifest, native)
             assert entry['case_count'] == count and stage.is_dir()
@@ -59,6 +59,18 @@ def inventory_registration_source_root_self_test() -> None:
             pass
         else:
             raise AssertionError('incorrect evidence root was accepted')
+        f821_profile = ruff / 'profiles/F821/benchmark.toml'
+        f821_cases = tomllib.loads((ruff / 'rules/F821/cases.toml').read_text(encoding='utf-8'))['cases']
+        f821_case = next(case for case in f821_cases if case.get('reference-discrepancy'))
+        f821_root = profile_config.discrepancy_source_root('F821', f821_profile)
+        f821_pinned = reference_discrepancies.declared_discrepancy_artifacts(f821_profile, [f821_case], source_root=f821_root)
+        assert f821_pinned and all((output / 'profiles/F821/repro' / path).is_file() for path in f821_pinned)
+        try:
+            reference_discrepancies.declared_discrepancy_artifacts(f821_profile, [f821_case], source_root=f821_profile.parent)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('incorrect F821 evidence root was accepted')
 
 def self_test() -> int:
     profile_proof_tests.output_directory_self_test()

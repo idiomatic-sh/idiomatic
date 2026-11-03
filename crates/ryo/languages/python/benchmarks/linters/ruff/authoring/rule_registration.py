@@ -14,9 +14,6 @@ from authoring import profile_sources
 from authoring import profile_worker
 from authoring import reference_discrepancies
 
-# Artifact provenance is independent of the selected singleton parser settings.
-DISCREPANCY_SOURCE_ROOTS = {'UP031': profile_config.RUFF_DIR}
-
 def full_inventory_ids(profile: dict[str, object], phases: dict[str, object]) -> list[str]:
     """The pinned defaults are the inventory; an admission subset cannot narrow it."""
     rules = profile.get('defaults')
@@ -114,7 +111,7 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
     profile_sources.assert_staged_profile_fixed_point(destination)
     shutil.copyfile(query, rule_root / 'query.ryoql')
     shutil.copyfile(cases_path, rule_root / 'cases.toml')
-    evidence_root = DISCREPANCY_SOURCE_ROOTS.get(rule, source_profile.parent).resolve(strict=True)
+    evidence_root = profile_config.discrepancy_source_root(rule, source_profile).resolve(strict=True)
     if not evidence_root.is_relative_to(profile_config.RUFF_DIR.resolve(strict=True)):
         raise ValueError('external discrepancy evidence root')
     reference_discrepancies.stage_discrepancy_artifacts(source_profile, destination, cases, rule, source_root=evidence_root)
