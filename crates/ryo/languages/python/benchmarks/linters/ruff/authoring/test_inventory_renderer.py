@@ -1,5 +1,6 @@
 """The public inventory stays concise without changing its complete result set."""
 import hashlib
+import json
 from pathlib import Path
 import re
 import tomllib
@@ -42,3 +43,20 @@ class InventoryRendererTests(unittest.TestCase):
                 self.assertNotIn("expected-vs-candidate", reason)
         self.assertEqual(hashlib.sha256(receipt.read_bytes()).hexdigest(), before)
         self.assertIn("expected-vs-candidate", receipt.read_text())
+
+    def test_recovery_keeps_the_original_full_run_and_uses_executed_source_bound_proof(self):
+        receipt = renderer.LATEST_FULL_RESULT
+        original = json.loads(receipt.read_text())
+        self.assertEqual(original["counts"], {"PASS": 383, "FAIL": 30})
+        previous = {row["rule_id"]: row for row in original["rules"]}
+        self.assertEqual(previous["PLE0115"]["status"], "FAIL")
+        self.assertEqual(previous["PLE0117"]["status"], "FAIL")
+        from authoring.target_supplement import verified_rows
+        rows = verified_rows(renderer.RUFF, receipt.parent, previous,
+                             receipt.parent / "ple0115-ple0117-target-supplement")
+        self.assertEqual([(row["rule_id"], row["case_count"], row["raw_exact"], row["documented_discrepancies"])
+                          for row in rows], [("PLE0115", 7, 2, 5), ("PLE0117", 26, 22, 4)])
+        rendered = renderer.render_full_inventory(receipt)
+        self.assertIn("**385 PASS / 28 FAIL / 413 pinned defaults**", rendered)
+        self.assertIn("no combined replay is claimed", rendered)
+        self.assertEqual(json.loads(receipt.read_text()), original)

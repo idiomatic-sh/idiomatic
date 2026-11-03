@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**383 PASS / 30 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
+**385 PASS / 28 FAIL / 413 pinned defaults**; run state `complete`. Base worker `7397f0971f223075366b645ab033373068a092d3101a722c306d686cd23369fd`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset. Counts combine separately linked receipts; no combined replay is claimed.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -176,9 +176,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | PLC3002 | PASS | verified intended expectations |
 | PLE0100 | PASS | verified intended expectations |
 | PLE0101 | PASS | verified intended expectations |
-| PLE0115 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| PLE0115 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/ple0115-ple0117-target-supplement/summary.json) |
 | PLE0116 | PASS | verified intended expectations |
-| PLE0117 | FAIL | [Fixture mismatch](results/ci-80be-full-inventory-2026-11-03/summary.json) |
+| PLE0117 | PASS | [separate source-bound recovery proof](results/ci-80be-full-inventory-2026-11-03/ple0115-ple0117-target-supplement/summary.json) |
 | PLE0118 | PASS | verified intended expectations |
 | PLE0303 | PASS | verified intended expectations |
 | PLE0304 | PASS | verified intended expectations |

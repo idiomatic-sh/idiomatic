@@ -271,6 +271,15 @@ def render_full_inventory(path: Path) -> str:
             failed_observations = current / "ruf101-target-supplement"
         for row in verified_failed_rows(RUFF, by_rule, failed_observations):
             by_rule[row["rule_id"]] = row
+    # Recoveries belong beside the immutable full receipt they supplement.
+    if path.resolve() != (current / "summary.json").resolve():
+        sys.path.insert(0, str(RUFF))
+        from authoring.target_supplement import verified_rows
+        for directory in sorted(path.parent.glob("*-target-supplement")):
+            for row in verified_rows(RUFF, path.parent, by_rule, directory):
+                receipt = (directory / "summary.json").relative_to(RUFF).as_posix()
+                by_rule[row["rule_id"]] = {**row, "reason": f"[separate source-bound recovery proof]({receipt})"}
+                supplement_label = " Counts combine separately linked receipts; no combined replay is claimed."
     rendered = []
     passed = 0
     for rule in defaults:
