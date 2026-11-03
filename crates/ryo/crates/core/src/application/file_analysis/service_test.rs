@@ -55,7 +55,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     };
     let setting = VisitSetting {
         source_language: None,
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
         domain: crate::domain::workers::types::VisitSetting {
             plans: &plans,
@@ -177,7 +177,7 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
     );
     let always_setting = VisitSetting {
         source_language: None,
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(
             &setting.plans[1..],
             &[],
@@ -489,7 +489,7 @@ fn visited_as_with_facts(
         store: None,
         setting: VisitSetting {
             source_language: None,
-            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
             operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
             domain: crate::domain::workers::types::VisitSetting {
                 unknown: &[],
@@ -991,7 +991,7 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
         store: None,
         setting: VisitSetting {
             source_language: None,
-            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
             operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
             domain: crate::domain::workers::types::VisitSetting {
                 plans: &plans,
@@ -1317,7 +1317,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         store: Some(snapshot.as_ref()),
         setting: VisitSetting {
             source_language: None,
-            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
             operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
             domain: crate::domain::workers::types::VisitSetting {
                 plans: &[],

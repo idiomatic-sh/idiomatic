@@ -1,0 +1,43 @@
+//! Validate both located operands before propagating an absent span.
+use crate::domain::contract::types::SpanFault;
+use ryo_language::domain::relations::{
+    constants::NO_SPAN,
+    types::{Span, Value},
+};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+
+/// Return left.start through right.end, checking each present operand first.
+pub fn between(
+    row: &[Value],
+    start: ColumnIndex,
+    end: ColumnIndex,
+    source_len: usize,
+) -> Result<Value, SpanFault> {
+    let cell = |column: ColumnIndex| {
+        row.get(usize::try_from(column.0).unwrap_or(usize::MAX))
+            .copied()
+            .ok_or(SpanFault::NoSuchColumn { index: column.0 })
+    };
+    // Both lookups precede the type pattern, including when the left type is wrong.
+    let (Value::Span(left), Value::Span(right)) = (cell(start)?, cell(end)?) else {
+        return Err(SpanFault::ShapeMismatch);
+    };
+    for span in [left, right] {
+        if span != NO_SPAN {
+            let span_end = usize::try_from(span.end.0).map_err(|_| SpanFault::InvalidSpan)?;
+            if span.start > span.end || span_end > source_len {
+                return Err(SpanFault::InvalidSpan);
+            }
+        }
+    }
+    if left == NO_SPAN || right == NO_SPAN {
+        return Ok(Value::Span(NO_SPAN));
+    }
+    if left.start > right.end {
+        return Err(SpanFault::InvalidSpan);
+    }
+    Ok(Value::Span(Span {
+        start: left.start,
+        end: right.end,
+    }))
+}

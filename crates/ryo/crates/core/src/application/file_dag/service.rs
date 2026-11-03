@@ -537,8 +537,12 @@ impl FileDagExecution {
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
         context: &mut OperatorContext<'_>,
     ) -> Result<Arc<Table>, OperatingError> {
-        let result =
-            self.demand_result(node, read, &super::execution::CommonOperatorEngine, context)?;
+        let result = self.demand_result(
+            node,
+            read,
+            &super::execution::CommonOperatorEngine::fixture(),
+            context,
+        )?;
         let rows = self.relations.resolve(result.as_ref(), read)?;
         let mut table = Table::default();
         crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());

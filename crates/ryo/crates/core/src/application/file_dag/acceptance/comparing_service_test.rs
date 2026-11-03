@@ -213,7 +213,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
             memo: &mut Vec::new(),
             scratch: &mut scratch,
         };
-        crate::application::file_dag::execution::CommonOperatorEngine.collect(
+        crate::application::file_dag::execution::CommonOperatorEngine::fixture().collect(
             &contract,
             &[Rows::Computed(&table)],
             &mut context,

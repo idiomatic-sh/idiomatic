@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "crates/benchmark", "crates/core", "crates/language", "crates/query_language", "crates/relations", "crates/sdk", "crates/values", "languages/*"]
+members = ["cli", "crates/benchmark", "crates/core", "crates/language", "crates/operators", "crates/query_language", "crates/relations", "crates/sdk", "crates/values", "languages/*"]
 resolver = "3"
 # The languages not yet written: each joins the workspace, the command line and the build when its author starts it, and the compiler
 # then lists what its use cases lack. Their directories stay, with the part of each that a scaffold places.

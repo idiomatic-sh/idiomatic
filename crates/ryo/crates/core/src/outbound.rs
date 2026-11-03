@@ -7,6 +7,7 @@ pub mod language;
 pub mod lint_store;
 pub mod matching;
 pub mod memory;
+pub mod operators;
 pub mod query_language;
 pub mod rows;
 pub mod scheduler;

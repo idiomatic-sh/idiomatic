@@ -12,13 +12,15 @@ pub(crate) fn modes(
     use Publication::*;
     use ResourceNeeds::*;
     let row = |primary, demand| ModeContract {
-        shape: Row { primary },
+        shape: Row {
+            primary: ryo_values::domain::plan_parts::types::InputNumber(primary),
+        },
         demand,
         publication: Incremental,
         held_publication: Incremental,
         schema_boundary: SchemaBoundary::FirstApplicableRow,
         acquisition: AcquisitionBoundary::FirstRow,
-        row_inputs: 1 << primary,
+        row_inputs: RowInputMask(1 << primary),
         evaluation: EvaluationMode::Streaming,
         preflight: PreflightOrder::ResourcesFirst,
     };
@@ -29,7 +31,7 @@ pub(crate) fn modes(
         held_publication: AfterSuccess,
         schema_boundary: SchemaBoundary::BeforeDemand,
         acquisition: AcquisitionBoundary::BeforeRows,
-        row_inputs: 0,
+        row_inputs: RowInputMask(0),
         evaluation: EvaluationMode::Streaming,
         preflight: PreflightOrder::ResourcesFirst,
     };
@@ -40,7 +42,7 @@ pub(crate) fn modes(
         held_publication: Incremental,
         schema_boundary: SchemaBoundary::FirstApplicableRow,
         acquisition: AcquisitionBoundary::FirstRow,
-        row_inputs: 0,
+        row_inputs: RowInputMask(0),
         evaluation: EvaluationMode::Streaming,
         preflight: PreflightOrder::ResourcesFirst,
     };
@@ -188,8 +190,8 @@ pub(crate) fn prepare_for(
     }
     let (mut streaming, mut collected, _resource_class, effects, absence_inputs) = modes(expected);
     if expected == OperationKind::Union {
-        streaming.row_inputs = 3;
-        collected.row_inputs = 3;
+        streaming.row_inputs = RowInputMask(3);
+        collected.row_inputs = RowInputMask(3);
     }
     if matches!(
         expected,

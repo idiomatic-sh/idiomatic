@@ -33,6 +33,7 @@ tracing.workspace = true
 unicode-width.workspace = true
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.2" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2" }
 dhat = { workspace = true, optional = true }
 postcard.workspace = true

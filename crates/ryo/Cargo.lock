@@ -1329,6 +1329,7 @@ dependencies = [
  "heck",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
@@ -1457,6 +1458,18 @@ dependencies = [
  "idiomatic-sh-ryo-sdk",
  "pulldown-cmark",
  "strum",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-operators"
+version = "0.1.2"
+dependencies = [
+ "cargo_metadata",
+ "cucumber",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-values",
+ "tokio",
 ]
 
 [[package]]

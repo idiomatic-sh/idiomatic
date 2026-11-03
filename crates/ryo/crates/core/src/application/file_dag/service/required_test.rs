@@ -198,7 +198,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
         let schemas = [vec![CellKind::Number]];
         let unavailable = |_| panic!("metadata must not request provider rows");
         let metadata = GraphInputs {
-            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
             execution: &mut dag,
             inputs: &inputs,
             schemas: &schemas,
@@ -214,7 +214,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     }
     let inputs = [NodeInput::Node(child)];
     let mut feed = GraphInputs {
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         execution: &mut dag,
         inputs: &inputs,
         schemas: std::slice::from_ref(graph.nodes[child.0].contract.schema.as_ref().unwrap()),

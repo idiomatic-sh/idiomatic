@@ -117,7 +117,7 @@ fn world(plan: Plan) -> World {
 
 fn crossing(world: &World) -> CrossingInput<'_> {
     CrossingInput {
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(
             &world.plans,
             &world.bindings,

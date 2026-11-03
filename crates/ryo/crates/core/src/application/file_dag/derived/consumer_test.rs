@@ -153,7 +153,7 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
                 .demand(
                     root,
                     &read,
-                    &crate::application::file_dag::execution::CommonOperatorEngine,
+                    &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
                     &mut context,
                 )
                 .unwrap();

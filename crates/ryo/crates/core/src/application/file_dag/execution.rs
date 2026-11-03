@@ -15,8 +15,29 @@ use crate::domain::table_model::{
 use ryo_relations::domain::relations::types::Value;
 mod lease;
 mod transport;
+/// The shared engine borrows its portable semantic capability from the caller.
 #[derive(Debug)]
-pub(crate) struct CommonOperatorEngine;
+pub(crate) struct CommonOperatorEngine<'a> {
+    pub(super) operators: &'a dyn crate::outbound::operators::interface::OperatorsPort,
+}
+impl<'a> CommonOperatorEngine<'a> {
+    pub(crate) const fn new(
+        operators: &'a dyn crate::outbound::operators::interface::OperatorsPort,
+    ) -> Self {
+        Self { operators }
+    }
+}
+#[cfg(test)]
+impl CommonOperatorEngine<'static> {
+    pub(crate) fn fixture() -> Self {
+        Self::new(crate::outbound::operators::fixtures::port())
+    }
+    pub(crate) fn fixture_ref() -> &'static Self {
+        static ENGINE: CommonOperatorEngine<'static> =
+            CommonOperatorEngine::new(crate::outbound::operators::fixtures::port());
+        &ENGINE
+    }
+}
 static EMPTY: Table = Table {
     kinds: Vec::new(),
     cells: Vec::new(),
@@ -77,7 +98,7 @@ fn physical_fallbacks(
         .collect()
 }
 
-impl CommonOperatorEngine {
+impl CommonOperatorEngine<'_> {
     pub(crate) fn collect(
         &self,
         contract: &OperatorContract,
@@ -280,7 +301,7 @@ impl CommonOperatorEngine {
             InputShape::Row { .. } => {
                 let mut row = Vec::new();
                 for place in 0..contract.inputs.used.0 {
-                    if mode.row_inputs & (1 << place) == 0 {
+                    if mode.row_inputs.0 & (1 << place) == 0 {
                         continue;
                     }
                     let source = inputs.get(place).ok_or(OperatingError::MissingInput {
@@ -343,6 +364,7 @@ impl CommonOperatorEngine {
                             tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="closure_partition",owned_live_cells=parts.working_cells(),owned_capacity_cells=parts.working_capacity(),metadata_retained_bytes=parts.ordering_bytes());
                         }
                         lease::evaluate(
+                            self.operators,
                             contract,
                             PreparedInputs::Views(inputs),
                             resources.as_mut().ok_or(OperatingError::NotRun)?,
@@ -354,6 +376,7 @@ impl CommonOperatorEngine {
                     return Ok(());
                 }
                 lease::evaluate(
+                    self.operators,
                     contract,
                     PreparedInputs::Views(inputs),
                     resources.as_mut().ok_or(OperatingError::NotRun)?,
@@ -379,6 +402,7 @@ impl CommonOperatorEngine {
                     .unwrap_or(BorrowedRows::Computed(&EMPTY));
                 workspace.validate(0, source)?;
                 lease::evaluate(
+                    self.operators,
                     contract,
                     PreparedInputs::RequestSource(&source),
                     resources.as_mut().ok_or(OperatingError::NotRun)?,
@@ -417,6 +441,7 @@ impl CommonOperatorEngine {
             workspace.seen.clear();
         }
         lease::evaluate(
+            self.operators,
             contract,
             PreparedInputs::Row {
                 input: place,
@@ -431,7 +456,7 @@ impl CommonOperatorEngine {
     }
 }
 
-impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperatorEngine {
+impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperatorEngine<'_> {
     fn stream(
         &self,
         contract: &OperatorContract,
@@ -495,7 +520,7 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
 #[cfg(test)]
 mod tests;
 
-impl CommonOperatorEngine {
+impl CommonOperatorEngine<'_> {
     pub(super) fn keep_representation(
         &self,
         contract: &OperatorContract,

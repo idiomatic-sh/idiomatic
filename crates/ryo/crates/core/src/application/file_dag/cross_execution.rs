@@ -172,7 +172,7 @@ pub(crate) fn compute(
         &schemas,
         context.bindings,
     )?;
-    crate::application::file_dag::execution::CommonOperatorEngine
+    crate::application::file_dag::execution::CommonOperatorEngine::fixture()
         .collect(&contract, inputs, context, out)
 }
 
@@ -198,7 +198,7 @@ pub(crate) fn evaluate_cross(
         context,
         fed,
         hosted,
-        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
         &request.rules[0],
     )
 }

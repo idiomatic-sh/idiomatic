@@ -30,6 +30,7 @@ rules = [
   { rule = "idiomatic.ryo/absence-cites-the-standard", include = ["languages/*/src/inbound/contracts/*/contract.rs"], description = "A language contract's answer that the language lacks a relation, `AbsenceCause::NoSuchConstruct` or `AbsenceCause::NoManifests`, cites the standard: a `standard:` comment in the method names the document and section that lacks it." },
 ]
 templates = [
+  { template = "idiomatic.arch/unchecked", file = "crates/operators/LICENSE", description = "The shared repository license shipped with the operator capability." },
   { template = "idiomatic.arch/unchecked", file = "crates/core/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
   { template = "idiomatic.arch/unchecked", file = "crates/language/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
   { template = "idiomatic.arch/unchecked", file = "crates/relations/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
@@ -64,6 +65,8 @@ templates = [
   { template = "idiomatic.arch/doc-page", file = "docs/{*page}" },
 ]
 specs = [
+  { alias = "crate-operators", spec = "idiomatic.arch/crate", include = ["crates/operators"], params = { package = "idiomatic-sh-ryo-operators", library = "ryo_operators", binary = "absent", distribution = "absent" }, description = "Portable operator capability behind its inbound contract; core scheduling and ownership remain outside this crate." },
+  { alias = "nu-hex-operators", spec = "idiomatic.arch/nu-hex", include = ["crates/operators"], params = { exposed = [], plugins = [], implements = [], item-trait = [] }, description = "The operator capability uses the same inbound/application/domain/outbound responsibilities and injected contracts as every hex." },
   { alias = "crate-benchmark", spec = "idiomatic.arch/crate", include = ["crates/benchmark"], params = { package = "idiomatic-sh-ryo-benchmark", library = "ryo_benchmark", binary = "ryo-benchmark-collector", distribution = "absent" }, description = "The shared development benchmark harness." },
   { spec = "idiomatic.ryo/benchmark-collector", include = ["crates/benchmark"], description = "The explicit isolated collector executable and its resource proof." },
   { alias = "nu-hex-benchmark", spec = "idiomatic.arch/nu-hex", include = ["crates/benchmark"], params = { exposed = [], plugins = [], implements = [], item-trait = [] }, description = "Shared benchmark use cases, domain and outbound contracts." },

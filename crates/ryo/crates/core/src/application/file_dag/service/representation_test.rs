@@ -150,7 +150,7 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
                 .demand_result(
                     root,
                     &read,
-                    &crate::application::file_dag::execution::CommonOperatorEngine,
+                    &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
                     &mut context,
                 )
                 .unwrap();
@@ -165,7 +165,7 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
                 .demand_result(
                     root,
                     &read,
-                    &crate::application::file_dag::execution::CommonOperatorEngine,
+                    &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
                     &mut context,
                 )
                 .unwrap();

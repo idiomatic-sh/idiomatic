@@ -144,7 +144,7 @@ pub(crate) fn execute_with_semantic(
     };
     let mut out = Table::default();
     let inputs = tables.iter().map(Rows::Computed).collect::<Vec<_>>();
-    let collected = CommonOperatorEngine
+    let collected = CommonOperatorEngine::fixture()
         .collect(&contract, &inputs, &mut context, &mut out)
         .map(|()| out);
     let mut room = Room::default();
@@ -153,7 +153,7 @@ pub(crate) fn execute_with_semantic(
         tables,
         visits: vec![0; tables.len()],
     };
-    let streamed = CommonOperatorEngine.stream(
+    let streamed = CommonOperatorEngine::fixture().stream(
         &contract,
         &mut feed,
         &mut context,
@@ -207,7 +207,7 @@ pub(crate) trait TestOperator:
             .collect::<Vec<_>>();
         let contract =
             super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
-        CommonOperatorEngine.collect(&contract, inputs, context, out)
+        CommonOperatorEngine::fixture().collect(&contract, inputs, context, out)
     }
     fn stream(
         &self,
@@ -231,7 +231,7 @@ pub(crate) trait TestOperator:
             .collect::<Vec<_>>();
         let contract =
             super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
-        CommonOperatorEngine.stream(&contract, feed, context, room, emit)
+        CommonOperatorEngine::fixture().stream(&contract, feed, context, room, emit)
     }
 }
 impl<T: crate::domain::operator::collections::operators::interface::OperatorsItem + ?Sized>
@@ -260,7 +260,7 @@ pub(crate) fn stream_with_inputs(
         })
         .collect::<Vec<_>>();
     let contract = super::derived::prepare::operator(item, operation, &schemas, context.bindings)?;
-    CommonOperatorEngine.stream(&contract, feed, context, room, emit)
+    CommonOperatorEngine::fixture().stream(&contract, feed, context, room, emit)
 }
 
 /// Existing borrowed test worlds keep request metadata for their fixture lifetime.

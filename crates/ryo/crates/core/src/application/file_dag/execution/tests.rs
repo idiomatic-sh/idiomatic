@@ -40,7 +40,7 @@ fn malformed_declared_population_is_refused_not_silently_shortened() {
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let result = CommonOperatorEngine.collect(
+    let result = CommonOperatorEngine::fixture().collect(
         &contract,
         &[Rows::Computed(&tables[0])],
         &mut context,
@@ -77,7 +77,7 @@ fn zero_width_bags_keep_their_declared_population() {
         scratch: &mut scratch,
     };
     let mut out = Table::default();
-    CommonOperatorEngine
+    CommonOperatorEngine::fixture()
         .collect(
             &contract,
             &[Rows::Computed(&tables[0])],
@@ -128,7 +128,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
         tables: &tables,
         visits: vec![0],
     };
-    CommonOperatorEngine
+    CommonOperatorEngine::fixture()
         .stream(
             &upstream,
             &mut feed,
@@ -145,7 +145,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
                     count: RowCount(1),
                 };
                 let mut out = Table::default();
-                CommonOperatorEngine.collect(
+                CommonOperatorEngine::fixture().collect(
                     &downstream,
                     &[Rows::Computed(&input)],
                     each,
@@ -208,7 +208,7 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
         scratch: &mut scratch,
     };
     let mut output = Table::default();
-    CommonOperatorEngine
+    CommonOperatorEngine::fixture()
         .collect(
             &contract,
             &[Rows::Computed(&edges)],
@@ -269,7 +269,7 @@ fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
     };
     let mut out = Table::default();
     assert!(matches!(
-        CommonOperatorEngine.collect(&contract, &[rows], &mut context, &mut out),
+        CommonOperatorEngine::fixture().collect(&contract, &[rows], &mut context, &mut out),
         Err(OperatingError::ShapeMismatch)
     ));
     assert_eq!(out.count.0, 0);

@@ -176,7 +176,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             };
             let setting = VisitSetting {
                 source_language: None,
-                executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+                executor:
+                    crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
                 operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
                 domain: crate::domain::workers::types::VisitSetting {
                     unknown: &[],

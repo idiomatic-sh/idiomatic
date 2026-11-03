@@ -79,10 +79,9 @@ impl OperatorsItem for ReplaceItem {
         };
         let appended = minted(lease.derived.as_ref(), made, after);
         let mut joined = std::mem::take(lease.workspace.row);
-        joined.clear();
-        joined.extend_from_slice(row);
-        joined.push(appended);
-        let result = emit.row(lease, &joined);
+        let result = lease
+            .append(row, std::slice::from_ref(&appended), &mut joined)
+            .and_then(|()| emit.row(lease, &joined));
         *lease.workspace.row = joined;
         result
     }

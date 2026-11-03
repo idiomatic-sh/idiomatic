@@ -50,7 +50,7 @@ fn collect(operation: &Operation, tables: &[Table]) -> Result<Table, OperatingEr
     };
     let inputs = tables.iter().map(Rows::Computed).collect::<Vec<_>>();
     let mut output = Table::default();
-    CommonOperatorEngine.collect(&contract, &inputs, &mut context, &mut output)?;
+    CommonOperatorEngine::fixture().collect(&contract, &inputs, &mut context, &mut output)?;
     Ok(output)
 }
 fn project(column: u32) -> Operation {

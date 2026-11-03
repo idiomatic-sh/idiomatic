@@ -581,7 +581,7 @@ fn evaluate_file_with_fixture<'f, const LEGACY: bool>(
         file_program,
         rule,
         file_dag,
-        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
         &request.rules[0],
     )
 }

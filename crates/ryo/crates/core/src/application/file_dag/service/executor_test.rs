@@ -32,7 +32,8 @@ impl PrimitiveExecutor for CountingExecutor {
         if self.refuse {
             return Err(OperatingError::NotRun);
         }
-        super::super::execution::CommonOperatorEngine.stream(contract, feed, context, room, emit)
+        super::super::execution::CommonOperatorEngine::fixture()
+            .stream(contract, feed, context, room, emit)
     }
     fn collect(
         &self,
@@ -41,7 +42,8 @@ impl PrimitiveExecutor for CountingExecutor {
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
-        super::super::execution::CommonOperatorEngine.collect(contract, inputs, context, out)
+        super::super::execution::CommonOperatorEngine::fixture()
+            .collect(contract, inputs, context, out)
     }
 }
 

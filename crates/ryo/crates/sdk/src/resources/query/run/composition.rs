@@ -93,6 +93,7 @@ pub(crate) fn build(
                 Arc::new(matching::factory::globset()),
                 Arc::new(query_language::factory::use_case(compile, typecheck)),
                 machine,
+                Arc::new(ryo_core::outbound::operators::factory::use_case()),
                 pool,
                 workers,
                 Arc::new(rows::factory::collect(collector)),

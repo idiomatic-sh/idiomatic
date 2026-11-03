@@ -170,7 +170,7 @@ fn run<'f>(
         frame
             .as_ref()
             .map(|frame| frame as &dyn crate::application::file_dag::interface::DagExecution),
-        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
         &request.rules[0],
     );
     let reads = take_read_row_counts();

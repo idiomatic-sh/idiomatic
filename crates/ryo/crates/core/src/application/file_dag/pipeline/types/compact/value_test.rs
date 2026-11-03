@@ -239,7 +239,7 @@ fn subject_with_counting(
                 None,
                 rule,
                 Some(&frame),
-                &crate::application::file_dag::execution::CommonOperatorEngine,
+                &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
                 &request.rules[rule],
             )?;
         }
@@ -323,7 +323,7 @@ fn subject_with_counting(
             None,
             0,
             Some(&frame),
-            &crate::application::file_dag::execution::CommonOperatorEngine,
+            &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
             &request.rules[0],
         )
     };

@@ -16,11 +16,30 @@ use crate::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
+use crate::outbound::operators::interface::OperatorsPort;
 use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::symbols::service::query_reborrow;
 
+/// The application lends one injected capability through the engine-private lease.
+struct PrimitiveSemanticsBridge<'a> {
+    port: &'a dyn OperatorsPort,
+}
+
+impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
+    fn operators(
+        &self,
+        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        self.port.operators(call)
+    }
+}
+
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
 pub(super) fn evaluate(
+    operators: &dyn OperatorsPort,
     contract: &OperatorContract,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,
@@ -33,7 +52,7 @@ pub(super) fn evaluate(
     let row = match input {
         PreparedInputs::Row { input, sides, row } => {
             if input.0 >= contract.inputs.used.0
-                || ((contract.streaming.row_inputs | contract.collected.row_inputs)
+                || ((contract.streaming.row_inputs.0 | contract.collected.row_inputs.0)
                     & (1 << input.0))
                     == 0
                 || sides.len() > contract.inputs.used.0
@@ -194,11 +213,13 @@ pub(super) fn evaluate(
         scratch: &mut workspace.downstream_scratch,
         memo: &mut workspace.downstream_memo,
     };
+    let semantics = PrimitiveSemanticsBridge { port: operators };
     let mut lease = PrimitiveLease::new(
         views,
         scratch,
         query_reborrow(&mut context.symbols),
         &mut predicate,
+        &semantics,
     );
     let outcome = crate::domain::operator::service::registered(contract.kind).evaluate(
         &contract.identity,

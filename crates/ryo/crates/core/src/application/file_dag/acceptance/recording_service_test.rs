@@ -100,7 +100,7 @@ fn placed() -> Result<PlacedScopes, Failure> {
 fn setting(placed: &PlacedScopes) -> VisitSetting<'_> {
     VisitSetting {
         source_language: None,
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
         domain: crate::domain::workers::types::VisitSetting {
             unknown: &[],
@@ -266,7 +266,7 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
     let paths = [path.clone()];
     let setting = VisitSetting {
         source_language: None,
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
         domain: crate::domain::workers::types::VisitSetting {
             plans: &plans,
@@ -379,7 +379,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let first = [Bucket(1)];
             let setting = VisitSetting {
                 source_language: None,
-                executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+                executor:
+                    crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
                 operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
                 domain: crate::domain::workers::types::VisitSetting {
                     plans: &plans,
@@ -588,7 +589,7 @@ fn prepared_packed_buckets_preserve_legacy_flat_digests_store_bytes_and_move_own
     let first = [Bucket(1), Bucket(9)];
     let setting = VisitSetting {
         source_language: None,
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
         domain: crate::domain::workers::types::VisitSetting {
             plans: &plans,

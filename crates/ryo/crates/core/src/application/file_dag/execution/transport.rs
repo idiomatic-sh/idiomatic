@@ -77,6 +77,7 @@ fn stream_scoped(
         let mut resources = InvocationResources::with_groups(groups);
         let views = [BorrowedRows::Computed(&first)];
         return lease::evaluate(
+            engine.operators,
             contract,
             PreparedInputs::Views(&views),
             &mut resources,
@@ -137,7 +138,7 @@ fn stream_scoped(
     match mode.demand {
         DemandOrder::Unary | DemandOrder::LeftThenRight => {
             for place in 0..contract.inputs.used.0 {
-                if mode.row_inputs & (1 << place) == 0 {
+                if mode.row_inputs.0 & (1 << place) == 0 {
                     continue;
                 }
                 feed.stream(

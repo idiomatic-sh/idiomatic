@@ -100,7 +100,13 @@ impl ResourceFixture {
             &schemas,
             context.bindings,
         )?;
-        CommonOperatorEngine.collect_owned(&contract, inputs, context, out, Rc::clone(&self.owner))
+        CommonOperatorEngine::fixture().collect_owned(
+            &contract,
+            inputs,
+            context,
+            out,
+            Rc::clone(&self.owner),
+        )
     }
     pub(crate) fn snapshot(&self) -> Snapshot {
         let cache = self.owner.derived.backend.borrow();
@@ -278,7 +284,7 @@ impl ResourceFixture {
             logical: ryo_values::domain::plans::service::named(&contract.inputs).to_vec(),
             owner: Rc::clone(&self.owner),
         };
-        CommonOperatorEngine.stream(contract, &mut feed, context, room, emit)
+        CommonOperatorEngine::fixture().stream(contract, &mut feed, context, room, emit)
     }
 }
 

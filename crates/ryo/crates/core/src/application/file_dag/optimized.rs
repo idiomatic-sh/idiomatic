@@ -25,7 +25,7 @@ use crate::domain::table_model::{
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::StepId;
 
-impl CommonOperatorEngine {
+impl CommonOperatorEngine<'_> {
     pub(crate) fn stream_step<'a, 'f>(
         &self,
         contract: &OperatorContract,

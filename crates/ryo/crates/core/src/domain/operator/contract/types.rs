@@ -9,116 +9,10 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 
-/// This affects error/publication timing, not which primitive implementation runs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EvaluationMode {
-    Streaming,
-    Collected,
-}
-
-/// The finite existing semantic input shapes; dependency acquisition is engine work.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum InputShape {
-    /// One row and immutable side resources, preserving immediate emitter failure.
-    Row { primary: usize },
-    /// The complete contributing population is semantic input.
-    Views,
-    /// Rows or Hosted is supplied by the request owner, not a fake ordinary input.
-    RequestSource,
-}
-
-/// A closed dependency order and lazy gate, interpreted by the engine before evaluation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum DemandOrder {
-    None,
-    Unary,
-    LeftThenRight,
-    JoinTransport,
-    AxisTransport,
-    LeftThenRightUnlessEmptyLeft,
-}
-
-/// A complete-view algorithm may fail before any output is observable.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Publication {
-    Incremental,
-    AfterSuccess,
-}
-
-/// Engine-owned lifetime of semantic first-occurrence work.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SetScope {
-    None,
-    Invocation,
-    PrimaryRow,
-}
-
-/// Resource declarations are semantic needs, never primitive-controlled cache policy.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ResourceNeeds {
-    None,
-    Predicates,
-    DistinctRows,
-    KeyMembership,
-    JoinKeys,
-    GroupCounts,
-    GroupDigest,
-    LiteralPatterns,
-    OrderedKeys,
-    Adjacency,
-    OrderedAdjacency,
-}
-
-/// The kind of symbolic mutation that is observable in a successful invocation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Effects {
-    Pure,
-    DerivedText,
-    PhysicalSourceText,
-    RequestSource,
-}
-
-/// Mode-specific failure and demand behavior is prepared once, never per row.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ModeContract {
-    pub shape: InputShape,
-    pub demand: DemandOrder,
-    pub publication: Publication,
-    pub held_publication: Publication,
-    pub schema_boundary: SchemaBoundary,
-    pub acquisition: AcquisitionBoundary,
-    pub row_inputs: u8,
-    pub evaluation: EvaluationMode,
-    pub preflight: PreflightOrder,
-}
-
-/// Resource acquisition preserves the old applicable-input refusal boundary.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AcquisitionBoundary {
-    BeforeRows,
-    FirstRow,
-}
-
-/// Collection validates the complete schema before reading; streaming row transforms
-/// retain their first-applicable-row error boundary.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SchemaBoundary {
-    BeforeDemand,
-    FirstApplicableRow,
-}
-
-/// Physical source validation precedes resource acquisition for SourceMatches.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SourceGate {
-    None,
-    CheckedText {
-        column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    },
-    CheckedSpan {
-        span: ryo_values::domain::plan_parts::types::ColumnIndex,
-        base_line: Option<ryo_values::domain::plan_parts::types::ColumnIndex>,
-    },
-}
+pub(crate) use ryo_operators::domain::contract::types::{
+    AcquisitionBoundary, DemandOrder, Effects, EvaluationMode, InputShape, ModeContract,
+    PreflightOrder, Publication, ResourceNeeds, RowInputMask, SchemaBoundary, SetScope, SourceGate,
+};
 
 /// Owned by one request and aligned with the compiled operation.
 #[derive(Clone, Debug)]
@@ -217,6 +111,31 @@ pub(crate) struct PrimitiveLease<'a> {
     pub workspace: PrimitiveWorkspace<'a>,
     pub derived: QuerySymbols<'a>,
     predicate: &'a mut dyn PredicateProgram,
+    semantics: &'a dyn PrimitiveSemantics,
+}
+
+/// Borrowed portable primitive meanings; the application supplies the implementation.
+/// No outbound adapter, cache owner or scheduler is reachable from a primitive.
+pub(crate) trait PrimitiveSemantics: Sync {
+    fn operators(
+        &self,
+        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    >;
+}
+
+fn span_fault(error: ryo_operators::domain::contract::types::SpanFault) -> OperatingError {
+    use ryo_operators::domain::contract::types::SpanFault;
+    match error {
+        SpanFault::NoSuchColumn { index } => {
+            crate::domain::table_model::errors::TableModelError::NoSuchColumn { index }.into()
+        }
+        SpanFault::ShapeMismatch => OperatingError::ShapeMismatch,
+        SpanFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
+        SpanFault::InvalidSpan => OperatingError::InvalidSpan,
+    }
 }
 
 /// A narrow lease reborrow preserves source/derived symbols while downstream rows run.
@@ -261,12 +180,94 @@ impl<'a> PrimitiveLease<'a> {
         workspace: PrimitiveWorkspace<'a>,
         derived: QuerySymbols<'a>,
         predicate: &'a mut dyn PredicateProgram,
+        semantics: &'a dyn PrimitiveSemantics,
     ) -> Self {
         Self {
             views,
             workspace,
             derived,
             predicate,
+            semantics,
+        }
+    }
+    pub(crate) fn project(
+        &self,
+        row: &[Value],
+        columns: &[ryo_values::domain::plan_parts::types::ColumnIndex],
+        projected: &mut Vec<Value>,
+    ) -> Result<(), OperatingError> {
+        match self.semantics.operators(
+            ryo_operators::domain::contract::types::OperatorCall::Project {
+                row,
+                columns,
+                target: projected,
+            },
+        ) {
+            Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
+            Err(ryo_operators::domain::contract::types::PortableOperatorFault::Project(
+                missing,
+            )) => Err(
+                crate::domain::table_model::errors::TableModelError::NoSuchColumn {
+                    index: missing.0,
+                }
+                .into(),
+            ),
+            _ => Err(OperatingError::WrongOperation),
+        }
+    }
+    pub(crate) fn append(
+        &self,
+        row: &[Value],
+        appended: &[Value],
+        joined: &mut Vec<Value>,
+    ) -> Result<(), OperatingError> {
+        match self.semantics.operators(
+            ryo_operators::domain::contract::types::OperatorCall::Append {
+                row,
+                appended,
+                target: joined,
+            },
+        ) {
+            Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
+            _ => Err(OperatingError::WrongOperation),
+        }
+    }
+    pub(crate) fn span_bounds(
+        &self,
+        row: &[Value],
+        column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    ) -> Result<[Value; 2], OperatingError> {
+        use ryo_operators::domain::contract::types::{
+            OperatorAnswer, OperatorCall, PortableOperatorFault,
+        };
+        match self
+            .semantics
+            .operators(OperatorCall::SpanBounds { row, column })
+        {
+            Ok(OperatorAnswer::SpanBounds(bounds)) => Ok(bounds),
+            Err(PortableOperatorFault::Span(error)) => Err(span_fault(error)),
+            _ => Err(OperatingError::WrongOperation),
+        }
+    }
+    pub(crate) fn span_between(
+        &self,
+        row: &[Value],
+        start: ryo_values::domain::plan_parts::types::ColumnIndex,
+        end: ryo_values::domain::plan_parts::types::ColumnIndex,
+        source_len: usize,
+    ) -> Result<Value, OperatingError> {
+        use ryo_operators::domain::contract::types::{
+            OperatorAnswer, OperatorCall, PortableOperatorFault, SourceByteLength,
+        };
+        match self.semantics.operators(OperatorCall::SpanBetween {
+            row,
+            start,
+            end,
+            source_len: SourceByteLength(source_len),
+        }) {
+            Ok(OperatorAnswer::SpanBetween(span)) => Ok(span),
+            Err(PortableOperatorFault::Span(error)) => Err(span_fault(error)),
+            _ => Err(OperatingError::WrongOperation),
         }
     }
     /// Only the bound semantic program can be requested by a primitive.
@@ -305,11 +306,6 @@ pub(crate) enum ReuseScope {
     Rule,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PreflightOrder {
-    SchemaFirst,
-    ResourcesFirst,
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EmptyRepresentation {
     Any,

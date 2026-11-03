@@ -195,7 +195,7 @@ fn setting<'a>(
 ) -> VisitSetting<'a> {
     VisitSetting {
         source_language: None,
-        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: std::sync::Arc::new(
             crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
                 plans,

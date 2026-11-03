@@ -4,26 +4,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_relations::domain::relations::constants::NO_SPAN;
-use ryo_relations::domain::relations::types::{Integer, Value};
-use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
-fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], OperatingError> {
-    let Value::Span(span) = cell(row, column)? else {
-        return Err(OperatingError::ShapeMismatch);
-    };
-    if span == NO_SPAN || span.start > span.end {
-        return Err(OperatingError::InvalidSpanBounds);
-    }
-    let start = usize::try_from(span.start.0).map_err(|_| OperatingError::InvalidSpanBounds)?;
-    let end = usize::try_from(span.end.0).map_err(|_| OperatingError::InvalidSpanBounds)?;
-    let start = i64::try_from(start).map_err(|_| OperatingError::InvalidSpanBounds)?;
-    let end = i64::try_from(end).map_err(|_| OperatingError::InvalidSpanBounds)?;
-    Ok([Value::Number(Integer(start)), Value::Number(Integer(end))])
-}
-
 pub(crate) struct SpanBoundsItem;
 impl OperatorsItem for SpanBoundsItem {
     fn prepare(
@@ -52,12 +34,11 @@ impl OperatorsItem for SpanBoundsItem {
         let Operation::SpanBounds { span, .. } = operation else {
             return Err(OperatingError::WrongOperation);
         };
-        let projected = bounds(row, *span)?;
+        let projected = lease.span_bounds(row, *span)?;
         let mut joined = std::mem::take(lease.workspace.row);
-        joined.clear();
-        joined.extend_from_slice(row);
-        joined.extend(projected);
-        let result = emit.row(lease, &joined);
+        let result = lease
+            .append(row, &projected, &mut joined)
+            .and_then(|()| emit.row(lease, &joined));
         *lease.workspace.row = joined;
         result
     }

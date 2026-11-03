@@ -458,7 +458,7 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
         None,
         1,
         None,
-        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
         &request.rules[1],
     )
     .unwrap();
@@ -475,7 +475,7 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
         Some(&mut program),
         1,
         None,
-        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
         &request.rules[1],
     )
     .unwrap();

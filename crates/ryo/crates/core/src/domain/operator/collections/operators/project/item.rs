@@ -5,7 +5,6 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_dedup::service::first_time;
-use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::Addition;
 use crate::domain::table_model::types::ParameterBinding;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
@@ -44,9 +43,7 @@ impl OperatorsItem for ProjectItem {
         let mut projected = std::mem::take(lease.workspace.other);
         let result = (|| {
             projected.clear();
-            for column in columns {
-                projected.push(cell(row, *column)?);
-            }
+            lease.project(row, columns, &mut projected)?;
             if *distinct == RepeatedRows::Dropped {
                 let state = lease
                     .workspace

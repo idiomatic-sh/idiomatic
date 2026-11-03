@@ -84,6 +84,7 @@ use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::matching::errors::MatchingError;
 use crate::outbound::matching::interface::MatchingPort;
 use crate::outbound::memory::interface::MemoryPort;
+use crate::outbound::operators::interface::OperatorsPort;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use crate::outbound::rows::interface::RowsPort;
 use crate::outbound::rows::types::{LentCell, Summary};
@@ -131,6 +132,8 @@ pub struct LintUseCaseImpl {
     compilation: crate::application::rule_compilation::service::RuleCompilation,
     /// Says how much memory the machine has, which sizes the lint's budget.
     memory: Arc<dyn MemoryPort>,
+    /// Pure primitive meanings supplied by the composition edge.
+    operators: Arc<dyn OperatorsPort>,
     /// Runs the files' jobs on the workers.
     scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on: the run makes one worker for each.
@@ -169,6 +172,7 @@ impl LintUseCaseImpl {
         matching: Arc<dyn MatchingPort>,
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
+        operators: Arc<dyn OperatorsPort>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowsPort>,
@@ -186,6 +190,7 @@ impl LintUseCaseImpl {
                 query_language,
             ),
             memory,
+            operators,
             scheduler,
             workers,
             rows,
@@ -1407,7 +1412,9 @@ impl LintUseCase for LintUseCaseImpl {
                 )
             })?,
         );
-        let executor = crate::application::file_dag::execution::CommonOperatorEngine;
+        let executor = crate::application::file_dag::execution::CommonOperatorEngine::new(
+            self.operators.as_ref(),
+        );
         let mut setting = VisitSetting {
             source_language: request.source_language.as_ref(),
             executor: &executor,

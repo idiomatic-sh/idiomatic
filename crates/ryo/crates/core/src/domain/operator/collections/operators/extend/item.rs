@@ -36,10 +36,9 @@ impl OperatorsItem for ExtendItem {
         }
         let appended = lease.views.appended.ok_or(OperatingError::WrongBinding)?;
         let mut joined = std::mem::take(lease.workspace.row);
-        joined.clear();
-        joined.extend_from_slice(row);
-        joined.extend_from_slice(appended);
-        let result = emit.row(lease, &joined);
+        let result = lease
+            .append(row, appended, &mut joined)
+            .and_then(|()| emit.row(lease, &joined));
         *lease.workspace.row = joined;
         result
     }

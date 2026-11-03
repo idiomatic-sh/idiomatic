@@ -88,7 +88,7 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
             .demand(
                 roots[0],
                 &read,
-                &crate::application::file_dag::execution::CommonOperatorEngine,
+                &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
                 &mut context,
             )
             .unwrap();

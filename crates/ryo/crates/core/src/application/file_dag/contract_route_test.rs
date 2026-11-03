@@ -68,7 +68,7 @@ impl PrimitiveExecutor for CountingExecutor {
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
         self.calls.lock().unwrap().push(contract.kind);
-        CommonOperatorEngine.stream(
+        CommonOperatorEngine::fixture().stream(
             contract,
             feed,
             context,
@@ -87,7 +87,7 @@ impl PrimitiveExecutor for CountingExecutor {
         out: &mut Table,
     ) -> Result<(), OperatingError> {
         self.calls.lock().unwrap().push(contract.kind);
-        CommonOperatorEngine.collect(contract, inputs, context, out)?;
+        CommonOperatorEngine::fixture().collect(contract, inputs, context, out)?;
         self.emitted
             .lock()
             .unwrap()
