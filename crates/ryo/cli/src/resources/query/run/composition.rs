@@ -80,6 +80,9 @@ pub(crate) fn build(
             Arc::new(matching::factory::globset()),
             Arc::new(query_language::factory::use_case(compile, typecheck)),
             memory,
+            Arc::new(ryo_core::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(workers))),
             scheduler::factory::workers(workers),
             Arc::new(crate::output::schemas::rows(out, edge.format)),

@@ -494,7 +494,9 @@ fn scheduled_world_with_query_kernel(
             Arc::new(MatchingFake),
             query_language,
             Arc::clone(&analysis_memory),
-            Arc::new(crate::outbound::operators::factory::use_case()),
+            Arc::new(crate::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
             scheduler,
             workers,
             ports,
@@ -1886,7 +1888,9 @@ fn succeeds() {
             Arc::new(MatchingFake),
             Arc::new(QueryLanguageFake::selecting()),
             Arc::clone(&analysis_memory),
-            Arc::new(crate::outbound::operators::factory::use_case()),
+            Arc::new(crate::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),
             Arc::new(rows::factory::collect(rows::types::Collector::default())),

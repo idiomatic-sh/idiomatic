@@ -23,7 +23,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 columns,
                 target,
             } => {
-                service::project(row, columns, target).map_err(PortableOperatorFault::Project)?;
+                service::project(row, columns, target)?;
                 Ok(OperatorAnswer::Written)
             }
             OperatorCall::Append {
@@ -37,7 +37,6 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
             OperatorCall::SpanBounds { row, column } => {
                 crate::domain::span_bounds::service::bounds(row, column)
                     .map(OperatorAnswer::SpanBounds)
-                    .map_err(PortableOperatorFault::Span)
             }
             OperatorCall::SpanBetween {
                 row,
@@ -45,8 +44,7 @@ impl OperatorsUseCase for OperatorsUseCaseImpl {
                 end,
                 source_len,
             } => crate::domain::span_between::service::between(row, start, end, source_len.0)
-                .map(OperatorAnswer::SpanBetween)
-                .map_err(PortableOperatorFault::Span),
+                .map(OperatorAnswer::SpanBetween),
         }
     }
 }

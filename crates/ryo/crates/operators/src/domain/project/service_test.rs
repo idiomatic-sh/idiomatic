@@ -1,6 +1,6 @@
 //! Projection's ordered bag and first-error cases.
 use super::service::project;
-use crate::domain::contract::types::ProjectColumnAbsent;
+use crate::domain::contract::types::PortableOperatorFault;
 use ryo_language::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -12,7 +12,7 @@ enum Scenario {
 }
 type Input = Scenario;
 type Value = [Cell; 3];
-type Failure = ProjectColumnAbsent;
+type Failure = PortableOperatorFault;
 const ROW: [Cell; 2] = [Cell::Number(Integer(7)), Cell::Number(Integer(9))];
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -25,7 +25,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("first_missing_column_is_reported"),
         word: Word::Refuses,
         input: || Scenario::FirstMissingColumn,
-        expect: Expect::Error(ProjectColumnAbsent(3)),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 3 }),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

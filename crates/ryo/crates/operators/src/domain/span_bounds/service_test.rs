@@ -1,5 +1,5 @@
 use super::service::bounds;
-use crate::domain::contract::types::SpanFault;
+use crate::domain::contract::types::PortableOperatorFault;
 use ryo_language::domain::relations::{
     constants::NO_SPAN,
     types::{Integer, Offset, Span, Value},
@@ -37,16 +37,16 @@ fn preserves_endpoint_order_duplicate_rows_and_input_cells() {
 fn distinguishes_missing_columns_types_and_invalid_spans() {
     assert_eq!(
         bounds(&[], ColumnIndex(7)),
-        Err(SpanFault::NoSuchColumn { index: 7 })
+        Err(PortableOperatorFault::NoSuchColumn { index: 7 })
     );
     assert_eq!(
         bounds(&[Value::Number(Integer(2))], ColumnIndex(0)),
-        Err(SpanFault::ShapeMismatch)
+        Err(PortableOperatorFault::ShapeMismatch)
     );
     for value in [Value::Span(NO_SPAN), span(6, 5)] {
         assert_eq!(
             bounds(&[value], ColumnIndex(0)),
-            Err(SpanFault::InvalidSpanBounds)
+            Err(PortableOperatorFault::InvalidSpanBounds)
         );
     }
 }
@@ -62,6 +62,6 @@ fn largest_offsets_are_checked_without_integer_wrap_or_source_length_gate() {
             ])
         );
     } else {
-        assert_eq!(result, Err(SpanFault::InvalidSpanBounds));
+        assert_eq!(result, Err(PortableOperatorFault::InvalidSpanBounds));
     }
 }

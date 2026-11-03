@@ -572,7 +572,9 @@ fn use_case_over(
                 Arc::new(typecheck()),
             )),
             Arc::clone(&analysis_memory),
-            Arc::new(crate::outbound::operators::factory::use_case()),
+            Arc::new(crate::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
             scheduler,
             crate::outbound::scheduler::types::WorkerCount(1),
             rows,

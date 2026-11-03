@@ -1,8 +1,6 @@
 //! The family entry dispatches borrowed semantic requests without replacing scratch ownership.
 use super::{interface::OperatorsUseCase as _, use_case::OperatorsUseCaseImpl};
-use crate::domain::contract::types::{
-    OperatorAnswer, OperatorCall, PortableOperatorFault, ProjectColumnAbsent,
-};
+use crate::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 use ryo_language::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -34,7 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("project_reports_absent_column"),
         word: Word::Refuses,
         input: || Scenario::MissingProjectColumn,
-        expect: Expect::Error(PortableOperatorFault::Project(ProjectColumnAbsent(2))),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: 2 }),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

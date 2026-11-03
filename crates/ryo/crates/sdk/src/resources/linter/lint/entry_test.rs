@@ -626,6 +626,13 @@ struct CapabilityProvider(
     &'static str,
 );
 impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityProvider {
+    fn begin_semantics(
+        &self,
+        _: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _: &ryo_language::domain::elements::types::Elements,
+    ) -> Option<Box<dyn ryo_language::domain::semantics::interface::SemanticSession>> {
+        None
+    }
     fn capabilities(
         &self,
     ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {

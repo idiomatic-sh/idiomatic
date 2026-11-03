@@ -163,7 +163,7 @@ pub(crate) fn build(
                 matching,
                 query,
                 analysis_memory,
-                Arc::new(ryo_core::outbound::operators::factory::use_case()),
+                Arc::new(ryo_core::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new())),
                 pool,
                 workers,
                 Arc::new(rows::factory::collect(collector)),

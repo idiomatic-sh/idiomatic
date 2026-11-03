@@ -1,5 +1,5 @@
 //! Validate both located operands before propagating an absent span.
-use crate::domain::contract::types::SpanFault;
+use crate::domain::contract::types::PortableOperatorFault;
 use ryo_language::domain::relations::{
     constants::NO_SPAN,
     types::{Span, Value},
@@ -12,21 +12,22 @@ pub fn between(
     start: ColumnIndex,
     end: ColumnIndex,
     source_len: usize,
-) -> Result<Value, SpanFault> {
+) -> Result<Value, PortableOperatorFault> {
     let cell = |column: ColumnIndex| {
         row.get(usize::try_from(column.0).unwrap_or(usize::MAX))
             .copied()
-            .ok_or(SpanFault::NoSuchColumn { index: column.0 })
+            .ok_or(PortableOperatorFault::NoSuchColumn { index: column.0 })
     };
     // Both lookups precede the type pattern, including when the left type is wrong.
     let (Value::Span(left), Value::Span(right)) = (cell(start)?, cell(end)?) else {
-        return Err(SpanFault::ShapeMismatch);
+        return Err(PortableOperatorFault::ShapeMismatch);
     };
     for span in [left, right] {
         if span != NO_SPAN {
-            let span_end = usize::try_from(span.end.0).map_err(|_| SpanFault::InvalidSpan)?;
+            let span_end =
+                usize::try_from(span.end.0).map_err(|_| PortableOperatorFault::InvalidSpan)?;
             if span.start > span.end || span_end > source_len {
-                return Err(SpanFault::InvalidSpan);
+                return Err(PortableOperatorFault::InvalidSpan);
             }
         }
     }
@@ -34,7 +35,7 @@ pub fn between(
         return Ok(Value::Span(NO_SPAN));
     }
     if left.start > right.end {
-        return Err(SpanFault::InvalidSpan);
+        return Err(PortableOperatorFault::InvalidSpan);
     }
     Ok(Value::Span(Span {
         start: left.start,

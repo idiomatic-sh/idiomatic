@@ -3,6 +3,11 @@ use super::interface::OperatorsPort;
 
 /// The stateless use case adapter; the edge constructs it once per lint service.
 #[must_use]
-pub fn use_case() -> impl OperatorsPort {
-    super::adapters::use_case::adapter::OperatorsUseCaseAdapter::new()
+pub fn use_case(
+    operators: impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
+    + Send
+    + Sync
+    + std::fmt::Debug,
+) -> impl OperatorsPort {
+    super::adapters::use_case::adapter::OperatorsUseCaseAdapter::new(operators)
 }
