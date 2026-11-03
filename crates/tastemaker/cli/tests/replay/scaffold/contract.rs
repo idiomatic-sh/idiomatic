@@ -27,6 +27,8 @@ pub(super) fn assert_contract(language: &Path) {
         ("embedded_expression", "EmbeddedExpression"),
         ("expression_shape", "ExpressionShape"),
         ("literal_properties", "LiteralProperties"),
+        ("format_specification", "FormatSpecification"),
+        ("bytes_literal", "BytesLiteral"),
         ("interpolated_string_literal", "InterpolatedStringLiteral"),
         ("implicit_symbol", "ImplicitSymbol"),
         ("binding_event", "BindingEvent"),

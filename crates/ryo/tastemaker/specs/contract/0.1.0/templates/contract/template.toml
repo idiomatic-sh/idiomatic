@@ -78,6 +78,14 @@ impl Parse for {{ part | pascal }}Contract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -428,6 +436,14 @@ impl Parse for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -725,6 +741,14 @@ impl Parse for ParseContract {
     }
 
     fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -1039,6 +1063,14 @@ impl Parse for OtherContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -1258,6 +1290,8 @@ impl Parse for OtherContract {
 '''
 # The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1409,6 +1443,14 @@ impl Different for ParseContract {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
     fn interpolated_string_literal(&self) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
@@ -1693,6 +1735,8 @@ then.findings = [
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
 ]
 [[scenarios]]
 id = 'no-impl'
@@ -1729,6 +1773,8 @@ impl ParseContract {
 '''
 # The Parse template now requires numeric_literal; this deliberate negative mutation rejects that member too.
 then.findings = [
+  { rule = 'contract#template', path = 'contract.rs' },
+  { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
   { rule = 'contract#template', path = 'contract.rs' },
@@ -1943,6 +1989,14 @@ impl Parse for ParseContract {
     }
 
     fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
@@ -2246,6 +2300,14 @@ impl Parse for ParseContract {
     }
 
     fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(&self) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
         languages::absent(AbsenceCause::NotYetRead)
     }
 
