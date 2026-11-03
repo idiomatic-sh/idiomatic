@@ -484,7 +484,8 @@ fn refuses() {
 
 #[test]
 fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
+    use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
     use ryo_language::domain::relations::types::{ColumnsView, FactColumn};
     let columns = [
         FactColumn(vec![1, 1, 1, 9, 2, 4, 90]),
@@ -508,8 +509,7 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    cache.graph_enabled = true;
+    let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("owner");
     for direction in [
         Direction::Parent,
         Direction::Child,
@@ -561,7 +561,6 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
             let mut context = OperatorContext {
                 prepared_kinds: None,
                 prepared_matchers: None,
-                stored_indexes: Some(&mut cache),
                 bindings: &[],
                 symbols: (&mut symbols).into(),
                 source: SourceView(b""),
@@ -570,8 +569,8 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
                 memo: &mut memo,
                 scratch: &mut scratch,
             };
-            AxisItem
-                .compute(
+            fixture
+                .collect(
                     &operation,
                     &[
                         Rows::Computed(&from),
@@ -588,10 +587,11 @@ fn compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules() {
             "{direction:?} preserves BFS/direct order and duplicates"
         );
     }
-    assert_eq!(cache.graph_counts.builds, 1);
-    assert_eq!(cache.graph_counts.reuses, 4);
+    let snapshot = fixture.snapshot();
+    assert_eq!(snapshot.graph_builds, 1);
+    assert_eq!(snapshot.graph_reuses, 4);
     assert!(
-        cache.graph_counts.early_stops > 0,
+        snapshot.graph_early_stops > 0,
         "cyclic nearest uses qualifying BFS early stop"
     );
 }

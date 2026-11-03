@@ -32,9 +32,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Real Feed/hold and exported/frontier boundaries, with two distinct plans sharing one generation.
 fn subject(distinct: Input) -> Result<Value, Failure> {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
-    use crate::application::file_dag::derived::selection::{activate, prepare};
-    use crate::application::file_dag::pipeline::service::evaluate_file;
+    use crate::application::file_dag::derived::selection::prepare_request;
+    use crate::application::file_dag::pipeline::service::{
+        evaluate_file, evaluate_file_with_executor,
+    };
     use crate::domain::operating::types::OperatorContext;
     use crate::domain::operator::service::pool_for;
     use crate::domain::table_scratch::types::OperatorScratch;
@@ -147,7 +148,18 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
     let mut compact = pool_for(&plans);
     let mut baseline_prepared = crate::domain::operator::types::PreparedPool::default();
     let mut prepared = crate::domain::operator::types::PreparedPool::default();
-    prepare(&mut prepared, &plans, &[Vec::new(), Vec::new()]);
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+        &plans,
+        &[vec![], vec![]],
+        &[],
+        &|relation| {
+            read(relation).map_or_else(
+                || ryo_language::domain::relations::service::kinds(relation),
+                |view| view.kinds,
+            )
+        },
+    )?;
+    prepare_request(&mut prepared, &request);
     assert_eq!(
         prepared.selection_plans[0].steps[1]
             .as_ref()
@@ -156,8 +168,14 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
         distinct,
     );
     assert!(prepared.selection_plans[0].steps[2].is_none());
-    let mut cache = new(&[Relation::Function], &[], LIMIT).unwrap();
-    activate(&mut cache, &prepared, &[Relation::Function], |_| true);
+    let frame = std::cell::RefCell::new(
+        crate::application::file_dag::derived::owner::resource_fixture::residual_frame(
+            &plans,
+            &prepared,
+            &[Relation::Function],
+            &[],
+        ),
+    );
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -171,7 +189,7 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    for plan in &plans {
+    for (rule, plan) in plans.iter().enumerate() {
         evaluate_file(
             plan,
             &read,
@@ -185,7 +203,6 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
             let mut actual = OperatorContext {
                 prepared_kinds: None,
                 prepared_matchers: None,
-                stored_indexes: Some(&mut cache),
                 bindings: context.bindings,
                 symbols: ryo_language::domain::symbols::service::query_reborrow(
                     &mut context.symbols,
@@ -196,7 +213,7 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
                 memo: &mut *context.memo,
                 scratch: &mut *context.scratch,
             };
-            evaluate_file(
+            evaluate_file_with_executor(
                 plan,
                 &read,
                 None,
@@ -204,6 +221,11 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
                 &mut compact,
                 &mut prepared,
                 &[],
+                None,
+                rule,
+                Some(&frame),
+                &crate::application::file_dag::execution::CommonOperatorEngine,
+                &request.rules[rule],
             )?;
         }
         assert_eq!(compact.steps[2], baseline.steps[2]);
@@ -213,7 +235,12 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
         assert!(compact.steps[0].cells.is_empty());
         assert!(compact.steps[1].cells.is_empty());
         assert_eq!(
-            cache.selections[0].rows.len(),
+            frame
+                .borrow()
+                .relations
+                .derived
+                .retained_predicate_rows()
+                .expect("owner retains predicate IDs"),
             8,
             "shared IDs remain predicate-only"
         );
@@ -233,14 +260,13 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
             "application-owned output outlives its rule workspace"
         );
     }
-    assert_eq!(cache.selection_counts.builds, 1);
-    assert!(cache.selection_counts.reuses >= 3);
+    assert_eq!(frame.borrow().relations.derived.selection_counts().0, 1);
+    assert!(frame.borrow().relations.derived.selection_counts().1 >= 3);
     readable.set(false);
     let refused = {
         let mut actual = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: Some(&mut cache),
             bindings: context.bindings,
             symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
             source: context.source,
@@ -249,7 +275,7 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
             memo: &mut *context.memo,
             scratch: &mut *context.scratch,
         };
-        evaluate_file(
+        evaluate_file_with_executor(
             &plans[0],
             &read,
             None,
@@ -257,6 +283,11 @@ fn subject(distinct: Input) -> Result<Value, Failure> {
             &mut compact,
             &mut prepared,
             &[],
+            None,
+            0,
+            Some(&frame),
+            &crate::application::file_dag::execution::CommonOperatorEngine,
+            &request.rules[0],
         )
     };
     assert!(matches!(

@@ -140,7 +140,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     Arc::make_mut(&mut bad.identity).bindings = vec![ParameterBinding::Tables(Vec::new())];
     let bad = Arc::new(bad);
     let active = vec![first.clone(), first.clone(), alternate.clone()];
-    let authored = active.iter().cloned().chain([second.clone(), bad.clone()]);
+    let authored = active
+        .iter()
+        .cloned()
+        .chain([second.clone(), bad.clone()])
+        .collect::<Vec<_>>();
     let fixture =
         SelectionFixture::new(&[Relation::Function], &[], active, authored, source.kinds)?;
     if matches!(scenario, Scenario::Ineligible) {

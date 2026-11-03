@@ -95,7 +95,6 @@ fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
         let mut context = OperatorContext {
             prepared_matchers: None,
             prepared_kinds: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: crate::domain::table_texts::types::SourceView(b""),
@@ -185,7 +184,6 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -197,6 +195,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let held = [OnceCell::new()];
     let inputs = [NodeInput::Node(child)];
     let mut feed = GraphInputs {
+        executor: &crate::application::file_dag::executor::CommonOperatorEngine,
         execution: &mut dag,
         graph: &graph,
         inputs: &inputs,
@@ -296,7 +295,6 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b"x"),

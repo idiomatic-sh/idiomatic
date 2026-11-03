@@ -22,7 +22,7 @@ fn many_selected_consumers_reacquire_one_generation_proof() {
     let first = owner.source(relation, &rows).unwrap();
     for _ in 0..128 {
         let reacquired = owner.source(relation, &rows).unwrap();
-        assert!(Arc::ptr_eq(&first, &reacquired));
+        assert!(first.same_record(&reacquired));
         let resolved = owner
             .resolve(reacquired.as_ref(), &|_| Ok(rows.clone()))
             .unwrap();
@@ -47,7 +47,7 @@ fn many_selected_consumers_reacquire_one_generation_proof() {
         Err(OperatingError::NotRead)
     ));
     let next = owner.source(relation, &rows).unwrap();
-    assert!(!Arc::ptr_eq(&first, &next));
+    assert!(!first.same_record(&next));
     owner
         .inspect(next.as_ref(), BorrowedRows::from(&rows))
         .unwrap();

@@ -53,4 +53,24 @@ impl DerivedOwner {
             .as_ref()
             .is_some_and(|cache| super::super::indexes::can_retain(cache, relation, rows, columns))
     }
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn selection_counts(&self) -> (u64, u64) {
+        self.backend.borrow().as_ref().map_or((0, 0), |cache| {
+            (cache.selection_counts.builds, cache.selection_counts.reuses)
+        })
+    }
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn retained_predicate_rows(&self) -> Option<usize> {
+        self.state.borrow().entries.values().find_map(|entry| {
+            if entry._plan.kind != DerivedKind::PredicateMatches {
+                return None;
+            }
+            let storage = &entry.retained.as_ref()?.storage;
+            if let DerivedStorage::RowIds { rows } = storage.as_ref() {
+                Some(rows.len())
+            } else {
+                None
+            }
+        })
+    }
 }

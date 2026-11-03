@@ -22,6 +22,8 @@ mod acquisition;
 mod backings;
 mod graph;
 mod leases;
+#[cfg(test)]
+pub(crate) mod resource_fixture;
 mod scoped;
 #[cfg(test)]
 pub(crate) mod selection_fixture;

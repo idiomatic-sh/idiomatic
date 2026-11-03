@@ -1,8 +1,7 @@
 //! Same-binary differential proof for a real selected-cut/join/filter/project shape.
 
-use crate::application::file_dag::derived::indexes::{LIMIT, new};
-use crate::application::file_dag::derived::selection::{activate, prepare};
-use crate::application::file_dag::pipeline::service::evaluate_file;
+use crate::application::file_dag::derived::selection::prepare_request;
+use crate::application::file_dag::pipeline::service::evaluate_file_with_executor;
 use crate::domain::column_kernel::types::KernelStrategy;
 use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
@@ -121,25 +120,33 @@ fn run<'f>(
         kernel_strategy: strategy,
         ..PreparedPool::default()
     };
-    prepare(&mut prepared, std::slice::from_ref(plan), &[Vec::new()]);
-    let mut cache = new(
-        &[Relation::Function, Relation::SemanticChild],
-        partial,
-        LIMIT,
-    )
-    .unwrap();
-    activate(
-        &mut cache,
-        &prepared,
-        &[Relation::Function, Relation::SemanticChild],
-        |_| true,
-    );
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+        std::slice::from_ref(plan),
+        &[vec![]],
+        &[],
+        &|relation| {
+            read(relation).map_or_else(
+                || ryo_language::domain::relations::service::kinds(relation),
+                |view| view.kinds,
+            )
+        },
+    )?;
+    prepare_request(&mut prepared, &request);
+    let frame = (strategy == KernelStrategy::Column).then(|| {
+        std::cell::RefCell::new(
+            crate::application::file_dag::derived::owner::resource_fixture::residual_frame(
+                std::slice::from_ref(plan),
+                &prepared,
+                &[Relation::Function, Relation::SemanticChild],
+                partial,
+            ),
+        )
+    });
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: (strategy == KernelStrategy::Column).then_some(&mut cache),
         bindings: &[],
         symbols: symbols.into(),
         source: SourceView(b""),
@@ -149,7 +156,7 @@ fn run<'f>(
         scratch: &mut scratch,
     };
     let _previous = take_read_row_counts();
-    let result = evaluate_file(
+    let result = evaluate_file_with_executor(
         plan,
         read,
         None,
@@ -157,6 +164,13 @@ fn run<'f>(
         &mut pool,
         &mut prepared,
         &[],
+        None,
+        0,
+        frame
+            .as_ref()
+            .map(|frame| frame as &dyn crate::application::file_dag::interface::DagExecution),
+        &crate::application::file_dag::execution::CommonOperatorEngine,
+        &request.rules[0],
     );
     let reads = take_read_row_counts();
     result?;

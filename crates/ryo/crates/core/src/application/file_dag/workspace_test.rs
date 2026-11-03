@@ -1,9 +1,6 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
 use super::*;
-use crate::application::file_dag::{
-    derived::{owner::ViewContext, view::AcquiredView},
-    relations::RelationOwner,
-};
+use crate::application::file_dag::{derived::owner::ViewContext, relations::RelationOwner};
 use crate::domain::{
     derived_views::{collections::views::registration::registered, types::*},
     operating::{errors::OperatingError, types::OperatorContext},
@@ -52,7 +49,6 @@ fn context<'a>(
     OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[] as &[ParameterBinding],
         symbols: symbols.into(),
         source: crate::domain::table_texts::types::SourceView(&[]),
@@ -99,11 +95,8 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
             &membership,
             ViewContext::default(),
             ViewInputs::MembershipValues,
-            None,
         )
         .unwrap();
-    let index = AcquiredView::new(&equality.plan, index);
-    let members = AcquiredView::new(&membership.plan, members);
     for _ in 0..16 {
         let DerivedView::Equality(index) = index.view().unwrap() else {
             panic!("equality")
@@ -168,14 +161,9 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
         };
         let storage = workspace
             .inputs(&inputs)
-            .acquire_derived(
-                &use_,
-                ViewContext::default(),
-                ViewInputs::Text(&texts),
-                None,
-            )
+            .acquire_derived(&use_, ViewContext::default(), ViewInputs::Text(&texts))
             .unwrap();
-        let view = AcquiredView::new(&use_.plan, storage);
+        let view = storage;
         let DerivedView::OrderedKeys(rows) = view.view().unwrap() else {
             panic!("ordered")
         };
@@ -202,8 +190,11 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
         second.right[0].keys[0],
         crate::domain::operator::contract::graph::OwnedOrderedKey::Value(Value::Number(Integer(4)))
     ));
-    assert_eq!(workspace.derived_local.counts().0, 2);
-    assert_eq!(owner.derived.counts().0, 0);
+    assert_eq!(
+        owner.derived.counts().0,
+        2,
+        "mixed inputs use the same owner with distinct admitted populations"
+    );
     workspace.publications[1] = Some((published).clone());
     let inputs = [BorrowedRows::from(&left), BorrowedRows::Computed(&right)];
     let texts = crate::domain::table_texts::types::Texts {
@@ -216,8 +207,7 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
         workspace.inputs(&inputs).acquire_derived(
             &use_,
             ViewContext::default(),
-            ViewInputs::Text(&texts),
-            None
+            ViewInputs::Text(&texts)
         ),
         Err(OperatingError::NotRead)
     ));
@@ -231,7 +221,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
         columns: &columns,
     });
     let published = owner.source(Relation::LanguageTarget, &raw).unwrap();
-    let normalized = owner.normalized(published.as_ref(), raw).unwrap().unwrap();
+    let normalized = owner.normalized(&published, raw).unwrap().unwrap();
     let mut workspace = InvocationWorkspace::default();
     workspace.relation_owner = Some(owner);
     workspace.publications = vec![Some((published).clone())];
@@ -276,12 +266,7 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
         tables: &first,
         visits: vec![0],
     };
-    workspace.capture(&feed, 1);
-    workspace
-        .derived_local
-        .pin(crate::application::file_dag::derived::owner::PopulationId(
-            0,
-        ));
+    workspace.capture(&feed, 1).unwrap();
     let (mut symbols, mut scratch, mut memo) = (Symbols::default(), Default::default(), vec![]);
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
     let old = workspace
@@ -292,14 +277,17 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
         tables: &second,
         visits: vec![0],
     };
-    workspace.capture(&feed, 1);
-    assert_eq!(workspace.derived_local.working_bytes(), 0);
+    workspace.capture(&feed, 1).unwrap();
+    assert_eq!(
+        workspace.owner().derived.counts().0,
+        0,
+        "recapture starts a new invocation owner"
+    );
     let fresh = workspace
         .acquire_rows(&use_, &[BorrowedRows::Computed(&second[0])], &mut context)
         .unwrap();
-    assert!(!Arc::ptr_eq(&old, &fresh));
-    let acquired = AcquiredView::new(&use_.plan, fresh);
-    let DerivedView::Equality(index) = acquired.view().unwrap() else {
+    assert!(!old.same_storage(&fresh));
+    let DerivedView::Equality(index) = fresh.view().unwrap() else {
         panic!("equality")
     };
     let view = crate::domain::operator::contract::views::IndexedRows {

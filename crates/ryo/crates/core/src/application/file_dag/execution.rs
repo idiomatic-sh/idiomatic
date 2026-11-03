@@ -85,11 +85,43 @@ impl CommonOperatorEngine {
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
+        self.collect_workspace(
+            contract,
+            inputs,
+            context,
+            out,
+            InvocationWorkspace::default(),
+        )
+    }
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn collect_owned(
+        &self,
+        contract: &OperatorContract,
+        inputs: &[Rows<'_>],
+        context: &mut OperatorContext<'_>,
+        out: &mut Table,
+        owner: std::rc::Rc<super::relations::RelationOwner>,
+    ) -> Result<(), OperatingError> {
+        let mut workspace = InvocationWorkspace::default();
+        workspace.capture_provided(
+            owner,
+            ryo_values::domain::plans::service::named(&contract.inputs),
+            inputs,
+        )?;
+        self.collect_workspace(contract, inputs, context, out, workspace)
+    }
+    fn collect_workspace(
+        &self,
+        contract: &OperatorContract,
+        inputs: &[Rows<'_>],
+        context: &mut OperatorContext<'_>,
+        out: &mut Table,
+        mut workspace: InvocationWorkspace,
+    ) -> Result<(), OperatingError> {
         #[cfg(test)]
         {
             context.scratch.observation = Default::default();
         }
-        let mut workspace = InvocationWorkspace::default();
         workspace.predicates = std::mem::take(&mut context.scratch.select_scratch);
         workspace.predicate_memo = std::mem::take(context.memo);
         let result = self.collect_scoped(contract, inputs, context, out, &mut workspace);

@@ -84,6 +84,36 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    #[cfg(test)]
+    pub(super) fn capture_provided(
+        &mut self,
+        owner: std::rc::Rc<super::relations::RelationOwner>,
+        logical: &[ryo_values::domain::plan_parts::types::Input],
+        inputs: &[Rows<'_>],
+    ) -> Result<(), OperatingError> {
+        self.relation_owner = Some(std::rc::Rc::clone(&owner));
+        self.origins.clear();
+        self.publications.clear();
+        for (at, rows) in inputs.iter().enumerate() {
+            let relation = match (logical.get(at), rows) {
+                (
+                    Some(ryo_values::domain::plan_parts::types::Input::Relation(relation)),
+                    Rows::Stored(_) | Rows::Selected(_) | Rows::Tree(_),
+                ) => Some(*relation),
+                _ => None,
+            };
+            self.origins.push(relation.map_or(
+                super::feed::InputOrigin::External,
+                super::feed::InputOrigin::Relation,
+            ));
+            self.publications.push(
+                relation
+                    .map(|relation| owner.source(relation, rows))
+                    .transpose()?,
+            );
+        }
+        Ok(())
+    }
     pub(super) fn capture(
         &mut self,
         feed: &dyn super::feed::Feed<'_>,

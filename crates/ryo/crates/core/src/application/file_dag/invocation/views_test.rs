@@ -32,20 +32,25 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
             )
             .unwrap(),
     );
-    let mut storage = DerivedStorage::Unbuilt;
-    crate::application::file_dag::derived::owner::build_scoped(
-        crate::application::file_dag::route_counts::BuildRoute::Fixture,
-        &plan,
-        DerivedInputs::Rows(&[BorrowedRows::Computed(&table)]),
-        &mut storage,
-        &mut DerivedScratch::default(),
-    )
-    .unwrap();
-    let pointer = match &storage {
-        DerivedStorage::CycleAdjacency(graph) => graph.values.as_ptr(),
-        _ => panic!("actual cycle builder"),
+    let owner = crate::application::file_dag::relations::RelationOwner::new(false);
+    let rows = BorrowedRows::Computed(&table);
+    let proof = owner.admit_external(rows).unwrap();
+    let (population, _) = proof.identity(&owner).unwrap();
+    let acquired = owner
+        .derived
+        .acquire_stored(
+            &plan,
+            &[population],
+            crate::application::file_dag::derived::owner::ViewContext::default(),
+            DerivedInputs::Rows(&[rows]),
+            &mut DerivedScratch::default(),
+            None,
+        )
+        .unwrap();
+    let DerivedView::CycleAdjacency(built) = acquired.view().unwrap() else {
+        panic!("actual cycle builder");
     };
-    let acquired = AcquiredView::new(&plan, Arc::new(storage));
+    let pointer = built.values.as_ptr();
     let graph = InvocationResources::cycles_view(Some(&acquired))
         .unwrap()
         .unwrap();
@@ -58,10 +63,30 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         graph.values.as_ptr(),
         "the semantic lease borrows the owned graph"
     );
-    let wrong = AcquiredView::new(
-        &plan,
-        Arc::new(DerivedStorage::Equality(KeyIndex::default())),
+    let equality = Arc::new(
+        registered(DerivedKind::Equality)
+            .prepare(
+                &ViewRequest::Equality {
+                    columns: vec![ColumnIndex(0)],
+                },
+                &[InputSchema {
+                    kinds: &table.kinds,
+                    tree: None,
+                }],
+            )
+            .unwrap(),
     );
+    let wrong = owner
+        .derived
+        .acquire_stored(
+            &equality,
+            &[population],
+            crate::application::file_dag::derived::owner::ViewContext::default(),
+            DerivedInputs::Rows(&[rows]),
+            &mut DerivedScratch::default(),
+            None,
+        )
+        .unwrap();
     assert!(matches!(
         InvocationResources::cycles_view(Some(&wrong)),
         Err(OperatingError::WrongOperation)

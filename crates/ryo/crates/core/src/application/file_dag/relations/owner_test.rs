@@ -118,7 +118,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
         "old epoch is refused before provider access"
     );
     let fresh = owner.source(relation, &rows).unwrap();
-    assert!(!Arc::ptr_eq(&original, &fresh));
+    assert!(!original.same_record(&fresh));
     assert_eq!(
         owner.inspect(fresh.as_ref(), BorrowedRows::from(&rows)),
         Ok(PhysicalShape::Complete)
@@ -225,8 +225,8 @@ fn different_projections_and_positions_have_distinct_admissions_and_correct_valu
         assert_eq!(read(&resolved), expected);
         publications.push(publication);
     }
-    assert!(!Arc::ptr_eq(&publications[0], &publications[1]));
-    assert!(!Arc::ptr_eq(&publications[0], &publications[2]));
+    assert!(!publications[0].same_record(&publications[1]));
+    assert!(!publications[0].same_record(&publications[2]));
     assert!(matches!(
         owner.inspect(
             publications[0].as_ref(),
@@ -308,7 +308,7 @@ fn a_foreign_publication_with_correct_kind_has_no_admission_authority() {
         Err(OperatingError::NotRead)
     ));
     assert!(matches!(
-        owner.normalize(&Forged, rows),
+        owner.admit(&Forged, BorrowedRows::from(&rows)),
         Err(OperatingError::NotRead)
     ));
     assert!(matches!(
@@ -337,7 +337,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     let owner = RelationOwner::new(true);
     let first = owner.source(relation, &rows).unwrap();
     let second = owner.source(relation, &rows).unwrap();
-    assert!(Arc::ptr_eq(&first, &second));
+    assert!(first.same_record(&second));
     for publication in [&first, &second] {
         assert_eq!(
             owner.inspect(publication.as_ref(), BorrowedRows::from(&rows)),
@@ -347,14 +347,17 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     assert_eq!(owner.checks.get(), 1);
     assert!(complete_for_reuse(relation, &rows, &[], true));
     assert!(!complete_for_reuse(relation, &rows, &partials, true));
-    let semantic = crate::application::file_dag::derived::indexes::new(
+    owner.derived.prepare_file(
+        true,
         &[relation],
         &partials,
-        crate::application::file_dag::derived::indexes::LIMIT,
-    )
-    .unwrap();
+        &[relation],
+        &[],
+        &crate::domain::operator::types::PreparedPool::default(),
+        |_| true,
+    );
     assert!(
-        semantic.eligible.is_empty(),
+        !owner.derived.relation_eligible(relation),
         "physical completeness cannot erase a partial relation"
     );
 }
@@ -373,12 +376,8 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     let publication = owner
         .source(Relation::Function, &Rows::Stored(source))
         .unwrap();
-    let first = owner
-        .normalize(publication.as_ref(), Rows::Stored(source))
-        .unwrap();
-    let second = owner
-        .normalize(publication.as_ref(), Rows::Stored(source))
-        .unwrap();
+    let first = owner.normalize(&publication, Rows::Stored(source)).unwrap();
+    let second = owner.normalize(&publication, Rows::Stored(source)).unwrap();
     let (Rows::Computed(first_table), Rows::Computed(second_table)) = (&first, &second) else {
         panic!("ragged input needs an owned normalized population")
     };

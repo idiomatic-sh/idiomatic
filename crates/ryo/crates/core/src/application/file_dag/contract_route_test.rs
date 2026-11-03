@@ -263,7 +263,7 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
                         columns: &storage[index],
                     })
             };
-            let output_columns = (0..case.expected.kinds.len())
+            let output_columns = (0..contract.collected_kinds.as_ref().unwrap().len())
                 .map(|column| ColumnIndex(column as u32))
                 .collect();
             let plan = Plan {
