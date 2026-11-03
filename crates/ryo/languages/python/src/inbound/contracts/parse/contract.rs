@@ -100,6 +100,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::FormatField,
             languages::OptionalCapability::RawFormatSegment,
             languages::OptionalCapability::RawFormatField,
+            languages::OptionalCapability::TokenLink,
             languages::OptionalCapability::LiteralExpressionParse,
             languages::OptionalCapability::BraceFormatParse,
             languages::OptionalCapability::BraceFormatField,
@@ -287,6 +288,10 @@ impl Parse for ParseContract {
 
     fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
         languages::reads::<super::raw_format_readers::RawFormatSegmentItem>()
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, Self::FileModel>> {
+        languages::reads::<super::token_link_readers::TokenLinkItem>()
     }
 
     fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {

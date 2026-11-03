@@ -182,6 +182,7 @@ pub(crate) fn shaped(
                 | Relation::BraceFormatField
                 | Relation::RawFormatSegment
                 | Relation::RawFormatField
+                | Relation::TokenLink
                 | Relation::LiteralExpressionParse
                 | Relation::StaticImport
                 | Relation::StringLiteral

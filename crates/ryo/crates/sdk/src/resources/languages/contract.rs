@@ -54,8 +54,8 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     source_location::SourceLocationExpectedRow, static_call::StaticCallExpectedRow,
     static_import::StaticImportExpectedRow, string_literal::StringLiteralExpectedRow,
     syntax_child::SyntaxChildExpectedRow, syntax_error::SyntaxErrorExpectedRow,
-    syntax_tree::SyntaxTreeExpectedRow, visibility::VisibilityExpectedRow,
-    workspace_member::WorkspaceMemberExpectedRow,
+    syntax_tree::SyntaxTreeExpectedRow, token_link::TokenLinkExpectedRow,
+    visibility::VisibilityExpectedRow, workspace_member::WorkspaceMemberExpectedRow,
 };
 pub use ryo_language::inbound::use_cases::parse::fixtures::items::check as check_item;
 pub use ryo_language::inbound::use_cases::parse::fixtures::reading::{Reading, written};
