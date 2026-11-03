@@ -1493,6 +1493,19 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
     let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
     let weak = {
         let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("generation");
+        let warmed = stream_with_indexes(
+            &operation,
+            &mut Room::default(),
+            &left,
+            right.clone(),
+            (false, false, false),
+            Some(&fixture),
+        )
+        .expect("owner retains a reusable index");
+        assert_eq!(warmed.0, vec![vec![Cell::Number(Integer(10))]]);
+        assert!(fixture.no_invocation_index_handles());
+        assert_eq!(fixture.shared_index_backings(), 1);
+        let owner_refs = fixture.first_index_owners().expect("cached entry");
         let _fixture_refusal = stream_with_indexes(
             &operation,
             &mut Room::default(),
@@ -1502,12 +1515,19 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
             Some(&fixture),
         )
         .expect_err("fixture refusal must propagate");
-        assert_eq!(
-            fixture.first_index_owners().expect("cached entry"),
-            1,
+        assert!(
+            fixture.no_invocation_index_handles(),
             "failed operator retains no escaped handle"
         );
-        fixture.first_index_weak().expect("cached entry")
+        assert_eq!(fixture.shared_index_backings(), 1);
+        assert_eq!(fixture.first_index_owners(), Some(owner_refs));
+        let weak = fixture.first_index_weak().expect("cached entry");
+        fixture.owner().derived.clear();
+        assert!(
+            weak.upgrade().is_none(),
+            "clearing the owner releases the shared index"
+        );
+        weak
     };
     assert!(weak.upgrade().is_none());
     let new_columns = [fact_column(&[1]), fact_column(&[99])];

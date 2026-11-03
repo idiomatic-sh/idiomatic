@@ -69,6 +69,7 @@ pub mod domain {
 }
 pub mod application {pub mod file_dag {
  pub mod derived {
+  pub mod ledger {#[derive(Debug)]pub struct ResourceLease;}
   #[path=__BACKEND__]pub mod backend;
   pub mod owner {
    use super::backend::CacheBackend;
