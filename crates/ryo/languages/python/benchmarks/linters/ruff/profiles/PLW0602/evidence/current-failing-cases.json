@@ -1,0 +1,637 @@
+[
+  {
+    "rule": "F821",
+    "name": "cross-PYI034-metaclass-function-annotation-typescope",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer(x:(A:=unknown)):\n class Subject(A):\n  def __enter__(self)->Subject: ...\n"
+    },
+    "expected": [
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "F821",
+        "start": 77
+      },
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "invalid-syntax",
+        "start": 74
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-class-forward-type",
+    "comparison": "full",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(self)->Later: ...\n class Later: ...\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-class-scoped-import",
+    "comparison": "full",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 55,
+        "end": 68
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-early-definition",
+    "comparison": "full",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-except-restoration",
+    "comparison": "full",
+    "files": {
+      "case.py": "try: ...\nexcept Exception:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"
+    },
+    "expected": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 121,
+        "end": 128
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-function-forward-type",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner()->Later: ...\n class Later: ...\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-function-scoped-import",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 63,
+        "end": 76
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-if-else-inheritance",
+    "comparison": "full",
+    "files": {
+      "case.py": "if flag:\n from __future__ import annotations\nelse:\n def f()->Later: ...\n class Later: ...\n"
+    },
+    "expected": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 3,
+        "end": 7
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-if-restoration",
+    "comparison": "full",
+    "files": {
+      "case.py": "if flag:\n from __future__ import annotations\n def inner()->Inside: ...\n class Inside: ...\ndef later()->Outside: ...\nclass Outside: ...\n"
+    },
+    "expected": [
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 3,
+        "end": 7
+      },
+      {
+        "rule": "F821",
+        "file": "case.py",
+        "start": 103,
+        "end": 110
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-later-definition",
+    "comparison": "full",
+    "files": {
+      "case.py": "def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 83,
+        "end": 96
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-nested-future-blocks-type-scope-walrus",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 59,
+        "end": 72
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-relative-future-flag",
+    "comparison": "full",
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 45,
+        "end": 58
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-stub-remains-postponed",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ]
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-try-handler-inheritance",
+    "comparison": "full",
+    "files": {
+      "case.py": "try:\n from __future__ import annotations\nexcept Exception:\n def f()->Later: ...\n class Later: ...\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "F821",
+    "name": "stub-named-expression-preserves-undefined-read",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "def f(x: (a := b)): ...\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 10,
+        "end": 16
+      },
+      {
+        "rule": "F821",
+        "file": "case.pyi",
+        "start": 15,
+        "end": 16
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "cross-PLE0117-own-global-conflict-with-real-outer-binding",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-class-scoped-import",
+    "comparison": "full",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 55,
+        "end": 68
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-function-scoped-import",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 63,
+        "end": 76
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-later-definition",
+    "comparison": "full",
+    "files": {
+      "case.py": "def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 83,
+        "end": 96
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-nested-future-blocks-type-scope-walrus",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 59,
+        "end": 72
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-relative-future-flag",
+    "comparison": "full",
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 45,
+        "end": 58
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-stub-remains-postponed",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-annotation-outer",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n value:int\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-class-type-parameter",
+    "comparison": "full",
+    "files": {
+      "case.py": "class C[T]:\n def f(self):\n  global T\n  nonlocal T\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 7,
+        "end": 10
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-default-real-binding",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n def inner(x=(value:=1)):\n  global value\n  nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-delayed-annotation-keeps-outer-value",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n value=1\n value:int\n def inner():\n  global value\n  nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-deleted-outer",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n value=1\n del value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-early-annotation-before-late-future",
+    "comparison": "full",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-future-annotation-not-visible",
+    "comparison": "full",
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 44,
+        "end": 57
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-global-no-valid-nonlocal",
+    "comparison": "full",
+    "files": {
+      "case.py": "def f():\n global value\n nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 17,
+        "end": 22
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-invalid-outer-nonlocal",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n nonlocal value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 48,
+        "end": 53
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-local-stub-class-header-is-late",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "def outer():\n class C((value:=object)):\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 65,
+        "end": 70
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nearer-function-over-type-parameter",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer[T]():\n def middle():\n  T=1\n  def inner():\n   global T\n   nonlocal T\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nested-function-type-parameter",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer[T]():\n def f():\n  global T\n  nonlocal T\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nonlocal-then-global",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n value=1\n def f():\n  nonlocal value\n  global value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 58,
+        "end": 63
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-skip-class-namespace",
+    "comparison": "full",
+    "files": {
+      "case.py": "def outer():\n value=1\n class C:\n  value=2\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-annotation-py",
+    "comparison": "full",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-annotation-pyi",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-body-py",
+    "comparison": "full",
+    "files": {
+      "case.py": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-body-pyi",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-method-py",
+    "comparison": "full",
+    "files": {
+      "case.py": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-method-pyi",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "expected": []
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-parameter-py",
+    "comparison": "full",
+    "files": {
+      "case.py": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 5,
+        "end": 8
+      }
+    ]
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-parameter-pyi",
+    "comparison": "full",
+    "files": {
+      "case.pyi": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 5,
+        "end": 8
+      }
+    ]
+  }
+]

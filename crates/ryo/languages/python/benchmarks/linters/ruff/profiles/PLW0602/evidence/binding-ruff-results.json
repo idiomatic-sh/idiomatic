@@ -1,0 +1,1449 @@
+[
+  {
+    "name": "class-forward-type-original",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/00/case.py"
+    ],
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "class-forward-type-valid",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/01/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 20,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/01/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "class-forward-type-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/02/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 20,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/02/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "class-forward-type-global-bound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/03/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 20,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/03/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "except-restoration-original",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/04/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 6
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/04/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 6
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 6,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "except-restoration-valid",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/05/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/05/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 4
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 6
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/05/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 6
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 6,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "except-restoration-outside-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/06/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/06/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 4
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 6
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/06/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 6
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 6,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "except-restoration-inside-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/07/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/07/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 4
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 6
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/07/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 6
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 6,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "except-restoration-all-bound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/08/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/08/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 4
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 6
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/08/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 6
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 6,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "function-forward-type-original",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/09/case.py"
+    ],
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "function-forward-type-valid",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/10/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 20,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/10/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "function-forward-type-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/11/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 20,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/11/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "function-forward-type-local-bound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/12/case.py"
+    ],
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "if-else-inheritance-original",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/13/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/13/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-else-inheritance-valid",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/14/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/14/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/14/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-else-inheritance-flag-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/15/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/15/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/15/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-else-inheritance-later-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/16/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/16/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/16/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-else-inheritance-all-bound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/17/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/17/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/17/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-restoration-original",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/18/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/18/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 5
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/18/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 5
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-restoration-valid",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/19/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/19/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/19/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 5
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/19/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 5
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-restoration-flag-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/20/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/20/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/20/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 5
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/20/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 5
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-restoration-inside-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/21/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/21/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/21/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 5
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/21/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 5
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-restoration-outside-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/22/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/22/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/22/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 5
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/22/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 5
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "if-restoration-all-bound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/23/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 8,
+          "row": 1
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/23/case.py",
+        "fix": null,
+        "location": {
+          "column": 4,
+          "row": 1
+        },
+        "message": "Undefined name `flag`",
+        "name": "undefined-name",
+        "noqa_row": 1,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/23/case.py",
+        "fix": null,
+        "location": {
+          "column": 15,
+          "row": 3
+        },
+        "message": "Undefined name `Inside`",
+        "name": "undefined-name",
+        "noqa_row": 3,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      },
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 21,
+          "row": 5
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/23/case.py",
+        "fix": null,
+        "location": {
+          "column": 14,
+          "row": 5
+        },
+        "message": "Undefined name `Outside`",
+        "name": "undefined-name",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "try-handler-inheritance-original",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/24/case.py"
+    ],
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "try-handler-inheritance-valid",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/25/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/25/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "try-handler-inheritance-handler-unbound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/26/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/26/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "try-handler-inheritance-handler-bound",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/27/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/27/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "try-handler-inheritance-try-success",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/28/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 16,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/28/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 4
+        },
+        "message": "Undefined name `Later`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  },
+  {
+    "name": "plw-original",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/29/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 24,
+          "row": 3
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/29/case.py",
+        "fix": null,
+        "location": {
+          "column": 11,
+          "row": 3
+        },
+        "message": "named expression cannot be used within a type annotation",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      },
+      {
+        "cell": null,
+        "code": "PLW0602",
+        "end_location": {
+          "column": 15,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/29/case.py",
+        "fix": null,
+        "location": {
+          "column": 10,
+          "row": 4
+        },
+        "message": "Using global for `value` but no assignment is done",
+        "name": "global-variable-not-assigned",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/global-variable-not-assigned"
+      }
+    ]
+  },
+  {
+    "name": "plw-valid-nonlocal-annotation-binding",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "F821,F823,PLW0602",
+      "--output-format",
+      "json",
+      "/tmp/f821-plw-independent-controls-20261103/ruff/30/case.py"
+    ],
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "F821",
+        "end_location": {
+          "column": 14,
+          "row": 4
+        },
+        "filename": "/tmp/f821-plw-independent-controls-20261103/ruff/30/case.py",
+        "fix": null,
+        "location": {
+          "column": 9,
+          "row": 4
+        },
+        "message": "Undefined name `value`",
+        "name": "undefined-name",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+      }
+    ]
+  }
+]

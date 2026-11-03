@@ -1,0 +1,26 @@
+[
+  {
+    "name": "none-missing",
+    "source": "def f(x: Missing): ...\n"
+  },
+  {
+    "name": "none-walrus",
+    "source": "def f(x:(value:=object)): ...\n"
+  },
+  {
+    "name": "absolute-missing",
+    "source": "from __future__ import annotations\ndef f(x: Missing): ...\n"
+  },
+  {
+    "name": "absolute-walrus",
+    "source": "from __future__ import annotations\ndef f(x:(value:=object)): ...\n"
+  },
+  {
+    "name": "relative-missing",
+    "source": "from .__future__ import annotations\ndef f(x: Missing): ...\n"
+  },
+  {
+    "name": "relative-walrus",
+    "source": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+  }
+]

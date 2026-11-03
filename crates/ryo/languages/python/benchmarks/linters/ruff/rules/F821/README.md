@@ -13,3 +13,31 @@ Actual frozen benchmark-worker evidence: 130 cases, 260 complete reference/candi
 The final immutable 310-rule run later grew to 72 affected F821 cases (329 extra findings). The additional 51 distinct sources are now retained in the canonical cases and complete cross-profile arrays. A candidate-only replay of those 51 sources selected all 310 frozen queries with the F821 fix, paired against the original sealed reference records: 102 complete records, zero unknown/unread pairs, zero skipped pairs, and zero F821 differences. Of the complete reports, 46 match exactly; the five remaining differences are four F811 missing findings and one F841 extra finding, retained in `/tmp/f821-final-full310-sol/result.json`. This follow-up does not claim those other rules pass. No reference reruns were used for this replay.
 
 Scoped future follow-up: the canonical union now has 207 cases. `future-context-full-cases.toml` retains the full 310-rule reports for additional ordered/nested future controls, including the frontend owner's eight regression sources. Existing sources reuse sealed reference records; 25 genuinely new sources were checked once against the pinned full 310-rule reference selection. Shared helpers now follow statement/exception restoration, inherited definition snapshots, whole annotation-root deferral, runtime PEP 613/TypeVar boundaries, and skipped operands. Old-worker candidate-only evidence under `/tmp/future-scoped-policy-oldworker-sol/F821/` has complete coverage and zero differences for this rule; nine cases retain only the known frontend syntax-validation differences (early, nested, relative, or lazy future behavior). Final whole-profile pass status awaits the frontend owner's fresh-worker replay. Every new invocation persists its exact request, profile, module registry, source input, and raw response; historical missing request metadata was not reconstructed as if recorded.
+
+## Current validity and binding discrepancy audit
+
+The historical replay descriptions above are not the current status. All 207 original case sources are retained. These exact discrepancies are staged for strict replay and peer review; this source audit alone is not a PASS.
+
+Each reproducer, original full reference array, independently intended full array, and case-specific rationale is preserved in [the exact-source audit](../../profiles/F821-stub-annotation-context/evidence/current-independent-full-intended.json). The reference is pinned Ruff 0.16.5; no upstream issue was opened. Grammar/compiler validation is distinct from portable stub typing, and future-placement/unknown-feature diagnostics retain the declared F404/F407 namespaces. These are documented semantics or reporting-policy differences, not a blanket claim that Ruff is wrong on invalid programs.
+
+The relative-future case explicitly preserves CPython 3.10.19's historical activation behavior as contrary evidence. [CPython issue 118216](https://github.com/python/cpython/issues/118216) and [merged correction 118267](https://github.com/python/cpython/pull/118267) establish the corrected zero-leading-dot directive contract; the independently recorded 3.13.5 control agrees with that correction. Target 3.10 is not claimed to agree.
+
+| Exact case/reproducer | Observed pinned reference | Intended full diagnostics |
+| --- | --- | --- |
+| `cross-PYI034-metaclass-function-annotation-typescope` | F821 77..84, invalid-syntax 74..84 | F821 77..84 |
+| `future-scope-class-forward-type` | none | F821 59..64 |
+| `future-scope-class-scoped-import` | invalid-syntax 55..68 | none |
+| `future-scope-early-definition` | none | invalid-syntax 50..55 |
+| `future-scope-except-restoration` | F821 121..128 | F821 121..128, F821 77..83 |
+| `future-scope-function-forward-type` | none | F821 63..68 |
+| `future-scope-function-scoped-import` | invalid-syntax 63..76 | none |
+| `future-scope-if-else-inheritance` | F821 3..7 | F821 3..7, F821 61..66 |
+| `future-scope-if-restoration` | F821 3..7, F821 103..110 | F821 3..7, F821 103..110, F821 59..65 |
+| `future-scope-later-definition` | invalid-syntax 83..96 | none |
+| `future-scope-nested-future-blocks-type-scope-walrus` | invalid-syntax 59..72 | invalid-syntax 102..107 |
+| `future-scope-relative-future-flag` | invalid-syntax 45..58 | none |
+| `future-scope-stub-remains-postponed` | invalid-syntax 9..22 | none |
+| `future-scope-try-handler-inheritance` | none | F821 69..74 |
+| `stub-named-expression-preserves-undefined-read` | invalid-syntax 10..16, F821 15..16 | F821 15..16 |
+
+Ranges use independent original token/AST positions, not candidate output. Source-identical compiler originals and valid counterparts are linked in the evidence directory. Six F821 eager-lookup cases additionally retain both unbound and bound runtime controls with unchanged lexical lookup timing; the PLW0602 eager-annotation case preserves its live outer-binding control. No unrelated lint finding is removed. Compiler first-error output establishes invalidity where applicable, not our exhaustive diagnostic count or namespace policy.
