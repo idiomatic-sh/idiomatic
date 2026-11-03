@@ -41,7 +41,7 @@ crates/ryo/
   tastemaker.toml                   places every crate below
   Cargo.toml  Cargo.lock  tastemaker.lock  asymptote.toml  deny.toml  README.md
   cli/                             package ryo
-    Cargo.toml  README.md  benchmarks/provider/bench.rs
+    Cargo.toml  README.md  benches/
     benches/performance/<resource>.rs   benches/performance/<resource>/<verb>.rs   benches/performance/<resource>/<verb>/bench.rs
     src/main.rs  src/lib.rs  src/cases.rs  src/resources.rs     the cli spec's fixed shell: output, outcome (with remedy), pager, dry_run, progress, timings
     src/resources/<resource>.rs
@@ -56,7 +56,8 @@ crates/ryo/
   crates/values/                   package idiomatic-sh-ryo-values, lib ryo_values: a nu-hex of domain concepts only
     Cargo.toml  README.md  src/lib.rs  src/cases.rs  src/domain.rs  src/domain/<concept>.rs  src/domain/<concept>/{types.rs, service.rs?, service_test.rs?, constants.rs?}
   crates/core/ crates/query_language/ crates/language/ languages/<lang>/     each a nu-hex:
-    Cargo.toml  README.md  benchmarks/provider/bench.rs  src/lib.rs  src/cases.rs
+    Cargo.toml  README.md  src/lib.rs  src/cases.rs
+    languages/<lang>/benchmarks/provider/bench.rs   the language's all-relations provider workload
     src/inbound.rs
     src/inbound/use_cases.rs
     src/inbound/use_cases/<use_case>.rs

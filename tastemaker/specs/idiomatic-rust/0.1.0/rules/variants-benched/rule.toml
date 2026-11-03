@@ -1,4 +1,4 @@
-description = "A hex whose `factory.rs` builds two or more adapters, a `recorded` one aside, has `benches/performance/<hex>/bench.rs` in its crate, and that workload names every one of those factory functions."
+description = "A hex whose `factory.rs` builds two or more adapters, a `recorded` one aside, has a colocated `benches/performance/<hex>/bench.rs` or `benchmarks/provider/performance/<hex>/bench.rs` in its crate, and that workload names every one of those factory functions."
 why = "Adapters are the variants of a port: when a hex has several, its crate's workload for that hex runs every one on the same inputs, back to back in one compiled bench, so the faster one is chosen by measurement and the slower deleted. A factory function is how an edge names an adapter, so a workload naming each one runs each one. `recorded` is the capture decorator over another adapter, not a variant. A function name counts as named when an identifier of the bench file spells it. A crate is a directory holding a `Cargo.toml`, and a factory belongs to the nearest one above it, so a nested crate owns its own hexes. A workload that exists but names a factory function nowhere is reported at the workload, for each function it misses."
 
 query = '''
@@ -73,7 +73,7 @@ let provider-benches = union(left=nested-provider-benches, right=root-provider-b
 let benches = union(left=old-benches, right=provider-benches);
 let unbenched-hexes = antijoin(left=several, right=benches, left-on=["crate", "hex"], right-on=["crate", "workload"]);
 let unbenched-rows = project(from=unbenched-hexes, columns=["file", "hex"]);
-let unbenched-labelled = extend(from=unbenched-rows, values={"problem": "builds several adapters, and its crate has no benches/performance/<hex>/bench.rs running them back to back"});
+let unbenched-labelled = extend(from=unbenched-rows, values={"problem": "builds several adapters, and its crate has no provider variant bench running them back to back"});
 let unbenched-named = extend(from=unbenched-labelled, values={"name": ""});
 let unbenched = project(from=unbenched-named, columns=["file", "hex", "problem", "name"]);
 let benched-hexes = select l."crate" as "crate", l."hex" as "hex", r."file" as "bench" from several as l join benches as r on l."crate" = r."crate" and l."hex" = r."workload";
@@ -88,7 +88,7 @@ emit findings subject "file" key("file", "hex", "name");
 [diagnostic]
 primary = "file"
 message = "the `{hex}` hex {problem}{name}"
-help = "Write benches/performance/<hex>/bench.rs with `#[divan::bench(args = Variant::ALL)]`, where each `Variant` builds its adapter through the hex's factory function, over the hex's fixture cases and the crate's captures; keep the winner in the command's composition and delete the others in the same change."
+help = "Write benches/performance/<hex>/bench.rs (or benchmarks/provider/performance/<hex>/bench.rs for a language provider) with `#[divan::bench(args = Variant::ALL)]`, where each `Variant` builds its adapter through the hex's factory function, over the hex's fixture cases and the crate's captures; keep the winner in the command's composition and delete the others in the same change."
 
 [given]
 include = ['**']
