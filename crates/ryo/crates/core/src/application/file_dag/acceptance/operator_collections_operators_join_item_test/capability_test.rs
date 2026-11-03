@@ -562,7 +562,8 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
     let contract = prepared(&operation, &[Rows::Computed(&left), right.clone()]);
     let mut symbols = Symbols::default();
     let mut scratch = OperatorScratch::default();
-    let mut memo = vec![];
+    scratch.row = vec![Cell::Number(Integer(654))];
+    let mut memo = vec![Memo::Fails];
     let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
     let mut room = Room::default();
     let mut output = NestedOutput {
@@ -589,6 +590,8 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
     ));
     assert_eq!(output.rows, vec![vec![Cell::Number(Integer(7))]]);
     assert_eq!(output.entries, 2);
+    assert_eq!(*ctx.memo, vec![Memo::Fails]);
+    assert_eq!(ctx.scratch.row, vec![Cell::Number(Integer(654))]);
     output.rows.clear();
     output.fail_at = None;
     output.entries = 0;
@@ -604,4 +607,6 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
         .expect("next invocation resumes");
     assert_eq!(output.rows, vec![vec![Cell::Number(Integer(7))]; 3]);
     assert_eq!(output.entries, 3);
+    assert_eq!(*ctx.memo, vec![Memo::Fails]);
+    assert_eq!(ctx.scratch.row, vec![Cell::Number(Integer(654))]);
 }

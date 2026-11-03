@@ -65,6 +65,7 @@ fn source(omit: Option<&str>, registry: &str) -> String {
     let template = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
+extern crate self as ryo_relations;
 extern crate self as ryo_values;
 extern crate self as hashbrown;
 pub use std::collections::HashSet;
