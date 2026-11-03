@@ -34,9 +34,16 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
     assert!(Arc::ptr_eq(&first, &second));
     assert_eq!((cache.builds, cache.reuses, cache.entries.len()), (1, 1, 1));
     assert_eq!(
-        matching_stored(view, &on, &second, &[Value::Number(Integer(2))])
-            .copied()
-            .collect::<Vec<_>>(),
+        matching_stored(
+            view,
+            &on,
+            &second,
+            &[Value::Number(Integer(2))],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
+        )
+        .copied()
+        .collect::<Vec<_>>(),
         [RowIndex(0), RowIndex(2), RowIndex(3)]
     );
     assert!(
@@ -242,7 +249,9 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             view,
             &[ColumnIndex(0)],
             &reused,
-            &[Value::Flag(Flag::Raised)]
+            &[Value::Flag(Flag::Raised)],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -253,7 +262,9 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             view,
             &[ColumnIndex(0)],
             &reused,
-            &[Value::Number(Integer(1))]
+            &[Value::Number(Integer(1))],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
         )
         .next()
         .is_none()
@@ -343,7 +354,9 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
             view,
             &[ColumnIndex(0)],
             &reused.shared.expect("index"),
-            &[Value::Symbol(original)]
+            &[Value::Symbol(original)],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -377,7 +390,9 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
             view,
             &on,
             &index,
-            &[Value::Number(Integer(0)), Value::Number(Integer(0))]
+            &[Value::Number(Integer(0)), Value::Number(Integer(0))],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
         )
         .copied()
         .collect::<Vec<_>>(),

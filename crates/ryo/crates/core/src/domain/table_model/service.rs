@@ -324,12 +324,24 @@ pub(crate) fn matching_stored<'o, 'k>(
     columns: &'k [ColumnIndex],
     order: &'o KeyIndex,
     key: &'k [Value],
+    #[cfg(feature = "diagnostic-row-progress")]
+    observer: crate::domain::operator::contract::views::ProgressObserver,
 ) -> impl Iterator<Item = &'o RowIndex> + Clone {
+    #[cfg(feature = "diagnostic-row-progress")]
+    observer(
+        crate::domain::operator::contract::views::ProgressCounter::IndexProbes,
+        1,
+    );
     let hash = hash_key(key.iter().map(Some));
     let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads().len().saturating_sub(1);
     let mut at = order.heads().get(bucket).copied().unwrap_or(ChainLink(0));
     std::iter::from_fn(move || {
         while at.0 != 0 {
+            #[cfg(feature = "diagnostic-row-progress")]
+            observer(
+                crate::domain::operator::contract::views::ProgressCounter::IndexRowsExamined,
+                1,
+            );
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
             at = order.links().get(place).copied().unwrap_or(ChainLink(0));
             if order.hashes().get(place) == Some(&hash)
@@ -337,7 +349,15 @@ pub(crate) fn matching_stored<'o, 'k>(
                     stored_cell(view, RowIndex(place), *column) == Some(*wanted)
                 })
             {
-                return order.rows().get(place);
+                let row = order.rows().get(place);
+                #[cfg(feature = "diagnostic-row-progress")]
+                if row.is_some() {
+                    observer(
+                        crate::domain::operator::contract::views::ProgressCounter::EqualityMatches,
+                        1,
+                    );
+                }
+                return row;
             }
         }
         None

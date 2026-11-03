@@ -49,6 +49,8 @@ fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, TableModelError> {
     };
     if breadth {
         let indexed = IndexedRows {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: |_, _| {},
             rows: BorrowedRows::Computed(&table),
             columns: &from,
             index: &order,

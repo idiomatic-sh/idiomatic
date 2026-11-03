@@ -75,9 +75,16 @@ pub(super) fn candidates(
         let DerivedView::Equality(order) = acquired.view()? else {
             return Err(OperatingError::WrongOperation);
         };
-        let result: Vec<_> = matching_stored(source, &[column], order, &[value])
-            .filter_map(|index| u32::try_from(index.0).ok())
-            .collect();
+        let result: Vec<_> = matching_stored(
+            source,
+            &[column],
+            order,
+            &[value],
+            #[cfg(feature = "diagnostic-row-progress")]
+            crate::application::file_dag::route_counts::progress,
+        )
+        .filter_map(|index| u32::try_from(index.0).ok())
+        .collect();
         cache.selection_counts.candidates += result.len() as u64;
         return Ok((
             Some(CandidateRows::Owned(result)),

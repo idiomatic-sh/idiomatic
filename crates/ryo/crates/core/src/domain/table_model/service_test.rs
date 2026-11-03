@@ -483,9 +483,16 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
                 .map(|column| super::service::cell(row, *column).expect("key column"))
                 .collect::<Vec<_>>();
             assert_eq!(
-                matching_stored(view, &key_columns, &stored, &key)
-                    .copied()
-                    .collect::<Vec<_>>(),
+                matching_stored(
+                    view,
+                    &key_columns,
+                    &stored,
+                    &key,
+                    #[cfg(feature = "diagnostic-row-progress")]
+                    |_, _| {},
+                )
+                .copied()
+                .collect::<Vec<_>>(),
                 matching(&materialized, On::Columns(&key_columns), &computed, &key)
                     .copied()
                     .collect::<Vec<_>>()
@@ -498,7 +505,9 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
             view,
             &[ColumnIndex(1)],
             &stored,
-            &[Cell::Flag(Flag::Raised)]
+            &[Cell::Flag(Flag::Raised)],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -509,7 +518,9 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
             view,
             &[ColumnIndex(1)],
             &stored,
-            &[Cell::Number(Integer(1))]
+            &[Cell::Number(Integer(1))],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
         )
         .next()
         .is_none(),
@@ -542,7 +553,9 @@ fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() {
             view,
             &on,
             &index,
-            &[Cell::Number(Integer(0)), Cell::Number(Integer(0))]
+            &[Cell::Number(Integer(0)), Cell::Number(Integer(0))],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -569,9 +582,16 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
     index_stored(view, &on, &mut order).expect("full");
     index_stored(vacant, &on, &mut order).expect("empty");
     assert!(
-        matching_stored(vacant, &on, &order, &[Cell::Number(Integer(7))])
-            .next()
-            .is_none()
+        matching_stored(
+            vacant,
+            &on,
+            &order,
+            &[Cell::Number(Integer(7))],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
+        )
+        .next()
+        .is_none()
     );
     assert_eq!(
         index_stored(vacant, &[ColumnIndex(1)], &mut order),
@@ -579,9 +599,16 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
     );
     index_stored(view, &[], &mut order).expect("cartesian");
     assert_eq!(
-        matching_stored(view, &[], &order, &[])
-            .copied()
-            .collect::<Vec<_>>(),
+        matching_stored(
+            view,
+            &[],
+            &order,
+            &[],
+            #[cfg(feature = "diagnostic-row-progress")]
+            |_, _| {},
+        )
+        .copied()
+        .collect::<Vec<_>>(),
         [RowIndex(0), RowIndex(1)]
     );
     let malformed = [FactColumn(vec![1]), FactColumn(Vec::new())];

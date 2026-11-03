@@ -301,6 +301,8 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
         panic!("equality")
     };
     let view = crate::domain::operator::contract::views::IndexedRows {
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: |_, _| {},
         rows: BorrowedRows::Computed(&second[0]),
         columns: &[ColumnIndex(0)],
         index,

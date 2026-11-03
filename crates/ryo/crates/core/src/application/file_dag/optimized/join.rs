@@ -178,7 +178,14 @@ fn sparse_left(
         if counts.enabled {
             counts.probes = counts.probes.saturating_add(1);
         }
-        for left_at in matching_stored(*view, &join.left_on, lookup, &work.key) {
+        for left_at in matching_stored(
+            *view,
+            &join.left_on,
+            lookup,
+            &work.key,
+            #[cfg(feature = "diagnostic-row-progress")]
+            crate::application::file_dag::route_counts::progress,
+        ) {
             if pairs.len() == SPARSE_PAIR_LIMIT {
                 return None;
             }
