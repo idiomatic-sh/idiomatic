@@ -588,6 +588,23 @@ fn progress_flush(stage: &'static str) {
                     .and_then(|r| state.rules.get(&r))
                     .map_or("<none>", String::as_str),
             );
+            hottest.push_str(",\"input_cardinalities\":[");
+            for which in 0..3 {
+                if which != 0 {
+                    hottest.push(',');
+                }
+                if let Some(size) = state.progress.inputs.get(&(
+                    key.origin.rule,
+                    key.origin.namespace,
+                    key.origin.node,
+                    which,
+                )) {
+                    write!(&mut hottest, "{size}").expect("String write");
+                } else {
+                    hottest.push_str("null");
+                }
+            }
+            hottest.push(']');
             hottest.push_str(",\"node_namespace\":");
             json_string(&mut hottest, key.origin.namespace);
             hottest.push('}');

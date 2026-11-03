@@ -847,6 +847,12 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
     for cursor in 0..schedule.map_or(plan.steps.len(), <[usize]>::len) {
         let index = schedule.map_or(cursor, |steps| steps[cursor]);
         let step = &plan.steps[index];
+        #[cfg(feature = "diagnostic-row-progress")]
+        let _materialization_progress = {
+            let guard = crate::application::file_dag::route_counts::step(index);
+            crate::application::file_dag::route_counts::node_description(&step.operation);
+            guard
+        };
         if step.scope == StepScope::CrossFile {
             continue;
         }

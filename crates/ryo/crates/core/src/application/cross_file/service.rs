@@ -58,6 +58,14 @@ impl CrossFile {
         frontier: Vec<Frontier>,
         cross: &mut Symbols,
     ) -> Result<Crossed, RulesError> {
+        #[cfg(feature = "diagnostic-row-progress")]
+        let _project_progress =
+            crate::application::file_dag::route_counts::FileScope::begin(usize::MAX);
+        #[cfg(feature = "diagnostic-row-progress")]
+        let _project_rule =
+            crate::application::file_dag::route_counts::rule(todo.rule.0, todo.id.0.as_ref());
+        #[cfg(feature = "diagnostic-row-progress")]
+        crate::application::file_dag::route_counts::file_name("<project>");
         let (Some(plan), Some(_)) = (
             crossing.plans.get(todo.rule.0),
             crossing.bindings.get(todo.rule.0),

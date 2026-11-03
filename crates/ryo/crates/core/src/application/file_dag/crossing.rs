@@ -39,12 +39,6 @@ pub(crate) fn cross_rule(
     mut frontier: Vec<Frontier>,
     cross: &mut Symbols,
 ) -> Result<Evaluated, RulesError> {
-    #[cfg(feature = "diagnostic-row-progress")]
-    let _project_progress = super::route_counts::FileScope::begin(usize::MAX);
-    #[cfg(feature = "diagnostic-row-progress")]
-    let _project_rule = super::route_counts::rule(todo.rule.0, todo.id.0.as_ref());
-    #[cfg(feature = "diagnostic-row-progress")]
-    super::route_counts::file_name("<project>");
     let rule = todo.rule;
     let (Some(plan), Some(bound)) = (crossing.plans.get(rule.0), crossing.bindings.get(rule.0))
     else {
