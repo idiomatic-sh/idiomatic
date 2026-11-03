@@ -8,10 +8,10 @@
 | --- | :---: | :---: | :---: | :---: | :---: | --- |
 | Language parse and project | ☑ | — | ☑ | ☐ | ☐ | Provider parser state and scratch stay local. |
 | Typed relation catalog | ☑ | — | — | ☑ | ☑ | Provider supplies values through typed relations. |
-| Complete and partial facts | ☑ | ☑ | ☑ | ☐ | ☑ | Provider still certifies recovery and partials. |
-| Provider walk versus execution demand | ☑ | — | — | ☐ | — | Provider still certifies deferred-fact completeness. |
-| Source bytes and spans | ☑ | — | ☑ | ☐ | ☑ | Provider still supplies token coordinates. |
-| Source and derived symbols | — | — | ☑ | ☐ | ☑ | Provider still supplies source-name meaning. |
+| Complete and partial facts | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns typed storage; provider still certifies recovery and partials. |
+| Provider walk versus execution demand | ☑ | — | — | ☑ | — | Engine owns demand rows; provider still certifies deferred-fact completeness. |
+| Source bytes and spans | ☑ | — | ☑ | ☑ | ☑ | Engine owns stored spans; provider still supplies token coordinates. |
+| Source and derived symbols | — | — | ☑ | ☑ | ☑ | Engine owns symbol storage; provider still supplies source-name meaning. |
 | Query grammar and typed plan | ☑ | — | ☑ | ☑ | ☑ | Map compile errors without changing query semantics. |
 | Primitive schema and evaluator | ☐ | ☐ | ☑ | ☑ | ☐ | Close remaining native and fanout bypass routes. |
 | Operator inputs and absence | ☑ | — | — | ☑ | — | Preserve declared absence and lazy error order. |
