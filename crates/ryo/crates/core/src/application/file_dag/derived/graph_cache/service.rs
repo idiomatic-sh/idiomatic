@@ -87,7 +87,7 @@ pub(in crate::application::file_dag::derived) fn reserve(
 
 /// Acquire only after the operator's required provider/input holds have succeeded.
 #[cfg(test)]
-pub(crate) fn acquire(
+pub(in crate::application::file_dag) fn acquire(
     input: Input,
     rows: &Rows<'_>,
     endpoints: [ColumnIndex; 2],
@@ -108,7 +108,7 @@ pub(crate) fn acquire(
     super::super::graph::acquire(&plan, None, input, rows, cache)
 }
 #[cfg(test)]
-pub(crate) fn domain(
+pub(in crate::application::file_dag) fn domain(
     access: &GraphAccess,
     input: Input,
     rows: &Rows<'_>,

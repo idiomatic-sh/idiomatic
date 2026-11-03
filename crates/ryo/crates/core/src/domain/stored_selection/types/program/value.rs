@@ -36,8 +36,6 @@ impl<'a> SelectionProgram<'a> {
         }
         PreparedPlan {
             identity: SelectionPlanId(std::ptr::from_ref(self.plan).addr()),
-            #[cfg(test)]
-            bound: self.bindings.to_vec(),
             steps,
         }
     }

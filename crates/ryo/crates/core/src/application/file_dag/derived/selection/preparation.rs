@@ -4,17 +4,8 @@ use crate::domain::{
     derived_views::collections::views::registration::registered,
     operation_schema::types::InputSchema, operator::contract::types::RequestOperators,
 };
-#[cfg(test)]
-use ryo_language::domain::relations::service::kinds;
 use ryo_language::domain::relations::types::Relation;
 use std::collections::HashMap;
-
-#[cfg(test)]
-pub(crate) fn prepare_views(
-    selectors: impl IntoIterator<Item = Arc<Selector>>,
-) -> Result<Arc<PreparedSelectionViews>, OperatingError> {
-    prepare_views_with_schemas(selectors, &kinds)
-}
 
 pub(crate) fn prepare_views_with_schemas<'s>(
     selectors: impl IntoIterator<Item = Arc<Selector>>,
@@ -144,47 +135,6 @@ pub(crate) fn prepare_request(pool: &mut PreparedPool, request: &RequestOperator
     pool.file_graph = None;
     pool.selection_plans = (request.selection_plans).clone();
     pool.selection_views = Some((request.selection_views).clone());
-}
-
-#[cfg(test)]
-pub(crate) fn prepare(pool: &mut PreparedPool, plans: &[Plan], bindings: &[Vec<ParameterBinding>]) {
-    if pool.selection_views.is_some()
-        && pool.selection_plans.len() == plans.len()
-        && plans
-            .iter()
-            .zip(bindings)
-            .zip(pool.selection_plans.iter())
-            .all(|((plan, bound), prepared)| {
-                prepared.identity.0 == std::ptr::from_ref(plan).addr() && prepared.bound == *bound
-            })
-    {
-        return;
-    }
-    let started = tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
-        .then(std::time::Instant::now);
-    pool.file_graph = None;
-    pool.selection_plans = Arc::new(
-        plans
-            .iter()
-            .zip(bindings)
-            .map(|(plan, bound)| SelectionProgram::new(plan, bound).prepare())
-            .collect(),
-    );
-    // Fixed family dispatch can fail only if the closed registry is inconsistent;
-    // authored schema errors remain deferred inside the prepared contracts.
-    pool.selection_views = Some(
-        prepare_views(
-            pool.selection_plans
-                .iter()
-                .flat_map(|plan| plan.steps.iter().flatten())
-                .cloned(),
-        )
-        .expect("registered selector families match their fixed requests"),
-    );
-    if let Some(started) = started {
-        tracing::trace!(target: "ryo::diagnostic::execution", phase="stored_program_setup",elapsed_ns=started.elapsed().as_nanos() as u64,
-            plans=pool.selection_plans.len(), selectors=pool.selection_plans.iter().map(|plan|plan.steps.iter().flatten().count()).sum::<usize>());
-    }
 }
 
 pub(in crate::application::file_dag::derived) fn activate(

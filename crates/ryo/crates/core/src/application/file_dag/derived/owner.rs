@@ -98,18 +98,6 @@ impl DerivedOwner {
             max_entries,
         }
     }
-    #[cfg(test)]
-    pub(in crate::application::file_dag) fn acquire(
-        &self,
-        plan: &Arc<DerivedContract>,
-        populations: &[PopulationId],
-        identity: ViewContext,
-        inputs: DerivedInputs<'_, '_>,
-        scratch: &mut DerivedScratch,
-        cache: Option<&mut CacheBackend>,
-    ) -> Result<super::view::AcquiredView, OperatingError> {
-        self.acquire_stored(plan, populations, identity, inputs, scratch, None)
-    }
     /// A graph's existing priority can reclaim optional wrappers, but never a
     /// required or borrowed view. Payload retained in CacheBackend remains charged there.
     pub(in crate::application::file_dag) fn reclaim_optional(

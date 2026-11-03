@@ -47,8 +47,6 @@ pub(crate) use preparation::prepare_request;
 pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas;
 pub(in crate::application::file_dag::derived) use preparation::{activate, install_views};
 #[cfg(test)]
-pub(crate) use preparation::{prepare, prepare_views};
-#[cfg(test)]
 use ryo_values::domain::plans::types::Plan;
 // One file owns this cache and drops it after the file. Reserve a fixed, conservative
 // slice of its existing limit for at most this many retained match positions and
