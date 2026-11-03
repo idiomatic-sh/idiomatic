@@ -64,7 +64,6 @@ fn compute(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -313,7 +312,6 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -548,7 +546,6 @@ fn retained_text_keys_and_vertices_preserve_output_cells() -> Result<usize, Oper
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(source),
@@ -717,7 +714,6 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),

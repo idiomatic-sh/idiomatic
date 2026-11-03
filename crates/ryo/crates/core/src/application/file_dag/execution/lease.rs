@@ -109,7 +109,7 @@ pub(super) fn evaluate(
         );
     }
     let cached = if let (Some(graph), Some(row)) = (resources.cached_graph.as_mut(), row) {
-        Some(graph.row(row, context.stored_indexes.as_deref_mut())?)
+        Some(workspace.owner().derived.graph_row(graph, row)?)
     } else {
         None
     };
@@ -186,7 +186,6 @@ pub(super) fn evaluate(
         emit,
         prepared_matchers: context.prepared_matchers,
         prepared_kinds: context.prepared_kinds,
-        stored_indexes: context.stored_indexes.as_deref_mut(),
         bindings: context.bindings,
         source: context.source,
         paths: context.paths,
@@ -218,7 +217,6 @@ struct OutputBridge<'a> {
     prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
-    stored_indexes: Option<&'a mut crate::domain::stored_indexes::types::FileIndexes>,
     bindings: &'a [crate::domain::table_model::types::ParameterBinding],
     source: crate::domain::table_texts::types::SourceView<'a>,
     paths: &'a [ryo_language::domain::files::types::FilePath],
@@ -231,7 +229,6 @@ impl RowSink for OutputBridge<'_> {
         let mut context = OperatorContext {
             prepared_matchers: self.prepared_matchers,
             prepared_kinds: self.prepared_kinds,
-            stored_indexes: self.stored_indexes.as_deref_mut(),
             bindings: self.bindings,
             symbols: query_reborrow(&mut lease.derived),
             source: self.source,

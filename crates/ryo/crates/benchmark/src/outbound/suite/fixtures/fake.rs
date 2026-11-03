@@ -14,6 +14,8 @@ use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
 #[derive(Clone, Debug, Default)]
 /// Deterministic suite substitute for orchestration and contract tests.
 pub struct SuiteFake {
+    /// Per-instance receipt output selected by orchestration tests.
+    pub(crate) case_receipt: Option<std::path::PathBuf>,
     /// The profile available from this deterministic artifact source.
     pub(crate) profile: Option<Tool>,
     /// The projects available from this deterministic artifact source.
@@ -28,6 +30,37 @@ pub struct SuiteFake {
     pub(crate) reference_wires: Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
 }
 impl SuitePort for SuiteFake {
+    fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
+        self.case_receipt.clone()
+    }
+
+    fn case_source_digest(
+        &self,
+        root: ArtifactPath<'_>,
+        files: &[std::path::PathBuf],
+    ) -> Result<String, crate::outbound::suite::types::discrepancy::ArtifactError> {
+        crate::outbound::suite::factory::local().case_source_digest(root, files)
+    }
+    fn read_discrepancy_artifacts(
+        &self,
+        profile: ArtifactPath<'_>,
+        artifacts: &[crate::outbound::suite::types::discrepancy::EvidenceArtifact],
+    ) -> Result<
+        std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+        crate::outbound::suite::types::discrepancy::ArtifactError,
+    > {
+        crate::outbound::suite::factory::local().read_discrepancy_artifacts(profile, artifacts)
+    }
+
+    fn record_case(
+        &self,
+        receipt: ArtifactPath<'_>,
+        record: serde_json::Value,
+        process: Option<crate::outbound::suite::types::process::CapturedProcess<'_>>,
+    ) -> Result<(), crate::outbound::suite::types::discrepancy::ArtifactError> {
+        crate::outbound::suite::factory::local().record_case(receipt, record, process)
+    }
+
     fn case_reference_wires(
         &self,
         _: ArtifactPath<'_>,

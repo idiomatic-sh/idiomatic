@@ -223,7 +223,7 @@ def persist_run_record(output_directory: Path | None, name: str, command: list[s
     if case_results_path is not None and case_results_path.is_file():
         try:
             observed = [json.loads(line) for line in case_results_path.read_text().splitlines()]
-            record['case_expectation_summary'] = case_records.case_expectation_summary(case_records.profile_case_inventory(profile_root), observed)
+            record['case_expectation_summary'] = case_records.case_expectation_summary(case_records.profile_case_inventory(profile_root), observed, receipt_file=case_results_path)
         except (OSError, ValueError, KeyError, TypeError) as summary_error:
             record['case_expectation_summary_error'] = str(summary_error)
     (record_directory / 'result.json').write_text(json.dumps(record, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')

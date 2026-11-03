@@ -8,3 +8,6 @@ pub struct ArtifactSet<'a>(pub &'a [std::path::PathBuf]);
 
 /// Reference evidence wire values owned by this boundary.
 pub mod discrepancy;
+
+/// Byte-exact expected process failure artifacts and templates.
+pub mod process;

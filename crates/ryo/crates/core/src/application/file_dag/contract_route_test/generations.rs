@@ -54,7 +54,6 @@ fn run_dag(
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -118,8 +117,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
     let bindings = vec![vec![ParameterBinding::Number(WholeNumber(3))]];
     let operators = RequestOperators::prepare(&plans, &bindings, &[]).unwrap();
     let graph = Arc::new(compile_prepared(&plans, &operators));
-    let mut first =
-        FileDagExecution::new(Arc::clone(&graph), |_| true, &[Relation::LanguageTarget]);
+    let mut first = FileDagExecution::new((graph).clone(), |_| true, &[Relation::LanguageTarget]);
     let mut second = FileDagExecution::new(graph, |_| true, &[Relation::LanguageTarget]);
     let left = run_dag(
         &plans[0],

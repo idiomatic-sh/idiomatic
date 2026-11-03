@@ -551,4 +551,6 @@ pub enum OptionalCapability {
     LiteralExpressionParse,
     /// Parser-decoded integer or binary64 literal payloads.
     NumericLiteral,
+    /// Physical native lexer-token successor and matching-delimiter edges.
+    TokenLink,
 }

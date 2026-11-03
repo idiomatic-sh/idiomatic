@@ -100,12 +100,10 @@ fn context<'a>(
     symbols: &'a mut Symbols,
     memo: &'a mut Vec<crate::domain::operating::types::Memo>,
     scratch: &'a mut OperatorScratch,
-    indexes: Option<&'a mut crate::domain::stored_indexes::types::FileIndexes>,
 ) -> OperatorContext<'a> {
     OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: indexes,
         bindings: &[],
         symbols: symbols.into(),
         source: SourceView(b""),
@@ -134,11 +132,20 @@ fn request_dag_executes_shared_dependencies_once_and_releases_at_graph_last_use(
     let mut memo = vec![];
     let mut scratch = OperatorScratch::default();
     let mut prepared = PreparedPool::default();
+    dag.prepare_resources(
+        true,
+        &[Relation::LanguageTarget],
+        &[],
+        &[],
+        &plans,
+        &prepared,
+        |_| true,
+    );
     for (rule, plan) in plans.iter().enumerate() {
         let mut actual = pool_for(std::slice::from_ref(plan));
         let mut ordinary = pool_for(std::slice::from_ref(plan));
         let mut ordinary_prepared = PreparedPool::default();
-        let mut ctx = context(&mut symbols, &mut memo, &mut scratch, None);
+        let mut ctx = context(&mut symbols, &mut memo, &mut scratch);
         evaluate_file(
             plan,
             &rows,
@@ -200,16 +207,19 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
             columns: &columns,
         })
     };
-    let mut indexes = crate::application::file_dag::derived::indexes::new(
-        &[Relation::LanguageTarget],
-        &[],
-        crate::application::file_dag::derived::indexes::LIMIT,
-    )
-    .unwrap();
     let mut symbols = Symbols::default();
     let mut memo = vec![];
     let mut scratch = OperatorScratch::default();
     let mut prepared = PreparedPool::default();
+    dag.prepare_resources(
+        true,
+        &[Relation::LanguageTarget],
+        &[],
+        &[],
+        &plans,
+        &prepared,
+        |_| true,
+    );
     for (rule, plan) in plans.iter().enumerate() {
         let mut actual = pool_for(std::slice::from_ref(plan));
         let mut ordinary = pool_for(std::slice::from_ref(plan));
@@ -217,7 +227,7 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
             plan,
             &rows,
             None,
-            &mut context(&mut symbols, &mut memo, &mut scratch, None),
+            &mut context(&mut symbols, &mut memo, &mut scratch),
             &mut ordinary,
             &mut PreparedPool::default(),
             &[],
@@ -227,7 +237,7 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
             plan,
             &rows,
             None,
-            &mut context(&mut symbols, &mut memo, &mut scratch, Some(&mut indexes)),
+            &mut context(&mut symbols, &mut memo, &mut scratch),
             &mut actual,
             &mut prepared,
             &[],
@@ -240,11 +250,13 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
         dag.finish_rule(rule);
     }
     assert_eq!(
-        indexes.builds, 1,
+        dag.relations.derived.index_observation().builds,
+        1,
         "same source/key has one actual index build"
     );
     assert_eq!(
-        indexes.reuses, 1,
+        dag.relations.derived.index_observation().reuses,
+        1,
         "second independent Join reuses the file handle"
     );
     assert_eq!(
@@ -258,7 +270,7 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
 fn incomplete_or_invalid_population_stays_entirely_on_the_residual_executor() {
     let plans = [query(3, false)];
     let graph = Arc::new(compile(&plans));
-    let dag = FileDagExecution::new(Arc::clone(&graph), |_| true, &[]);
+    let dag = FileDagExecution::new((graph).clone(), |_| true, &[]);
     assert!(!dag.active[0]);
     assert!(dag.owned(0, 0).is_none());
     let mut invalid = query(3, false);
@@ -347,7 +359,7 @@ fn opaque_first_failure_prevents_later_rule_graph_work() {
         &plans[0],
         &rows,
         None,
-        &mut context(&mut symbols, &mut memo, &mut scratch, None),
+        &mut context(&mut symbols, &mut memo, &mut scratch),
         &mut pool,
         &mut PreparedPool::default(),
         &[],
@@ -360,7 +372,7 @@ fn opaque_first_failure_prevents_later_rule_graph_work() {
         &plans[0],
         &rows,
         None,
-        &mut context(&mut symbols, &mut memo, &mut scratch, None),
+        &mut context(&mut symbols, &mut memo, &mut scratch),
         &mut pool,
         &mut PreparedPool::default(),
         &[],
@@ -409,7 +421,7 @@ fn registered_union_preserves_bag_contract_and_shares_its_repeated_dependency() 
             plan,
             &rows,
             None,
-            &mut context(&mut symbols, &mut memo, &mut scratch, None),
+            &mut context(&mut symbols, &mut memo, &mut scratch),
             &mut ordinary,
             &mut PreparedPool::default(),
             &[],
@@ -419,7 +431,7 @@ fn registered_union_preserves_bag_contract_and_shares_its_repeated_dependency() 
             plan,
             &rows,
             None,
-            &mut context(&mut symbols, &mut memo, &mut scratch, None),
+            &mut context(&mut symbols, &mut memo, &mut scratch),
             &mut actual,
             &mut PreparedPool::default(),
             &[],
@@ -440,7 +452,7 @@ fn registered_union_preserves_bag_contract_and_shares_its_repeated_dependency() 
 fn budget_refusal_is_explicit_recomputation_and_never_stale_generation_reuse() {
     let plans = [query(3, false), query(3, false)];
     let graph = Arc::new(compile(&plans));
-    let mut dag = FileDagExecution::new(Arc::clone(&graph), |_| true, &[Relation::LanguageTarget]);
+    let mut dag = FileDagExecution::new((graph).clone(), |_| true, &[Relation::LanguageTarget]);
     dag.limit = 0;
     let columns = columns();
     let rows = |relation| {
@@ -458,7 +470,7 @@ fn budget_refusal_is_explicit_recomputation_and_never_stale_generation_reuse() {
             plan,
             &rows,
             None,
-            &mut context(&mut symbols, &mut memo, &mut scratch, None),
+            &mut context(&mut symbols, &mut memo, &mut scratch),
             &mut pool,
             &mut PreparedPool::default(),
             &[],
@@ -513,7 +525,7 @@ fn empty_left_join_never_executes_its_right_dependency_and_cancels_its_lifetime(
         &plan,
         &rows,
         None,
-        &mut context(&mut symbols, &mut memo, &mut scratch, None),
+        &mut context(&mut symbols, &mut memo, &mut scratch),
         &mut actual,
         &mut PreparedPool::default(),
         &[],

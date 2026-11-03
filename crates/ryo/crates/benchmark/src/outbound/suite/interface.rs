@@ -7,6 +7,56 @@ use crate::domain::{
 };
 /// Read external suite artifacts and audit their authored default coverage.
 pub trait SuitePort {
+    /// Optional receipt sink chosen at the outer edge; fixtures inject it without global state.
+    fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
+        None
+    }
+
+    /// Read the exact declared source bytes using canonical filename framing.
+    ///
+    /// # Errors
+    /// Refuses missing, unreadable or escaping sources.
+    fn case_source_digest(
+        &self,
+        _root: ArtifactPath<'_>,
+        _files: &[std::path::PathBuf],
+    ) -> Result<String, super::types::discrepancy::ArtifactError> {
+        Err(super::types::discrepancy::ArtifactError::Invalid(
+            "case source reader is unavailable".into(),
+        ))
+    }
+
+    /// Read only explicitly named profile-relative artifact bytes.
+    ///
+    /// # Errors
+    /// Refuses missing, stale, escaping or non-regular files.
+    fn read_discrepancy_artifacts(
+        &self,
+        _profile: ArtifactPath<'_>,
+        _artifacts: &[super::types::discrepancy::EvidenceArtifact],
+    ) -> Result<
+        std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+        super::types::discrepancy::ArtifactError,
+    > {
+        Err(super::types::discrepancy::ArtifactError::Invalid(
+            "artifact reader is unavailable".into(),
+        ))
+    }
+    /// Append an application-owned observation and preserve optional raw process bytes.
+    ///
+    /// # Errors
+    /// Refuses unsafe receipt names or failed artifact persistence.
+    fn record_case(
+        &self,
+        _receipt: ArtifactPath<'_>,
+        _record: serde_json::Value,
+        _process: Option<super::types::process::CapturedProcess<'_>>,
+    ) -> Result<(), super::types::discrepancy::ArtifactError> {
+        Err(super::types::discrepancy::ArtifactError::Invalid(
+            "case observation store is unavailable".into(),
+        ))
+    }
+
     /// Decode the pinned linter profile below its artifact directory.
     ///
     /// # Errors

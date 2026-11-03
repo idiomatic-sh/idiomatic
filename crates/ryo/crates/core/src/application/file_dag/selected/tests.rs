@@ -64,7 +64,6 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),

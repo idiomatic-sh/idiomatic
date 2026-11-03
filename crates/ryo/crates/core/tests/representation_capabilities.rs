@@ -259,6 +259,7 @@ fn private_publication_scaffold() -> String {
     );
     let private = r#"
 pub mod application {pub(crate) mod file_dag {
+ pub mod derived {pub mod view {pub struct AcquiredView;}}
  mod relations {
   use crate::domain::operating::errors::OperatingError;
   use crate::domain::table_model::{types::{Table,StoredSelection},collections::representations::{types::{PhysicalShape,RepresentationKind},publication::PublishedRelation}};
@@ -266,11 +267,12 @@ pub mod application {pub(crate) mod file_dag {
   #[derive(Debug)]enum RelationBody {Computed(Arc<Table>)}
   #[path=__RECORD__]mod record;
   pub(crate) use record::RelationResult;
-  mod produced {use super::{Arc,RelationResult,StoredSelection};__TOKEN__}
+  pub(crate) struct PublishedInput(Arc<RelationResult>);
+  mod produced {use super::{Arc,RelationResult,StoredSelection,PublishedInput};__TOKEN__}
   pub(super) use produced::ProducedSelection;
-  pub(super) fn control()->(Arc<RelationResult>,ProducedSelection) {
+  pub(super) fn control()->(Arc<RelationResult>,ProducedSelection<'static>) {
    let result=Arc::new(RelationResult{population:0,producer:OnceLock::new(),generation:Arc::new(()),kind:RepresentationKind::Computed,body:RelationBody::Computed(Arc::new(Table::default())),inspected:OnceLock::from(Ok(PhysicalShape::Complete)),normalized:OnceLock::new()});
-   let token=produced::ProducedSelection{source:Arc::clone(&result),selection:Arc::new(StoredSelection)};
+   let token=produced::ProducedSelection{rows:crate::domain::relations::types::ColumnsView{kinds:&[],columns:&[]},source:PublishedInput(Arc::clone(&result)),selection:Arc::new(StoredSelection),resources:[None,None]};
    (result,token)
   }
  }
@@ -323,12 +325,17 @@ fn only_the_actual_application_owner_can_construct_or_modify_admission_state() {
         ),
         (
             "forge_producer_token",
-            "fn forbidden(seed:ProducedSelection)->ProducedSelection{ProducedSelection{source:super::relations::control().0,..seed}}",
+            "fn forbidden<'f>(seed:ProducedSelection<'f>)->ProducedSelection<'f>{ProducedSelection{..seed}}",
             "E0451",
         ),
         (
             "rewrite_producer_projection",
             "fn forbidden(token:&mut ProducedSelection){token.selection=Arc::new(Default::default());}",
+            "E0616",
+        ),
+        (
+            "rewrite_producer_rows",
+            "fn forbidden(token:&mut ProducedSelection){token.rows=crate::domain::relations::types::ColumnsView{kinds:&[],columns:&[]};}",
             "E0616",
         ),
         (

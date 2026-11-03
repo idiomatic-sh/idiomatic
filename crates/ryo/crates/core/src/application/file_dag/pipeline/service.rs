@@ -267,16 +267,21 @@ fn dag_rows<'a, 'f>(
 where
     'f: 'a,
 {
-    let Some(dag) = stepper.dag else {
-        return Ok(None);
-    };
-    let Some(node) = dag.owned(stepper.rule, id) else {
-        return Ok(None);
-    };
     let leases = stepper.dag_shared;
     let slot = leases.get(id).ok_or(OperatingError::NotRun)?;
     if slot.get().is_none() {
-        let table = dag.demand(node, &|relation| stepper.read.rows(relation), context)?;
+        let Some(dag) = stepper.dag else {
+            return Ok(None);
+        };
+        let Some(node) = dag.owned(stepper.rule, id) else {
+            return Ok(None);
+        };
+        let table = dag.demand(
+            node,
+            &|relation| stepper.read.rows(relation),
+            stepper.executor,
+            context,
+        )?;
         let _installed = slot.set(table);
     }
     slot.get()
@@ -384,6 +389,12 @@ where
                 return Ok(table);
             }
 
+            if stepper.counting == Counting::DoesNotCount
+                && let Some(selected) =
+                    CompactInput::new(stepper).selected(StepPlace(id), context)?
+            {
+                return Ok(selected);
+            }
             if stepper.layout.kept.0.get(id) == Some(&true)
                 || stepper.graph_kept.get(id) == Some(&true)
             {
@@ -418,8 +429,8 @@ pub(crate) fn evaluate_file<'f>(
     prepared: &mut PreparedPool,
     classes: &[crate::domain::positions::types::Slots],
 ) -> Result<(), OperatingError> {
-    evaluate_file_with_graph(
-        plan, relations, tree, context, pool, prepared, classes, None, 0,
+    evaluate_file_with_dag(
+        plan, relations, tree, context, pool, prepared, classes, None, 0, None,
     )
 }
 
@@ -490,7 +501,7 @@ pub(crate) fn evaluate_file_with_graph<'f>(
     file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     rule: usize,
 ) -> Result<(), OperatingError> {
-    evaluate_file_with_dag(
+    evaluate_file_with_fixture::<true>(
         plan,
         relations,
         tree,
@@ -517,6 +528,35 @@ pub(crate) fn evaluate_file_with_dag<'f>(
     rule: usize,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
 ) -> Result<(), OperatingError> {
+    evaluate_file_with_fixture::<false>(
+        plan,
+        relations,
+        tree,
+        context,
+        pool,
+        prepared,
+        classes,
+        file_program,
+        rule,
+        file_dag,
+    )
+}
+
+/// The old retained-cut schedule is an explicit test oracle. Ordinary fixture
+/// calls instantiate the same no-legacy evaluator as production.
+#[cfg(test)]
+fn evaluate_file_with_fixture<'f, const LEGACY: bool>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    classes: &[crate::domain::positions::types::Slots],
+    file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+    rule: usize,
+    file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
+) -> Result<(), OperatingError> {
     let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
         std::slice::from_ref(plan),
         &[context.bindings.to_vec()],
@@ -528,7 +568,7 @@ pub(crate) fn evaluate_file_with_dag<'f>(
             )
         },
     )?;
-    evaluate_file_with_executor(
+    evaluate_file_inner::<LEGACY>(
         plan,
         relations,
         tree,
@@ -552,6 +592,59 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     pool: &mut Pool,
     prepared: &mut PreparedPool,
     classes: &[crate::domain::positions::types::Slots],
+    _file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+    rule: usize,
+    file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
+    executor: &dyn crate::application::file_dag::executor::PrimitiveExecutor,
+    operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
+) -> Result<(), OperatingError> {
+    evaluate_file_inner::<false>(
+        plan, relations, tree, context, pool, prepared, classes, None, rule, file_dag, executor,
+        operators,
+    )
+}
+
+/// Run the retained-cut acceptance oracle without making it a production
+/// execution mode. No ordinary caller can select this specialization.
+#[cfg(test)]
+pub(crate) fn evaluate_file_with_legacy_oracle<'f>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    classes: &[crate::domain::positions::types::Slots],
+    file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
+    rule: usize,
+    file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
+    executor: &dyn crate::application::file_dag::executor::PrimitiveExecutor,
+    operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
+) -> Result<(), OperatingError> {
+    evaluate_file_inner::<true>(
+        plan,
+        relations,
+        tree,
+        context,
+        pool,
+        prepared,
+        classes,
+        file_program,
+        rule,
+        file_dag,
+        executor,
+        operators,
+    )
+}
+
+fn evaluate_file_inner<'f, const LEGACY: bool>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    classes: &[crate::domain::positions::types::Slots],
     mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
     rule: usize,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
@@ -559,7 +652,7 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
     if let Some(dag) = file_dag {
-        dag.begin_rule(rule);
+        dag.begin_rule(rule)?;
     }
     let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
         match (relation, tree) {
@@ -663,12 +756,12 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     };
     let cut_diagnostic =
         tracing::enabled!(target: "ryo::diagnostic::subplan_cut", tracing::Level::TRACE);
-    let mut shared_steps = if file_program.is_some() || file_dag.is_some() {
+    let mut shared_steps = if LEGACY && file_program.is_some() {
         vec![None; plan.steps.len()]
     } else {
         Vec::new()
     };
-    let mut graph_kept = if file_program.is_some() || file_dag.is_some() {
+    let mut graph_kept = if LEGACY && file_program.is_some() {
         vec![false; plan.steps.len()]
     } else {
         Vec::new()
@@ -678,7 +771,7 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     let mut retained = Vec::new();
     let mut share_nodes = Vec::new();
     let mut eager = Vec::new();
-    if let Some(program) = file_program.as_deref() {
+    if let Some(program) = file_program.as_deref().filter(|_| LEGACY) {
         for (index, step) in plan.steps.iter().enumerate() {
             let lowered_cut = matches!(lowered, LoweredTree::Tree(_))
                 && (layout
@@ -711,7 +804,7 @@ pub(crate) fn evaluate_file_with_executor<'f>(
                     .entries
                     .iter()
                     .find(|entry| entry.0 == node)
-                    .map(|entry| std::sync::Arc::clone(&entry.1))
+                    .map(|entry| (entry.1).clone())
             });
             retained.push(table);
             share_nodes.push(share_node);
@@ -725,13 +818,14 @@ pub(crate) fn evaluate_file_with_executor<'f>(
         let cached = retained.iter().map(Option::is_some).collect::<Vec<_>>();
         demanded_steps(plan, &eager, &cached)
     });
-    let dag_shared = if file_dag.is_some() {
-        (0..plan.steps.len())
-            .map(|_| std::cell::OnceCell::new())
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
+    let relation_owner = file_dag.map(|dag| dag.relation_owner()).unwrap_or_else(|| {
+        std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+            false,
+        ))
+    });
+    let dag_shared = (0..plan.steps.len())
+        .map(|_| std::cell::OnceCell::new())
+        .collect::<Vec<_>>();
     // Only opaque steps remain in this schedule. Their Feed requests drive the
     // unique application DAG at the original lazy/error boundary.
     let execution_steps = file_dag.map(|dag| {
@@ -752,7 +846,8 @@ pub(crate) fn evaluate_file_with_executor<'f>(
             continue;
         }
         let share_node = share_nodes.get(index).copied().flatten();
-        if layout.kept.0.get(index) != Some(&true) && share_node.is_none() {
+        let kept = layout.kept.0.get(index) == Some(&true) || share_node.is_some();
+        if !kept {
             continue;
         }
         if let Some(slot) = graph_kept.get_mut(index) {
@@ -799,7 +894,7 @@ pub(crate) fn evaluate_file_with_executor<'f>(
             shared: shared_steps.get(..index).unwrap_or(&[]),
             graph_kept: graph_kept.get(..index).unwrap_or(&[]),
             dag: file_dag,
-            relation_owner: file_dag.map(|dag| dag.relation_owner()),
+            relation_owner: Some(std::rc::Rc::clone(&relation_owner)),
             dag_shared: &dag_shared,
             rule,
             selectors,
@@ -859,6 +954,14 @@ pub(crate) fn evaluate_file_with_executor<'f>(
         if !materialized {
             continue;
         }
+        if !LEGACY && layout.consumed.get(index) == Some(&true) {
+            let publication = relation_owner.computed(std::mem::take(target))?;
+            dag_shared
+                .get(index)
+                .ok_or(OperatingError::NotRun)?
+                .set(publication)
+                .map_err(|_| OperatingError::NotRun)?;
+        }
         if let Some(node) = share_node
             && let Some(shared) = file_program
                 .as_deref_mut()
@@ -868,26 +971,24 @@ pub(crate) fn evaluate_file_with_executor<'f>(
         }
     }
     drop(retained);
-    hand_over(plan, steps, selected, &read, context, frontier)?;
-    // The exported/rendered table is the materialization boundary; intermediate kept steps stay compact.
-    if let Some(selection) = usize::try_from(plan.emit.step.0)
-        .ok()
-        .and_then(|index| selected.get(index))
-        .and_then(Option::as_ref)
-    {
-        let Rows::Stored(source) = read(selection.relation)? else {
-            return Err(OperatingError::WrongOperation);
-        };
-        if let Some(target) = steps.get_mut(plan.emit.step.0 as usize) {
-            crate::application::file_dag::route_counts::event("materialize", "rows");
-            materialize(
-                &Rows::Selected(crate::domain::table_model::types::SelectedRows {
-                    source,
-                    selection: std::sync::Arc::clone(selection),
-                }),
-                target,
-                &mut context.scratch.row,
-            );
+    hand_over(
+        plan,
+        steps,
+        selected,
+        &read,
+        Some(relation_owner.as_ref()),
+        &dag_shared,
+        context,
+        frontier,
+    )?;
+    // Only exported results need a caller-owned table; internal results stay in the owner.
+    if let Some(index) = usize::try_from(plan.emit.step.0).ok() {
+        if let Some(publication) = dag_shared.get(index).and_then(std::cell::OnceCell::get) {
+            let rows = relation_owner.resolve(publication.as_ref(), &read)?;
+            let target = steps.get_mut(index).ok_or(OperatingError::NotRun)?;
+            materialize(&rows, target, &mut context.scratch.row);
+        } else if selected.get(index).is_some_and(Option::is_some) {
+            return Err(OperatingError::NotRun);
         }
     }
     Ok(())
@@ -903,30 +1004,28 @@ fn hand_over<'f>(
     steps: &[Table],
     selected: &[Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>],
     read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+    owner: Option<&crate::application::file_dag::relations::RelationOwner>,
+    publications: &[std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     context: &mut OperatorContext<'_>,
     frontier: &mut [Table],
 ) -> Result<(), OperatingError> {
     for (input, into) in plan.frontier.iter().zip(frontier.iter_mut()) {
         match input {
             Input::Relation(relation) => {
-                crate::application::file_dag::route_counts::event("materialize", "rows");
                 materialize(&read(*relation)?, into, &mut context.scratch.row);
             }
             Input::Step(id) => {
-                if let Some(selection) = selected.get(id.0 as usize).and_then(Option::as_ref) {
-                    let Rows::Stored(source) = read(selection.relation)? else {
-                        return Err(OperatingError::WrongOperation);
-                    };
-                    crate::application::file_dag::route_counts::event("materialize", "rows");
-                    materialize(
-                        &Rows::Selected(crate::domain::table_model::types::SelectedRows {
-                            source,
-                            selection: std::sync::Arc::clone(selection),
-                        }),
-                        into,
-                        &mut context.scratch.row,
-                    );
+                if let Some(publication) = publications
+                    .get(id.0 as usize)
+                    .and_then(std::cell::OnceCell::get)
+                {
+                    let owner = owner.ok_or(OperatingError::NotRun)?;
+                    let rows = owner.resolve(publication.as_ref(), read)?;
+                    materialize(&rows, into, &mut context.scratch.row);
                     continue;
+                }
+                if selected.get(id.0 as usize).is_some_and(Option::is_some) {
+                    return Err(OperatingError::NotRun);
                 }
                 let table = steps
                     .get(usize::try_from(id.0).unwrap_or(usize::MAX))

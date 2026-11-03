@@ -10,3 +10,6 @@ pub(crate) mod raw_format_readers;
 mod contract_test;
 
 pub(crate) mod literal_expression_readers;
+
+/// Physical lexer-token links, requested independently of semantic syntax.
+mod token_link_readers;

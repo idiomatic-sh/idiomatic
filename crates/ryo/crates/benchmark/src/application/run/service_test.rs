@@ -593,7 +593,9 @@ fn discrepancy_suite() -> SuiteFake {
             intended_output_sha256: super::discrepancy::output_digest(&case.expected),
             reference_output_sha256: super::discrepancy::output_digest(&reference),
         },
-        expected: reference,
+        expected: crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(
+            reference,
+        ),
         reason: "independent language contract differs from the pinned reference".into(),
         evidence: vec![DiscrepancyEvidence {
             path: "evidence.json".into(),
@@ -697,7 +699,7 @@ fn native_both_sides_require_intended_behavior_even_when_wrong_oracle_matches() 
     assert!(
         !super::discrepancy::matches_intended(
             &canonical[0],
-            super::discrepancy::reference_expected(&canonical[0])
+            super::discrepancy::reference_expected(&canonical[0]).expect("diagnostic expectation")
         ),
         "JSONL retains raw reference mismatch"
     );

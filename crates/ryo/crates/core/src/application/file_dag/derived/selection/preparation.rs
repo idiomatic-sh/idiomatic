@@ -4,17 +4,8 @@ use crate::domain::{
     derived_views::collections::views::registration::registered,
     operation_schema::types::InputSchema, operator::contract::types::RequestOperators,
 };
-#[cfg(test)]
-use ryo_language::domain::relations::service::kinds;
 use ryo_language::domain::relations::types::Relation;
 use std::collections::HashMap;
-
-#[cfg(test)]
-pub(crate) fn prepare_views(
-    selectors: impl IntoIterator<Item = Arc<Selector>>,
-) -> Result<Arc<PreparedSelectionViews>, OperatingError> {
-    prepare_views_with_schemas(selectors, &kinds)
-}
 
 pub(crate) fn prepare_views_with_schemas<'s>(
     selectors: impl IntoIterator<Item = Arc<Selector>>,
@@ -42,6 +33,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         groups: 0,
     };
     let mut groups: Vec<Arc<Selector>> = Vec::new();
+    let mut predicates: Vec<Arc<DerivedContract>> = Vec::new();
     for selector in &prepared.selectors {
         let pointer = Arc::as_ptr(selector) as usize;
         if prepared.by_selector.contains_key(&pointer) {
@@ -52,22 +44,28 @@ pub(crate) fn prepare_views_with_schemas<'s>(
             .position(|previous| same(previous, selector))
             .unwrap_or_else(|| {
                 let at = groups.len();
-                groups.push(Arc::clone(selector));
+                groups.push((selector).clone());
                 at
             });
         let schema = [InputSchema {
             kinds: resolver(selector.relation),
             tree: None,
         }];
-        let predicate = Arc::new(registered(DerivedKind::PredicateMatches).prepare(
-            &ViewRequest::PredicateMatches(Arc::clone(selector)),
-            &schema,
-        )?);
+        let predicate = if let Some(prepared) = predicates.get(group) {
+            prepared.clone()
+        } else {
+            let prepared = Arc::new(
+                registered(DerivedKind::PredicateMatches)
+                    .prepare(&ViewRequest::PredicateMatches(selector.clone()), &schema)?,
+            );
+            predicates.push(prepared.clone());
+            prepared
+        };
         let column = first_literal(selector, resolver(selector.relation))
             .map_or(ColumnIndex(0), |(column, _)| column);
         let key = (selector.relation, column);
         let candidate = if let Some(plan) = postings.get(&key) {
-            Arc::clone(plan)
+            (plan).clone()
         } else {
             let plan = Arc::new(registered(DerivedKind::CandidatePostings).prepare(
                 &ViewRequest::CandidatePostings {
@@ -76,7 +74,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
                 },
                 &schema,
             )?);
-            postings.insert(key, Arc::clone(&plan));
+            postings.insert(key, (plan).clone());
             plan
         };
         let distinct = Arc::new(registered(DerivedKind::DistinctRepresentatives).prepare(
@@ -96,7 +94,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
                 };
                 let key = (selector.relation, *column);
                 let plan = if let Some(plan) = equalities.get(&key) {
-                    Arc::clone(plan)
+                    (plan).clone()
                 } else {
                     let plan = Arc::new(registered(DerivedKind::Equality).prepare(
                         &ViewRequest::Equality {
@@ -104,7 +102,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
                         },
                         &schema,
                     )?);
-                    equalities.insert(key, Arc::clone(&plan));
+                    equalities.insert(key, (plan).clone());
                     plan
                 };
                 selector_equalities.insert(*column, plan);
@@ -135,53 +133,12 @@ pub(crate) fn prepare_request(pool: &mut PreparedPool, request: &RequestOperator
         return;
     }
     pool.file_graph = None;
-    pool.selection_plans = Arc::clone(&request.selection_plans);
-    pool.selection_views = Some(Arc::clone(&request.selection_views));
+    pool.selection_plans = (request.selection_plans).clone();
+    pool.selection_views = Some((request.selection_views).clone());
 }
 
-#[cfg(test)]
-pub(crate) fn prepare(pool: &mut PreparedPool, plans: &[Plan], bindings: &[Vec<ParameterBinding>]) {
-    if pool.selection_views.is_some()
-        && pool.selection_plans.len() == plans.len()
-        && plans
-            .iter()
-            .zip(bindings)
-            .zip(pool.selection_plans.iter())
-            .all(|((plan, bound), prepared)| {
-                prepared.identity.0 == std::ptr::from_ref(plan).addr() && prepared.bound == *bound
-            })
-    {
-        return;
-    }
-    let started = tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
-        .then(std::time::Instant::now);
-    pool.file_graph = None;
-    pool.selection_plans = Arc::new(
-        plans
-            .iter()
-            .zip(bindings)
-            .map(|(plan, bound)| SelectionProgram::new(plan, bound).prepare())
-            .collect(),
-    );
-    // Fixed family dispatch can fail only if the closed registry is inconsistent;
-    // authored schema errors remain deferred inside the prepared contracts.
-    pool.selection_views = Some(
-        prepare_views(
-            pool.selection_plans
-                .iter()
-                .flat_map(|plan| plan.steps.iter().flatten())
-                .cloned(),
-        )
-        .expect("registered selector families match their fixed requests"),
-    );
-    if let Some(started) = started {
-        tracing::trace!(target: "ryo::diagnostic::execution", phase="stored_program_setup",elapsed_ns=started.elapsed().as_nanos() as u64,
-            plans=pool.selection_plans.len(), selectors=pool.selection_plans.iter().map(|plan|plan.steps.iter().flatten().count()).sum::<usize>());
-    }
-}
-
-pub(crate) fn activate(
-    cache: &mut FileIndexes,
+pub(in crate::application::file_dag::derived) fn activate(
+    cache: &mut CacheBackend,
     pool: &PreparedPool,
     selectable: &[Relation],
     active: impl Fn(usize) -> bool,
@@ -204,7 +161,7 @@ pub(crate) fn activate(
             {
                 break;
             }
-            selectors.push(Arc::clone(selector));
+            selectors.push((selector).clone());
         }
     }
     let bytes = selectors.capacity().checked_mul(size_of::<Arc<Selector>>());
@@ -218,12 +175,15 @@ pub(crate) fn activate(
         super::super::indexes::candidate_columns(cache);
     }
     if let Some(views) = &pool.selection_views {
-        install_views(cache, Arc::clone(views));
+        install_views(cache, (views).clone());
     }
 }
 
 /// Install one immutable request descriptor and prepare active repetition once/file.
-pub(crate) fn install_views(cache: &mut FileIndexes, views: Arc<PreparedSelectionViews>) {
+pub(in crate::application::file_dag::derived) fn install_views(
+    cache: &mut CacheBackend,
+    views: Arc<PreparedSelectionViews>,
+) {
     // Active request bookkeeping is mandatory working metadata, independent of
     // optional retained payload capacity. No rows or derived payload live here.
     cache.selector_repetition.clear();

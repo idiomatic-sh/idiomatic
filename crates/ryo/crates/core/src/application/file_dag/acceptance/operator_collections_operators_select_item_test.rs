@@ -76,7 +76,6 @@ fn compute(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -174,7 +173,6 @@ fn services_held(test: Test, left: Operand, right: Operand) -> Result<Value, Ope
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SERVICES),
@@ -278,7 +276,6 @@ fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(&[]),
@@ -301,7 +298,7 @@ fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
         };
         let selected = SelectedRows {
             source,
-            selection: Arc::clone(&selection),
+            selection: (selection).clone(),
         };
         let mut full = Table::default();
         materialize(
@@ -335,7 +332,7 @@ fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
         rows: Arc::new(vec![99]),
         columns: selection.columns.clone(),
         kinds: selection.kinds.clone(),
-        identity: Arc::clone(&selection.identity),
+        identity: (selection.identity).clone(),
     };
     let bad_column = select(
         Test::Equal,

@@ -81,3 +81,6 @@ pub(crate) mod grammar_cache;
 
 /// Standard-format source observations without lint call policy.
 pub(crate) mod format_specification;
+
+/// Physical native-token successor and delimiter edges.
+pub(crate) mod token_links;

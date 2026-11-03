@@ -22,8 +22,6 @@ pub(crate) struct Node {
     pub operation: ryo_values::domain::plans::types::Operation,
     /// Ordered typed dependencies retained for the central executor.
     pub inputs: Vec<NodeInput>,
-    /// Metadata-only output kinds, validated before graph admission.
-    pub kinds: Vec<ryo_language::domain::relations::types::CellKind>,
     /// Invalid synthetic plans keep ordinary error order instead of DAG admission.
     pub schema_valid: bool,
     /// Transitive physical facts required before the application admits this node.

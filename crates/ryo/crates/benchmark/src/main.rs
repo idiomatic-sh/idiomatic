@@ -11,6 +11,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arguments = std::env::args_os().skip(1).collect::<Vec<_>>();
     if arguments
         .first()
+        .is_some_and(|argument| argument == "validate-case-receipts")
+    {
+        use ryo_benchmark::inbound::use_cases::validate_case_receipts::{
+            interface::ValidateCaseReceiptsUseCase as _, use_case::ValidateCaseReceiptsUseCaseImpl,
+        };
+        if arguments.len() != 3 {
+            return Err("usage: validate-case-receipts <registration.json> <receipt.jsonl>".into());
+        }
+        let validate = ValidateCaseReceiptsUseCaseImpl::new(Arc::new(
+            ryo_benchmark::outbound::inventory::factory::local(),
+        ));
+        let audit = validate.validate_case_receipts(
+            std::path::Path::new(&arguments[1]),
+            std::path::Path::new(&arguments[2]),
+        )?;
+        serde_json::to_writer(
+            std::io::stdout(),
+            &serde_json::json!({
+                "schema":"benchmark-case-receipt-audit/v1", "case_count":audit.case_count,
+                "validated_case_ids":audit.verified.iter().map(|(rule,name)|serde_json::json!({"rule":rule,"name":name})).collect::<Vec<_>>(),
+                "raw_exact":audit.raw_exact,"documented_discrepancies":audit.documented_discrepancies,"contract_only":audit.contract_only,"errors":audit.errors,
+            }),
+        )?;
+        std::io::stdout().write_all(b"\n")?;
+        return if audit.errors.is_empty() && audit.verified.len() == audit.case_count {
+            Ok(())
+        } else {
+            Err("case receipts failed strict verification".into())
+        };
+    }
+    if arguments
+        .first()
         .is_some_and(|argument| argument == "verify-inventory")
     {
         use ryo_benchmark::inbound::use_cases::verify_inventory::{

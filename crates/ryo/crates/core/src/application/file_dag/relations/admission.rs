@@ -8,35 +8,23 @@ use std::sync::Arc;
 pub(in crate::application::file_dag) struct AdmittedInput<'a> {
     pub(super) rows: BorrowedRows<'a>,
     pub(super) shape: PhysicalShape,
-    pub(super) origin: Option<(PopulationId, Option<Relation>, Arc<()>)>,
+    pub(super) origin: (PopulationId, Option<Relation>, Arc<()>),
 }
 impl<'a> AdmittedInput<'a> {
     pub(in crate::application::file_dag) fn rows(&self) -> BorrowedRows<'a> {
         self.rows
     }
-    pub(in crate::application::file_dag) fn invocation(
-        rows: BorrowedRows<'a>,
-    ) -> Result<Self, OperatingError> {
-        rows.validate()?;
-        Ok(Self {
-            rows,
-            shape: PhysicalShape::Complete,
-            origin: None,
-        })
-    }
     pub(in crate::application::file_dag) fn identity(
         &self,
         owner: &RelationOwner,
-    ) -> Result<Option<(PopulationId, Option<Relation>)>, OperatingError> {
-        let Some((population, relation, generation)) = &self.origin else {
-            return Ok(None);
-        };
+    ) -> Result<(PopulationId, Option<Relation>), OperatingError> {
+        let (population, relation, generation) = &self.origin;
         if !Arc::ptr_eq(generation, &owner.generation.borrow()) {
             return Err(OperatingError::NotRead);
         }
         if self.shape != PhysicalShape::Complete {
             return Err(OperatingError::ShapeMismatch);
         }
-        Ok(Some((*population, *relation)))
+        Ok((*population, *relation))
     }
 }

@@ -120,6 +120,8 @@ impl CommonOperatorEngine {
                 stepper.read,
                 stepper.selected,
                 stepper.partial,
+                stepper.relation_owner.as_deref(),
+                stepper.dag_shared,
                 context,
                 target,
                 stepper

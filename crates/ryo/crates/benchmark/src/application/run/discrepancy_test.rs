@@ -41,7 +41,9 @@ fn case() -> PreparedCase {
         },
         expected: report,
         reference_discrepancy: Some(PreparedReferenceDiscrepancy {
-            expected: reference,
+            expected: crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(
+                reference,
+            ),
             identity: identity(),
             evidence: Vec::new(),
             reason: "independent language contract".into(),
@@ -66,7 +68,7 @@ fn identity() -> ReferenceDiscrepancyIdentity {
 #[test]
 fn wrong_oracle_cannot_satisfy_the_intended_candidate_contract() {
     let case = case();
-    let reference = reference_expected(&case);
+    let reference = reference_expected(&case).expect("diagnostic expectation");
     assert!(
         compare(reference, reference).is_ok(),
         "pinned reference remains exact"
@@ -200,7 +202,9 @@ fn missing_evidence_rule_projection_and_vacuous_outputs_fail_before_execution() 
     case.reference_discrepancy
         .as_mut()
         .expect("discrepancy")
-        .expected = case.expected.clone();
+        .expected = crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(
+        case.expected.clone(),
+    );
     assert!(
         validate(&suite, &reference, Path::new("rules"), &case).is_err(),
         "identical outputs are not a discrepancy"

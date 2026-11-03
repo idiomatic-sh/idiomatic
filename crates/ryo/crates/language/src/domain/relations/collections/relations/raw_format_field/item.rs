@@ -47,6 +47,9 @@ macro_rules! raw_format_field {
                 file File: FileId => File;
                 /// Owning token interval including prefixes and quotes.
                 span Span: Span => Span;
+                /// Unique standard percent-format flags in ASCII order (space, #, +, -, 0).
+                /// Repeated flags collapse; conflicting flags remain unsimplified. Empty means none.
+                flags Flags: Symbol => Symbol;
             }
         }
     };

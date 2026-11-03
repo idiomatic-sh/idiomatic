@@ -87,3 +87,71 @@ fn separate_keys_never_share_edges() {
         vec![number(9), number(10), number(10), number(11)]
     )));
 }
+
+#[test]
+fn advancing_releases_only_the_previous_partition_lease() {
+    let mut input = Table {
+        kinds: vec![CellKind::Number; 3],
+        ..Table::default()
+    };
+    for (from, to, key) in [(1, 2, 5), (3, 4, 7)] {
+        push_row(&mut input, &[number(from), number(to), number(key)]);
+    }
+    let mut cursor = PartitionedClosure::prepare(
+        BorrowedRows::Computed(&input),
+        &[ColumnIndex(2)],
+        ColumnIndex(0),
+        ColumnIndex(1),
+    )
+    .unwrap();
+    assert!(cursor.advance().unwrap());
+    let first = std::sync::Arc::downgrade(cursor.current_lease.as_ref().unwrap());
+    assert!(cursor.advance().unwrap());
+    assert!(
+        first.upgrade().is_none(),
+        "the prior partition was released"
+    );
+    let current = std::sync::Arc::downgrade(cursor.current_lease.as_ref().unwrap());
+    let (part, transferred) = cursor.take_current().unwrap();
+    assert_eq!(part.key, vec![number(7)]);
+    assert!(cursor.current_lease.is_none());
+    drop(cursor);
+    assert!(
+        current.upgrade().is_some(),
+        "the consumer still owns the charge"
+    );
+    drop(transferred);
+    assert!(current.upgrade().is_none());
+}
+
+#[test]
+fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
+    let input = Table {
+        kinds: vec![CellKind::Number; 3],
+        ..Table::default()
+    };
+    let cursor = PartitionedClosure::prepare(
+        BorrowedRows::Computed(&input),
+        &[ColumnIndex(2)],
+        ColumnIndex(0),
+        ColumnIndex(1),
+    )
+    .unwrap();
+    let mut empty = cursor;
+    assert!(!empty.advance().unwrap());
+    assert!(matches!(
+        empty.take_current(),
+        Err(crate::domain::operating::errors::OperatingError::NotRun)
+    ));
+    let wrong_plan = std::sync::Arc::new((*empty.partition_plan).clone());
+    assert!(matches!(
+        PartitionedClosure::from_prepared(
+            BorrowedRows::Computed(&input),
+            wrong_plan,
+            std::sync::Arc::clone(&empty.closure_plan),
+            empty.ordered.clone(),
+            std::rc::Rc::clone(&empty.owner),
+        ),
+        Err(crate::domain::operating::errors::OperatingError::WrongOperation)
+    ));
+}

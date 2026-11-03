@@ -282,9 +282,6 @@ pub(crate) struct JoinScratch {
     /// The rows already kept, found by what they hold.
     pub seen: hashbrown::HashTable<RowIndex>,
 
-    /// The rows of the table at `right`, in the order of their keys.
-    pub order: KeyIndex,
-
     /// Reused by the engine's prepared Join lookup across rows in this invocation.
     pub key: Vec<Value>,
 }

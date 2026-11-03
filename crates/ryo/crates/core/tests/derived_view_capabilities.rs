@@ -235,7 +235,7 @@ fn view_has_no_owner_scheduler_source_scratch_or_mutation_capability() {
         &(original
             + r#"
 fn escape<'a>(item:&dyn DerivedViewsItem,contract:&DerivedContract)->DerivedView<'a>{
- let storage=DerivedStorage::RowIds{kind:DerivedKind::PredicateMatches,rows:vec![0]};
+ let storage=DerivedStorage::RowIds{kind:DerivedKind::PredicateMatches,rows:vec![0].into()};
  item.view(contract,&storage).unwrap()
 }
 "#),

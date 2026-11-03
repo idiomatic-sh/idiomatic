@@ -76,8 +76,8 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
     global_identity = {'inventory_sha256': inventory_sha, 'selection': identities, 'worker_sha256': profile_config.sha256(worker), 'ruff_sha256': profile_config.sha256(ruff), 'rule_phase_registry_sha256': identities.get('rule_phase_registry_sha256', profile_config.sha256(profile_config.RULE_PHASES_FILE)), 'selected_rule_applicability_sha256': case_records.source_hash(identities.get('selected_rule_applicability', {})), 'target': tomllib.loads((profile_root / 'benchmark.toml').read_text(encoding='utf-8')).get('parser-configuration'), 'project_context_mode': tomllib.loads((profile_root / 'benchmark.toml').read_text(encoding='utf-8')).get('project-context-mode', 'isolated'), 'requested_shard_count': shard_count, 'effective_shard_count': effective_shard_count}
     shards = list(enumerate(partition_case_inventory(inventory, effective_shard_count)))
 
-    def run_one(item: tuple[int, list[dict[str, object]], list[dict[str, object]], bool]) -> dict[str, object]:
-        shard_index, selected, to_run, earlier_case_failed = item
+    def run_one(item: tuple[int, list[dict[str, object]], list[dict[str, object]], bool, str | None]) -> dict[str, object]:
+        shard_index, selected, to_run, earlier_case_failed, prior_validation_error = item
         shard_name = f'{shard_index:03d}'
         result_path = shard_root / f'{shard_name}.cases.jsonl'
         selection_path = None
@@ -89,13 +89,13 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
         environment['RYO_VERIFY_CASE_RESULTS'] = str(result_path)
         try:
             result = runner(command, cwd=profile_config.REPOSITORY / 'crates' / 'ryo', env=environment, capture_output=True, text=False, check=False)
-            error = None
+            error = prior_validation_error
             status = result.returncode
             stdout = result.stdout
             stderr = result.stderr
         except Exception as exception:
             result = None
-            error = f'{type(exception).__name__}: {exception}'
+            error = '; '.join(filter(None, (prior_validation_error, f'{type(exception).__name__}: {exception}')))
             status = 1
             stdout = b''
             stderr = error.encode()
@@ -109,16 +109,22 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
             try:
                 for line in result_path.read_text(encoding='utf-8').splitlines():
                     observed.append(json.loads(line))
-            except json.JSONDecodeError:
+                observed = case_records.case_record_objects(observed)
+            except (OSError, ValueError) as exception:
                 observed = []
+                error = '; '.join(filter(None, (error, f'native case receipt could not be read: {exception}')))
         selected_ids = {f"{case['rule']}/{case['name']}" for case in selected}
-        observed_ids = case_records.complete_case_ids(selected, observed)
+        try:
+            observed_ids = case_records.complete_case_ids(selected, observed, receipt_file=result_path)
+        except (OSError, ValueError) as exception:
+            observed_ids = set()
+            error = '; '.join(filter(None, (error, f'case receipt validation failed: {exception}')))
         side_counts = collections.Counter(((row.get('rule'), row.get('name'), row.get('side')) for row in observed))
         valid_records = observed_ids == selected_ids and all((side_counts[case['rule'], case['name'], side] == 1 for case in selected for side in ('reference', 'candidate'))) and (len(observed) == 2 * len(selected))
         completed_failed = any((not row.get('case_passed', False) for row in observed))
         expected_summary = f'{len(to_run)} cases passed against both contestants\n'.encode()
         summary_valid = stdout == expected_summary
-        final_status = 0 if status == 0 and (not earlier_case_failed) and (not completed_failed) and valid_records and summary_valid else 1
+        final_status = 0 if status == 0 and error is None and (not earlier_case_failed) and (not completed_failed) and valid_records and summary_valid else 1
         receipt = {'profile': name, 'shard_index': shard_index, 'shard_count': effective_shard_count, 'case_ids': expected_ids, 'status': final_status, 'last_process_status': status, 'error': error, 'global_identity': global_identity, 'stdout_sha256': hashlib.sha256(stdout).hexdigest(), 'stderr_sha256': hashlib.sha256(stderr).hexdigest(), 'case_results_sha256': profile_config.sha256(result_path) if result_path.is_file() else None, 'case_result_records_valid': valid_records, 'stdout_summary_valid': summary_valid, 'executed_case_ids': [f"{case['rule']}/{case['name']}" for case in to_run], 'case_selection_file': selection_path.name if selection_path is not None else None, 'case_selection_sha256': profile_config.sha256(selection_path) if selection_path is not None else None}
         profile_config.atomic_json_write(shard_root / f'{shard_name}.receipt.json', receipt)
         return receipt
@@ -145,9 +151,9 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
         if resume and receipt_path.is_file() and records_path.is_file():
             try:
                 receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
-                records = [json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()]
+                records = case_records.case_record_objects([json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()])
                 counts = collections.Counter(((row.get('rule'), row.get('name'), row.get('side')) for row in records))
-                records_valid = case_records.complete_case_ids(selected, records) == {f"{case['rule']}/{case['name']}" for case in selected} and all((counts[case['rule'], case['name'], side] == 1 for case in selected for side in ('reference', 'candidate'))) and (len(records) == 2 * len(selected))
+                records_valid = case_records.complete_case_ids(selected, records, receipt_file=records_path) == {f"{case['rule']}/{case['name']}" for case in selected} and all((counts[case['rule'], case['name'], side] == 1 for case in selected for side in ('reference', 'candidate'))) and (len(records) == 2 * len(selected))
                 reused = receipt.get('global_identity') == global_identity and receipt.get('case_ids') == expected_ids and (receipt.get('case_result_records_valid') is True) and (receipt.get('case_results_sha256') == profile_config.sha256(records_path)) and records_valid
                 if reused:
                     receipts.append(receipt)
@@ -158,16 +164,32 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
                 raise ValueError('shard output already exists; use --resume with matching identities')
             prior_records = []
             malformed = False
+            prior_validation_error = None
             if resume and records_path.is_file():
                 try:
-                    prior_records = [json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()]
-                except (OSError, json.JSONDecodeError):
+                    prior_records = case_records.case_record_objects([json.loads(line) for line in records_path.read_text(encoding='utf-8').splitlines()])
+                except (OSError, ValueError) as exception:
                     malformed = True
-            completed = set() if malformed else case_records.complete_case_ids(selected, prior_records)
+                    prior_validation_error = f'prior native case receipt could not be read: {exception}'
+            try:
+                completed = set() if malformed else case_records.complete_case_ids(selected, prior_records, receipt_file=records_path)
+            except (OSError, ValueError) as exception:
+                completed = set()
+                prior_validation_error = f'prior case receipt validation failed: {exception}'
             completed_ids = {f"{case['rule']}/{case['name']}" for case in selected}
             keep = [row for row in prior_records if f"{row.get('rule')}/{row.get('name')}" in completed]
             if malformed:
                 keep = []
+            if records_path.is_file() and records_path.stat().st_size:
+                original = records_path.read_bytes()
+                history = records_path.with_name(f'{records_path.name}.history-{hashlib.sha256(original).hexdigest()}')
+                if history.exists() and history.read_bytes() != original:
+                    raise ValueError('receipt history identity collision')
+                if not history.exists():
+                    with history.open('xb') as saved:
+                        saved.write(original)
+                        saved.flush()
+                        os.fsync(saved.fileno())
             temporary_records = records_path.with_name(f'.{records_path.name}.tmp')
             with temporary_records.open('w', encoding='utf-8') as output_records:
                 for row in keep:
@@ -186,7 +208,7 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
             for path in (receipt_path, shard_root / f'{shard_name}.stdout.bin', shard_root / f'{shard_name}.stderr.bin'):
                 path.unlink(missing_ok=True)
             earlier_failed = any((not row.get('case_passed', False) for row in keep))
-            pending_shards.append((shard_index, selected, to_run, earlier_failed))
+            pending_shards.append((shard_index, selected, to_run, earlier_failed, prior_validation_error))
     with ThreadPoolExecutor(max_workers=min(effective_shard_count, worker_limit or shard_worker_limit())) as pool:
         futures = [pool.submit(run_one, shard) for shard in pending_shards]
         for future in as_completed(futures):

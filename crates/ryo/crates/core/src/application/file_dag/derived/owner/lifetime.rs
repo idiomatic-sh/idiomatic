@@ -64,8 +64,14 @@ impl DerivedOwner {
         state.spare_dependencies = recycled;
         state.required_bytes = 0;
         state.retained_bytes = 0;
+        state.retained_predicates = 0;
         state.overlap_bytes = 0;
         state.required_views = 0;
         state.required_backend_bytes = 0;
+        drop(state);
+        // Population mutation invalidates every backend identity, including
+        // adjacency and memo records, not only the common view-key table.
+        let backend = self.backend.borrow_mut().take();
+        drop(backend);
     }
 }

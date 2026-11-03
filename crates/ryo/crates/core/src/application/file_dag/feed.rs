@@ -6,15 +6,28 @@ use crate::domain::operating::{
 use crate::domain::table_model::types::{RowCount, Rows, Table};
 use ryo_language::domain::relations::types::CellKind;
 /// What a step reads its inputs through: it can ask for the rows of an input one at a time, or hold them whole.
+/// Declared provenance determines whether a missing publication is an error.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum InputOrigin {
+    External,
+    Relation(ryo_language::domain::relations::types::Relation),
+    Internal,
+    /// A streamed producer materialized only for this input demand, with no promised resident publication.
+    Temporary,
+}
 pub(crate) trait Feed<'f> {
     fn relation_owner(&self) -> Option<std::rc::Rc<super::relations::RelationOwner>> {
         None
     }
+    fn origin(&self, _which: InputPlace) -> Result<InputOrigin, OperatingError> {
+        Ok(InputOrigin::External)
+    }
     fn publication(
         &self,
         _which: InputPlace,
-    ) -> Option<std::sync::Arc<super::relations::RelationResult>> {
-        None
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        Ok(None)
     }
 
     /// What the columns of the input hold.

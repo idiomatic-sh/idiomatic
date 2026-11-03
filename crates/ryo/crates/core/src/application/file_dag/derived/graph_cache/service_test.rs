@@ -172,8 +172,9 @@ fn exact_selected_bindings_population_and_projection_determine_graph_identity() 
 fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let rows = rows(&columns);
-    let limit =
-        size_of::<crate::domain::stored_indexes::types::FileIndexes>() + size_of::<Relation>() + 8;
+    let limit = size_of::<crate::application::file_dag::derived::backend::CacheBackend>()
+        + size_of::<Relation>()
+        + 8;
     let mut cache = new(&[Relation::Function], &[], limit).expect("metadata fits");
     cache.graph_enabled = true;
     let before = cache.bytes;
@@ -382,9 +383,9 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
 
 #[test]
 fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_is_live() {
+    use crate::application::file_dag::derived::graph_cache::types::footprint::value::GraphFootprint;
     use crate::application::file_dag::derived::graph_cache::types::reclamation::value::index_payload;
     use crate::application::file_dag::derived::indexes::acquire_fixture as acquire_index;
-    use crate::domain::stored_graph::types::footprint::value::GraphFootprint;
     use crate::domain::table_model::types::KeyIndex;
     let columns = [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![2, 3, 4, 5])];
     let source = ColumnsView {

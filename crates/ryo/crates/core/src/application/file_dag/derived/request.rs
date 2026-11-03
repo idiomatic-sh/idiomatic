@@ -280,7 +280,7 @@ impl RequestViews {
                 && usize::from(binding.len) == positions.len()
         });
         let binding = if let Some(binding) = binding {
-            Arc::clone(binding)
+            (binding).clone()
         } else {
             let binding = Arc::new(PreparedViewUse {
                 plan,
@@ -288,12 +288,12 @@ impl RequestViews {
                 relations,
                 len: positions.len() as u8,
             });
-            self.bindings.push(Arc::clone(&binding));
+            self.bindings.push((binding).clone());
             binding
         };
         slots[at] = Some(if let Some(previous) = slots[at].take() {
             Arc::new(PreparedViewGroup {
-                primary: Arc::clone(&previous.primary),
+                primary: (previous.primary).clone(),
                 secondary: Some(binding),
             })
         } else {
@@ -320,12 +320,12 @@ impl RequestViews {
                     .zip(schemas)
                     .all(|(prepared, actual)| prepared == actual.kinds)
         }) {
-            return Ok(Arc::clone(plan));
+            return Ok((plan).clone());
         }
         let mut plan = registered(kind(request)).prepare(request, schemas)?;
         plan.metadata = Err(error);
         let plan = Arc::new(plan);
-        self.plans.push(Arc::clone(&plan));
+        self.plans.push((plan).clone());
         Ok(plan)
     }
     pub(in crate::application::file_dag) fn intern(
@@ -342,10 +342,10 @@ impl RequestViews {
                     .zip(schemas)
                     .all(|(prepared, actual)| prepared == actual.kinds)
         }) {
-            return Ok(Arc::clone(plan));
+            return Ok((plan).clone());
         }
         let plan = Arc::new(registered(kind(request)).prepare(request, schemas)?);
-        self.plans.push(Arc::clone(&plan));
+        self.plans.push((plan).clone());
         Ok(plan)
     }
     #[cfg(test)]

@@ -41,12 +41,35 @@ impl PredicateProgram for Decision<'_> {
     }
 }
 pub(super) fn matches(
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
+    resources: super::super::owner::selection::SelectionSource<'_>,
     program: &Arc<Selector>,
     views: &PreparedSelectorViews,
     source: ColumnsView<'_>,
     context: &mut OperatorContext<'_>,
-) -> Result<Vec<u32>, OperatingError> {
+) -> Result<super::super::view::AcquiredView, OperatingError> {
+    let acquired = resources.acquire_predicate(cache, &views.predicate, views.group, |cache| {
+        build_matches(cache, resources, program, views, source, context)
+    })?;
+    let population = source.columns.first().map_or(0, |column| column.0.len());
+    let rows = super::shared_positions(&acquired, population, population)?;
+    if let Some(entry) = histogram(cache, program) {
+        entry.builds += u64::from(acquired.was_built());
+        entry.reuses += u64::from(!acquired.was_built());
+        if acquired.was_built() {
+            entry.matched_rows += rows.len() as u64;
+        }
+    }
+    Ok(acquired)
+}
+fn build_matches(
+    cache: &mut CacheBackend,
+    resources: super::super::owner::selection::SelectionSource<'_>,
+    program: &Arc<Selector>,
+    views: &PreparedSelectorViews,
+    source: ColumnsView<'_>,
+    context: &mut OperatorContext<'_>,
+) -> Result<DerivedStorage, OperatingError> {
     let needed = &views.predicate.needed;
     // Preserve the old first invalid predicate-column error before candidate acquisition.
     for &column in &needed.0 {
@@ -55,7 +78,7 @@ pub(super) fn matches(
             &[ColumnIndex(u32::try_from(column).unwrap_or(u32::MAX))],
         )?;
     }
-    let (candidates, path) = candidates(cache, program, views, source, context)?;
+    let (candidates, path) = candidates(cache, resources, program, views, source, context)?;
     let indexed = candidates.is_some();
     let population = source.columns.first().map_or(0, |column| column.0.len());
     let names = NameCount(name_count(context.symbols.as_ref()).0);
@@ -78,17 +101,25 @@ pub(super) fn matches(
         visits: 0,
     };
     let mut storage = DerivedStorage::Unbuilt;
-    let outcome = super::super::owner::build_scoped(
-        crate::application::file_dag::route_counts::BuildRoute::SelectorPredicate,
-        &views.predicate,
-        DerivedInputs::Predicate {
-            rows: BorrowedRows::Stored(source),
-            candidates: candidates.as_ref().map(CandidateRows::as_slice),
-            program: &mut decision,
-            symbols: context.symbols.as_ref(),
+    let outcome = crate::application::file_dag::route_counts::observe(
+        crate::application::file_dag::route_counts::BuildRoute::SelectorPredicate.label(),
+        crate::application::file_dag::route_counts::derived(views.predicate.kind),
+        || {
+            crate::domain::derived_views::collections::views::registration::registered(
+                views.predicate.kind,
+            )
+            .build(
+                &views.predicate,
+                DerivedInputs::Predicate {
+                    rows: BorrowedRows::Stored(source),
+                    candidates: candidates.as_ref().map(CandidateRows::as_slice),
+                    program: &mut decision,
+                    symbols: context.symbols.as_ref(),
+                },
+                &mut storage,
+                &mut DerivedScratch::default(),
+            )
         },
-        &mut storage,
-        &mut DerivedScratch::default(),
     );
     let visited = decision.visits;
     if !indexed {
@@ -112,5 +143,5 @@ pub(super) fn matches(
         }
     }
     outcome?;
-    super::take_positions(&views.predicate, &mut storage, population, population)
+    Ok(storage)
 }

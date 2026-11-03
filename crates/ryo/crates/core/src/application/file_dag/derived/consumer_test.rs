@@ -1,5 +1,5 @@
 //! Independent rules share one computed producer's equality view through real DAG execution.
-use super::indexes::{LIMIT, new};
+use super::indexes::LIMIT;
 use super::*;
 use crate::application::file_dag::{interface::DagExecution, types::FileDagExecution};
 use crate::domain::{
@@ -97,12 +97,17 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         "different output semantics must execute both consumers"
     );
     let roots = [graph.cuts[0][2].unwrap(), graph.cuts[1][2].unwrap()];
-    for retained_budget in [0, LIMIT] {
+    for (retained_budget, result_budget) in
+        [(0, None), (LIMIT, None), (0, Some(0)), (LIMIT, Some(0))]
+    {
         let dag = std::cell::RefCell::new(FileDagExecution::new(
-            Arc::clone(&graph),
+            (graph).clone(),
             |_| true,
             &[Relation::LanguageTarget],
         ));
+        if let Some(limit) = result_budget {
+            dag.borrow_mut().limit = limit;
+        }
         let columns = [
             FactColumn(vec![to_bits(Value::File(FileId(1))).0; 2]),
             FactColumn(vec![to_bits(number(2)).0, to_bits(number(3)).0]),
@@ -120,12 +125,20 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         };
         let (mut symbols, mut scratch, mut memo) =
             (Symbols::default(), OperatorScratch::default(), vec![]);
-        let mut cache = new(&[Relation::LanguageTarget], &[], LIMIT).unwrap();
-        cache.limit = retained_budget;
+        let owner = dag.relation_owner();
+        owner.derived.prepare_file(
+            true,
+            &[Relation::LanguageTarget],
+            &[],
+            &[],
+            &plans,
+            &crate::domain::operator::types::PreparedPool::default(),
+            |_| true,
+        );
+        owner.derived.set_optional_limit(retained_budget).unwrap();
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: Some(&mut cache),
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: SourceView(&[]),
@@ -136,8 +149,15 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         };
         let mut outputs = Vec::<Table>::new();
         for (rule, root) in roots.into_iter().enumerate() {
-            dag.begin_rule(rule);
-            let result = dag.demand(root, &read, &mut context).unwrap();
+            dag.begin_rule(rule).unwrap();
+            let result = dag
+                .demand(
+                    root,
+                    &read,
+                    &crate::application::file_dag::execution::CommonOperatorEngine,
+                    &mut context,
+                )
+                .unwrap();
             let rows = dag
                 .relation_owner()
                 .resolve(result.as_ref(), &read)
@@ -145,10 +165,17 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
             let mut table = Table::default();
             crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());
             outputs.push(table);
+            dag.borrow_mut().finish_rule(rule);
+            if result_budget == Some(0) {
+                assert!(
+                    dag.borrow().ready.iter().all(Option::is_none),
+                    "zero node budget never retains producer payloads"
+                );
+            }
             if rule == 0 {
                 assert!(
                     dag.relation_owner().derived.working_bytes() > 0,
-                    "future live consumer owns the required index even without optional payload budget"
+                    "future live consumer owns required index: view budget={retained_budget}, node budget={result_budget:?}"
                 );
             }
         }
@@ -175,3 +202,5 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         assert_eq!(dag.relation_owner().derived.owned_bytes(), 0);
     }
 }
+
+mod cancellation;

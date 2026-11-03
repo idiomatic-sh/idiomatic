@@ -42,7 +42,6 @@ fn compute(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings,
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -83,7 +82,6 @@ fn captures_the_module_of_a_path() -> Result<Value, OperatingError> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(source),
@@ -130,7 +128,6 @@ fn a_starred_slot_crosses_directories() -> Result<Value, OperatingError> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(source),
@@ -187,7 +184,6 @@ fn every_split_of_a_path_is_a_row() -> Result<Value, OperatingError> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(source),

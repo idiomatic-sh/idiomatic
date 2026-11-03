@@ -9,6 +9,7 @@ use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Rows, Table};
 use ryo_language::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use std::sync::Arc;
 
 fn graph(edges: &[[i64; 2]]) -> crate::domain::stored_graph::types::CompactGraph {
     let mut table = Table {
@@ -49,10 +50,10 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
     assert!(graph.forests[0].is_none());
     let mut domain = GraphDomain {
         identity: None,
-        members: vec![false; graph.vertices.len()],
+        members: Arc::new(vec![false; graph.vertices.len()]),
     };
-    domain.members[vertex(&graph, 9) as usize] = true;
-    domain.members[vertex(&graph, 2) as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 9) as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 2) as usize] = true;
     let mut walk = GraphWalk::default();
     let root = vertex(&graph, 1);
     assert!(GraphTraversal::new(&graph, &mut walk).breadth(
@@ -86,10 +87,10 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
     assert!(graph.forests[0].is_some());
     let mut domain = GraphDomain {
         identity: None,
-        members: vec![false; graph.vertices.len()],
+        members: Arc::new(vec![false; graph.vertices.len()]),
     };
-    domain.members[vertex(&graph, 4) as usize] = true;
-    domain.members[vertex(&graph, 1) as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 4) as usize] = true;
+    Arc::make_mut(&mut domain.members)[vertex(&graph, 1) as usize] = true;
     let mut walk = GraphWalk::default();
     let mut answers = Vec::new();
     let first = GraphTraversal::new(&graph, &mut walk).nearest(

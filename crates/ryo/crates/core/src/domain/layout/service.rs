@@ -56,18 +56,26 @@ pub(crate) fn layout_of<'f>(
 ) -> Result<PlanLayout, OperatingError> {
     let emitted = usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX);
     // A step keeps its rows when it is the one emitted, is handed to the cross-file steps, or is read by more than one step.
-    let kept: Vec<bool> =
-        plan.steps
-            .iter()
-            .enumerate()
-            .map(|(id, step)| {
-                let handed = plan.frontier.iter().any(|input| {
-                    *input == Input::Step(StepId(u32::try_from(id).unwrap_or(u32::MAX)))
-                });
-                step.scope != StepScope::CrossFile
-                    && (id == emitted || handed || reads_of(plan, StepPlace(id)).0 > 1)
-            })
-            .collect();
+    let (kept, consumed): (Vec<bool>, Vec<bool>) = plan
+        .steps
+        .iter()
+        .enumerate()
+        .map(|(id, step)| {
+            let handed = plan
+                .frontier
+                .iter()
+                .filter(|input| {
+                    **input == Input::Step(StepId(u32::try_from(id).unwrap_or(u32::MAX)))
+                })
+                .count();
+            let exported = usize::from(id == emitted);
+            let reads = reads_of(plan, StepPlace(id)).0;
+            (
+                step.scope != StepScope::CrossFile && (exported != 0 || handed != 0 || reads > 1),
+                reads > handed + exported,
+            )
+        })
+        .unzip();
     // Layout reads provider availability and column metadata only. No operator is run.
     let _span =
         tracing::trace_span!(target: "ryo::diagnostic::layout", "schema", plan = index.0).entered();
@@ -115,6 +123,7 @@ pub(crate) fn layout_of<'f>(
     Ok(PlanLayout {
         plan: index,
         kept: KeptSteps(kept),
+        consumed,
         kinds,
         lowering: lower(plan),
         needs: needs_of(plan),
@@ -182,6 +191,7 @@ pub(crate) fn shaped(
                 | Relation::BraceFormatField
                 | Relation::RawFormatSegment
                 | Relation::RawFormatField
+                | Relation::TokenLink
                 | Relation::LiteralExpressionParse
                 | Relation::StaticImport
                 | Relation::StringLiteral

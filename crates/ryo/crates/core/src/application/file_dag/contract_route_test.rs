@@ -20,18 +20,28 @@ use crate::domain::operator::{
     types::{PreparedPool, RowsFed},
 };
 use crate::domain::replay::types::Pipe;
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use fixtures::{SOURCE, fixture};
+use ryo_language::domain::completion::service::{completion, name_kind};
+use ryo_language::domain::terms::types::NameText;
 use ryo_language::domain::{
+    elements::{
+        service::{enter_node, leave_node, table_builder, token},
+        types::Elements,
+    },
     relations::{
         service::{kinds, to_bits},
-        types::{CellKind, ColumnsView, FactColumn, FileId, Integer, Relation, Value},
+        types::{
+            CellKind, ColumnsView, FactColumn, FileId, Integer, KindBits, Offset, Relation, Value,
+        },
     },
-    symbols::types::Symbols,
+    symbols::types::{ByteSlice, Symbols},
 };
 use ryo_values::domain::{
+    hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation},
     plan_parts::types::{
         ColumnIndex, Comparison, Input, Operand, ParameterId, RepeatedRows, StepId, Test,
         WholeNumber,
@@ -128,6 +138,48 @@ fn columns(table: &Table) -> Vec<FactColumn> {
         })
         .collect()
 }
+fn actual_tree() -> (Elements, Symbols) {
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(SOURCE));
+    enter_node(&mut builder, KindBits(1), Offset(0));
+    token(&mut builder, KindBits(2), Offset(0), Offset(1));
+    enter_node(&mut builder, KindBits(3), Offset(1));
+    token(&mut builder, KindBits(2), Offset(1), Offset(2));
+    leave_node(&mut builder, Offset(2));
+    leave_node(&mut builder, Offset(2));
+    drop(builder);
+    for (kind, name) in ["unused", "root", "token", "branch"]
+        .into_iter()
+        .enumerate()
+    {
+        name_kind(
+            &mut completion(&mut elements, &mut symbols, ByteSlice(SOURCE), FileId(0)),
+            KindBits(kind as u16),
+            NameText(name),
+        );
+    }
+    (elements, symbols)
+}
+#[test]
+fn a_single_emitted_step_is_residual_not_a_dag_cut() {
+    let case = fixture(OperationKind::Select);
+    let relation = Relation::Function;
+    let plan = plan(case.operation, StepScope::PerFile);
+    let prepared = RequestOperators::prepare_with_schemas(
+        std::slice::from_ref(&plan),
+        std::slice::from_ref(&case.bindings),
+        &[],
+        &|asked| {
+            assert_eq!(asked, relation);
+            stored_kinds(&case.inputs[0])
+        },
+    )
+    .unwrap();
+    let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
+    assert!(graph.cuts[0][0].is_none());
+    let dag = FileDagExecution::new(graph, |_| true, &[relation]);
+    assert!(dag.owned(0, 0).is_none());
+}
 #[test]
 fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor() {
     let executor = CountingExecutor::default();
@@ -155,7 +207,6 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
         let mut context = OperatorContext {
             prepared_matchers: None,
             prepared_kinds: None,
-            stored_indexes: None,
             bindings: &case.bindings,
             symbols: (&mut case.symbols).into(),
             source: SourceView(SOURCE),
@@ -166,6 +217,25 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
         };
         let actual = if *kind == OperationKind::Hosted {
             let plan = plan(case.operation, StepScope::CrossFile);
+            let hosted = [HostRelation {
+                name: HostName("fixture".into()),
+                columns: vec![HostColumn {
+                    name: HostColumnName("value".into()),
+                    kind: HostKind::Number,
+                }],
+                rows: vec![],
+            }];
+            let prepared = RequestOperators::prepare_with_schemas(
+                std::slice::from_ref(&plan),
+                std::slice::from_ref(&case.bindings),
+                &hosted,
+                &kinds,
+            )
+            .unwrap();
+            let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
+            assert!(graph.cuts[0][0].is_none(), "Hosted remains cross-file");
+            let dag = FileDagExecution::new(graph, |_| true, &[]);
+            assert!(dag.owned(0, 0).is_none());
             evaluate_cross_with_executor(
                 &plan,
                 vec![],
@@ -186,6 +256,16 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 })
                 .collect::<Vec<_>>();
             let storage = case.inputs.iter().map(columns).collect::<Vec<_>>();
+            let relation_kinds = |relation: Relation| {
+                if relation == Relation::SyntaxTree {
+                    return kinds(relation);
+                }
+                let index = relations
+                    .iter()
+                    .position(|input| *input == relation)
+                    .expect("fixture declares every relation input");
+                stored_kinds(&case.inputs[index])
+            };
             let read = |relation| {
                 relations
                     .iter()
@@ -195,24 +275,75 @@ fn all24_actual_production_routes_invoke_and_emit_through_the_required_executor(
                         columns: &storage[index],
                     })
             };
-            let plan = plan(case.operation, StepScope::PerFile);
+            let output_columns = (0..contract.collected_kinds.as_ref().unwrap().len())
+                .map(|column| ColumnIndex(column as u32))
+                .collect();
+            let plan = Plan {
+                parameters: vec![],
+                steps: vec![
+                    PlanStep {
+                        operation: case.operation,
+                        scope: StepScope::PerFile,
+                    },
+                    PlanStep {
+                        operation: Operation::Project {
+                            from: Input::Step(StepId(0)),
+                            columns: output_columns,
+                            distinct: RepeatedRows::Kept,
+                        },
+                        scope: StepScope::PerFile,
+                    },
+                ],
+                emit: PlanEmit {
+                    step: StepId(1),
+                    subject: ColumnIndex(0),
+                    key: vec![],
+                    headings: vec![],
+                },
+                frontier: vec![],
+                comparison_origins: vec![],
+            };
+            let prepared = RequestOperators::prepare_with_schemas(
+                std::slice::from_ref(&plan),
+                std::slice::from_ref(&case.bindings),
+                &[],
+                &relation_kinds,
+            )
+            .unwrap();
+            let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
+            assert!(graph.cuts[0][0].is_some(), "{kind:?} must reach the DAG");
+            assert!(graph.cuts[0][1].is_none(), "emit stays residual");
+            let dag = RefCell::new(FileDagExecution::new(graph, |_| true, &relations));
+            assert!(
+                dag.borrow().owned(0, 0).is_some(),
+                "{kind:?} owned before execution"
+            );
+            assert!(dag.borrow().owned(0, 1).is_none());
+            let (elements, _tree_symbols) = actual_tree();
+            let tree = relations
+                .contains(&Relation::SyntaxTree)
+                .then_some(TreeRows {
+                    elements: &elements,
+                    file: FileId(0),
+                    form: TreeForm::Elements,
+                });
             let mut pool = pool_for(std::slice::from_ref(&plan));
             evaluate_file_with_executor(
                 &plan,
                 &read,
-                None,
+                tree,
                 &mut context,
                 &mut pool,
                 &mut PreparedPool::default(),
                 &[],
                 None,
                 0,
-                None,
+                Some(&dag),
                 &executor,
-                &[contract],
+                &prepared.rules[0],
             )
-            .unwrap();
-            pool.steps.remove(0)
+            .unwrap_or_else(|error| panic!("DAG-owned {kind:?}: {error:?}"));
+            pool.steps.remove(1)
         };
         assert!(actual.count.0 > 0, "actual nonempty {kind:?} route");
         let rows = actual
@@ -297,7 +428,6 @@ fn partial_route(
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),
@@ -391,7 +521,6 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(SOURCE),

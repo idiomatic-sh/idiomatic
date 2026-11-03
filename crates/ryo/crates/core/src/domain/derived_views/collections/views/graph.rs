@@ -58,7 +58,7 @@ impl DerivedViewsItem for AdjacencyItem {
             keys,
         )?
         .ok_or(OperatingError::ShapeMismatch)?;
-        *storage = DerivedStorage::Adjacency(graph);
+        *storage = DerivedStorage::Adjacency(std::sync::Arc::new(graph));
         Ok(())
     }
     fn view<'a>(

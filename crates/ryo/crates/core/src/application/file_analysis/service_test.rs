@@ -433,6 +433,24 @@ fn visited_as(
     keeping: crate::domain::visit::types::Keeping,
     digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
+    visited_as_with_facts(
+        paths,
+        language,
+        answering,
+        keeping,
+        digest,
+        FactsFake::default().worker()?,
+    )
+}
+
+fn visited_as_with_facts(
+    paths: &[&str],
+    language: LanguageFake,
+    answering: &crate::domain::render::types::Answering,
+    keeping: crate::domain::visit::types::Keeping,
+    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     use super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Noting, RoleRead};
     use crate::outbound::corpus::interface::CorpusPort as _;
@@ -504,7 +522,7 @@ fn visited_as(
             TreeSteps::Lowered,
             Counting::DoesNotCount,
         ),
-        facts: FactsFake::default().worker()?,
+        facts,
         old_rows: None,
         failure: None,
     };
@@ -753,6 +771,35 @@ impl crate::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
     }
 }
 
+fn prepared_resource_state(
+    enabled: bool,
+    partial: &[crate::domain::coverage::types::Partial],
+) -> (bool, bool) {
+    use crate::application::file_dag::types::FileDagExecution;
+    use crate::domain::file_program::types::RequestGraph;
+    use crate::domain::operator::types::PreparedPool;
+    let graph = RequestGraph {
+        derived_sources: Vec::new(),
+        plans: Vec::new(),
+        nodes: Vec::new(),
+        cuts: Vec::new(),
+        consumers: Vec::new(),
+        boundaries: Vec::new(),
+        rule_liveness: Vec::new(),
+    };
+    let dag = FileDagExecution::new_for_population(Arc::new(graph), |_| true, &[], true);
+    dag.prepare_resources(
+        enabled,
+        &[Relation::Function],
+        partial,
+        &[Relation::Function],
+        &[],
+        &PreparedPool::default(),
+        |_| true,
+    );
+    dag.resource_eligibility(Relation::Function)
+}
+
 #[test]
 fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_coverage() {
     use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
@@ -772,26 +819,22 @@ fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_cov
     });
 
     let facts = FactsFake::default().worker().expect("facts");
-    let findings = FileAnalysis::indexes_for(
-        &tables,
-        facts.as_ref(),
-        &[Relation::Function],
-        &tables.partials,
-    )
-    .expect("stable generation");
-    let rows = FileAnalysis::indexes_for(
-        &tables,
-        facts.as_ref(),
-        &[Relation::Function],
-        &tables.partials,
-    )
-    .expect("same physical generation");
-    assert_eq!(findings.eligible, rows.eligible);
-    assert!(rows.eligible.is_empty());
+    let enabled = FileAnalysis::resource_generation_enabled(&tables, facts.as_ref());
+    let findings = prepared_resource_state(enabled, &tables.partials);
+    let rows = prepared_resource_state(enabled, &tables.partials);
+    assert_eq!(findings, rows);
+    assert_eq!(
+        rows,
+        (true, false),
+        "partial physical rows cannot be eligible"
+    );
     tables.language = None;
-    assert!(
-        FileAnalysis::indexes_for(&tables, facts.as_ref(), &[Relation::Function], &[]).is_none(),
-        "failed/unsupported source never opens an index generation"
+    assert_eq!(
+        prepared_resource_state(
+            FileAnalysis::resource_generation_enabled(&tables, facts.as_ref()),
+            &[]
+        ),
+        (false, false)
     );
 }
 
@@ -833,7 +876,8 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
         .expect("first column")
         .0
         .clone();
-    assert!(FileAnalysis::indexes_for(&tables, &facts, &[Relation::Function], &[]).is_none());
+    let enabled = FileAnalysis::resource_generation_enabled(&tables, &facts);
+    assert_eq!(prepared_resource_state(enabled, &[]), (false, false));
     let second = facts
         .rows(Relation::Function)
         .expect("changed population")
@@ -846,6 +890,64 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
         first, second,
         "same relation/schema/count is insufficient without an audited stability promise"
     );
+}
+
+#[test]
+fn actual_file_visit_admits_only_stable_resource_generation() {
+    use crate::application::file_dag::resources::take_resource_setup;
+    use crate::domain::render::types::Answering;
+    use crate::domain::visit::types::Keeping;
+    use ryo_language::domain::relations::types::FactColumn;
+    let _previous = take_resource_setup();
+    let (stable, _) = visited_as(
+        &["stable.rs"],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Discards,
+        Arc::new(DigestFake),
+    )
+    .expect("stable file visit");
+    assert!(stable.failure.is_none());
+    assert_eq!(take_resource_setup(), Some((true, true)));
+
+    let alternate = |value| (0..4).map(|_| FactColumn(vec![value])).collect();
+    let facts = UnstableResidentFacts {
+        inner: FactsFake::default().worker().expect("facts"),
+        alternatives: [alternate(0), alternate(1)],
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    };
+    let (unstable, unstable_language) = visited_as_with_facts(
+        &["volatile.rs"],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Discards,
+        Arc::new(DigestFake),
+        Box::new(facts),
+    )
+    .expect("unstable file visit");
+    assert!(unstable.failure.is_none());
+    assert_eq!(
+        take_resource_setup(),
+        Some((false, false)),
+        "parse calls {}, language {:?}, graph {}, unread {}",
+        unstable_language.parses.load(Ordering::Relaxed),
+        unstable.tables.language,
+        unstable.tables.pool.file_graph.is_some(),
+        unstable.tables.unread.len(),
+    );
+
+    // The corpus fake refuses this path before parsing; no owner is prepared.
+    let (unread, _) = visited_as(
+        &["unstable.rs"],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Discards,
+        Arc::new(DigestFake),
+    )
+    .expect("unread file visit");
+    assert!(unread.failure.is_none());
+    assert_eq!(unread.tables.unread.len(), 1);
+    assert_eq!(take_resource_setup(), None);
 }
 
 #[test]

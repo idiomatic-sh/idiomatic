@@ -1,0 +1,25 @@
+{
+  "name": "nested-dotted-package-root",
+  "comparison": "full",
+  "files": {
+    "root.name/child/__init__.py": ""
+  },
+  "context": {
+    "logical-root": "inventory",
+    "auxiliary-files": {
+      "inventory/root.name/__init__.py": ""
+    },
+    "missing": [
+      "__init__.py",
+      "inventory/__init__.py"
+    ]
+  },
+  "expected": [
+    {
+      "rule": "N999",
+      "file": "root.name/child/__init__.py",
+      "start": 0,
+      "end": 0
+    }
+  ]
+}

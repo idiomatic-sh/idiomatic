@@ -95,7 +95,6 @@ fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
         let mut context = OperatorContext {
             prepared_matchers: None,
             prepared_kinds: None,
-            stored_indexes: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
             source: crate::domain::table_texts::types::SourceView(b""),
@@ -165,7 +164,7 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let ops = RequestOperators::prepare(std::slice::from_ref(&plan), &[vec![]], &[]).unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &ops));
     let child = graph.cuts[0][0].unwrap();
-    let mut dag = FileDagExecution::new(Arc::clone(&graph), |_| true, &[Relation::LanguageTarget]);
+    let mut dag = FileDagExecution::new((graph).clone(), |_| true, &[Relation::LanguageTarget]);
     dag.limit = 0;
     dag.begin_rule(0);
     let columns = [
@@ -185,7 +184,6 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -195,11 +193,31 @@ fn held_and_streamed_reads_of_one_dependency_use_one_invocation_pin() {
         scratch: &mut scratch,
     };
     let held = [OnceCell::new()];
+    {
+        let inputs = [NodeInput::Relation(Relation::Function)];
+        let schemas = [vec![CellKind::Number]];
+        let unavailable = |_| panic!("metadata must not request provider rows");
+        let metadata = GraphInputs {
+            executor: &crate::application::file_dag::execution::CommonOperatorEngine,
+            execution: &mut dag,
+            inputs: &inputs,
+            schemas: &schemas,
+            held: &held,
+            read: &unavailable,
+        };
+        assert_eq!(
+            metadata.kinds(InputPlace(0)).unwrap(),
+            &[CellKind::Number],
+            "prepared custom schema is authoritative over catalog defaults"
+        );
+        assert!(metadata.publication(InputPlace(0)).unwrap().is_none());
+    }
     let inputs = [NodeInput::Node(child)];
     let mut feed = GraphInputs {
+        executor: &crate::application::file_dag::execution::CommonOperatorEngine,
         execution: &mut dag,
-        graph: &graph,
         inputs: &inputs,
+        schemas: std::slice::from_ref(graph.nodes[child.0].contract.schema.as_ref().unwrap()),
         held: &held,
         read: &read,
     };
@@ -296,7 +314,6 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b"x"),

@@ -46,7 +46,7 @@ pub(super) fn attach(
 }
 
 /// Validate immutable identity spelling at the semantic conversion boundary.
-fn digest(value: String) -> Result<ArtifactDigest, Error> {
+pub(super) fn digest(value: String) -> Result<ArtifactDigest, Error> {
     if value.len() != 64
         || !value
             .bytes()
@@ -70,6 +70,12 @@ fn convert(
     };
     use crate::outbound::suite::types::discrepancy::EvidenceKindWire;
     let identity = wire.identity;
+    let process = wire.process;
+    if process.is_some() && !wire.expected.is_empty() {
+        return Err(Error::Invalid(
+            "process expectation cannot also declare reference diagnostics".into(),
+        ));
+    }
     let mut expected = case.expected.clone();
     expected.diagnostics = wire
         .expected
@@ -101,7 +107,16 @@ fn convert(
             kind: match item.kind { EvidenceKindWire::LanguageSpec => DiscrepancyEvidenceKind::LanguageSpec, EvidenceKindWire::IndependentLanguageRun => DiscrepancyEvidenceKind::IndependentLanguageRun } })
     }).collect::<Result<_, Error>>()?;
     Ok(PreparedReferenceDiscrepancy {
-        expected,
+        expected: match process {
+            Some(process) => {
+                crate::domain::suite::process::types::ReferenceExpectation::ProcessFailure(
+                    super::process_discrepancy::convert(process)?,
+                )
+            }
+            None => {
+                crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(expected)
+            }
+        },
         evidence,
         reason: wire.reason,
         identity: ReferenceDiscrepancyIdentity {
@@ -118,10 +133,19 @@ fn convert(
 }
 
 /// Preserve the strict intended contract unless an independently pinned reference differs.
-pub(super) fn reference_expected(case: &PreparedCase) -> &RunReport {
-    case.reference_discrepancy
+pub(super) fn reference_expected(case: &PreparedCase) -> Result<&RunReport, Error> {
+    use crate::domain::suite::process::types::ReferenceExpectation;
+    match case
+        .reference_discrepancy
         .as_ref()
-        .map_or(&case.expected, |item| &item.expected)
+        .map(|item| &item.expected)
+    {
+        None => Ok(&case.expected),
+        Some(ReferenceExpectation::Diagnostics(report)) => Ok(report),
+        Some(ReferenceExpectation::ProcessFailure(_)) => Err(Error::Invalid(
+            "process expectation is not a diagnostic report".into(),
+        )),
+    }
 }
 
 /// Raw parity remains false for the pinned reference disagreement even when intended behavior passes.
@@ -207,7 +231,7 @@ pub(super) fn validate(
         return Ok(None);
     };
     if case.comparison != CaseComparison::Full
-        || compare(&case.expected, &item.expected).is_ok()
+        || matches!(&item.expected, crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(report) if compare(&case.expected, report).is_ok())
         || item.reason.trim().is_empty()
         || item.evidence.is_empty()
     {
@@ -230,7 +254,7 @@ pub(super) fn validate(
         &actual_executable,
         &suite.digest(ArtifactPath(&profile_root.join("benchmark.toml")))?,
     )?;
-    let settings = invocation_settings(&invocation, case, &profile)?;
+    let settings = super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
     let files = case
         .request
         .files
@@ -268,13 +292,25 @@ pub(super) fn validate(
         .map_err(|error| Error::Invalid(error.to_string()))?;
     if settings != identity.settings_sha256
         || output_digest(&case.expected) != identity.intended_output_sha256
-        || output_digest(&item.expected) != identity.reference_output_sha256
+        || reference_digest(&item.expected) != identity.reference_output_sha256
     {
         return Err(Error::Invalid(
             "stale reference discrepancy settings/source/expectation identity".into(),
         ));
     }
+    if super::process_discrepancy::expected(case).is_some() {
+        super::process_discrepancy::validate_archives(
+            suite,
+            profile_root,
+            &profile,
+            case,
+            identity,
+            &actual_executable,
+        )?;
+    }
     Ok(Some(serde_json::json!({
+        "process_observation_group_sha256": super::process_discrepancy::expected(case).map(|process|super::process_discrepancy::group_digest(process,&actual_executable.0)).transpose()?.map(|value|value.0),
+        "reference_expectation_kind": if super::process_discrepancy::expected(case).is_some() { "process-failure" } else { "diagnostics" },
         "settings_sha256": settings.0,
         "actual_executable_sha256": actual_executable.0,
         "profile_sha256": identity.profile_sha256.0,
@@ -282,43 +318,6 @@ pub(super) fn validate(
         "reference_output_sha256": identity.reference_output_sha256.0,
         "intended_output_sha256": identity.intended_output_sha256.0,
     })))
-}
-
-/// Normalize explicitly supplied invocation paths while preserving flags and environment overrides.
-fn invocation_settings(
-    invocation: &crate::domain::measurements::types::Invocation,
-    case: &PreparedCase,
-    profile: &crate::domain::suite::types::Tool,
-) -> Result<ArtifactDigest, Error> {
-    let normalize = |value: &std::ffi::OsStr| -> Result<String, Error> {
-        let value = value
-            .to_str()
-            .ok_or_else(|| Error::Invalid("non-UTF8 reference invocation".into()))?;
-        Ok(value
-            .replace(&case.request.state.to_string_lossy().to_string(), "$STATE")
-            .replace(&case.request.root.to_string_lossy().to_string(), "$ROOT")
-            .replace('\\', "/"))
-    };
-    let arguments = invocation
-        .arguments
-        .iter()
-        .map(|value| normalize(value))
-        .collect::<Result<Vec<_>, _>>()?;
-    let environment = invocation
-        .environment
-        .iter()
-        .map(|(key, value)| Ok((normalize(key)?, normalize(value)?)))
-        .collect::<Result<std::collections::BTreeMap<_, _>, Error>>()?;
-    let mut settings = serde_json::json!({
-        "arguments": arguments, "environment": environment,
-        "directory": normalize(invocation.directory.as_os_str())?,
-        "parser_configuration": profile.parser_configuration,
-        "project_context_mode": format!("{:?}", profile.project_context_mode),
-    });
-    if let Some(language) = &profile.source_language {
-        settings["source_language"] = serde_json::json!(language);
-    }
-    Ok(json_digest(&settings))
 }
 
 /// Approved native binaries may differ from the binary used in the original observation.
@@ -345,3 +344,16 @@ fn validate_pins(
 #[cfg(test)]
 #[path = "discrepancy_test.rs"]
 mod tests;
+
+/// Distinct canonical identity for reports versus process templates.
+fn reference_digest(
+    expected: &crate::domain::suite::process::types::ReferenceExpectation,
+) -> ArtifactDigest {
+    use crate::domain::suite::process::types::ReferenceExpectation;
+    match expected {
+        ReferenceExpectation::Diagnostics(report) => output_digest(report),
+        ReferenceExpectation::ProcessFailure(process) => {
+            super::process_discrepancy::output_digest(process)
+        }
+    }
+}

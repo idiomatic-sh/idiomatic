@@ -1,4 +1,5 @@
 //! The `join` item's cases.
+use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
 use crate::application::file_dag::feed::Feed;
 
 use ryo_language::domain::completion::service::{completion, name_kind};
@@ -18,7 +19,9 @@ use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, Supply};
+use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::collections::operators::join::item::JoinItem;
+use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{kinds_of, push_row, row_in};
 use crate::domain::table_model::types::{RowCount, Rows, Table};
@@ -98,7 +101,6 @@ fn made(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: symbols.into(),
         source: SourceView(source),
@@ -436,14 +438,26 @@ fn stream_operation(
     )
 }
 
-/// Keep an optional physical-generation cache through the actual streamed operator boundary.
+/// Exercise the actual streamed operator boundary with an optional file owner.
 fn stream_with_indexes(
     operation: &Operation,
     room: &mut Room,
     left: &Table,
     right: Rows<'_>,
     failures: (bool, bool, bool),
-    stored_indexes: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
+    fixture: Option<&ResourceFixture>,
+) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
+    stream_with_prepared_indexes(operation, room, left, right, failures, fixture, None)
+}
+
+fn stream_with_prepared_indexes(
+    operation: &Operation,
+    room: &mut Room,
+    left: &Table,
+    right: Rows<'_>,
+    failures: (bool, bool, bool),
+    fixture: Option<&ResourceFixture>,
+    prepared: Option<&OperatorContract>,
 ) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
     let (left_fails, right_fails, emit_fails) = failures;
     let mut feed = ControlledFeed {
@@ -463,7 +477,6 @@ fn stream_with_indexes(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -472,15 +485,39 @@ fn stream_with_indexes(
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    crate::application::file_dag::testing::stream_with_inputs(
-        &JoinItem,
-        operation,
-        &[Rows::Computed(left), right.clone()],
-        &mut feed,
-        &mut context,
-        room,
-        &mut emitted,
-    )?;
+    let inputs = [Rows::Computed(left), right.clone()];
+    if let Some(fixture) = fixture {
+        if let Some(prepared) = prepared {
+            fixture.stream_prepared(
+                operation,
+                prepared,
+                &inputs,
+                &mut feed,
+                &mut context,
+                room,
+                &mut emitted,
+            )?;
+        } else {
+            fixture.stream(
+                operation,
+                &inputs,
+                &mut feed,
+                &mut context,
+                room,
+                &mut emitted,
+            )?;
+        }
+    } else {
+        crate::application::file_dag::testing::stream_with_inputs(
+            &JoinItem,
+            operation,
+            &inputs,
+            &mut feed,
+            &mut context,
+            room,
+            &mut emitted,
+        )?;
+    }
     Ok((emitted.rows, feed.right_holds))
 }
 
@@ -1001,7 +1038,7 @@ fn made_with_indexes(
     operation: &Operation,
     left: Rows<'_>,
     right: Rows<'_>,
-    cache: &mut crate::domain::stored_indexes::types::FileIndexes,
+    fixture: &crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture,
 ) -> Result<Table, OperatingError> {
     let mut symbols = Symbols::default();
     let mut memo = Vec::new();
@@ -1009,7 +1046,6 @@ fn made_with_indexes(
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: Some(cache),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -1019,7 +1055,7 @@ fn made_with_indexes(
         scratch: &mut scratch,
     };
     let mut out = Table::default();
-    JoinItem.compute(operation, &[left, right], &mut context, &mut out)?;
+    fixture.collect(operation, &[left, right], &mut context, &mut out)?;
     Ok(out)
 }
 
@@ -1042,7 +1078,8 @@ fn sparse_function_columns(count: usize) -> [FactColumn; 4] {
 
 #[test]
 fn sparse_left_matches_computed_bag_order_for_composite_typed_duplicate_keys() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
+    use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
     use crate::domain::table_model::service::materialize;
     let columns = sparse_function_columns(256);
     let left = Rows::Stored(ColumnsView {
@@ -1074,21 +1111,22 @@ fn sparse_left_matches_computed_bag_order_for_composite_typed_duplicate_keys() {
         &[],
     )
     .expect("ordinary join");
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("complete file");
-    let actual = made_with_indexes(&operation, left.clone(), Rows::Computed(&right), &mut cache)
+    let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("complete file");
+    let actual = made_with_indexes(&operation, left.clone(), Rows::Computed(&right), &fixture)
         .expect("sparse join");
     assert_eq!(actual, expected);
-    assert_eq!(cache.builds, 1);
-    assert_eq!(cache.entries.len(), 1);
-    let again = made_with_indexes(&operation, left, Rows::Computed(&right), &mut cache)
+    assert_eq!(fixture.snapshot().builds, 1);
+    assert_eq!(fixture.snapshot().entries, 1);
+    let again = made_with_indexes(&operation, left, Rows::Computed(&right), &fixture)
         .expect("shared sparse join");
     assert_eq!(again, expected);
-    assert_eq!(cache.reuses, 1);
+    assert_eq!(fixture.snapshot().reuses, 1);
 }
 
 #[test]
 fn sparse_left_falls_back_for_partial_or_unretained_sources_and_empty_results() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
+    use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
     use crate::domain::coverage::types::{Lacking, Partial};
     use ryo_values::domain::stored_facts::types::PartialCause;
     let columns = sparse_function_columns(256);
@@ -1098,7 +1136,7 @@ fn sparse_left_falls_back_for_partial_or_unretained_sources_and_empty_results() 
     });
     let right = table_of(&[CellKind::Node], &[&[node(99)]]);
     let operation = plan(&[0], &[0], &[(Side::Left, 3)], Vec::new(), &[]);
-    let mut partial = new(
+    let partial = ResourceFixture::new(
         &[Relation::Function],
         &[Partial {
             relation: Relation::Function,
@@ -1110,31 +1148,31 @@ fn sparse_left_falls_back_for_partial_or_unretained_sources_and_empty_results() 
     )
     .expect("file owner with partial facts");
     assert!(
-        made_with_indexes(
-            &operation,
-            left.clone(),
-            Rows::Computed(&right),
-            &mut partial
-        )
-        .expect("partial fallback")
-        .cells
-        .is_empty()
+        made_with_indexes(&operation, left.clone(), Rows::Computed(&right), &partial)
+            .expect("partial fallback")
+            .cells
+            .is_empty()
     );
-    assert!(partial.entries.is_empty());
-    let mut limited = new(&[Relation::Function], &[], LIMIT).expect("complete file");
-    limited.limit = limited.bytes;
+    assert_eq!(partial.snapshot().entries, 0);
+    let limited = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("complete file");
+    limited
+        .owner()
+        .derived
+        .set_optional_limit(0)
+        .expect("refuse optional retention");
     assert!(
-        made_with_indexes(&operation, left, Rows::Computed(&right), &mut limited)
+        made_with_indexes(&operation, left, Rows::Computed(&right), &limited)
             .expect("budget fallback")
             .cells
             .is_empty()
     );
-    assert!(limited.entries.is_empty());
+    assert_eq!(limited.snapshot().entries, 0);
 }
 
 #[test]
 fn sparse_left_dense_pairs_fall_back_before_emitting_and_keep_bag_order() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
+    use crate::application::file_dag::derived::owner::resource_fixture::ResourceFixture;
     use crate::domain::table_model::service::materialize;
     let mut columns = sparse_function_columns(4_097);
     columns[0].0.fill(to_bits(node(1)).0);
@@ -1165,11 +1203,15 @@ fn sparse_left_dense_pairs_fall_back_before_emitting_and_keep_bag_order() {
         &[],
     )
     .expect("ordinary dense join");
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("complete file");
-    let out = made_with_indexes(&operation, left, Rows::Computed(&right), &mut cache)
+    let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("complete file");
+    let out = made_with_indexes(&operation, left, Rows::Computed(&right), &fixture)
         .expect("dense fallback");
     assert_eq!(out, expected);
-    assert_eq!(cache.builds, 1, "the sparse index was attempted");
+    assert_eq!(
+        fixture.snapshot().builds,
+        1,
+        "the sparse index was attempted"
+    );
     assert_eq!(out.count.0, 4_097 * 16);
     assert_eq!(
         row_in(&out, crate::domain::table_cells::types::RowIndex(0)),
@@ -1263,7 +1305,7 @@ fn stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocat
         return;
     }
     let diagnostics = JoinDiagnostics::default();
-    let captured = std::sync::Arc::clone(&diagnostics.events);
+    let captured = (diagnostics.events).clone();
     let columns = [fact_column(&[1, 1, 2]), fact_column(&[10, 11, 20])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1338,7 +1380,7 @@ fn stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocat
 
 #[test]
 fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
     let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1346,14 +1388,15 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
     });
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(2))]]);
     let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("physical generation");
+    let fixture =
+        ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("physical generation");
     let first = stream_with_indexes(
         &operation,
         &mut Room::default(),
         &left,
         right.clone(),
         (false, false, false),
-        Some(&mut cache),
+        Some(&fixture),
     )
     .expect("first rule");
     let second = stream_with_indexes(
@@ -1362,7 +1405,7 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
         &left,
         right.clone(),
         (false, false, false),
-        Some(&mut cache),
+        Some(&fixture),
     )
     .expect("second rule");
     assert_eq!(
@@ -1374,27 +1417,80 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
         ]
     );
     assert_eq!(second, first);
-    assert_eq!((cache.builds, cache.reuses), (1, 1));
+    assert_eq!(
+        (fixture.snapshot().builds, fixture.snapshot().reuses),
+        (1, 1)
+    );
     assert_eq!(
         first.1, 1,
         "a shared hit still performs the normal right hold"
     );
-    let prior_reuses = cache.reuses;
+    let prior_reuses = fixture.snapshot().reuses;
     let _fixture_refusal = stream_with_indexes(
         &operation,
         &mut Room::default(),
         &left,
         right.clone(),
         (false, true, false),
-        Some(&mut cache),
+        Some(&fixture),
     )
     .expect_err("fixture refusal must propagate");
     assert_eq!(
-        cache.reuses, prior_reuses,
+        fixture.snapshot().reuses,
+        prior_reuses,
         "provider failure is not hidden by a previously cached index"
     );
     let empty = table_of(&left.kinds, &[]);
+    assert!(
+        stream_with_indexes(
+            &operation,
+            &mut Room::default(),
+            &empty,
+            right.clone(),
+            (false, false, false),
+            Some(&fixture)
+        )
+        .expect("prepared empty-left join")
+        .0
+        .is_empty()
+    );
+    assert_eq!(fixture.snapshot().reuses, prior_reuses);
+    // Request preparation records invalid metadata, but raises it only when a row needs the key.
     let invalid = plan(&[0], &[99], &[(Side::Right, 1)], Vec::new(), &[]);
+    let invalid_empty = stream_with_indexes(
+        &invalid,
+        &mut Room::default(),
+        &empty,
+        right.clone(),
+        (false, false, false),
+        Some(&fixture),
+    );
+    assert!(
+        invalid_empty
+            .expect("no row demands the invalid key")
+            .0
+            .is_empty()
+    );
+    assert_eq!(fixture.snapshot().reuses, prior_reuses);
+    let invalid_prepared = stream_with_indexes(
+        &invalid,
+        &mut Room::default(),
+        &left,
+        right.clone(),
+        (false, false, false),
+        Some(&fixture),
+    );
+    assert!(
+        matches!(
+            invalid_prepared,
+            Err(OperatingError::Table(
+                crate::domain::table_model::errors::TableModelError::NoSuchColumn { index: 99 }
+            ))
+        ),
+        "prepared invalid join answered {invalid_prepared:?}"
+    );
+    assert_eq!(fixture.snapshot().reuses, prior_reuses);
+    // The unprepared primitive retains its historical lazy empty-input behavior.
     assert!(
         stream_with_indexes(
             &invalid,
@@ -1402,18 +1498,18 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
             &empty,
             right.clone(),
             (false, false, false),
-            Some(&mut cache)
+            None
         )
-        .expect("empty left does not validate/build keys")
+        .expect("unprepared empty left does not validate keys")
         .0
         .is_empty()
     );
-    assert_eq!(cache.reuses, prior_reuses);
+    assert_eq!(fixture.snapshot().reuses, prior_reuses);
 }
 
 #[test]
 fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_rows() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
     let columns = [fact_column(&[1]), fact_column(&[10])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1421,23 +1517,64 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
     });
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
     let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
+    let schemas = [
+        InputSchema {
+            kinds: &left.kinds,
+            tree: None,
+        },
+        InputSchema {
+            kinds: NUMBER_PAIR_KINDS,
+            tree: None,
+        },
+    ];
+    let prepared = crate::application::file_dag::derived::prepare::operator(
+        crate::domain::operator::service::registered(crate::domain::features::service::kind_of(
+            &operation,
+        )),
+        &operation,
+        &schemas,
+        &[],
+    )
+    .expect("prepare one actual join contract for both invocations");
     let weak = {
-        let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
-        let _fixture_refusal = stream_with_indexes(
+        let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("generation");
+        let warmed = stream_with_prepared_indexes(
+            &operation,
+            &mut Room::default(),
+            &left,
+            right.clone(),
+            (false, false, false),
+            Some(&fixture),
+            Some(&prepared),
+        )
+        .expect("owner retains a reusable index");
+        assert_eq!(warmed.0, vec![vec![Cell::Number(Integer(10))]]);
+        assert!(fixture.no_invocation_index_handles());
+        assert_eq!(fixture.shared_index_backings(), 1);
+        let owner_refs = fixture.first_index_owners().expect("cached entry");
+        let _fixture_refusal = stream_with_prepared_indexes(
             &operation,
             &mut Room::default(),
             &left,
             right.clone(),
             (false, false, true),
-            Some(&mut cache),
+            Some(&fixture),
+            Some(&prepared),
         )
         .expect_err("fixture refusal must propagate");
-        assert_eq!(
-            std::sync::Arc::strong_count(&cache.entries.first().expect("cached entry").index),
-            1,
+        assert!(
+            fixture.no_invocation_index_handles(),
             "failed operator retains no escaped handle"
         );
-        std::sync::Arc::downgrade(&cache.entries.first().expect("cached entry").index)
+        assert_eq!(fixture.shared_index_backings(), 1);
+        assert_eq!(fixture.first_index_owners(), Some(owner_refs));
+        let weak = fixture.first_index_weak().expect("cached entry");
+        fixture.owner().derived.clear();
+        assert!(
+            weak.upgrade().is_none(),
+            "clearing the owner releases the shared index"
+        );
+        weak
     };
     assert!(weak.upgrade().is_none());
     let new_columns = [fact_column(&[1]), fact_column(&[99])];
@@ -1445,25 +1582,27 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
         kinds: NUMBER_PAIR_KINDS,
         columns: &new_columns,
     });
-    let mut next = new(&[Relation::Function], &[], LIMIT).expect("same FileId, new snapshot");
+    let next =
+        ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("same FileId, new snapshot");
     let rows = stream_with_indexes(
         &operation,
         &mut Room::default(),
         &left,
         changed,
         (false, false, false),
-        Some(&mut next),
+        Some(&next),
     )
     .expect("new generation")
     .0;
     assert_eq!(rows, vec![vec![Cell::Number(Integer(99))]]);
-    assert_eq!((next.builds, next.reuses), (1, 0));
+    assert_eq!((next.snapshot().builds, next.snapshot().reuses), (1, 0));
 }
 
 /// Emit into a nested join while the outer invocation owns its shared immutable index handle.
 struct NestedStoredJoin<'a> {
     /// The same audited physical population used by both invocations.
     right: Rows<'a>,
+    fixture: &'a ResourceFixture,
     /// Collected nested results, retaining each duplicate.
     rows: Vec<Vec<Cell>>,
 }
@@ -1476,7 +1615,7 @@ impl Emit for NestedStoredJoin<'_> {
         let left = table_of(&[CellKind::Number], &[row]);
         let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
         let mut output = Table::default();
-        JoinItem.compute(
+        self.fixture.collect(
             &operation,
             &[Rows::Computed(&left), self.right.clone()],
             context,
@@ -1495,7 +1634,7 @@ impl Emit for NestedStoredJoin<'_> {
 
 #[test]
 fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
     let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1503,14 +1642,13 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
     });
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(2))]]);
     let operation = plan(&[0], &[0], &[(Side::Right, 0)], Vec::new(), &[]);
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+    let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("generation");
     let mut symbols = Symbols::default();
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: Some(&mut cache),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),
@@ -1528,11 +1666,13 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
     };
     let mut emitted = NestedStoredJoin {
         right: right.clone(),
+        fixture: &fixture,
         rows: Vec::new(),
     };
-    JoinItem
+    fixture
         .stream(
             &operation,
+            &[Rows::Computed(&left), right.clone()],
             &mut feed,
             &mut context,
             &mut Room::default(),
@@ -1548,12 +1688,15 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
         emitted.rows,
         expected.iter().cloned().cycle().take(9).collect::<Vec<_>>()
     );
-    assert_eq!((cache.builds, cache.reuses), (1, 3));
+    assert_eq!(
+        (fixture.snapshot().builds, fixture.snapshot().reuses),
+        (1, 3)
+    );
 }
 
 #[test]
 fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cache() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
     let columns = [fact_column(&[1, 1, 1]), fact_column(&[10, 11])];
     let right = Rows::Stored(ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -1561,14 +1704,14 @@ fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cach
     });
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
     let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
+    let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("generation");
     let actual = stream_with_indexes(
         &operation,
         &mut Room::default(),
         &left,
         right.clone(),
         (false, false, false),
-        Some(&mut cache),
+        Some(&fixture),
     )
     .expect("fallback")
     .0;
@@ -1580,7 +1723,7 @@ fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cach
         ]
     );
     assert!(
-        cache.entries.is_empty(),
+        fixture.snapshot().entries == 0,
         "malformed views are never admitted"
     );
     let complete_columns = [fact_column(&[1]), fact_column(&[99])];
@@ -1594,18 +1737,19 @@ fn malformed_views_and_failed_upstream_still_use_original_paths_with_a_file_cach
         &left,
         complete,
         (true, false, false),
-        Some(&mut cache),
+        Some(&fixture),
     )
     .expect_err("fixture refusal must propagate");
     assert_eq!(
-        cache.builds, 0,
+        fixture.snapshot().builds,
+        0,
         "upstream error arrives before the lazy index build"
     );
 }
 
 #[test]
 fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
-    use crate::application::file_dag::derived::indexes::{LIMIT, new};
+    use crate::application::file_dag::derived::indexes::LIMIT;
     use ryo_values::domain::plan_parts::types::ReachLookup;
     let columns = [fact_column(&[1, 1, 9, 2]), fact_column(&[9, 2, 1, 3])];
     let right = Rows::Stored(ColumnsView {
@@ -1626,8 +1770,7 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
             columns: vec![ColumnIndex(0), ColumnIndex(1)],
         });
     }
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    cache.graph_enabled = true;
+    let fixture = ResourceFixture::new(&[Relation::Function], &[], LIMIT).expect("cache");
     let mut room = Room::default();
     let (nothing, holds) = stream_with_indexes(
         &operation,
@@ -1635,12 +1778,12 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
         &empty,
         right.clone(),
         (false, false, false),
-        Some(&mut cache),
+        Some(&fixture),
     )
     .expect("empty left");
     assert!(nothing.is_empty());
     assert_eq!(holds, 1);
-    assert_eq!(cache.graph_counts.builds, 0);
+    assert_eq!(fixture.snapshot().graph_builds, 0);
     assert!(matches!(
         stream_with_indexes(
             &operation,
@@ -1648,7 +1791,7 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
             &empty,
             right.clone(),
             (false, true, false),
-            Some(&mut cache)
+            Some(&fixture)
         ),
         Err(OperatingError::NotRead)
     ));
@@ -1659,11 +1802,11 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
             &left,
             right.clone(),
             (true, false, false),
-            Some(&mut cache)
+            Some(&fixture)
         ),
         Err(OperatingError::NotRun)
     ));
-    assert_eq!(cache.graph_counts.builds, 0);
+    assert_eq!(fixture.snapshot().graph_builds, 0);
     assert!(matches!(
         stream_with_indexes(
             &operation,
@@ -1671,26 +1814,26 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
             &left,
             right.clone(),
             (false, false, true),
-            Some(&mut cache)
+            Some(&fixture)
         ),
         Err(OperatingError::NotRun)
     ));
-    assert_eq!(cache.graph_counts.builds, 1);
+    assert_eq!(fixture.snapshot().graph_builds, 1);
     let (actual, holds) = stream_with_indexes(
         &operation,
         &mut room,
         &left,
         right.clone(),
         (false, false, false),
-        Some(&mut cache),
+        Some(&fixture),
     )
     .expect("reused after emit failure");
     assert_eq!(holds, 1);
     let once = [1, 2, 3, 9].map(|value| vec![Cell::Number(Integer(value))]);
     let expected: Vec<_> = once.iter().chain(once.iter()).cloned().collect();
     assert_eq!(actual, expected);
-    assert_eq!(cache.graph_counts.builds, 1);
-    assert!(cache.graph_counts.reuses > 0);
+    assert_eq!(fixture.snapshot().graph_builds, 1);
+    assert!(fixture.snapshot().graph_reuses > 0);
     // A previous cache hit never suppresses a subsequent provider refusal.
     assert!(matches!(
         stream_with_indexes(
@@ -1699,7 +1842,7 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
             &left,
             right,
             (false, true, false),
-            Some(&mut cache)
+            Some(&fixture)
         ),
         Err(OperatingError::NotRead)
     ));

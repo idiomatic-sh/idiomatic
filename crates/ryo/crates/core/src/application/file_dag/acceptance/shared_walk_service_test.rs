@@ -279,7 +279,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                         &setting,
                         RuleIndex(rule),
                         FileId(0),
-                        None,
                         &|_| None,
                         &classes,
                     );
@@ -301,7 +300,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 let mut context = OperatorContext {
                     prepared_kinds: None,
                     prepared_matchers: None,
-                    stored_indexes: None,
                     bindings: &bindings[rule],
                     symbols: (&mut tables.symbols).into(),
                     source: SourceView(SMALL_SOURCE),

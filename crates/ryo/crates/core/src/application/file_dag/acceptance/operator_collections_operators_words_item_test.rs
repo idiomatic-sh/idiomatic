@@ -51,7 +51,6 @@ fn words_of(source: &str) -> Result<Vec<String>, OperatingError> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(bytes),
@@ -96,7 +95,6 @@ fn words_without_an_input() -> Result<Value, OperatingError> {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(&[]),

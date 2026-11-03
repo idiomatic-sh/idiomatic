@@ -24,9 +24,6 @@ pub(crate) struct Selector {
 pub(crate) struct PreparedPlan {
     /// Same request-local plan identity as its layout.
     pub identity: SelectionPlanId,
-    /// Fixture setup compares explicit bindings; production reuses the canonical request Arc.
-    #[cfg(test)]
-    pub bound: Vec<crate::domain::table_model::types::ParameterBinding>,
     /// Eligible direct/chain selectors and terminal projections by step index.
     pub steps: Vec<Option<Arc<Selector>>>,
 }
@@ -40,10 +37,6 @@ pub(crate) struct SelectionPlanId(pub usize);
 pub(crate) struct Matches {
     /// The pure program that established this result.
     pub selector: Arc<Selector>,
-    /// Actual provider schema, compared on every lookup.
-    pub kinds: &'static [CellKind],
-    /// Physical row population, compared on every lookup.
-    pub population: usize,
     /// Original positions in ascending source order.
     pub rows: Arc<Vec<u32>>,
 }
@@ -57,7 +50,7 @@ pub(crate) struct LiteralFanout {
     pub kinds: &'static [CellKind],
     pub population: usize,
     pub source_bits: usize,
-    pub literals: Vec<LiteralPostings>,
+    pub literals: Arc<Vec<LiteralPostings>>,
 }
 
 #[derive(Debug)]

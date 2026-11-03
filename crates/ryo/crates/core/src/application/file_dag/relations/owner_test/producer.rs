@@ -28,6 +28,11 @@ use std::sync::Arc;
 
 #[test]
 fn real_selector_producer_is_the_only_trusted_selection_path() {
+    for limit in [0, crate::application::file_dag::derived::indexes::LIMIT] {
+        exercise_real_selector(limit);
+    }
+}
+fn exercise_real_selector(limit: usize) {
     let relation = Relation::FilesystemLineCount;
     let schema = kinds(relation);
     let physical = columns(schema);
@@ -35,7 +40,6 @@ fn real_selector_producer_is_the_only_trusted_selection_path() {
         kinds: schema,
         columns: &physical,
     };
-    let owner = RelationOwner::new(true);
     let program = Arc::new(Selector {
         relation,
         identity: Arc::new(SelectionIdentity {
@@ -50,26 +54,23 @@ fn real_selector_producer_is_the_only_trusted_selection_path() {
         columns: vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
         distinct: false,
     });
-    let mut cache = crate::application::file_dag::derived::indexes::new(
-        &[relation],
-        &[],
-        crate::application::file_dag::derived::indexes::LIMIT,
-    )
-    .unwrap();
-    // Two registered consumers make this population eligible for retained match IDs.
-    cache.selectors = vec![Arc::clone(&program), Arc::clone(&program)];
-    let views = crate::application::file_dag::derived::selection::prepare_views_with_schemas(
-        cache.selectors.iter().cloned(),
-        &|_| schema,
-    )
-    .unwrap();
-    crate::application::file_dag::derived::selection::install_views(&mut cache, views);
+    let active = vec![Arc::clone(&program), Arc::clone(&program)];
+    let fixture =
+        crate::application::file_dag::derived::owner::selection_fixture::SelectionFixture::new(
+            &[relation],
+            &[],
+            active.clone(),
+            active,
+            schema,
+        )
+        .unwrap();
+    let owner = fixture.owner();
+    owner.derived.set_optional_limit(limit).unwrap();
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: Some(&mut cache),
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -123,11 +124,13 @@ fn real_selector_producer_is_the_only_trusted_selection_path() {
     );
     drop(context);
     assert_eq!(
-        cache.selection_counts.builds, 1,
+        fixture.snapshot(None).counts.builds,
+        1,
         "two registered consumers build only once"
     );
     assert_eq!(
-        cache.selection_counts.reuses, 1,
+        fixture.snapshot(None).counts.reuses,
+        1,
         "second request actually uses retained match IDs"
     );
     owner.release_population();

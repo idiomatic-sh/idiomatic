@@ -64,3 +64,54 @@ pub(crate) fn appended_values(
     }
     Ok(())
 }
+
+#[cfg(test)]
+thread_local! {
+    static RESOURCE_SETUP: std::cell::Cell<Option<(bool, bool)>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn take_resource_setup() -> Option<(bool, bool)> {
+    RESOURCE_SETUP.with(std::cell::Cell::take)
+}
+
+impl super::types::FileDagExecution {
+    #[cfg(test)]
+    pub(crate) fn index_fixture_state(&self) -> (u64, u64, usize, bool) {
+        self.relations.derived.index_fixture_state()
+    }
+    #[cfg(test)]
+    pub(crate) fn resource_eligibility(
+        &self,
+        relation: ryo_language::domain::relations::types::Relation,
+    ) -> (bool, bool) {
+        (
+            self.relations.derived.index_observation().available,
+            self.relations.derived.relation_eligible(relation),
+        )
+    }
+    pub(crate) fn prepare_resources(
+        &self,
+        enabled: bool,
+        wanted: &[ryo_language::domain::relations::types::Relation],
+        partial: &[crate::domain::coverage::types::Partial],
+        selectable: &[ryo_language::domain::relations::types::Relation],
+        plans: &[ryo_values::domain::plans::types::Plan],
+        pool: &crate::domain::operator::types::PreparedPool,
+        active: impl Fn(usize) -> bool + Copy,
+    ) {
+        self.relations
+            .derived
+            .prepare_file(enabled, wanted, partial, selectable, plans, pool, active);
+        #[cfg(test)]
+        RESOURCE_SETUP.with(|state| {
+            state.set(Some((
+                enabled,
+                self.relations.derived.index_observation().available,
+            )));
+        });
+    }
+    pub(crate) fn report_resources(&self, file: ryo_language::domain::relations::types::FileId) {
+        self.relations.derived.report(file);
+    }
+}

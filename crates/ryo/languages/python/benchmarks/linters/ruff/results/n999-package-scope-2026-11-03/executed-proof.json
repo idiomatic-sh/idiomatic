@@ -1,0 +1,18 @@
+{
+  "status": "controls executed; N999 remains FAIL",
+  "interpreter": "CPython 3.10.19",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "files": {
+    "import_probe.py": "e20773ea74f26745f006a203846430dc88b9e88cf53c77f01a7181ff509a141e",
+    "reference_probe.py": "7fe60583a14b4a68347d3010208609ee6b1e0b07aa6101d1d0b58e1e24d28a54",
+    "source-audit.json": "25643bd32113256a560ce0c62470b70e26d9e9b4e4bebe72456d0cd661493c7f",
+    "reference-results.json": "784d6c28659e1d88d068d80c03d66736fb8d6423f6a7452ce6744d8abb0aaf7f",
+    "import-results.json": "89291dba053e16bc32a99d06992fb0b94ea6ae72142b78caccf34267b510d06e"
+  },
+  "findings": [
+    "Explicit .txt and extensionless invalid Python produce pinned invalid-syntax: language dispatch needs explicit generic provider hint.",
+    "outer.inner.name cannot import; valid inner_name and uppercase BadName can import.",
+    "Pinned N999 ignores all three nested initializer basenames under valid outer package, establishing root-package policy rather than immediate-basename policy. Importability alone does not establish an upstream bug.",
+    "Original 47 cases and all prior native receipts unchanged."
+  ]
+}

@@ -128,7 +128,7 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
             assert_eq!(graph.cuts[0][0], Some(root));
             let mut dag = FileDagExecution::new(graph, |_| true, &[relation]);
             dag.limit = budget;
-            dag.begin_rule(0);
+            dag.begin_rule(0).unwrap();
             let read = |asked| {
                 if asked == relation {
                     Ok(input.clone())
@@ -140,7 +140,6 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
             let mut context = OperatorContext {
                 prepared_matchers: None,
                 prepared_kinds: None,
-                stored_indexes: None,
                 bindings: &[],
                 symbols: (&mut symbols).into(),
                 source: SourceView(b"ab"),
@@ -149,7 +148,14 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
                 memo: &mut memo,
                 scratch: &mut scratch,
             };
-            let result = dag.demand_result(root, &read, &mut context).unwrap();
+            let result = dag
+                .demand_result(
+                    root,
+                    &read,
+                    &crate::application::file_dag::execution::CommonOperatorEngine,
+                    &mut context,
+                )
+                .unwrap();
             assert_eq!(result.kind(), *variant);
             assert_eq!(dag.executions[root.0], 1);
             let resolved = dag.relations.resolve(result.as_ref(), &read).unwrap();
@@ -157,8 +163,15 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
             assert_eq!(kind(registered(*variant).bulk(raw).unwrap()), *variant);
             assert_eq!(raw.count(), count);
             assert_eq!(dag.relations.inspect(result.as_ref(),raw).unwrap(),crate::domain::table_model::collections::representations::types::PhysicalShape::Complete);
-            let again = dag.demand_result(root, &read, &mut context).unwrap();
-            assert!(Arc::ptr_eq(&result, &again));
+            let again = dag
+                .demand_result(
+                    root,
+                    &read,
+                    &crate::application::file_dag::execution::CommonOperatorEngine,
+                    &mut context,
+                )
+                .unwrap();
+            assert!(result.same_record(&again));
             assert_eq!(dag.executions[root.0], 1);
             dag.release_population();
             assert!(matches!(

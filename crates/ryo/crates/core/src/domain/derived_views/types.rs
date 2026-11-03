@@ -167,10 +167,10 @@ pub(crate) enum DerivedStorage {
     EqualityShared(Arc<KeyIndex>),
     RowIds {
         kind: DerivedKind,
-        rows: Vec<u32>,
+        rows: Arc<Vec<u32>>,
     },
-    Postings(Vec<LiteralPostings>),
-    Adjacency(CompactGraph),
+    Postings(Arc<Vec<LiteralPostings>>),
+    Adjacency(Arc<CompactGraph>),
     Membership(MembershipData),
     PartitionOrder(Vec<RowIndex>),
     ClosureAdjacency(ClosurePartition),
@@ -182,7 +182,7 @@ pub(crate) enum DerivedStorage {
 #[derive(Debug)]
 pub(crate) enum MembershipData {
     Values(hashbrown::HashSet<Value>),
-    Dense(Vec<bool>),
+    Dense(Arc<Vec<bool>>),
 }
 #[derive(Default)]
 pub(crate) struct DerivedScratch {

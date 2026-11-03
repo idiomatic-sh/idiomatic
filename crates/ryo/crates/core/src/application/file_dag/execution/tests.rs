@@ -33,7 +33,6 @@ fn malformed_declared_population_is_refused_not_silently_shortened() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -69,7 +68,6 @@ fn zero_width_bags_keep_their_declared_population() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -115,7 +113,6 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -200,7 +197,6 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),
@@ -260,7 +256,6 @@ fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
     let mut context = OperatorContext {
         prepared_matchers: None,
         prepared_kinds: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),

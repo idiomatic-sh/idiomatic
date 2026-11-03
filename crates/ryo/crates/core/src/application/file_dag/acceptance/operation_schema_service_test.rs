@@ -59,7 +59,6 @@ fn subject(populated: Input) -> Result<Value, Failure> {
         let mut context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
-            stored_indexes: None,
             bindings: &bindings,
             symbols: (&mut symbols).into(),
             source: SourceView(b""),
@@ -500,7 +499,6 @@ fn hosted_without_its_request_source_is_missing_not_an_unsupported_operation() {
     let mut context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
-        stored_indexes: None,
         bindings: &[],
         symbols: (&mut symbols).into(),
         source: SourceView(b""),

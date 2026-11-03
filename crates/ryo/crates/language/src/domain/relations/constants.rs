@@ -169,6 +169,7 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::ImplicitSymbol,
     super::types::OptionalCapability::LiteralProperties,
     super::types::OptionalCapability::NumericLiteral,
+    super::types::OptionalCapability::TokenLink,
     super::types::OptionalCapability::InterpolatedStringLiteral,
     super::types::OptionalCapability::BytesLiteral,
     super::types::OptionalCapability::FormatSpecification,

@@ -147,7 +147,7 @@ fn borrowed_positions_preserve_bag_order_and_cannot_change_family() {
         .unwrap();
     let storage = DerivedStorage::RowIds {
         kind: DerivedKind::PredicateMatches,
-        rows: vec![2, 2, 0],
+        rows: Arc::new(vec![2, 2, 0]),
     };
     let DerivedView::RowIds(rows) = registered(DerivedKind::PredicateMatches)
         .view(&predicate, &storage)

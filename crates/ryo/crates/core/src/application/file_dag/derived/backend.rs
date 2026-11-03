@@ -1,4 +1,4 @@
-//! Private generation-local cache data, with no retained source or provider references.
+//! Private application backend storage. Only derived-owner algorithms can access mutable fields.
 use crate::domain::table_model::types::KeyIndex;
 use ryo_language::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 /// One exact immutable stored population and its ordered typed key schema.
 #[derive(Debug)]
-pub(crate) struct Entry {
+pub(in crate::application::file_dag::derived) struct Entry {
     /// Logical relation, never a pointer identity.
     pub relation: Relation,
     /// Key positions in argument order, including repeats.
@@ -17,71 +17,85 @@ pub(crate) struct Entry {
     pub rows: usize,
     /// Immutable index; callers own a handle before releasing the mutable cache borrow.
     pub index: Arc<KeyIndex>,
+    pub payload_lease: Option<Arc<super::ledger::ResourceLease>>,
 }
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
-pub(crate) struct FileIndexes {
+pub(in crate::application::file_dag) struct CacheBackend {
     #[cfg(test)]
-    pub selector_descriptor: Option<usize>,
+    pub(super) selector_descriptor: Option<usize>,
     /// Per-file active repetition counts indexed by request-prepared predicate group.
-    pub selector_repetition: Vec<u8>,
-    pub selector_repetition_failed: bool,
+    pub(super) selector_repetition: Vec<u8>,
+    pub(super) selector_repetition_failed: bool,
     /// Total reserved row-position slots actually retained in selections/fanouts.
-    pub retained_positions: usize,
+    pub(super) retained_positions: usize,
     /// Immutable request-owned selector requirements, never file-owned payload.
-    pub selection_views:
+    pub(super) selection_views:
         Option<Arc<crate::domain::stored_selection::types::PreparedSelectionViews>>,
     /// An active eligible graph consumer may request bounded adjacency admission.
-    pub graph_enabled: bool,
+    pub(super) graph_enabled: bool,
     /// Charged graph/domain/memo bytes within `bytes`.
-    pub graph_bytes: usize,
+    pub(super) graph_bytes: usize,
     /// Successful root and nearest memo payload admitted within its smaller sub-budget.
-    pub memo_bytes: usize,
+    pub(super) memo_bytes: usize,
     /// Complete immutable graph populations.
-    pub graphs: Vec<crate::domain::stored_graph::types::GraphEntry>,
+    pub(super) graphs: Vec<crate::domain::stored_graph::types::GraphEntry>,
     /// Exact stable domain memberships.
-    pub graph_domains: Vec<crate::domain::stored_graph::types::DomainEntry>,
+    pub(super) graph_domains: Vec<crate::domain::stored_graph::types::DomainEntry>,
     /// Mutable nearest answers remain owned by this generation.
-    pub nearest: Vec<crate::domain::stored_graph::types::NearestMemo>,
+    pub(super) nearest: Vec<crate::domain::stored_graph::types::NearestMemo>,
     /// Aggregate requested/traversed work and graph admission accounting.
-    pub graph_counts: crate::domain::stored_graph::types::GraphCounts,
+    pub(super) graph_counts: crate::domain::stored_graph::types::GraphCounts,
     /// Active pure stored descriptors; prepared metadata is owned by the worker's plans.
-    pub selectors: Vec<Arc<crate::domain::stored_selection::types::Selector>>,
+    pub(super) selectors: Vec<Arc<crate::domain::stored_selection::types::Selector>>,
     /// Successful exact selections admitted under this same byte allowance.
-    pub selections: Vec<crate::domain::stored_selection::types::Matches>,
+    pub(super) selections: Vec<crate::domain::stored_selection::types::Matches>,
     /// Bounded text-to-row fanouts owned by this complete physical file generation.
-    pub fanouts: Vec<crate::domain::stored_selection::types::LiteralFanout>,
+    pub(super) fanouts: Vec<crate::domain::stored_selection::types::LiteralFanout>,
     /// Candidate indexes are built only for columns shared by distinct active predicates.
-    pub discriminator_columns: Vec<crate::domain::stored_selection::types::CandidateColumn>,
+    pub(super) discriminator_columns: Vec<crate::domain::stored_selection::types::CandidateColumn>,
     /// Aggregate compact-selection execution counters.
-    pub selection_counts: crate::domain::stored_selection::types::SelectionCounts,
+    pub(super) selection_counts: crate::domain::stored_selection::types::SelectionCounts,
     /// Explicit diagnostic runs only; absent and allocation-free in normal execution.
-    pub selection_histogram: Option<Vec<crate::domain::stored_selection::types::SelectorHistogram>>,
+    pub(super) selection_histogram:
+        Option<Vec<crate::domain::stored_selection::types::SelectorHistogram>>,
     /// Active relations whose physical read reported no partiality, of any missing kind.
-    pub eligible: Vec<Relation>,
+    pub(super) eligible: Vec<Relation>,
     /// Admitted indexes and their exact keys; linear lookup is bounded by the byte budget.
-    pub entries: Vec<Entry>,
+    pub(super) entries: Vec<Entry>,
     /// Accounted actual capacities and conservative allocation metadata.
-    pub bytes: usize,
+    pub(super) bytes: usize,
     /// Maximum retained cache bytes for this file and worker.
-    pub limit: usize,
+    pub(super) limit: usize,
     /// Physical stored-key builds, including invocation-local admission refusals.
-    pub builds: u64,
+    pub(super) builds: u64,
     /// Successful immutable index reuse.
-    pub reuses: u64,
+    pub(super) reuses: u64,
     /// Eligible requests whose index could not be retained within the bound.
-    pub refusals: u64,
+    pub(super) refusals: u64,
 }
 
 /// The index prepared for one join; no mutable cache borrow escapes acquisition.
 #[derive(Debug)]
-pub(crate) struct Acquired {
+pub(in crate::application::file_dag) struct Acquired {
     /// A shared index, or the already-built index in the caller's local scratch.
     pub shared: Option<Arc<KeyIndex>>,
+    pub slot: Option<usize>,
     /// Whether this acquisition physically built an index.
     pub built: bool,
     /// Test observation of the admission decision; production policy updates counters directly.
     #[cfg(test)]
     pub eligible: bool,
+}
+
+impl CacheBackend {
+    pub(in crate::application::file_dag) fn observe_graph_walk(
+        &mut self,
+        expanded: u64,
+        examined: u64,
+    ) {
+        self.graph_counts.expanded += expanded;
+        self.graph_counts.examined += examined;
+    }
 }

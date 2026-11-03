@@ -85,11 +85,43 @@ impl CommonOperatorEngine {
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
+        self.collect_workspace(
+            contract,
+            inputs,
+            context,
+            out,
+            InvocationWorkspace::default(),
+        )
+    }
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn collect_owned(
+        &self,
+        contract: &OperatorContract,
+        inputs: &[Rows<'_>],
+        context: &mut OperatorContext<'_>,
+        out: &mut Table,
+        owner: std::rc::Rc<super::relations::RelationOwner>,
+    ) -> Result<(), OperatingError> {
+        let mut workspace = InvocationWorkspace::default();
+        workspace.capture_provided(
+            owner,
+            ryo_values::domain::plans::service::named(&contract.inputs),
+            inputs,
+        )?;
+        self.collect_workspace(contract, inputs, context, out, workspace)
+    }
+    fn collect_workspace(
+        &self,
+        contract: &OperatorContract,
+        inputs: &[Rows<'_>],
+        context: &mut OperatorContext<'_>,
+        out: &mut Table,
+        mut workspace: InvocationWorkspace,
+    ) -> Result<(), OperatingError> {
         #[cfg(test)]
         {
             context.scratch.observation = Default::default();
         }
-        let mut workspace = InvocationWorkspace::default();
         workspace.predicates = std::mem::take(&mut context.scratch.select_scratch);
         workspace.predicate_memo = std::mem::take(context.memo);
         let result = self.collect_scoped(contract, inputs, context, out, &mut workspace);
@@ -447,6 +479,17 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
     {
         CommonOperatorEngine::keep_step(self, contract, stepper, id, context, room, target)
     }
+
+    fn keep_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut super::service::GraphInputs<'_, '_>,
+        owner: &super::relations::RelationOwner,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        CommonOperatorEngine::keep_representation(self, contract, physical, feed, owner, context)
+    }
 }
 
 #[cfg(test)]
@@ -460,7 +503,7 @@ impl CommonOperatorEngine {
         feed: &mut super::service::GraphInputs<'_, '_>,
         owner: &super::relations::RelationOwner,
         context: &mut OperatorContext<'_>,
-    ) -> Result<std::sync::Arc<super::relations::RelationResult>, OperatingError> {
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         if let Some(which) = physical.alias.filter(|_| owner.stable()) {
             let result = feed.publication(which, context)?;
             feed.inspect_publication(result.as_ref(), owner)?;

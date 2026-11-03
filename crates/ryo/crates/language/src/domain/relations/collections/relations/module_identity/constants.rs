@@ -18,5 +18,6 @@ pub fn column_name(column: ModuleIdentityColumn) -> &'static str {
         ModuleIdentityColumn::Path => "path",
         ModuleIdentityColumn::ModuleName => "module-name",
         ModuleIdentityColumn::PackageName => "package-name",
+        ModuleIdentityColumn::PackageRootName => "package-root-name",
     }
 }

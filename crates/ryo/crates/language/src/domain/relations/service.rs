@@ -70,6 +70,7 @@ macro_rules! each_relation {
                 SequenceElement sequence_element SequenceElementRow SequenceElementColumn;
                 Prose prose ProseRow ProseColumn;
                 NumericLiteral numeric_literal NumericLiteralRow NumericLiteralColumn;
+                TokenLink token_link TokenLinkRow TokenLinkColumn;
             }
             manifest {
                 PackageDependency package_dependency PackageDependencyRow PackageDependencyColumn;
@@ -422,6 +423,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::ImplicitSymbol => Relation::ImplicitSymbol,
         OptionalCapability::LiteralProperties => Relation::LiteralProperties,
         OptionalCapability::NumericLiteral => Relation::NumericLiteral,
+        OptionalCapability::TokenLink => Relation::TokenLink,
         OptionalCapability::InterpolatedStringLiteral => Relation::InterpolatedStringLiteral,
         OptionalCapability::BytesLiteral => Relation::BytesLiteral,
         OptionalCapability::FormatSpecification => Relation::FormatSpecification,

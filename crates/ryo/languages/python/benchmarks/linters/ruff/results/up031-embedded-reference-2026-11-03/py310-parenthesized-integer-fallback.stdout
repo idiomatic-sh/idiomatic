@@ -1,0 +1,21 @@
+[
+  {
+    "cell": null,
+    "code": "UP031",
+    "end_location": {
+      "column": 6,
+      "row": 1
+    },
+    "filename": "/tmp/up031-layer-followup-20261103/case.py",
+    "fix": null,
+    "location": {
+      "column": 2,
+      "row": 1
+    },
+    "message": "Use format specifiers instead of percent format",
+    "name": "printf-string-formatting",
+    "noqa_row": 1,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/printf-string-formatting"
+  }
+]

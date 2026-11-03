@@ -1,7 +1,7 @@
 //! Actual vector capacities and conservative hash/Arc metadata for bounded graph admission.
 
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::stored_graph::types::{CompactGraph, GraphDomain, Population};
-use crate::domain::stored_indexes::types::FileIndexes;
 use crate::domain::table_model::types::{ParameterBinding, SelectionIdentity};
 use ryo_language::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral};
@@ -10,12 +10,12 @@ use std::sync::Arc;
 /// Read-only allocation ownership ledger of the current generation.
 pub(crate) struct GraphFootprint<'a> {
     /// No entry is evicted while a consumer may still hold its payload.
-    cache: &'a FileIndexes,
+    cache: &'a CacheBackend,
 }
 
 impl<'a> GraphFootprint<'a> {
     /// Account only allocations newly retained by an admission.
-    pub(crate) fn new(cache: &'a FileIndexes) -> Self {
+    pub(crate) fn new(cache: &'a CacheBackend) -> Self {
         Self { cache }
     }
 

@@ -1,7 +1,7 @@
 //! Budgeted acquisition of complete typed indexes, with invocation-local fallback.
+use crate::application::file_dag::derived::backend::{Acquired, CacheBackend, Entry};
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::coverage::types::Partial;
-use crate::domain::stored_indexes::types::{Acquired, Entry, FileIndexes};
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::{
     service::check_columns,
@@ -20,11 +20,15 @@ const ARC_BYTES: usize =
     size_of::<KeyIndex>() + 2 * size_of::<usize>() + align_of::<KeyIndex>() - 1;
 
 /// Start one generation from the actual physical read state, not execution-mode coverage.
-pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<FileIndexes> {
+pub(in crate::application::file_dag::derived) fn new(
+    wanted: &[Relation],
+    partials: &[Partial],
+    limit: usize,
+) -> Option<CacheBackend> {
     let requested = wanted
         .len()
         .checked_mul(size_of::<Relation>())?
-        .checked_add(size_of::<FileIndexes>())?;
+        .checked_add(size_of::<CacheBackend>())?;
     if requested > limit {
         return None;
     }
@@ -37,9 +41,9 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
             eligible.push(*relation);
         }
     }
-    let bytes = size_of::<FileIndexes>()
+    let bytes = size_of::<CacheBackend>()
         .checked_add(eligible.capacity().checked_mul(size_of::<Relation>())?)?;
-    (bytes <= limit).then_some(FileIndexes {
+    (bytes <= limit).then_some(CacheBackend {
         #[cfg(test)]
         selector_descriptor: None,
         selector_repetition: Vec::new(),
@@ -75,12 +79,12 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
 }
 
 /// Every admitted payload competes under the same actual-use per-file cap; no allowance is stranded.
-pub(crate) fn non_graph_limit(cache: &FileIndexes) -> usize {
+pub(in crate::application::file_dag::derived) fn non_graph_limit(cache: &CacheBackend) -> usize {
     cache.limit
 }
 
 /// Prepare bounded equality demand; duplicate projections alone cannot justify a new index.
-pub(crate) fn candidate_columns(cache: &mut FileIndexes) {
+pub(in crate::application::file_dag::derived) fn candidate_columns(cache: &mut CacheBackend) {
     use crate::domain::stored_selection::types::CandidateColumn;
     use ryo_values::domain::plan_parts::types::{Operand, Test};
     let mut columns = std::collections::BTreeMap::new();
@@ -97,7 +101,7 @@ pub(crate) fn candidate_columns(cache: &mut FileIndexes) {
                 .or_insert_with(|| CandidateColumn {
                     relation: selector.relation,
                     column: *column,
-                    first: Arc::clone(selector),
+                    first: (selector).clone(),
                     repeated: false,
                 });
             entry.repeated |= entry.first.identity.comparisons != selector.identity.comparisons
@@ -132,8 +136,8 @@ fn minimum_bytes(rows: usize, columns: usize) -> Option<usize> {
 }
 
 /// A selector should scan instead of building an index that cannot possibly be shared.
-pub(crate) fn can_retain(
-    cache: &FileIndexes,
+pub(in crate::application::file_dag::derived) fn can_retain(
+    cache: &CacheBackend,
     relation: Relation,
     view: ColumnsView<'_>,
     columns: &[ColumnIndex],
@@ -153,7 +157,7 @@ pub(crate) fn can_retain(
 fn local(
     route: BuildRoute,
     plan: &Arc<DerivedContract>,
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
     view: ColumnsView<'_>,
     columns: &[ColumnIndex],
     into: &mut KeyIndex,
@@ -166,6 +170,7 @@ fn local(
     }
     Ok(Acquired {
         shared: None,
+        slot: None,
         built: true,
         #[cfg(test)]
         eligible,
@@ -178,10 +183,10 @@ fn local(
 /// # Errors
 ///
 /// The existing typed index's column validation error; a hit never bypasses validation.
-pub(crate) fn acquire(
+pub(in crate::application::file_dag::derived) fn acquire(
     route: BuildRoute,
     plan: &Arc<DerivedContract>,
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
     relation: Relation,
     view: ColumnsView<'_>,
     columns: &[ColumnIndex],
@@ -205,17 +210,18 @@ pub(crate) fn acquire(
         return local(route, plan, cache, view, columns, into, false);
     }
     let rows = view.columns.first().map_or(0, |column| column.0.len());
-    if let Some(entry) = cache.entries.iter().find(|entry| {
+    if let Some((slot, entry)) = cache.entries.iter().enumerate().find(|(_, entry)| {
         entry.relation == relation
             && entry.columns.as_slice() == columns
             && entry.kinds == view.kinds
             && entry.rows == rows
     }) {
-        let index = Arc::clone(&entry.index);
+        let index = (entry.index).clone();
         super::super::route_counts::event("stored_index_hit", "Equality");
         cache.reuses = cache.reuses.saturating_add(1);
         return Ok(Acquired {
             shared: Some(index),
+            slot: Some(slot),
             built: false,
             #[cfg(test)]
             eligible: true,
@@ -234,7 +240,7 @@ pub(crate) fn acquire(
 fn build(
     route: BuildRoute,
     plan: &Arc<DerivedContract>,
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
     relation: Relation,
     view: ColumnsView<'_>,
     columns: &[ColumnIndex],
@@ -282,6 +288,7 @@ fn build(
         cache.refusals = cache.refusals.saturating_add(1);
         return Ok(Acquired {
             shared: None,
+            slot: None,
             built: true,
             #[cfg(test)]
             eligible: true,
@@ -297,12 +304,14 @@ fn build(
         columns: owned_columns,
         kinds: view.kinds,
         rows,
-        index: Arc::clone(&index),
+        index: (index).clone(),
+        payload_lease: None,
     });
     cache.bytes = bytes;
     cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
     Ok(Acquired {
         shared: Some(index),
+        slot: Some(cache.entries.len() - 1),
         built: true,
         #[cfg(test)]
         eligible: true,
@@ -334,7 +343,7 @@ fn build_index(
 }
 #[cfg(test)]
 pub(in crate::application::file_dag) fn acquire_fixture(
-    cache: &mut FileIndexes,
+    cache: &mut CacheBackend,
     relation: Relation,
     view: ColumnsView<'_>,
     columns: &[ColumnIndex],

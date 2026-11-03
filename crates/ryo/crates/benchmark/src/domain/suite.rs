@@ -8,3 +8,6 @@ pub(crate) mod constants;
 
 #[cfg(test)]
 mod service_test;
+
+/// Exact reference process observations; independent of any linter.
+pub mod process;

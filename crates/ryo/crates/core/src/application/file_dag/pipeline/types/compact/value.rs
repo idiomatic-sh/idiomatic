@@ -4,7 +4,7 @@ use crate::application::file_dag::pipeline::types::Stepper;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::types::StepPlace;
-use crate::domain::table_model::types::{Rows, SelectedRows, Table};
+use crate::domain::table_model::types::{Rows, Table};
 use crate::domain::trust::service::blocked;
 use crate::domain::trust::types::Blocking;
 
@@ -21,16 +21,16 @@ impl<'a, 'p, 'f: 'p> CompactInput<'a, 'p, 'f> {
         Self { stepper }
     }
 
-    /// Reacquire a kept selection's provider before replay; otherwise retain the computed table.
+    /// A selected result must be read through its owner publication before this
+    /// fallback; only ordinary materialized cuts borrow their table here.
     pub(crate) fn kept(&self, index: usize, table: &'p Table) -> Result<Rows<'p>, OperatingError> {
-        if let Some(selection) = self.stepper.selected.get(index).and_then(Option::as_ref) {
-            let Rows::Stored(source) = self.stepper.read.rows(selection.relation)? else {
-                return Err(OperatingError::WrongOperation);
-            };
-            return Ok(Rows::Selected(SelectedRows {
-                source,
-                selection: std::sync::Arc::clone(selection),
-            }));
+        if self
+            .stepper
+            .selected
+            .get(index)
+            .is_some_and(Option::is_some)
+        {
+            return Err(OperatingError::NotRun);
         }
         Ok(Rows::Computed(table))
     }
@@ -50,22 +50,29 @@ impl<'a, 'p, 'f: 'p> CompactInput<'a, 'p, 'f> {
             .needs
             .get(id.0)
             .is_some_and(|needs| blocked(needs, self.stepper.partial) == Blocking::Blocked)
-            || context.stored_indexes.as_ref().is_none_or(|cache| {
-                !cache
-                    .selectors
-                    .iter()
-                    .any(|candidate| candidate.relation == program.relation)
-            })
         {
             return Ok(None);
         }
-        let Rows::Stored(source) = self.stepper.read.rows(program.relation)? else {
+        let Some(owner) = self.stepper.relation_owner.as_ref() else {
             return Ok(None);
         };
-        if source.kinds != ryo_language::domain::relations::service::kinds(program.relation) {
+        let Some(produced) = owner.produce_selection(
+            program,
+            &|relation| self.stepper.read.rows(relation),
+            context,
+        )?
+        else {
             return Ok(None);
+        };
+        let (publication, rows) = owner.deliver_selection(produced)?;
+        let slot = self
+            .stepper
+            .dag_shared
+            .get(id.0)
+            .ok_or(OperatingError::NotRun)?;
+        if slot.get().is_none() {
+            slot.set(publication).map_err(|_| OperatingError::NotRun)?;
         }
-        crate::application::file_dag::derived::selection::select(program, source, context)
-            .map(|selected| selected.map(Rows::Selected))
+        Ok(Some(rows))
     }
 }

@@ -12,6 +12,8 @@ pub(crate) struct ModuleIdentity {
     pub module_name: String,
     /// Containing package directory basename, retaining dots and original case.
     pub package_name: String,
+    /// Highest contiguous package directory basename, preserving punctuation and case.
+    pub package_root_name: String,
 }
 /// Module context established for this run.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -26,11 +28,19 @@ pub(crate) struct ModuleContexts {
 /// Concrete package marker observations; no filesystem access belongs to this value.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Markers(pub BTreeMap<PathBuf, bool>);
+/// Import identity plus its exact package-root boundary, without filesystem state.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PackageModule {
+    /// Qualified path retains every raw directory component.
+    pub path: String,
+    /// Raw highest contiguous package basename.
+    pub package_root_name: String,
+}
 /// Next outcome while resolving one file against known marker observations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Decision {
     /// A module identity or a proven standalone file.
-    Known(Option<String>),
+    Known(Option<PackageModule>),
     /// The next marker that must be observed before a conclusion is possible.
     Need(PathBuf),
     /// The inventory reaches an unnamed root whose package identity cannot be established.

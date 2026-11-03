@@ -4,6 +4,14 @@ use std::path::Path;
 
 /// Read registrations and persist exact inventory observations.
 pub trait InventoryPort {
+    /// Read one explicit receipt file and only its referenced process artifact attempts.
+    ///
+    /// # Errors
+    /// Refuses unsafe paths, missing bytes or malformed observations.
+    fn observations(&self, _receipt: &Path) -> Result<CapturedObservation, String> {
+        Err("explicit receipt loading is unavailable".into())
+    }
+
     /// Decode the adapter's generated invocation registration.
     ///
     /// # Errors

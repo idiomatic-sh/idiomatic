@@ -26,6 +26,8 @@ def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], 
     annotation = case.get('reference-discrepancy')
     if annotation is None:
         return None
+    if isinstance(annotation, dict) and 'process' in annotation:
+        return serialize_process_discrepancy(profile_root, case, annotation)
     if not isinstance(annotation, dict) or set(annotation) != {'expected', 'identity', 'evidence', 'reason'}:
         raise ValueError('invalid reference-discrepancy schema')
     if case.get('comparison', 'rule') != 'full' or not str(annotation['reason']).strip():
@@ -91,6 +93,8 @@ def classify_reference_discrepancy(profile_root: Path, case: dict[str, object], 
     certificate = validate_reference_discrepancy(profile_root, case, parent_rule)
     if certificate is None:
         raise ValueError('classification requires an explicit discrepancy certificate')
+    if certificate.get('process') is not None:
+        raise ValueError('process discrepancy classification requires the shared receipt-file validator')
     profile = tomllib.loads((profile_root / 'benchmark.toml').read_text())
     if actual_executable_sha256 not in profile['sha256'] or actual_settings_sha256 != certificate['identity']['settings-sha256']:
         raise ValueError('unapproved executable or stale actual invocation settings')
@@ -120,7 +124,14 @@ def declared_discrepancy_artifacts(profile: Path, cases: list[dict[str, object]]
             continue
         if not isinstance(annotation, dict) or not isinstance(annotation.get('evidence'), list):
             raise ValueError('invalid discrepancy evidence declaration')
-        for item in annotation['evidence']:
+        declared = list(annotation['evidence'])
+        process = annotation.get('process')
+        if process is not None:
+            if not isinstance(process, dict) or not isinstance(process.get('observations'), list):
+                raise ValueError('invalid serialized process observation list')
+            for observation in process['observations']:
+                declared.extend(observation[key] for key in ('invocation', 'stdout', 'stderr'))
+        for item in declared:
             if not isinstance(item, dict):
                 raise ValueError('invalid discrepancy evidence artifact')
             relative, expected = (item.get('path'), item.get('sha256'))
@@ -156,3 +167,23 @@ def stage_discrepancy_artifacts(source_profile: Path, destination: Path, cases: 
             raise ValueError('discrepancy evidence changed while staging')
     for case in cases:
         validate_reference_discrepancy(destination, case, rule)
+
+
+def serialize_process_discrepancy(profile_root: Path, case: dict[str, object], annotation: dict[str, object]) -> dict[str, object]:
+    """Serialize/stage an explicit native contract; matching/admission lives only in shared Rust."""
+    if set(annotation) != {'process', 'identity', 'evidence', 'reason'} or case.get('comparison') != 'full':
+        raise ValueError('process discrepancy requires an explicit full-comparison wire contract')
+    if not isinstance(annotation['process'], dict) or annotation['process'].get('kind') != 'process-failure':
+        raise ValueError('unknown process expectation wire variant')
+    profile = tomllib.loads((profile_root / 'benchmark.toml').read_text())
+    intended = []
+    for row in case['expected']:
+        if set(row) != {'rule', 'file', 'start', 'end'}:
+            raise ValueError('full process discrepancy requires explicit intended diagnostic identities')
+        intended.append(dict(row))
+    intended.sort(key=lambda row: (row['rule'], row['file'], row['start'], row['end']))
+    # JSON serialization is also the outbound field-encoding check; do not implement native byte policy here.
+    json.dumps(annotation, ensure_ascii=False)
+    return {'identity': annotation['identity'], 'approved_executable_sha256': profile['sha256'],
+            'reference_expected': None, 'intended_expected': intended, 'reason': annotation['reason'],
+            'process': annotation['process']}

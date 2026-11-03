@@ -1,0 +1,23 @@
+{
+  "name": "nested-main-root-policy",
+  "command": [
+    "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--select",
+    "N999",
+    "--target-version",
+    "py310",
+    "--",
+    "outer/BadName/__main__.py"
+  ],
+  "cwd": "/tmp/tmprraft1e8/inventory",
+  "pid": 645201,
+  "exit": 0,
+  "observed": [],
+  "expected": [],
+  "exact": true,
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+}

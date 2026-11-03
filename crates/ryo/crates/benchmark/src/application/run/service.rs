@@ -4,8 +4,6 @@ use crate::domain::measurements::types::Measurement;
 use crate::domain::suite::types::RunRequest;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
-use sha2::Digest as _;
-use std::io::Write as _;
 
 /// Prepare and execute one contestant, then validate decoded input coverage.
 ///
@@ -21,9 +19,28 @@ pub fn run(
     }
     let invocation = linter.prepare(request)?;
     let output = execution.run(invocation)?;
+    finish(linter, request, output)
+}
+
+/// Validate a captured process through the existing adapter and input-coverage contract.
+pub(super) fn finish(
+    linter: &dyn LinterPort,
+    request: &RunRequest,
+    output: crate::domain::measurements::types::ProcessOutput,
+) -> Result<Measurement, Error> {
     let wall = output.wall;
     let resources = output.resources;
     let report = linter.decode(request, output)?;
+    validate_report(request, &report)?;
+    Ok(Measurement {
+        wall,
+        resources,
+        report,
+    })
+}
+
+/// Validate decoded coverage without treating a rejected report as a process failure.
+pub(super) fn validate_report(request: &RunRequest, report: &RunReport) -> Result<(), Error> {
     if let Some(context) = &request.context_manifest {
         crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
     }
@@ -47,11 +64,7 @@ pub fn run(
             return Err(Error::Invalid(format!("invalid diagnostic: {finding:?}")));
         }
     }
-    Ok(Measurement {
-        wall,
-        resources,
-        report,
-    })
+    Ok(())
 }
 
 use crate::domain::diagnostics::service::compare_diagnostics as compare;
@@ -188,6 +201,15 @@ pub fn verify_shard(
     let validations = super::discrepancy::validate_all(suite, reference, rules, &selected_cases)?;
     // The normal candidate path loads and compiles the whole selected profile.
     // Reuse its first result; a startup failure must not repeat for every fixture.
+    if selected_cases
+        .iter()
+        .any(|case| super::process_discrepancy::expected(case).is_some())
+        && !execution.observes_completed_processes_without_deadline()
+    {
+        return Err(Error::Invalid(
+            "process-failure verification requires a direct no-deadline observer".into(),
+        ));
+    }
     let mut initial = Some(run(candidate, execution, &first.request)?);
     let mut failures = Vec::new();
     for (case, validation) in selected_cases.into_iter().zip(validations) {
@@ -195,19 +217,40 @@ pub fn verify_shard(
             (super::constants::REFERENCE, reference),
             (super::constants::CANDIDATE, candidate),
         ] {
-            let result = if name == super::constants::CANDIDATE {
-                initial
-                    .take()
-                    .map_or_else(|| run(tool, execution, &case.request), Ok)
-            } else {
-                run(tool, execution, &case.request)
-            };
+            let super::case_execution::Outcome { result, capture } =
+                if name == super::constants::CANDIDATE {
+                    super::case_execution::Outcome {
+                        result: initial
+                            .take()
+                            .map_or_else(|| run(tool, execution, &case.request), Ok),
+                        capture: None,
+                    }
+                } else {
+                    super::case_execution::run(suite, tool, execution, &case, rules)
+                };
             let full_report = result
                 .as_ref()
                 .ok()
                 .map(|measurement| measurement.report.clone());
             match result {
                 Ok(mut result) => {
+                    if name == super::constants::REFERENCE
+                        && super::process_discrepancy::expected(&case).is_some()
+                    {
+                        let message = "reference returned a decoded report instead of the declared process failure";
+                        super::case_observations::write(
+                            suite,
+                            &case,
+                            name,
+                            full_report.as_ref(),
+                            Some(message),
+                            false,
+                            validation.as_ref(),
+                            None,
+                        )?;
+                        failures.push(format!("{}/{} {name}: {message}", case.rule, case.name));
+                        continue;
+                    }
                     if name == super::constants::CANDIDATE {
                         crate::domain::diagnostics::service::require_complete_execution(
                             &result.report,
@@ -222,7 +265,7 @@ pub fn verify_shard(
                         });
                     }
                     let expected = if name == super::constants::REFERENCE {
-                        super::discrepancy::reference_expected(&case)
+                        super::discrepancy::reference_expected(&case)?
                     } else {
                         &case.expected
                     };
@@ -232,13 +275,15 @@ pub fn verify_shard(
                         name == super::constants::CANDIDATE,
                     )?;
                     let comparison = compare(expected, &result.report);
-                    write_case_observation(
+                    super::case_observations::write(
+                        suite,
                         &case,
                         name,
                         full_report.as_ref(),
                         None,
                         comparison.is_ok(),
                         validation.as_ref(),
+                        capture.as_ref(),
                     )?;
                     if let Err(difference) = comparison {
                         failures.push(format!(
@@ -253,15 +298,30 @@ pub fn verify_shard(
                     }
                 }
                 Err(error) => {
-                    write_case_observation(
+                    let assessment = (name == super::constants::REFERENCE)
+                        .then_some(())
+                        .and(capture.as_ref().zip(validation.as_ref()))
+                        .map(|(capture, proof)| {
+                            super::process_discrepancy::matches(&case, capture, proof, suite, rules)
+                        });
+                    let accepted = matches!(assessment, Some(Ok(())));
+                    let message = match assessment {
+                        Some(Err(mismatch)) => format!("{error}; {mismatch}"),
+                        _ => error.to_string(),
+                    };
+                    super::case_observations::write(
+                        suite,
                         &case,
                         name,
                         None,
-                        Some(&error.to_string()),
-                        false,
+                        if accepted { None } else { Some(&message) },
+                        accepted,
                         validation.as_ref(),
+                        capture.as_ref(),
                     )?;
-                    failures.push(format!("{}/{} {name}: {error}", case.rule, case.name));
+                    if !accepted {
+                        failures.push(format!("{}/{} {name}: {message}", case.rule, case.name));
+                    }
                 }
             }
         }
@@ -278,98 +338,6 @@ pub fn verify_shard(
             failures.join(super::constants::LINE_SEPARATOR)
         )))
     }
-}
-
-/// Append one complete side record while preserving the unprojected report and source identity.
-fn write_case_observation(
-    case: &crate::domain::suite::types::PreparedCase,
-    side: &str,
-    report: Option<&RunReport>,
-    error: Option<&str>,
-    passed: bool,
-    validation: Option<&serde_json::Value>,
-) -> Result<(), Error> {
-    let Some(path) = std::env::var_os("RYO_VERIFY_CASE_RESULTS") else {
-        return Ok(());
-    };
-    let findings = report.map(|report| finding_values(&report.diagnostics));
-    let files = report.map(|report| {
-        report
-            .files
-            .iter()
-            .map(|file| file.0.as_ref())
-            .collect::<Vec<_>>()
-    });
-    let skipped = report.map(|report| {
-        report
-            .skipped
-            .iter()
-            .map(|skip| {
-                serde_json::json!({
-                    "rule": skip.rule.as_ref(),
-                    "path": skip.path.0.as_ref(),
-                    "reason": match skip.reason {
-                        ryo::linter::SkipReason::SyntaxRejected => "syntax-rejected",
-                    },
-                })
-            })
-            .collect::<Vec<_>>()
-    });
-    let expected = finding_values(&case.expected.diagnostics);
-    let mut source_hasher = sha2::Sha256::new();
-    for file in &case.request.files {
-        source_hasher.update(file.0.as_bytes());
-        source_hasher.update([0]);
-        source_hasher.update(std::fs::read(case.request.root.join(file.0.as_ref()))?);
-    }
-    let context_identity = case.request.context_manifest.as_ref().map(|manifest| {
-        let hash = crate::outbound::context::adapters::local::adapter::fingerprint(manifest);
-        serde_json::json!({ "mode": "listed-disk", "logical_root": manifest.logical_root,
-            "actual_root": case.request.root, "manifest_hash": hash.0 })
-    });
-    let record = serde_json::json!({
-        "observation_schema": "benchmark-case/v2",
-        "expectation_contract": "diagnostics",
-        "execution_metadata": report.map(|report| &report.execution_metadata),
-        "rule": case.rule.as_ref(),
-        "name": case.name.to_string(),
-        "side": side,
-        "files": files,
-        "diagnostics": findings,
-        "skipped": skipped,
-        "coverage": report.and_then(|report| {
-            report.coverage.map(|coverage| {
-                serde_json::json!({
-                    "selected_rule_file_pairs": coverage.selected,
-                    "evaluated_rule_file_pairs": coverage.evaluated,
-                    "skipped_rule_file_pairs": coverage.skipped,
-                    "unknown_or_unread_rule_file_pairs": coverage.unknown_or_unread,
-                })
-            })
-        }),
-        "context_manifest": context_identity,
-        "project_context": report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
-        "expected": expected,
-        "reference_expected": finding_values(&super::discrepancy::reference_expected(case).diagnostics),
-        "documented_reference_discrepancy": case.reference_discrepancy.is_some(),
-        "discrepancy_validation": validation,
-        "raw_parity_matches_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
-        "diagnostics_match_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
-        "source_sha256": format!("{:x}", source_hasher.finalize()),
-        "error": error,
-        "case_passed": passed,
-        "complete": true,
-    });
-    let mut line = serde_json::to_vec(&record)
-        .map_err(|serialization| Error::Invalid(serialization.to_string()))?;
-    line.push(b'\n');
-    let mut output = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
-    output.write_all(&line)?;
-    output.sync_data()?;
-    Ok(())
 }
 
 /// Check independently authored cases against only the reference executable.
@@ -398,10 +366,36 @@ pub fn verify_reference_cases(
     }
     let mut failures = Vec::new();
     let validations = super::discrepancy::validate_all(suite, reference, rules, &cases)?;
+    if cases
+        .iter()
+        .any(|case| super::process_discrepancy::expected(case).is_some())
+        && !execution.observes_completed_processes_without_deadline()
+    {
+        return Err(Error::Invalid(
+            "process-failure verification requires a direct no-deadline observer".into(),
+        ));
+    }
     for (case, validation) in cases.into_iter().zip(validations) {
-        match run(reference, execution, &case.request) {
+        let super::case_execution::Outcome { result, capture } =
+            super::case_execution::run(suite, reference, execution, &case, rules);
+        match result {
             Ok(mut result) => {
                 let full_report = result.report.clone();
+                if super::process_discrepancy::expected(&case).is_some() {
+                    let message = "reference returned a decoded report instead of the declared process failure";
+                    super::case_observations::write(
+                        suite,
+                        &case,
+                        super::constants::REFERENCE,
+                        Some(&full_report),
+                        Some(message),
+                        false,
+                        validation.as_ref(),
+                        None,
+                    )?;
+                    failures.push(format!("{}/{} reference: {message}", case.rule, case.name));
+                    continue;
+                }
                 if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
                     result.report.diagnostics.retain(|finding| {
                         finding.rule == case.rule
@@ -411,16 +405,18 @@ pub fn verify_reference_cases(
                 }
                 super::discrepancy::complete(&case, &result.report, false)?;
                 let comparison = compare(
-                    super::discrepancy::reference_expected(&case),
+                    super::discrepancy::reference_expected(&case)?,
                     &result.report,
                 );
-                write_case_observation(
+                super::case_observations::write(
+                    suite,
                     &case,
                     super::constants::REFERENCE,
                     Some(&full_report),
                     None,
                     comparison.is_ok(),
                     validation.as_ref(),
+                    capture.as_ref(),
                 )?;
                 if let Err(difference) = comparison {
                     failures.push(format!(
@@ -430,15 +426,31 @@ pub fn verify_reference_cases(
                 }
             }
             Err(error) => {
-                write_case_observation(
+                let assessment =
+                    capture
+                        .as_ref()
+                        .zip(validation.as_ref())
+                        .map(|(capture, proof)| {
+                            super::process_discrepancy::matches(&case, capture, proof, suite, rules)
+                        });
+                let accepted = matches!(assessment, Some(Ok(())));
+                let message = match assessment {
+                    Some(Err(mismatch)) => format!("{error}; {mismatch}"),
+                    _ => error.to_string(),
+                };
+                super::case_observations::write(
+                    suite,
                     &case,
                     super::constants::REFERENCE,
                     None,
-                    Some(&error.to_string()),
-                    false,
+                    if accepted { None } else { Some(&message) },
+                    accepted,
                     validation.as_ref(),
+                    capture.as_ref(),
                 )?;
-                failures.push(format!("{}/{} reference: {error}", case.rule, case.name));
+                if !accepted {
+                    failures.push(format!("{}/{} reference: {message}", case.rule, case.name));
+                }
             }
         }
     }
@@ -504,7 +516,7 @@ pub fn verify_accounted_shard(
 }
 
 /// Serialize an exact diagnostic multiset without changing order or dropping duplicates.
-fn finding_values(
+pub(super) fn finding_values(
     findings: &[crate::domain::diagnostics::types::BenchmarkFinding],
 ) -> Vec<serde_json::Value> {
     findings

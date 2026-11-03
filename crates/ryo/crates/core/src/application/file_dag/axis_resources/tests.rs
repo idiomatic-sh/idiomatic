@@ -1,13 +1,9 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
 use super::*;
-use crate::domain::derived_views::types::DerivedStorage;
+use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace};
 use crate::domain::{
-    derived_views::types::MembershipData,
     operator::contract::axis::PreparedAxis,
-    table_model::{
-        service::{index, push_row},
-        types::{KeyIndex, On, Table},
-    },
+    table_model::{service::push_row, types::Table},
     table_reach::{
         borrowed::{follow, reach_breadth},
         types::Walk,
@@ -50,27 +46,48 @@ fn program(direction: Direction) -> AxisResources {
 fn acquired(
     kind: crate::domain::derived_views::types::DerivedKind,
     request: crate::domain::derived_views::types::ViewRequest,
-    kinds: &[CellKind],
-    storage: DerivedStorage,
+    rows: BorrowedRows<'_>,
 ) -> crate::application::file_dag::derived::view::AcquiredView {
     let plan = Arc::new(
         crate::domain::derived_views::collections::views::registration::registered(kind)
             .prepare(
                 &request,
-                &[crate::domain::operation_schema::types::InputSchema { kinds, tree: None }],
+                &[crate::domain::operation_schema::types::InputSchema {
+                    kinds: rows.kinds(),
+                    tree: None,
+                }],
             )
             .unwrap(),
     );
-    crate::application::file_dag::derived::view::AcquiredView::new(&plan, Arc::new(storage))
+    let owner = crate::application::file_dag::relations::RelationOwner::new(false);
+    let proof = owner.admit_external(rows).unwrap();
+    let (population, _) = proof.identity(&owner).unwrap();
+    let inputs = [rows];
+    let data = if kind == crate::domain::derived_views::types::DerivedKind::Membership {
+        DerivedInputs::Membership {
+            rows,
+            space: MembershipSpace::Values,
+        }
+    } else {
+        DerivedInputs::Rows(&inputs)
+    };
+    owner
+        .derived
+        .acquire_stored(
+            &plan,
+            &[population],
+            crate::application::file_dag::derived::owner::ViewContext::default(),
+            data,
+            &mut DerivedScratch::default(),
+            None,
+        )
+        .unwrap()
 }
 
 #[test]
 fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
     let edges = table(2, &[&[1, 2], &[1, 2], &[2, 3]]);
     let domain = table(1, &[&[2], &[3]]);
-    let mut index_data = KeyIndex::default();
-    index(&edges, On::Columns(&[ColumnIndex(0)]), &mut index_data).unwrap();
-    let values = [number(2), number(3)].into_iter().collect();
     let resource = prepare_axis(
         &program(Direction::Child),
         BorrowedRows::Computed(&edges),
@@ -80,16 +97,14 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
             crate::domain::derived_views::types::ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
-            &edges.kinds,
-            DerivedStorage::Equality(index_data),
+            BorrowedRows::Computed(&edges),
         )),
         Some(acquired(
             crate::domain::derived_views::types::DerivedKind::Membership,
             crate::domain::derived_views::types::ViewRequest::Membership {
                 column: ColumnIndex(0),
             },
-            &domain.kinds,
-            DerivedStorage::Membership(MembershipData::Values(values)),
+            BorrowedRows::Computed(&domain),
         )),
     )
     .unwrap();

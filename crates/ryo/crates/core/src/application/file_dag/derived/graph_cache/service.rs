@@ -1,7 +1,7 @@
 //! Complete compact graph/domain acquisition under one unchanged per-file byte allowance.
 
+use crate::application::file_dag::derived::backend::CacheBackend;
 use crate::domain::operator::types::PreparedPool;
-use crate::domain::stored_indexes::types::FileIndexes;
 #[cfg(test)]
 use crate::domain::{
     operating::errors::OperatingError,
@@ -20,8 +20,8 @@ use std::sync::Arc;
 pub(crate) const MEMO_LIMIT: usize = 2 * 1024 * 1024;
 
 /// Enable graph access only for an active physically eligible per-file consumer.
-pub(crate) fn reserve(
-    cache: &mut FileIndexes,
+pub(in crate::application::file_dag::derived) fn reserve(
+    cache: &mut CacheBackend,
     plans: &[Plan],
     pool: &PreparedPool,
     active: impl Fn(usize) -> bool,
@@ -87,12 +87,12 @@ pub(crate) fn reserve(
 
 /// Acquire only after the operator's required provider/input holds have succeeded.
 #[cfg(test)]
-pub(crate) fn acquire(
+pub(in crate::application::file_dag) fn acquire(
     input: Input,
     rows: &Rows<'_>,
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
-    cache: Option<&mut FileIndexes>,
+    cache: Option<&mut CacheBackend>,
 ) -> Result<Option<GraphAccess>, OperatingError> {
     let plan = Arc::new(crate::domain::derived_views::service::prepare(
         crate::domain::derived_views::types::DerivedKind::Adjacency,
@@ -108,12 +108,12 @@ pub(crate) fn acquire(
     super::super::graph::acquire(&plan, None, input, rows, cache)
 }
 #[cfg(test)]
-pub(crate) fn domain(
+pub(in crate::application::file_dag) fn domain(
     access: &GraphAccess,
     input: Input,
     rows: &Rows<'_>,
     column: ColumnIndex,
-    cache: Option<&mut FileIndexes>,
+    cache: Option<&mut CacheBackend>,
 ) -> Result<Arc<GraphDomain>, OperatingError> {
     let plan = Arc::new(crate::domain::derived_views::service::prepare(
         crate::domain::derived_views::types::DerivedKind::Membership,
@@ -151,7 +151,10 @@ pub(crate) fn replace<T>(entries: &mut Vec<T>, replacement: Option<Vec<T>>) {
 }
 
 /// Account all retained payload under the original total; no fixed allowance is stranded.
-pub(crate) fn room(cache: &FileIndexes, cost: usize) -> Option<usize> {
+pub(in crate::application::file_dag::derived) fn room(
+    cache: &CacheBackend,
+    cost: usize,
+) -> Option<usize> {
     let total = cache.bytes.checked_add(cost)?;
     (total <= cache.limit).then_some(total)
 }

@@ -1,0 +1,222 @@
+[
+  {
+    "target": "py310",
+    "name": "parenthesized-integer-fallback",
+    "source_sha256": "e5548f16559560e6629f734e4c036b9de1e01bf4b73bbee47e404aa03efc8457",
+    "exit": 1,
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 1,
+        "end": 5
+      }
+    ],
+    "observed": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 1,
+        "end": 5
+      }
+    ],
+    "exact": true
+  },
+  {
+    "target": "py310",
+    "name": "quoted-annotation-modulo",
+    "source_sha256": "f07f0934953a761806bb79818cd94f21fb327e1def57963e6e1c3306344c7e88",
+    "exit": 1,
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 16
+      }
+    ],
+    "observed": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 16
+      }
+    ],
+    "exact": true
+  },
+  {
+    "target": "py310",
+    "name": "escaped-annotation-modulo",
+    "exit": 101,
+    "source_sha256": "9be51b8a67b1207815b1221d73e44811411d1f4fc0f643b798b3d8949cf129f8",
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 3,
+        "end": 19
+      }
+    ],
+    "exact": false,
+    "refusal": "reference-process-failure"
+  },
+  {
+    "target": "py310",
+    "name": "unicode-annotation-modulo",
+    "source_sha256": "7037c20d24ddd9ee37bde3caaceeddcc88891a47c9922968f2c8b4b0b29660e2",
+    "exit": 1,
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 18
+      }
+    ],
+    "observed": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 18
+      }
+    ],
+    "exact": true
+  },
+  {
+    "target": "py310",
+    "name": "backslash-annotation-modulo",
+    "exit": 101,
+    "source_sha256": "817a491393bb9cc26dddd9bc3c450b0467c8b6bbe8b2b3135b6a85d2b32fb535",
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 3,
+        "end": 23
+      }
+    ],
+    "exact": false,
+    "refusal": "reference-process-failure"
+  },
+  {
+    "target": "py310",
+    "name": "annotation-addition-negative",
+    "source_sha256": "590d2feddd2d321e24378b820cda0ead32414bac466f5dff18c70cba4981c15f",
+    "exit": 0,
+    "expected": [],
+    "observed": [],
+    "exact": true
+  },
+  {
+    "target": "py37",
+    "name": "parenthesized-integer-fallback",
+    "source_sha256": "e5548f16559560e6629f734e4c036b9de1e01bf4b73bbee47e404aa03efc8457",
+    "exit": 1,
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 1,
+        "end": 5
+      }
+    ],
+    "observed": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 1,
+        "end": 5
+      }
+    ],
+    "exact": true
+  },
+  {
+    "target": "py37",
+    "name": "quoted-annotation-modulo",
+    "source_sha256": "f07f0934953a761806bb79818cd94f21fb327e1def57963e6e1c3306344c7e88",
+    "exit": 1,
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 16
+      }
+    ],
+    "observed": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 16
+      }
+    ],
+    "exact": true
+  },
+  {
+    "target": "py37",
+    "name": "escaped-annotation-modulo",
+    "exit": 101,
+    "source_sha256": "9be51b8a67b1207815b1221d73e44811411d1f4fc0f643b798b3d8949cf129f8",
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 3,
+        "end": 19
+      }
+    ],
+    "exact": false,
+    "refusal": "reference-process-failure"
+  },
+  {
+    "target": "py37",
+    "name": "unicode-annotation-modulo",
+    "source_sha256": "7037c20d24ddd9ee37bde3caaceeddcc88891a47c9922968f2c8b4b0b29660e2",
+    "exit": 1,
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 18
+      }
+    ],
+    "observed": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 4,
+        "end": 18
+      }
+    ],
+    "exact": true
+  },
+  {
+    "target": "py37",
+    "name": "backslash-annotation-modulo",
+    "exit": 101,
+    "source_sha256": "817a491393bb9cc26dddd9bc3c450b0467c8b6bbe8b2b3135b6a85d2b32fb535",
+    "expected": [
+      {
+        "rule": "UP031",
+        "file": "case.py",
+        "start": 3,
+        "end": 23
+      }
+    ],
+    "exact": false,
+    "refusal": "reference-process-failure"
+  },
+  {
+    "target": "py37",
+    "name": "annotation-addition-negative",
+    "source_sha256": "590d2feddd2d321e24378b820cda0ead32414bac466f5dff18c70cba4981c15f",
+    "exit": 0,
+    "expected": [],
+    "observed": [],
+    "exact": true
+  }
+]
