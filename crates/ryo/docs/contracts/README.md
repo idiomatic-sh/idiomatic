@@ -107,7 +107,7 @@ Tastemaker enforces imports, layout, required assets and structural access. Runt
 | Q6 What identifies and invalidates a population/view/result? | Sharing, invalidation | Generations, bindings, ordered projections/positions, same-buffer refill and dependency controls. |
 | Q7 What is shared versus worker-local, and what workload/mode was measured? | Scheduling, data, lifetime | Determinism, aggregate peak, language/corpus/rules/threads and separate cold/warm/edit receipts. |
 
-Cells are **proven: test/receipt**, **falsified: file:line**, or **unknown**; any falsified authority leaves its ownership checkbox unchecked. Traits/registry coverage alone prove neither sole ownership nor speed. Q2–Q4 workload-cost claims require attributable counted diagnostics or frozen-workload receipts; synthetic tests prove only their constructed mechanism. Shared untagged counters cannot identify a route. Exercise all 24 operators through actual DAG/root and residual/terminal routes; compile positives must use real capability types before negatives.
+Cells are **proven: test/receipt**, **falsified: file:line**, or **unknown**; any falsified authority leaves its ownership checkbox unchecked. Traits/registry coverage alone prove neither sole ownership nor speed. Q2–Q4 workload-cost claims require attributable counted diagnostics or frozen-workload receipts; synthetic tests prove only their constructed mechanism. Shared untagged counters cannot identify a route. Exercise all 26 operation kinds, including the 25 public query operators, through actual DAG/root and residual/terminal routes; compile positives must use real capability types before negatives.
 
 ## 3. Prioritization
 
