@@ -470,30 +470,6 @@ pub(crate) fn matching_selected<'a>(
     })
 }
 
-/// Decode only the requested joined cells, without a full-width intermediate RHS row.
-pub(crate) fn joined_selected(
-    view: &super::types::SelectedRows<'_>,
-    row: RowIndex,
-    left: &[Value],
-    output: &[ryo_values::domain::plan_parts::types::JoinColumn],
-    into: &mut Vec<Value>,
-) -> Result<(), TableModelError> {
-    use ryo_values::domain::plan_parts::types::Side;
-    into.clear();
-    for column in output {
-        let value = match column.side {
-            Side::Left => cell(left, column.column)?,
-            Side::Right => {
-                selected_cell(view, row, column.column).ok_or(TableModelError::NoSuchColumn {
-                    index: column.column.0,
-                })?
-            }
-        };
-        into.push(value);
-    }
-    Ok(())
-}
-
 /// Index only the typed key cells of a rectangular stored relation, retaining original row IDs.
 ///
 /// # Errors

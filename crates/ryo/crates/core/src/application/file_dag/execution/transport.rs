@@ -370,6 +370,9 @@ fn held<'f>(
                 contract.collected_kinds.as_ref().map_err(Clone::clone)?,
             );
             if let Some(result) = super::super::optimized::join::evaluate(
+                &super::PrimitiveSemanticsBridge {
+                    port: engine.operators,
+                },
                 contract,
                 mode.evaluation,
                 &contract.resources,
@@ -383,6 +386,9 @@ fn held<'f>(
                 return scan(&Rows::Computed(out), &mut Vec::new(), context, emit);
             }
         } else if let Some(result) = super::super::optimized::join::evaluate(
+            &super::PrimitiveSemanticsBridge {
+                port: engine.operators,
+            },
             contract,
             mode.evaluation,
             &contract.resources,

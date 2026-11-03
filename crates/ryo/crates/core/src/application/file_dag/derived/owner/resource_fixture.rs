@@ -60,6 +60,22 @@ impl ResourceFixture {
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
+        self.collect_with(
+            crate::outbound::operators::factory::test_port(),
+            operation,
+            inputs,
+            context,
+            out,
+        )
+    }
+    pub(crate) fn collect_with(
+        &self,
+        operators: &dyn crate::outbound::operators::interface::OperatorsPort,
+        operation: &Operation,
+        inputs: &[Rows<'_>],
+        context: &mut OperatorContext<'_>,
+        out: &mut Table,
+    ) -> Result<(), OperatingError> {
         let plan = Plan {
             parameters: vec![],
             steps: vec![PlanStep {
@@ -100,7 +116,7 @@ impl ResourceFixture {
             &schemas,
             context.bindings,
         )?;
-        CommonOperatorEngine::fixture().collect_owned(
+        CommonOperatorEngine::new(operators).collect_owned(
             &contract,
             inputs,
             context,

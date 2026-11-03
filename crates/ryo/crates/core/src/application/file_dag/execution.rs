@@ -12,6 +12,7 @@ use crate::domain::table_model::{
     service::{push_row, reset},
     types::{RowCount, Rows, Table},
 };
+use crate::outbound::operators::interface::OperatorsPort;
 use ryo_relations::domain::relations::types::Value;
 mod lease;
 mod transport;
@@ -212,6 +213,9 @@ impl CommonOperatorEngine<'_> {
                 contract.collected_kinds.as_ref().map_err(Clone::clone)?,
             );
             if let Some(result) = super::optimized::join::evaluate(
+                &PrimitiveSemanticsBridge {
+                    port: self.operators,
+                },
                 contract,
                 mode.evaluation,
                 &contract.resources,
@@ -293,7 +297,15 @@ impl CommonOperatorEngine<'_> {
             && resources
                 .as_ref()
                 .is_none_or(|resources| resources.cached_graph.is_none())
-            && super::optimized::ready::evaluate(contract, originals, context, emit)?
+            && super::optimized::ready::evaluate(
+                &PrimitiveSemanticsBridge {
+                    port: self.operators,
+                },
+                contract,
+                originals,
+                context,
+                emit,
+            )?
         {
             return Ok(());
         }
@@ -552,5 +564,22 @@ impl CommonOperatorEngine<'_> {
             &mut Collect(&mut table),
         )?;
         owner.computed(table)
+    }
+}
+
+/// The application lends one injected capability through the engine-private lease.
+pub(super) struct PrimitiveSemanticsBridge<'a> {
+    pub(super) port: &'a dyn OperatorsPort,
+}
+
+impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
+    fn operators(
+        &self,
+        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        self.port.operators(call)
     }
 }

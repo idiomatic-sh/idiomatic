@@ -20,23 +20,6 @@ use crate::outbound::operators::interface::OperatorsPort;
 use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::symbols::service::query_reborrow;
 
-/// The application lends one injected capability through the engine-private lease.
-struct PrimitiveSemanticsBridge<'a> {
-    port: &'a dyn OperatorsPort,
-}
-
-impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
-    fn operators(
-        &self,
-        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        self.port.operators(call)
-    }
-}
-
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
 pub(super) fn evaluate(
     operators: &dyn OperatorsPort,
@@ -118,9 +101,31 @@ pub(super) fn evaluate(
         && let Some(selected) = resources.index.as_ref().and_then(|index| index.selected())
     {
         return selected.emit_join(
+            &super::PrimitiveSemanticsBridge { port: operators },
             &join.left_on,
             &join.output,
             row,
+            &mut workspace.row,
+            &mut workspace.other,
+            context,
+            emit,
+        );
+    }
+    if let (Some(row), crate::domain::operator::contract::resources::ResourceProgram::Join(join)) =
+        (row, &contract.resources)
+        && join.reach.is_none()
+        && !join.has_filter
+        && join.view.is_empty()
+        && let Some(index) = resources.index.as_ref()
+    {
+        // The invocation already owns its immutable index. Ordinary Join needs
+        // only this finite reborrow, not an all-operator lease/predicate bundle.
+        return super::super::equality_join::indexed(
+            &super::PrimitiveSemanticsBridge { port: operators },
+            index.view(),
+            row,
+            &join.left_on,
+            &join.output,
             &mut workspace.row,
             &mut workspace.other,
             context,
@@ -213,7 +218,7 @@ pub(super) fn evaluate(
         scratch: &mut workspace.downstream_scratch,
         memo: &mut workspace.downstream_memo,
     };
-    let semantics = PrimitiveSemanticsBridge { port: operators };
+    let semantics = super::PrimitiveSemanticsBridge { port: operators };
     let mut lease = PrimitiveLease::new(
         views,
         scratch,

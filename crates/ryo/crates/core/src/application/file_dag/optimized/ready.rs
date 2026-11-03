@@ -13,6 +13,7 @@ use crate::domain::tree_join::service::{join_tree, tree_finding};
 use crate::domain::tree_walk::service::{entity_of, give_walk, start_walk, walk_kinds, walk_row};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) fn evaluate(
+    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
     contract: &OperatorContract,
     inputs: &[Rows<'_>],
     context: &mut OperatorContext<'_>,
@@ -28,6 +29,8 @@ pub(crate) fn evaluate(
                 return Ok(false);
             };
             join_tree(
+                semantics,
+                &join.left_on,
                 tree,
                 left,
                 finding,

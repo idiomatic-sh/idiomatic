@@ -7,18 +7,14 @@ use crate::domain::operator::contract::types::{
 };
 use crate::domain::table_model::{
     service::cell,
-    types::{Addition, ParameterBinding, Verdict},
+    types::{Addition, ParameterBinding},
 };
 use crate::domain::table_reach::{service::reach_all, types::Edges};
-use crate::domain::tree_join::collections::strategies::{
-    entity_vector::item::EntityVectorItem,
-    span_index::item::SpanIndexItem,
-    types::{Finding, NodeColumns},
-};
-use crate::domain::tree_join::service::{source_column, tree_value};
+use crate::domain::tree_join::service::source_column;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+mod ordinary;
 pub(crate) struct JoinItem;
 fn joined(
     output: &[JoinColumn],
@@ -71,6 +67,20 @@ impl OperatorsItem for JoinItem {
         let PreparedInputs::Row { row: left, .. } = inputs else {
             return Err(OperatingError::WrongOperation);
         };
+        if reach.is_none() {
+            let Operation::Join { filter, .. } = operation else {
+                unreachable!("checked Join")
+            };
+            return ordinary::evaluate(
+                left,
+                left_on,
+                output,
+                view,
+                !filter.is_empty(),
+                lease,
+                sink,
+            );
+        }
         let mut answer = std::mem::take(lease.workspace.other);
         let mut key = std::mem::take(lease.workspace.row);
         let mut right = std::mem::take(lease.workspace.captured);
@@ -191,46 +201,7 @@ impl OperatorsItem for JoinItem {
                 lease.workspace.closure_walk = Some(walk);
                 return result;
             }
-            if let Some(native) = lease.views.native_join {
-                let mut positions = std::mem::take(lease.workspace.positions);
-                let result = (|| {
-                    positions.clear();
-                    match native.finding {
-                        Finding::Node(column, key) => EntityVectorItem::find(
-                            &native.tree,
-                            left,
-                            NodeColumns { left: column, key },
-                            &mut positions,
-                        )?,
-                        Finding::Stretch(..) | Finding::Span(_) => {
-                            SpanIndexItem::find(&native.tree, left, native.finding, &mut positions)?
-                        }
-                    }
-                    for position in &positions {
-                        right.clear();
-                        for at in 0..5 {
-                            right.push(tree_value(&native.tree, *position, ColumnIndex(at)));
-                        }
-                        if lease.holds(&right)? == Verdict::Fails {
-                            continue;
-                        }
-                        joined(output, left, &right, view, &mut answer)?;
-                        sink.row(lease, &answer)?;
-                    }
-                    Ok(())
-                })();
-                *lease.workspace.positions = positions;
-                return result;
-            }
-            let index = lease.views.indices.first().ok_or(OperatingError::NotRun)?;
-            for at in index.matching(&key) {
-                let Some(found) = index.rows.read(at, &mut right) else {
-                    continue;
-                };
-                joined(output, left, found, &[], &mut answer)?;
-                sink.row(lease, &answer)?;
-            }
-            Ok(())
+            Err(OperatingError::WrongOperation)
         })();
         *lease.workspace.other = answer;
         *lease.workspace.row = key;

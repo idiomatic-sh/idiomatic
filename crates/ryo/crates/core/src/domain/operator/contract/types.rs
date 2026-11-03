@@ -295,11 +295,12 @@ pub(crate) trait PrimitiveSemantics: Sync {
     >;
 }
 
-fn portable_fault(
+pub(crate) fn portable_fault(
     error: ryo_operators::domain::contract::types::PortableOperatorFault,
 ) -> OperatingError {
     use ryo_operators::domain::contract::types::PortableOperatorFault;
     match error {
+        PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
         PortableOperatorFault::NoSuchColumn { index } => {
             crate::domain::table_model::errors::TableModelError::NoSuchColumn { index }.into()
         }
@@ -346,6 +347,11 @@ pub(crate) trait PredicateProgram {
     ) -> Result<crate::domain::table_model::types::Verdict, OperatingError>;
 }
 impl<'a> PrimitiveLease<'a> {
+    /// Copy the request-lived semantic port before borrowing this lease for row delivery.
+    pub(crate) fn semantics(&self) -> &'a dyn PrimitiveSemantics {
+        self.semantics
+    }
+
     pub(crate) fn new(
         views: PrimitiveViews<'a>,
         workspace: PrimitiveWorkspace<'a>,
@@ -482,4 +488,22 @@ pub(crate) struct EmptyResult {
     pub input: usize,
     pub representation: EmptyRepresentation,
     pub kinds: Result<Vec<CellKind>, OperatingError>,
+}
+
+/// An engine error takes precedence even if an injected kernel returns a dishonest answer.
+pub(crate) fn join_result(
+    answer: Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    >,
+    error: Option<OperatingError>,
+) -> Result<(), OperatingError> {
+    if let Some(error) = error {
+        return Err(error);
+    }
+    match answer {
+        Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
+        Ok(_) => Err(OperatingError::WrongOperation),
+        Err(error) => Err(portable_fault(error)),
+    }
 }

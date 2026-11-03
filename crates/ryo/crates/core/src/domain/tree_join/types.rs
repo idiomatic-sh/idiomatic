@@ -24,6 +24,8 @@ pub(crate) struct TreeState {
     pub names: NameCount,
     /// The row being answered.
     pub other: Vec<Value>,
+    /// Reused left key buffer for the scheduled Join capability.
+    pub key: Vec<Value>,
     /// The columns of the elements the comparisons read.
     pub needed: ColumnPlaces,
     /// What the kind sets decide.

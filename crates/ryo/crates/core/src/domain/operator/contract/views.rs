@@ -17,13 +17,11 @@ impl IndexedRows<'_> {
     pub(crate) fn contains(&self, key: &[Value]) -> bool {
         self.matching(key).next().is_some()
     }
-    pub(crate) fn matching<'a>(&'a self, key: &'a [Value]) -> MatchingRows<'a> {
+    pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
         let hash = crate::domain::table_model::service::hash_key(key.iter().map(Some));
         let bucket =
             usize::try_from(hash.0).unwrap_or(0) & self.index.heads.len().saturating_sub(1);
-        MatchingRows {
-            view: self,
-            key,
+        KeyProbe {
             hash,
             at: self
                 .index
@@ -33,38 +31,50 @@ impl IndexedRows<'_> {
                 .unwrap_or(crate::domain::table_model::types::ChainLink(0)),
         }
     }
-}
-pub(crate) struct MatchingRows<'a> {
-    view: &'a IndexedRows<'a>,
-    key: &'a [Value],
-    hash: crate::domain::table_model::types::KeyCellsHash,
-    at: crate::domain::table_model::types::ChainLink,
-}
-impl Iterator for MatchingRows<'_> {
-    type Item = RowIndex;
-    fn next(&mut self) -> Option<RowIndex> {
+    pub(crate) fn next_match(&self, key: &[Value], probe: &mut KeyProbe) -> Option<RowIndex> {
         use crate::domain::table_model::types::ChainLink;
-        while self.at.0 != 0 {
-            let position = usize::try_from(self.at.0 - 1).unwrap_or(usize::MAX);
-            self.at = self
-                .view
+        while probe.at.0 != 0 {
+            let position = usize::try_from(probe.at.0 - 1).unwrap_or(usize::MAX);
+            probe.at = self
                 .index
                 .next
                 .get(position)
                 .copied()
                 .unwrap_or(ChainLink(0));
-            let row = self.view.index.rows.get(position).copied()?;
-            if self.view.index.hashes.get(position) == Some(&self.hash)
+            let row = self.index.rows.get(position).copied()?;
+            if self.index.hashes.get(position) == Some(&probe.hash)
                 && self
-                    .view
                     .columns
                     .iter()
-                    .zip(self.key)
-                    .all(|(column, expected)| self.view.rows.cell(row, *column) == Some(*expected))
+                    .zip(key)
+                    .all(|(column, expected)| self.rows.cell(row, *column) == Some(*expected))
             {
                 return Some(row);
             }
         }
         None
+    }
+    pub(crate) fn matching<'a>(&'a self, key: &'a [Value]) -> MatchingRows<'a> {
+        MatchingRows {
+            view: self,
+            key,
+            probe: self.probe(key),
+        }
+    }
+}
+/// Physical hash-chain position, independent of the caller-owned key buffer.
+pub(crate) struct KeyProbe {
+    hash: crate::domain::table_model::types::KeyCellsHash,
+    at: crate::domain::table_model::types::ChainLink,
+}
+pub(crate) struct MatchingRows<'a> {
+    view: &'a IndexedRows<'a>,
+    key: &'a [Value],
+    probe: KeyProbe,
+}
+impl Iterator for MatchingRows<'_> {
+    type Item = RowIndex;
+    fn next(&mut self) -> Option<RowIndex> {
+        self.view.next_match(self.key, &mut self.probe)
     }
 }

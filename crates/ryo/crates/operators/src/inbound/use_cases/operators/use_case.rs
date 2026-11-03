@@ -18,6 +18,20 @@ impl OperatorsUseCaseImpl {
 impl OperatorsUseCase for OperatorsUseCaseImpl {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
+            OperatorCall::EqualityJoin {
+                left,
+                left_on,
+                output,
+                view,
+                driver,
+                key,
+                target,
+            } => {
+                crate::domain::equality_join::service::join(
+                    left, left_on, output, view, driver, key, target,
+                )?;
+                Ok(OperatorAnswer::Written)
+            }
             OperatorCall::Project {
                 row,
                 columns,

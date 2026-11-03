@@ -12,12 +12,13 @@ use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, Memo, NameCount, OperatorContext, TreeShape};
 use crate::domain::operating::types::{KindNarrowing, MissingColumn};
+use crate::domain::operator::contract::types::{PrimitiveSemantics, join_result};
 use crate::domain::table_cells::service::{
     kind_name_at, ordinal_number_at, read_tree_cells, span_at,
 };
 use crate::domain::table_cells::types::{CellsRead, RowIndex, TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
-use crate::domain::table_model::service::{cell, count_of, kinds_of, read_row};
+use crate::domain::table_model::service::{count_of, kinds_of, read_row};
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
 use crate::domain::text_gate::service::{
@@ -28,7 +29,9 @@ use crate::domain::tree_join::collections::strategies::interface::StrategiesItem
 use crate::domain::tree_join::collections::strategies::span_index::item::SpanIndexItem;
 use crate::domain::tree_join::collections::strategies::types::{Finding, Fitting, NodeColumns};
 use ryo_language::domain::elements::service::{kind_at, parent_at, text_at};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison, Side};
+use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
+mod driver;
 
 /// The column of the elements of a tree that the column `column` of the view of them is.
 pub(crate) fn source_column(view: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
@@ -144,6 +147,7 @@ pub(crate) fn take_state(
     TreeState {
         names,
         other,
+        key: std::mem::take(&mut context.scratch.join_scratch.key),
         needed,
         kinds,
         gate,
@@ -161,6 +165,7 @@ pub(crate) fn give_back(state: TreeState, context: &mut OperatorContext<'_>) {
     context.scratch.select_scratch.gate = state.gate;
     context.scratch.select_scratch.text_ok = state.text_ok;
     context.scratch.other = state.other;
+    context.scratch.join_scratch.key = state.key;
     context.scratch.needed = state.needed;
     context.scratch.select_scratch.rest = state.rest;
     context.scratch.select_scratch.candidates = state.candidates;
@@ -176,6 +181,8 @@ pub(crate) fn give_back(state: TreeState, context: &mut OperatorContext<'_>) {
 /// `NoSuchColumn` when a comparison reads a column the elements lack or the row lacks one; whatever the one that takes the rows
 /// refuses.
 pub(crate) fn probe(
+    semantics: &dyn PrimitiveSemantics,
+    left_on: &[ColumnIndex],
     state: &mut TreeState,
     tree: &TreeRows<'_>,
     finding: Finding,
@@ -194,9 +201,6 @@ pub(crate) fn probe(
             index: u32::try_from(missing.0).unwrap_or(u32::MAX),
         }));
     }
-    let first = usize::from(tree.form == TreeForm::Edges);
-    let tree_rows = Rows::Tree(*tree);
-    let elements = kinds_of(&tree_rows);
     state.stretched.clear();
     match finding {
         Finding::Node(left_key, key)
@@ -217,54 +221,31 @@ pub(crate) fn probe(
         }
         Finding::Node(..) | Finding::Stretch(..) | Finding::Span(_) => {}
     }
-    for place in 0..state.stretched.len() {
-        let Some(&found) = state.stretched.get(place) else {
-            break;
-        };
-        if !state.kinds.tests.0.is_empty()
-            && passes(&state.kinds, kind_at(tree.elements, found)) == Verdict::Fails
-        {
-            continue;
-        }
-        let index = RowIndex(usize::try_from(found.0).unwrap_or(usize::MAX) - first);
-        if !state.gate.0.is_empty()
-            && text_admitted(
-                tree,
-                ElementIndex(usize::try_from(found.0).unwrap_or(usize::MAX)),
-                comparisons,
-                &state.gate,
-                &mut state.text_ok,
-                state.names,
-                &mut state.cells,
-                elements,
-                context,
-            )? == Verdict::Fails
-        {
-            continue;
-        }
-        if !state.rest.0.is_empty()
-            && (read_tree_cells(tree, index, &mut state.cells, &state.needed) == CellsRead::Missing
-                || holds_some(
-                    comparisons,
-                    &state.rest,
-                    &state.cells,
-                    elements,
-                    state.names,
-                    context,
-                )? == Verdict::Fails)
-        {
-            continue;
-        }
-        state.other.clear();
-        for column in output {
-            state.other.push(match column.side {
-                Side::Left => cell(left_row, column.column)?,
-                Side::Right => tree_value(tree, found, source_column(view, column.column)),
-            });
-        }
-        emit.row(context, &state.other)?;
-    }
-    Ok(())
+    let mut target = std::mem::take(&mut state.other);
+    let mut key = std::mem::take(&mut state.key);
+    let mut driver = driver::Driver {
+        state,
+        tree,
+        comparisons,
+        context,
+        emit,
+        at: 0,
+        current: None,
+        error: None,
+    };
+    let answer = semantics.operators(OperatorCall::EqualityJoin {
+        left: left_row,
+        left_on,
+        output,
+        view,
+        driver: &mut driver,
+        key: &mut key,
+        target: &mut target,
+    });
+    let error = driver.error.take();
+    driver.state.other = target;
+    driver.state.key = key;
+    join_result(answer, error)
 }
 
 /// Joins the rows of `left` with the rows of a tree that a filter admits, found by the key: an element
@@ -275,6 +256,8 @@ pub(crate) fn probe(
 ///
 /// Whatever the probe of a row or the one that takes the rows refuse.
 pub(crate) fn join_tree(
+    semantics: &dyn PrimitiveSemantics,
+    left_on: &[ColumnIndex],
     tree: &TreeRows<'_>,
     left: &Rows<'_>,
     finding: Finding,
@@ -326,7 +309,9 @@ pub(crate) fn join_tree(
             let Some(left_row) = read_row(left, position, &mut buffer) else {
                 continue;
             };
-            outcome = probe(&mut state, tree, finding, shape, left_row, context, emit);
+            outcome = probe(
+                semantics, left_on, &mut state, tree, finding, shape, left_row, context, emit,
+            );
             if outcome.is_err() {
                 break;
             }

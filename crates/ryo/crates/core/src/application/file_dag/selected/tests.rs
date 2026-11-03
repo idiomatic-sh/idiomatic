@@ -94,6 +94,9 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
     };
     let _previous = take_read_row_counts();
     selected.emit_join(
+        &super::super::execution::PrimitiveSemanticsBridge {
+            port: crate::outbound::operators::factory::test_port(),
+        },
         &[ColumnIndex(0)],
         &output,
         &left,

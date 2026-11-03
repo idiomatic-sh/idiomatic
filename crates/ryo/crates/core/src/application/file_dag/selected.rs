@@ -7,10 +7,7 @@ use crate::domain::operating::{
     types::{Emit, OperatorContext},
 };
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
-use crate::domain::table_model::{
-    service::{joined_selected, key_of, matching_selected},
-    types::{KeyIndex, On, SelectedRows},
-};
+use crate::domain::table_model::types::{KeyIndex, SelectedRows};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 
@@ -106,6 +103,7 @@ impl<'f> SelectedInput<'f> {
     /// Only output cells are decoded; no full RHS row or table is materialized.
     pub(crate) fn emit_join(
         &self,
+        semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
         left_on: &[ColumnIndex],
         output: &[JoinColumn],
         left: &[Value],
@@ -114,12 +112,17 @@ impl<'f> SelectedInput<'f> {
         context: &mut OperatorContext<'_>,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
-        key_of(left, On::Columns(left_on), key)?;
-        for row in matching_selected(&self.original, self.columns(), self.index(), key) {
-            joined_selected(&self.original, row, left, output, answer)?;
-            emit.row(context, answer)?;
-        }
-        Ok(())
+        super::equality_join::indexed(
+            semantics,
+            self.view(),
+            left,
+            left_on,
+            output,
+            key,
+            answer,
+            context,
+            emit,
+        )
     }
 }
 

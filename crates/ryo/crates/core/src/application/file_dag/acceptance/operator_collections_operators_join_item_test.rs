@@ -1852,3 +1852,5 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
     ));
     assert!(room.scratch.observation.traversal_queue_len == 0);
 }
+
+mod capability_test;

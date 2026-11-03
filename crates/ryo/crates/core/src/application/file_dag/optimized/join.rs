@@ -8,18 +8,21 @@ use crate::domain::operating::{
     types::{Emit, OperatorContext},
 };
 use crate::domain::operator::contract::resources::{JoinResources, ResourceProgram};
-use crate::domain::operator::contract::types::{EvaluationMode, OperatorContract};
+use crate::domain::operator::contract::types::{
+    EvaluationMode, OperatorContract, PrimitiveSemantics, join_result,
+};
+use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::{
-    errors::TableModelError,
     service::{
-        cell, cell_at, check_columns, count_of, joined_selected, key_of, kinds_of, matching,
-        matching_selected, matching_stored, positions, read_row, rectangular, row_in,
+        cell_at, check_columns, count_of, kinds_of, matching_stored, positions, read_row,
+        rectangular,
     },
-    types::{On, RowCount, Rows},
+    types::{RowCount, Rows},
 };
 use ryo_relations::domain::relations::{service::kinds, types::Value};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side};
+use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted, OperatorCall};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 
 const SPARSE_PAIR_LIMIT: usize = 65_536;
 const SPARSE_RIGHT_LIMIT: usize = 1_024;
@@ -50,32 +53,51 @@ impl Work {
     }
 }
 
-fn projected(
-    output: &[JoinColumn],
-    left: &Rows<'_>,
-    left_at: RowIndex,
-    right: &Rows<'_>,
-    right_at: RowIndex,
-    into: &mut Vec<Value>,
-) -> Result<(), OperatingError> {
-    into.clear();
-    for column in output {
-        let (rows, at) = match column.side {
-            Side::Left => (left, left_at),
-            Side::Right => (right, right_at),
-        };
-        into.push(
-            cell_at(rows, at, column.column).ok_or(TableModelError::NoSuchColumn {
-                index: column.column.0,
-            })?,
-        );
+struct Pairs<'a, 'f, 'c> {
+    right: &'a Rows<'f>,
+    rows: &'a [(RowIndex, RowIndex)],
+    at: usize,
+    current: Option<RowIndex>,
+    context: &'a mut OperatorContext<'c>,
+    emit: &'a mut dyn Emit,
+    counts: &'a mut Counts,
+    error: Option<OperatingError>,
+}
+impl JoinDriver for Pairs<'_, '_, '_> {
+    fn next(&mut self, _key: &[Value]) -> Result<bool, JoinInterrupted> {
+        if self.error.is_some() {
+            return Err(JoinInterrupted);
+        }
+        self.current = self.rows.get(self.at).map(|(_, right)| *right);
+        self.at += usize::from(self.current.is_some());
+        Ok(self.current.is_some())
     }
-    Ok(())
+    fn right_cell(&self, column: ColumnIndex) -> Option<Value> {
+        if self.error.is_some() {
+            return None;
+        }
+        self.current
+            .and_then(|row| cell_at(self.right, row, column))
+    }
+    fn emit(&mut self, row: &[Value]) -> Result<(), JoinInterrupted> {
+        if self.error.is_some() {
+            return Err(JoinInterrupted);
+        }
+        if self.counts.enabled {
+            self.counts.hits = self.counts.hits.saturating_add(1);
+        }
+        if let Err(error) = self.emit.row(self.context, row) {
+            self.error = Some(error);
+            return Err(JoinInterrupted);
+        }
+        Ok(())
+    }
 }
 
 /// The sparse-left candidate is a complete pair list before its first output;
 /// a dense pair set falls back without changing left-major bag order.
 fn sparse_left(
+    semantics: &dyn PrimitiveSemantics,
     contract: &OperatorContract,
     mode: EvaluationMode,
     join: &JoinResources,
@@ -156,28 +178,42 @@ fn sparse_left(
     }
     pairs.sort_unstable();
     counts.sparse_left = true;
-    for (left_at, right_at) in pairs {
-        if let Err(error) = projected(
-            &join.output,
-            left,
-            left_at,
+    let mut start = 0;
+    while start < pairs.len() {
+        let left_at = pairs[start].0;
+        let end = start + pairs[start..].partition_point(|(at, _)| *at == left_at);
+        let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
+            return Some(Err(OperatingError::ShapeMismatch));
+        };
+        let mut driver = Pairs {
             right,
-            right_at,
-            &mut work.output,
-        ) {
+            rows: &pairs[start..end],
+            at: 0,
+            current: None,
+            context,
+            emit,
+            counts,
+            error: None,
+        };
+        let answer = semantics.operators(OperatorCall::EqualityJoin {
+            left: left_row,
+            left_on: &join.left_on,
+            output: &join.output,
+            view: &[],
+            driver: &mut driver,
+            key: &mut work.key,
+            target: &mut work.output,
+        });
+        if let Err(error) = join_result(answer, driver.error) {
             return Some(Err(error));
         }
-        if counts.enabled {
-            counts.hits = counts.hits.saturating_add(1);
-        }
-        if let Err(error) = emit.row(context, &work.output) {
-            return Some(Err(error));
-        }
+        start = end;
     }
     Some(Ok(()))
 }
 
 fn ordinary(
+    semantics: &dyn PrimitiveSemantics,
     contract: &OperatorContract,
     mode: EvaluationMode,
     join: &JoinResources,
@@ -197,83 +233,37 @@ fn ordinary(
     let DerivedView::Equality(lookup) = storage.view()? else {
         return Err(OperatingError::WrongBinding);
     };
-    if let Rows::Selected(selected) = right {
-        for left_at in positions(count_of(left)) {
-            let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
-                continue;
-            };
-            key_of(left_row, On::Columns(&join.left_on), &mut work.key)?;
-            if counts.enabled {
-                counts.probes = counts.probes.saturating_add(1);
-            }
-            for right_at in matching_selected(selected, &join.right_on, lookup, &work.key) {
-                joined_selected(selected, right_at, left_row, &join.output, &mut work.output)?;
-                if counts.enabled {
-                    counts.hits = counts.hits.saturating_add(1);
-                }
-                emit.row(context, &work.output)?;
-            }
-        }
-        return Ok(());
-    }
-    if let Rows::Stored(view) = right
-        && rectangular(*view)
-    {
-        for left_at in positions(count_of(left)) {
-            let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
-                continue;
-            };
-            key_of(left_row, On::Columns(&join.left_on), &mut work.key)?;
-            if counts.enabled {
-                counts.probes = counts.probes.saturating_add(1);
-            }
-            for right_at in matching_stored(*view, &join.right_on, lookup, &work.key) {
-                projected(
-                    &join.output,
-                    left,
-                    left_at,
-                    right,
-                    *right_at,
-                    &mut work.output,
-                )?;
-                if counts.enabled {
-                    counts.hits = counts.hits.saturating_add(1);
-                }
-                emit.row(context, &work.output)?;
-            }
-        }
-        return Ok(());
-    }
-    // The caller normalizes malformed physical rows before this prepared
-    // resource is acquired. The same computed population drives lookup and
-    // projected emission, so no second physical copy or index is built here.
-    let Rows::Computed(looked_up) = right else {
-        return Err(OperatingError::ShapeMismatch);
+    let index = IndexedRows {
+        rows: BorrowedRows::from(right),
+        columns: &join.right_on,
+        index: lookup,
     };
     for left_at in positions(count_of(left)) {
         let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
             continue;
         };
-        key_of(left_row, On::Columns(&join.left_on), &mut work.key)?;
         if counts.enabled {
             counts.probes = counts.probes.saturating_add(1);
         }
-        for right_at in matching(looked_up, On::Columns(&join.right_on), lookup, &work.key) {
-            work.output.clear();
-            for column in &join.output {
-                let source = match column.side {
-                    Side::Left => left_row,
-                    Side::Right => {
-                        row_in(looked_up, *right_at).ok_or(OperatingError::ShapeMismatch)?
-                    }
-                };
-                work.output.push(cell(source, column.column)?);
-            }
-            if counts.enabled {
-                counts.hits = counts.hits.saturating_add(1);
-            }
-            emit.row(context, &work.output)?;
-        }
+        let mut counted = crate::domain::replay::types::Pipe(
+            |context: &mut OperatorContext<'_>, row: &[Value]| {
+                if counts.enabled {
+                    counts.hits = counts.hits.saturating_add(1);
+                }
+                emit.row(context, row)
+            },
+        );
+        super::super::equality_join::indexed(
+            semantics,
+            index,
+            left_row,
+            &join.left_on,
+            &join.output,
+            &mut work.key,
+            &mut work.output,
+            context,
+            &mut counted,
+        )?;
     }
     Ok(())
 }
@@ -297,6 +287,7 @@ pub(crate) fn supports(program: &ResourceProgram, logical: &[Input], rows: &[Row
 }
 
 pub(crate) fn evaluate(
+    semantics: &dyn PrimitiveSemantics,
     contract: &OperatorContract,
     mode: EvaluationMode,
     program: &ResourceProgram,
@@ -328,6 +319,7 @@ pub(crate) fn evaluate(
     }
     let mut work = Work::take(context);
     let sparse = sparse_left(
+        semantics,
         contract,
         mode,
         join,
@@ -343,6 +335,7 @@ pub(crate) fn evaluate(
     );
     let result = sparse.unwrap_or_else(|| {
         ordinary(
+            semantics,
             contract,
             mode,
             join,
