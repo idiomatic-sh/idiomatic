@@ -57,7 +57,7 @@ def output_directory_self_test() -> None:
         assert before == {name: (record / name).read_bytes() for name in before}
 
 def native_standalone_self_test() -> None:
-    """Prove selection/byte/settings refusals and two real standalone staging controls, never execute a contestant."""
+    """Test current registration/staging guards; frozen native evidence remains immutable."""
     original_run = subprocess.run
 
     def no_process(*args, **kwargs):
@@ -65,7 +65,43 @@ def native_standalone_self_test() -> None:
     subprocess.run = no_process
     try:
         base = json.loads(profile_config.MANIFEST.read_text(encoding='utf-8'))
-        descriptor = profile_proofs.native_descriptor_json(profile_config.NATIVE_DESCRIPTOR_FILE.read_text(encoding='utf-8'))
+        frozen_bytes = profile_config.NATIVE_DESCRIPTOR_FILE.read_bytes()
+        frozen = profile_proofs.native_descriptor_json(frozen_bytes.decode())
+        try:
+            profile_proofs.native_standalone_manifest(base, frozen)
+        except ValueError as error:
+            assert 'native module identity mismatch:' in str(error), str(error)
+        else:
+            raise AssertionError('frozen helper identities unexpectedly certify changed current source')
+        # This is a test registration, not a rewrite or replay of native151 evidence.
+        descriptor = json.loads(json.dumps(frozen))
+        staging_names = ['native-PYI035', 'native-ASYNC115', 'native-UP044', 'native-PLE1142']
+        descriptor['profiles'] = [entry for entry in descriptor['profiles']
+                                  if entry['profile_name'] in staging_names]
+        phases = profile_proofs.verify_rule_phase_registry(base)
+        for record in [descriptor, *descriptor['profiles']]:
+            entry = record is not descriptor
+            profile_file = record['profile_file'] if entry else record['source_profile_file']
+            profile_path = profile_sources.prepared_profile_path('test-current', {'profile_file': profile_file})
+            profile = tomllib.loads(profile_path.read_text())
+            settings = profile_sources.canonical_run_ryo_settings(profile, profile['defaults'], phases)
+            if entry:
+                record['effective_settings'] = profile_sources.canonical_run_ryo_settings(profile, record['selected_rules'], phases)
+                query = profile_sources.prepared_candidate_path(record['rule_id'], record)
+                cases_path = profile_sources.prepared_case_path(record['rule_id'], record)
+                cases = tomllib.loads(cases_path.read_text())['cases']
+                record.update(query_sha256=profile_config.sha256(query), cases_sha256=profile_config.sha256(cases_path),
+                              case_names=[case['name'] for case in cases], case_count=len(cases))
+            if not entry or profile_file != descriptor['source_profile_file']:
+                registry = profile_sources.profile_modules(profile)
+                record.update(source_settings=settings, module_registry=registry,
+                              module_sha256={logical: profile_config.sha256(profile_config.RUFF_DIR / path)
+                                             for logical, path in registry.items()})
+                record['profile_sha256' if entry else 'source_profile_sha256'] = profile_config.sha256(profile_path)
+        descriptor.update(query_count=len(descriptor['profiles']),
+                          case_count=sum(entry['case_count'] for entry in descriptor['profiles']),
+                          phase_registry_sha256=profile_config.sha256(profile_config.RULE_PHASES_FILE),
+                          intent='Self-test current registration only; no contestant execution or historical certification.')
         resolved = profile_proofs.native_standalone_manifest(base, descriptor)
         assert len(resolved['profiles']) == descriptor['query_count']
         assert sum((p['case_count'] for p in resolved['profiles'].values())) == descriptor['case_count']
@@ -81,7 +117,7 @@ def native_standalone_self_test() -> None:
             mutations.extend([('entry-profile-hash', lambda d: d['profiles'][custom_index].update(profile_sha256='0' * 64)), ('entry-source-target', lambda d: d['profiles'][custom_index]['source_settings'].update(parser_configuration='python-target=3.11')), ('entry-source-phase', lambda d: d['profiles'][custom_index]['source_settings'].update(rule_applicability={})), ('entry-module-hash', lambda d: d['profiles'][custom_index]['module_sha256'].update({next(iter(d['profiles'][custom_index]['module_sha256'])): '0' * 64})), ('entry-module-omission', lambda d: d['profiles'][custom_index]['module_registry'].pop(next(iter(d['profiles'][custom_index]['module_registry'])))), ('entry-module-schema', lambda d: d['profiles'][custom_index].update(module_sha256=None)), ('entry-profile-substitution', lambda d: d['profiles'][custom_index].update(profile_file='profiles/UP044/benchmark.toml'))])
             historical = profile_proofs.native_descriptor_json(profile_config.HISTORICAL_NATIVE_DESCRIPTOR_FILE.read_text(encoding='utf-8'))
             assert profile_config.sha256(profile_config.HISTORICAL_NATIVE_PROFILE_FILE) == historical['source_profile_sha256']
-            current_by_rule = {entry['rule_id']: entry for entry in descriptor['profiles']}
+            current_by_rule = {entry['rule_id']: entry for entry in frozen['profiles']}
             for entry in historical['profiles']:
                 current = current_by_rule[entry['rule_id']]
                 for key in ('candidate_file', 'query_sha256', 'cases_file', 'cases_sha256', 'case_names', 'case_count'):
@@ -103,7 +139,7 @@ def native_standalone_self_test() -> None:
         source_sha = profile_config.sha256(source_profile)
         with tempfile.TemporaryDirectory(prefix='native-standalone-guards-') as temporary:
             with contextlib.ExitStack() as stack:
-                staged = profile_staging.stage_binding(resolved, ['native-PYI035', 'native-ASYNC115', 'native-UP044', 'native-PLE1142'], stack, Path(temporary))
+                staged = profile_staging.stage_binding(resolved, staging_names, stack, Path(temporary))
                 for name, root in staged:
                     recorded = resolved['profiles'][name]
                     rule = recorded['rule_id']
@@ -132,7 +168,8 @@ def native_standalone_self_test() -> None:
                             assert alternate is not None
                             assert alternate.read() != (root / 'rules' / rule / 'query.ryoql').read_bytes()
                 assert profile_config.sha256(source_profile) == source_sha, 'source profile must never be rewritten'
-        print(f"native standalone guards passed: {descriptor['query_count']} exact queries, {descriptor['case_count']} unchanged cases, {len(mutations) + 1} refusals, four staging controls; no contestants executed")
+        assert profile_config.NATIVE_DESCRIPTOR_FILE.read_bytes() == frozen_bytes, 'frozen native descriptor must not be rewritten'
+        print(f"native standalone guards passed: {descriptor['query_count']} current registration fixtures, {descriptor['case_count']} cases, {len(mutations) + 2} refusals, four staging controls; frozen evidence unchanged, no contestants executed")
     finally:
         subprocess.run = original_run
 

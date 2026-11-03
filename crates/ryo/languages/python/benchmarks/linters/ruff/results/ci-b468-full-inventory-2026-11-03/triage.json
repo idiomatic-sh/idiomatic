@@ -1,0 +1,22 @@
+{
+  "schema": "ruff-composed-to-fresh-full-delta/v1",
+  "before_source_head": "c1ead71e3235dc11db1a19c51760ac4e6ba8a004",
+  "before_kind": "source-bound composed RULES.md; historical supplements",
+  "before_counts": {
+    "PASS": 397,
+    "FAIL": 16
+  },
+  "after_head": "b46871cc8864114e5105975d2c21bd5d3fe6d733",
+  "after_kind": "one complete existing shared full-inventory run without supplements",
+  "after_counts": {
+    "FAIL": 15,
+    "PASS": 398
+  },
+  "changes": [
+    {
+      "rule_id": "RUF051",
+      "before": "FAIL",
+      "after": "PASS"
+    }
+  ]
+}

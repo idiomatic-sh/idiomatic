@@ -1,0 +1,5 @@
+# Exact b46871cc Ruff full inventory
+
+[Run 41579852173](https://github.com/idiomatic-sh/idiomatic/actions/runs/41579852173), job `ruff-all-defaults` 125731873955, completed **398 PASS / 15 FAIL / 413**. The job remains red because 15 defaults fail. [Summary](summary.json), [raw receipts](raw-receipts.tar.gz), [artifact identity](metadata.json), [rule delta](triage.json), and the [shared-helper review](shared-helper-review.json) preserve the evidence. The original GitHub artifact is `ruff-all-defaults-1` ID 13205941428, ZIP SHA256 `fcf1706d10a1c82ac623d27d7a322bdb5e9c5b75687289e34226880062e45b08`.
+
+Against the previous **composed** 397 PASS / 16 FAIL inventory, only RUF051 changes to PASS; no PASS regresses. This receipt is one complete shared-runner execution with no supplement overlay. Eleven remaining failures lack an implementation; F821, N999, PLW0602, and PYI020 have fixture mismatches. The source change passed independent Fable review, but the separate `correctness-python-ruff` registration still has stale prepared/native descriptor identities. The test-only self-test fix does not close that gate. Speed and other CI checks are separate results.

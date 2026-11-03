@@ -1,0 +1,21 @@
+{
+  "schema": "ruff-ci-artifact/v1",
+  "run_url": "https://github.com/idiomatic-sh/idiomatic/actions/runs/41579852173",
+  "job_id": 125731873955,
+  "artifact_id": 13205941428,
+  "head_sha": "b46871cc8864114e5105975d2c21bd5d3fe6d733",
+  "artifact_zip_sha256": "fcf1706d10a1c82ac623d27d7a322bdb5e9c5b75687289e34226880062e45b08",
+  "summary_sha256": "dd3e350fc384a32d9fc0f54d2b772ceae87b7c7ee360be261ccffba4f6db6eb5",
+  "raw_archive_sha256": "d0ef07d4f3f81401034b80cc6fedb76d87bc5eac62b4d20426affe43299cbbd4",
+  "triage_sha256": "9540458d25c0ad6751e901d6d96170d01d1edca4216c78b81c18e86496d55b0d",
+  "review_sha256": "d325bde20a8a0bab1056708d4d677cfb57820b66130a1e6a80ae9e2237d28f9e",
+  "worker_sha256": "2b7e5c3393a7e329a49ba5af9c916a2ac665a3c3ffc503a345676ae6504b35f0",
+  "inventory_sha256": "d7907baa630941108d2ec0189b5fc2a5de0c6bc5db8635d5ebb4437f3441d143",
+  "run_state": "complete",
+  "counts": {
+    "FAIL": 15,
+    "PASS": 398
+  },
+  "archived_receipt_files": 1627,
+  "archive_scope": "execution receipts, registration, summaries and build/seal metadata; staged repro inputs remain in GitHub artifact and source commit"
+}
