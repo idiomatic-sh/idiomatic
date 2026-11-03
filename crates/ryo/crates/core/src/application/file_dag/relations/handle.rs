@@ -72,9 +72,6 @@ impl RetainedPublication {
             resources,
         }
     }
-    pub(crate) fn as_ref(&self) -> &RelationResult {
-        &self.record
-    }
     pub(in crate::application::file_dag) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
