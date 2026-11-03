@@ -38,7 +38,7 @@ fn production_verifier_rejects_unavailable_observers_and_accepts_only_the_declar
         .as_mut()
         .unwrap()
         .evidence
-        .push(DiscrepancyEvidence {
+        .push(DiscrepancyEvidence::Language {
             path: "semantic-authority.txt".into(),
             sha256: ArtifactDigest("f".repeat(64)),
             kind: DiscrepancyEvidenceKind::LanguageSpec,

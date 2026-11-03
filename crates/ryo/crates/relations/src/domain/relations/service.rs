@@ -102,6 +102,7 @@ macro_rules! each_relation {
                 AnalyzedSource analyzed_source AnalyzedSourceRow AnalyzedSourceColumn;
                 FilePackage file_package FilePackageRow FilePackageColumn;
                 ModuleIdentity module_identity ModuleIdentityRow ModuleIdentityColumn;
+                ManifestDiagnostic manifest_diagnostic ManifestDiagnosticRow ManifestDiagnosticColumn;
             }
             engine {
                 FilesystemFile filesystem_file FilesystemFileRow FilesystemFileColumn;

@@ -1,0 +1,21 @@
+[
+  {
+    "cell": null,
+    "code": "RUF200",
+    "end_location": {
+      "column": 38,
+      "row": 10
+    },
+    "filename": "/tmp/ruf200-reference-20261103/upstream-various_invalid/pyproject.toml",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 10
+    },
+    "message": "Failed to parse pyproject.toml: URL requirement must be preceded by a package name. Add the name of the package before the URL (e.g., `package_name @ /path/to/file`).\n...\n^^^",
+    "name": "invalid-pyproject-toml",
+    "noqa_row": null,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-pyproject-toml"
+  }
+]

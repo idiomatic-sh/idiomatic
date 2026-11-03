@@ -16,6 +16,16 @@ impl ProjectUseCase for ProjectUseCaseImpl {
         &[]
     }
 
+    fn primary_role(
+        &self,
+        _path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole {
+        crate::domain::files::service::primary_role_from_manifests(
+            _path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),

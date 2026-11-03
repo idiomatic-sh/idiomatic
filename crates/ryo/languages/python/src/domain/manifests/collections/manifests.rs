@@ -7,3 +7,5 @@ pub(crate) mod source_dependency;
 pub(crate) mod workspace_member;
 
 pub(crate) mod module_identity;
+
+pub(crate) mod manifest_diagnostic;

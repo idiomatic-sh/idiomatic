@@ -5,9 +5,21 @@ use ryo_benchmark::domain::{
     diagnostics::{errors::DiagnosticsError as Error, types::BenchmarkFinding},
     suite::types::WorkerRequest,
 };
-use ryo_benchmark::outbound::engine::{factory, interface::EnginePort as _};
+use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 use ryo_benchmark::outbound::suite::interface::SuitePort as _;
 use std::collections::BTreeMap;
+
+/// Exercise the same request and sealed-input preparation as the worker use case.
+trait PreparedEngine: EnginePort {
+    fn run_prepared(
+        &self,
+        request: WorkerRequest,
+    ) -> Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error> {
+        let prepared = ryo_benchmark::application::worker_request::service::prepare(request)?;
+        EnginePort::run(self, prepared.request, prepared.missing)
+    }
+}
+impl<T: EnginePort + ?Sized> PreparedEngine for T {}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum EngineScenario {
@@ -211,7 +223,7 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
         None,
         frontend_projection(EngineScenario::LexicallyCompleteSyntaxError)?,
     )
-    .run(request);
+    .run_prepared(request);
     match result {
         Err(Error::Invalid(message)) => {
             assert!(
@@ -414,10 +426,10 @@ fn run_with_projection(
     request: WorkerRequest,
 ) -> Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error> {
     if scenario == EngineScenario::InvalidSyntaxProjectionDisabled {
-        return factory::local(python_310(), None).run(request);
+        return factory::local(python_310(), None).run_prepared(request);
     }
     let projection = frontend_projection(scenario)?;
-    factory::local_with_frontend_diagnostic(python_310(), None, projection).run(request)
+    factory::local_with_frontend_diagnostic(python_310(), None, projection).run_prepared(request)
 }
 
 fn frontend_projection(
@@ -576,13 +588,13 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
             projection,
         ))
     };
-    let first = run("nonlocal-at-module")?.run(WorkerRequest {
+    let first = run("nonlocal-at-module")?.run_prepared(WorkerRequest {
         state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
         ),
         ..request.clone()
     })?;
-    let second = run("no-such-parser-code")?.run(WorkerRequest {
+    let second = run("no-such-parser-code")?.run_prepared(WorkerRequest {
         state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
         ),
@@ -605,7 +617,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     let inline = format!("{input}emit nodes subject file key(span);\n");
     std::fs::write(rule_dir.join("query.ryoql"), inline)?;
     let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
-    let plain = factory::local(languages.clone(), None).run(WorkerRequest {
+    let plain = factory::local(languages.clone(), None).run_prepared(WorkerRequest {
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
@@ -635,7 +647,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         "test/identity".to_owned(),
         std::path::PathBuf::from("fragments/identity.ryoql"),
     );
-    let imported = factory::local(languages, None).run(WorkerRequest {
+    let imported = factory::local(languages, None).run_prepared(WorkerRequest {
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
@@ -738,7 +750,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
             )]),
             None,
         )
-        .run(WorkerRequest {
+        .run_prepared(WorkerRequest {
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -871,7 +883,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             .ok_or_else(|| Error::Invalid(format!("missing imported counterpart for {key:?}")))?;
         write_suppress_module(&imported.request.root)?;
         let state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
-        let inline = inline_engine.run(WorkerRequest {
+        let inline = inline_engine.run_prepared(WorkerRequest {
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -884,7 +896,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             files: case.request.files,
             state,
         })?;
-        let fragmented = imported_engine.run(WorkerRequest {
+        let fragmented = imported_engine.run_prepared(WorkerRequest {
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -962,7 +974,7 @@ fn assert_single_rule_fragment_equivalence(
         let imported_case = imported_by_name
             .get(&key)
             .ok_or_else(|| Error::Invalid(format!("missing imported case for {key:?}")))?;
-        let inline = inline_engine.run(WorkerRequest {
+        let inline = inline_engine.run_prepared(WorkerRequest {
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -975,7 +987,7 @@ fn assert_single_rule_fragment_equivalence(
             files: case.request.files,
             state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
         })?;
-        let fragmented = imported_engine.run(WorkerRequest {
+        let fragmented = imported_engine.run_prepared(WorkerRequest {
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -1012,7 +1024,7 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
     )?;
     std::fs::write(root.path().join("true.py"), "value = True\n")?;
     std::fs::write(root.path().join("false.py"), "value = False\n")?;
-    let report = factory::local(python_310(), None).run(WorkerRequest {
+    let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -1075,7 +1087,7 @@ fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries(
     }
     let source = "0x10\n1_000\n9007199254740992\n9007199254740993\n86400.0\n86400.25\n86401.0\n1e9999\nTrue\n1j\n";
     std::fs::write(root.path().join("numeric.py"), source)?;
-    let report = factory::local(python_310(), None).run(WorkerRequest {
+    let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -1133,3 +1145,5 @@ mod project_context;
 mod compiler_features;
 
 mod future_directives;
+
+mod project_inputs;

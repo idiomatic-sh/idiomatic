@@ -1,0 +1,21 @@
+[
+  {
+    "cell": null,
+    "code": "RUF200",
+    "end_location": {
+      "column": 2,
+      "row": 7
+    },
+    "filename": "/tmp/ruf200-reference-20261103/upstream-bleach/pyproject.toml",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 5
+    },
+    "message": "Failed to parse pyproject.toml: after parsing `1.1.0`, found `<1.2`, which is not part of a valid version\ntinycss2>=1.1.0<1.2\n        ^^^^^^^^^^^",
+    "name": "invalid-pyproject-toml",
+    "noqa_row": null,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-pyproject-toml"
+  }
+]

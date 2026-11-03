@@ -62,7 +62,36 @@ impl ProjectContract {
     }
 
     /// What the manifests of the request declare: the packages, and the manifests the tools refused.
-    fn packages(&self, request: &ProjectRequest) -> Packages {
+    fn packages(
+        &self,
+        request: &ProjectRequest,
+    ) -> (
+        Packages,
+        crate::domain::manifest_validation::types::ManifestValidations,
+    ) {
+        use crate::domain::manifest_validation::types::{
+            FileValidation, ManifestValidations, MetadataDemand,
+        };
+        let projection_wanted = request.wanted.iter().any(|relation| {
+            matches!(
+                relation,
+                languages::Relation::PackageDependency
+                    | languages::Relation::WorkspaceMember
+                    | languages::Relation::SourceDependency
+                    | languages::Relation::FilePackage
+                    | languages::Relation::AnalyzedSource
+            )
+        });
+        let diagnostics_wanted = request
+            .wanted
+            .contains(&languages::Relation::ManifestDiagnostic);
+        let demand = match (projection_wanted, diagnostics_wanted) {
+            (true, true) => MetadataDemand::Both,
+            (true, false) => MetadataDemand::Projection,
+            (false, true) => MetadataDemand::Diagnostics,
+            (false, false) => return (Packages::default(), ManifestValidations::default()),
+        };
+        let mut validation = ManifestValidations::default();
         let projects = (self.projects)(&request.manifests);
         let mut found = Vec::new();
         let mut refused: Vec<Refusal> = Vec::new();
@@ -71,12 +100,36 @@ impl ProjectContract {
                 .iter()
                 .filter(|project| project.claims(&manifest.path) == Claim::Reads)
             {
-                match project.declared(manifest) {
-                    Ok(declared) => found.push(Package {
+                let primary_demand = if request.files.contains(&manifest.path) {
+                    demand
+                } else if projection_wanted {
+                    MetadataDemand::Projection
+                } else {
+                    continue;
+                };
+                let reading = project.read(manifest, primary_demand);
+                if let Some(result) = reading.validation {
+                    if let Some(index) =
+                        request.files.iter().position(|file| file == &manifest.path)
+                    {
+                        if let Ok(index) = u32::try_from(index) {
+                            validation.files.push(FileValidation {
+                                file: languages::FileId(index),
+                                validation: result,
+                            });
+                        } else {
+                            validation.incomplete.push(Said(
+                                "requested manifest file identity exceeds the catalog range".into(),
+                            ));
+                        }
+                    }
+                }
+                match reading.declaration {
+                    Some(Ok(declared)) => found.push(Package {
                         manifest: ManifestPath(manifest.path.0.clone()),
                         declared,
                     }),
-                    Err(error) => {
+                    Some(Err(error)) => {
                         if !refused
                             .iter()
                             .any(|each| each.manifest.0 == manifest.path.0)
@@ -87,14 +140,32 @@ impl ProjectContract {
                             });
                         }
                     }
+                    None => {}
+                }
+            }
+        }
+        if diagnostics_wanted {
+            for (index, file) in request.files.iter().enumerate() {
+                if file.0.rsplit('/').next() == Some(crate::domain::packages::constants::PYPROJECT)
+                    && !validation
+                        .files
+                        .iter()
+                        .any(|observed| usize::try_from(observed.file.0).ok() == Some(index))
+                {
+                    validation.incomplete.push(Said(
+                        format!("requested metadata validator did not observe {}", file.0).into(),
+                    ));
                 }
             }
         }
         refused.sort_by(|left, right| left.manifest.cmp(&right.manifest));
-        Packages {
-            packages: merged(found),
-            refused,
-        }
+        (
+            Packages {
+                packages: merged(found),
+                refused,
+            },
+            validation,
+        )
     }
 }
 
@@ -105,8 +176,13 @@ impl Project for ProjectContract {
         self.names
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        crate::domain::language::service::primary_role(path, self.manifests())
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
-        let packages = self.packages(request);
+        let (packages, validation) = self.packages(request);
+        // Refusals describe only the dependency outputs that were actually demanded and read.
         let refused = packages
             .refused
             .iter()
@@ -143,6 +219,7 @@ impl Project for ProjectContract {
         {
             derived.module_context = self.module_context.resolve(request)?;
         }
+        derived.manifest_validation = validation;
         let consulted = derived.module_context.consulted.clone();
         Ok(Resolved {
             refused,
@@ -170,6 +247,12 @@ impl Project for ProjectContract {
 
     fn analyzed_source(&self) -> Support<ManifestReader<languages::AnalyzedSource, Linked>> {
         languages::reads_manifests::<AnalyzedSourceItem>()
+    }
+
+    fn manifest_diagnostic(
+        &self,
+    ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
+        languages::reads_manifests::<crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem>()
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {

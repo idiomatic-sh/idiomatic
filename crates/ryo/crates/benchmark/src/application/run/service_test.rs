@@ -586,6 +586,7 @@ fn discrepancy_suite() -> SuiteFake {
         "parser_configuration": "python-target=3.10", "project_context_mode": "Isolated",
     }));
     case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
+        basis: crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
         identity: ReferenceDiscrepancyIdentity {
             file_metadata_sha256: None,
             tool: "fixture".into(),
@@ -601,7 +602,7 @@ fn discrepancy_suite() -> SuiteFake {
             reference,
         ),
         reason: "independent language contract differs from the pinned reference".into(),
-        evidence: vec![DiscrepancyEvidence {
+        evidence: vec![DiscrepancyEvidence::Language {
             path: "evidence.json".into(),
             sha256: ArtifactDigest("d".repeat(64)),
             kind: DiscrepancyEvidenceKind::IndependentLanguageRun,
@@ -648,6 +649,7 @@ fn discrepancy_suite() -> SuiteFake {
         crate::outbound::suite::types::discrepancy::CaseReferenceWire {
             rule: authored_case.rule.to_string(),
             name: authored_case.name.to_string(),
+            basis: crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire::LanguageDefect,
             discrepancy,
         },
     );

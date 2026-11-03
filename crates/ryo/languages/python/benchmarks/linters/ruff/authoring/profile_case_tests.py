@@ -236,6 +236,15 @@ def reference_discrepancy_self_test() -> None:
             raise AssertionError('invalid discrepancy was accepted')
         clone = lambda value: json.loads(json.dumps(value))
         changed = clone(case)
+        changed['tool-contract-difference'] = clone(changed['reference-discrepancy'])
+        rejected(changed)
+        try:
+            reference_discrepancies.declared_discrepancy_artifacts(profile, [changed])
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('dual discrepancy authorities were staged')
+        changed = clone(case)
         changed['reference-discrepancy']['evidence'] = []
         rejected(changed)
         changed = clone(case)

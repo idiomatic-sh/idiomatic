@@ -9,9 +9,9 @@ use super::types::{
     Resolved,
 };
 use crate::domain::answers::types::{Answer, Support};
+use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{Relation, RowWriter};
-use crate::domain::symbols::types::Symbols;
 
 /// What the reading of the manifests is made of, generated from the catalog's one list.
 macro_rules! manifest_readings {
@@ -115,6 +115,13 @@ macro_rules! absent_manifests {
 
 /// Every `ProjectUseCase` is a `ProjectEngine`: the engine reads it through the contract's own drive.
 impl<P: ProjectUseCase> ProjectEngine for P {
+    fn primary_role(
+        &self,
+        path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole {
+        ProjectUseCase::primary_role(self, path)
+    }
+
     fn manifest_names(&self) -> &'static [ManifestName] {
         ProjectUseCase::manifests(self)
     }

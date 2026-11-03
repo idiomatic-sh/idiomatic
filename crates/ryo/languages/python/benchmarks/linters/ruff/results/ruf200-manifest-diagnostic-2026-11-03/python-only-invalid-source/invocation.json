@@ -1,0 +1,35 @@
+{
+  "name": "python-only-invalid-source",
+  "files": {
+    "invalid.py": "def broken(\n"
+  },
+  "argv": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "/tmp/ruf200-reference-20261103/python-only-invalid-source/.ruff_cache",
+    "--select",
+    "RUF200",
+    "--target-version",
+    "py310",
+    "--",
+    "invalid.py"
+  ],
+  "root": "/tmp/ruf200-reference-20261103/python-only-invalid-source",
+  "exit": 1,
+  "executable": "/home/vscode/.local/bin/ruff",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "expected": [
+    {
+      "rule": "invalid-syntax",
+      "file": "invalid.py",
+      "start": 12,
+      "end": 12
+    }
+  ],
+  "stdout_sha256": "b6b3b9be4a5a82fccf681fa39caff6ca2ec56432cc9a4f8a57e64488d177631d",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

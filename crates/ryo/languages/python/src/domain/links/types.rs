@@ -37,6 +37,8 @@ pub(crate) struct UnlinkedImport {
 /// What linking the files of a repository came to, with the packages the manifests declared.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
+    /// Requested metadata diagnostics, independent of dependency projection.
+    pub manifest_validation: crate::domain::manifest_validation::types::ManifestValidations,
     /// Optional project module identities and explicit context incompleteness.
     pub module_context: crate::domain::module_context::types::ModuleContexts,
     /// The links, by source file, then place, then target.

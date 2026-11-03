@@ -166,7 +166,7 @@ mod schema_identity_tests {
 pub(crate) fn source_selection_identity(
     name: Option<&ryo_values::domain::descriptions::types::LanguageName>,
 ) -> DigestInput {
-    let mut bytes = b"ryo-source-selection-v1".to_vec();
+    let mut bytes = b"ryo-source-selection-v2-primary-role".to_vec();
     match name {
         None => bytes.push(0),
         Some(name) => {

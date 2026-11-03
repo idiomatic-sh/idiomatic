@@ -213,6 +213,7 @@ pub(crate) fn shaped(
                 | Relation::SourceDependency
                 | Relation::AnalyzedSource
                 | Relation::FilePackage
+                | Relation::ManifestDiagnostic
                 | Relation::ModuleIdentity
                 | Relation::FilesystemFile
                 | Relation::FilesystemLineCount

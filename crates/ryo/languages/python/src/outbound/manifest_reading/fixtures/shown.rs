@@ -137,7 +137,12 @@ where
         });
     };
     build(all.clone())
-        .declared(own)
+        .read(
+            own,
+            crate::domain::manifest_validation::types::MetadataDemand::Projection,
+        )
+        .declaration
+        .expect("projection was requested")
         .map(|declared| shown(&declared))
 }
 

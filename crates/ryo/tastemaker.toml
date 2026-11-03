@@ -120,6 +120,8 @@ specs = [
     { resource = "languages", path = "ryo_language::inbound::use_cases::project::types::ManifestText", as = "ManifestText" },
     { resource = "languages", path = "ryo_language::inbound::use_cases::parse::types::SkippedDirectory", as = "SkippedDirectory" },
     { resource = "languages", path = "ryo_language::domain::files::types::SourcePath", as = "SourcePath" },
+    { resource = "languages", path = "ryo_language::domain::files::types::PrimaryFileRole", as = "PrimaryFileRole" },
+    { resource = "languages", path = "ryo_language::domain::files::service::primary_role_from_manifests", as = "primary_role_from_manifests" },
     { resource = "languages", path = "ryo_language::inbound::use_cases::parse::types::SampleText", as = "SampleText" },
     { resource = "languages", path = "ryo_language::inbound::use_cases::parse::types::Why", as = "Why" },
     { resource = "languages", path = "ryo_language::inbound::use_cases::parse::types::KindName", as = "KindName" },

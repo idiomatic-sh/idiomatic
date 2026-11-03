@@ -12,3 +12,13 @@ pub(crate) enum Claim {
     /// It does not.
     Skips,
 }
+
+/// Results of one requested manifest read, with independent projection and validation.
+pub(crate) struct Reading {
+    /// None means projection was not requested. A requested projection is independently successful or refused.
+    pub declaration: Option<
+        Result<crate::domain::packages::types::Declared, super::errors::ManifestReadingError>,
+    >,
+    /// None means this adapter does not supply the requested metadata validator.
+    pub validation: Option<crate::domain::manifest_validation::types::Validation>,
+}

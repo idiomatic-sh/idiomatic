@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**409 PASS / 4 FAIL / 413 pinned defaults**; run state `complete`. Base worker `d2a274e36d45117c6cb7934d433202b1cc7d1a195e66f1256f892319406cae4e`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
+**410 PASS / 3 FAIL / 413 pinned defaults**; run state `complete`. Base worker `0e3d2badfeafb0ddea005f27520e236592114335d57c22f05ed8c58917f90032`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -75,7 +75,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | DTZ012 | PASS | verified intended expectations |
 | DTZ901 | PASS | verified intended expectations |
 | E722 | PASS | verified intended expectations |
-| E902 | FAIL | [Missing implementation](results/ci-5331-full-inventory-2026-11-03/summary.json) |
+| E902 | PASS | verified intended expectations |
 | EXE001 | PASS | verified intended expectations |
 | EXE002 | PASS | verified intended expectations |
 | EXE004 | PASS | verified intended expectations |
@@ -143,7 +143,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | G101 | PASS | verified intended expectations |
 | G201 | PASS | verified intended expectations |
 | G202 | PASS | verified intended expectations |
-| I001 | FAIL | [Missing implementation](results/ci-5331-full-inventory-2026-11-03/summary.json) |
+| I001 | FAIL | [Missing implementation](results/ci-8a7-full-inventory-2026-11-03/summary.json) |
 | INT001 | PASS | verified intended expectations |
 | INT002 | PASS | verified intended expectations |
 | INT003 | PASS | verified intended expectations |
@@ -329,9 +329,9 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF059 | PASS | verified intended expectations |
 | RUF063 | PASS | verified intended expectations |
 | RUF068 | PASS | verified intended expectations |
-| RUF100 | FAIL | [Missing implementation](results/ci-5331-full-inventory-2026-11-03/summary.json) |
+| RUF100 | FAIL | [Missing implementation](results/ci-8a7-full-inventory-2026-11-03/summary.json) |
 | RUF101 | PASS | verified intended expectations |
-| RUF200 | FAIL | [Missing implementation](results/ci-5331-full-inventory-2026-11-03/summary.json) |
+| RUF200 | FAIL | [Missing implementation](results/ci-8a7-full-inventory-2026-11-03/summary.json) |
 | S102 | PASS | verified intended expectations |
 | S110 | PASS | verified intended expectations |
 | S112 | PASS | verified intended expectations |

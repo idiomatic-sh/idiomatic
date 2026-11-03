@@ -71,7 +71,7 @@ pub struct FileToRead<'a> {
 pub enum FileReading {
     /// The language at this place among the ones linked read it and wrote its rows.
     Read(LanguageNumber),
-    /// No linked language parses this file, and a linked language reads it as a manifest: it has no tree, and it is not left unread.
+    /// A provider classifies this input as project/configuration data: its project reader owns semantics, it has no source tree, and it is not left unread.
     Manifest,
     /// No linked language reads this file.
     Unsupported,

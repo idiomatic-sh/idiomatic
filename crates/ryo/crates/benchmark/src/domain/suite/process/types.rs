@@ -78,6 +78,8 @@ pub struct ReceiptAudit {
     pub raw_exact: usize,
     /// Documented diagnostic or process discrepancies.
     pub documented_discrepancies: usize,
+    /// Named documented tool policy differences, a subset of documented discrepancies.
+    pub tool_contract_differences: Vec<(String, String)>,
     /// Explicit diagnostics-contract-only equality.
     pub contract_only: usize,
 }

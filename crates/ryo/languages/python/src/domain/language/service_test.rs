@@ -46,3 +46,36 @@ fn subject(path: Input) -> Value {
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+#[test]
+fn explicit_primary_roles_distinguish_configuration_from_language_source() {
+    use super::service::primary_role;
+    for path in ["pyproject.toml", "pkg/pyproject.toml", "Pipfile"] {
+        assert_eq!(
+            primary_role(
+                languages::SourcePath(path),
+                &[
+                    languages::ManifestName("Pipfile"),
+                    languages::ManifestName("pyproject.toml")
+                ]
+            ),
+            languages::PrimaryFileRole::Configuration
+        );
+    }
+    for path in [
+        "invalid.py",
+        "input.txt",
+        "module.pyi",
+        "pyproject.toml.py",
+        "other.toml",
+        "poetry.lock",
+    ] {
+        assert_eq!(
+            primary_role(
+                languages::SourcePath(path),
+                &[languages::ManifestName("pyproject.toml")]
+            ),
+            languages::PrimaryFileRole::Source
+        );
+    }
+}

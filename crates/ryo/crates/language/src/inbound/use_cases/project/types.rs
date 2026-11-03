@@ -2,13 +2,13 @@
 //! constructor and no inherent impl.
 
 use super::errors::ProjectError;
-use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::files::types::FilePath;
 use crate::domain::reasons::types::ToolMessage;
+use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
 use ryo_relations::domain::relations::types::{Bytes, Rows};
 use ryo_relations::domain::relations::types::{Relation, RowWriter};
-use crate::domain::symbols::types::Symbols;
 
 /// The repository's manifests, read once per run.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -174,6 +174,12 @@ impl std::fmt::Display for ManifestText {
 /// What the engine asks of a language whatever it works out: the same reading as `ProjectUseCase`, with what the language derives
 /// kept inside the call, so that languages of different types are held side by side. Every `ProjectUseCase` is one.
 pub trait ProjectEngine: Send + Sync {
+    /// Which existing operation owns a primary file; this does not read or validate the file.
+    fn primary_role(
+        &self,
+        path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole;
+
     /// The names of the files the language reads as manifests.
     fn manifest_names(&self) -> &'static [ManifestName];
 

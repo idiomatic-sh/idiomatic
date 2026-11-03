@@ -1,0 +1,28 @@
+{
+  "name": "upstream-maturin",
+  "files": {
+    "pyproject.toml": "# This is a valid pyproject.toml\n# https://github.com/PyO3/maturin/blob/87ac3d9f74dd79ef2df9a20880b9f1fa23f9a437/pyproject.toml\n[build-system]\nrequires = [\"setuptools\", \"wheel>=0.36.2\", \"tomli>=1.1.0 ; python_version<'3.11'\", \"setuptools-rust>=1.4.0\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"maturin\"\nrequires-python = \">=3.7\"\nclassifiers = [\n    \"Topic :: Software Development :: Build Tools\",\n    \"Programming Language :: Rust\",\n    \"Programming Language :: Python :: Implementation :: CPython\",\n    \"Programming Language :: Python :: Implementation :: PyPy\",\n]\ndependencies = [\"tomli>=1.1.0 ; python_version<'3.11'\"]\ndynamic = [\n    \"authors\",\n    \"description\",\n    \"license\",\n    \"readme\",\n    \"version\"\n]\n\n[project.optional-dependencies]\nzig = [\n    \"ziglang~=0.10.0\",\n]\npatchelf = [\n    \"patchelf\",\n]\n\n[project.urls]\n\"Source Code\" = \"https://github.com/PyO3/maturin\"\nIssues = \"https://github.com/PyO3/maturin/issues\"\nDocumentation = \"https://maturin.rs\"\nChangelog = \"https://maturin.rs/changelog.html\"\n\n[tool.maturin]\nbindings = \"bin\"\n\n[tool.black]\ntarget_version = ['py37']\nextend-exclude = '''\n# Ignore cargo-generate templates\n^/src/templates\n'''\n\n[tool.ruff]\nline-length = 120\ntarget-version = \"py37\"\n\n[tool.mypy]\ndisallow_untyped_defs = true\ndisallow_incomplete_defs = true\nwarn_no_return = true\nignore_missing_imports = true\n"
+  },
+  "argv": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "/tmp/ruf200-reference-20261103/upstream-maturin/.ruff_cache",
+    "--select",
+    "RUF200",
+    "--target-version",
+    "py310",
+    "--",
+    "pyproject.toml"
+  ],
+  "root": "/tmp/ruf200-reference-20261103/upstream-maturin",
+  "exit": 0,
+  "executable": "/home/vscode/.local/bin/ruff",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "expected": [],
+  "stdout_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,3 @@
+{
+  "pyproject.toml": "[project]\nname = 'example'\nversion = '1.0'\ndependencies = [1]\n"
+}

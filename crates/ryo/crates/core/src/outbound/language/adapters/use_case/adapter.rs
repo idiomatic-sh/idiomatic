@@ -178,6 +178,13 @@ impl LanguagePort for LanguageUseCaseAdapter {
                     format!("explicit source provider `{}` is ambiguous", selected.0).into(),
                 ));
             }
+            if language
+                .project
+                .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                == ryo_language::domain::files::types::PrimaryFileRole::Configuration
+            {
+                return FileReading::Manifest;
+            }
             return match language.parse.read_file_explicit(
                 request,
                 table,
@@ -209,7 +216,12 @@ impl LanguagePort for LanguageUseCaseAdapter {
         }
         failure.map_or_else(
             || {
-                if self.reads_manifest(file.path) == ManifestReading::Read {
+                if self.languages.iter().any(|language| {
+                    language
+                        .project
+                        .primary_role(ryo_language::domain::files::types::SourcePath(&file.path.0))
+                        == ryo_language::domain::files::types::PrimaryFileRole::Configuration
+                }) {
                     FileReading::Manifest
                 } else {
                     FileReading::Unsupported

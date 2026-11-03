@@ -213,6 +213,9 @@ impl EnginePort for EngineLocalAdapter {
                 .get_mut(&projection.rule)
                 .ok_or_else(|| Error::Invalid("frontend projection was not registered".into()))?;
             frontend.exclude = frontend_exclusions(&selected_missing)?;
+            frontend
+                .exclude
+                .extend(project_input_exclusions(&request, &self.languages)?);
         }
         let selected_rules = rules.keys().cloned().collect();
         let selected_rule_count = rules
@@ -468,6 +471,45 @@ pub(super) fn frontend_exclusions(
             let literal = file.0.to_string();
             let pattern = globset::escape(&literal);
             linter::Glob::try_from(pattern.as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))
+        })
+        .collect()
+}
+
+/// Syntax diagnostics apply to source inputs; provider-declared project inputs have their own reader.
+fn project_input_exclusions(
+    request: &WorkerRequest,
+    languages: &Languages,
+) -> Result<Vec<linter::Glob>, Error> {
+    let matching: Vec<_> = match request.source_language.as_deref() {
+        Some(selected) => languages
+            .0
+            .iter()
+            .filter(|language| language.name().0.as_ref() == selected)
+            .collect(),
+        None if languages.0.len() == 1 => languages.0.iter().collect(),
+        // Automatic multi-provider parsing chooses the actual accepting source provider. Without an
+        // explicit unique owner, do not infer a configuration exclusion from one provider alone.
+        None => return Ok(Vec::new()),
+    };
+    let [language] = matching.as_slice() else {
+        return Err(Error::Invalid(
+            "explicit primary-role provider is missing or ambiguous".into(),
+        ));
+    };
+    request
+        .files
+        .iter()
+        .filter(|file| {
+            language.primary_role(ryo::languages::SourcePath(&file.0))
+                == ryo::languages::PrimaryFileRole::Configuration
+        })
+        .map(|file| {
+            #[cfg(unix)]
+            let literal = file.0.replace('\\', "\\\\");
+            #[cfg(not(unix))]
+            let literal = file.0.to_string();
+            linter::Glob::try_from(globset::escape(&literal).as_str())
                 .map_err(|error| Error::Invalid(error.to_string()))
         })
         .collect()

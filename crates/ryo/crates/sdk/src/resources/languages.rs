@@ -18,7 +18,9 @@ pub use macros::link::link;
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 
 pub use ryo_language::domain::semantics::interface::SemanticSession;
-pub use ryo_language::domain::semantics::types::{RenderContext, RenderError, RenderOutcome, RenderRequest};
+pub use ryo_language::domain::semantics::types::{
+    RenderContext, RenderError, RenderOutcome, RenderRequest,
+};
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 
@@ -44,7 +46,7 @@ pub use ryo_language::inbound::use_cases::project::types::ManifestText;
 
 pub use ryo_language::inbound::use_cases::parse::types::SkippedDirectory;
 
-pub use ryo_language::domain::files::types::SourcePath;
+pub use ryo_language::domain::files::types::{PrimaryFileRole, SourcePath};
 
 pub use ryo_language::inbound::use_cases::parse::types::SampleText;
 
@@ -235,13 +237,13 @@ pub use ryo_language::domain::elements::service::embedded_source_at;
 pub use ryo_language::domain::elements::service::{field_at, field_name_at, origin_at};
 pub use ryo_language::domain::expansions::service::mark_expansion;
 pub use ryo_language::domain::expansions::service::{embedded_expressions, write_embedded};
+pub use ryo_language::domain::symbols::types::ByteSlice;
+pub use ryo_language::domain::symbols::types::Noted;
 pub use ryo_relations::domain::relations::constants::NO_FIELD;
 pub use ryo_relations::domain::relations::types::ReportText;
 pub use ryo_relations::domain::relations::types::{Bytes, Extent, Flag, Integer, Optionality};
 pub use ryo_relations::domain::relations::types::{ElementOrigin, ExpansionId, FieldId};
 pub use ryo_relations::domain::relations::types::{EmbeddedMapping, EmbeddedSource};
-pub use ryo_language::domain::symbols::types::ByteSlice;
-pub use ryo_language::domain::symbols::types::Noted;
 pub use ryo_relations::domain::terms::types::NameText;
 
 pub use ryo_relations::domain::relations::types::NameNote;
@@ -318,3 +320,5 @@ pub use ryo_language::domain::expansions::service::append_embedded;
 
 /// Semantic preparation requirement declared by syntax completion.
 pub use ryo_language::domain::elements::types::CompletionRequirement;
+
+pub use ryo_language::domain::files::service::primary_role_from_manifests;

@@ -4,13 +4,13 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use ryo_language::domain::files::types::SourcePath;
-use ryo_relations::domain::relations::types::FileId;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::parse::types::{
     FieldRequest, NoteRequest, ParseConfigurationIdentity, ParseEngine, ParseRequest, Recognition,
     SkippedDirectory,
 };
 use ryo_language::inbound::use_cases::project::types::ProjectEngine;
+use ryo_relations::domain::relations::types::FileId;
 
 /// What a language is called: the name of its directory.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -62,6 +62,15 @@ impl Language {
     #[must_use]
     pub fn name(&self) -> &LanguageName {
         &self.name
+    }
+
+    /// The provider's pure source-versus-project ownership decision for a primary path.
+    #[must_use]
+    pub fn primary_role(
+        &self,
+        path: SourcePath<'_>,
+    ) -> ryo_language::domain::files::types::PrimaryFileRole {
+        self.project.primary_role(path)
     }
 
     /// Which build of the language this is: what a run kept of its files is used only for the same build.

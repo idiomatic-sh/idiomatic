@@ -1,20 +1,20 @@
 //! A provider must explicitly declare its optional capability promises.
 
-use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
-use ryo_relations::domain::relations::collections::relations::function::item::{
-    Function, FunctionRow,
-};
-use ryo_relations::domain::relations::types::{Count, Position, Rows};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::terms::types::UnknownName;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::errors::ProjectError;
 use ryo_language::inbound::use_cases::project::interface::ProjectUseCase;
 use ryo_language::inbound::use_cases::project::types::{ManifestName, ProjectRequest};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::types::{Count, Position, Rows};
+use ryo_relations::domain::terms::types::UnknownName;
 
 /// Answers every manifest relation as not in the language, for a language of this test that has no manifests.
 macro_rules! no_manifests {
@@ -155,6 +155,16 @@ impl ProjectUseCase for Language {
 
     fn manifests(&self) -> &'static [ManifestName] {
         &[]
+    }
+
+    fn primary_role(
+        &self,
+        _path: ryo_language::domain::files::types::SourcePath<'_>,
+    ) -> ryo_language::domain::files::types::PrimaryFileRole {
+        ryo_language::domain::files::service::primary_role_from_manifests(
+            _path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
     }
 
     fn resolve(

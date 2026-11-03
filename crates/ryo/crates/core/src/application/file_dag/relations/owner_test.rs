@@ -61,11 +61,11 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
     }
     assert_eq!(
         groups,
-        [57, 6, 4],
-        "67 catalog relations, separately from four physical representations"
+        [57, 7, 4],
+        "68 catalog relations, separately from four physical representations"
     );
-    assert_eq!(owner.checks.get(), 67);
-    assert_eq!(owner.reuses.get(), 67);
+    assert_eq!(owner.checks.get(), 68);
+    assert_eq!(owner.reuses.get(), 68);
 }
 
 #[test]

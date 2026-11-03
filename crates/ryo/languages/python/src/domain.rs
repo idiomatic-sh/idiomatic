@@ -86,3 +86,6 @@ pub(crate) mod format_specification;
 
 /// Physical native-token successor and delimiter edges.
 pub(crate) mod token_links;
+
+/// Standard project-metadata validation outcomes.
+pub(crate) mod manifest_validation;

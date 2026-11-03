@@ -1,0 +1,2 @@
+17 cases checked; failures:
+RUF200/other-toml-invalid-not-pyproject expected-vs-candidate: expected=[]; actual=[BenchmarkFinding { rule: RuleId("invalid-syntax"), file: RelativePath("other.toml"), start: SourceByteOffset(9), end: SourceByteOffset(13) }, BenchmarkFinding { rule: RuleId("invalid-syntax"), file: RelativePath("other.toml"), start: SourceByteOffset(14), end: SourceByteOffset(15) }, BenchmarkFinding { rule: RuleId("invalid-syntax"), file: RelativePath("other.toml"), start: SourceByteOffset(26), end: SourceByteOffset(26) }]; expected-skipped=[]; actual-skipped=[]

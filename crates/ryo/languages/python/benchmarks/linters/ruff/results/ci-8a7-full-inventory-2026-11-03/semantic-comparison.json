@@ -1,0 +1,7 @@
+{
+  "scope": "409 previously passing rules, prior and current remote full413 receipts",
+  "semantic_case_records": 21946,
+  "semantic_case_changes": [],
+  "normalized_only_ephemeral": "actual_request_root, context_manifest.actual_root, project_context.actual_root, process_observation.artifacts; UP031 process stdout separately equal after replacing temporary root",
+  "up031_stdout_normalized_equal": true
+}

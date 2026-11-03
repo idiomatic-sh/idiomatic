@@ -31,6 +31,13 @@ impl Project for ProjectContract {
         &[]
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
             refused: Vec::new(),
@@ -53,6 +60,10 @@ impl Project for ProjectContract {
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         // standard: mdast.md and micromark-util-types.d.ts: neither defines a project manifest; a Markdown file is a document, not a package.
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {

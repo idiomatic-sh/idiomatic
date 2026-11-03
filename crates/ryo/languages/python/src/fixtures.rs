@@ -3,6 +3,8 @@
 
 pub mod configuration;
 pub mod contracts;
+#[cfg(not(bless))]
+mod invalid_project;
 pub(crate) mod kinds;
 #[cfg(test)]
 pub(crate) mod projects;
@@ -56,7 +58,7 @@ fn stated_relations() -> Vec<ryo::languages::contract::Expected> {
 /// The rows the manifest relations are held to.
 #[cfg(not(bless))]
 fn stated_manifests() -> Vec<ryo::languages::contract::ManifestExpected> {
-    vec![workspace::expected()]
+    vec![invalid_project::expected(), workspace::expected()]
 }
 
 /// The rows the manifest relations are held to: none while the relations' are written (`--bless`).
