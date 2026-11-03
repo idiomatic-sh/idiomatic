@@ -530,7 +530,6 @@ pub(super) fn cache(store: &crate::domain::settings::types::Store) -> ryo::linte
 /// The SDK's source for a file the core gives with its text.
 fn source(file: crate::outbound::analysis::types::GivenFile) -> CaseSource {
     CaseSource {
-        executable: Default::default(),
         path: RelativePath(file.path.0),
         text: SourceText(file.text.0),
     }
