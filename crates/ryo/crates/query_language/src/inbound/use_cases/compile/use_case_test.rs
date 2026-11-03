@@ -431,6 +431,8 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         | Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::Hosted { .. } => None,
     });
     let origin = source

@@ -356,6 +356,11 @@ pub fn fake_corpus() -> Corpus {
             .insert(ItemName("function".to_owned()), function),
     );
     for operator in OPERATORS {
+        // This fake parser has no semantic-rendering session. The language
+        // capability is exercised by the Python provider's actual case run.
+        if matches!(operator, QueryOperator::RenderSyntax) {
+            continue;
+        }
         let governs = format!("function/*.{}", extension.0);
         let (id, rule) = operator_rule(&describe(operator).name.0, &governs);
         assert!(
@@ -438,6 +443,11 @@ pub fn corpus(
     let function = ItemName("function".to_owned());
     let text = found.inputs.0.get(&function).cloned().unwrap_or_default();
     for operator in OPERATORS {
+        // The Rust fixture parser deliberately has no semantic-rendering
+        // session; its other generic operators remain in this corpus.
+        if matches!(operator, QueryOperator::RenderSyntax) {
+            continue;
+        }
         let (id, rule) = operator_rule(&describe(operator).name.0, "function/*.rs");
         let shown = FilePath("function/input.rs".into());
         let stated = expected(operator);
@@ -882,6 +892,10 @@ fn expected(operator: QueryOperator) -> Vec<Finding> {
         QueryOperator::Replace => replace::expected(),
         QueryOperator::SpanBetween => span_between::expected(),
         QueryOperator::SourceMatches => source_matches::expected(),
+        QueryOperator::RenderSyntax => {
+            unreachable!("a language without semantic rendering does not register this fixture")
+        }
+        QueryOperator::FitsRendered => fits_rendered::expected(),
         QueryOperator::SpanBounds => span_bounds::expected(),
         QueryOperator::OrderedMatch => ordered_match::expected(),
         QueryOperator::OrderedDfs => ordered_dfs::expected(),
@@ -1002,6 +1016,9 @@ mod span_between {
 /// Independent physical occurrence spans, including the duplicate nested occurrence.
 mod source_matches {
     include!("../../../../../tests/fixtures/operators/source_matches/expected.rs");
+}
+mod fits_rendered {
+    include!("../../../../../tests/fixtures/operators/fits_rendered/expected.rs");
 }
 mod span_bounds {
     include!("../../../../../tests/fixtures/operators/span_bounds/expected.rs");

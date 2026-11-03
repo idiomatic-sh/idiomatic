@@ -8,13 +8,38 @@ pub(crate) fn description() -> OperatorDescription {
         "fits-rendered",
         "Keep rendered candidates whose physical display lines fit a declared maximum, including the original source prefix on the first line and tab stops.",
         vec![
-            field("from", "Rendered candidate rows from this file.", FieldRequirement::Required),
-            field("text", "Exact rendered candidate text column.", FieldRequirement::Required),
-            field("span", "Original physical statement span.", FieldRequirement::Required),
-            field("max-line", "Maximum display columns.", FieldRequirement::Required),
-            field("tab-width", "Physical tab stop width.", FieldRequirement::Required),
+            field(
+                "from",
+                "Rendered candidate rows from this file.",
+                FieldRequirement::Required,
+            ),
+            field(
+                "texts",
+                "Ordered exact rendered text columns.",
+                FieldRequirement::Required,
+            ),
+            field(
+                "literals",
+                "Literal separators, one more than the text columns.",
+                FieldRequirement::Required,
+            ),
+            field(
+                "span",
+                "Original physical statement span.",
+                FieldRequirement::Required,
+            ),
+            field(
+                "max-line",
+                "Maximum display columns.",
+                FieldRequirement::Required,
+            ),
+            field(
+                "tab-width",
+                "Physical tab stop width.",
+                FieldRequirement::Required,
+            ),
         ],
         &[],
-        r#"let example = fits-rendered(from="syntax-tree", text="name", span="span", max-line=88, tab-width=8); emit example subject file key(id);"#,
+        r#"let example = fits-rendered(from="syntax-tree", texts=["name"], literals=["", ""], span="span", max-line=88, tab-width=8); emit example subject file key(id);"#,
     )
 }

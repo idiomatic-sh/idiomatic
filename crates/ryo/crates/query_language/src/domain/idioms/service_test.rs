@@ -82,6 +82,8 @@ fn operation_name(operation: &Operation) -> &'static str {
         | Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::Hosted { .. } => "other",
         Operation::Axis { .. } => "axis",
     }

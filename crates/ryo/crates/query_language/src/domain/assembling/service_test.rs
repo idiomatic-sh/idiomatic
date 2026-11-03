@@ -125,7 +125,10 @@ fn operation_name(operation: &Operation) -> &'static str {
         | Operation::Words { .. }
         | Operation::Closure { .. }
         | Operation::Cycles { .. } => "other",
-        Operation::Rows { .. } | Operation::Hosted { .. } => "hosted",
+        Operation::Rows { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::Hosted { .. } => "hosted",
         Operation::Axis { .. } => "axis",
     }
 }

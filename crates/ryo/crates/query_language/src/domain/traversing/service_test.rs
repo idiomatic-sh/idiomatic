@@ -342,6 +342,8 @@ fn operation_name(operation: &Operation) -> &'static str {
         | Operation::Rank { .. }
         | Operation::Words { .. }
         | Operation::Cycles { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::Hosted { .. } => "other",
         Operation::Rows { .. } => "rows",
         Operation::Axis { .. } => "axis",
@@ -400,6 +402,8 @@ fn subject(text: Input) -> Result<Value, Failure> {
                     | QueryOperator::SpanBetween
                     | QueryOperator::SpanBounds
                     | QueryOperator::SourceMatches
+                    | QueryOperator::RenderSyntax
+                    | QueryOperator::FitsRendered
                     | QueryOperator::OrderedMatch
                     | QueryOperator::Select
                     | QueryOperator::Project
