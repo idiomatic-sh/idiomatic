@@ -1,0 +1,23 @@
+[
+  {
+    "name": "function-repr",
+    "offered": "f\"{lambda: 0!r}|{lambda: 0!r}\"",
+    "source_sha256": "799691daef6579e2de6f9287c9ad4c30bf04babe138ddf60a7ab7a0fb2cd3799",
+    "python_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+    "compile": {
+      "valid": false,
+      "message": "f-string: invalid syntax",
+      "line": 1,
+      "offset": 8
+    }
+  },
+  {
+    "name": "code-repr",
+    "offered": "f\"{(lambda: 0).__code__!r}|{(lambda: 0).__code__!r}\"",
+    "source_sha256": "58d1576343f8ced83e9bfd706840f4a8a9336cb7cf0eb14bfd69996536899999",
+    "python_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+    "compile": {
+      "valid": true
+    }
+  }
+]

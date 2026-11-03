@@ -177,3 +177,81 @@ name = "control-long-repeated-pure-name"
 comparison = "full"
 files = { "case.py" = "abcdefghijklmnopqrstuvwxyz = 1\nx = \"{0}{0}{0}{0}\".format(abcdefghijklmnopqrstuvwxyz)\ny = \"{0}{0}\".format(abcdefghijklmnopqrstuvwxyz)\n" }
 expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 35, "end" = 84 }, { "rule" = "UP032", "file" = "case.py", "start" = 89, "end" = 132 }]
+
+[[cases]]
+name = "lambda-phase-body-call"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda: effect())\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-body-subscript"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda: values[0])\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-default-call"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda x=effect(): x)\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-keyword-default-subscript"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda *, x=values[0]: x)\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-nested-deferred-default"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda x=(lambda: effect()): x)\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-nested-eager-default"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda x=(lambda y=effect(): y): x)\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-nested-body-root"
+comparison = "full"
+files = { "case.py" = "\"{0}{0}\".format(lambda: lambda: effect())\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-inside-body-deferred"
+comparison = "full"
+files = { "case.py" = "run = lambda: \"{0}{0}\".format(lambda: effect())\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-inside-body-eager-default"
+comparison = "full"
+files = { "case.py" = "run = lambda: \"{0}{0}\".format(lambda x=effect(): x)\n" }
+expected = []
+
+[[cases]]
+name = "lambda-phase-single-use-body-call"
+comparison = "full"
+files = { "case.py" = "\"{}\".format(lambda: effect())\n" }
+expected = [{ rule = "UP032", file = "case.py", start = 0, end = 29 }]
+
+[[cases]]
+name = "lambda-phase-single-use-body-subscript"
+comparison = "full"
+files = { "case.py" = "\"{}\".format(lambda: values[0])\n" }
+expected = [{ rule = "UP032", file = "case.py", start = 0, end = 30 }]
+
+[[cases]]
+name = "lambda-phase-single-use-nested-lambda"
+comparison = "full"
+files = { "case.py" = "\"{}\".format(lambda: lambda: effect())\n" }
+expected = [{ rule = "UP032", file = "case.py", start = 0, end = 37 }]
+
+[[cases]]
+name = "lambda-phase-repeated-code-object-identity"
+comparison = "full"
+files = { "case.py" = "\"{0.__code__!r}|{0.__code__!r}\".format(lambda: 0)\n" }
+expected = [{ rule = "UP032", file = "case.py", start = 0, end = 49 }]

@@ -1,3 +1,4 @@
+import evaluated_targets from "python/ruff/evaluated-targets";
 input expressions: relation<id: node, file: file>;
 output relation<id: node, file: file>;
 let nodes = select id, kind, file from "semantic-syntax";
@@ -18,9 +19,6 @@ let unsafe_operands = antijoin(left=binop_operands, right=safe_operands, left-on
 let unsafe_binops = select binop as id, file from unsafe_operands;
 let effects_a = union(left=effectful_calls, right=direct_effects);
 let effects = union(left=effects_a, right=unsafe_binops);
-let descendants = axis(from=expressions, relation="semantic-child", direction=descendant, domain=effects);
-let nested_effects = select id, file from descendants;
-let root_effects = select l.id as id, l.file as file from expressions as l join effects as r on l.id = r.id and l.file = r.file;
-let all_effects = union(left=nested_effects, right=root_effects);
+let all_effects = evaluated_targets(expressions=expressions, targets=effects);
 let pure = antijoin(left=expressions, right=all_effects, left-on=["id","file"], right-on=["id","file"]);
 return pure;

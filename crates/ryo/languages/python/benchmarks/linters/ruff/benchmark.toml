@@ -914,4 +914,5 @@ upstream_inactive = ["F621"]
 "python/ruff/typing-match-at-visit" = "fragments/typing-match-at-visit.ryoql"
 "python/ruff/union-members" = "fragments/union-members.ryoql"
 "python/ruff/version-checks" = "fragments/version-checks.ryoql"
+"python/ruff/evaluated-targets" = "fragments/evaluated-targets.ryoql"
 "python/ruff/without-effect" = "fragments/without-effect.ryoql"

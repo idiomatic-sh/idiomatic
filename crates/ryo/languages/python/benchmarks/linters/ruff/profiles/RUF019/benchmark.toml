@@ -32,4 +32,5 @@ defaults = ["RUF019"]
 "python/ruff/suppress" = "fragments/suppress.ryoql"
 "python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/type-definition-context" = "fragments/type-definition-context.ryoql"
+"python/ruff/evaluated-targets" = "fragments/evaluated-targets.ryoql"
 "python/ruff/without-effect" = "fragments/without-effect.ryoql"

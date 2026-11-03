@@ -66,3 +66,35 @@ Primary basis: [with-statement result assignment](https://docs.python.org/3.10/r
 The exact source dictionaries, complete observed/intended arrays and declared execution environments are retained in cases.toml certificates. [Actual protocol controls](../../profiles/FURB132/evidence/context-target-protocol-py310.json), [valid manager controls](../../profiles/FURB132/evidence/context-target-valid-context-py310.json), [value/annotation controls](../../profiles/FURB132/evidence/context-target-values-py310.json) and [shared semantic contract](../../profiles/FURB132/evidence/context-target-contract.json) are source bound. Python3.13 controls cover supported generic syntax; Python3.10 retains unrelated unsupported-header findings. No upstream issue was filed.
 
 [Targeted current-source proof and raw archive](../../results/context-target-inference-2026-11-03/README.md) retain every original fixture source and complete affected-consumer replays. A fresh shared full413 baseline is required before publication; historical receipts are unchanged.
+
+### Lambda evaluation phases
+
+The shared `without-effect` predicate examines effects performed while evaluating the supplied expression. Lambda defaults run when the function object is created; its body runs when called. A lambda body is therefore a separate evaluation region, while defaults remain in the enclosing region, including nested lambdas. `evaluated-targets` is only a syntactic lambda-phase filter: conditional and short-circuit branches remain conservatively included, and generator handling is unchanged. This does not establish value equality, allocation identity, or purity when the function is invoked. The rule retains its existing separate structural and applicability checks.
+
+The phase controls cover body calls/subscripts, positional and keyword-only defaults, deferred and eager nested defaults, and a lambda body whose root is itself an effect node. UP032 also checks seeds already inside a lambda body. Existing source fixtures remain intact; FURB132/RUF019 deferred-body expectations reflect this phase distinction. UP032 preserves its prior conservative repeat policy separately: its lexical call veto and independently checked lambda bodies can reject repetition even when creation has no immediate effect. No new allocation-policy exceptions are introduced; single-use arguments retain their prior policy. Candidate and reference regression receipts are pending for this source batch.
+
+Basis: [Python 3.10 lambda expressions](https://docs.python.org/3.10/reference/expressions.html#lambda) and [function default evaluation](https://docs.python.org/3.10/reference/compound_stmts.html#function-definitions).
+
+### Exact lambda-phase reference differences
+
+The cases below retain their original source bodies in `cases.toml`. Pinned Ruff 0.16.5 reports no finding; the intended finding uses creation-time effects under this rule's built-in-container contract. This is a case-specific analysis difference, not a claim that an arbitrary custom protocol or automatic rewrite is equivalent.
+
+```python
+out=set()
+if (lambda: factory()) in out:
+    out.remove((lambda: factory()))
+```
+
+| Case | Intended full finding | Pinned Ruff |
+|---|---|---|
+| `effect-policy-12` | `FURB132` bytes `10..76` | none |
+| `lambda-phase-body-call` | `FURB132` bytes `10..74` | none |
+| `lambda-phase-body-subscript` | `FURB132` bytes `10..76` | none |
+| `lambda-phase-nested-deferred-default` | `FURB132` bytes `10..102` | none |
+| `lambda-phase-nested-body-root` | `FURB132` bytes `10..90` | none |
+
+The [independent CPython 3.10.19 run](../../profiles/FURB132/evidence/lambda-phase-2026-11-03/runtime.json) derives byte spans from stdlib AST and evaluates every exact source plus a scoped `discard`/`get` control. Eligibility rests on zero observed creation effects in these closed inputs. The empty-container comparison alone proves neither eligibility nor universal rewrite safety. Its [inputs](../../profiles/FURB132/evidence/lambda-phase-2026-11-03/inputs.json) contain no expected or candidate arrays; the [re-runnable program](../../profiles/FURB132/evidence/lambda-phase-2026-11-03/program.py) also checks eager-default negative controls. The [contract](../../profiles/FURB132/evidence/lambda-phase-2026-11-03/contract.json) states namespace assumptions and binds the pinned tool, target, settings and current profile. [Raw current-profile observations](../../profiles/FURB132/evidence/lambda-phase-2026-11-03/bootstrap-cases.jsonl) are retained separately from strict certified replay.
+
+The three existing context/annotation discrepancies retain their original language evidence and expected arrays. Only their module-profile identity is refreshed against the new current-profile observation; historical execution is not relabelled.
+
+No upstream issue was opened. Normal shared-harness certificate validation and source review remain required before accepting this source batch.
