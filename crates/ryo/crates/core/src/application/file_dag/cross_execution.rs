@@ -49,6 +49,12 @@ pub(crate) fn evaluate_cross_with_executor(
         if step.scope == StepScope::PerFile {
             continue;
         }
+        #[cfg(feature = "diagnostic-row-progress")]
+        let _row_progress_step = {
+            let guard = super::route_counts::step(index);
+            super::route_counts::node_description(&step.operation);
+            guard
+        };
         let (before, rest) = computed.split_at_mut(index);
         let out = rest.first_mut().ok_or(OperatingError::NotRun)?;
         let inputs = inputs_of(&step.operation);
@@ -85,6 +91,10 @@ pub(crate) fn evaluate_cross_with_executor(
         } else {
             &source_rows
         };
+        #[cfg(feature = "diagnostic-row-progress")]
+        for (which, input) in used.iter().enumerate() {
+            super::route_counts::input_cardinality(which, count_of(input).0);
+        }
         if let Some(slot) = fed.get_mut(index) {
             for (counted, each) in slot.0.iter_mut().zip(used) {
                 *counted =

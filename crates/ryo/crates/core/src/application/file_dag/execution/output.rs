@@ -37,11 +37,6 @@ impl<'a> Headers<'a> {
         memo: &mut Vec<Memo>,
         row: &[Value],
     ) -> Result<(), OperatingError> {
-        #[cfg(feature = "diagnostic-row-progress")]
-        crate::application::file_dag::route_counts::progress(
-            crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
-            1,
-        );
         let mut downstream = OperatorContext {
             semantic: None,
             prepared_matchers: self.prepared_matchers,
@@ -106,5 +101,63 @@ impl Emit for Guard<'_> {
             &mut self.state.memo,
             row,
         )
+    }
+}
+
+/// Observe the actual shared collection sink without allocating another table.
+#[inline]
+pub(super) fn collect(out: &mut ryo_values::domain::rows::types::Table) -> impl Emit + '_ {
+    #[cfg(feature = "diagnostic-row-progress")]
+    {
+        ProgressCollect {
+            inner: crate::domain::replay::types::Collect(out),
+            origin: super::super::route_counts::capture(),
+        }
+    }
+    #[cfg(not(feature = "diagnostic-row-progress"))]
+    {
+        crate::domain::replay::types::Collect(out)
+    }
+}
+#[cfg(feature = "diagnostic-row-progress")]
+struct ProgressCollect<'a> {
+    inner: crate::domain::replay::types::Collect<'a>,
+    origin: super::super::route_counts::CapturedOrigin,
+}
+#[cfg(feature = "diagnostic-row-progress")]
+impl Emit for ProgressCollect<'_> {
+    fn row(
+        &mut self,
+        context: &mut OperatorContext<'_>,
+        row: &[Value],
+    ) -> Result<(), OperatingError> {
+        let _origin = super::super::route_counts::resume(self.origin);
+        self.inner.row(context, row)?;
+        super::super::route_counts::progress(
+            crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+            1,
+        );
+        Ok(())
+    }
+}
+/// A streamed row is counted at the common callback boundary, not at cells or candidates.
+#[cfg(feature = "diagnostic-row-progress")]
+pub(super) struct ProgressEmit<'a> {
+    pub(super) emit: &'a mut dyn Emit,
+    pub(super) origin: super::super::route_counts::CapturedOrigin,
+}
+#[cfg(feature = "diagnostic-row-progress")]
+impl Emit for ProgressEmit<'_> {
+    fn row(
+        &mut self,
+        context: &mut OperatorContext<'_>,
+        row: &[Value],
+    ) -> Result<(), OperatingError> {
+        let _origin = super::super::route_counts::resume(self.origin);
+        super::super::route_counts::progress(
+            crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+            1,
+        );
+        self.emit.row(context, row)
     }
 }

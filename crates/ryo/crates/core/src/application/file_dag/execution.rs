@@ -6,7 +6,6 @@ use crate::domain::operating::{
     types::{Emit, InputPlace, OperatorContext, Room},
 };
 use crate::domain::operator::contract::{types::*, views::BorrowedRows};
-use crate::domain::replay::types::Collect;
 
 use crate::domain::table_model::{
     service::{push_row, reset},
@@ -215,7 +214,7 @@ impl CommonOperatorEngine<'_> {
                 originals,
                 workspace,
                 context,
-                &mut Collect(out),
+                &mut output::collect(out),
             ) {
                 return result;
             }
@@ -253,7 +252,7 @@ impl CommonOperatorEngine<'_> {
             &mut resources,
             workspace,
             context,
-            &mut Collect(out),
+            &mut output::collect(out),
         );
         #[cfg(test)]
         {

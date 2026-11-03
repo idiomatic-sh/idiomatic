@@ -32,6 +32,13 @@ pub(super) fn stream(
     if !std::rc::Rc::ptr_eq(owner, &feed.relation_owner()) {
         return Err(OperatingError::NotRead);
     }
+    #[cfg(feature = "diagnostic-row-progress")]
+    let mut progress_emit = super::output::ProgressEmit {
+        emit,
+        origin: super::super::route_counts::capture(),
+    };
+    #[cfg(feature = "diagnostic-row-progress")]
+    let emit: &mut dyn Emit = &mut progress_emit;
     let mut workspace = InvocationWorkspace::new(std::rc::Rc::clone(owner));
     workspace.predicates = std::mem::take(&mut room.scratch.select_scratch);
     workspace.predicate_memo = std::mem::take(&mut room.memo);

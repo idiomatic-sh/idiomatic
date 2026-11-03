@@ -17,6 +17,8 @@ use crate::domain::table_reach::types::Walk;
 use crate::domain::table_scratch::types::{ScratchWord, Stretches};
 use ryo_relations::domain::relations::types::{Position, Value};
 pub(crate) struct InvocationWorkspace {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub progress_origin: super::route_counts::CapturedOrigin,
     origins: Vec<super::feed::InputOrigin>,
     pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
@@ -37,6 +39,8 @@ pub(crate) struct InvocationWorkspace {
 impl InvocationWorkspace {
     pub(crate) fn new(owner: std::rc::Rc<super::relations::RelationOwner>) -> Self {
         Self {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress_origin: super::route_counts::capture(),
             origins: Default::default(),
             derived_scratch: Default::default(),
             relation_owner: owner,

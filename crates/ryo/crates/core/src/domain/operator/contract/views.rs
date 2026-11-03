@@ -17,6 +17,8 @@ pub(crate) enum ProgressCounter {
     IndexRowsExamined,
     EqualityMatches,
     JoinCandidatePairs,
+    KernelOutputRows,
+    PositionRowsYielded,
 }
 #[cfg(feature = "diagnostic-row-progress")]
 pub(crate) type ProgressObserver = fn(ProgressCounter, u64);

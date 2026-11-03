@@ -261,6 +261,11 @@ fn ordinary(
         index: lookup,
     };
     for left_at in positions(count_of(left)) {
+        #[cfg(feature = "diagnostic-row-progress")]
+        (semantics.progress())(
+            crate::domain::operator::contract::views::ProgressCounter::InputRows,
+            1,
+        );
         let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
             continue;
         };

@@ -30,6 +30,9 @@ pub(super) fn evaluate(
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    let _progress_invocation =
+        crate::application::file_dag::route_counts::resume(workspace.progress_origin);
     #[cfg(test)]
     resources.observe(workspace);
     let row = match input {

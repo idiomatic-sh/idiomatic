@@ -49,7 +49,7 @@ impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
         if self.ready && self.error.is_none() {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(
-                crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+                crate::domain::operator::contract::views::ProgressCounter::PositionRowsYielded,
                 1,
             );
             &self.hit
@@ -86,7 +86,7 @@ impl PositionJoinDriver for Steps<'_> {
         #[cfg(feature = "diagnostic-row-progress")]
         if self.current.is_some() {
             (self.progress)(
-                crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+                crate::domain::operator::contract::views::ProgressCounter::PositionRowsYielded,
                 1,
             );
         }
@@ -154,7 +154,7 @@ impl PositionJoinDriver for Edges<'_, '_, '_> {
         #[cfg(feature = "diagnostic-row-progress")]
         if self.current.is_some() {
             (self.progress)(
-                crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+                crate::domain::operator::contract::views::ProgressCounter::PositionRowsYielded,
                 1,
             );
         }

@@ -192,6 +192,21 @@ fn json_string(out: &mut String, value: &str) {
     out.push('"');
 }
 
+#[cfg(feature = "diagnostic-row-progress")]
+#[derive(Clone, Copy)]
+pub(crate) struct CapturedOrigin(Option<Origin>);
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn capture() -> CapturedOrigin {
+    CapturedOrigin(STATE.with_borrow(|state| state.as_ref().map(|state| state.origin)))
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn resume(origin: CapturedOrigin) -> OriginScope {
+    scope(|current| {
+        if let Some(origin) = origin.0 {
+            *current = origin;
+        }
+    })
+}
 pub(crate) struct OriginScope {
     previous: Option<Origin>,
 }
@@ -446,6 +461,8 @@ pub(crate) fn progress(
         ProgressCounter::IndexRowsExamined => "index_chain_rows_examined",
         ProgressCounter::EqualityMatches => "equality_matches",
         ProgressCounter::JoinCandidatePairs => "join_candidate_pairs",
+        ProgressCounter::KernelOutputRows => "kernel_output_rows",
+        ProgressCounter::PositionRowsYielded => "position_rows_yielded",
     };
     let flush = STATE.with_borrow_mut(|state| {
         let Some(state) = state else {
@@ -492,7 +509,7 @@ fn progress_flush(stage: &'static str) {
                 key.family,
             )
         });
-        let mut current = [0_u64; 7];
+        let mut current = [0_u64; 9];
         let labels = [
             "input_rows",
             "emitted_rows",
@@ -501,6 +518,8 @@ fn progress_flush(stage: &'static str) {
             "index_chain_rows_examined",
             "equality_matches",
             "join_candidate_pairs",
+            "kernel_output_rows",
+            "position_rows_yielded",
         ];
         for (key, count) in &state.counts {
             if key.route == "row_progress"

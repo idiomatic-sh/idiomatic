@@ -87,7 +87,7 @@ impl JoinDriver for Driver<'_, '_> {
         }
         #[cfg(feature = "diagnostic-row-progress")]
         (self.index.progress)(
-            crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+            crate::domain::operator::contract::views::ProgressCounter::KernelOutputRows,
             1,
         );
         push_row(self.target, row);
