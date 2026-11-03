@@ -143,10 +143,12 @@ pub(crate) struct PreparedSelectionViews {
     /// Pins every selector address for the complete request lifetime.
     pub selectors: Vec<Arc<Selector>>,
     /// O(1) capability lookup; no metadata construction occurs while selecting.
-    pub by_selector: std::collections::HashMap<usize, PreparedSelectorViews>,
+    pub by_selector: std::collections::HashMap<usize, Arc<PreparedSelectorViews>>,
+    pub groups: usize,
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct PreparedSelectorViews {
+    pub group: usize,
     pub predicate: Arc<crate::domain::derived_views::types::DerivedContract>,
     pub postings: Arc<crate::domain::derived_views::types::DerivedContract>,
     pub distinct: Arc<crate::domain::derived_views::types::DerivedContract>,

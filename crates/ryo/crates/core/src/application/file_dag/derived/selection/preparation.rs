@@ -39,12 +39,22 @@ pub(crate) fn prepare_views_with_schemas<'s>(
     let mut prepared = PreparedSelectionViews {
         selectors,
         by_selector: HashMap::new(),
+        groups: 0,
     };
+    let mut groups: Vec<Arc<Selector>> = Vec::new();
     for selector in &prepared.selectors {
         let pointer = Arc::as_ptr(selector) as usize;
         if prepared.by_selector.contains_key(&pointer) {
             continue;
         }
+        let group = groups
+            .iter()
+            .position(|previous| same(previous, selector))
+            .unwrap_or_else(|| {
+                let at = groups.len();
+                groups.push(Arc::clone(selector));
+                at
+            });
         let schema = [InputSchema {
             kinds: resolver(selector.relation),
             tree: None,
@@ -102,14 +112,16 @@ pub(crate) fn prepare_views_with_schemas<'s>(
         }
         prepared.by_selector.insert(
             pointer,
-            PreparedSelectorViews {
+            Arc::new(PreparedSelectorViews {
+                group,
                 predicate,
                 postings: candidate,
                 distinct,
                 equalities: selector_equalities,
-            },
+            }),
         );
     }
+    prepared.groups = groups.len();
     Ok(Arc::new(prepared))
 }
 
@@ -174,7 +186,6 @@ pub(crate) fn activate(
     selectable: &[Relation],
     active: impl Fn(usize) -> bool,
 ) {
-    cache.selection_views = pool.selection_views.clone();
     let mut selectors = Vec::new();
     for (rule, plan) in pool.selection_plans.iter().enumerate() {
         if !active(rule) {
@@ -206,4 +217,35 @@ pub(crate) fn activate(
         cache.selectors = selectors;
         super::super::indexes::candidate_columns(cache);
     }
+    if let Some(views) = &pool.selection_views {
+        install_views(cache, Arc::clone(views));
+    }
+}
+
+/// Install one immutable request descriptor and prepare active repetition once/file.
+pub(crate) fn install_views(cache: &mut FileIndexes, views: Arc<PreparedSelectionViews>) {
+    // Active request bookkeeping is mandatory working metadata, independent of
+    // optional retained payload capacity. No rows or derived payload live here.
+    cache.selector_repetition.clear();
+    cache.selector_repetition_failed = false;
+    if cache
+        .selector_repetition
+        .try_reserve_exact(views.groups)
+        .is_ok()
+    {
+        cache.selector_repetition.resize(views.groups, 0);
+        for selector in &cache.selectors {
+            if let Some(prepared) = views.by_selector.get(&(Arc::as_ptr(selector) as usize)) {
+                let Some(count) = cache.selector_repetition.get_mut(prepared.group) else {
+                    cache.selector_repetition.clear();
+                    break;
+                };
+                *count = count.saturating_add(1).min(2);
+            }
+        }
+    } else {
+        cache.selector_repetition_failed = true;
+    }
+    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="selector_activation",request_groups=views.groups,working_metadata_bytes=cache.selector_repetition.capacity());
+    cache.selection_views = Some(views);
 }

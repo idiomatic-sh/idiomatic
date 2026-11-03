@@ -2,6 +2,7 @@
 
 pub(crate) mod annotates;
 pub(crate) mod assigns;
+pub(crate) mod bytes_literal;
 pub(crate) mod comment;
 pub(crate) mod decorates;
 pub(crate) mod defines;

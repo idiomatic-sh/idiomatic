@@ -13,15 +13,15 @@ impl<'f> IndexResource<'f> {
     pub(super) fn acquired(
         contract: &OperatorContract,
         mode: EvaluationMode,
-        inputs: &[BorrowedRows<'f>],
-        source: BorrowedRows<'f>,
         original: Option<&crate::domain::table_model::types::Rows<'f>>,
-        admission: &super::super::workspace::InvocationWorkspace,
+        admission: &super::super::workspace::InputAdmissions<'_, 'f>,
         context: &mut OperatorContext<'_>,
         skip_empty: bool,
     ) -> Result<Self, OperatingError> {
         use crate::domain::derived_views::types::{DerivedKind, DerivedStorage};
         let use_ = prepared(contract, mode, DerivedKind::Equality)?;
+        let place = use_.inputs[0];
+        let source = admission.input(place)?;
         // Absence's established empty-RHS gate precedes key interpretation.
         if skip_empty && source.count() == 0 && !matches!(source, BorrowedRows::Selected { .. }) {
             return Ok(Self::Derived {
@@ -30,7 +30,8 @@ impl<'f> IndexResource<'f> {
                 storage: std::sync::Arc::new(DerivedStorage::Equality(KeyIndex::default())),
             });
         }
-        let storage = admission.acquire_rows(use_, inputs, context)?;
+        let source = admission.rows(place)?;
+        let storage = admission.acquire_rows(use_, context)?;
         if let Some(crate::domain::table_model::types::Rows::Selected(selected)) = original {
             return Ok(Self::Selected(
                 super::super::selected::SelectedInput::from_derived(

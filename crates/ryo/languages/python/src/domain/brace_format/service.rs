@@ -164,10 +164,17 @@ pub(crate) fn owned_bytes(result: &BraceFormatResult) -> usize {
                 parsed
                     .fields
                     .iter()
-                    .map(|field| match &field.selector {
-                        super::types::BraceSelector::Automatic { .. } => 0,
-                        super::types::BraceSelector::Index { text, .. }
-                        | super::types::BraceSelector::Keyword(text) => text.capacity(),
+                    .map(|field| {
+                        field
+                            .format_spec
+                            .as_ref()
+                            .map_or(0, String::capacity)
+                            .saturating_add(field.selector_text.capacity())
+                            .saturating_add(match &field.selector {
+                                super::types::BraceSelector::Automatic { .. } => 0,
+                                super::types::BraceSelector::Index { text, .. }
+                                | super::types::BraceSelector::Keyword(text) => text.capacity(),
+                            })
                     })
                     .sum::<usize>(),
             ),

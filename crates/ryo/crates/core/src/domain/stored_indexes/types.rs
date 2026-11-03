@@ -22,6 +22,13 @@ pub(crate) struct Entry {
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]
 pub(crate) struct FileIndexes {
+    #[cfg(test)]
+    pub selector_descriptor: Option<usize>,
+    /// Per-file active repetition counts indexed by request-prepared predicate group.
+    pub selector_repetition: Vec<u8>,
+    pub selector_repetition_failed: bool,
+    /// Total reserved row-position slots actually retained in selections/fanouts.
+    pub retained_positions: usize,
     /// Immutable request-owned selector requirements, never file-owned payload.
     pub selection_views:
         Option<Arc<crate::domain::stored_selection::types::PreparedSelectionViews>>,

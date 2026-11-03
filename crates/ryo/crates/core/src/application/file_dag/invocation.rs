@@ -100,6 +100,7 @@ impl<'f> InvocationResources<'f> {
             EvaluationMode::Streaming => &contract.resources,
             EvaluationMode::Collected => &contract.collected_resources,
         };
+        let admitted = admission.inputs(inputs);
         // Empty contributing domain gates retain their ordinary typed resource
         // shortcut; no traversal request or memo is made for them.
         let empty_domain=contract.collected_empty.iter().any(|gate|gate.input>0 && gate.representation==crate::domain::operator::contract::types::EmptyRepresentation::Computed &&
@@ -142,10 +143,8 @@ impl<'f> InvocationResources<'f> {
                 resources.index = Some(IndexResource::acquired(
                     contract,
                     mode,
-                    inputs,
-                    source,
                     originals.get(*place),
-                    admission,
+                    &admitted,
                     context,
                     skip_empty,
                 )?);
@@ -173,7 +172,7 @@ impl<'f> InvocationResources<'f> {
                         mode,
                         crate::domain::derived_views::types::DerivedKind::NativeLookup,
                     )?;
-                    let storage = admission.acquire_rows(use_, inputs, context)?;
+                    let storage = admitted.acquire_rows(use_, context)?;
                     let acquired = AcquiredView::new(&use_.plan, storage);
                     let crate::domain::derived_views::types::DerivedView::NativeLookup(finding) =
                         acquired.view()?
@@ -189,10 +188,8 @@ impl<'f> InvocationResources<'f> {
                     resources.index = Some(IndexResource::acquired(
                         contract,
                         mode,
-                        inputs,
-                        right,
                         originals.get(1),
-                        admission,
+                        &admitted,
                         context,
                         false,
                     )?);
@@ -223,7 +220,7 @@ impl<'f> InvocationResources<'f> {
                 )?;
                 resources.cycles = Some(AcquiredView::new(
                     &use_.plan,
-                    admission.acquire_rows(use_, inputs, context)?,
+                    admitted.acquire_rows(use_, context)?,
                 ));
             }
             ResourceProgram::Ordered { .. } => {
@@ -237,14 +234,10 @@ impl<'f> InvocationResources<'f> {
                 };
                 resources.ordered = Some(AcquiredView::new(
                     &use_.plan,
-                    admission.acquire_derived(
+                    admitted.acquire_derived(
                         use_,
-                        inputs,
                         super::derived::owner::ViewContext::default(),
-                        DerivedInputs::Text {
-                            rows: inputs,
-                            texts: &texts,
-                        },
+                        super::workspace::ViewInputs::Text(&texts),
                         context.stored_indexes.as_deref_mut(),
                     )?,
                 ));
@@ -254,13 +247,10 @@ impl<'f> InvocationResources<'f> {
                 let use_ = prepared(contract, mode, DerivedKind::OrderedDfs)?;
                 resources.dfs = Some(AcquiredView::new(
                     &use_.plan,
-                    admission.acquire_derived(
+                    admitted.acquire_derived(
                         use_,
-                        inputs,
                         super::derived::owner::ViewContext::default(),
-                        DerivedInputs::Dfs {
-                            roots: input(inputs, 0)?,
-                            edges: input(inputs, 1)?,
+                        super::workspace::ViewInputs::Dfs {
                             symbols: &mut context.symbols,
                             source: context.source,
                             paths: context.paths,
@@ -285,11 +275,10 @@ impl<'f> InvocationResources<'f> {
                 };
                 let equality = if matches!(mode_axis, AxisMode::Indexed { .. }) {
                     Some(
-                        admission.acquire_rows(
+                        admitted.acquire_rows(
                             slots[slot(DerivedKind::Equality)]
                                 .as_ref()
                                 .ok_or(OperatingError::NotRun)?,
-                            inputs,
                             context,
                         )?,
                     )
@@ -299,33 +288,25 @@ impl<'f> InvocationResources<'f> {
                 let membership = match mode_axis {
                     AxisMode::Empty | AxisMode::Native { among: Some(_), .. } => None,
                     AxisMode::Native { tree, among: None } => Some(
-                        admission.acquire_derived(
+                        admitted.acquire_derived(
                             slots[slot(DerivedKind::Membership)]
                                 .as_ref()
                                 .ok_or(OperatingError::NotRun)?,
-                            inputs,
                             super::derived::owner::ViewContext {
                                 membership_order: Some(1),
                                 ..Default::default()
                             },
-                            DerivedInputs::Membership {
-                                rows: domain,
-                                space: MembershipSpace::Native(tree),
-                            },
+                            super::workspace::ViewInputs::MembershipNative,
                             context.stored_indexes.as_deref_mut(),
                         )?,
                     ),
                     AxisMode::Indexed { .. } => Some(
-                        admission.acquire_derived(
+                        admitted.acquire_derived(
                             slots[slot(DerivedKind::Membership)]
                                 .as_ref()
                                 .ok_or(OperatingError::NotRun)?,
-                            inputs,
                             super::derived::owner::ViewContext::default(),
-                            DerivedInputs::Membership {
-                                rows: domain,
-                                space: MembershipSpace::Values,
-                            },
+                            super::workspace::ViewInputs::MembershipValues,
                             context.stored_indexes.as_deref_mut(),
                         )?,
                     ),

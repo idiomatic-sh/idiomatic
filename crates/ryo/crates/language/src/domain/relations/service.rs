@@ -55,6 +55,8 @@ macro_rules! each_relation {
                 LiteralExpressionParse literal_expression_parse LiteralExpressionParseRow LiteralExpressionParseColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
+                BytesLiteral bytes_literal BytesLiteralRow BytesLiteralColumn;
+                FormatSpecification format_specification FormatSpecificationRow FormatSpecificationColumn;
                 SyntaxChild syntax_child SyntaxChildRow SyntaxChildColumn;
                 SyntaxError syntax_error SyntaxErrorRow SyntaxErrorColumn;
                 SyntaxTree syntax_tree SyntaxTreeRow SyntaxTreeColumn;
@@ -421,6 +423,8 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::LiteralProperties => Relation::LiteralProperties,
         OptionalCapability::NumericLiteral => Relation::NumericLiteral,
         OptionalCapability::InterpolatedStringLiteral => Relation::InterpolatedStringLiteral,
+        OptionalCapability::BytesLiteral => Relation::BytesLiteral,
+        OptionalCapability::FormatSpecification => Relation::FormatSpecification,
         OptionalCapability::LanguageTarget => Relation::LanguageTarget,
         OptionalCapability::CompilerFeature => Relation::CompilerFeature,
         OptionalCapability::ConstantKey => Relation::ConstantKey,

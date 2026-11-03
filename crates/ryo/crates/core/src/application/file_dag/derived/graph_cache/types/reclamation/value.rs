@@ -57,6 +57,7 @@ impl<'a> GraphAdmission<'a> {
         let mut released = 0_usize;
         let mut indexes = 0_u64;
         let mut selections = 0_u64;
+        let mut positions = 0usize;
         self.cache.entries.retain(|entry| {
             if remaining != 0
                 && Arc::strong_count(&entry.index) == 1
@@ -77,10 +78,16 @@ impl<'a> GraphAdmission<'a> {
                 remaining = remaining.saturating_sub(bytes);
                 released += bytes;
                 selections += 1;
+                positions += entry.rows.capacity();
                 return false;
             }
             true
         });
+        self.cache.retained_positions = self
+            .cache
+            .retained_positions
+            .checked_sub(positions)
+            .expect("retained selection capacity is owner-accounted");
         self.cache.bytes -= released;
         self.cache.graph_counts.reclaimed_indexes += indexes;
         self.cache.graph_counts.reclaimed_selections += selections;

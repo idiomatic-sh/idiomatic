@@ -185,6 +185,8 @@ The [source-bound relation receipt](../../languages/python/benchmarks/linters/ru
 
 The [12-class derived-view acquisition checkpoint](../../languages/python/benchmarks/linters/ruff/results/derived-view-contract-2026-11-02/README.md) passes 485 core, nine capability, 33 SDK, 206 Python, and 110 benchmark library tests. Its frozen Django reports match the relation worker byte for byte. Cold was 242.14 s versus 222.59 s for the relation worker, with 3.32% higher peak RSS; warm was 0.61% slower and retained edit 3.04% faster in single observations. Its release policy retains a view while any dependent population is pinned, without claiming exact per-consumer last-use release. Remote checks and performance acceptance for this source remain open. No ownership checkbox is credited solely by these timings.
 
+The subsequent [demand-admission checkpoint](../../languages/python/benchmarks/linters/ruff/results/demand-admission-2026-11-03/README.md) passes 491 core, nine capability, 67 CLI, 110 benchmark, 98 language, 223 Python, and 33 SDK tests. Its frozen reports remain byte-identical. Cold fell from 242.14 s to 227.08 s and retained edit from 12.77 s to 10.97 s, while warm rose from 2.06 s to 2.07 s. Cold remains 2.02% slower with 3.11% more peak RSS than the 222.59 s relation checkpoint. These single observations combine Python and engine changes; performance acceptance and exact-head remote QA remain open. The application still conservatively retains shared views while any dependent population is pinned.
+
 ## Architecture direction after measurement
 
 Layout changes are deferred until performance measurement is complete. This map authorizes no refactor and changes no ownership checkboxes or evidence above.

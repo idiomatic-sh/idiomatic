@@ -75,3 +75,30 @@ fn model_reinitialization_clears_brace_results_for_replacement_sources() {
         matches!(&index.values[0].result, super::types::BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
     );
 }
+
+#[test]
+fn retained_format_specs_are_charged_by_the_existing_grammar_budget() {
+    use crate::domain::brace_format::types::{
+        BraceFieldContext, BraceFormatField, BraceFormatResult, BraceSelector, ParsedBraceFormat,
+    };
+    let with_capacity = |capacity| {
+        BraceFormatResult::Parsed(ParsedBraceFormat {
+            fields: vec![BraceFormatField {
+                ordinal: 0,
+                context: BraceFieldContext::Literal,
+                selector: BraceSelector::Automatic {
+                    index: 0,
+                    overflow: false,
+                },
+                format_spec: Some(String::with_capacity(capacity)),
+                selector_text: String::new(),
+                conversion: None,
+            }],
+            ..Default::default()
+        })
+    };
+    // Retained allocation counts even when the decoded specification is empty.
+    let small = with_capacity(0);
+    let reserved = with_capacity(8192);
+    assert!(super::service::owned_bytes(&reserved) >= super::service::owned_bytes(&small) + 8192);
+}

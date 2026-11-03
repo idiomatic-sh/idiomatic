@@ -20,7 +20,8 @@ enum Part {
         /// The field's selector and conversion.
         name: String,
         /// The text following the field's colon.
-        spec: String,
+        spec: Option<String>,
+        conversion: Option<char>,
     },
 }
 
@@ -95,20 +96,25 @@ fn parse_field_name(name: &str) -> Result<FieldType, BraceFormatError> {
 fn parse_part(body: &str) -> Result<Part, BraceFormatError> {
     let mut split = body.splitn(2, ':');
     let field = split.next().unwrap_or_default();
-    let spec = split.next().unwrap_or_default();
-    let mut conversion = field.splitn(2, '!');
-    let name = conversion.next().unwrap_or_default();
-    if let Some(conversion) = conversion.next() {
-        let mut chars = conversion.chars();
-        if chars.next().is_none() || chars.next().is_some() {
+    let spec = split.next().map(str::to_owned);
+    let mut parts = field.splitn(2, '!');
+    let name = parts.next().unwrap_or_default();
+    let conversion = if let Some(text) = parts.next() {
+        let mut chars = text.chars();
+        let value = chars.next().ok_or(BraceFormatError::UnknownConversion)?;
+        if chars.next().is_some() {
             return Err(BraceFormatError::UnknownConversion);
         }
-    }
+        Some(value)
+    } else {
+        None
+    };
     // FieldName parsing validates field syntax separately, matching Ruff's FormatSummary.
     let _field_type = parse_field_name(name)?;
     Ok(Part::Field {
         name: name.into(),
-        spec: spec.into(),
+        spec,
+        conversion,
     })
 }
 
@@ -188,6 +194,8 @@ fn add_field(
     parsed: &mut ParsedBraceFormat,
     field_name: &str,
     context: BraceFieldContext,
+    format_spec: Option<String>,
+    conversion: Option<char>,
 ) -> Result<usize, BraceFormatError> {
     let field_type = parse_field_name(field_name)?;
     let ordinal = parsed.fields.len();
@@ -226,6 +234,9 @@ fn add_field(
         ordinal,
         context,
         selector,
+        format_spec,
+        selector_text: field_name.to_owned(),
+        conversion,
     });
     Ok(ordinal)
 }
@@ -235,11 +246,23 @@ fn parse(input: &str) -> Result<ParsedBraceFormat, BraceFormatError> {
     let parts = parse_parts(input)?;
     let mut parsed = ParsedBraceFormat::default();
     for part in parts {
-        let Part::Field { name, spec } = part;
-        let parent = add_field(&mut parsed, &name, BraceFieldContext::Literal)?;
-        for nested in parse_parts(&spec)? {
+        let Part::Field {
+            name,
+            spec,
+            conversion,
+        } = part;
+        let parent = add_field(
+            &mut parsed,
+            &name,
+            BraceFieldContext::Literal,
+            spec.clone(),
+            conversion,
+        )?;
+        for nested in parse_parts(spec.as_deref().unwrap_or_default())? {
             let Part::Field {
-                name: nested_name, ..
+                name: nested_name,
+                spec: nested_spec,
+                conversion: nested_conversion,
             } = nested;
             let _ordinal = add_field(
                 &mut parsed,
@@ -247,6 +270,8 @@ fn parse(input: &str) -> Result<ParsedBraceFormat, BraceFormatError> {
                 BraceFieldContext::FormatSpec {
                     parent_ordinal: parent,
                 },
+                nested_spec,
+                nested_conversion,
             )?;
             parsed.nested_field_count = parsed
                 .nested_field_count

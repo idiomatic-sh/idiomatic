@@ -114,6 +114,11 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
         population: 3,
         rows: Arc::clone(&rows),
     });
+    cache.retained_positions = cache
+        .selections
+        .iter()
+        .map(|entry| entry.rows.capacity())
+        .sum();
     let payload = selection_payload(&cache.selections[0]).expect("payload");
     assert_eq!(payload, arc_bytes::<Vec<u32>>() + vector(&rows));
     cache.bytes += cache.selections.capacity() * size_of::<Matches>() + payload;
@@ -123,11 +128,13 @@ fn selected_row_ids_pinned_by_a_graph_or_view_cannot_be_reclaimed() {
     assert!(!GraphAdmission::new(&mut cache).prepare(payload));
     assert_eq!(cache.bytes, before);
     assert_eq!(cache.selections.len(), 1);
+    assert_eq!(cache.retained_positions, rows.capacity());
     drop(rows);
     assert!(GraphAdmission::new(&mut cache).prepare(payload));
     assert_eq!(cache.bytes, before - payload);
     assert_eq!(cache.selections.capacity(), capacity);
     assert!(cache.selections.is_empty());
+    assert_eq!(cache.retained_positions, 0);
     assert_eq!(cache.graph_counts.reclaimed_selections, 1);
 }
 

@@ -521,6 +521,10 @@ pub enum OptionalCapability {
     LiteralProperties,
     /// Parser-decoded literal fragments belonging to interpolated strings.
     InterpolatedStringLiteral,
+    /// Decoded byte-string literals in canonical lowercase hexadecimal.
+    BytesLiteral,
+    /// Standard mini-language observations for decoded format specifications.
+    FormatSpecification,
     /// Parser target version attached to each source file.
     LanguageTarget,
     /// Explicit known file-wide compiler-language feature flags.

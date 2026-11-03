@@ -44,7 +44,9 @@ use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use candidates::{candidates, first_literal};
 use fanout::fanout_candidates;
 use predicate::matches;
-pub(crate) use preparation::{activate, prepare_request, prepare_views_with_schemas};
+pub(crate) use preparation::{
+    activate, install_views, prepare_request, prepare_views_with_schemas,
+};
 #[cfg(test)]
 pub(crate) use preparation::{prepare, prepare_views};
 use retention::admit;
@@ -177,6 +179,10 @@ fn make<'a>(
     else {
         return Ok(None);
     };
+    #[cfg(test)]
+    {
+        cache.selector_descriptor = Some(Arc::as_ptr(&views) as usize);
+    }
     if views
         .predicate
         .schemas
@@ -199,7 +205,7 @@ fn make<'a>(
     } else {
         let rows = Arc::new(matches(cache, program, &views, source, context)?);
         cache.selection_counts.builds += 1;
-        let admission = admit(cache, program, source, population, &rows);
+        let admission = admit(cache, program, &views, source, population, &rows)?;
         if let Some(entry) = histogram(cache, program) {
             entry.builds += 1;
             entry.matched_rows += rows.len() as u64;

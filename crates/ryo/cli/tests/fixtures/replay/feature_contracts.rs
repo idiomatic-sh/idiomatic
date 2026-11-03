@@ -129,6 +129,14 @@ const CATALOG_QUERIES: &[(&str, &str)] = &[
         include_str!("../feature_contracts/catalog/implicit-symbol.ryoql"),
     ),
     (
+        "format-specification-witness",
+        include_str!("../feature_contracts/catalog/format-specification.ryoql"),
+    ),
+    (
+        "bytes-literal-witness",
+        include_str!("../feature_contracts/catalog/bytes-literal.ryoql"),
+    ),
+    (
         "interpolated-string-literal-witness",
         include_str!("../feature_contracts/catalog/interpolated-string-literal.ryoql"),
     ),
@@ -201,6 +209,8 @@ const CATALOG_WITNESSES: &[&str] = &[
     "function-terminal-witness",
     "implicit-symbol-witness",
     "interpolated-string-literal-witness",
+    "bytes-literal-witness",
+    "format-specification-witness",
     "language-target-witness",
     "literal-expression-parse-witness",
     "literal-properties-witness",
@@ -310,6 +320,8 @@ fn measure() -> Result<BTreeMap<String, u64>, String> {
                 "function_terminal/input*.py",
                 "implicit_symbol/input*.py",
                 "interpolated_string_literal/input*.py",
+                "bytes_literal/input*.py",
+                "format_specification/input*.py",
                 "language_target/input*.py",
                 "literal_expression_parse/input*.py",
                 "literal_properties/input*.py",

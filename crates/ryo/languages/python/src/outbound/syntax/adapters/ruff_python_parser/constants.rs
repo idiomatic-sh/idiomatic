@@ -81,6 +81,9 @@ pub(super) const NONLOCAL_AT_MODULE: ryo::languages::DiagnosticCode =
 /// A `nonlocal` declaration names a current function parameter.
 pub(super) const NONLOCAL_PARAMETER: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("nonlocal-parameter");
+/// One lexical scope declares the same name both global and nonlocal.
+pub(super) const NONLOCAL_GLOBAL_CONFLICT: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode::provider_owned("nonlocal-global-conflict");
 /// A `global` declaration names a current function parameter.
 pub(super) const GLOBAL_PARAMETER: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode::provider_owned("global-parameter");

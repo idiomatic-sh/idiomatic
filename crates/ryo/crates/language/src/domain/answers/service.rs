@@ -1,6 +1,7 @@
 //! The `answers` service: free functions named by verb that make the answer of a language for a relation, and say why it gives none, with no IO and no ports.
 
 use super::types::{AbsenceCause, Answer, ReadItem, Reader, Support};
+use crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralColumn;
 use crate::domain::relations::collections::relations::call_argument::item::CallArgumentColumn;
 use crate::domain::relations::collections::relations::comment::item::CommentColumn;
 use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
@@ -123,6 +124,7 @@ pub fn is_key(column: Column) -> ColumnKeyness {
             | Column::CallArgument(CallArgumentColumn::Expression)
             | Column::Resolves(ResolvesColumn::Occurrence)
             | Column::StringLiteral(StringLiteralColumn::Occurrence)
+            | Column::BytesLiteral(BytesLiteralColumn::Occurrence)
     ) {
         ColumnKeyness::Key
     } else {

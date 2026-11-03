@@ -1,0 +1,2 @@
+let witness = select * from "bytes-literal";
+emit witness subject file key(occurrence);

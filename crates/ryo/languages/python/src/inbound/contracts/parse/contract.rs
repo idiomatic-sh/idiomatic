@@ -93,6 +93,8 @@ impl Parse for ParseContract {
             languages::OptionalCapability::LiteralProperties,
             languages::OptionalCapability::NumericLiteral,
             languages::OptionalCapability::InterpolatedStringLiteral,
+            languages::OptionalCapability::BytesLiteral,
+            languages::OptionalCapability::FormatSpecification,
             languages::OptionalCapability::ConstantKey,
             languages::OptionalCapability::FormatParse,
             languages::OptionalCapability::FormatField,
@@ -320,6 +322,18 @@ impl Parse for ParseContract {
     fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
         languages::reads::<
             crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem,
+        >()
+    }
+
+    fn format_specification(
+        &self,
+    ) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::reads::<super::format_specification_readers::FormatSpecificationItem>()
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::reads::<
+            crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralItem,
         >()
     }
 

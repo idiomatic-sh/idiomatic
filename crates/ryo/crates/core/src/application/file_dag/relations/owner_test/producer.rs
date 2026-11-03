@@ -58,13 +58,12 @@ fn real_selector_producer_is_the_only_trusted_selection_path() {
     .unwrap();
     // Two registered consumers make this population eligible for retained match IDs.
     cache.selectors = vec![Arc::clone(&program), Arc::clone(&program)];
-    cache.selection_views = Some(
-        crate::application::file_dag::derived::selection::prepare_views_with_schemas(
-            cache.selectors.iter().cloned(),
-            &|_| schema,
-        )
-        .unwrap(),
-    );
+    let views = crate::application::file_dag::derived::selection::prepare_views_with_schemas(
+        cache.selectors.iter().cloned(),
+        &|_| schema,
+    )
+    .unwrap();
+    crate::application::file_dag::derived::selection::install_views(&mut cache, views);
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {

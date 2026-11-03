@@ -134,7 +134,10 @@ fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
         kinds: &[CellKind::Number],
         columns: &columns,
     };
-    let mut cache = new(&[Relation::Function], &[], 512).expect("metadata fits");
+    let metadata = new(&[Relation::Function], &[], LIMIT)
+        .expect("metadata probe")
+        .bytes;
+    let mut cache = new(&[Relation::Function], &[], metadata).expect("exact metadata fits");
     let initial = cache.bytes;
     let mut local = KeyIndex::default();
     let result = acquire(

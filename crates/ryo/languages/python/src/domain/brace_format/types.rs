@@ -65,6 +65,12 @@ pub(crate) struct BraceFormatField {
     pub context: BraceFieldContext,
     /// Its root selector.
     pub selector: BraceSelector,
+    /// Decoded text after an explicit colon; absence differs from an empty spec.
+    pub format_spec: Option<String>,
+    /// Complete selector path before conversion/specification.
+    pub selector_text: String,
+    /// Explicit conversion; absence preserves the original value protocol.
+    pub conversion: Option<char>,
 }
 
 /// Successfully parsed field sequence and upstream-compatible selector counts.

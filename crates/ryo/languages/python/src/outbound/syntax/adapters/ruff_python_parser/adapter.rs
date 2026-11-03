@@ -2,8 +2,8 @@
 use super::constants::{
     ANNOTATED_GLOBAL, BARE_STARRED_TARGET, COMPREHENSION_REBIND, DUPLICATE_KEYWORD_ARGUMENT,
     DUPLICATE_PARAMETER, DUPLICATE_TYPE_PARAMETER, GLOBAL_PARAMETER, INVALID_UTF8,
-    NONLOCAL_AT_MODULE, NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR, PATTERN_BINDINGS_MISMATCH,
-    TYPE_PARAMETER_DEFAULT_ORDER, UNSUPPORTED_SYNTAX,
+    NONLOCAL_AT_MODULE, NONLOCAL_GLOBAL_CONFLICT, NONLOCAL_PARAMETER, NOT_UTF8, PARSER_ERROR,
+    PATTERN_BINDINGS_MISMATCH, TYPE_PARAMETER_DEFAULT_ORDER, UNSUPPORTED_SYNTAX,
 };
 use super::schemas::{offset, readable};
 use super::types::{AnnotationCandidate, AnnotationContext, ByteIndex, Readable, Writer};
@@ -362,6 +362,15 @@ fn semantic_syntax_errors(
                                         "name `{}` cannot refer to a parameter and a nonlocal variable",
                                         name.as_str()
                                     ),
+                                    name.range(),
+                                );
+                            } else if self
+                                .scope()
+                                .is_some_and(|scope| scope.globals.contains_key(name.as_str()))
+                            {
+                                self.report(
+                                    NONLOCAL_GLOBAL_CONFLICT,
+                                    format!("name `{}` is nonlocal and global", name.as_str()),
                                     name.range(),
                                 );
                             }
@@ -872,7 +881,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         let parsed = parse_unchecked(&source, options(source_kind, settings));
         languages::set_syntax_acceptance(
             builder,
-            if parsed.errors().is_empty() {
+            if matches!(&source, Cow::Borrowed(_)) && parsed.errors().is_empty() {
                 languages::SyntaxAcceptance::Accepted
             } else {
                 languages::SyntaxAcceptance::Rejected

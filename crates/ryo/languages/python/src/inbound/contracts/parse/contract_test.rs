@@ -247,3 +247,63 @@ fn explicit_source_selection_preserves_paths_and_default_recognition() {
         .expect("invalid bytes are diagnosed");
     assert!(languages::has_incomplete_lexical_stream(&elements));
 }
+
+#[test]
+fn byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness() {
+    let provider = ParseContract::new(
+        PythonParserSettings::default(),
+        Arc::new(crate::outbound::syntax::factory::ruff_python_parser()),
+        Arc::new(crate::outbound::notes::factory::postcard()),
+    );
+    // Preserve invalid original UTF-8 and truncated escapes; an escaped high byte is valid UTF-8 source.
+    for (bytes, incomplete) in [
+        (&b"b'\xff'\n"[..], true),
+        (&b"b'\\x"[..], true),
+        (&b"b'\\xff'\n"[..], false),
+    ] {
+        let (mut elements, mut symbols) = (
+            languages::Elements::default(),
+            languages::Symbols::default(),
+        );
+        let mut out = languages::contract::Collect::default();
+        languages::contract::read(
+            &provider,
+            languages::ParseRequest {
+                path: languages::SourcePath("item.py"),
+                file: languages::FileId(0),
+                bytes: languages::ByteSlice(bytes),
+                notes: languages::NoteRequest::Unwanted,
+                fields: languages::FieldRequest::Wanted,
+            },
+            &mut elements,
+            &mut symbols,
+            &[languages::Relation::BytesLiteral],
+            &mut out,
+        )
+        .expect("recovered original bytes remain readable with honest diagnostic metadata");
+        assert_eq!(
+            languages::has_incomplete_syntax(&elements),
+            incomplete,
+            "{bytes:?}"
+        );
+        assert_eq!(
+            languages::has_incomplete_lexical_stream(&elements),
+            incomplete,
+            "{bytes:?}"
+        );
+        assert_eq!(
+            languages::syntax_acceptance(&elements),
+            if incomplete {
+                languages::SyntaxAcceptance::Rejected
+            } else {
+                languages::SyntaxAcceptance::Accepted
+            },
+            "{bytes:?}"
+        );
+        if !incomplete {
+            assert_eq!(out.count(languages::Relation::BytesLiteral), 1);
+        }
+        // Collect.partials describes reader payloads only. The common engine derives
+        // semantic unknown-absence coverage from the Elements diagnostics above.
+    }
+}

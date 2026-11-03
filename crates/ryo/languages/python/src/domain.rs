@@ -66,6 +66,8 @@ pub(crate) mod format_parsing;
 /// Application-owned decoded format grammar results and parser port.
 pub(crate) mod format_syntax;
 pub(crate) mod raw_format;
+/// Target-aware recognition of Python's standard format-specification mini-language.
+pub(crate) mod standard_format_spec;
 /// Terminal outcomes of function bodies.
 pub(crate) mod terminal_flow;
 
@@ -76,3 +78,6 @@ pub(crate) mod module_context;
 
 /// Bounded application-owned grammar reuse.
 pub(crate) mod grammar_cache;
+
+/// Standard-format source observations without lint call policy.
+pub(crate) mod format_specification;

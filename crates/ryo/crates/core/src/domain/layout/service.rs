@@ -185,6 +185,8 @@ pub(crate) fn shaped(
                 | Relation::LiteralExpressionParse
                 | Relation::StaticImport
                 | Relation::StringLiteral
+                | Relation::BytesLiteral
+                | Relation::FormatSpecification
                 | Relation::SyntaxError
                 | Relation::SemanticSyntax
                 | Relation::SemanticChild

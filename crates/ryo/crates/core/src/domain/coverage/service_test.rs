@@ -153,3 +153,37 @@ fn lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty() {
         }
     }
 }
+
+#[test]
+fn recovered_byte_literals_refuse_absence_while_whole_source_keeps_the_same_result() {
+    use super::types::Lacking;
+    let wanted = [Relation::BytesLiteral];
+    for recovery in [
+        Recovery::SyntaxErrors,
+        Recovery::LexicallyCompleteSyntaxErrors,
+        Recovery::Unparsed,
+    ] {
+        let partial = partial_of(&[], recovery, &wanted);
+        assert_eq!(partial.len(), 1);
+        assert_eq!(partial[0].relation, Relation::BytesLiteral);
+        assert_eq!(partial[0].lacking, Lacking::Any);
+        let mut absent = rows();
+        drop_uncertain(
+            &antijoin(1),
+            &[CellKind::File, CellKind::Number],
+            &mut absent,
+            &partial.iter().map(|part| part.at).collect::<Vec<_>>(),
+        );
+        assert_eq!(absent.count.0, 0, "{recovery:?}");
+    }
+    let partial = partial_of(&[], Recovery::Whole, &wanted);
+    assert!(partial.is_empty());
+    let mut absent = rows();
+    drop_uncertain(
+        &antijoin(1),
+        &[CellKind::File, CellKind::Number],
+        &mut absent,
+        &[],
+    );
+    assert_eq!(absent.count.0, 2);
+}

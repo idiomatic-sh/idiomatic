@@ -51,6 +51,19 @@ fn preserves_selector_kinds_duplicates_and_nested_order() {
 }
 
 #[test]
+fn retains_decoded_spec_text_and_explicit_empty_colon() {
+    let parsed = parse("{thing:.{width}q} {plain:} {absent}").expect("valid format");
+    assert_eq!(parsed.fields[0].format_spec.as_deref(), Some(".{width}q"));
+    assert_eq!(
+        parsed.fields[1].context,
+        BraceFieldContext::FormatSpec { parent_ordinal: 0 }
+    );
+    assert_eq!(parsed.fields[1].format_spec, None);
+    assert_eq!(parsed.fields[2].format_spec.as_deref(), Some(""));
+    assert_eq!(parsed.fields[3].format_spec, None);
+}
+
+#[test]
 fn distinguishes_valid_empty_from_malformed_and_digit_keyword() {
     assert!(
         matches!(RuffLiteralBraceFormat::parse("{{}}"), BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
@@ -99,4 +112,18 @@ fn reports_nesting_and_unmatched_braces() {
         parse("x}"),
         Err(BraceFormatError::MissingStartBracket)
     ));
+}
+
+#[test]
+fn full_selector_paths_and_conversions_survive_spec_retention() {
+    let BraceFormatResult::Parsed(parsed) =
+        RuffLiteralBraceFormat::parse("{0.value!s:{width!r:q}}")
+    else {
+        panic!("valid brace grammar");
+    };
+    assert_eq!(parsed.fields[0].selector_text, "0.value");
+    assert_eq!(parsed.fields[0].conversion, Some('s'));
+    assert_eq!(parsed.fields[1].selector_text, "width");
+    assert_eq!(parsed.fields[1].conversion, Some('r'));
+    assert_eq!(parsed.fields[1].format_spec.as_deref(), Some("q"));
 }

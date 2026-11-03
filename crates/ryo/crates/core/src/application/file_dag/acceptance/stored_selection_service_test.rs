@@ -165,7 +165,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             .chain([Arc::clone(&second), Arc::clone(&bad)]),
         source.kinds,
     )?;
-    cache.selection_views = Some(Arc::clone(&views));
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(&mut cache, prepared_views);
+    }
     crate::application::file_dag::derived::indexes::candidate_columns(&mut cache);
     if matches!(scenario, Scenario::Ineligible) {
         cache.eligible.clear();
@@ -278,7 +281,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             FactColumn(vec![888]),
         ];
         let mut fresh = new(&[Relation::Function], &[], LIMIT).unwrap();
-        fresh.selection_views = Some(Arc::clone(&views));
+        {
+            let prepared_views = Arc::clone(&views);
+            crate::application::file_dag::derived::selection::install_views(
+                &mut fresh,
+                prepared_views,
+            );
+        }
         let mut fresh_context = OperatorContext {
             prepared_kinds: None,
             prepared_matchers: None,
@@ -357,10 +366,10 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let class_selector = selector("class");
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
     cache.selectors = vec![Arc::clone(&rare_selector), Arc::clone(&class_selector)];
-    cache.selection_views = Some(request_views(
-        cache.selectors.iter().cloned(),
-        source.kinds,
-    )?);
+    {
+        let prepared_views = request_views(cache.selectors.iter().cloned(), source.kinds)?;
+        crate::application::file_dag::derived::selection::install_views(&mut cache, prepared_views);
+    }
     crate::application::file_dag::derived::indexes::candidate_columns(&mut cache);
     assert!(
         cache
@@ -506,7 +515,10 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     )?;
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
     cache.selectors = selectors.clone();
-    cache.selection_views = Some(Arc::clone(&views));
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(&mut cache, prepared_views);
+    }
     crate::application::file_dag::derived::indexes::candidate_columns(&mut cache);
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
@@ -542,6 +554,20 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     }
     let indexes = context.stored_indexes.as_ref().expect("cache");
     assert_eq!(indexes.fanouts.len(), 1);
+    assert_eq!(
+        indexes.retained_positions,
+        indexes
+            .selections
+            .iter()
+            .map(|entry| entry.rows.capacity())
+            .chain(indexes.fanouts.iter().flat_map(|fanout| {
+                fanout
+                    .literals
+                    .iter()
+                    .map(|posting| posting.rows.capacity())
+            }))
+            .sum::<usize>()
+    );
     assert_eq!(indexes.selection_counts.scanned, 128, "one source pass");
     assert_eq!(indexes.entries.len(), 0, "no whole-column index");
     assert_eq!(actual[0].count.0, 4);
@@ -585,7 +611,13 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     }
     let mut constrained = new(&[Relation::Defines], &[], LIMIT).expect("generation");
     constrained.selectors = selectors.clone();
-    constrained.selection_views = Some(Arc::clone(&views));
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(
+            &mut constrained,
+            prepared_views,
+        );
+    }
     constrained.limit = constrained.bytes;
     let mut budget_context = OperatorContext {
         prepared_kinds: None,
@@ -622,7 +654,13 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         ..source
     };
     let mut complete_empty = new(&[Relation::Defines], &[], LIMIT).expect("generation");
-    complete_empty.selection_views = Some(Arc::clone(&views));
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(
+            &mut complete_empty,
+            prepared_views,
+        );
+    }
     let mut empty_context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
@@ -669,7 +707,13 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         at: None,
     };
     let mut incomplete = new(&[Relation::Defines], &[partial], LIMIT).expect("generation");
-    incomplete.selection_views = Some(Arc::clone(&views));
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(
+            &mut incomplete,
+            prepared_views,
+        );
+    }
     let mut partial_context = OperatorContext {
         prepared_kinds: None,
         prepared_matchers: None,
@@ -731,10 +775,11 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
     let first = selector(vec![absent.clone(), bad.clone()]);
     let reversed = selector(vec![bad, absent]);
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
-    cache.selection_views = Some(request_views(
-        [Arc::clone(&first), Arc::clone(&reversed)],
-        source.kinds,
-    )?);
+    {
+        let prepared_views =
+            request_views([Arc::clone(&first), Arc::clone(&reversed)], source.kinds)?;
+        crate::application::file_dag::derived::selection::install_views(&mut cache, prepared_views);
+    }
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -835,7 +880,10 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
         distinct: false,
     });
     let mut cache = new(&[Relation::Defines], &[], LIMIT).expect("generation");
-    cache.selection_views = Some(request_views([Arc::clone(&selector)], source.kinds)?);
+    {
+        let prepared_views = request_views([Arc::clone(&selector)], source.kinds)?;
+        crate::application::file_dag::derived::selection::install_views(&mut cache, prepared_views);
+    }
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -997,7 +1045,10 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     )?;
     let mut cache = new(&[Relation::Function], &[], LIMIT).expect("generation");
     cache.selectors = vec![Arc::clone(&first), Arc::clone(&second)];
-    cache.selection_views = Some(Arc::clone(&views));
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(&mut cache, prepared_views);
+    }
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
         prepared_kinds: None,
@@ -1048,7 +1099,10 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         FactColumn(Vec::new()),
     ];
     let mut fresh = new(&[Relation::Function], &[], LIMIT).unwrap();
-    fresh.selection_views = Some(Arc::clone(&views));
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(&mut fresh, prepared_views);
+    }
     context.stored_indexes = Some(&mut fresh);
     let empty = ColumnsView {
         columns: &empty_columns,
@@ -1067,7 +1121,17 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
         FactColumn(vec![20]),
     ];
     let mut next_file = new(&[Relation::Function], &[], LIMIT).unwrap();
-    next_file.selection_views = Some(Arc::clone(&views));
+    assert_eq!(
+        next_file.retained_positions, 0,
+        "a new generation retains no prior positions"
+    );
+    {
+        let prepared_views = Arc::clone(&views);
+        crate::application::file_dag::derived::selection::install_views(
+            &mut next_file,
+            prepared_views,
+        );
+    }
     context.stored_indexes = Some(&mut next_file);
     let changed = ColumnsView {
         columns: &changed_columns,

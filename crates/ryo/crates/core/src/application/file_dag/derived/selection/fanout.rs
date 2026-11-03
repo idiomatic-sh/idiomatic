@@ -72,18 +72,7 @@ fn choose(
     }
     // Vec growth can nearly double retained position capacity. Decline before
     // allocating if the worst case could exceed the existing selection slice.
-    let prior_positions = cache
-        .selections
-        .iter()
-        .map(|entry| entry.rows.capacity())
-        .chain(
-            cache
-                .fanouts
-                .iter()
-                .flat_map(|entry| &entry.literals)
-                .map(|entry| entry.rows.capacity()),
-        )
-        .try_fold(0usize, |sum, size| sum.checked_add(size))?;
+    let prior_positions = cache.retained_positions;
     if population.checked_mul(2)? > MAX_RETAINED_POSITION_CAPACITY.checked_sub(prior_positions)? {
         return None;
     }
@@ -178,6 +167,7 @@ pub(super) fn fanout_candidates(
         source_bits,
         literals,
     });
+    cache.retained_positions = capacity;
     cache.bytes = bytes;
     cache.graph_counts.peak_bytes = cache.graph_counts.peak_bytes.max(bytes);
     cache.selection_counts.scanned += population as u64;

@@ -1,5 +1,5 @@
 //! One file generation owns representation descriptors and lazy admission proofs.
-use crate::domain::operating::errors::OperatingError;
+use super::derived::owner::PopulationId;
 use crate::domain::operator::contract::views::BorrowedRows;
 use crate::domain::table_model::collections::representations::{
     publication::PublishedRelation,
@@ -10,15 +10,17 @@ use crate::domain::table_model::{
     service::materialize,
     types::{Rows, SelectedRows, StoredSelection, Table},
 };
+use crate::domain::{file_program::types::NodeId, operating::errors::OperatingError};
 use ryo_language::domain::relations::types::{CellKind, Relation};
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     sync::{Arc, OnceLock},
 };
+mod admission;
 mod identity;
 mod produced;
-pub(super) use produced::ProducedSelection;
+pub(super) use {admission::AdmittedInput, produced::ProducedSelection};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct SourceDescriptor {
@@ -48,6 +50,8 @@ struct SourceViews {
 }
 
 pub(crate) struct RelationOwner {
+    #[cfg(test)]
+    pub(super) identity_checks: Cell<u64>,
     pub(super) derived: super::derived::owner::DerivedOwner,
     next_population: Cell<usize>,
     producer_populations: RefCell<HashMap<usize, usize>>,
@@ -62,6 +66,8 @@ pub(crate) struct RelationOwner {
 impl RelationOwner {
     pub(super) fn new(stable: bool) -> Self {
         Self {
+            #[cfg(test)]
+            identity_checks: Cell::new(0),
             derived: super::derived::owner::DerivedOwner::new(1024),
             next_population: Cell::new(0),
             producer_populations: RefCell::new(HashMap::new()),
@@ -190,11 +196,15 @@ impl RelationOwner {
             Err(OperatingError::NotRead)
         }
     }
-    pub(super) fn matches(&self, result: &RelationResult, input: BorrowedRows<'_>) -> bool {
-        self.generation(result).is_ok()&&(result.normalized.get().is_some_and(|table|matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref())))||match &result.body{
+    fn matches_current(&self, result: &RelationResult, input: BorrowedRows<'_>) -> bool {
+        #[cfg(test)]
+        self.identity_checks.set(self.identity_checks.get() + 1);
+        // publish_selection verifies its source epoch; private fields preserve
+        // that invariant, so the selected chain shares the checked outer epoch.
+        (result.normalized.get().is_some_and(|table|matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref())))||match &result.body{
    RelationBody::Source(source)=>identity::matches(source,input),
    RelationBody::Computed(table)=>matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref())),
-   RelationBody::Selected{selection,source}=>matches!(input,BorrowedRows::Selected{source:actual,positions,columns,kinds}if std::ptr::eq(positions,selection.rows.as_slice())&&columns==selection.columns&&kinds==selection.kinds&&self.matches(source,BorrowedRows::Stored(actual))),
+   RelationBody::Selected{selection,source}=>matches!(input,BorrowedRows::Selected{source:actual,positions,columns,kinds}if std::ptr::eq(positions,selection.rows.as_slice())&&columns==selection.columns&&kinds==selection.kinds&&self.matches_current(source,BorrowedRows::Stored(actual))),
   })
     }
     pub(super) fn resolve<'r, 'f>(
@@ -241,9 +251,40 @@ impl RelationOwner {
         input: BorrowedRows<'_>,
     ) -> Result<PhysicalShape, OperatingError> {
         let result = self.private(result)?;
-        if !self.matches(result, input) {
+        if !self.matches_current(result, input) {
             return Err(OperatingError::NotRead);
         }
+        self.inspect_current(result, input)
+    }
+    pub(super) fn admit<'a>(
+        &self,
+        result: &dyn PublishedRelation,
+        input: BorrowedRows<'a>,
+    ) -> Result<AdmittedInput<'a>, OperatingError> {
+        let result = self.private(result)?;
+        if !self.matches_current(result, input) {
+            return Err(OperatingError::NotRead);
+        }
+        let shape = self.inspect_current(result, input)?;
+        Ok(AdmittedInput {
+            rows: input,
+            shape,
+            origin: Some((
+                self.result_population(result),
+                match &result.body {
+                    RelationBody::Source(source) => Some(source.relation),
+                    _ => None,
+                },
+                Arc::clone(&result.generation),
+            )),
+        })
+    }
+
+    fn inspect_current(
+        &self,
+        result: &RelationResult,
+        input: BorrowedRows<'_>,
+    ) -> Result<PhysicalShape, OperatingError> {
         if result.normalized.get().is_some_and(|table|matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref()))){self.reuses.set(self.reuses.get()+1);return Ok(PhysicalShape::Complete)}
         if result.inspected.get().is_some() {
             self.reuses.set(self.reuses.get() + 1);
@@ -335,7 +376,7 @@ impl RelationOwner {
     /// One canonical DAG producer has one population identity across rules and safe recomputation.
     pub(super) fn bind_producer(
         &self,
-        node: crate::domain::file_program::types::NodeId,
+        node: NodeId,
         result: &RelationResult,
     ) -> Result<(), OperatingError> {
         self.generation(result)?;
@@ -347,32 +388,8 @@ impl RelationOwner {
         let _installed = result.producer.set(id);
         Ok(())
     }
-    pub(super) fn source_relation(
-        &self,
-        result: &RelationResult,
-        input: BorrowedRows<'_>,
-    ) -> Option<Relation> {
-        if self.generation(result).is_err() || !self.matches(result, input) {
-            return None;
-        }
-        match &result.body {
-            RelationBody::Source(source) => Some(source.relation),
-            _ => None,
-        }
-    }
-    pub(super) fn population_id(
-        &self,
-        result: &RelationResult,
-        input: BorrowedRows<'_>,
-    ) -> Result<super::derived::owner::PopulationId, OperatingError> {
-        self.generation(result)?;
-        if !self.matches(result, input) || self.inspect(result, input)? != PhysicalShape::Complete {
-            return Err(OperatingError::ShapeMismatch);
-        }
-        Ok(self.result_population(result))
-    }
-    fn result_population(&self, result: &RelationResult) -> super::derived::owner::PopulationId {
-        super::derived::owner::PopulationId(*result.producer.get().unwrap_or(&result.population))
+    fn result_population(&self, result: &RelationResult) -> PopulationId {
+        PopulationId(*result.producer.get().unwrap_or(&result.population))
     }
     pub(super) fn pin_derived(&self, result: &RelationResult) {
         self.derived.pin(self.result_population(result));

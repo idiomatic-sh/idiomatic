@@ -39,6 +39,11 @@ pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Op
     let bytes = size_of::<FileIndexes>()
         .checked_add(eligible.capacity().checked_mul(size_of::<Relation>())?)?;
     (bytes <= limit).then_some(FileIndexes {
+        #[cfg(test)]
+        selector_descriptor: None,
+        selector_repetition: Vec::new(),
+        selector_repetition_failed: false,
+        retained_positions: 0,
         selection_views: None,
         graph_enabled: false,
         graph_bytes: 0,

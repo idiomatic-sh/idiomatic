@@ -1,4 +1,13 @@
 //! The application owns each invocation's mutable allocations and release boundary.
+use super::relations::AdmittedInput;
+use crate::domain::{
+    derived_views::types::{DerivedStorage, PreparedViewUse},
+    operating::{errors::OperatingError, types::OperatorContext},
+    operator::contract::views::BorrowedRows,
+    stored_indexes::types::FileIndexes,
+};
+use std::sync::Arc;
+
 use crate::domain::operator::contract::{
     axis::AxisWorkspace,
     graph::{CycleMarks, DfsWorkspace},
@@ -13,7 +22,7 @@ pub(crate) struct InvocationWorkspace {
     pub derived_local: super::derived::owner::DerivedOwner,
     pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
     pub relation_owner: Option<std::rc::Rc<super::relations::RelationOwner>>,
-    pub publications: Vec<Option<std::sync::Arc<super::relations::RelationResult>>>,
+    pub publications: Vec<Option<Arc<super::relations::RelationResult>>>,
     #[cfg(test)]
     pub observation: crate::domain::operating::types::ExecutionObservation,
     pub downstream_scratch: crate::domain::table_scratch::types::OperatorScratch,
@@ -40,11 +49,7 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
-    pub(super) fn reclaim_derived(
-        &self,
-        cache: &mut crate::domain::stored_indexes::types::FileIndexes,
-        cost: usize,
-    ) {
+    pub(super) fn reclaim_derived(&self, cache: &mut FileIndexes, cost: usize) {
         self.derived_local.reclaim_optional(cache, cost);
         if let Some(owner) = &self.relation_owner {
             owner.derived.reclaim_optional(cache, cost);
@@ -87,6 +92,7 @@ impl InvocationWorkspace {
 
 impl InvocationWorkspace {
     pub(super) fn capture(&mut self, feed: &dyn super::feed::Feed<'_>, count: usize) {
+        self.derived_local.clear();
         self.relation_owner = feed.relation_owner();
         self.publications.clear();
         self.publications.extend(
@@ -97,29 +103,18 @@ impl InvocationWorkspace {
         &self,
         place: usize,
         rows: crate::domain::table_model::types::Rows<'_>,
-    ) -> Option<
-        Result<
-            Option<std::sync::Arc<crate::domain::table_model::types::Table>>,
-            crate::domain::operating::errors::OperatingError,
-        >,
-    > {
+    ) -> Option<Result<Option<Arc<crate::domain::table_model::types::Table>>, OperatingError>> {
         let (owner, record) = self
             .relation_owner
             .as_ref()
             .zip(self.publications.get(place)?.as_ref())?;
-        if !owner.matches(
-            record,
-            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-        ) {
-            return None;
-        }
         Some(owner.normalized(record.as_ref(), rows))
     }
     pub(super) fn proven(
         &self,
         place: usize,
-        input: crate::domain::operator::contract::views::BorrowedRows<'_>,
-    ) -> Result<bool, crate::domain::operating::errors::OperatingError> {
+        input: BorrowedRows<'_>,
+    ) -> Result<bool, OperatingError> {
         let Some((owner, record)) = self
             .relation_owner
             .as_ref()
@@ -127,16 +122,13 @@ impl InvocationWorkspace {
         else {
             return Ok(false);
         };
-        if !owner.matches(record, input) {
-            return Ok(false);
-        }
-        Ok(owner.inspect(record.as_ref(),input)?==crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)
+        Ok(owner.inspect(record.as_ref(), input)? == crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)
     }
     pub(super) fn validate(
         &self,
         place: usize,
-        input: crate::domain::operator::contract::views::BorrowedRows<'_>,
-    ) -> Result<(), crate::domain::operating::errors::OperatingError> {
+        input: BorrowedRows<'_>,
+    ) -> Result<(), OperatingError> {
         if self.proven(place, input)? {
             Ok(())
         } else {
@@ -145,111 +137,226 @@ impl InvocationWorkspace {
     }
 }
 
-impl InvocationWorkspace {
+/// Sources are supplied only by admitted inputs, never independently by a view caller.
+pub(super) enum ViewInputs<'a, 's> {
+    Rows,
+    MembershipValues,
+    MembershipNative,
+    Text(&'a crate::domain::table_texts::types::Texts<'a>),
+    Dfs {
+        symbols: &'a mut ryo_language::domain::symbols::types::QuerySymbols<'s>,
+        source: crate::domain::table_texts::types::SourceView<'a>,
+        paths: &'a [ryo_language::domain::files::types::FilePath],
+        arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
+    },
+}
+/// One immutable demand scope, not a retained cache. At most three registered
+/// operator inputs are held; only demanded slots acquire a proof.
+pub(super) struct InputAdmissions<'a, 'f> {
+    workspace: &'a InvocationWorkspace,
+    inputs: &'a [BorrowedRows<'f>],
+    proofs: [std::cell::OnceCell<AdmittedInput<'f>>; 3],
+}
+impl<'a, 'f> InputAdmissions<'a, 'f> {
+    pub(super) fn input(&self, place: usize) -> Result<BorrowedRows<'f>, OperatingError> {
+        self.inputs
+            .get(place)
+            .copied()
+            .ok_or(OperatingError::MissingInput {
+                position: place + 1,
+            })
+    }
+    pub(super) fn rows(&self, place: usize) -> Result<BorrowedRows<'f>, OperatingError> {
+        Ok(self.proof(place)?.rows())
+    }
+    fn proof(&self, place: usize) -> Result<&AdmittedInput<'f>, OperatingError> {
+        use OperatingError;
+        let cell = self
+            .proofs
+            .get(place)
+            .ok_or(OperatingError::WrongOperation)?;
+        if cell.get().is_none() {
+            let rows = *self.inputs.get(place).ok_or(OperatingError::MissingInput {
+                position: place + 1,
+            })?;
+            cell.set(self.workspace.admit(place, rows)?)
+                .map_err(|_| OperatingError::WrongOperation)?;
+        }
+        Ok(cell.get().expect("admitted demanded input"))
+    }
     pub(super) fn acquire_rows(
         &self,
-        use_: &crate::domain::derived_views::types::PreparedViewUse,
-        inputs: &[crate::domain::operator::contract::views::BorrowedRows<'_>],
-        context: &mut crate::domain::operating::types::OperatorContext<'_>,
-    ) -> Result<
-        std::sync::Arc<crate::domain::derived_views::types::DerivedStorage>,
-        crate::domain::operating::errors::OperatingError,
-    > {
-        if !(1..=2).contains(&use_.len) {
-            return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
-        }
-        let mut rows = [crate::domain::operator::contract::views::BorrowedRows::Computed(
-            &EMPTY_DERIVED_INPUT,
-        ); 2];
-        for at in 0..usize::from(use_.len) {
-            let place = use_.inputs[at];
-            rows[at] = *inputs.get(place).ok_or(
-                crate::domain::operating::errors::OperatingError::MissingInput {
-                    position: place + 1,
-                },
-            )?;
-        }
+        use_: &PreparedViewUse,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<Arc<DerivedStorage>, OperatingError> {
         self.acquire_derived(
             use_,
-            inputs,
             super::derived::owner::ViewContext::default(),
-            crate::domain::derived_views::types::DerivedInputs::Rows(
-                &rows[..usize::from(use_.len)],
-            ),
+            ViewInputs::Rows,
             context.stored_indexes.as_deref_mut(),
         )
     }
     pub(super) fn acquire_derived(
         &self,
-        use_: &crate::domain::derived_views::types::PreparedViewUse,
-        inputs: &[crate::domain::operator::contract::views::BorrowedRows<'_>],
+        use_: &PreparedViewUse,
         identity: super::derived::owner::ViewContext,
-        supplied: crate::domain::derived_views::types::DerivedInputs<'_, '_>,
-        cache: Option<&mut crate::domain::stored_indexes::types::FileIndexes>,
-    ) -> Result<
-        std::sync::Arc<crate::domain::derived_views::types::DerivedStorage>,
-        crate::domain::operating::errors::OperatingError,
-    > {
-        use super::derived::owner::PopulationId;
-        if !(1..=2).contains(&use_.len) {
-            return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+        supplied: ViewInputs<'_, '_>,
+        cache: Option<&mut FileIndexes>,
+    ) -> Result<Arc<DerivedStorage>, OperatingError> {
+        self.workspace
+            .acquire_admitted(use_, self, identity, supplied, cache)
+    }
+}
+impl InvocationWorkspace {
+    pub(super) fn inputs<'a, 'f>(
+        &'a self,
+        inputs: &'a [BorrowedRows<'f>],
+    ) -> InputAdmissions<'a, 'f> {
+        InputAdmissions {
+            workspace: self,
+            inputs,
+            proofs: std::array::from_fn(|_| std::cell::OnceCell::new()),
         }
+    }
+    fn admit<'a>(
+        &self,
+        place: usize,
+        rows: BorrowedRows<'a>,
+    ) -> Result<AdmittedInput<'a>, OperatingError> {
+        if let Some((owner, record)) = self
+            .relation_owner
+            .as_ref()
+            .zip(self.publications.get(place).and_then(Option::as_ref))
+        {
+            owner.admit(record.as_ref(), rows)
+        } else {
+            AdmittedInput::invocation(rows)
+        }
+    }
+    pub(super) fn acquire_rows(
+        &self,
+        use_: &PreparedViewUse,
+        inputs: &[BorrowedRows<'_>],
+        context: &mut OperatorContext<'_>,
+    ) -> Result<Arc<DerivedStorage>, OperatingError> {
+        self.inputs(inputs).acquire_rows(use_, context)
+    }
+    fn acquire_admitted(
+        &self,
+        use_: &PreparedViewUse,
+        inputs: &InputAdmissions<'_, '_>,
+        identity: super::derived::owner::ViewContext,
+        supplied: ViewInputs<'_, '_>,
+        cache: Option<&mut FileIndexes>,
+    ) -> Result<Arc<DerivedStorage>, OperatingError> {
+        use super::derived::owner::PopulationId;
+        use crate::domain::{
+            derived_views::types::{DerivedInputs, DerivedKind, MembershipSpace},
+            operating::errors::OperatingError,
+            operator::contract::views::BorrowedRows,
+        };
+        let count = usize::from(use_.len);
+        if !(1..=2).contains(&count) {
+            return Err(OperatingError::WrongOperation);
+        }
+        if count < 2
+            && matches!(
+                &supplied,
+                ViewInputs::MembershipNative | ViewInputs::Dfs { .. }
+            )
+        {
+            return Err(OperatingError::MissingInput { position: 2 });
+        }
+        let mut proofs: [Option<&AdmittedInput<'_>>; 2] = [None, None];
         let mut populations = [PopulationId(0); 2];
+        let mut relations = [None; 2];
         let mut shared = self.relation_owner.is_some();
-        for at in 0..usize::from(use_.len) {
+        for at in 0..count {
             let place = use_.inputs[at];
-            let input = *inputs.get(place).ok_or(
-                crate::domain::operating::errors::OperatingError::MissingInput {
-                    position: place + 1,
-                },
-            )?;
-            self.validate(place, input)?;
-            if let Some((owner, publication)) = self
+            let proof = inputs.proof(place)?;
+            let identity = self
                 .relation_owner
                 .as_ref()
-                .zip(self.publications.get(place).and_then(Option::as_ref))
-            {
-                if owner.matches(publication, input) {
-                    populations[at] = owner.population_id(publication, input)?;
-                    continue;
+                .map(|owner| proof.identity(owner))
+                .transpose()?
+                .flatten();
+            if let Some((population, relation)) = identity {
+                populations[at] = population;
+                relations[at] = relation;
+            } else {
+                shared = false;
+            }
+            proofs[at] = Some(proof);
+        }
+        // An invocation-local acquisition never mixes canonical IDs with slot IDs.
+        if !shared {
+            for at in 0..count {
+                populations[at] = PopulationId(use_.inputs[at]);
+            }
+        }
+        let rows = [
+            proofs[0].as_ref().expect("first admitted input").rows(),
+            proofs[1]
+                .as_ref()
+                .map_or(BorrowedRows::Computed(&EMPTY_DERIVED_INPUT), |proof| {
+                    proof.rows()
+                }),
+        ];
+        let supplied = match supplied {
+            ViewInputs::Rows => DerivedInputs::Rows(&rows[..count]),
+            ViewInputs::Text(texts) => DerivedInputs::Text {
+                rows: &rows[..count],
+                texts,
+            },
+            ViewInputs::MembershipValues => DerivedInputs::Membership {
+                rows: rows[0],
+                space: MembershipSpace::Values,
+            },
+            ViewInputs::MembershipNative => {
+                let BorrowedRows::Tree(tree) = rows[1] else {
+                    return Err(OperatingError::WrongOperation);
+                };
+                DerivedInputs::Membership {
+                    rows: rows[0],
+                    space: MembershipSpace::Native(tree),
                 }
             }
-            shared = false;
-            populations[at] = PopulationId(place);
-        }
-        let owner = if shared {
-            &self
-                .relation_owner
-                .as_ref()
-                .expect("admitted owner")
-                .derived
-        } else {
-            &self.derived_local
+            ViewInputs::Dfs {
+                symbols,
+                source,
+                paths,
+                arenas,
+            } => DerivedInputs::Dfs {
+                roots: rows[0],
+                edges: rows[1],
+                symbols,
+                source,
+                paths,
+                arenas,
+            },
         };
-        let stored = if use_.plan.kind == crate::domain::derived_views::types::DerivedKind::Equality
-            && use_.len == 1
-        {
-            let place = use_.inputs[0];
-            match inputs[place] {
-                crate::domain::operator::contract::views::BorrowedRows::Stored(source) => {
-                    let relation = use_.relations[0].or_else(|| {
-                        self.relation_owner
-                            .as_ref()
-                            .zip(self.publications.get(place).and_then(Option::as_ref))
-                            .and_then(|(owner, publication)| {
-                                owner.source_relation(publication, inputs[place])
-                            })
-                    });
-                    relation.map(|relation| (relation, source))
-                }
+        let stored = if use_.plan.kind == DerivedKind::Equality && count == 1 {
+            match rows[0] {
+                BorrowedRows::Stored(source) => relations[0]
+                    .or(use_.relations[0])
+                    .map(|relation| (relation, source)),
                 _ => None,
             }
         } else {
             None
         };
+        let owner = if shared {
+            &self
+                .relation_owner
+                .as_ref()
+                .expect("admitted shared owner")
+                .derived
+        } else {
+            &self.derived_local
+        };
         owner.acquire_stored(
             &use_.plan,
-            &populations[..usize::from(use_.len)],
+            &populations[..count],
             identity,
             supplied,
             &mut self.derived_scratch.borrow_mut(),
@@ -258,9 +365,12 @@ impl InvocationWorkspace {
         )
     }
 }
-
 static EMPTY_DERIVED_INPUT: Table = Table {
     kinds: Vec::new(),
     cells: Vec::new(),
     count: crate::domain::table_model::types::RowCount(0),
 };
+
+#[cfg(test)]
+#[path = "workspace_test.rs"]
+mod tests;

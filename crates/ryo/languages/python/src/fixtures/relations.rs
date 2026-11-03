@@ -29,6 +29,12 @@ mod function_terminal {
     include!("../../tests/fixtures/relations/function_terminal/expected.rs");
 }
 /// Decoded text fragments are scoped to their owning f-string.
+mod format_specification {
+    include!("../../tests/fixtures/relations/format_specification/expected.rs");
+}
+mod bytes_literal {
+    include!("../../tests/fixtures/relations/bytes_literal/expected.rs");
+}
 mod interpolated_string_literal {
     include!("../../tests/fixtures/relations/interpolated_string_literal/expected.rs");
 }
@@ -178,6 +184,8 @@ pub(super) fn expected() -> Vec<Expected> {
         expression_type::expected(),
         function_terminal::expected(),
         interpolated_string_literal::expected(),
+        bytes_literal::expected(),
+        format_specification::expected(),
         language_target::expected(),
         compiler_feature::expected(),
         constant_key::expected(),
