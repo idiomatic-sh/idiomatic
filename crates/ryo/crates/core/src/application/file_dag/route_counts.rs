@@ -63,6 +63,8 @@ struct State {
     counts: HashMap<Key, Count>,
     overflow: u64,
     rules: HashMap<usize, String>,
+    #[cfg(feature = "diagnostic-row-progress")]
+    progress: ProgressState,
 }
 thread_local! { static STATE: RefCell<Option<State>> = const { RefCell::new(None) }; }
 
@@ -73,6 +75,9 @@ impl FileScope {
     pub(crate) fn begin(file: usize) -> Self {
         let enabled =
             tracing::enabled!(target: "ryo::diagnostic::resource_routes", tracing::Level::TRACE);
+        #[cfg(feature = "diagnostic-row-progress")]
+        let enabled = enabled
+            || tracing::enabled!(target: "ryo::diagnostic::row_progress", tracing::Level::TRACE);
         let active = enabled
             && STATE.with_borrow_mut(|state| {
                 if let Some(parent) = state {
@@ -87,6 +92,8 @@ impl FileScope {
                     counts: HashMap::new(),
                     overflow: 0,
                     rules: HashMap::new(),
+                    #[cfg(feature = "diagnostic-row-progress")]
+                    progress: ProgressState::new(),
                 });
                 true
             });
@@ -98,7 +105,13 @@ impl Drop for FileScope {
         if !self.active {
             return;
         }
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress_flush("file_end");
         if let Some(state) = STATE.with_borrow_mut(Option::take) {
+            if !tracing::enabled!(target: "ryo::diagnostic::resource_routes", tracing::Level::TRACE)
+            {
+                return;
+            }
             let mut rows = state.counts.into_iter().collect::<Vec<_>>();
             rows.sort_by_key(|(key, _)| {
                 (
@@ -303,3 +316,232 @@ pub(crate) fn representation(
 #[cfg(test)]
 #[path = "route_counts_test.rs"]
 mod tests;
+
+#[cfg(feature = "diagnostic-row-progress")]
+struct ProgressState {
+    started: std::time::Instant,
+    last: std::time::Instant,
+    ticks: u64,
+    name: String,
+    nodes: HashMap<usize, String>,
+    inputs: HashMap<(Option<usize>, Option<usize>, usize), usize>,
+}
+#[cfg(feature = "diagnostic-row-progress")]
+impl ProgressState {
+    fn new() -> Self {
+        let now = std::time::Instant::now();
+        Self {
+            started: now,
+            last: now,
+            ticks: 0,
+            name: String::new(),
+            nodes: HashMap::new(),
+            inputs: HashMap::new(),
+        }
+    }
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn file_name(name: &str) {
+    STATE.with_borrow_mut(|state| {
+        if let Some(state) = state {
+            state.progress.name = name.to_owned();
+        }
+    });
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn input_cardinality(which: usize, rows: usize) {
+    STATE.with_borrow_mut(|state| {
+        let Some(state) = state else {
+            return;
+        };
+        let key = (state.origin.rule, state.origin.node, which);
+        if state.progress.inputs.contains_key(&key) || state.progress.inputs.len() < MAX_KEYS {
+            state.progress.inputs.insert(key, rows);
+        } else {
+            state.overflow += 1;
+        }
+    });
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn node_description(operation: &ryo_values::domain::plans::types::Operation) {
+    STATE.with_borrow_mut(|state| {
+        let Some(state) = state else {
+            return;
+        };
+        let Some(node) = state.origin.node else {
+            return;
+        };
+        if !state.progress.nodes.contains_key(&node) && state.progress.nodes.len() < MAX_KEYS {
+            let text = format!("{operation:?}");
+            state
+                .progress
+                .nodes
+                .insert(node, text.chars().take(8192).collect());
+        }
+    });
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) fn progress(
+    counter: crate::domain::operator::contract::views::ProgressCounter,
+    amount: u64,
+) {
+    use crate::domain::operator::contract::views::ProgressCounter;
+    let label = match counter {
+        ProgressCounter::InputRows => "input_rows",
+        ProgressCounter::EmittedRows => "emitted_rows",
+        ProgressCounter::PredicateEvaluations => "predicate_evaluations",
+        ProgressCounter::IndexProbes => "index_probes",
+        ProgressCounter::IndexRowsExamined => "index_chain_rows_examined",
+        ProgressCounter::EqualityMatches => "equality_matches",
+        ProgressCounter::JoinCandidatePairs => "join_candidate_pairs",
+    };
+    let flush = STATE.with_borrow_mut(|state| {
+        let Some(state) = state else {
+            return false;
+        };
+        let key = Key {
+            origin: state.origin,
+            route: "row_progress",
+            family: label,
+        };
+        if !state.counts.contains_key(&key) && state.counts.len() == MAX_KEYS {
+            state.overflow += amount;
+        } else {
+            state.counts.entry(key).or_default().calls += amount;
+        }
+        state.progress.ticks += amount;
+        if state.progress.ticks == amount
+            || (state.progress.ticks & 4095 == 0 && state.progress.last.elapsed().as_secs() >= 1)
+        {
+            state.progress.last = std::time::Instant::now();
+            true
+        } else {
+            false
+        }
+    });
+    if flush {
+        progress_flush("progress");
+    }
+}
+#[cfg(feature = "diagnostic-row-progress")]
+fn progress_flush(stage: &'static str) {
+    let snapshot = STATE.with_borrow(|state| {
+        let state = state.as_ref()?;
+        let mut rows = state
+            .counts
+            .iter()
+            .filter(|(key, _)| key.route == "row_progress")
+            .collect::<Vec<_>>();
+        rows.sort_by_key(|(key, count)| {
+            (
+                std::cmp::Reverse(count.calls),
+                key.origin.rule,
+                key.origin.node,
+                key.family,
+            )
+        });
+        let mut current = [0_u64; 7];
+        let labels = [
+            "input_rows",
+            "emitted_rows",
+            "predicate_evaluations",
+            "index_probes",
+            "index_chain_rows_examined",
+            "equality_matches",
+            "join_candidate_pairs",
+        ];
+        for (key, count) in &state.counts {
+            if key.route == "row_progress"
+                && key.origin.rule == state.origin.rule
+                && key.origin.node == state.origin.node
+            {
+                if let Some(i) = labels.iter().position(|label| *label == key.family) {
+                    current[i] += count.calls;
+                }
+            }
+        }
+        let mut current_json = String::from("{");
+        for (i, label) in labels.iter().enumerate() {
+            if i != 0 {
+                current_json.push(',');
+            }
+            write!(&mut current_json, "\"{label}\":{}", current[i]).expect("String write");
+        }
+        current_json.push('}');
+        let input_cardinalities: [Option<usize>; 3] = std::array::from_fn(|which| {
+            state
+                .progress
+                .inputs
+                .get(&(state.origin.rule, state.origin.node, which))
+                .copied()
+        });
+        let operation = state
+            .origin
+            .node
+            .and_then(|n| state.progress.nodes.get(&n))
+            .cloned()
+            .unwrap_or_default();
+        let mut hottest = String::from("[");
+        for (i, (key, count)) in rows.into_iter().take(16).enumerate() {
+            if i != 0 {
+                hottest.push(',');
+            }
+            write!(
+                &mut hottest,
+                "{{\"rule\":{},\"node\":{},\"counter\":\"{}\",\"count\":{},\"rule_name\":",
+                key.origin
+                    .rule
+                    .map_or_else(|| "null".into(), |n| n.to_string()),
+                key.origin
+                    .node
+                    .map_or_else(|| "null".into(), |n| n.to_string()),
+                key.family,
+                count.calls
+            )
+            .expect("String write");
+            json_string(
+                &mut hottest,
+                key.origin
+                    .rule
+                    .and_then(|r| state.rules.get(&r))
+                    .map_or("<none>", String::as_str),
+            );
+            hottest.push('}');
+        }
+        hottest.push(']');
+        Some((
+            state.file,
+            state.progress.name.clone(),
+            state.origin,
+            state
+                .origin
+                .rule
+                .and_then(|r| state.rules.get(&r))
+                .cloned()
+                .unwrap_or_default(),
+            state.progress.started.elapsed().as_millis() as u64,
+            state.progress.ticks,
+            state.overflow,
+            hottest,
+            current_json,
+            operation,
+            input_cardinalities,
+        ))
+    });
+    if let Some((
+        file,
+        path,
+        origin,
+        rule,
+        elapsed_ms,
+        ticks,
+        overflow,
+        hottest,
+        current,
+        operation,
+        input_cardinalities,
+    )) = snapshot
+    {
+        tracing::trace!(target: "ryo::diagnostic::row_progress", event = "row_progress", stage, file, path, rule, rule_index = ?origin.rule, node = ?origin.node, consumer = ?origin.consumer, elapsed_ms, ticks, overflow, hottest = %hottest, counters = %current, operation, input_cardinalities = ?input_cardinalities);
+    }
+}

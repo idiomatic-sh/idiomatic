@@ -88,7 +88,9 @@ fn subscriber_with_aggregates(
         aggregate_level
     };
     let writer = DiagnosticEventWriter::create(path)?;
-    let include_steps = std::env::var_os("RYO_DIAGNOSTIC_STEPS").is_none_or(|value| value != "0")
+    let progress_only = std::env::var_os("RYO_DIAGNOSTIC_ROW_PROGRESS").is_some_and(|v| v == "1");
+    let include_steps = !progress_only
+        && std::env::var_os("RYO_DIAGNOSTIC_STEPS").is_none_or(|value| value != "0")
         && !lifecycle_only;
     let include_joins = std::env::var_os("RYO_DIAGNOSTIC_JOINS").is_some_and(|value| value == "1")
         && !lifecycle_only;
@@ -116,6 +118,14 @@ fn subscriber_with_aggregates(
                         tracing_subscriber::filter::LevelFilter::OFF
                     },
                 )
+                .with_target(
+                    "ryo::diagnostic::row_progress",
+                    if std::env::var_os("RYO_DIAGNOSTIC_ROW_PROGRESS").is_some_and(|v| v == "1") {
+                        tracing_subscriber::filter::LevelFilter::TRACE
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    },
+                )
                 .with_target(EXECUTION_TARGET, aggregate_level)
                 .with_target(SELECTION_TARGET, aggregate_level)
                 .with_target(
@@ -133,7 +143,7 @@ fn subscriber_with_aggregates(
                 .with_target(LIFECYCLE_TARGET, lifecycle_level)
                 .with_target(
                     RULE_FILE_TARGET,
-                    if lifecycle_only {
+                    if lifecycle_only || progress_only {
                         tracing_subscriber::filter::LevelFilter::OFF
                     } else {
                         tracing_subscriber::filter::LevelFilter::TRACE

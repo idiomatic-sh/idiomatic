@@ -28,6 +28,13 @@ impl JoinDriver for IndexedDriver<'_, '_, '_> {
         }
         let probe = self.probe.get_or_insert_with(|| self.index.probe(key));
         self.current = self.index.next_match(key, probe);
+        #[cfg(feature = "diagnostic-row-progress")]
+        if self.current.is_some() {
+            (self.index.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                1,
+            );
+        }
         if let (Some(row), BorrowedRows::Computed(table)) = (self.current, self.index.rows)
             && row_in(table, row).is_none()
         {

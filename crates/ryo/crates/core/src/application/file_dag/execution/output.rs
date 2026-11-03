@@ -37,6 +37,11 @@ impl<'a> Headers<'a> {
         memo: &mut Vec<Memo>,
         row: &[Value],
     ) -> Result<(), OperatingError> {
+        #[cfg(feature = "diagnostic-row-progress")]
+        crate::application::file_dag::route_counts::progress(
+            crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+            1,
+        );
         let mut downstream = OperatorContext {
             semantic: None,
             prepared_matchers: self.prepared_matchers,

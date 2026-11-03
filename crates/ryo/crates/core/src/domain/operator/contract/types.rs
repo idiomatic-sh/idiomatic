@@ -315,6 +315,11 @@ pub(crate) struct PrimitiveLease<'a> {
 /// Borrowed portable primitive meanings; the application supplies the implementation.
 /// No outbound adapter, cache owner or scheduler is reachable from a primitive.
 pub(crate) trait PrimitiveSemantics: Sync {
+    #[cfg(feature = "diagnostic-row-progress")]
+    fn progress(&self) -> super::views::ProgressObserver {
+        |_, _| {}
+    }
+
     fn operators(
         &self,
         call: ryo_operators::domain::contract::types::OperatorCall<'_>,
@@ -377,6 +382,15 @@ pub(crate) trait PredicateProgram {
     ) -> Result<crate::domain::table_model::types::Verdict, OperatingError>;
 }
 impl<'a> PrimitiveLease<'a> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(crate) fn progress(
+        &self,
+        counter: crate::domain::operator::contract::views::ProgressCounter,
+        amount: u64,
+    ) {
+        (self.semantics.progress())(counter, amount);
+    }
+
     /// Copy the request-lived semantic port before borrowing this lease for row delivery.
     pub(crate) fn semantics(&self) -> &'a dyn PrimitiveSemantics {
         self.semantics

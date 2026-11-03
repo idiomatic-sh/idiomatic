@@ -169,6 +169,8 @@ impl FileDagExecution {
         }
         let graph = (self.graph).clone();
         let node = &graph.nodes[id.0];
+        #[cfg(feature = "diagnostic-row-progress")]
+        super::route_counts::node_description(&node.operation);
         if crate::domain::features::service::kind_of(&node.operation) != node.contract.kind {
             return Err(OperatingError::WrongOperation);
         }
@@ -315,7 +317,7 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
     where
         'a: 't,
     {
-        match self
+        let rows = match self
             .inputs
             .get(which.0)
             .copied()
@@ -343,7 +345,13 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
                 let table = slot.get().ok_or(OperatingError::NotRun)?;
                 self.execution.relations.resolve(table.as_ref(), self.read)
             }
-        }
+        }?;
+        #[cfg(feature = "diagnostic-row-progress")]
+        super::route_counts::input_cardinality(
+            which.0,
+            crate::domain::table_model::service::count_of(&rows).0,
+        );
+        Ok(rows)
     }
     fn stream(
         &mut self,
@@ -364,6 +372,11 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
                 let raw = (self.read)(relation)?;
                 let record = self.execution.relations.source(relation, &raw)?;
                 let rows = self.execution.relations.normalize(&record, raw)?;
+                #[cfg(feature = "diagnostic-row-progress")]
+                super::route_counts::input_cardinality(
+                    which.0,
+                    crate::domain::table_model::service::count_of(&rows).0,
+                );
                 scan(&rows, &mut row, context, emit)
             }
             NodeInput::Node(node) => {
@@ -376,15 +389,16 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
                     let _installed = slot.set(table);
                 }
                 let table = slot.get().ok_or(OperatingError::NotRun)?;
-                scan(
-                    &self
-                        .execution
-                        .relations
-                        .resolve(table.as_ref(), self.read)?,
-                    &mut row,
-                    context,
-                    emit,
-                )
+                let rows = self
+                    .execution
+                    .relations
+                    .resolve(table.as_ref(), self.read)?;
+                #[cfg(feature = "diagnostic-row-progress")]
+                super::route_counts::input_cardinality(
+                    which.0,
+                    crate::domain::table_model::service::count_of(&rows).0,
+                );
+                scan(&rows, &mut row, context, emit)
             }
         }
     }

@@ -24,6 +24,11 @@ pub(crate) struct BoundPredicate<'a> {
 }
 impl PredicateProgram for BoundPredicate<'_> {
     fn holds(&mut self, row: &[Value], symbols: &Symbols) -> Result<Verdict, OperatingError> {
+        #[cfg(feature = "diagnostic-row-progress")]
+        super::route_counts::progress(
+            crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
+            1,
+        );
         if !self.program.comparisons.is_empty() && row.len() != self.program.kinds.len() {
             return Err(OperatingError::ShapeMismatch);
         }

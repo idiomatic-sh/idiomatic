@@ -600,6 +600,11 @@ pub(super) struct PrimitiveSemanticsBridge<'a> {
 }
 
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    fn progress(&self) -> crate::domain::operator::contract::views::ProgressObserver {
+        super::route_counts::progress
+    }
+
     fn operators(
         &self,
         call: ryo_operators::domain::contract::types::OperatorCall<'_>,

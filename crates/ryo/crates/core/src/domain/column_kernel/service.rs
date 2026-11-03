@@ -224,11 +224,18 @@ pub(crate) fn execute_with_index(
     let hits = std::cell::Cell::new(0_u64);
     let emitted = std::cell::Cell::new(0_u64);
     let indexed = IndexedRows {
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: semantics.progress(),
         rows: BorrowedRows::Stored(right_source),
         columns: &chain.right_on,
         index,
     };
     for position in 0..left_count {
+        #[cfg(feature = "diagnostic-row-progress")]
+        (semantics.progress())(
+            crate::domain::operator::contract::views::ProgressCounter::InputRows,
+            1,
+        );
         let left_row = RowIndex(position);
         let reader = driver::Left {
             rows: left,

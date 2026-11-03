@@ -62,6 +62,8 @@ impl<'f> IndexResource<'f> {
                     unreachable!("prepared equality")
                 };
                 IndexedRows {
+                    #[cfg(feature = "diagnostic-row-progress")]
+                    progress: crate::application::file_dag::route_counts::progress,
                     rows: *rows,
                     columns,
                     index,
@@ -74,6 +76,8 @@ impl<'f> IndexResource<'f> {
                     unreachable!("prepared empty equality")
                 };
                 IndexedRows {
+                    #[cfg(feature = "diagnostic-row-progress")]
+                    progress: crate::application::file_dag::route_counts::progress,
                     rows: *rows,
                     columns,
                     index,

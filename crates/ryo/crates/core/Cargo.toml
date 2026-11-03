@@ -63,6 +63,7 @@ path = "benches/performance.rs"
 harness = false
 
 [features]
+diagnostic-row-progress = []
 fixtures = ["dep:dhat", "ryo_language/fixtures", "ryo_values/fixtures"]
 
 [lints]

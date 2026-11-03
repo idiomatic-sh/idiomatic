@@ -54,6 +54,11 @@ impl Driver<'_, '_> {
             }
             while let Some(position) = self.positions.get(self.at).copied() {
                 self.at += 1;
+                #[cfg(feature = "diagnostic-row-progress")]
+                self.lease.progress(
+                    crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                    1,
+                );
                 if self.filtered {
                     let row = std::array::from_fn::<_, 5, _>(|at| {
                         tree_value(
@@ -75,6 +80,13 @@ impl Driver<'_, '_> {
         let index = self.index.ok_or(OperatingError::NotRun)?;
         let probe = self.probe.get_or_insert_with(|| index.probe(key));
         self.current = index.next_match(key, probe);
+        #[cfg(feature = "diagnostic-row-progress")]
+        if self.current.is_some() {
+            self.lease.progress(
+                crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                1,
+            );
+        }
         Ok(self.current.is_some())
     }
 }

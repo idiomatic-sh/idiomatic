@@ -54,6 +54,8 @@ impl Work {
 }
 
 struct Pairs<'a, 'f, 'c> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     right: &'a Rows<'f>,
     rows: &'a [(RowIndex, RowIndex)],
     at: usize,
@@ -70,6 +72,13 @@ impl JoinDriver for Pairs<'_, '_, '_> {
         }
         self.current = self.rows.get(self.at).map(|(_, right)| *right);
         self.at += usize::from(self.current.is_some());
+        #[cfg(feature = "diagnostic-row-progress")]
+        if self.current.is_some() {
+            (self.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                1,
+            );
+        }
         Ok(self.current.is_some())
     }
     fn right_cell(&self, column: ColumnIndex) -> Option<Value> {
@@ -185,7 +194,14 @@ fn sparse_left(
         let Some(left_row) = read_row(left, left_at, &mut work.left_row) else {
             return Some(Err(OperatingError::ShapeMismatch));
         };
+        #[cfg(feature = "diagnostic-row-progress")]
+        (semantics.progress())(
+            crate::domain::operator::contract::views::ProgressCounter::InputRows,
+            1,
+        );
         let mut driver = Pairs {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: semantics.progress(),
             right,
             rows: &pairs[start..end],
             at: 0,
@@ -236,6 +252,8 @@ fn ordinary(
         return Err(OperatingError::WrongBinding);
     };
     let index = IndexedRows {
+        #[cfg(feature = "diagnostic-row-progress")]
+        progress: crate::application::file_dag::route_counts::progress,
         rows: BorrowedRows::from(right),
         columns: &join.right_on,
         index: lookup,

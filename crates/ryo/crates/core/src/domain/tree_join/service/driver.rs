@@ -2,6 +2,8 @@
 use super::*;
 use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted};
 pub(super) struct Driver<'a, 'f, 'c> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) state: &'a mut TreeState,
     pub(super) tree: &'a TreeRows<'f>,
     pub(super) comparisons: &'a [Comparison],
@@ -18,12 +20,24 @@ impl Driver<'_, '_, '_> {
         let elements = kinds_of(&tree_rows);
         while let Some(found) = self.state.stretched.get(self.at).copied() {
             self.at += 1;
+            #[cfg(feature = "diagnostic-row-progress")]
+            (self.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                1,
+            );
             if !self.state.kinds.tests.0.is_empty()
                 && passes(&self.state.kinds, kind_at(self.tree.elements, found)) == Verdict::Fails
             {
                 continue;
             }
             let index = RowIndex(usize::try_from(found.0).unwrap_or(usize::MAX) - first);
+            #[cfg(feature = "diagnostic-row-progress")]
+            if !self.state.gate.0.is_empty() {
+                (self.progress)(
+                    crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
+                    1,
+                );
+            }
             if !self.state.gate.0.is_empty()
                 && text_admitted(
                     self.tree,
@@ -38,6 +52,13 @@ impl Driver<'_, '_, '_> {
                 )? == Verdict::Fails
             {
                 continue;
+            }
+            #[cfg(feature = "diagnostic-row-progress")]
+            if !self.state.rest.0.is_empty() {
+                (self.progress)(
+                    crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
+                    1,
+                );
             }
             if !self.state.rest.0.is_empty()
                 && (read_tree_cells(self.tree, index, &mut self.state.cells, &self.state.needed)

@@ -92,6 +92,8 @@ impl<'f> SelectedInput<'f> {
     }
     pub(crate) fn view(&self) -> IndexedRows<'_> {
         IndexedRows {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: crate::application::file_dag::route_counts::progress,
             rows: BorrowedRows::Selected {
                 source: self.original.source,
                 positions: &self.original.selection.rows,

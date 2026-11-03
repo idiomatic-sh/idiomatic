@@ -6,9 +6,26 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) use crate::domain::table_model::collections::representations::types::RepresentationInput as BorrowedRows;
 
+/// Profile-only semantic observations. No execution or ownership policy is reachable.
+#[cfg(feature = "diagnostic-row-progress")]
+#[derive(Clone, Copy)]
+pub(crate) enum ProgressCounter {
+    InputRows,
+    EmittedRows,
+    PredicateEvaluations,
+    IndexProbes,
+    IndexRowsExamined,
+    EqualityMatches,
+    JoinCandidatePairs,
+}
+#[cfg(feature = "diagnostic-row-progress")]
+pub(crate) type ProgressObserver = fn(ProgressCounter, u64);
+
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
 #[derive(Clone, Copy)]
 pub(crate) struct IndexedRows<'a> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub progress: ProgressObserver,
     pub rows: BorrowedRows<'a>,
     pub columns: &'a [ColumnIndex],
     pub index: &'a KeyIndex,
@@ -18,6 +35,8 @@ impl IndexedRows<'_> {
         self.matching(key).next().is_some()
     }
     pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
+        #[cfg(feature = "diagnostic-row-progress")]
+        (self.progress)(ProgressCounter::IndexProbes, 1);
         let hash = ryo_derived::domain::contract::key::hash_key(key.iter().map(Some));
         let bucket =
             usize::try_from(hash.0).unwrap_or(0) & self.index.heads().len().saturating_sub(1);
@@ -34,6 +53,8 @@ impl IndexedRows<'_> {
     pub(crate) fn next_match(&self, key: &[Value], probe: &mut KeyProbe) -> Option<RowIndex> {
         use ryo_derived::domain::contract::types::ChainLink;
         while probe.at.0 != 0 {
+            #[cfg(feature = "diagnostic-row-progress")]
+            (self.progress)(ProgressCounter::IndexRowsExamined, 1);
             let position = usize::try_from(probe.at.0 - 1).unwrap_or(usize::MAX);
             probe.at = self
                 .index
@@ -49,6 +70,8 @@ impl IndexedRows<'_> {
                     .zip(key)
                     .all(|(column, expected)| self.rows.cell(row, *column) == Some(*expected))
             {
+                #[cfg(feature = "diagnostic-row-progress")]
+                (self.progress)(ProgressCounter::EqualityMatches, 1);
                 return Some(row);
             }
         }

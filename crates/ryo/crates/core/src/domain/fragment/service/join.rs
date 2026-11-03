@@ -72,12 +72,19 @@ fn join_tree(
     };
     let mut outcome = Ok(());
     for at in positions(count(left_rows)) {
+        #[cfg(feature = "diagnostic-row-progress")]
+        (semantics.progress())(
+            crate::domain::operator::contract::views::ProgressCounter::InputRows,
+            1,
+        );
         let each = row(left_rows, at);
         let Some(hit) = followed(tree, key_column, each) else {
             continue;
         };
         let hit = in_tree(tree, hit);
         let mut driver = drivers::Tree {
+            #[cfg(feature = "diagnostic-row-progress")]
+            progress: semantics.progress(),
             tree,
             admit: &mut admit,
             context,
@@ -137,10 +144,17 @@ fn join_steps(
     }
     derived.with_raw_order(&keys.0, stride.0, &mut |order| {
         for at in positions(count(left_rows)) {
+            #[cfg(feature = "diagnostic-row-progress")]
+            (semantics.progress())(
+                crate::domain::operator::contract::views::ProgressCounter::InputRows,
+                1,
+            );
             let each = row(left_rows, at);
             probe.0.clear();
             key_into(tree, &left_shape.columns, each, keys_of.left, probe);
             let mut driver = drivers::Steps {
+                #[cfg(feature = "diagnostic-row-progress")]
+                progress: semantics.progress(),
                 right: right_rows,
                 order,
                 places: order.hits(&probe.0),
@@ -225,6 +239,11 @@ pub(super) fn run(
             context.memo.clear();
             context.memo.resize(filter.len() * names.0, Memo::Unknown);
             for at in positions(count(left_rows)) {
+                #[cfg(feature = "diagnostic-row-progress")]
+                (semantics.progress())(
+                    crate::domain::operator::contract::views::ProgressCounter::InputRows,
+                    1,
+                );
                 let each = row(left_rows, at);
                 let Some(start) = followed(tree, key_column, each) else {
                     continue;
@@ -242,6 +261,8 @@ pub(super) fn run(
                     // The root by itself: no row.
                 }
                 let mut driver = drivers::Edges {
+                    #[cfg(feature = "diagnostic-row-progress")]
+                    progress: semantics.progress(),
                     tree,
                     filter,
                     cells,

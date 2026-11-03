@@ -2,6 +2,8 @@
 use super::*;
 use ryo_derived::domain::contract::types::RawOrder;
 pub(super) struct Tree<'a, 'f, 'c, 'p> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) tree: &'a TreeRows<'f>,
     pub(super) admit: &'a mut Admit<'p>,
     pub(super) context: &'a mut OperatorContext<'c>,
@@ -20,6 +22,18 @@ impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
             return Ok(false);
         }
         self.pending = false;
+        #[cfg(feature = "diagnostic-row-progress")]
+        (self.progress)(
+            crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+            1,
+        );
+        #[cfg(feature = "diagnostic-row-progress")]
+        if !matches!(&*self.admit, Admit::All) {
+            (self.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
+                1,
+            );
+        }
         match allows(self.admit, self.tree, Position(self.hit[0]), self.context) {
             Ok(verdict) => {
                 self.ready = verdict == Verdict::Holds;
@@ -33,6 +47,11 @@ impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
     }
     fn right_positions(&self) -> &[u32] {
         if self.ready && self.error.is_none() {
+            #[cfg(feature = "diagnostic-row-progress")]
+            (self.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+                1,
+            );
             &self.hit
         } else {
             &[]
@@ -40,6 +59,8 @@ impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
     }
 }
 pub(super) struct Steps<'a> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) right: &'a Positions,
     pub(super) order: &'a RawOrder,
     pub(super) places: std::ops::Range<usize>,
@@ -49,6 +70,11 @@ impl PositionJoinDriver for Steps<'_> {
     fn next(&mut self) -> Result<bool, JoinInterrupted> {
         for place in self.places.by_ref() {
             if let Some(right) = self.order.rows().get(place) {
+                #[cfg(feature = "diagnostic-row-progress")]
+                (self.progress)(
+                    crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                    1,
+                );
                 self.current = Some(*right);
                 return Ok(true);
             }
@@ -57,11 +83,20 @@ impl PositionJoinDriver for Steps<'_> {
         Ok(false)
     }
     fn right_positions(&self) -> &[u32] {
+        #[cfg(feature = "diagnostic-row-progress")]
+        if self.current.is_some() {
+            (self.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+                1,
+            );
+        }
         self.current
             .map_or(&[], |at| row(self.right, RowIndex(at)).0)
     }
 }
 pub(super) struct Edges<'a, 'f, 'c> {
+    #[cfg(feature = "diagnostic-row-progress")]
+    pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) tree: &'a TreeRows<'f>,
     pub(super) filter: &'a [Comparison],
     pub(super) cells: &'a mut Vec<Value>,
@@ -80,6 +115,18 @@ impl PositionJoinDriver for Edges<'_, '_, '_> {
         while let Some(child) = self.found.get(self.at).copied() {
             let at = self.at;
             self.at += 1;
+            #[cfg(feature = "diagnostic-row-progress")]
+            (self.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                1,
+            );
+            #[cfg(feature = "diagnostic-row-progress")]
+            if !self.filter.is_empty() {
+                (self.progress)(
+                    crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
+                    1,
+                );
+            }
             match edge_admitted(
                 self.tree,
                 self.filter,
@@ -103,6 +150,13 @@ impl PositionJoinDriver for Edges<'_, '_, '_> {
     fn right_positions(&self) -> &[u32] {
         if self.error.is_some() {
             return &[];
+        }
+        #[cfg(feature = "diagnostic-row-progress")]
+        if self.current.is_some() {
+            (self.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+                1,
+            );
         }
         self.current
             .and_then(|at| self.found.get(at..at.saturating_add(1)))

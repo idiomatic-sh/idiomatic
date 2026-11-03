@@ -39,6 +39,11 @@ impl JoinDriver for Driver<'_, '_> {
         let mut probe = self.probe.take().unwrap_or_else(|| self.index.probe(key));
         self.current = None;
         while let Some(right_row) = self.index.next_match(key, &mut probe) {
+            #[cfg(feature = "diagnostic-row-progress")]
+            (self.index.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
+                1,
+            );
             self.hits.set(self.hits.get().saturating_add(1));
             let Some(value) = cell(
                 self.left,
@@ -51,6 +56,11 @@ impl JoinDriver for Driver<'_, '_> {
                 self.error = Some(OperatingError::ShapeMismatch);
                 return Err(JoinInterrupted);
             };
+            #[cfg(feature = "diagnostic-row-progress")]
+            (self.index.progress)(
+                crate::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
+                1,
+            );
             if !symbol_holds(value, &self.chain.literal.0, self.symbols, self.source) {
                 continue;
             }
@@ -75,6 +85,11 @@ impl JoinDriver for Driver<'_, '_> {
         if self.error.is_some() {
             return Err(JoinInterrupted);
         }
+        #[cfg(feature = "diagnostic-row-progress")]
+        (self.index.progress)(
+            crate::domain::operator::contract::views::ProgressCounter::EmittedRows,
+            1,
+        );
         push_row(self.target, row);
         self.emitted.set(self.emitted.get().saturating_add(1));
         Ok(())

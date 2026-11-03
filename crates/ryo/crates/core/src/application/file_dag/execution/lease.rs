@@ -46,6 +46,13 @@ pub(super) fn evaluate(
         }
         _ => None,
     };
+    #[cfg(feature = "diagnostic-row-progress")]
+    if row.is_some() {
+        crate::application::file_dag::route_counts::progress(
+            crate::domain::operator::contract::views::ProgressCounter::InputRows,
+            1,
+        );
+    }
     let mut validated_source = None;
     if let Some(row) = row {
         if let Some(error) = &contract.row_error {

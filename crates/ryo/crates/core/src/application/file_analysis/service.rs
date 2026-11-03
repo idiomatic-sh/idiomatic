@@ -363,6 +363,10 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         let _route_counts =
             crate::application::file_dag::route_counts::FileScope::begin(file.0 as usize);
+        #[cfg(feature = "diagnostic-row-progress")]
+        if let Some(path) = visit.setting.paths.get(file.0 as usize) {
+            crate::application::file_dag::route_counts::file_name(path.0.as_ref());
+        }
         let (tables, facts, activation) = (
             &mut worker.tables,
             &mut worker.facts,
