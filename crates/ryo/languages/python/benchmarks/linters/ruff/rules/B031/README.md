@@ -4,7 +4,7 @@ The query follows resolved `itertools.groupby` bindings and potential consumers 
 
 The complete [Ruff0.16.5 fixture](upstream.py) remains unchanged (237lines). All23 tagged findings remain; intended output adds the independently located `3136..3149` consumer after a comprehension-local shadow. The ordinary control bodies below run under `for _, g in groupby([1,1]):`; complete original programs and exact spans are in [cases.toml](cases.toml).
 
-The actual shared worker passed all36 complete cases on both Python3.10 and3.13 targets, with full-report comparison. Each profile has twenty raw exact cases and sixteen explicit exact-source documented discrepancies. The shared offline collector independently accepts all36 with zero errors and zero contract-only cases. Focused peer review passed; a bounded singleton-prefix correction then passed the same two-target strict/offline proof. This is not an inventory promotion.
+The actual shared worker passed all36 complete cases on both Python3.10 and3.13 targets, with full-report comparison. Each profile has twenty raw exact cases and sixteen explicit exact-source documented discrepancies. The shared offline collector independently accepts all36 with zero errors and zero contract-only cases. Focused peer review passed on the original source. The final `4bda76ec..a7a20029` singleton-prefix query and two negative controls received a separate narrow Fable PASS; the same two-target strict/offline proof passed on that exact final source. This is not an inventory promotion.
 
 ## Documented reference differences
 
