@@ -20,6 +20,7 @@
 | Stored selections and selector views | ☑ | ☑ | ☑ | ☑ | ☑ | Extend the proven owner path to CandidatePostings fanout. |
 | Derived predicate/equality/distinct views | ☐ | ☑ | ☑ | ☑ | ☑ | Remove remaining caller-local scheduling choices. |
 | Graph adjacency, domain, and memo retention | ☐ | ☑ | ☑ | ☑ | ☑ | Finish traversal-demand scheduling; measure cost separately. |
+| Keyed semantic rendering demand | ☐ | ☐ | ☐ | ☐ | ☐ | Add engine-owned keyed requests, per-rule incompleteness and lifetime; providers supply syntax rendering only. |
 | CandidatePostings fanout | ☐ | ☐ | ☐ | ☐ | ☐ | Move admission, materialization, reuse, and release into the common owner. |
 | Persistent lint snapshot | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles. |
 | Outbound reports and jobs | ☑ | — | ☑ | ☑ | ☐ | Scheduler adapter still owns executor resources. |
@@ -28,9 +29,11 @@
 
 Each row is **execution route × resource family/representation**. Enumerate actual registry, acquire/select, publication/Selected constructors, cache accesses and terminal drivers; map every resolved site exactly once. Unmapped sites block closure.
 
+Tastemaker enforces imports, layout, required assets and structural access. Runtime tests establish behavior, completeness, lifetime and performance that structural rules cannot observe.
+
 | Question | Ownership axes to prove | Required evidence |
 | --- | --- | --- |
-| Q1 Who may prepare, admit, build, publish and execute; in which phase? | Scheduling, sharing, invalidation, data, lifetime | Actual callers; private capabilities; application and domain bypass negatives. |
+| Q1 Who may prepare, admit, build, publish and execute; in which phase? | Scheduling, sharing, invalidation, data, lifetime | Actual callers; Tastemaker structural access; runtime admission and failure controls. |
 | Q2 At what frequency does work repeat: request, file/population, rule, node, row? | Scheduling, sharing | Cross-rule consumers, build counts and actual reached workload counts. |
 | Q3 Which cardinalities, join order, bindings, indexes, scans, materializations and recursive deltas drive work? | Scheduling, data | Input/fanout distributions; preserved native/bulk paths; counted route costs. |
 | Q4 Who owns required versus optional bytes, aliases, metadata and release? | Sharing, data, lifetime | Single backing charge; zero-budget sharing; last-consumer, refusal and error release. |
@@ -59,7 +62,7 @@ Correctness/enforcement blockers come first. Otherwise sort **lexicographically*
 
 - [ ] Identify the semantic interface, engine-owned policy/state/lifetime, every implementation and actual route before changing code.
 - [ ] Run a short isolated POC: hypothesis, smallest representative workload, baseline plus counts; document temporary contract debt, with no checked ownership credit.
-- [ ] Consolidate into one production owner; remove replaced paths, preserve native access and lazy/error semantics, and add falsifying capability/behavior tests.
+- [ ] Consolidate into one production owner; remove replaced paths and preserve native access and lazy/error semantics. Use Tastemaker for structural boundaries and runtime tests for behavior and lifetime.
 - [ ] Investigate first regressions using preserved baseline/failure receipts and route coverage; iterate the systemic migration instead of automatically abandoning it or raising caps.
 - [ ] Invest in the shared benchmark harness: inventory, enumeration, execution, normalization, comparison, reporting and performance belong there; linters supply config/query/cases and necessary protocol adapters only, with no hardcoded rule exceptions.
 - [ ] Repeat independent Fable review and fixes until blockers close; then run Rust/Python correctness and frozen cold/warm/edit performance gates before acceptance.
