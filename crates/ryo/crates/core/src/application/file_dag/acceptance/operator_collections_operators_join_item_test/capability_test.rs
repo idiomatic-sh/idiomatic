@@ -12,10 +12,17 @@ const REFUSAL: u32 = 60001;
 #[derive(Debug, Default)]
 struct Refuses {
     calls: AtomicUsize,
+    positions: AtomicUsize,
 }
 impl OperatorsPort for Refuses {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        if matches!(call, OperatorCall::EqualityJoin { .. }) {
+        if let OperatorCall::EqualityJoin { input } = call {
+            match input {
+                ryo_operators::domain::contract::types::JoinInput::Values { .. } => {}
+                ryo_operators::domain::contract::types::JoinInput::Positions { .. } => {
+                    self.positions.fetch_add(1, Ordering::Relaxed);
+                }
+            }
             self.calls.fetch_add(1, Ordering::Relaxed);
             Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL })
         } else {
@@ -124,6 +131,16 @@ fn collected_computed_stored_selected_and_generic_routes_use_injected_join() {
 }
 #[test]
 fn collected_sparse_left_and_native_ready_routes_use_injected_join() {
+    if diagnostic_case_in_child(
+        "application::file_dag::acceptance::operator_collections_operators_join_item_test::capability_test::collected_sparse_left_and_native_ready_routes_use_injected_join",
+        "RYO_JOIN_CAPABILITY_SPARSE_CHILD",
+    ) {
+        return;
+    }
+    let diagnostics = JoinDiagnostics::default();
+    let capture = diagnostics.clone();
+    let dispatch = tracing::Dispatch::new(diagnostics);
+    let _guard = tracing::dispatcher::set_default(&dispatch);
     let columns = sparse_function_columns(256);
     let left = Rows::Stored(ColumnsView {
         kinds: ryo_relations::domain::relations::service::kinds(Relation::Function),
@@ -136,6 +153,15 @@ fn collected_sparse_left_and_native_ready_routes_use_injected_join() {
         &[left, Rows::Computed(&right)],
         &mut Symbols::default(),
         crate::application::file_dag::derived::indexes::LIMIT,
+    );
+    assert!(
+        capture
+            .events
+            .lock()
+            .expect("real sparse events")
+            .iter()
+            .any(|event| event.get("path").map(String::as_str) == Some("sparse-left-key")),
+        "sparse physical route was not executed"
     );
     let (elements, mut symbols) = wide_tree(1, true);
     let left = table_of(&[CellKind::Node], &[&[node(1)]]);
@@ -161,7 +187,7 @@ fn prepared(operation: &Operation, rows: &[Rows<'_>]) -> OperatorContract {
             },
         })
         .collect::<Vec<_>>();
-    crate::application::file_dag::prepare::operator(
+    crate::application::file_dag::derived::prepare::operator(
         crate::domain::operator::service::registered(
             ryo_values::domain::plans::types::OperationKind::Join,
         ),
@@ -250,7 +276,10 @@ fn stream(operation: &Operation, left: &Table, right: Rows<'_>, symbols: &mut Sy
 struct KeepsCalling;
 impl OperatorsPort for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        if let OperatorCall::EqualityJoin { driver, .. } = call {
+        if let OperatorCall::EqualityJoin {
+            input: ryo_operators::domain::contract::types::JoinInput::Values { driver, .. },
+        } = call
+        {
             assert!(driver.emit(&[Cell::Number(Integer(1))]).is_err());
             assert!(driver.emit(&[Cell::Number(Integer(2))]).is_err());
             assert!(driver.next(&[]).is_err());
@@ -364,4 +393,215 @@ fn original_engine_error_wins_over_every_inconsistent_kernel_terminal() {
         join_result(Err(PortableOperatorFault::InvalidSpan), None),
         Err(OperatingError::InvalidSpan)
     ));
+}
+
+#[test]
+fn lowered_pipeline_join_cannot_bypass_the_same_refusing_capability() {
+    use crate::domain::operator::{
+        service::pool_for,
+        types::{PreparedPool, TreeSteps},
+    };
+    use ryo_values::domain::plan_parts::types::StepId;
+    use ryo_values::domain::plans::types::{Emit, Plan, PlanStep, StepScope};
+    let (mut elements, mut symbols) = wide_tree(1, true);
+    for (bits, name) in [(1, "file"), (2, "word")] {
+        name_kind(
+            &mut completion(&mut elements, &mut symbols, ByteSlice(b"abcd"), FileId(0)),
+            KindBits(bits),
+            NameText(name),
+        );
+    }
+    index_kinds(&mut elements);
+    let select = Operation::Select {
+        from: PlanInput::Relation(Relation::SyntaxTree),
+        comparisons: vec![],
+        kept: vec![ColumnIndex(0)],
+    };
+    let join = Operation::Join {
+        left: PlanInput::Step(StepId(0)),
+        right: PlanInput::Relation(Relation::SyntaxTree),
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(0)],
+        output: vec![JoinColumn {
+            side: Side::Left,
+            column: ColumnIndex(0),
+        }],
+        filter: vec![],
+        view: vec![],
+        reach: None,
+    };
+    let plan = Plan {
+        parameters: vec![],
+        steps: vec![
+            PlanStep {
+                operation: select,
+                scope: StepScope::PerFile,
+            },
+            PlanStep {
+                operation: join,
+                scope: StepScope::PerFile,
+            },
+        ],
+        emit: Emit {
+            step: StepId(1),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
+        frontier: vec![],
+        comparison_origins: vec![],
+    };
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare(
+        std::slice::from_ref(&plan),
+        &[vec![]],
+        &[],
+    )
+    .expect("request preparation");
+    let mut prepared = PreparedPool {
+        unlowered: TreeSteps::Lowered,
+        ..PreparedPool::default()
+    };
+    crate::application::file_dag::derived::selection::prepare_request(&mut prepared, &request);
+    let mut pool = pool_for(std::slice::from_ref(&plan));
+    let mut scratch = OperatorScratch::default();
+    let mut memo = vec![];
+    let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
+    let port = Refuses::default();
+    let read = |_| None;
+    let _previous = crate::domain::table_model::service::take_read_row_counts();
+    refused(
+        crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
+            &plan,
+            &read,
+            Some(TreeRows {
+                elements: &elements,
+                file: FileId(0),
+                form: TreeForm::Elements,
+            }),
+            &mut ctx,
+            &mut pool,
+            &mut prepared,
+            &[],
+            None,
+            0,
+            None,
+            &CommonOperatorEngine::new(&port),
+            &request.rules[0],
+        ),
+    );
+    assert_eq!(
+        port.positions.load(Ordering::Relaxed),
+        1,
+        "refusal must come from deferred position Join, not a value fallback"
+    );
+    assert_eq!(port.calls.load(Ordering::Relaxed), 1);
+    assert!(prepared.layouts[0].lowering.shapes[1].is_some());
+    assert_eq!(
+        crate::domain::table_model::service::take_read_row_counts(),
+        (0, 0),
+        "lowered refusal must not materialize typed rows"
+    );
+}
+
+struct NestedOutput {
+    rows: Vec<Vec<Cell>>,
+    fail_at: Option<usize>,
+    entries: usize,
+}
+impl Emit for NestedOutput {
+    fn row(
+        &mut self,
+        context: &mut OperatorContext<'_>,
+        row: &[Cell],
+    ) -> Result<(), OperatingError> {
+        use crate::domain::operating::types::Memo;
+        self.entries += 1;
+        // This state belongs to this invocation's downstream consumer. Nested
+        // preparation may not replace or mutate it while this callback resumes.
+        context.memo.clear();
+        context.memo.push(Memo::Holds);
+        context.scratch.row = vec![Cell::Number(Integer(987))];
+        let left = table_of(&[CellKind::Number], &[row]);
+        let right = table_of(NUMBER_PAIR_KINDS, &[&[row[0], Cell::Number(Integer(42))]]);
+        let operation = plan(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
+        let contract = prepared(&operation, &[Rows::Computed(&left), Rows::Computed(&right)]);
+        let mut feed = ControlledFeed {
+            left: &left,
+            right: Rows::Computed(&right),
+            right_holds: 0,
+            left_fails: false,
+            right_fails: false,
+        };
+        let mut nested = CollectedRows::default();
+        CommonOperatorEngine::fixture().stream(
+            &contract,
+            &mut feed,
+            context,
+            &mut Room::default(),
+            &mut nested,
+        )?;
+        assert_eq!(nested.rows, vec![vec![Cell::Number(Integer(42))]]);
+        assert_eq!(*context.memo, vec![Memo::Holds]);
+        assert_eq!(context.scratch.row, vec![Cell::Number(Integer(987))]);
+        if self.fail_at == Some(self.rows.len()) {
+            return Err(OperatingError::NotRead);
+        }
+        self.rows.push(row.to_vec());
+        Ok(())
+    }
+}
+#[test]
+fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_resume() {
+    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
+    let columns = [fact_column(&[7, 7, 7]), fact_column(&[1, 2, 3])];
+    let right = Rows::Stored(ColumnsView {
+        kinds: NUMBER_PAIR_KINDS,
+        columns: &columns,
+    });
+    let operation = plan(&[0], &[0], &[(Side::Right, 0)], vec![], &[]);
+    let contract = prepared(&operation, &[Rows::Computed(&left), right.clone()]);
+    let mut symbols = Symbols::default();
+    let mut scratch = OperatorScratch::default();
+    let mut memo = vec![];
+    let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
+    let mut room = Room::default();
+    let mut output = NestedOutput {
+        rows: vec![],
+        fail_at: Some(1),
+        entries: 0,
+    };
+    let mut feed = ControlledFeed {
+        left: &left,
+        right: right.clone(),
+        right_holds: 0,
+        left_fails: false,
+        right_fails: false,
+    };
+    assert!(matches!(
+        CommonOperatorEngine::fixture().stream(
+            &contract,
+            &mut feed,
+            &mut ctx,
+            &mut room,
+            &mut output
+        ),
+        Err(OperatingError::NotRead)
+    ));
+    assert_eq!(output.rows, vec![vec![Cell::Number(Integer(7))]]);
+    assert_eq!(output.entries, 2);
+    output.rows.clear();
+    output.fail_at = None;
+    output.entries = 0;
+    let mut feed = ControlledFeed {
+        left: &left,
+        right,
+        right_holds: 0,
+        left_fails: false,
+        right_fails: false,
+    };
+    CommonOperatorEngine::fixture()
+        .stream(&contract, &mut feed, &mut ctx, &mut room, &mut output)
+        .expect("next invocation resumes");
+    assert_eq!(output.rows, vec![vec![Cell::Number(Integer(7))]; 3]);
+    assert_eq!(output.entries, 3);
 }

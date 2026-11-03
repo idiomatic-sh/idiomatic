@@ -209,12 +209,7 @@ pub(super) fn evaluate(
     };
     let mut output = OutputBridge {
         emit,
-        prepared_matchers: context.prepared_matchers,
-        prepared_kinds: context.prepared_kinds,
-        bindings: context.bindings,
-        source: context.source,
-        paths: context.paths,
-        arenas: context.arenas,
+        headers: super::output::Headers::from_context(context),
         scratch: &mut workspace.downstream_scratch,
         memo: &mut workspace.downstream_memo,
     };
@@ -241,30 +236,13 @@ pub(super) fn evaluate(
 }
 struct OutputBridge<'a> {
     emit: &'a mut dyn Emit,
-    prepared_matchers:
-        Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
-    bindings: &'a [crate::domain::table_model::types::ParameterBinding],
-    source: crate::domain::table_texts::types::SourceView<'a>,
-    paths: &'a [ryo_language::domain::files::types::FilePath],
-    arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
+    headers: super::output::Headers<'a>,
     scratch: &'a mut OperatorScratch,
     memo: &'a mut Vec<crate::domain::operating::types::Memo>,
 }
 impl RowSink for OutputBridge<'_> {
     fn row(&mut self, lease: &mut PrimitiveLease<'_>, row: &[Value]) -> Result<(), OperatingError> {
-        let mut context = OperatorContext {
-            semantic: None,
-            prepared_matchers: self.prepared_matchers,
-            prepared_kinds: self.prepared_kinds,
-            bindings: self.bindings,
-            symbols: query_reborrow(&mut lease.derived),
-            source: self.source,
-            paths: self.paths,
-            arenas: self.arenas,
-            memo: self.memo,
-            scratch: self.scratch,
-        };
-        self.emit.row(&mut context, row)
+        self.headers
+            .row(self.emit, &mut lease.derived, self.scratch, self.memo, row)
     }
 }

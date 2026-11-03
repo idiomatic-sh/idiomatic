@@ -48,3 +48,20 @@ pub(crate) fn join(
 
 #[cfg(test)]
 mod service_test;
+
+/// A lowered row's schema already maps logical columns onto these slots. Keep
+/// them deferred: only demanded key/filter/output reads may decode cells.
+pub(crate) fn positions(
+    left: &[u32],
+    driver: &mut dyn crate::domain::contract::types::PositionJoinDriver,
+    target: &mut Vec<u32>,
+) -> Result<(), PortableOperatorFault> {
+    while driver
+        .next()
+        .map_err(|_| PortableOperatorFault::Interrupted)?
+    {
+        target.extend_from_slice(left);
+        target.extend_from_slice(driver.right_positions());
+    }
+    Ok(())
+}

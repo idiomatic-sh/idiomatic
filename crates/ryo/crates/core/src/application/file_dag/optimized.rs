@@ -47,40 +47,16 @@ impl CommonOperatorEngine<'_> {
                 .is_some_and(Option::is_some)
                 || stepper.layout.lowering.counting.get(id.0) == Some(&Counting::Counts))
         {
-            let mut run = FragmentRun {
-                plan: stepper.plan,
-                lowering: &stepper.layout.lowering,
-                tree,
-                room: &mut *stepper.made,
-                classes: stepper.classes,
-            };
-            let step = StepId(u32::try_from(id.0).map_err(|_| OperatingError::NotRun)?);
-            if stepper.counting == Counting::DoesNotCount {
-                return if fragment::counts(&run, step) == Counting::Counts {
-                    fragment::emit_counts(&mut run, step, context, emit)
-                } else {
-                    fragment::make(&mut run, step, context)?;
-                    fragment::emit(&mut run, step, context, emit)
-                };
+            if contract.kind == ryo_values::domain::plans::types::OperationKind::Join {
+                let mut output =
+                    super::execution::output::State::take(&mut room.scratch, &mut room.memo);
+                let result = output.run(emit, |emit| {
+                    self.lowered_step(stepper, id, tree, context, emit)
+                });
+                output.restore(&mut room.scratch, &mut room.memo);
+                return result;
             }
-            let mut made = 0;
-            let mut counting = Pipe(|each: &mut OperatorContext<'_>, row: &[Value]| {
-                made += 1;
-                emit.row(each, row)
-            });
-            let result = if fragment::counts(&run, step) == Counting::Counts {
-                fragment::emit_counts(&mut run, step, context, &mut counting)
-            } else {
-                fragment::make(&mut run, step, context)
-                    .and_then(|()| fragment::emit(&mut run, step, context, &mut counting))
-            };
-            crate::application::file_dag::pipeline::service::feed(
-                stepper,
-                id,
-                crate::domain::operating::types::InputPlace(0),
-                crate::domain::table_model::types::RowCount(made),
-            );
-            return result;
+            return self.lowered_step(stepper, id, tree, context, emit);
         }
         if stepper.counting == Counting::DoesNotCount
             && let Some(rows) = CompactInput::new(stepper).selected(id, context)?
@@ -91,6 +67,55 @@ impl CommonOperatorEngine<'_> {
             return result;
         }
         self.stream(contract, stepper, context, room, emit)
+    }
+    fn lowered_step<'a, 'f>(
+        &self,
+        stepper: &mut Stepper<'a, 'f>,
+        id: StepPlace,
+        tree: crate::domain::table_cells::types::TreeRows<'f>,
+        context: &mut OperatorContext<'_>,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError>
+    where
+        'f: 'a,
+    {
+        let semantics = super::execution::PrimitiveSemanticsBridge {
+            port: self.operators,
+        };
+        let mut run = FragmentRun {
+            plan: stepper.plan,
+            lowering: &stepper.layout.lowering,
+            tree,
+            room: &mut *stepper.made,
+            classes: stepper.classes,
+        };
+        let step = StepId(u32::try_from(id.0).map_err(|_| OperatingError::NotRun)?);
+        if stepper.counting == Counting::DoesNotCount {
+            return if fragment::counts(&run, step) == Counting::Counts {
+                fragment::emit_counts(&semantics, &mut run, step, context, emit)
+            } else {
+                fragment::make(&semantics, &mut run, step, context)?;
+                fragment::emit(&mut run, step, context, emit)
+            };
+        }
+        let mut made = 0;
+        let mut counting = Pipe(|each: &mut OperatorContext<'_>, row: &[Value]| {
+            made += 1;
+            emit.row(each, row)
+        });
+        let result = if fragment::counts(&run, step) == Counting::Counts {
+            fragment::emit_counts(&semantics, &mut run, step, context, &mut counting)
+        } else {
+            fragment::make(&semantics, &mut run, step, context)
+                .and_then(|()| fragment::emit(&mut run, step, context, &mut counting))
+        };
+        crate::application::file_dag::pipeline::service::feed(
+            stepper,
+            id,
+            crate::domain::operating::types::InputPlace(0),
+            crate::domain::table_model::types::RowCount(made),
+        );
+        return result;
     }
     pub(crate) fn keep_step<'a, 'f>(
         &self,

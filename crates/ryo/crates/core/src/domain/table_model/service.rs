@@ -444,32 +444,6 @@ pub(crate) fn index_selected_view(
     Ok(())
 }
 
-/// Exact typed key comparison after hashing; every duplicate selected position is returned in order.
-pub(crate) fn matching_selected<'a>(
-    view: &'a super::types::SelectedRows<'_>,
-    columns: &'a [ColumnIndex],
-    order: &'a KeyIndex,
-    key: &'a [Value],
-) -> impl Iterator<Item = RowIndex> + 'a {
-    let hash = hash_key(key.iter().map(Some));
-    let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
-    let mut at = order.heads.get(bucket).copied().unwrap_or(ChainLink(0));
-    std::iter::from_fn(move || {
-        while at.0 != 0 {
-            let position = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
-            at = order.next.get(position).copied().unwrap_or(ChainLink(0));
-            if order.hashes.get(position) == Some(&hash)
-                && columns.iter().zip(key).all(|(column, value)| {
-                    selected_cell(view, RowIndex(position), *column) == Some(*value)
-                })
-            {
-                return order.rows.get(position).copied();
-            }
-        }
-        None
-    })
-}
-
 /// Index only the typed key cells of a rectangular stored relation, retaining original row IDs.
 ///
 /// # Errors

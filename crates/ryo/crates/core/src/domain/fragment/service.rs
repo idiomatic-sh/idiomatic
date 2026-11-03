@@ -6,7 +6,9 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Value;
 
 use super::types::FragmentRun;
-use crate::domain::joins::service::{antijoin, join, union};
+use crate::domain::joins::service::{antijoin, union};
+use crate::domain::operator::contract::types::PrimitiveSemantics;
+mod join;
 use crate::domain::lowering::service::{shape_at, step_of};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operating::errors::OperatingError;
@@ -70,6 +72,7 @@ fn dependencies(operation: &Operation) -> Result<(Option<StepId>, Option<StepId>
 ///
 /// What a comparison of a step refuses.
 pub(crate) fn make(
+    semantics: &dyn PrimitiveSemantics,
     run: &mut FragmentRun<'_, '_>,
     id: StepId,
     context: &mut OperatorContext<'_>,
@@ -116,7 +119,7 @@ pub(crate) fn make(
     // not made.
     let (first, second) = dependencies(operation)?;
     if let Some(first) = first {
-        make(run, first, context)?;
+        make(semantics, run, first, context)?;
     }
     let left_empty = first.is_some_and(|each| {
         run.room
@@ -134,7 +137,7 @@ pub(crate) fn make(
                 | Operation::Project { .. }
         );
     if !skips && let Some(second) = second {
-        make(run, second, context)?;
+        make(semantics, run, second, context)?;
     }
     let Some(made) = run.room.made.get_mut(place) else {
         return Err(OperatingError::NotRun);
@@ -142,7 +145,7 @@ pub(crate) fn make(
     let mut out = std::mem::take(&mut made.slots);
     out.0.clear();
     if !skips {
-        let outcome = make_rows(run, id, operation, context, &mut out);
+        let outcome = make_rows(semantics, run, id, operation, context, &mut out);
         if let Err(error) = outcome {
             if let Some(failed) = run.room.made.get_mut(place) {
                 failed.slots = out;
@@ -165,6 +168,7 @@ pub(crate) fn make(
 ///
 /// What a comparison of the step refuses, or `NotRun` when the step is not one the tree can run.
 fn make_rows(
+    semantics: &dyn PrimitiveSemantics,
     run: &mut FragmentRun<'_, '_>,
     id: StepId,
     operation: &Operation,
@@ -204,7 +208,7 @@ fn make_rows(
             );
             Ok(())
         }
-        Operation::Join { .. } => join(&tree, lowering, operation, work, out),
+        Operation::Join { .. } => join::run(semantics, &tree, lowering, operation, work, out),
         Operation::Axis { .. } => axis(&tree, lowering, operation, work, out),
         Operation::Antijoin {
             left,
@@ -284,6 +288,7 @@ pub(crate) fn counts(run: &FragmentRun<'_, '_>, id: StepId) -> Counting {
 ///
 /// What the lowered step or the one that takes the rows refuses.
 pub(crate) fn emit_counts(
+    semantics: &dyn PrimitiveSemantics,
     run: &mut FragmentRun<'_, '_>,
     id: StepId,
     context: &mut OperatorContext<'_>,
@@ -303,7 +308,7 @@ pub(crate) fn emit_counts(
         return Err(OperatingError::NotRun);
     };
     let input = step_of(*from)?;
-    make(run, input, context)?;
+    make(semantics, run, input, context)?;
     let shape = shape_at(run.lowering, input)?;
     let tree = run.tree;
     let LoweredRoom {

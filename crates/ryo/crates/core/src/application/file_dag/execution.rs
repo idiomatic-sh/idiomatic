@@ -15,6 +15,7 @@ use crate::domain::table_model::{
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_relations::domain::relations::types::Value;
 mod lease;
+pub(super) mod output;
 mod transport;
 /// The shared engine borrows its portable semantic capability from the caller.
 #[derive(Debug)]

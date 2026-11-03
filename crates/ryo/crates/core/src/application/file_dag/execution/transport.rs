@@ -32,7 +32,22 @@ pub(super) fn stream(
     workspace.predicates = std::mem::take(&mut room.scratch.select_scratch);
     workspace.predicate_memo = std::mem::take(&mut room.memo);
     workspace.downstream_scratch = std::mem::take(&mut room.scratch);
-    let result = stream_scoped(engine, contract, feed, context, room, emit, &mut workspace);
+    let result = if contract.kind == ryo_values::domain::plans::types::OperationKind::Join {
+        let mut output = super::output::State::take(
+            &mut workspace.downstream_scratch,
+            &mut workspace.downstream_memo,
+        );
+        let result = output.run(emit, |emit| {
+            stream_scoped(engine, contract, feed, context, room, emit, &mut workspace)
+        });
+        output.restore(
+            &mut workspace.downstream_scratch,
+            &mut workspace.downstream_memo,
+        );
+        result
+    } else {
+        stream_scoped(engine, contract, feed, context, room, emit, &mut workspace)
+    };
     #[cfg(test)]
     let mut observed = workspace.measured();
     room.scratch = std::mem::take(&mut workspace.downstream_scratch);

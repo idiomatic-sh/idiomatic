@@ -74,13 +74,15 @@ pub(super) fn indexed(
         error: None,
     };
     let result = semantics.operators(OperatorCall::EqualityJoin {
-        left,
-        left_on,
-        output,
-        view: &[],
-        driver: &mut driver,
-        key,
-        target,
+        input: ryo_operators::domain::contract::types::JoinInput::Values {
+            left,
+            left_on,
+            output,
+            view: &[],
+            driver: &mut driver,
+            key,
+            target,
+        },
     });
     join_result(result, driver.error)
 }

@@ -234,13 +234,15 @@ pub(crate) fn probe(
         error: None,
     };
     let answer = semantics.operators(OperatorCall::EqualityJoin {
-        left: left_row,
-        left_on,
-        output,
-        view,
-        driver: &mut driver,
-        key: &mut key,
-        target: &mut target,
+        input: ryo_operators::domain::contract::types::JoinInput::Values {
+            left: left_row,
+            left_on,
+            output,
+            view,
+            driver: &mut driver,
+            key: &mut key,
+            target: &mut target,
+        },
     });
     let error = driver.error.take();
     driver.state.other = target;

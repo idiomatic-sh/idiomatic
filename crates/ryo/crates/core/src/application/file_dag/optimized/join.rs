@@ -196,13 +196,15 @@ fn sparse_left(
             error: None,
         };
         let answer = semantics.operators(OperatorCall::EqualityJoin {
-            left: left_row,
-            left_on: &join.left_on,
-            output: &join.output,
-            view: &[],
-            driver: &mut driver,
-            key: &mut work.key,
-            target: &mut work.output,
+            input: ryo_operators::domain::contract::types::JoinInput::Values {
+                left: left_row,
+                left_on: &join.left_on,
+                output: &join.output,
+                view: &[],
+                driver: &mut driver,
+                key: &mut work.key,
+                target: &mut work.output,
+            },
         });
         if let Err(error) = join_result(answer, driver.error) {
             return Some(Err(error));

@@ -47,3 +47,6 @@ pub(crate) mod table_scratch_service_test;
 pub(crate) mod tree_join_collections_strategies_span_index_item_test;
 pub(crate) mod tree_join_service_test;
 pub(crate) mod workers_service_test;
+
+pub(crate) mod lowered_fragment_service_test;
+pub(crate) mod lowered_joins_service_test;

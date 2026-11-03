@@ -1,14 +1,14 @@
 //! The `joins` service's cases, over the small tree.
 
-use super::service::{antijoin, join, union};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::joins::service::{antijoin, union};
 use crate::domain::lowering::types::ElementPart;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::positions::service_test::{
     SMALL_SOURCE, SmallTree, lowering_of, room_of, rows_over, small_tree,
 };
-use crate::domain::positions::types::{KeyColumns, Sides, Slots, Work};
+use crate::domain::positions::types::{KeyColumns, Sides, Slots};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_relations::domain::relations::types::Relation;
@@ -141,16 +141,65 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     room_of(&[&[2]]),
                 )
             };
-            join(
-                &rows,
-                &lowering_of(&fields),
-                &join_on(right),
-                Work {
-                    room: &mut room,
-                    context: &mut context,
+            use crate::domain::lowering::types::{LoweredShape, RowWidth};
+            use crate::domain::positions::types::{Positions, Readiness};
+            use ryo_values::domain::plans::types::{Emit, Plan, PlanStep, StepScope};
+            let mut lowering = lowering_of(&fields);
+            let root = StepId(room.made.len() as u32);
+            let shape = lowering.shapes[0].as_ref().expect("left shape").clone();
+            lowering.shapes.push(Some(LoweredShape {
+                width: RowWidth(2),
+                columns: shape.columns,
+            }));
+            lowering
+                .counting
+                .push(crate::domain::lowering::types::Counting::DoesNotCount);
+            let mut steps = (0..room.made.len())
+                .map(|_| PlanStep {
+                    operation: Operation::Select {
+                        from: PlanInput::Relation(Relation::SyntaxTree),
+                        comparisons: vec![],
+                        kept: vec![],
+                    },
+                    scope: StepScope::PerFile,
+                })
+                .collect::<Vec<_>>();
+            steps.push(PlanStep {
+                operation: join_on(right),
+                scope: StepScope::PerFile,
+            });
+            let plan = Plan {
+                parameters: vec![],
+                steps,
+                emit: Emit {
+                    step: root,
+                    subject: ColumnIndex(0),
+                    key: vec![],
+                    headings: vec![],
                 },
-                &mut out,
-            )?;
+                frontier: vec![],
+                comparison_origins: vec![],
+            };
+            room.made.push(Positions::default());
+            room.ready.push(Readiness::NotMade);
+            let mut run = crate::domain::fragment::types::FragmentRun {
+                plan: &plan,
+                lowering: &lowering,
+                tree: rows,
+                room: &mut room,
+                classes: &[],
+            };
+            let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+                port: crate::outbound::operators::factory::test_port(),
+            };
+            crate::domain::fragment::service::make(&semantics, &mut run, root, &mut context)?;
+            out = run
+                .room
+                .made
+                .last()
+                .expect("joined positions")
+                .slots
+                .clone();
         }
     }
     // The answer is leaked: a case compares it with text that lives for the whole run.

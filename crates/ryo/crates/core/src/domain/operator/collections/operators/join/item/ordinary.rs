@@ -142,13 +142,15 @@ pub(super) fn evaluate(
         error: None,
     };
     let answer = semantics.operators(OperatorCall::EqualityJoin {
-        left,
-        left_on,
-        output,
-        view,
-        driver: &mut driver,
-        key: &mut key,
-        target: &mut target,
+        input: ryo_operators::domain::contract::types::JoinInput::Values {
+            left,
+            left_on,
+            output,
+            view,
+            driver: &mut driver,
+            key: &mut key,
+            target: &mut target,
+        },
     });
     let error = driver.error.take();
     *driver.lease.workspace.positions = std::mem::take(&mut driver.positions);

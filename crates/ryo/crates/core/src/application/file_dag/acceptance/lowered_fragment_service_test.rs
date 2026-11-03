@@ -6,9 +6,9 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-use super::service::{counts, emit, emit_counts, make};
-use super::types::FragmentRun;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::fragment::service::{counts, emit, emit_counts, make};
+use crate::domain::fragment::types::FragmentRun;
 use crate::domain::lowering::service::lower;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -117,12 +117,21 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         memo: &mut memo,
         scratch: &mut scratch,
     };
+    let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+        port: crate::outbound::operators::factory::test_port(),
+    };
     let mut table = Table::default();
     let last = StepId(u32::try_from(plan.steps.len() - 1).unwrap_or(0));
     if counts(&running, last) == Counting::Counts {
-        emit_counts(&mut running, last, &mut context, &mut Collect(&mut table))?;
+        emit_counts(
+            &semantics,
+            &mut running,
+            last,
+            &mut context,
+            &mut Collect(&mut table),
+        )?;
     } else {
-        make(&mut running, last, &mut context)?;
+        make(&semantics, &mut running, last, &mut context)?;
         emit(&mut running, last, &mut context, &mut Collect(&mut table))?;
     }
     let width = table.kinds.len().max(1);

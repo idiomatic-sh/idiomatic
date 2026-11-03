@@ -1284,14 +1284,20 @@ impl tracing::field::Visit for JoinDiagnosticFields {
 /// first registration. Run this one observer contract in a fresh process while the
 /// ordinary suite remains parallel; its four assertions still execute unchanged.
 fn diagnostic_contract_in_child() -> bool {
-    const CHILD: &str = "RYO_JOIN_DIAGNOSTIC_CONTRACT_CHILD";
-    if std::env::var_os(CHILD).as_deref() == Some(std::ffi::OsStr::new("1")) {
+    diagnostic_case_in_child(
+        "application::file_dag::acceptance::operator_collections_operators_join_item_test::stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocations",
+        "RYO_JOIN_DIAGNOSTIC_CONTRACT_CHILD",
+    )
+}
+fn diagnostic_case_in_child(test: &str, child: &str) -> bool {
+    if std::env::var_os(child).as_deref() == Some(std::ffi::OsStr::new("1")) {
         return false;
     }
     let output = std::process::Command::new(std::env::current_exe().expect("current test binary"))
-        .args(["--exact", "application::file_dag::acceptance::operator_collections_operators_join_item_test::stored_join_diagnostics_emit_one_aggregate_including_empty_and_failed_invocations", "--test-threads=1"])
-        .env(CHILD, "1")
-        .output().expect("isolated observer contract process");
+        .args(["--exact", test, "--test-threads=1"])
+        .env(child, "1")
+        .output()
+        .expect("isolated observer contract process");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         output.status.success() && stdout.contains("1 passed; 0 failed"),
