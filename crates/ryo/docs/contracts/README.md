@@ -2,28 +2,28 @@
 
 ## 1. Ownership matrix
 
-`☑` means the engine is the sole authority for that cell on the named **actual route**, with source and test evidence. `☐` means split or unproved ownership; `—` means the axis does not apply. A checked cell is not a speed claim. The [common-owner tests and review](../../languages/python/benchmarks/linters/ruff/results/common-owner-graph-2026-11-03/README.md) cover the scoped selection, derived-view, and graph rows; fanout and remaining terminal paths stay open.
+`☑` means the engine is the sole authority for that cell on the named **actual route**, with source and test evidence. `☐` means split or unproved ownership; `—` means the axis does not apply. A checked cell is not a speed claim. The crate column identifies the current semantic home and any proposed isolation; it does not transfer the engine's scheduling or storage authority. The [common-owner tests and review](../../languages/python/benchmarks/linters/ruff/results/common-owner-graph-2026-11-03/README.md) cover the scoped selection, derived-view, and graph rows; fanout and remaining terminal paths stay open.
 
-| Contract / route | Scheduling | Caching | Invalidation | Data ownership | Lifetime | Remaining implementor responsibility |
-| --- | :---: | :---: | :---: | :---: | :---: | --- |
-| Language parse and project | ☑ | — | ☑ | ☐ | ☐ | Provider parser state and scratch stay local. |
-| Typed relation catalog | ☑ | — | — | ☑ | ☑ | Provider supplies values through typed relations. |
-| Complete and partial facts | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns typed storage; provider still certifies recovery and partials. |
-| Provider walk versus execution demand | ☑ | — | — | ☑ | — | Engine owns demand rows; provider still certifies deferred-fact completeness. |
-| Source bytes and spans | ☑ | — | ☑ | ☑ | ☑ | Engine owns stored spans; provider still supplies token coordinates. |
-| Source and derived symbols | — | — | ☑ | ☑ | ☑ | Engine owns symbol storage; provider still supplies source-name meaning. |
-| Query grammar and typed plan | ☑ | — | ☑ | ☑ | ☑ | Map compile errors without changing query semantics. |
-| Primitive schema and evaluator | ☐ | ☐ | ☑ | ☑ | ☐ | Close remaining native and fanout bypass routes. |
-| Operator inputs and absence | ☑ | — | — | ☑ | — | Preserve declared absence and lazy error order. |
-| Ordinary plan, frontier, and terminal output | ☐ | ☐ | ☐ | ☑ | ☐ | Finish one scheduler and output lifetime across residual paths. |
-| Request-wide file graph | ☐ | ☐ | ☐ | ☑ | ☐ | Consolidate remaining request and Stepper work/release. |
-| Stored selections and selector views | ☑ | ☑ | ☑ | ☑ | ☑ | Extend the proven owner path to CandidatePostings fanout. |
-| Derived predicate/equality/distinct views | ☐ | ☑ | ☑ | ☑ | ☑ | Remove remaining caller-local scheduling choices. |
-| Graph adjacency, domain, and memo retention | ☐ | ☑ | ☑ | ☑ | ☑ | Finish traversal-demand scheduling; measure cost separately. |
-| Keyed semantic rendering demand | ☐ | ☐ | ☐ | ☐ | ☐ | Add engine-owned keyed requests, per-rule incompleteness and lifetime; providers supply syntax rendering only. |
-| CandidatePostings fanout | ☐ | ☐ | ☐ | ☐ | ☐ | Move admission, materialization, reuse, and release into the common owner. |
-| Persistent lint snapshot | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles. |
-| Outbound reports and jobs | ☑ | — | ☑ | ☑ | ☐ | Scheduler adapter still owns executor resources. |
+| Contract / route | Capability crate (actual → proposed) | Scheduling | Caching | Invalidation | Data ownership | Lifetime | Remaining implementor responsibility |
+| --- | --- | :---: | :---: | :---: | :---: | :---: | --- |
+| Language parse and project | `ryo-language` + provider | ☑ | — | ☑ | ☐ | ☐ | Provider parser state and scratch stay local. |
+| Typed relation catalog | `ryo-language` | ☑ | — | — | ☑ | ☑ | Provider supplies values through typed relations. |
+| Complete and partial facts | `ryo-language` + `ryo-core` | ☑ | ☑ | ☑ | ☑ | ☑ | Engine owns typed storage; provider still certifies recovery and partials. |
+| Provider walk versus execution demand | `ryo-language` + `ryo-core` | ☑ | — | — | ☑ | — | Engine owns demand rows; provider still certifies deferred-fact completeness. |
+| Source bytes and spans | `ryo-language` + `ryo-core` | ☑ | — | ☑ | ☑ | ☑ | Engine owns stored spans; provider still supplies token coordinates. |
+| Source and derived symbols | `ryo-language` + `ryo-core` | — | — | ☑ | ☑ | ☑ | Engine owns symbol storage; provider still supplies source-name meaning. |
+| Query grammar and typed plan | `ryo-query_language` + `ryo-values` | ☑ | — | ☑ | ☑ | ☑ | Map compile errors without changing query semantics. |
+| Primitive schema and evaluator | `ryo-core` → proposed `ryo-operators` semantics | ☐ | ☐ | ☑ | ☑ | ☐ | Close remaining native and fanout bypass routes. |
+| Operator inputs and absence | `ryo-values` + `ryo-core` | ☑ | — | — | ☑ | — | Preserve declared absence and lazy error order. |
+| Ordinary plan, frontier, and terminal output | `ryo-core` | ☐ | ☐ | ☐ | ☑ | ☐ | Finish one scheduler and output lifetime across residual paths. |
+| Request-wide file graph | `ryo-core` | ☐ | ☐ | ☐ | ☑ | ☐ | Consolidate remaining request and Stepper work/release. |
+| Stored selections and selector views | `ryo-core` | ☑ | ☑ | ☑ | ☑ | ☑ | Extend the proven owner path to CandidatePostings fanout. |
+| Derived predicate/equality/distinct views | `ryo-core` → proposed `ryo-derived` semantics | ☐ | ☑ | ☑ | ☑ | ☑ | Remove remaining caller-local scheduling choices. |
+| Graph adjacency, domain, and memo retention | `ryo-core` → proposed `ryo-derived` semantics | ☐ | ☑ | ☑ | ☑ | ☑ | Finish traversal-demand scheduling; measure cost separately. |
+| Keyed semantic rendering demand | `ryo-language` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Add engine-owned keyed requests, per-rule incompleteness and lifetime; providers supply syntax rendering only. |
+| CandidatePostings fanout | `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Move admission, materialization, reuse, and release into the common owner. |
+| Persistent lint snapshot | `ryo-core` + SDK adapter | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles. |
+| Outbound reports and jobs | `ryo-core` + SDK adapter | ☑ | — | ☑ | ☑ | ☐ | Scheduler adapter still owns executor resources. |
 
 ### Proposed remaining boundaries
 
@@ -67,6 +67,7 @@ Cells are **proven: test/receipt**, **falsified: file:line**, or **unknown**; an
 | Admission/publication, derived acquisition and terminal ownership | ?; correctness first | Known bypasses remain; predicate workspace application ownership is unchecked pending production-route enumeration. |
 | Corrected owner checkpoint, frozen Django/Rust | 3 observed; cause unknown | [Matched receipts](../../languages/python/benchmarks/linters/ruff/results/owner-checkpoint-measurement-2026-11-03/README.md): Django cold +12.33%; Rust spike CPU +16.67% above guard. Graph/fanout ownership remains unchecked. |
 | Graph/domain owner candidate, same frozen workload | 3 observed; cause unknown | [Matched receipts](../../languages/python/benchmarks/linters/ruff/results/common-owner-graph-2026-11-03/README.md): versus the corrected checkpoint, Django cold +0.39%, warm +13.08%, retained edit −11.22%; Rust spike CPU +1.87%. Exact reports, one pair, no general gain; fanout remains unchecked. |
+| Prepared comparison candidate, frozen 310-rule workload | 3 observed; cause under study | [Corrected matched pair](../../languages/python/benchmarks/linters/ruff/results/prepared-comparisons-2026-11-03/README.md): versus 859c6af8, Django cold −0.40% (effectively flat), retained edit −11.9% in one observation; Rust warm +16.7%. The contaminated first baseline is excluded. [Source-bound CPU and bounded heap attribution](../../languages/python/benchmarks/linters/ruff/results/owner-cost-attribution-2026-11-03/README.md) ranks lifecycle, setup and backing cost; it is not a whole-corpus heap or exact CPU-caller account. |
 | Repeated file/rule demand and materialization | ? | [Whole-corpus routes](../../languages/python/benchmarks/linters/ruff/results/owner-checkpoint-measurement-2026-11-03/routes-summary.json): rules/frontiers dominates instrumented phase time; PredicateMatches 1.172M, Equality 759k, DistinctRepresentatives 633k builds remain cost hypotheses. [Memo diagnostics](../../languages/python/benchmarks/linters/ruff/results/predicate-memo-diagnostic-2026-11-03/README.md) count 1.0015B text-equality bypasses; the options.py reset probe measured 0.329 ms, not whole-corpus reset cost. Compare reached scans/build identities next. |
 | Narrow native/projection experiments | ? | Local options.py reached only 4 native segments / 11 projections; parked, no production or whole-workload gain credit. |
 | Historical required-live recomputation | 5, guarded | [Recorded failure and repair](../../languages/python/benchmarks/linters/ruff/results/required-live-2026-11-02/README.md); preserve zero-optional-budget regression controls. |

@@ -1,0 +1,181 @@
+{
+  "schema": "prepared-comparisons-matched/v1",
+  "baseline_source": "859c6af8f02465d467c17308ea7a46dabe04bdfc",
+  "candidate_source": "1e3d3bdcecdf7742cf9b72cfc2f284f235b85c12",
+  "single_pair_only": true,
+  "rules": 310,
+  "files": 2875,
+  "changed_run_order": true,
+  "contaminated_first_baseline_excluded": true,
+  "contamination_record": "/tmp/django-prepared-comparisons-quiet-20261103/baseline-cold-contamination.json",
+  "corrected_baseline": "/tmp/django-prepared-comparisons-corrected-baseline-20261103/base/cold/result.json",
+  "conclusion": "Cold effectively flat; no stepwise or universal performance gain. Rust warm slower in one pair. No noise repeats. CPU/heap attribution required before next optimization.",
+  "django": {
+    "cold": {
+      "base": {
+        "wall_seconds": 234.683795086,
+        "cpu_seconds": 234.559767,
+        "peak_rss_bytes": 2259517440,
+        "diagnostics": 2327,
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "raw_report_bytes_equal": true,
+        "matches_retained_baseline_report": true,
+        "capped": false
+      },
+      "candidate": {
+        "wall_seconds": 233.740226444,
+        "cpu_seconds": 233.641014,
+        "peak_rss_bytes": 2270244864,
+        "diagnostics": 2327,
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "raw_report_bytes_equal": true,
+        "matches_retained_baseline_report": true,
+        "capped": false
+      },
+      "wall_change_percent": -0.402059563445456
+    },
+    "warm": {
+      "base": {
+        "wall_seconds": 2.0221524,
+        "cpu_seconds": 2.022119,
+        "peak_rss_bytes": 409423872,
+        "diagnostics": 2327,
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "raw_report_bytes_equal": true,
+        "matches_retained_baseline_report": true,
+        "capped": false
+      },
+      "candidate": {
+        "wall_seconds": 2.020110241,
+        "cpu_seconds": 2.020076,
+        "peak_rss_bytes": 417869824,
+        "diagnostics": 2327,
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "report_sha256": "8e0dc151c4574e587254785c41aa4b127928bbe2a516b292545ed811cc29a30a",
+        "raw_report_bytes_equal": true,
+        "matches_retained_baseline_report": true,
+        "capped": false
+      },
+      "wall_change_percent": -0.10098937152314136
+    },
+    "edit-retained": {
+      "base": {
+        "wall_seconds": 10.047760354,
+        "cpu_seconds": 10.047821,
+        "peak_rss_bytes": 2128015360,
+        "diagnostics": 2328,
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "report_sha256": "e9070428b1d759fb900a10d52311c97b2e50bd7ad5e0119faced82a897377489",
+        "raw_report_bytes_equal": true,
+        "matches_retained_baseline_report": true,
+        "capped": false
+      },
+      "candidate": {
+        "wall_seconds": 8.849543782,
+        "cpu_seconds": 8.848582,
+        "peak_rss_bytes": 2137296896,
+        "diagnostics": 2328,
+        "coverage": {
+          "evaluated": 890943,
+          "selected": 891250,
+          "skipped": 307,
+          "unknown_or_unread": 0
+        },
+        "report_sha256": "e9070428b1d759fb900a10d52311c97b2e50bd7ad5e0119faced82a897377489",
+        "raw_report_bytes_equal": true,
+        "matches_retained_baseline_report": true,
+        "capped": false
+      },
+      "wall_change_percent": -11.925210492535198
+    }
+  },
+  "rust": {
+    "schema": "owner-rust-original-benchmark-summary/v1",
+    "manifest_sha256": "49698711228805c57d8496891757eaf439947fa046bd49fa100483ae9490123b",
+    "metrics": {
+      "cold-cpu-milliseconds": {
+        "base": 11824,
+        "candidate": 11728,
+        "candidate_over_base": 0.9918809201623816
+      },
+      "cold-milliseconds": {
+        "base": 1663,
+        "candidate": 1648,
+        "candidate_over_base": 0.9909801563439568
+      },
+      "edit-milliseconds": {
+        "base": 340,
+        "candidate": 324,
+        "candidate_over_base": 0.9529411764705882
+      },
+      "peak-megabytes": {
+        "base": 511,
+        "candidate": 505,
+        "candidate_over_base": 0.9882583170254403
+      },
+      "spike-cpu-milliseconds": {
+        "base": 2466,
+        "candidate": 2449,
+        "candidate_over_base": 0.9931062449310625
+      },
+      "store-files": {
+        "base": 1,
+        "candidate": 1,
+        "candidate_over_base": 1.0
+      },
+      "store-megabytes": {
+        "base": 67,
+        "candidate": 67,
+        "candidate_over_base": 1.0
+      },
+      "warm-milliseconds": {
+        "base": 84,
+        "candidate": 98,
+        "candidate_over_base": 1.1666666666666667
+      }
+    },
+    "single_pair_only": true,
+    "strict_peak_cap_not_replaced": true
+  },
+  "behavioral_proof": {
+    "gate": "/tmp/prepared-comparisons-gate3-20261103/receipt.json",
+    "core": 545,
+    "capabilities": 11,
+    "fable": "/tmp/prepared-comparisons-fable-review-20261103.json",
+    "options": "/tmp/prepared-comparisons-options-20261103/receipt.json",
+    "cache_regression": "Named-kind GlobAny/NotGlobAny stale-address reuse fixed via retained immutable program+binding identity; existing crossfile cache22 and nested/error/pin release controls pass."
+  },
+  "scope_limits": [
+    "Native-ready raw cache safety requires request-lived contract/per-file RuleWorkspace; not API-wide lifetime closure",
+    "Existing raw/native/OR comparator fallback remains unoptimized",
+    "Retained binding snapshots/program-change cache invalidation are part of this delta; performance split unmeasured"
+  ]
+}
