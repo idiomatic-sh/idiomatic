@@ -31,9 +31,23 @@ pub fn completion<'a>(
 
 /// Interns the decoded value of each node, after every token of the file's bytes, and gives the node that text.
 pub fn intern_decoded(elements: &mut Elements, symbols: &mut Symbols, source: ByteSlice<'_>) {
+    intern_decoded_from(elements, symbols, source, 0);
+}
+
+/// Intern only decoded entries added after an append, preserving every previous symbol.
+pub(crate) fn intern_decoded_from(
+    elements: &mut Elements,
+    symbols: &mut Symbols,
+    source: ByteSlice<'_>,
+    from: usize,
+) {
     // Source tokens have all been interned; derived node values must follow them.
     let count = engine(elements).decoded.len();
-    for at in 0..count {
+    for at in from..count {
+        #[cfg(test)]
+        {
+            engine_mut(elements).decoded_intern_visits += 1;
+        }
         let table = engine(elements);
         let Some(decoded) = table.decoded.get(at).copied() else {
             break;

@@ -45,6 +45,9 @@ pub(crate) struct ParseContract {
     syntax: Arc<dyn SyntaxPort>,
     /// What writes the notes of a file as bytes.
     notes: Arc<dyn NotesPort>,
+    /// Actual model initialization calls on this contract instance.
+    #[cfg(test)]
+    model_preparations: std::sync::atomic::AtomicUsize,
 }
 
 /// Select stubs by the exact lowercase `.pyi` suffix used by the existing parser contract.
@@ -60,6 +63,13 @@ fn source_kind(path: &str) -> PythonSourceKind {
 }
 
 impl ParseContract {
+    /// Observe the actual common-engine call, without retaining a fabricated model snapshot.
+    #[cfg(test)]
+    pub(crate) fn model_preparation_count(&self) -> usize {
+        self.model_preparations
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(
@@ -71,6 +81,8 @@ impl ParseContract {
             settings,
             syntax,
             notes,
+            #[cfg(test)]
+            model_preparations: std::sync::atomic::AtomicUsize::new(0),
         }
     }
 }
@@ -115,7 +127,24 @@ impl Parse for ParseContract {
         languages::ParseConfigurationIdentity(self.settings.identity())
     }
 
+    fn completion_requires_model(&self) -> bool {
+        true
+    }
+
+    fn extend_file_model(
+        &self,
+        tree: &languages::Tree<'_>,
+        from: languages::Position,
+        model: &mut Declarations,
+    ) {
+        crate::domain::bindings::service::extend(tree, from, model);
+    }
+
     fn file_model(&self, tree: &languages::Tree<'_>, model: &mut Declarations) {
+        #[cfg(test)]
+        let _previous = self
+            .model_preparations
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         model.language_target = self.settings.target_version().components();
         crate::domain::expression_shapes::service::clear(model.expression_shapes.get_mut());
         crate::domain::constant_keys::service::clear(model.constant_keys.get_mut());
@@ -182,6 +211,11 @@ impl Parse for ParseContract {
         request: &languages::ParseRequest<'_>,
         completion: &mut languages::Completion<'_>,
     ) {
+        crate::application::completion::service::expand(
+            SourceText(request.bytes.0),
+            completion,
+            self.syntax.as_ref(),
+        );
         for kind in kinds() {
             languages::name_kind(completion, kind_bits(kind), kind_name(kind));
         }

@@ -104,9 +104,10 @@ fn additional_syntax_outcomes_do_not_publish_roots_or_arbitrary_names() {
     assert_eq!(outcomes(&report), ["parsed", "parsed"]);
     assert_eq!(reading::<SemanticSyntaxItem>(source), before);
     assert_eq!(reading::<EmbeddedExpressionItem>(source), embedded);
-    assert!(
-        embedded.rows.is_empty(),
-        "both candidates remain hidden or unrequested native strings"
+    assert_eq!(
+        embedded.rows.len(),
+        1,
+        "the resolved builtin list is a real type context; Literal's metadata remains hidden"
     );
 }
 
@@ -126,3 +127,5 @@ fn incomplete_source_preserves_partial_knowledge() {
     let report = proposed::<LiteralExpressionParseItem>("'T'\n(\n");
     assert!(!report.causes.is_empty());
 }
+
+mod preseal;

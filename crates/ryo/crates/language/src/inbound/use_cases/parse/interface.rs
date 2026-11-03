@@ -47,6 +47,21 @@ pub trait ParseUseCase: Send + Sync {
     /// keeps and writes the file's, and the readers of the file read it.
     fn file_model(&self, tree: &Tree<'_>, model: &mut Self::FileModel);
 
+    /// Whether completing this provider's syntax requires its initialized file model.
+    /// The common engine owns initialization and readiness; providers only declare this input.
+    fn completion_requires_model(&self) -> bool {
+        false
+    }
+
+    /// Extend only model entries for newly appended expressions; native resolution stays valid.
+    fn extend_file_model(
+        &self,
+        _tree: &Tree<'_>,
+        _from: crate::domain::relations::types::Position,
+        _model: &mut Self::FileModel,
+    ) {
+    }
+
     /// Whether the language reads the file the request names, by its path.
     fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition;
 

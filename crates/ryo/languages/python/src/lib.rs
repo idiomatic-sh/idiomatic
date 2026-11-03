@@ -18,6 +18,7 @@
 pub(crate) mod inbound;
 pub(crate) mod outbound;
 
+mod application;
 mod domain;
 
 pub mod settings;

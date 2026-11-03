@@ -726,3 +726,6 @@ fn unsupported_compiler_feature_is_unknown_and_emits_no_false_row() {
     assert!(out.rows().is_empty());
     assert_eq!(out.partials_at.len(), 1);
 }
+
+#[path = "service_test/completion_order.rs"]
+mod completion_order;

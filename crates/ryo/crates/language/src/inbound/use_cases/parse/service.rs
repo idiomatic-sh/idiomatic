@@ -154,9 +154,13 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
 ) -> Result<(), ParseError> {
     let mut builder = table_builder(table, symbols, request.bytes);
     language.read_tree(&request, &mut builder)?;
-    language.complete(
-        &request,
-        &mut completion(table, symbols, request.bytes, request.file),
+    crate::application::completion::service::complete::<L::FileModel>(
+        completion(table, symbols, request.bytes, request.file),
+        language.configuration_identity().0,
+        language.completion_requires_model(),
+        |tree, model| language.file_model(tree, model),
+        |completed| language.complete(&request, completed),
+        |tree, from, model| language.extend_file_model(tree, from, model),
     );
     Ok(())
 }
@@ -245,7 +249,8 @@ pub(crate) fn walk_in<L>(
 ) where
     L: ParseUseCase + ?Sized,
 {
-    let mut model: Box<L::FileModel> = take_scratch(elements);
+    let mut model: Box<L::FileModel> =
+        crate::application::completion::service::take_model(elements);
     if wanted.contains(&Relation::SourceLocation) {
         crate::domain::location::service::index(
             &mut engine_mut(elements).line_starts,
@@ -255,7 +260,7 @@ pub(crate) fn walk_in<L>(
     walk_with(
         language, elements, &mut model, symbols, source, file, wanted, out,
     );
-    keep_scratch(elements, model);
+    crate::application::completion::service::keep_model(elements, model);
 }
 
 /// Writes the rows of the wanted relations for the file whose table is `elements`, given the model the worker keeps for the language.
@@ -265,7 +270,7 @@ pub(crate) fn walk_in<L>(
 )]
 fn walk_with<L>(
     language: &L,
-    elements: &Elements,
+    elements: &mut Elements,
     model: &mut L::FileModel,
     symbols: &mut Symbols,
     source: ByteSlice<'_>,
@@ -307,12 +312,29 @@ fn walk_with<L>(
     if !reads_any {
         return;
     }
+    if language.completion_requires_model() {
+        crate::application::completion::service::prepare(
+            elements,
+            source,
+            file,
+            language.configuration_identity().0,
+            model,
+            |tree, model| language.file_model(tree, model),
+        );
+    } else {
+        crate::application::completion::service::initialize(
+            elements,
+            source,
+            file,
+            model,
+            |tree, model| language.file_model(tree, model),
+        );
+    }
     let tree = Tree {
         elements,
         source,
         file,
     };
-    language.file_model(&tree, model);
     // Preserve native-before-expanded ordering through one dispatch loop. No added table
     // is traversed unless at least one requested reader opted into added occurrences.
     let expanded = slots
@@ -406,29 +428,4 @@ pub fn walk(
 /// What the language's library says of a file it refuses.
 pub fn baseline(language: &dyn ParseEngine, request: &ParseRequest<'_>) -> Result<(), ParseError> {
     language.baseline_file(request)
-}
-
-/// The model the worker keeps for the language, or a new one the first time and when another language used the table last.
-#[expect(
-    clippy::unnecessary_box_returns,
-    reason = "the box is the model's room, kept between files so that a file allocates none"
-)]
-fn take_scratch<M>(elements: &mut Elements) -> Box<M>
-where
-    M: Default + Send + 'static,
-{
-    engine_mut(elements)
-        .scratch
-        .0
-        .take()
-        .and_then(|kept| kept.downcast::<M>().ok()) // ignore: idiomatic.arch/no-ok-on-result - a scratch of another file model is none of this one: the model starts afresh
-        .unwrap_or_default()
-}
-
-/// Keeps the model with the table for the next file.
-fn keep_scratch<M>(elements: &mut Elements, model: Box<M>)
-where
-    M: Send + 'static,
-{
-    engine_mut(elements).scratch.0 = Some(model);
 }

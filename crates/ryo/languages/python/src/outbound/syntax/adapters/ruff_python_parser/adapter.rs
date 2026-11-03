@@ -22,8 +22,12 @@ use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 /// The `ruff_python_parser` syntax adapter.
-#[derive(Debug)]
-pub(crate) struct SyntaxRuffPythonParserAdapter;
+#[derive(Debug, Default)]
+pub(crate) struct SyntaxRuffPythonParserAdapter {
+    /// Actual new carrier parse attempts, observed per adapter only in tests.
+    #[cfg(test)]
+    pub(crate) expansion_parses: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
 
 /// The parser options derived from Python-owned settings and the source path's kind.
 #[expect(
@@ -877,6 +881,45 @@ fn annotation_named_expression_syntax_errors(
 }
 
 impl SyntaxPort for SyntaxRuffPythonParserAdapter {
+    fn expand_annotations(
+        &self,
+        source: SourceText<'_>,
+        carriers: &[crate::outbound::syntax::types::DeferredAnnotation],
+        builder: &mut languages::TableBuilder<'_>,
+    ) {
+        let Ok(source) = std::str::from_utf8(source.0) else {
+            return;
+        };
+        for carrier in carriers {
+            let (Ok(start), Ok(end)) = (
+                usize::try_from(carrier.start.0),
+                usize::try_from(carrier.end.0),
+            ) else {
+                continue;
+            };
+            let Some(text) = source.get(start..end) else {
+                continue;
+            };
+            #[cfg(test)]
+            let _previous = self
+                .expansion_parses
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let Ok(parsed) = ruff_python_parser::parse_expression(text) else {
+                continue;
+            };
+            let ruff_python_ast::Expr::StringLiteral(literal) = parsed.expr() else {
+                continue;
+            };
+            append_literal(
+                builder,
+                carrier.host,
+                literal,
+                languages::NameText(text),
+                languages::EmbeddedMapping::Exact(carrier.start),
+            );
+        }
+    }
+
     fn read(
         &self,
         text: SourceText<'_>,
@@ -1051,8 +1094,24 @@ fn append_annotation(
     source: languages::NameText<'_>,
     inherited: languages::EmbeddedMapping,
 ) {
-    let Ok(annotation) =
-        ruff_python_parser::typing::parse_type_annotation(&candidate.literal, source.0)
+    append_literal(
+        builder,
+        candidate.host,
+        &candidate.literal,
+        source,
+        inherited,
+    );
+}
+
+/// Borrow a resolved carrier's parsed literal; the deferred request never retains or clones its AST.
+fn append_literal(
+    builder: &mut languages::TableBuilder<'_>,
+    host: languages::Position,
+    literal: &ruff_python_ast::ExprStringLiteral,
+    source: languages::NameText<'_>,
+    inherited: languages::EmbeddedMapping,
+) {
+    let Ok(annotation) = ruff_python_parser::typing::parse_type_annotation(literal, source.0)
     else {
         return;
     };
@@ -1067,7 +1126,7 @@ fn append_annotation(
             inherited,
         )
     } else {
-        let logical = candidate.literal.value.to_str();
+        let logical = literal.value.to_str();
         let Ok(value) = ruff_python_parser::parse_expression(logical) else {
             return;
         };
@@ -1083,7 +1142,7 @@ fn append_annotation(
     let mut nested = Vec::new();
     languages::write_embedded(
         builder,
-        candidate.host,
+        host,
         languages::ByteSlice(source.0.as_bytes()),
         mapping,
         |logical| {

@@ -145,3 +145,29 @@ pub fn write_embedded(
 pub fn embedded_expressions(elements: &Elements) -> impl Iterator<Item = EmbeddedSource> + '_ {
     engine(elements).embedded.iter().copied()
 }
+
+/// Append through the existing embedding builder without clearing the native tree.
+/// Decoded values written by this append are interned exactly once afterward.
+pub fn append_embedded(
+    completion: &mut crate::domain::elements::types::Completion<'_>,
+    write: impl FnOnce(&mut TableBuilder<'_>),
+) {
+    let completion = completion.as_mut();
+    let from = engine(completion.elements).decoded.len();
+    {
+        let mut builder = TableBuilder::from(BuilderEngine {
+            elements: completion.elements,
+            symbols: completion.symbols,
+            source: completion.source,
+            logical_source: None,
+            writing: TableWriting::Writes,
+        });
+        write(&mut builder);
+    }
+    crate::domain::completion::service::intern_decoded_from(
+        completion.elements,
+        completion.symbols,
+        completion.source,
+        from,
+    );
+}

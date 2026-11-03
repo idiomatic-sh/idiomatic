@@ -19,6 +19,18 @@ use std::sync::Arc;
 /// Deliberately incomplete parser scalar payload, retaining a real numeric token and interval.
 struct MissingPayload(Option<&'static str>, Option<&'static str>);
 impl SyntaxPort for MissingPayload {
+    fn expand_annotations(
+        &self,
+        _source: SourceText<'_>,
+        carriers: &[crate::outbound::syntax::types::DeferredAnnotation],
+        _builder: &mut ryo::languages::TableBuilder<'_>,
+    ) {
+        assert!(
+            carriers.is_empty(),
+            "this syntax fixture supplies no deferred type carrier"
+        );
+    }
+
     fn read(
         &self,
         _text: SourceText<'_>,
