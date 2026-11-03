@@ -622,21 +622,47 @@ def self_test() -> int:
                 source = profile_config.REPOSITORY / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, destination)
-        # The frozen prepared descriptors predate two appended factory controls.
-        # This sandbox copies today's canonical case files, so align only those
-        # append-only inventories before testing unrelated preflight refusals.
-        for rule in ('FURB132', 'PERF402'):
+        # Preserve pinned source inputs and raw reference observations separately
+        # from certificate-backed candidate expectations in today's case files.
+        # Canonical projections of the exact frozen cases at 8720cbc9e1; their
+        # original file hashes are recorded in profiles/prepared.json.
+        pinned = {
+            'FURB132': ('6db1b57d1ae9a7cbb1e85e8dc3923fe577d73612a5769d6c2023c7060faba089',
+                        'e6b6f3a34a88d01328f5fecac2ad4009af650084d9b94753c4f0a29526cc21ee'),
+            'PERF402': ('89bdbecd82e5ed5fdd985da8f55c2c654de934efb9100262d36e251206143535',
+                        '9d4c3b8b410bdde7ab05845ae7cb74dd389b44d91bb758a1bc7fec5b269fa24a'),
+        }
+        factory_controls = ['called-annotated-factory-typed-instance', 'called-annotated-factory-uninferred']
+        lambda_controls = ['lambda-phase-body-call', 'lambda-phase-body-subscript',
+                           'lambda-phase-default-call', 'lambda-phase-keyword-default-subscript',
+                           'lambda-phase-nested-deferred-default', 'lambda-phase-nested-eager-default',
+                           'lambda-phase-nested-body-root']
+        for rule, (source_hash, reference_hash) in pinned.items():
             recorded = manifest['profiles'][rule]
             cases_relative = profile_config.RUFF_DIR.relative_to(profile_config.REPOSITORY) / recorded['cases_file']
             cases_path = root / cases_relative
             if not cases_path.is_file():
                 cases_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(profile_config.REPOSITORY / cases_relative, cases_path)
-            names = [case['name'] for case in tomllib.loads(cases_path.read_text(encoding='utf-8'))['cases']]
+            cases = tomllib.loads(cases_path.read_text(encoding='utf-8'))['cases']
+            names = [case['name'] for case in cases]
             previous = recorded['case_names']
-            if names[:len(previous)] != previous or len(names) != len(previous) + 2:
-                print(f'{rule} fixture changed beyond its two appended controls', file=sys.stderr)
+            appended = factory_controls + (lambda_controls if rule == 'FURB132' else [])
+            if names != previous + appended:
+                print(f'{rule} fixture changed beyond its certified appended controls', file=sys.stderr)
                 return 1
+            original = cases[:len(previous)]
+            source_inputs = [{key: value for key, value in case.items()
+                              if key not in {'expected', 'reference-discrepancy'}} for case in original]
+            raw_reference = [case.get('reference-discrepancy', {}).get('expected', case['expected'])
+                             for case in original]
+            if (reference_discrepancies.discrepancy_json_hash(source_inputs) != source_hash
+                    or reference_discrepancies.discrepancy_json_hash(raw_reference) != reference_hash):
+                print(f'{rule} pinned source inputs or raw reference observations changed', file=sys.stderr)
+                return 1
+            for case in cases:
+                reference_discrepancies.validate_reference_discrepancy(
+                    profile_config.RUFF_DIR / 'profiles' / rule, case, rule)
             recorded['case_names'] = names
             recorded['case_count'] = len(names)
         manifest['files'] = {relative: profile_config.sha256(root / relative) for relative in sorted(required)}
