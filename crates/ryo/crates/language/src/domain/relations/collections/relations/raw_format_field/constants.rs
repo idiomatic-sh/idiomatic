@@ -8,7 +8,7 @@ pub fn name() -> &'static str {
 /// Relation promise, independent of any diagnostic rule.
 #[must_use]
 pub fn summary() -> &'static str {
-    "Ordered fields from complete raw-token parses; malformed segments contribute no fields."
+    "Ordered fields from complete raw-token parses, retaining canonical unique flags without conversion policy; malformed segments contribute no fields."
 }
 /// Public name of one typed column.
 #[must_use]

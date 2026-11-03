@@ -1,5 +1,6 @@
 //! Independent demand, exact raw envelopes and retained per-token parser identities.
 use super::service::{body, prepare, result, segments};
+use crate::domain::format_syntax::service::flag_text;
 use crate::domain::{
     brace_format::{service::prepare as brace, types::BraceFormatState},
     format_parsing::service::prepare as decoded,
@@ -71,7 +72,7 @@ fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     assert_ne!(index.segments[1].token, index.segments[2].token);
     assert_eq!(index.segments[1].cached, index.segments[2].cached);
     assert!(matches!(result(&index, &index.segments[1]),
-        Some(FormatParseResult::Parsed(parsed)) if parsed.fields[0].flags.canonical() == "+"));
+        Some(FormatParseResult::Parsed(parsed)) if flag_text(parsed.fields[0].flags) == "+"));
     assert_eq!(model.format_parsing.borrow().state, FormatParseState::Fresh);
     assert_eq!(model.brace_format.borrow().state, BraceFormatState::Fresh);
     drop(index);

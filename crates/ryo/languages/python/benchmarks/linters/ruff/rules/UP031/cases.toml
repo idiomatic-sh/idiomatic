@@ -182,3 +182,33 @@ expected = [{ rule = "UP031", file = "case.py", start = 0, end = 22 }, { rule = 
 name = "stub"
 files = { "case.pyi" = "x: str\n\"%s\" % value\n" }
 expected = [{ rule = "UP031", file = "case.pyi", start = 7, end = 19 }]
+
+[[cases]]
+name = "parenthesized-integer-fallback"
+files = { "case.py" = "(\"%d\") % value\n" }
+expected = [{ rule = "UP031", file = "case.py", start = 1, end = 5 }]
+
+[[cases]]
+name = "quoted-annotation-modulo"
+files = { "case.py" = "x: \"'%s' % value\"\n" }
+expected = [{ rule = "UP031", file = "case.py", start = 4, end = 16 }]
+
+[[cases]]
+name = "escaped-annotation-modulo"
+files = { "case.py" = "x: \"\\\"%s\\\" % value\"\n" }
+expected = [{ rule = "UP031", file = "case.py", start = 3, end = 19 }]
+
+[[cases]]
+name = "unicode-annotation-modulo"
+files = { "case.py" = "x: \"'é%s' % value\"\n" }
+expected = [{ rule = "UP031", file = "case.py", start = 4, end = 18 }]
+
+[[cases]]
+name = "backslash-annotation-modulo"
+files = { "case.py" = "x: \"'%s\\\\path' % value\"\n" }
+expected = [{ rule = "UP031", file = "case.py", start = 3, end = 23 }]
+
+[[cases]]
+name = "annotation-addition-negative"
+files = { "case.py" = "x: \"'%s' + value\"\n" }
+expected = []

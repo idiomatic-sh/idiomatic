@@ -4,11 +4,10 @@ let left_fields = select parent, child from "semantic-child" where field = "left
 let right_fields = select parent, child from "semantic-child" where field = "right";
 let binop_lefts = select l.id as binop, l.file as file, r.child as left from binops as l join left_fields as r on l.id = r.parent;
 let binop_rights = select l.id as binop, l.file as file, r.child as right from binops as l join right_fields as r on l.id = r.parent;
-let left_locations = select l.binop as binop, l.left as left, l.file as file, r."end-byte" as left_end from binop_lefts as l join "source-location" as r on l.left = r.id and l.file = r.file;
-let right_locations = select l.binop as binop, l.right as right, l.file as file, r."start-byte" as right_start from binop_rights as l join "source-location" as r on l.right = r.id and l.file = r.file;
-let ordered_binops = select l.binop as binop, l.left as left, r.right as right, l.file as file, l.left_end as left_end, r.right_start as right_start from left_locations as l join right_locations as r on l.binop = r.binop and l.file = r.file;
-let percent_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "%";
-let modulo_candidates = select l.binop as binop, l.left as left, l.right as right, l.file as file from ordered_binops as l join percent_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
+let percent_tokens = select id as token from "semantic-syntax" where text = "%";
+let modulo_operators = select l.parent as binop from "semantic-child" as l join percent_tokens as r on l.child = r.token;
+let operands = select l.binop as binop, l.left as left, r.right as right, l.file as file from binop_lefts as l join binop_rights as r on l.binop = r.binop and l.file = r.file;
+let modulo_candidates = select l.binop as binop, l.left as left, l.right as right, l.file as file from operands as l join modulo_operators as r on l.binop = r.binop;
 let format_literals = select l.occurrence as format_id, l.value as value, l.file as file from "string-literal" as l;
 let literal_binops = select l.binop as binop, l.left as left, l.right as right, l.file as file, r.format_id as format_id, r.value as format_value from modulo_candidates as l join format_literals as r on l.left = r.format_id and l.file = r.file;
 let right_shapes = select l.binop as binop, l.format_id as format_id, l.right as right, l.file as file, r.kind as right_kind from literal_binops as l join "semantic-syntax" as r on l.right = r.id and l.file = r.file;
@@ -16,7 +15,7 @@ let segments = select id as format_id, "segment-ordinal" as ordinal, outcome, fi
 let fields = select id as format_id, "segment-ordinal" as ordinal, "argument-kind" as argument_kind, "mapping-key" as mapping_key, conversion, "width-mode" as width, "precision-mode" as precision, flags, file from "raw-format-field";
 let fixed_unsupported_fields = select format_id, ordinal, file from fields where width = "star" or precision = "star" or conversion = "d" or conversion = "i" or conversion = "u" or conversion = "c" or argument_kind = "mapping" and mapping_key = "";
 let modifier_fields = select format_id, ordinal, conversion, file from fields where flags != "" or width != "none" or precision != "none";
-let unsupported_conversions = select format_id, ordinal, file from modifier_fields where conversion = "r" or conversion = "a" or conversion = "%";
+let unsupported_conversions = select format_id, ordinal, file from modifier_fields where conversion = "r" or conversion = "a";
 let width_strings = select format_id, ordinal, file from fields where conversion = "s" and width != "none";
 let dictionary_operands = select binop, format_id, right, file from right_shapes where right_kind = "dict";
 let dictionary_positional_fields = select l.format_id as format_id, r.ordinal as ordinal, l.file as file from dictionary_operands as l join fields as r on l.format_id = r.format_id and l.file = r.file where r.argument_kind = "positional";

@@ -1,5 +1,6 @@
 //! Static raw-token reader binding; ordinary decoded format demand remains independent.
 use super::format_readers::{error_parts, flag, intern, intern_character, summary_of, width_mode};
+use crate::domain::format_syntax::service::flag_text;
 use crate::domain::{
     format_syntax::types::{FormatArgument, FormatParseResult, FormatParseState},
     model::types::Declarations,
@@ -53,7 +54,7 @@ ryo::reads! {
                             given argument_kind = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "positional", FormatArgument::Mapping(_) => "mapping" });
                             given mapping_key = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "", FormatArgument::Mapping(key) => key });
                             given conversion = intern_character(symbols, tree.source, Some(field.conversion));
-                            given flags = intern(symbols, tree.source, field.flags.canonical());
+                            given flags = intern(symbols, tree.source, flag_text(field.flags));
                             given width = intern(symbols, tree.source, width_mode(field.width));
                             given precision = intern(symbols, tree.source, width_mode(field.precision));
                             given segment_ordinal = languages::Integer(i64::try_from(segment.ordinal).unwrap_or(i64::MAX));
