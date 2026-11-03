@@ -462,7 +462,7 @@ impl FileAnalysis {
         });
         if let Some(dag) = &file_dag {
             dag.borrow().prepare_resources(
-                Self::resource_generation_enabled(tables, facts),
+                Self::resource_generation_enabled(tables, facts.as_ref()),
                 active_wanted.as_ref(),
                 &physical_partials,
                 &selectable,
