@@ -43,6 +43,7 @@ fn backend_scaffold(client: &str) -> String {
     let template = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
+extern crate self as ryo_relations;
 extern crate self as ryo_values;
 pub mod domain {
  pub mod table_model {pub mod types {#[derive(Debug)]pub struct KeyIndex;}}

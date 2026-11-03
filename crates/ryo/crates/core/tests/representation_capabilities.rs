@@ -71,6 +71,7 @@ fn scaffold(omitted: Option<&str>, registry: &str) -> String {
     let template = r#"
 #![allow(dead_code,unused_imports,private_interfaces)]
 extern crate self as ryo_language;
+extern crate self as ryo_relations;
 extern crate self as ryo_values;
 pub mod domain {
     pub mod operating {pub mod errors {#[derive(Clone,Debug)]pub enum OperatingError {WrongOperation}}}
