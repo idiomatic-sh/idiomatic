@@ -114,16 +114,13 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
 }
 
 #[test]
-fn real_owner_delegate_and_selector_equality_have_separate_single_build_counts() {
-    use crate::application::file_dag::derived::{
-        indexes,
-        owner::{DerivedOwner, PopulationId, ViewContext},
-    };
+fn owner_routes_count_each_physical_equality_build_once() {
+    use crate::application::file_dag::derived::owner::{DerivedOwner, PopulationId, ViewContext};
     use crate::domain::{
         derived_views::{collections::views::registration::registered, types::*},
         operation_schema::types::InputSchema,
         operator::contract::views::BorrowedRows,
-        table_model::types::KeyIndex,
+        operator::types::PreparedPool,
     };
     use ryo_language::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -151,7 +148,15 @@ fn real_owner_delegate_and_selector_equality_have_separate_single_build_counts()
         let _rule = rule(2, "query-two");
         let _node = node(41);
         let owner = DerivedOwner::new(0);
-        let mut cache = indexes::new(&[Relation::Function], &[], indexes::LIMIT).unwrap();
+        owner.prepare_file(
+            true,
+            &[Relation::Function],
+            &[],
+            &[Relation::Function],
+            &[],
+            &PreparedPool::default(),
+            |_| true,
+        );
         let held = owner
             .acquire_stored(
                 &plan,
@@ -160,38 +165,43 @@ fn real_owner_delegate_and_selector_equality_have_separate_single_build_counts()
                 DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
                 &mut DerivedScratch::default(),
                 Some((Relation::Function, rows)),
-                Some(&mut cache),
             )
             .unwrap();
-        assert!(matches!(held.as_ref(), DerivedStorage::EqualityShared(_)));
-        let mut selector_cache = indexes::new(&[Relation::Function], &[], indexes::LIMIT).unwrap();
-        let mut local = KeyIndex::default();
-        assert!(
-            indexes::acquire(
+        assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
+        let selector_owner = DerivedOwner::new(0);
+        selector_owner.prepare_file(
+            true,
+            &[Relation::Function],
+            &[],
+            &[Relation::Function],
+            &[],
+            &PreparedPool::default(),
+            |_| true,
+        );
+        let first = selector_owner
+            .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,
                 &plan,
-                &mut selector_cache,
-                Relation::Function,
-                rows,
-                &on,
-                &mut local
+                &[PopulationId(10)],
+                ViewContext::default(),
+                DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
+                &mut DerivedScratch::default(),
+                Some((Relation::Function, rows)),
             )
-            .unwrap()
-            .built
-        );
-        assert!(
-            !indexes::acquire(
+            .unwrap();
+        assert!(first.was_built());
+        let second = selector_owner
+            .acquire_stored_with_route(
                 BuildRoute::SelectorCandidate,
                 &plan,
-                &mut selector_cache,
-                Relation::Function,
-                rows,
-                &on,
-                &mut local
+                &[PopulationId(10)],
+                ViewContext::default(),
+                DerivedInputs::Rows(&[BorrowedRows::Stored(rows)]),
+                &mut DerivedScratch::default(),
+                Some((Relation::Function, rows)),
             )
-            .unwrap()
-            .built
-        );
+            .unwrap();
+        assert!(!second.was_built());
     });
     let builds = state
         .counts
@@ -199,7 +209,7 @@ fn real_owner_delegate_and_selector_equality_have_separate_single_build_counts()
         .filter(|(key, _)| key.route.ends_with("_build"))
         .collect::<Vec<_>>();
     assert_eq!(builds.len(), 2);
-    for (route, owner) in [("owner_build", true), ("selector_candidate_build", false)] {
+    for (route, owner) in [("owner_build", true), ("selector_candidate_build", true)] {
         let (key, count) = builds.iter().find(|(key, _)| key.route == route).unwrap();
         assert_eq!(key.origin.owner, owner);
         assert_eq!(count.calls, 1);

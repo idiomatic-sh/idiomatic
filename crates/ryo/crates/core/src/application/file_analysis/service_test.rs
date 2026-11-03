@@ -433,6 +433,24 @@ fn visited_as(
     keeping: crate::domain::visit::types::Keeping,
     digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
+    visited_as_with_facts(
+        paths,
+        language,
+        answering,
+        keeping,
+        digest,
+        FactsFake::default().worker()?,
+    )
+}
+
+fn visited_as_with_facts(
+    paths: &[&str],
+    language: LanguageFake,
+    answering: &crate::domain::render::types::Answering,
+    keeping: crate::domain::visit::types::Keeping,
+    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     use super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Noting, RoleRead};
     use crate::outbound::corpus::interface::CorpusPort as _;
@@ -504,7 +522,7 @@ fn visited_as(
             TreeSteps::Lowered,
             Counting::DoesNotCount,
         ),
-        facts: FactsFake::default().worker()?,
+        facts,
         old_rows: None,
         failure: None,
     };
@@ -872,6 +890,43 @@ fn unstable_same_shape_resident_populations_decline_generation_reuse() {
         first, second,
         "same relation/schema/count is insufficient without an audited stability promise"
     );
+}
+
+#[test]
+fn actual_file_visit_admits_only_stable_resource_generation() {
+    use crate::application::file_dag::resources::take_resource_setup;
+    use crate::domain::render::types::Answering;
+    use crate::domain::visit::types::Keeping;
+    use ryo_language::domain::relations::types::FactColumn;
+    let _previous = take_resource_setup();
+    let (stable, _) = visited_as(
+        &["stable.rs"],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Discards,
+        Arc::new(DigestFake),
+    )
+    .expect("stable file visit");
+    assert!(stable.failure.is_none());
+    assert_eq!(take_resource_setup(), Some((true, true)));
+
+    let alternate = |value| (0..4).map(|_| FactColumn(vec![value])).collect();
+    let facts = UnstableResidentFacts {
+        inner: FactsFake::default().worker().expect("facts"),
+        alternatives: [alternate(0), alternate(1)],
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    };
+    let (unstable, _) = visited_as_with_facts(
+        &["unstable.rs"],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Discards,
+        Arc::new(DigestFake),
+        Box::new(facts),
+    )
+    .expect("unstable file visit");
+    assert!(unstable.failure.is_none());
+    assert_eq!(take_resource_setup(), Some((false, false)));
 }
 
 #[test]
