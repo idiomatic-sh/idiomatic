@@ -47,7 +47,7 @@ fn fake_obeys_contract_and_refusal_boundary() {
             assert_eq!(target, vec![initial]);
         } else {
             assert_eq!(result, Ok(OperatorAnswer::Written));
-            assert_eq!(target, vec![row[0]]);
+            assert_eq!(target, vec![initial, row[0]]);
         }
         result.map(|_| 1)
     };
