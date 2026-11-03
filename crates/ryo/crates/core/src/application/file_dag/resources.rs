@@ -90,6 +90,7 @@ impl super::types::FileDagExecution {
             self.relations.derived.relation_eligible(relation),
         )
     }
+    #[cfg(test)]
     pub(crate) fn prepare_resources(
         &self,
         enabled: bool,

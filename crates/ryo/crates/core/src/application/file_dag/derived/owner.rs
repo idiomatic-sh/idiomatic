@@ -112,6 +112,11 @@ pub(crate) struct DerivedOwner {
     max_entries: usize,
 }
 impl DerivedOwner {
+    pub(in crate::application::file_dag) fn semantic_port_ref(
+        &self,
+    ) -> &Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        &self.semantic
+    }
     pub(in crate::application::file_dag) fn semantic_port(
         &self,
     ) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {

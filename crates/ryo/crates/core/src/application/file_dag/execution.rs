@@ -114,6 +114,9 @@ impl CommonOperatorEngine<'_> {
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
+        if !std::sync::Arc::ptr_eq(&self.derived, owner.derived.semantic_port_ref()) {
+            return Err(OperatingError::WrongOperation);
+        }
         let mut workspace = InvocationWorkspace::new(std::rc::Rc::clone(owner));
         workspace.capture_inputs(
             ryo_values::domain::plans::service::named(&contract.inputs),
@@ -262,6 +265,9 @@ impl CommonOperatorEngine<'_> {
         room: &mut Room,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
+        if !std::sync::Arc::ptr_eq(&self.derived, owner.derived.semantic_port_ref()) {
+            return Err(OperatingError::WrongOperation);
+        }
         transport::stream(self, owner, contract, feed, context, room, emit)
     }
     fn run<'f>(
