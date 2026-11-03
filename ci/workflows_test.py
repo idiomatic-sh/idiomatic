@@ -57,7 +57,7 @@ def full_inventory_problems(job: dict) -> list[str]:
     steps = job.get("steps", [])
     if not steps:
         return ["full inventory has no worker, collector, verifier or receipts"]
-    if job.get("runs-on") != "ubuntu-26.04" or job.get("needs") or job.get("continue-on-error"):
+    if job.get("runs-on") != "ubuntu-26.04" or any(key in job for key in ("needs", "if", "continue-on-error", "env")):
         found.append("full inventory must run independently on Linux and propagate failure")
     if job.get("defaults", {}).get("run", {}).get("shell") != "bash":
         found.append("full inventory must use the reviewed Bash scripts")
@@ -69,13 +69,36 @@ def full_inventory_problems(job: dict) -> list[str]:
         run = matches[0].get("run") if len(matches) == 1 else None
         if not isinstance(run, str) or sha256(run.encode()).hexdigest() != expected:
             found.append(f"full inventory changed the reviewed {name} script")
-        elif matches[0].get("if") or matches[0].get("continue-on-error"):
+        elif any(key in matches[0] for key in ("if", "continue-on-error", "shell")):
             found.append(f"full inventory may not skip or mask {name}")
+        elif name != "Verify all 413 pinned Ruff defaults" and any(key in matches[0] for key in ("env", "working-directory")):
+            found.append(f"full inventory changed the reviewed {name} build environment")
     if named and named != steps[-4:-1]:
         found.append("full inventory has steps between its builds, verifier and upload")
     extra_runs = [step.get("run") for step in steps if "run" in step and step.get("name") not in FULL_INVENTORY_SCRIPTS]
     if len(extra_runs) != len(SETUP) or any(not isinstance(run, str) for run in extra_runs) or set(extra_runs) != SETUP:
         found.append("full inventory runs an unreviewed setup command")
+    if any("shell" in step or "continue-on-error" in step or "if" in step for step in steps if "run" in step):
+        found.append("full inventory run steps may not override their shell or skip failures")
+    if any("continue-on-error" in step for step in steps):
+        found.append("full inventory steps may not mask failures")
+    if any(
+        "if" in step and (step.get("name"), step["if"])
+        not in {
+            ("Save installed tools", "steps.cargo_bin_cache.outputs.cache-hit != 'true'"),
+            ("All-defaults inventory and per-rule receipts", "always()"),
+        }
+        for step in steps
+    ):
+        found.append("full inventory has an unreviewed step condition")
+    if any(
+        "env" in step and step.get("name") not in {"Install pinned tools", "Verify all 413 pinned Ruff defaults"}
+        for step in steps
+    ):
+        found.append("full inventory has an unreviewed step environment")
+    install = next((step for step in steps if step.get("name") == "Install pinned tools"), None)
+    if install is None or install.get("env") != {"GH_TOKEN": "${{ github.token }}"}:
+        found.append("full inventory changed the pinned tool installation environment")
     verifier = next((step for step in named if step.get("name") == "Verify all 413 pinned Ruff defaults"), None)
     if verifier and (verifier.get("working-directory") != "crates/ryo" or verifier.get("env") != {"RAYON_NUM_THREADS": "1"}):
         found.append("full inventory changed its pinned worker environment")
@@ -310,6 +333,43 @@ def test_full_inventory_refuses_a_dropped_required_step(step_name: str) -> None:
     steps = altered["jobs"]["ruff-all-defaults"]["steps"]
     steps[:] = [step for step in steps if step.get("name") != step_name]
     assert problems(altered)
+
+
+@pytest.mark.parametrize("condition_yaml", ["false", "no", "0"])
+def test_full_inventory_refuses_a_falsy_step_condition(condition_yaml: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    verifier = next(step for step in altered["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == "Verify all 413 pinned Ruff defaults")
+    verifier["if"] = yaml.safe_load(f"if: {condition_yaml}")["if"]
+    assert problems(altered)
+
+
+@pytest.mark.parametrize("condition", [False, "github.event_name == 'workflow_dispatch'"])
+def test_full_inventory_refuses_job_level_skips(condition: object) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    altered["jobs"]["ruff-all-defaults"]["if"] = condition
+    assert problems(altered)
+
+
+@pytest.mark.parametrize("shell", ["true {0}", "bash -c true {0}"])
+def test_full_inventory_refuses_step_shell_overrides(shell: str) -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    altered = deepcopy(workflow)
+    verifier = next(step for step in altered["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == "Verify all 413 pinned Ruff defaults")
+    verifier["shell"] = shell
+    assert problems(altered)
+
+
+def test_full_inventory_refuses_masked_upload_and_build_environment_override() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    masked = deepcopy(workflow)
+    masked["jobs"]["ruff-all-defaults"]["steps"][-1]["continue-on-error"] = True
+    assert problems(masked)
+    changed = deepcopy(workflow)
+    worker = next(step for step in changed["jobs"]["ruff-all-defaults"]["steps"] if step.get("name") == "Build one Ruff worker and seal its artifact")
+    worker["env"] = {"CARGO_TARGET_DIR": "/tmp/other"}
+    assert problems(changed)
 
 
 def test_a_job_command_runs_beside_the_steps_that_install_the_tools() -> None:
