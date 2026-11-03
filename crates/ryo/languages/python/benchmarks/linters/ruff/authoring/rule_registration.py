@@ -14,6 +14,9 @@ from authoring import profile_sources
 from authoring import profile_worker
 from authoring import reference_discrepancies
 
+# Artifact provenance is independent of the selected singleton parser settings.
+DISCREPANCY_SOURCE_ROOTS = {'UP031': profile_config.RUFF_DIR}
+
 def full_inventory_ids(profile: dict[str, object], phases: dict[str, object]) -> list[str]:
     """The pinned defaults are the inventory; an admission subset cannot narrow it."""
     rules = profile.get('defaults')
@@ -111,10 +114,13 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
     profile_sources.assert_staged_profile_fixed_point(destination)
     shutil.copyfile(query, rule_root / 'query.ryoql')
     shutil.copyfile(cases_path, rule_root / 'cases.toml')
-    reference_discrepancies.stage_discrepancy_artifacts(source_profile, destination, cases, rule)
+    evidence_root = DISCREPANCY_SOURCE_ROOTS.get(rule, source_profile.parent).resolve(strict=True)
+    if not evidence_root.is_relative_to(profile_config.RUFF_DIR.resolve(strict=True)):
+        raise ValueError('external discrepancy evidence root')
+    reference_discrepancies.stage_discrepancy_artifacts(source_profile, destination, cases, rule, source_root=evidence_root)
     inventory = case_records.profile_case_inventory(destination)
     profile_proofs.check_canonical_standard_suppression(profile, {rule: query})
-    return (destination, {'query_file': query.relative_to(profile_config.RUFF_DIR).as_posix(), 'query_sha256': profile_config.sha256(query), 'cases_file': cases_path.relative_to(profile_config.RUFF_DIR).as_posix(), 'cases_sha256': profile_config.sha256(cases_path), 'case_count': len(inventory), 'settings_source': source_profile.relative_to(profile_config.REPOSITORY).as_posix(), 'settings_scope': scope, 'parser_configuration': configuration, 'settings_source_sha256': profile_config.sha256(source_profile), 'profile_sha256': profile_config.sha256(profile), 'module_sha256': {logical: profile_config.sha256(profile_config.RUFF_DIR / relative) for logical, relative in stage_registry.items()}, 'effective_settings': profile_sources.canonical_run_ryo_settings(projected, [rule], phases)})
+    return (destination, {'query_file': query.relative_to(profile_config.RUFF_DIR).as_posix(), 'query_sha256': profile_config.sha256(query), 'cases_file': cases_path.relative_to(profile_config.RUFF_DIR).as_posix(), 'cases_sha256': profile_config.sha256(cases_path), 'case_count': len(inventory), 'settings_source': source_profile.relative_to(profile_config.REPOSITORY).as_posix(), 'settings_scope': scope, 'parser_configuration': configuration, 'settings_source_sha256': profile_config.sha256(source_profile), 'evidence_source_root': evidence_root.relative_to(profile_config.REPOSITORY).as_posix(), 'profile_sha256': profile_config.sha256(profile), 'module_sha256': {logical: profile_config.sha256(profile_config.RUFF_DIR / relative) for logical, relative in stage_registry.items()}, 'effective_settings': profile_sources.canonical_run_ryo_settings(projected, [rule], phases)})
 
 def verify_full_inventory(arguments) -> int:
     """Bind this linter's convention/settings; the shared Rust runner owns execution."""

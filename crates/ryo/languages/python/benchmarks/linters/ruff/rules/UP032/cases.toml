@@ -171,3 +171,9 @@ name = "control-ordinary-subscript"
 comparison = "full"
 files = { "case.py" = "\"{0}{0}\".format(a[0])\n" }
 expected = []
+
+[[cases]]
+name = "control-long-repeated-pure-name"
+comparison = "full"
+files = { "case.py" = "abcdefghijklmnopqrstuvwxyz = 1\nx = \"{0}{0}{0}{0}\".format(abcdefghijklmnopqrstuvwxyz)\ny = \"{0}{0}\".format(abcdefghijklmnopqrstuvwxyz)\n" }
+expected = [{ "rule" = "UP032", "file" = "case.py", "start" = 35, "end" = 84 }, { "rule" = "UP032", "file" = "case.py", "start" = 89, "end" = 132 }]

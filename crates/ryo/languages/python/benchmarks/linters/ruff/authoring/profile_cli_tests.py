@@ -21,6 +21,44 @@ from authoring import profile_shards
 from authoring import profile_sources
 from authoring import profile_staging
 from authoring import profile_worker
+from authoring import reference_discrepancies
+from authoring import rule_registration
+
+def inventory_registration_source_root_self_test() -> None:
+    """The full inventory must stage pinned evidence from its registered source root."""
+    ruff = profile_config.RUFF_DIR
+    base = tomllib.loads((ruff / 'benchmark.toml').read_text(encoding='utf-8'))
+    phases = json.loads(profile_config.RULE_PHASES_FILE.read_text(encoding='utf-8'))
+    manifest = json.loads(profile_config.MANIFEST.read_text(encoding='utf-8'))
+    native = profile_proofs.native_descriptor_json(profile_config.NATIVE_DESCRIPTOR_FILE.read_text(encoding='utf-8'))
+    with tempfile.TemporaryDirectory(prefix='ryo-inventory-registration-') as temporary:
+        output = Path(temporary)
+        for rule in ('UP031', 'UP032', 'PYI020'):
+            count = len(tomllib.loads((ruff / 'rules' / rule / 'cases.toml').read_text(encoding='utf-8'))['cases'])
+            stage, entry = rule_registration.stage_full_inventory_rule(rule, output, base, phases, manifest, native)
+            assert entry['case_count'] == count and stage.is_dir()
+        profile = ruff / 'profiles/UP031/benchmark.toml'
+        cases = tomllib.loads((ruff / 'rules/UP031/cases.toml').read_text(encoding='utf-8'))['cases']
+        case = next(case for case in cases if case.get('reference-discrepancy'))
+        pinned = reference_discrepancies.declared_discrepancy_artifacts(profile, [case], source_root=ruff)
+        assert pinned and all((output / 'profiles/UP031/repro' / path).is_file() for path in pinned)
+        bad_stage = output / 'negative'
+        bad_stage.mkdir()
+        for path, digest in (('../escape.json', next(iter(pinned.values()))[1]), ('results/missing.json', next(iter(pinned.values()))[1]), (next(iter(pinned)), '0' * 64)):
+            changed = json.loads(json.dumps(case))
+            changed['reference-discrepancy']['evidence'][0] = {**changed['reference-discrepancy']['evidence'][0], 'path': path, 'sha256': digest}
+            try:
+                reference_discrepancies.stage_discrepancy_artifacts(profile, bad_stage, [changed], 'UP031', source_root=ruff)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError('unsafe or stale full-inventory evidence was staged')
+        try:
+            reference_discrepancies.stage_discrepancy_artifacts(profile, bad_stage, [case], 'UP031', source_root=profile.parent)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('incorrect evidence root was accepted')
 
 def self_test() -> int:
     profile_proof_tests.output_directory_self_test()
@@ -33,6 +71,7 @@ def self_test() -> int:
     profile_case_tests.report_cache_contract_self_test()
     profile_case_tests.reference_discrepancy_self_test()
     profile_case_tests.discrepancy_artifact_staging_self_test()
+    inventory_registration_source_root_self_test()
     profile_case_tests.context_guard_self_test()
     profile_proof_tests.actual_proof_asset_guard_self_test()
     profile_proof_tests.standalone_registry_self_test()
@@ -262,8 +301,18 @@ def self_test() -> int:
         torn = shards_dir / '000.cases.jsonl'
         with torn.open('a', encoding='utf-8') as output_records:
             output_records.write('{incomplete json')
+        malformed_bytes = torn.read_bytes()
         fourth = profile_shards.verify_profile_sharded('test', profile_root, worker, ruff, output, identities, 2, resume=True, runner=fake_runner)
-        if first != 0 or recovered != 0 or second != 0 or (third != 0) or (fourth != 0) or (calls != [0, 1, 0, 0]):
+        failed_receipt = json.loads((shards_dir / '000.receipt.json').read_text(encoding='utf-8'))
+        history = torn.with_name(f'{torn.name}.history-{hashlib.sha256(malformed_bytes).hexdigest()}')
+        if (failed_receipt.get('status') != 1
+            or failed_receipt.get('last_process_status') != 0
+            or failed_receipt.get('case_result_records_valid') is not True
+            or 'prior native case receipt could not be read' not in str(failed_receipt.get('error'))
+            or not history.is_file() or history.read_bytes() != malformed_bytes):
+            print('malformed resume lost its durable failure or exact raw history', file=sys.stderr)
+            return 1
+        if first != 0 or recovered != 0 or second != 0 or (third != 0) or (fourth != 1) or (calls != [0, 1, 0, 0]):
             print('shard execution or identity-checked resume self-test failed', file=sys.stderr)
             print(f'statuses={(first, recovered, second, third, fourth)}; worker-calls={calls}', file=sys.stderr)
             return 1

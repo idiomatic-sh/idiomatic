@@ -114,9 +114,9 @@ def classify_reference_discrepancy(profile_root: Path, case: dict[str, object], 
         raise ValueError('reference or candidate violated its separate exact expectation')
     return {'raw_parity_match': raw_exact, 'documented_reference_discrepancy': True, 'intended_behavior_pass': intended_exact, 'reference_expectation_pass': ref_exact, 'reason': certificate['reason']}
 
-def declared_discrepancy_artifacts(profile: Path, cases: list[dict[str, object]]) -> dict[str, tuple[Path, str]]:
-    """Resolve only explicitly declared, pinned artifacts within the source profile."""
-    source_root = profile.parent.resolve(strict=True)
+def declared_discrepancy_artifacts(profile: Path, cases: list[dict[str, object]], *, source_root: Path | None = None) -> dict[str, tuple[Path, str]]:
+    """Resolve only explicitly declared, pinned artifacts within the admitted root."""
+    source_root = (source_root or profile.parent).resolve(strict=True)
     artifacts: dict[str, tuple[Path, str]] = {}
     for case in cases:
         annotation = case.get('reference-discrepancy')
@@ -151,9 +151,9 @@ def declared_discrepancy_artifacts(profile: Path, cases: list[dict[str, object]]
             artifacts[relative] = (source, expected)
     return artifacts
 
-def stage_discrepancy_artifacts(source_profile: Path, destination: Path, cases: list[dict[str, object]], rule: str) -> None:
+def stage_discrepancy_artifacts(source_profile: Path, destination: Path, cases: list[dict[str, object]], rule: str, *, source_root: Path | None = None) -> None:
     """Copy the declared artifacts without overwriting any canonical stage input."""
-    artifacts = declared_discrepancy_artifacts(source_profile, cases)
+    artifacts = declared_discrepancy_artifacts(source_profile, cases, source_root=source_root)
     root = destination.resolve(strict=True)
     for relative in artifacts:
         target = destination / relative
