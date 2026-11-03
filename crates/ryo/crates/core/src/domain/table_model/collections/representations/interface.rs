@@ -3,7 +3,7 @@ use super::types::{
     BulkAccess, CellRead, PhysicalShape, RelationContract, RepresentationInput, RowRead,
 };
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::RowIndex;
+
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -33,3 +33,5 @@ pub(crate) trait RepresentationsItem: Sync {
         decode: &'read mut [Value],
     ) -> Result<RowRead<'read>, OperatingError>;
 }
+
+use ryo_values::domain::rows::types::RowIndex;

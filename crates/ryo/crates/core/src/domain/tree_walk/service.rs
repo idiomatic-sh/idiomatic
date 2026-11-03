@@ -16,7 +16,7 @@ use crate::domain::operating::types::{
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{cell, column_in, count_of, positions, read_row, reset};
-use crate::domain::table_model::types::{Rows, Table, Verdict};
+use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::{ElementPlaces, KindsBy, Marks};
 use crate::domain::text_gate::service::{needed_of_rest, text_gate, undecided};
 use crate::domain::tree_join::service::tree_value;
@@ -398,3 +398,5 @@ pub(crate) fn start_walk<'x, 'o>(
     mark_domain(&mut walk, domain, entity, context)?;
     Ok(walk)
 }
+
+use ryo_values::domain::rows::types::Table;

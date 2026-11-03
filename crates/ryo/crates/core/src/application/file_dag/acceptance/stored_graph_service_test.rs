@@ -7,10 +7,10 @@ use crate::domain::stored_graph::service::build;
 use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
 use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, Population};
 use crate::domain::table_model::service::{push_row, row_in};
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 use ryo_values::domain::plans::types::Operation;
 
@@ -109,7 +109,7 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
             .map(|vertex| graph.vertices[*vertex as usize])
             .collect();
         let expected: Vec<_> = (0..ordinary.count.0)
-            .filter_map(|row| row_in(&ordinary, crate::domain::table_cells::types::RowIndex(row)))
+            .filter_map(|row| row_in(&ordinary, ryo_values::domain::rows::types::RowIndex(row)))
             .filter(|row| row[0] == partition[0] && row[1] == *value)
             .map(|row| row[2])
             .collect();
@@ -195,3 +195,5 @@ fn typed_endpoint_identity_never_coalesces_equal_payload_words() {
     assert_eq!(graph.vertices.len(), 2);
     assert_ne!(graph.vertex_ids[&(0, number)], graph.vertex_ids[&(0, flag)]);
 }
+
+use ryo_values::domain::rows::types::Table;

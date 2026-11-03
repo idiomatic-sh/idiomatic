@@ -215,16 +215,16 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     use crate::application::file_dag::cross_execution::compute;
     use crate::domain::operating::types::OperatorContext;
     use crate::domain::operation_schema::{service::schema_of, types::InputSchema};
-    use crate::domain::table_model::types::{Rows, Table};
+    use crate::domain::table_model::types::Rows;
     use crate::domain::table_scratch::types::OperatorScratch;
     use crate::domain::table_texts::types::SourceView;
-    use ryo_relations::domain::relations::{
-        service::to_bits,
-        types::{ColumnsView, FactColumn, Relation, Value as Cell},
-    };
     use ryo_language::domain::symbols::{
         service::intern_derived,
         types::{ByteSlice, Symbols},
+    };
+    use ryo_relations::domain::relations::{
+        service::to_bits,
+        types::{ColumnsView, FactColumn, Relation, Value as Cell},
     };
     use ryo_relations::domain::terms::types::NameText;
     use ryo_values::domain::plans::types::Operation;
@@ -300,3 +300,5 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     assert!(matches!(reached, Err(OperatingError::InvalidRegex { .. })));
     Ok(2)
 }
+
+use ryo_values::domain::rows::types::Table;

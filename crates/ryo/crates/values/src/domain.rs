@@ -10,3 +10,5 @@ pub mod records;
 pub mod runs;
 pub mod stored_facts;
 pub mod stores;
+
+pub mod rows;

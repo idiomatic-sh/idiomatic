@@ -8,7 +8,7 @@ use crate::domain::{
     operator::{service::registered, types::PreparedPool},
     table_model::{
         service::kinds_of,
-        types::{KeyIndex, Rows, Table},
+        types::{KeyIndex, Rows},
     },
 };
 use ryo_relations::domain::relations::types::Relation;
@@ -31,7 +31,10 @@ pub(crate) struct ResourceFixture {
 }
 impl ResourceFixture {
     pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Option<Self> {
-        let owner = Rc::new(RelationOwner::new(true));
+        let owner = Rc::new(RelationOwner::new(
+            true,
+            crate::outbound::derived::factory::test_port(),
+        ));
         owner.derived.prepare_file(
             true,
             wanted,
@@ -116,7 +119,7 @@ impl ResourceFixture {
             &schemas,
             context.bindings,
         )?;
-        CommonOperatorEngine::new(operators).collect_owned(
+        CommonOperatorEngine::new(operators, self.owner.derived.semantic_port()).collect_owned(
             &contract,
             inputs,
             context,
@@ -208,7 +211,7 @@ impl<'f> crate::application::file_dag::feed::Feed<'f> for OwnedFeed<'_, 'f> {
     fn found(
         &mut self,
         place: crate::domain::operating::types::InputPlace,
-        rows: crate::domain::table_model::types::RowCount,
+        rows: ryo_values::domain::rows::types::RowCount,
     ) {
         self.inner.found(place, rows);
     }
@@ -334,3 +337,5 @@ pub(crate) fn residual_frame(
     frame.prepare_resources(true, wanted, partials, wanted, plans, prepared, |_| true);
     frame
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::backend::{Acquired, CacheBackend, Entry};
 use crate::application::file_dag::route_counts::BuildRoute;
 use crate::domain::coverage::types::Partial;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::{
     service::check_columns,
     types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex},
@@ -372,3 +372,5 @@ pub(in crate::application::file_dag) fn acquire_fixture(
 #[cfg(test)]
 #[path = "indexes_test.rs"]
 mod tests;
+
+use ryo_values::domain::rows::types::RowIndex;

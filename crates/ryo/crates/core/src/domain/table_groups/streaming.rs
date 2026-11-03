@@ -4,7 +4,7 @@ use crate::domain::operating::{
     types::{GroupHash, GroupNumber, GroupValue},
 };
 use crate::domain::operator::contract::types::AggregationProgram;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_dedup::{service::find_or_add, types::RowFound};
 use crate::domain::table_groups::{
     service::hash_of,
@@ -13,7 +13,7 @@ use crate::domain::table_groups::{
 use crate::domain::table_model::{
     errors::TableModelError,
     service::{cell, column_in, push_row},
-    types::{Addition, RowCount, Table},
+    types::Addition,
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -162,8 +162,8 @@ impl Aggregation {
 mod tests {
     use super::*;
     use crate::domain::table_texts::types::SourceView;
-    use ryo_language::domain::{symbols::types::Symbols};
-use ryo_relations::domain::relations::types::Integer;
+    use ryo_language::domain::symbols::types::Symbols;
+    use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     fn n(value: i64) -> Value {
         Value::Number(Integer(value))
@@ -235,3 +235,5 @@ use ryo_relations::domain::relations::types::Integer;
         ));
     }
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

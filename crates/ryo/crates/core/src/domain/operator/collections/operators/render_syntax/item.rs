@@ -7,13 +7,13 @@ use crate::domain::operating::types::AfterTheFiles;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::service::cell;
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 
@@ -121,3 +121,5 @@ impl OperatorsItem for RenderSyntaxItem {
         outcome
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

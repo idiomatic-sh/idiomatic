@@ -1,15 +1,15 @@
 //! Actual shared-index acquisition, owner aliases, eviction and final consumer release.
 use super::*;
 use crate::domain::{
-    operating::types::OperatorContext,
-    operator::contract::views::BorrowedRows,
-    table_model::types::{Rows, Table},
-    table_scratch::types::OperatorScratch,
+    operating::types::OperatorContext, operator::contract::views::BorrowedRows,
+    table_model::types::Rows, table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
 use resource_fixture::ResourceFixture;
-use ryo_language::domain::{symbols::types::Symbols};
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value};
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{
+    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
+};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, JoinColumn, Side},
     plans::types::Operation,
@@ -21,7 +21,7 @@ fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let left = Table {
         kinds: vec![CellKind::Number],
         cells: vec![Value::Number(Integer(1))],
-        count: crate::domain::table_model::types::RowCount(1),
+        count: ryo_values::domain::rows::types::RowCount(1),
     };
     let operation = Operation::Join {
         left: Input::Relation(Relation::Function),
@@ -199,3 +199,5 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
         0
     );
 }
+
+use ryo_values::domain::rows::types::Table;

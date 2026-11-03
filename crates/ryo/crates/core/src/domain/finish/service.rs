@@ -2,12 +2,6 @@
 //! findings, with no IO and no ports. A finding is numbers until a report is written.
 
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::service::{node_file, node_position};
-use ryo_relations::domain::relations::types::Bytes;
-use ryo_relations::domain::relations::types::Integer;
-use ryo_relations::domain::relations::types::{
-    CROSS_FILE, FileId, Name, NamePlace, NodeId, Offset, Origin, Value, WorkerNumber,
-};
 use ryo_language::domain::symbols::service::derived_of;
 use ryo_language::domain::symbols::service::places_of;
 use ryo_language::domain::symbols::service::{
@@ -15,6 +9,12 @@ use ryo_language::domain::symbols::service::{
 };
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::Bytes;
+use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::{
+    CROSS_FILE, FileId, Name, NamePlace, NodeId, Offset, Origin, Value, WorkerNumber,
+};
 use ryo_relations::domain::terms::service::unknown_reason;
 
 use super::errors::FinishError;
@@ -23,7 +23,7 @@ use super::types::{
     Retained, RuleNumber,
 };
 use crate::domain::table_model::service::{cell, column_in, positions, row_in};
-use crate::domain::table_model::types::Table;
+
 use crate::domain::value_cells::service::unknown_cell;
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::records::service::keep;
@@ -329,3 +329,5 @@ pub(crate) fn source_of(value: Value, resolving: &Resolving<'_>) -> Option<FileI
         .filter(|place| place.origin == Origin::Source)
         .map(|place| place.file)
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -3,7 +3,7 @@ use crate::domain::operator::contract::views::BorrowedRows;
 use crate::domain::table_groups::service::sort_rows;
 use crate::domain::table_model::{
     service::push_row,
-    types::{KeyIndex, On, Table},
+    types::{KeyIndex, On},
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -52,3 +52,5 @@ fn empty_key_keeps_the_original_row_order() {
         vec![0, 1, 2, 3]
     );
 }
+
+use ryo_values::domain::rows::types::Table;

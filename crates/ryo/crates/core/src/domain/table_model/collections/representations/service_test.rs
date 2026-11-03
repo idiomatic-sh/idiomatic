@@ -4,13 +4,14 @@ use super::{
     types::*,
 };
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
-use crate::domain::table_model::types::{RowCount, Rows, SelectedRows, StoredSelection, Table};
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::{
     service::{enter_node, leave_node, table_builder, token},
     types::Elements,
 };
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::{
     constants::NO_SYMBOL,
     service::{node_id, to_bits},
@@ -19,7 +20,6 @@ use ryo_relations::domain::relations::{
         Span, Value,
     },
 };
-use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -403,3 +403,5 @@ fn wrong_representation_never_falls_back_to_another_item() {
         Err(OperatingError::WrongOperation)
     ));
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

@@ -382,6 +382,7 @@ pub(crate) fn lint_report_with_languages(
             Arc::new(ryo_core::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
             )),
+std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(
                 ryo_values::domain::runs::types::WorkersAsked(0),
             ))),

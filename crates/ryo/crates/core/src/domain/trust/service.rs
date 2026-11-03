@@ -156,7 +156,7 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
             }
             Operation::SpanBetween { .. } => provenance.push(None),
             Operation::RenderSyntax { .. } => provenance.push(None),
-            Operation::FitsRendered { .. } => {},
+            Operation::FitsRendered { .. } => {}
             Operation::SourceMatches {
                 base_line,
                 capture,

@@ -4,7 +4,7 @@ use crate::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputSchema,
     operator::contract::views::BorrowedRows,
-    table_model::{service::push_row, types::Table},
+    table_model::service::push_row,
 };
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -119,3 +119,5 @@ mod tests {
         assert_eq!(partitions[1].key, vec![number(1)]);
     }
 }
+
+use ryo_values::domain::rows::types::Table;

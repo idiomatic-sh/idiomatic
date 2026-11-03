@@ -1,10 +1,10 @@
 //! The `operator` service's cases: the dispatch of an operation to its operator, what an operation reads, and the cross-file
 //! steps on the rows the files handed over. The per-file steps are the `pipeline`'s.
 
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, PlaceNumber, Relation, TextHash, Value as Cell,
 };
-use ryo_language::domain::symbols::types::Symbols;
 
 use crate::application::file_dag::cross_execution::{compute, evaluate_cross};
 use crate::application::file_dag::testing::TestOperator as _;
@@ -14,7 +14,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::project::item::ProjectItem;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier, Rows, Table};
+use crate::domain::table_model::types::{Frontier, Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -281,3 +281,5 @@ fn examples_naming_no_relation() -> Value {
     }
     unknown
 }
+
+use ryo_values::domain::rows::types::Table;

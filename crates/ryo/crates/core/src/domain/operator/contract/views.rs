@@ -1,5 +1,5 @@
 //! Read-only physical inputs expose no owned cache or retained selection handle.
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::types::KeyIndex;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -78,3 +78,5 @@ impl Iterator for MatchingRows<'_> {
         self.view.next_match(self.key, &mut self.probe)
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

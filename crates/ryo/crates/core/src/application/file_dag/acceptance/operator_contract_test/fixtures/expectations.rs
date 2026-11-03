@@ -1,11 +1,11 @@
 //! Independent typed, textual and set-digest expectations for the conformance fixtures.
 use super::SOURCE;
-use crate::domain::table_model::types::{ParameterBinding, Table};
+use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::{
     service::datum,
     types::{Datum, SourceView, Texts},
 };
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
 #[derive(Clone)]
@@ -60,3 +60,5 @@ pub(crate) fn assert_expected(
         }
     }
 }
+
+use ryo_values::domain::rows::types::Table;

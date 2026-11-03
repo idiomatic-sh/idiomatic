@@ -2,7 +2,6 @@
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{graph::CycleGraph, views::BorrowedRows},
-    table_cells::types::RowIndex,
     table_model::service::{cell, check_columns},
 };
 use ryo_relations::domain::relations::types::Value;
@@ -59,3 +58,5 @@ pub(super) fn prepare(
     }
     Ok(graph)
 }
+
+use ryo_values::domain::rows::types::RowIndex;

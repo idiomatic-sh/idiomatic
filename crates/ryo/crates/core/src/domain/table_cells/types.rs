@@ -4,8 +4,6 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_relations::domain::relations::types::FileId;
 
 /// A place in a table: the number of a row.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct RowIndex(pub usize);
 
 /// The rows of the tree of one file, as `syntax-child` or `syntax-tree` says them: in the order of the
 /// elements. The table of the file says them already, so nothing is stored, and a lookup by parent or

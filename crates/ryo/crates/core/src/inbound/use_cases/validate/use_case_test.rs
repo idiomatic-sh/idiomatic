@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use ryo_relations::domain::relations::types::{CellKind, Offset, Span};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
+use ryo_relations::domain::relations::types::{CellKind, Offset, Span};
 use ryo_values::domain::descriptions::types::{StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::{ColumnLabel, HostedColumn, HostedName, HostedRelation};
 use ryo_values::domain::plan_parts::types::{QueryText, RefusalMessage, RefusedKind, RefusedQuery};

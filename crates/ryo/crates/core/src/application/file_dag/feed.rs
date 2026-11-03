@@ -3,7 +3,7 @@ use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, InputPlace, OperatorContext, Supply},
 };
-use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::CellKind;
 /// What a step reads its inputs through: it can ask for the rows of an input one at a time, or hold them whole.
 /// Declared provenance determines whether a missing publication is an error.
@@ -70,3 +70,5 @@ pub(crate) trait Feed<'f> {
     where
         'f: 't;
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

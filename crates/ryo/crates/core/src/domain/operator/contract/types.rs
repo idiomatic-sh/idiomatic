@@ -4,8 +4,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_language::domain::symbols::types::QuerySymbols;
+use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 
@@ -317,8 +317,8 @@ pub(crate) trait RowSink {
 
 /// First-occurrence row semantics, bounded and released by the engine invocation.
 pub(crate) struct DistinctWorkspace<'a> {
-    pub rows: &'a mut crate::domain::table_model::types::Table,
-    pub seen: &'a mut hashbrown::HashTable<crate::domain::table_cells::types::RowIndex>,
+    pub rows: &'a mut ryo_values::domain::rows::types::Table,
+    pub seen: &'a mut hashbrown::HashTable<ryo_values::domain::rows::types::RowIndex>,
 }
 
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.

@@ -4,8 +4,8 @@ use super::constants::MARK_OF_ELEMENT;
 use ryo_language::domain::elements::service::{
     children, kind_names, next_sibling, previous_sibling,
 };
-use ryo_relations::domain::relations::types::{Flag, Position, Value};
 use ryo_language::domain::symbols::service::name_count;
+use ryo_relations::domain::relations::types::{Flag, Position, Value};
 
 use super::types::{Admission, Admit, FilterScratch, Marked};
 use crate::domain::comparing::service::holds_some;
@@ -18,7 +18,7 @@ use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
 use crate::domain::positions::service::{count, followed, in_tree, made_of, row};
 use crate::domain::positions::types::{LoweredRoom, Positions, Slots, Work};
 use crate::domain::table_cells::service::read_tree_cells;
-use crate::domain::table_cells::types::{CellsRead, RowIndex, TreeRows};
+use crate::domain::table_cells::types::{CellsRead, TreeRows};
 use crate::domain::table_model::service::{kinds_of, positions};
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
@@ -250,7 +250,7 @@ pub(crate) fn axis(
     out: &mut Slots,
 ) -> Result<(), OperatingError> {
     let out = &mut out.0;
-    let Work { room, context } = work;
+    let Work { room, context, .. } = work;
     let Operation::Axis {
         from,
         domain,
@@ -342,3 +342,5 @@ pub(crate) fn axis(
     give(admit, context);
     Ok(())
 }
+
+use ryo_values::domain::rows::types::RowIndex;

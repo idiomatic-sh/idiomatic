@@ -9,11 +9,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::collections::relations::function::item::FunctionRow;
 use ryo_relations::domain::relations::service::all;
 use ryo_relations::domain::relations::types::RowWriter;
 use ryo_relations::domain::relations::types::{KindBits, Offset, Position, Relation, Span};
-use ryo_language::domain::symbols::types::Symbols;
 
 use super::super::errors::LanguageError;
 use super::super::interface::LanguagePort;

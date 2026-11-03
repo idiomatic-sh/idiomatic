@@ -11,13 +11,13 @@ use crate::domain::operator::contract::{
     axis::AxisWorkspace,
     graph::{CycleMarks, DfsWorkspace},
 };
-use crate::domain::table_cells::types::RowIndex;
-use crate::domain::table_model::types::{Rows, Table};
+
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_reach::types::Walk;
 use crate::domain::table_scratch::types::{ScratchWord, Stretches};
 use ryo_relations::domain::relations::types::{Position, Value};
-#[derive(Default)]
 pub(crate) struct InvocationWorkspace {
+    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     external_owner: std::cell::OnceCell<std::rc::Rc<super::relations::RelationOwner>>,
     origins: Vec<super::feed::InputOrigin>,
     pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
@@ -49,6 +49,38 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    pub(crate) fn new(semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>) -> Self {
+        Self {
+            semantic,
+            external_owner: Default::default(),
+            origins: Default::default(),
+            derived_scratch: Default::default(),
+            relation_owner: Default::default(),
+            publications: Default::default(),
+            downstream_scratch: Default::default(),
+            downstream_memo: Default::default(),
+            predicates: Default::default(),
+            predicate_memo: Default::default(),
+            predicate_names: Default::default(),
+            literal_regex: Default::default(),
+            row: Default::default(),
+            other: Default::default(),
+            text: Default::default(),
+            word: Default::default(),
+            stretches: Default::default(),
+            captured: Default::default(),
+            positions: Default::default(),
+            distinct: Default::default(),
+            seen: Default::default(),
+            cycle: Default::default(),
+            closure: Default::default(),
+            dfs: Default::default(),
+            axis: Default::default(),
+            #[cfg(test)]
+            observation: Default::default(),
+        }
+    }
+
     pub(super) fn derived_counts(&self) -> (u64, u64) {
         let (builds, hits, _) = self.owner().derived.counts();
         (builds, hits)
@@ -129,14 +161,24 @@ impl InvocationWorkspace {
     pub(super) fn owner(&self) -> &super::relations::RelationOwner {
         self.relation_owner.as_deref().unwrap_or_else(|| {
             self.external_owner
-                .get_or_init(|| std::rc::Rc::new(super::relations::RelationOwner::new(false)))
+                .get_or_init(|| {
+                    std::rc::Rc::new(super::relations::RelationOwner::new(
+                        false,
+                        Arc::clone(&self.semantic),
+                    ))
+                })
                 .as_ref()
         })
     }
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         self.relation_owner.as_ref().cloned().unwrap_or_else(|| {
             self.external_owner
-                .get_or_init(|| std::rc::Rc::new(super::relations::RelationOwner::new(false)))
+                .get_or_init(|| {
+                    std::rc::Rc::new(super::relations::RelationOwner::new(
+                        false,
+                        Arc::clone(&self.semantic),
+                    ))
+                })
                 .clone()
         })
     }
@@ -144,7 +186,7 @@ impl InvocationWorkspace {
         &self,
         place: usize,
         rows: crate::domain::table_model::types::Rows<'_>,
-    ) -> Option<Result<Option<Arc<crate::domain::table_model::types::Table>>, OperatingError>> {
+    ) -> Option<Result<Option<Arc<ryo_values::domain::rows::types::Table>>, OperatingError>> {
         let (owner, record) = self
             .relation_owner
             .as_ref()
@@ -435,9 +477,11 @@ impl InvocationWorkspace {
 static EMPTY_DERIVED_INPUT: Table = Table {
     kinds: Vec::new(),
     cells: Vec::new(),
-    count: crate::domain::table_model::types::RowCount(0),
+    count: ryo_values::domain::rows::types::RowCount(0),
 };
 
 #[cfg(test)]
 #[path = "workspace_test.rs"]
 mod tests;
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

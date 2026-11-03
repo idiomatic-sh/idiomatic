@@ -6,11 +6,11 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::ordered_match::item::OrderedMatchItem;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side};
 use ryo_values::domain::plans::types::{Operation, QueryOperator};
 
@@ -250,3 +250,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

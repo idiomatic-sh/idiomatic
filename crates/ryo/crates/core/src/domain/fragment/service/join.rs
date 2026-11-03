@@ -16,7 +16,7 @@ use crate::domain::positions::service::{
 use crate::domain::positions::types::{
     KeyColumns, LoweredRoom, Positions, Sides, Slots, Stride, Work,
 };
-use crate::domain::table_cells::types::{RowIndex, TreeRows};
+use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::service::positions;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::walks::service::take_filter;
@@ -178,7 +178,7 @@ pub(super) fn run(
     work: Work<'_, '_>,
     out: &mut Slots,
 ) -> Result<(), OperatingError> {
-    let Work { room, context } = work;
+    let Work { room, context, .. } = work;
     let Operation::Join {
         left,
         right,
@@ -276,3 +276,5 @@ pub(super) fn run(
         Input::Relation(_) => Err(OperatingError::NotAStep),
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

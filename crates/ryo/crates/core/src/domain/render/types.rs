@@ -5,7 +5,6 @@ use ryo_relations::domain::relations::types::Offset;
 
 use crate::domain::finish::types::{ColumnNumber, FileLine, RuleNumber};
 
-use crate::domain::table_model::types::Table;
 use crate::domain::value_cells::types::Scene;
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::plans::types::Emit;
@@ -188,3 +187,5 @@ pub(crate) struct FindingParts<'a, T> {
     /// The character in the line; none when the finding has no place.
     pub column: &'a Option<Cell<T>>,
 }
+
+use ryo_values::domain::rows::types::Table;

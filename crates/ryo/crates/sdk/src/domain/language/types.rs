@@ -4,13 +4,13 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use ryo_language::domain::files::types::SourcePath;
-use ryo_relations::domain::relations::types::FileId;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::parse::types::{
     FieldRequest, NoteRequest, ParseConfigurationIdentity, ParseEngine, ParseRequest, Recognition,
     SkippedDirectory,
 };
 use ryo_language::inbound::use_cases::project::types::ProjectEngine;
+use ryo_relations::domain::relations::types::FileId;
 
 /// What a language is called: the name of its directory.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

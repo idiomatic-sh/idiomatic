@@ -1,7 +1,7 @@
 //! The `layout` service's cases, on the plans of the `pipeline`'s cases.
 
-use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use crate::application::file_dag::pipeline::service_test::{
     KINDS, SOURCE, counting_plan, functions, plan,
@@ -156,8 +156,8 @@ fn refuses() {
 
 /// Probe real nonempty Stored views without filtering, interning text or traversing a graph.
 fn metadata_only() -> Result<Value, Failure> {
-    use ryo_relations::domain::relations::types::{Integer, Value as Cell};
     use ryo_language::domain::symbols::service::{derived_of, name_count};
+    use ryo_relations::domain::relations::types::{Integer, Value as Cell};
     use ryo_values::domain::plan_parts::types::{
         ColumnIndex, Input as Source, LiteralText, Operand, QueryLiteral, StepId,
     };
@@ -295,7 +295,7 @@ fn probe_order() -> Result<Value, Failure> {
 
 /// Empty cross-file handoff uses declared native representation, not a computed graph placeholder.
 fn native_frontier() -> Result<Value, Failure> {
-    use crate::domain::table_model::types::{Frontier, Table};
+    use crate::domain::table_model::types::Frontier;
     use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input as Source, StepId};
     use ryo_values::domain::plans::types::Operation;
     let mut symbols = Symbols::default();
@@ -346,7 +346,7 @@ fn native_frontier() -> Result<Value, Failure> {
 
 #[test]
 fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
-    use crate::domain::table_model::types::{Frontier, RowCount, Table};
+    use crate::domain::table_model::types::Frontier;
     use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     let mut symbols = Symbols::default();
@@ -432,7 +432,7 @@ fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
 
 #[test]
 fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
-    use crate::domain::table_model::types::{Frontier, Table};
+    use crate::domain::table_model::types::Frontier;
     use ryo_values::domain::plan_parts::types::{Input, StepId};
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
@@ -466,3 +466,5 @@ fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
     assert!(frontier.iter().all(|each| each.table.kinds.is_empty()));
     assert!(frontier.iter().all(|each| each.table.cells.is_empty()));
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

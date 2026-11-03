@@ -10,7 +10,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{index, push_row};
-use crate::domain::table_model::types::{KeyIndex, On, Table};
+use crate::domain::table_model::types::{KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// A scenario: what a row asks of the part.
@@ -112,3 +112,5 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

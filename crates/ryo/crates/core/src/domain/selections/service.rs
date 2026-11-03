@@ -1,7 +1,7 @@
 //! The `selections` service: the lowered steps that keep rows, with no IO and no ports.
 
-use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::symbols::service::name_count;
+use ryo_relations::domain::relations::types::Value;
 
 use super::evaluation::tree_each;
 use super::types::ProjectedColumns;
@@ -12,7 +12,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
 use crate::domain::positions::service::{count, firsts, key_into, made_of, row, values};
 use crate::domain::positions::types::{LoweredRoom, Slots, Stride, Work};
-use crate::domain::table_cells::types::{RowIndex, TreeRows};
+use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::service::positions;
 use crate::domain::table_model::types::Verdict;
 use ryo_relations::domain::relations::types::CellKind;
@@ -60,7 +60,7 @@ pub(crate) fn select_rows(
     out: &mut Slots,
 ) -> Result<(), OperatingError> {
     let out = &mut out.0;
-    let Work { room, context } = work;
+    let Work { room, context, .. } = work;
     let shape = shape_at(lowering, input)?;
     let kinds: Vec<CellKind> = shape
         .columns
@@ -128,3 +128,5 @@ pub(crate) fn project(
         }
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

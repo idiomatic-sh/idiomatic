@@ -4,6 +4,8 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::kind_names;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Flag;
@@ -11,15 +13,13 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Span, Value as Cell,
 };
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::terms::types::NameText;
 
 use super::errors::TableModelError;
 use super::service::{cell, count_of, index, kinds_of, matching, push_row, read_row, reset};
-use super::types::{KeyIndex, On, RowCount, Rows, Table};
+use super::types::{KeyIndex, On, Rows};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -734,3 +734,5 @@ fn complete_source_contract_covers_native_and_stored_without_promoting_partial_o
         true,
     ));
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

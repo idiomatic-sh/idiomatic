@@ -2,10 +2,10 @@
 
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{CellKind, FileId, Offset, Span, Value as Cell};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Offset, Span, Value as Cell};
 
 use super::service::{append, offer, sort_findings};
 use super::types::{Ordered, Turn};
@@ -17,7 +17,7 @@ use crate::domain::render::types::{
     FindingRule, KeyCount, RenderInput, Rendered, RowLayout, RowLimit, RowNumber, RowOrder, Shown,
 };
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
+
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Integer;
@@ -355,3 +355,5 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

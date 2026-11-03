@@ -1,16 +1,16 @@
 //! All operation classes execute through the production engine in both modes.
 use crate::domain::table_model::{
     service::push_row,
-    types::{BindingCell, BindingTable, ParameterBinding, Table},
-};
-use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::{
-    CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
+    types::{BindingCell, BindingTable, ParameterBinding},
 };
 use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, Symbols},
+};
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
+    CellKind, FileId, Integer, Offset, Position, Relation, Span, Value,
 };
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
@@ -438,3 +438,5 @@ pub(crate) fn fixture(kind: OperationKind) -> Fixture {
 mod expectations;
 pub(crate) use expectations::assert_expected;
 use expectations::{Expected, Fixture, cells};
+
+use ryo_values::domain::rows::types::Table;

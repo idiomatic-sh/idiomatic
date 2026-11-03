@@ -7,11 +7,11 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::SemanticLookup;
 use ryo_language::domain::elements::service::real_count;
 use ryo_language::domain::elements::types::Elements;
-use ryo_relations::domain::relations::service::{node_file, node_position};
-use ryo_relations::domain::relations::types::FileId;
 use ryo_language::domain::semantics::interface::SemanticSession;
 use ryo_language::domain::semantics::types::{RenderError, RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::service::{node_file, node_position};
+use ryo_relations::domain::relations::types::FileId;
 
 /// The application keeps this only while evaluating one freshly parsed file.
 pub(crate) struct SemanticState {

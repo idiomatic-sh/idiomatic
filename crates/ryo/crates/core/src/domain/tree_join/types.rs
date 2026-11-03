@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::{Position, Value};
 use crate::domain::kind_sets::types::KindScratch;
 use crate::domain::operating::types::MissingColumn;
 use crate::domain::operating::types::NameCount;
-use crate::domain::table_cells::types::{ColumnPlaces, RowIndex};
+use crate::domain::table_cells::types::ColumnPlaces;
 use crate::domain::table_scratch::types::{Candidates, ComparisonNumbers, TextVerdicts};
 
 /// Whether a comparison of the filter reads a column the elements lack.
@@ -45,3 +45,5 @@ pub(crate) struct TreeState {
     /// Whether a comparison reads a column the elements lack.
     pub missing: ColumnLack,
 }
+
+use ryo_values::domain::rows::types::RowIndex;

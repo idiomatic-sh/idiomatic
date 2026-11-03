@@ -1,8 +1,8 @@
 //! The `select` operator: keep the rows for which every comparison holds.
 
 use ryo_language::domain::elements::service::kind_names;
-use ryo_relations::domain::relations::types::{CellKind, Flag, Value};
 use ryo_language::domain::symbols::service::name_count;
+use ryo_relations::domain::relations::types::{CellKind, Flag, Value};
 
 use crate::domain::comparing::service::{holds_all, holds_some};
 use crate::domain::kind_sets::service::{candidates_of, kind_tests, passes};
@@ -14,12 +14,12 @@ use crate::domain::operating::types::{
 };
 use crate::domain::replay::types::{Collect, Pipe};
 use crate::domain::table_cells::service::{read_cells, read_tree_cells};
-use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{
     cell, cell_at, column_in, count_of, kinds_of, positions, read_row, rectangular, reset,
 };
-use crate::domain::table_model::types::{Rows, SelectedRows, Table, Verdict};
+use crate::domain::table_model::types::{Rows, SelectedRows, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};
 use crate::domain::text_gate::service::{
     needed_of, needed_of_rest, text_admitted, text_candidates, text_gate, undecided,
@@ -176,3 +176,5 @@ pub(crate) fn tree_each(
     context.scratch.select_scratch.kind_tests = kinds.tests;
     outcome
 }
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

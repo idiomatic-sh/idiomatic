@@ -18,7 +18,7 @@ use crate::domain::operator::contract::{
     views::{BorrowedRows, IndexedRows},
 };
 use crate::domain::table_groups::types::Group;
-use crate::domain::table_model::types::{KeyIndex, ParameterBinding, Table};
+use crate::domain::table_model::types::{KeyIndex, ParameterBinding};
 use crate::domain::table_texts::types::Texts;
 use crate::domain::tree_join::service::tree_finding;
 use ryo_relations::domain::relations::types::Value;
@@ -337,3 +337,5 @@ fn partitioned<'f>(
         admitted.owner_handle(),
     )
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -15,7 +15,7 @@ use crate::domain::spelling::service::check_spellings;
 
 use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::failed;
-use crate::domain::table_model::types::{Frontier, Table};
+use crate::domain::table_model::types::Frontier;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::trust::service::matters;
@@ -103,3 +103,5 @@ pub(crate) fn cross_rule(
     };
     Ok(Evaluated { table, fed })
 }
+
+use ryo_values::domain::rows::types::Table;

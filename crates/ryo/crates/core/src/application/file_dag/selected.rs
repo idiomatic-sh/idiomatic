@@ -42,7 +42,10 @@ impl<'f> SelectedInput<'f> {
                 tree: None,
             }],
         )?);
-        let owner = super::relations::RelationOwner::new(false);
+        let owner = super::relations::RelationOwner::new(
+            false,
+            crate::outbound::derived::factory::test_port(),
+        );
         let proof = owner.admit_external(rows)?;
         let (population, _) = proof.identity(&owner)?;
         let index = owner.derived.acquire_stored(

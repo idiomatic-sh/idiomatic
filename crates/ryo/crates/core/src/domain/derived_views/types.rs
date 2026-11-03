@@ -8,12 +8,15 @@ use crate::domain::{
     },
     stored_graph::types::{CompactGraph, GraphSource},
     stored_selection::types::{LiteralPostings, Selector},
-    table_cells::types::{RowIndex, TreeRows},
+    table_cells::types::TreeRows,
     table_model::types::KeyIndex,
     table_texts::types::{SourceView, Texts},
     tree_join::collections::strategies::types::Finding,
 };
-use ryo_language::domain::{files::types::FilePath, symbols::types::{QuerySymbols, Symbols}};
+use ryo_language::domain::{
+    files::types::FilePath,
+    symbols::types::{QuerySymbols, Symbols},
+};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, LiteralText},
@@ -218,3 +221,5 @@ pub(crate) struct DerivedSlots {
     pub streaming: [Option<Arc<PreparedViewGroup>>; 12],
     pub collected: [Option<Arc<PreparedViewGroup>>; 12],
 }
+
+use ryo_values::domain::rows::types::RowIndex;

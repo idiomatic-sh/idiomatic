@@ -5,10 +5,9 @@ use crate::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputSchema,
     stored_selection::types::LiteralPostings,
-    table_cells::types::RowIndex,
     table_model::types::Verdict,
 };
-use ryo_language::domain::{symbols::{service::text_of, types::ByteSlice}};
+use ryo_language::domain::symbols::{service::text_of, types::ByteSlice};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use std::sync::Arc;
 
@@ -268,3 +267,5 @@ impl DerivedViewsItem for DistinctRepresentativesItem {
         service::view(DerivedKind::DistinctRepresentatives, contract, storage)
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

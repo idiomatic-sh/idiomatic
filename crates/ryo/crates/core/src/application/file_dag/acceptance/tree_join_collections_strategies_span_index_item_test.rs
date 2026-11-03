@@ -2,11 +2,11 @@
 
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Relation, Span, Value as Cell,
 };
-use ryo_language::domain::symbols::types::ByteSlice;
 
 use ryo_language::domain::symbols::types::Symbols;
 
@@ -18,7 +18,7 @@ use crate::domain::operator::collections::operators::join::item::JoinItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::tree_join::collections::strategies::interface::StrategiesItem as _;
@@ -279,3 +279,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

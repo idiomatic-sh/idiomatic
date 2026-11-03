@@ -311,13 +311,15 @@ fn stream(operation: &Operation, left: &Table, right: Rows<'_>, symbols: &mut Sy
         right_fails: false,
     };
     let mut output = CollectedRows::default();
-    refused(CommonOperatorEngine::new(&port).stream(
-        &contract,
-        &mut feed,
-        &mut ctx,
-        &mut Room::default(),
-        &mut output,
-    ));
+    refused(
+        CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port()).stream(
+            &contract,
+            &mut feed,
+            &mut ctx,
+            &mut Room::default(),
+            &mut output,
+        ),
+    );
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     assert!(output.rows.is_empty());
     let empty = table_of(&left.kinds, &[]);
@@ -328,7 +330,7 @@ fn stream(operation: &Operation, left: &Table, right: Rows<'_>, symbols: &mut Sy
         left_fails: false,
         right_fails: false,
     };
-    CommonOperatorEngine::new(&port)
+    CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port())
         .stream(
             &contract,
             &mut feed,
@@ -383,7 +385,11 @@ fn first_downstream_failure_remains_sticky_even_if_injected_kernel_returns_succe
         fails: true,
     };
     assert!(matches!(
-        CommonOperatorEngine::new(&KeepsCalling).stream(
+        CommonOperatorEngine::new(
+            &KeepsCalling,
+            crate::outbound::derived::factory::test_port(),
+        )
+        .stream(
             &contract,
             &mut feed,
             &mut ctx,
@@ -420,13 +426,9 @@ fn upstream_failure_and_empty_left_do_not_probe_rhs_or_enter_join_capability() {
             left_fails: fails,
             right_fails: false,
         };
-        let result = CommonOperatorEngine::new(&port).stream(
-            &contract,
-            &mut feed,
-            &mut ctx,
-            &mut room,
-            &mut output,
-        );
+        let result =
+            CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port())
+                .stream(&contract, &mut feed, &mut ctx, &mut room, &mut output);
         if fails {
             assert!(matches!(result, Err(OperatingError::NotRun)));
         } else {
@@ -580,7 +582,7 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
             None,
             0,
             None,
-            &CommonOperatorEngine::new(&port),
+            &CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port()),
             &request.rules[0],
         ),
     );

@@ -672,8 +672,8 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         table: &mut ryo_language::domain::elements::types::Elements,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError> {
-        use ryo_language::domain::{elements::service::{enter_node, leave_node, table_builder}};
-use ryo_relations::domain::relations::types::{KindBits, Offset};
+        use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
+        use ryo_relations::domain::relations::types::{KindBits, Offset};
         let mut builder = table_builder(table, symbols, request.bytes);
         enter_node(&mut builder, KindBits(0), Offset(0));
         leave_node(&mut builder, Offset(1));
@@ -719,12 +719,12 @@ use ryo_relations::domain::relations::types::{KindBits, Offset};
         out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) {
         use ryo_relations::domain::relations::{
-                collections::relations::identifier::item::IdentifierRow,
-                types::{
-                    Missing, Offset, OptionalCapability, Position, Relation, ReportText, Rows, Span,
-                },
-            };
-use ryo_relations::domain::terms::types::NameText;
+            collections::relations::identifier::item::IdentifierRow,
+            types::{
+                Missing, Offset, OptionalCapability, Position, Relation, ReportText, Rows, Span,
+            },
+        };
+        use ryo_relations::domain::terms::types::NameText;
         if wanted.contains(&Relation::Identifier) {
             if self.0.contains(&OptionalCapability::Identifier) {
                 out.write(IdentifierRow {
@@ -823,10 +823,10 @@ fn literal_parse_capability_row(
     out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
 ) {
     use ryo_relations::domain::relations::{
-            collections::relations::literal_expression_parse::item::LiteralExpressionParseRow,
-            types::{Missing, Offset, Position, ReportText, Rows, Span},
-        };
-use ryo_relations::domain::terms::types::NameText;
+        collections::relations::literal_expression_parse::item::LiteralExpressionParseRow,
+        types::{Missing, Offset, Position, ReportText, Rows, Span},
+    };
+    use ryo_relations::domain::terms::types::NameText;
     if available {
         let dialect = ryo_language::domain::symbols::service::intern_derived(
             symbols,

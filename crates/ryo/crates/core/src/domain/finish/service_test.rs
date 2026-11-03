@@ -1,11 +1,11 @@
 //! The `finish` service's cases, on values alone.
 
 use crate::domain::table_texts::types::SourceView;
+use ryo_language::domain::symbols::service::{intern, intern_derived, places_mut};
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Offset, Origin, Span, Value as Cell, WorkerNumber,
 };
-use ryo_language::domain::symbols::service::{intern, intern_derived, places_mut};
-use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::terms::service::unknown_symbol;
 use ryo_relations::domain::terms::types::{NameText, ReasonName, UnknownName, UnknownReason};
 
@@ -16,10 +16,10 @@ use super::types::{
     RuleNumber,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{push_row, row_in};
-use crate::domain::table_model::types::Table;
+
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::records::types::RenderedText;
@@ -371,3 +371,5 @@ fn succeeds() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

@@ -7,7 +7,7 @@ use crate::domain::operator::contract::{
     types::{PrimitiveSemantics, join_result},
     views::{BorrowedRows, IndexedRows, KeyProbe},
 };
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::service::row_in;
 use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted, OperatorCall};
 use ryo_relations::domain::relations::types::Value;
@@ -86,3 +86,5 @@ pub(super) fn indexed(
     });
     join_result(result, driver.error)
 }
+
+use ryo_values::domain::rows::types::RowIndex;

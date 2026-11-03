@@ -15,6 +15,7 @@ fn prepared_dag(
         |_| true,
         &[Relation::Function],
         true,
+        crate::outbound::derived::factory::test_port(),
     );
     // Keep physical index reuse while declining optional whole-node retention.
     dag.limit = 0;
@@ -33,13 +34,13 @@ fn prepared_dag(
 use crate::domain::table_words::service::pack;
 use crate::domain::table_words::types::WordSlice;
 use crate::outbound::matching::interface::MatchingPort as _;
+use ryo_language::domain::symbols::service::intern;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, Integer, Offset, Relation, Value as Cell,
     WorkerNumber,
 };
-use ryo_language::domain::symbols::service::intern;
-use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_values::domain::files::types::FileBytes;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as PlanInput, InputNumber, LiteralText, Operand, QueryLiteral,
@@ -66,7 +67,7 @@ use crate::domain::reading::types::EngineRows;
 use crate::domain::render::types::{RowNumber, RowOrder};
 use crate::domain::rules::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{ParameterBinding, Table};
+use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::Tables;
@@ -886,3 +887,5 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
     assert_eq!(frontier[0].count.0, 4);
     assert!(dag.borrow().index_fixture_state().3);
 }
+
+use ryo_values::domain::rows::types::Table;

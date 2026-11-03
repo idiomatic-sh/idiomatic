@@ -56,7 +56,7 @@ pub(crate) enum Placeability {
 #[derive(Default)]
 pub(crate) struct Evaluated {
     /// Evaluated rows.
-    pub table: crate::domain::table_model::types::Table,
+    pub table: ryo_values::domain::rows::types::Table,
     /// Work performed by each step.
     pub fed: Vec<crate::domain::operator::types::RowsFed>,
 }

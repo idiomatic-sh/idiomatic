@@ -6,8 +6,8 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
+use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plans::types::{Operation, OperationKind};

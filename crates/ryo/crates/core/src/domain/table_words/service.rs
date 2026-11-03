@@ -1,15 +1,15 @@
 //! The service of the `table_words` concept: free functions named by verb that write tables as
 //! words, so they can wait in a bucket of the store, and read them back, with no IO and no ports.
 
-use ryo_relations::domain::relations::types::{
-    Bits, Integer, Name, NamePlace, PlaceNumber, Value, Words,
-};
 use ryo_language::domain::words::service::{
     decode_kind, decode_places, decode_value, encode_kind, encode_places, encode_value,
 };
+use ryo_relations::domain::relations::types::{
+    Bits, Integer, Name, NamePlace, PlaceNumber, Value, Words,
+};
 
 use super::types::WordSlice;
-use crate::domain::table_model::types::{RowCount, Table};
+
 use ryo_values::domain::stored_facts::types::PackedWords;
 
 /// Writes a table as words, so it can wait in a bucket of the store: its widths, its row count,
@@ -182,3 +182,5 @@ pub(crate) fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ 
         None
     })
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

@@ -5,7 +5,6 @@ use ryo_relations::domain::relations::types::Value;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, OperatorContext};
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
 
 /// A table that takes the rows as they come.
 pub(crate) struct Collect<'t>(pub &'t mut Table);
@@ -33,3 +32,5 @@ impl Emit for Collect<'_> {
         Ok(())
     }
 }
+
+use ryo_values::domain::rows::types::Table;

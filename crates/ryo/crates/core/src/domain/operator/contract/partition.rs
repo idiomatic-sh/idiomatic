@@ -3,7 +3,7 @@
 
 use super::views::BorrowedRows;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::{
     service::{check_columns, mix, word_of},
     types::KeyCellsHash,
@@ -87,3 +87,5 @@ pub(crate) fn ordered_positions(
 
 #[cfg(test)]
 mod tests;
+
+use ryo_values::domain::rows::types::RowIndex;

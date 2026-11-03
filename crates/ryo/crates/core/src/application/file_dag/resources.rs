@@ -5,8 +5,8 @@ use crate::domain::operating::{
     types::{AfterTheFiles, OperatorContext},
 };
 use crate::domain::table_model::types::ParameterBinding;
-use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
+use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::{
     service::parameter_in,

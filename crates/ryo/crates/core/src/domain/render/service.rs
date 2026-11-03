@@ -3,9 +3,9 @@
 //! time, as the row is made; no cell becomes text for a reader in the core.
 
 use ryo_language::domain::elements::service::start_at;
+use ryo_language::domain::symbols::service::{place_of, places_of};
 use ryo_relations::domain::relations::service::{node_file, node_position};
 use ryo_relations::domain::relations::types::{Integer, Name, NodeId, Value};
-use ryo_language::domain::symbols::service::{place_of, places_of};
 
 use super::constants::rule_heading;
 use super::types::{
@@ -18,7 +18,7 @@ use crate::domain::finish::service::{
     column_cell, fill_line_starts, line_cell, offset_of, place_in,
 };
 use crate::domain::finish::types::{ColumnNumber, FileLine, LineStarts, Point, RuleNumber};
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::service::{cell, positions, row_in};
 use crate::domain::value_cells::service::value_cell;
 use crate::domain::value_cells::types::Scene;
@@ -334,3 +334,5 @@ pub(crate) fn finding_parts<T>(cells: &[Option<Cell<T>>]) -> Option<FindingParts
         column,
     })
 }
+
+use ryo_values::domain::rows::types::RowIndex;

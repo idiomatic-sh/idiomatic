@@ -3,7 +3,7 @@
 
 use ryo_relations::domain::relations::types::Value;
 
-use crate::domain::table_model::types::{KeyIndex, Table};
+use crate::domain::table_model::types::KeyIndex;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// The room a walk along edges works in, kept from walk to walk.
@@ -67,3 +67,5 @@ pub(crate) struct OrderedWalk {
     /// Edges examined in this root walk.
     pub examined: usize,
 }
+
+use ryo_values::domain::rows::types::Table;

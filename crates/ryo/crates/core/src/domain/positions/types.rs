@@ -87,6 +87,8 @@ pub(crate) struct ClassPlace(pub usize);
 /// The room and the context a lowered step works with.
 #[derive(Debug)]
 pub(crate) struct Work<'a, 'c> {
+    /// Invocation-scoped engine derived access; reusable room never retains this dependency.
+    pub derived: &'a mut dyn crate::domain::operator::contract::derived::ScopedDerived,
     /// What the lowered steps keep from file to file.
     pub room: &'a mut LoweredRoom,
     /// What the operators read and sort in.

@@ -9,11 +9,11 @@ use crate::domain::operator::contract::{
     views::{BorrowedRows, IndexedRows},
 };
 use crate::domain::operator::types::PlanLayout;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::service::{cell_at, column_in, reset};
 use ryo_operators::domain::contract::types::{JoinInput, JoinRow, OperatorCall};
 mod driver;
-use crate::domain::table_model::types::{KeyIndex, Rows, Table};
+use crate::domain::table_model::types::{KeyIndex, Rows};
 use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::kinds;
@@ -265,3 +265,5 @@ pub(crate) fn execute_with_index(
     }
     Ok(Some((emitted.get(), decoded.get(), hits.get())))
 }
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

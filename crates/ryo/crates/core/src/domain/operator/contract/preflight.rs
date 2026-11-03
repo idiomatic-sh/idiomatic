@@ -24,7 +24,7 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputSchema<'_>]) -
                 let domain = inputs
                     .get(2)
                     .ok_or(OperatingError::MissingInput { position: 3 })?;
-                let mut out = crate::domain::table_model::types::Table::default();
+                let mut out = ryo_values::domain::rows::types::Table::default();
                 crate::domain::tree_walk::service::walk_kinds(
                     from.kinds,
                     domain.kinds,

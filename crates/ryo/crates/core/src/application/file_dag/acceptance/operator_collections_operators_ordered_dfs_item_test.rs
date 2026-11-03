@@ -4,13 +4,10 @@ use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::collections::operators::ordered_dfs::item::OrderedDfsItem;
-use crate::domain::table_model::{
-    service::push_row,
-    types::{Rows, Table},
-};
+use crate::domain::table_model::{service::push_row, types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as Source},
@@ -443,10 +440,13 @@ fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<us
     next_ordered(&edges, &graph, &[], &mut walk).map(|_| 0)
 }
 fn retained_text_fixture(source: &[u8]) -> (Symbols, Table, Table) {
-    use ryo_language::domain::{symbols::service::{intern, places_mut}, symbols::types::ByteSlice};
-use ryo_relations::domain::relations::types::{
-            FileId, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, WorkerNumber,
-        };
+    use ryo_language::domain::{
+        symbols::service::{intern, places_mut},
+        symbols::types::ByteSlice,
+    };
+    use ryo_relations::domain::relations::types::{
+        FileId, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, WorkerNumber,
+    };
     let mut symbols = Symbols::default();
     let left = Cell::Symbol(intern(
         &mut symbols,
@@ -671,7 +671,7 @@ impl<'f> crate::application::file_dag::feed::Feed<'f> for Held<'f> {
     fn found(
         &mut self,
         _which: crate::domain::operating::types::InputPlace,
-        _rows: crate::domain::table_model::types::RowCount,
+        _rows: ryo_values::domain::rows::types::RowCount,
     ) {
     }
     fn stream(
@@ -864,3 +864,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

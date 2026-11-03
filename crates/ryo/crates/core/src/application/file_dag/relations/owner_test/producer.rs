@@ -14,11 +14,11 @@ use crate::domain::{
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-        service::kinds,
-        types::{ColumnsView, FileId, Integer, Relation, Value},
-    };
+    service::kinds,
+    types::{ColumnsView, FileId, Integer, Relation, Value},
+};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Operand, ParameterId, Test, WholeNumber,
 };

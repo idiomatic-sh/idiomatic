@@ -6,13 +6,13 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::replace::item::ReplaceItem;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, SourceView, Texts};
-use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, LiteralText};
 use ryo_values::domain::plans::types::{Operation, QueryOperator};
@@ -159,3 +159,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

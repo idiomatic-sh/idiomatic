@@ -16,7 +16,7 @@ use crate::domain::rules::types::{RuleParameters, RuleSpec};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::types::{ColumnNumber, FileLine, RuleNumber};
 use crate::domain::render::types::{Rendered, RowNumber, RowOrder};
-use crate::domain::table_model::types::{RowCount, Table};
+
 use crate::domain::table_words::service::{decode_combined, encode_table, pack, unpacked};
 use crate::domain::table_words::types::WordSlice;
 use ryo_values::domain::records::types::RenderedText;
@@ -360,3 +360,5 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

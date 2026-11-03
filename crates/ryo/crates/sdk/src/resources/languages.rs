@@ -18,7 +18,9 @@ pub use macros::link::link;
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 
 pub use ryo_language::domain::semantics::interface::SemanticSession;
-pub use ryo_language::domain::semantics::types::{RenderContext, RenderError, RenderOutcome, RenderRequest};
+pub use ryo_language::domain::semantics::types::{
+    RenderContext, RenderError, RenderOutcome, RenderRequest,
+};
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 
@@ -235,13 +237,13 @@ pub use ryo_language::domain::elements::service::embedded_source_at;
 pub use ryo_language::domain::elements::service::{field_at, field_name_at, origin_at};
 pub use ryo_language::domain::expansions::service::mark_expansion;
 pub use ryo_language::domain::expansions::service::{embedded_expressions, write_embedded};
+pub use ryo_language::domain::symbols::types::ByteSlice;
+pub use ryo_language::domain::symbols::types::Noted;
 pub use ryo_relations::domain::relations::constants::NO_FIELD;
 pub use ryo_relations::domain::relations::types::ReportText;
 pub use ryo_relations::domain::relations::types::{Bytes, Extent, Flag, Integer, Optionality};
 pub use ryo_relations::domain::relations::types::{ElementOrigin, ExpansionId, FieldId};
 pub use ryo_relations::domain::relations::types::{EmbeddedMapping, EmbeddedSource};
-pub use ryo_language::domain::symbols::types::ByteSlice;
-pub use ryo_language::domain::symbols::types::Noted;
 pub use ryo_relations::domain::terms::types::NameText;
 
 pub use ryo_relations::domain::relations::types::NameNote;

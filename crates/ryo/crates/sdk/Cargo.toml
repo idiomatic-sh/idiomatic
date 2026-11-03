@@ -18,6 +18,7 @@ name = "ryo"
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
 ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.1.2" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.2" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.1.2" }

@@ -42,8 +42,8 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
 use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::StoredFileNumber;
 
-use crate::domain::rules::service::governing;
 use crate::domain::rules::errors::RulesError;
+use crate::domain::rules::service::governing;
 
 use crate::domain::visit::service::lines_in;
 use crate::domain::visit::types::{BorrowedBytes, Keeping};
@@ -75,12 +75,12 @@ use ryo_language::domain::elements::service::{
 };
 use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
 use ryo_language::domain::kind_index::service::index_kinds;
+use ryo_language::domain::symbols::service::clear_symbols;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::collections::relations::filesystem_file::item::FilesystemFileRow;
 use ryo_relations::domain::relations::collections::relations::filesystem_line_count::item::FilesystemLineCountRow;
 use ryo_relations::domain::relations::types::Rows as _;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
-use ryo_language::domain::symbols::service::clear_symbols;
-use ryo_language::domain::symbols::types::Symbols;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileNumber};
@@ -458,6 +458,7 @@ impl FileAnalysis {
                     },
                     &complete,
                     facts.resident_stability() == ResidentStability::Stable,
+                    visit.setting.executor.derived_port(),
                 );
             if !crate::domain::file_program::service::enabled() {
                 execution.limit = 0;
@@ -686,11 +687,13 @@ impl FileAnalysis {
                             id: id.clone(),
                             reason: reason.clone(),
                         }))?;
-                    tables.unknowns.push(crate::domain::coverage::types::Unknown {
-                        rule: id,
-                        path: path.clone(),
-                        message: crate::domain::coverage::types::Message(reason.into()),
-                    });
+                    tables
+                        .unknowns
+                        .push(crate::domain::coverage::types::Unknown {
+                            rule: id,
+                            path: path.clone(),
+                            message: crate::domain::coverage::types::Message(reason.into()),
+                        });
                     semantic.mark_incomplete();
                     if let Some(program) = file_program.as_deref_mut() {
                         program.finish_rule(rule.0);
@@ -1046,7 +1049,10 @@ impl FileAnalysis {
         );
         let semantic_needed = setting.plans.iter().any(|plan| {
             plan.steps.iter().any(|step| {
-                matches!(step.operation, ryo_values::domain::plans::types::Operation::RenderSyntax { .. })
+                matches!(
+                    step.operation,
+                    ryo_values::domain::plans::types::Operation::RenderSyntax { .. }
+                )
             })
         });
         let session = if semantic_needed {
@@ -1060,12 +1066,14 @@ impl FileAnalysis {
                     notes: setting.noted.into(),
                     roles: setting.roled.into(),
                 };
-                self.language.begin_semantics(language, source, &worker.tables.elements)
+                self.language
+                    .begin_semantics(language, source, &worker.tables.elements)
             })
         } else {
             None
         };
-        let semantic = super::semantic::SemanticState::new(number, &worker.tables.elements, session);
+        let semantic =
+            super::semantic::SemanticState::new(number, &worker.tables.elements, session);
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
@@ -1113,11 +1121,12 @@ impl FileAnalysis {
                         if semantic.is_incomplete() {
                             None
                         } else {
-                            self.recorded(worker, visit, number, base)
-                                .map(|ran| FileOutcome::Unread {
+                            self.recorded(worker, visit, number, base).map(|ran| {
+                                FileOutcome::Unread {
                                     reason,
                                     ran: Some(ran),
-                                })
+                                }
+                            })
                         }
                     }
                 }

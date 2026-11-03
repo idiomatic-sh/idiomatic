@@ -3,10 +3,10 @@ use super::*;
 use crate::domain::{
     operation_schema::types::InputSchema,
     stored_graph::types::{GraphIdentity, GraphSource, Orientation, Population},
-    table_model::{service::push_row, types::Table},
+    table_model::service::push_row,
 };
-use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 fn number(value: i64) -> Value {
@@ -299,3 +299,5 @@ fn ordered_keys_sort_each_side_and_refuse_duplicate_order_within_a_group() {
         Err(OperatingError::DuplicateOrder),
     );
 }
+
+use ryo_values::domain::rows::types::Table;

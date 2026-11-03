@@ -19,9 +19,7 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
 
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{
-    BindingCell, BindingTable, ParameterBinding, RowCount, Table,
-};
+use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell,
@@ -530,3 +528,5 @@ fn hosted_without_its_request_source_is_missing_not_an_unsupported_operation() {
         Err(OperatingError::MissingInput { position: 1 })
     );
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

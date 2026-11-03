@@ -1,9 +1,9 @@
 //! The types of the `table_scratch` concept: the invocation-owned rooms operators work in, plain
 //! data with public fields and derives, and no constructor or inherent impl.
 
-use crate::domain::table_cells::types::{ColumnPlaces, RowIndex};
+use crate::domain::table_cells::types::ColumnPlaces;
+use crate::domain::table_model::types::KeyIndex;
 use crate::domain::table_model::types::Verdict;
-use crate::domain::table_model::types::{KeyIndex, Table};
 use ryo_language::domain::elements::types::KindSum;
 use ryo_relations::domain::relations::types::{FileId, KindBits, TextHash, Value};
 use ryo_relations::domain::terms::types::Symbol;
@@ -280,7 +280,7 @@ pub(crate) struct OperatorScratch {
 #[derive(Debug, Default)]
 pub(crate) struct JoinScratch {
     /// The rows already kept, found by what they hold.
-    pub seen: hashbrown::HashTable<RowIndex>,
+    pub seen: hashbrown::HashTable,
 
     /// Reused by the engine's prepared Join lookup across rows in this invocation.
     pub key: Vec<Value>,
@@ -352,3 +352,5 @@ pub(crate) struct Patterns(
         regex_automata::meta::Regex,
     >,
 );
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

@@ -27,7 +27,7 @@ use crate::domain::recording::service::{
 };
 use crate::domain::recording::types::{BucketWords, Flat};
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
+
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::types::{Needs, RelationRead};
@@ -502,7 +502,6 @@ fn legacy_normalized(
 
 #[test]
 fn prepared_packed_buckets_preserve_legacy_flat_digests_store_bytes_and_move_ownership() {
-    use crate::domain::table_model::types::RowCount;
     use crate::outbound::digest::fixtures::fake::DigestFake;
     use crate::outbound::digest::interface::DigestPort as _;
     use crate::outbound::digest::types::DigestWords;
@@ -668,7 +667,6 @@ fn incremental_normalization_preserves_every_truncated_complete_prefix() {
 
 #[test]
 fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
-    use crate::domain::table_model::types::RowCount;
     use ryo_relations::domain::relations::types::{
         Name, NamePlace, Offset, Origin, PlaceNumber, TextHash,
     };
@@ -725,3 +723,5 @@ fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
         assert!(moved_words(&worker, FileId(3), ArenaBase(7)).is_none());
     }
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

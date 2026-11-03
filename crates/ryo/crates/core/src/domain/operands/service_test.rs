@@ -1,7 +1,7 @@
 //! The `operands` service's cases, on values alone.
 
-use ryo_relations::domain::relations::types::Integer;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::Integer;
 
 use super::service::resolve;
 use crate::cases::{Case, CaseName, Expect, Word, run};

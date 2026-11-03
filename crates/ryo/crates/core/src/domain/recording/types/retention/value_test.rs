@@ -3,7 +3,7 @@
 use super::value::RetainedBytes;
 use crate::domain::storing::service::stored_of;
 use crate::domain::storing::types::ToKeep;
-use crate::domain::table_model::types::{Frontier, RowCount, Table};
+use crate::domain::table_model::types::Frontier;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::files::types::{FileNumber, FileSize, Nanoseconds};
@@ -232,3 +232,5 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
         "metadata stays proportional to bucket count, not payload size"
     );
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

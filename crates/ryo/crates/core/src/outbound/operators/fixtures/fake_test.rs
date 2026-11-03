@@ -2,8 +2,8 @@
 use super::{super::contract, OperatorsFake};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::operators::interface::OperatorsPort as _;
-use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
+use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::atomic::Ordering;
 

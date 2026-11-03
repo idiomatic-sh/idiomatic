@@ -21,22 +21,25 @@ use crate::domain::operator::{
 };
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
+use crate::domain::table_model::types::{ParameterBinding, Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use fixtures::{SOURCE, fixture};
 use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_relations::domain::terms::types::NameText;
-use ryo_language::domain::{elements::{
+use ryo_language::domain::{
+    elements::{
         service::{enter_node, leave_node, table_builder, token},
         types::Elements,
-    }, symbols::types::{ByteSlice, Symbols}};
+    },
+    symbols::types::{ByteSlice, Symbols},
+};
 use ryo_relations::domain::relations::{
-        service::{kinds, to_bits},
-        types::{
-            CellKind, ColumnsView, FactColumn, FileId, Integer, KindBits, Offset, Relation, Value,
-        },
-    };
+    service::{kinds, to_bits},
+    types::{
+        CellKind, ColumnsView, FactColumn, FileId, Integer, KindBits, Offset, Relation, Value,
+    },
+};
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation},
     plan_parts::types::{
@@ -59,6 +62,9 @@ struct CountingExecutor {
     emitted: Mutex<Vec<(OperationKind, usize)>>,
 }
 impl PrimitiveExecutor for CountingExecutor {
+    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        crate::outbound::derived::factory::test_port()
+    }
     fn stream(
         &self,
         contract: &OperatorContract,
@@ -473,6 +479,9 @@ fn partial_positive_rows_reach_common_engine_but_partial_absence_does_not() {
 #[derive(Debug)]
 struct RejectingExecutor;
 impl PrimitiveExecutor for RejectingExecutor {
+    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        crate::outbound::derived::factory::test_port()
+    }
     fn stream(
         &self,
         _: &OperatorContract,
@@ -551,3 +560,5 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
 }
 
 mod generations;
+
+use ryo_values::domain::rows::types::Table;

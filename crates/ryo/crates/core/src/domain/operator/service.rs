@@ -1,7 +1,7 @@
 //! Pure operator plan workspace and terminal access.
 pub(crate) use super::contract::registration::registered;
 use super::types::Pool;
-use crate::domain::table_model::types::Table;
+
 use ryo_values::domain::plans::{
     service::step_scope,
     types::{Plan, StepScope},
@@ -32,3 +32,5 @@ pub(crate) fn emitted<'p>(plan: &Plan, pool: &'p mut Pool) -> Option<&'p mut Tab
         Some(StepScope::CrossFile) | None => None,
     }
 }
+
+use ryo_values::domain::rows::types::Table;

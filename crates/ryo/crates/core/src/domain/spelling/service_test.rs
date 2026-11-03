@@ -1,11 +1,11 @@
 //! The `spelling` service's cases, on values alone.
 
+use ryo_language::domain::symbols::service::{places_mut, places_of};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, TextHash, Value as Cell,
     WorkerNumber,
 };
-use ryo_language::domain::symbols::service::{places_mut, places_of};
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 use super::errors::SpellingError;
@@ -13,7 +13,6 @@ use super::service::check_spellings;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::finish::types::{Arenas, Resolving};
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]
@@ -94,3 +93,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

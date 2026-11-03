@@ -1,18 +1,18 @@
 use super::SelectedInput;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::replay::types::Collect;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::{
     service::take_read_row_counts,
-    types::{SelectedRows, StoredSelection, Table},
+    types::{SelectedRows, StoredSelection},
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value},
 };
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use std::sync::Arc;
 
@@ -138,3 +138,5 @@ fn malformed_selected_populations_are_refused_before_indexing() {
         Err(OperatingError::ShapeMismatch)
     ));
 }
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

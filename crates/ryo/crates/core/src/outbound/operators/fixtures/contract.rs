@@ -1,8 +1,8 @@
 //! Behavioral contract shared by the injected operator adapter and test fake.
 use super::super::interface::OperatorsPort;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
+use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 type Input = (Vec<CellValue>, Vec<ColumnIndex>);

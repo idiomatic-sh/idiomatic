@@ -12,13 +12,13 @@ use crate::domain::operator::contract::types::{
     EvaluationMode, OperatorContract, PrimitiveSemantics, join_result,
 };
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::{
     service::{
         cell_at, check_columns, count_of, kinds_of, matching_stored, positions, read_row,
         rectangular,
     },
-    types::{RowCount, Rows},
+    types::Rows,
 };
 use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted, OperatorCall};
 use ryo_relations::domain::relations::{service::kinds, types::Value};
@@ -364,3 +364,5 @@ pub(crate) fn evaluate(
     work.restore(context);
     Some(result)
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex};

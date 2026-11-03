@@ -4,7 +4,7 @@ use crate::domain::operator::contract::{
     types::{PrimitiveLease, RowSink, join_result},
     views::{IndexedRows, KeyProbe},
 };
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::types::Verdict;
 use crate::domain::tree_join::{
     collections::strategies::{
@@ -162,3 +162,5 @@ pub(super) fn evaluate(
     *driver.lease.workspace.other = target;
     join_result(answer, error)
 }
+
+use ryo_values::domain::rows::types::RowIndex;

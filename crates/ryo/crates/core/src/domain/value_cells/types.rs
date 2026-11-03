@@ -3,8 +3,8 @@
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::FileId;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::terms::types::UnknownName;
 
 /// The file the rows are of, and what turns its numbers into names and paths.

@@ -147,7 +147,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
     let state = capture(|| {
         let _rule = rule(2, "query-two");
         let _node = node(41);
-        let owner = DerivedOwner::new(0);
+        let owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
         owner.prepare_file(
             true,
             &[Relation::Function],
@@ -168,7 +168,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
             )
             .unwrap();
         assert!(matches!(held.view().unwrap(), DerivedView::Equality(_)));
-        let selector_owner = DerivedOwner::new(0);
+        let selector_owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
         selector_owner.prepare_file(
             true,
             &[Relation::Function],

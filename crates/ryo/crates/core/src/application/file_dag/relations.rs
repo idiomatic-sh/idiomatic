@@ -8,7 +8,7 @@ use crate::domain::table_model::collections::representations::{
 };
 use crate::domain::table_model::{
     service::materialize,
-    types::{Rows, SelectedRows, StoredSelection, Table},
+    types::{Rows, SelectedRows, StoredSelection},
 };
 use crate::domain::{file_program::types::NodeId, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -71,11 +71,14 @@ pub(crate) struct RelationOwner {
     pub reuses: Cell<u64>,
 }
 impl RelationOwner {
-    pub(super) fn new(stable: bool) -> Self {
+    pub(super) fn new(
+        stable: bool,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
         Self {
             #[cfg(test)]
             identity_checks: Cell::new(0),
-            derived: super::derived::owner::DerivedOwner::new(1024),
+            derived: super::derived::owner::DerivedOwner::new(1024, semantic),
             next_population: Cell::new(0),
             producer_populations: RefCell::new(HashMap::new()),
             generation: RefCell::new(Arc::new(())),
@@ -87,11 +90,16 @@ impl RelationOwner {
             reuses: Cell::new(0),
         }
     }
-    pub(super) fn for_request(stable: bool, views: usize) -> Self {
-        let mut owner = Self::new(stable);
+    pub(super) fn for_request(
+        stable: bool,
+        views: usize,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
+        let mut owner = Self::new(stable, Arc::clone(&semantic));
         owner.max_views = views;
         owner.derived = super::derived::owner::DerivedOwner::new(
             views.saturating_mul(crate::domain::derived_views::types::DerivedKind::ALL.len()),
+            semantic,
         );
         owner
     }
@@ -468,3 +476,5 @@ impl RelationOwner {
         }
     }
 }
+
+use ryo_values::domain::rows::types::Table;

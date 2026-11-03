@@ -16,7 +16,7 @@ use crate::domain::operator::contract::types::{PrimitiveSemantics, join_result};
 use crate::domain::table_cells::service::{
     kind_name_at, ordinal_number_at, read_tree_cells, span_at,
 };
-use crate::domain::table_cells::types::{CellsRead, RowIndex, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{CellsRead, TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{count_of, kinds_of, read_row};
 use crate::domain::table_model::types::{Rows, Verdict};
@@ -325,3 +325,5 @@ pub(crate) fn join_tree(
     give_back(state, context);
     outcome
 }
+
+use ryo_values::domain::rows::types::RowIndex;

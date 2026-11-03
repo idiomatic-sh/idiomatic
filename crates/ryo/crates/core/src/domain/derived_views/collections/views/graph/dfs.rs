@@ -1,11 +1,11 @@
 //! Canonical lookup columns and immutable ordered-DFS adjacency preparation.
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{graph::PreparedDfs, views::BorrowedRows};
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_groups::service::sort_rows;
 use crate::domain::table_model::{
     service::{check_columns, column_in, push_row},
-    types::{KeyIndex, On, Table},
+    types::{KeyIndex, On},
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -194,9 +194,11 @@ pub(super) fn prepare(
 
 use crate::domain::table_scratch::types::ScratchText;
 use crate::domain::table_texts::service::{name_text, symbol_text};
-use ryo_relations::domain::relations::types::Integer;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, QuerySymbols},
 };
+use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::terms::types::NameText;
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

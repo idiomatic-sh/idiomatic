@@ -1,6 +1,6 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
-use crate::domain::{operating::errors::OperatingError, table_cells::types::RowIndex};
+use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct ComputedItem;
@@ -86,3 +86,5 @@ impl RepresentationsItem for ComputedItem {
             .ok_or(OperatingError::ShapeMismatch)
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

@@ -1,18 +1,17 @@
 //! The types of the `operating` concept: what an operator reads, writes and fails with. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::RowCount;
 
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_model::types::Rows;
-use crate::domain::table_model::types::Table;
+
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::QuerySymbols;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::JoinColumn;
@@ -304,3 +303,5 @@ impl std::ops::DerefMut for ExecutionObservationSlot {
         self.0.get_or_insert_with(Default::default)
     }
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

@@ -8,7 +8,6 @@ use super::service::distinct;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, TableModelError>;
@@ -45,3 +44,5 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

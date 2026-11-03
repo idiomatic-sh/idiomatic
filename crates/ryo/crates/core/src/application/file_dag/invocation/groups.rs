@@ -1,7 +1,6 @@
 //! Existing grouping semantic accumulator; input driving remains in the common engine.
 use super::*;
 use crate::domain::{
-    table_cells::types::RowIndex,
     table_groups::{
         service::{count_groups, digest_groups},
         types::{CountRoom, Hashes},
@@ -57,3 +56,5 @@ pub(super) fn groups(
     }
     Ok(groups)
 }
+
+use ryo_values::domain::rows::types::RowIndex;

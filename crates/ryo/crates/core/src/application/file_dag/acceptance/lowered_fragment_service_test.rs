@@ -15,7 +15,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::positions::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
 use crate::domain::positions::types::{LoweredRoom, Positions, Readiness};
 use crate::domain::replay::types::Collect;
-use crate::domain::table_model::types::Table;
+
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
@@ -179,3 +179,5 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

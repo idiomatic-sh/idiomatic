@@ -4,12 +4,12 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     FileId, KindBits, Offset, Position, Relation, Value as Cell,
 };
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::terms::types::NameText;
 
 use crate::application::file_dag::testing::TestOperator as _;
@@ -20,7 +20,7 @@ use crate::domain::operating::types::KindNaming;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::{Rows, Table, Verdict};
+use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::{SourceView, TextView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -347,3 +347,5 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

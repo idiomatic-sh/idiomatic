@@ -28,8 +28,8 @@ use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::Relation;
 use ryo_language::inbound::use_cases::project::types::RootPath;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
@@ -496,6 +496,9 @@ fn scheduled_world_with_query_kernel(
             Arc::clone(&analysis_memory),
             Arc::new(crate::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             scheduler,
             workers,
@@ -1890,6 +1893,9 @@ fn succeeds() {
             Arc::clone(&analysis_memory),
             Arc::new(crate::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             Arc::new(SchedulerFake::default()),
             WorkerCount(1),

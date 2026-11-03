@@ -6,11 +6,11 @@ use crate::domain::operating::types::{Family, OperatorContext};
 use crate::domain::operator::collections::operators::antijoin::item::AntijoinItem;
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Test};
 use ryo_values::domain::plans::types::Operation;
 
@@ -109,3 +109,5 @@ fn an_antijoin_row_without_its_key_column_is_refused() {
         }))
     ));
 }
+
+use ryo_values::domain::rows::types::Table;

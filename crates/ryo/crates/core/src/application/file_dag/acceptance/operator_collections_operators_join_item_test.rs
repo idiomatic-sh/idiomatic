@@ -24,7 +24,7 @@ use crate::domain::operator::collections::operators::join::item::JoinItem;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{kinds_of, push_row, row_in};
-use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
@@ -339,7 +339,7 @@ impl<'f> Feed<'f> for ControlledFeed<'f> {
         for position in 0..self.left.count.0 {
             let Some(row) = row_in(
                 self.left,
-                crate::domain::table_cells::types::RowIndex(position),
+                ryo_values::domain::rows::types::RowIndex(position),
             ) else {
                 continue;
             };
@@ -778,7 +778,7 @@ fn assert_stored_join_shape(
     assert_eq!(actual, expected);
     let expected_rows = (0..expected.count.0)
         .map(|at| {
-            row_in(&expected, crate::domain::table_cells::types::RowIndex(at))
+            row_in(&expected, ryo_values::domain::rows::types::RowIndex(at))
                 .expect("expected row")
                 .to_vec()
         })
@@ -1217,13 +1217,13 @@ fn sparse_left_dense_pairs_fall_back_before_emitting_and_keep_bag_order() {
     );
     assert_eq!(out.count.0, 4_097 * 16);
     assert_eq!(
-        row_in(&out, crate::domain::table_cells::types::RowIndex(0)),
+        row_in(&out, ryo_values::domain::rows::types::RowIndex(0)),
         Some(&[stretch(0, 1), Cell::Number(Integer(0))][..])
     );
     assert_eq!(
         row_in(
             &out,
-            crate::domain::table_cells::types::RowIndex(out.count.0 - 1)
+            ryo_values::domain::rows::types::RowIndex(out.count.0 - 1)
         ),
         Some(&[stretch(4_096, 4_097), Cell::Number(Integer(15))][..])
     );
@@ -1632,7 +1632,7 @@ impl Emit for NestedStoredJoin<'_> {
         )?;
         for at in 0..output.count.0 {
             self.rows.push(
-                row_in(&output, crate::domain::table_cells::types::RowIndex(at))
+                row_in(&output, ryo_values::domain::rows::types::RowIndex(at))
                     .expect("nested output")
                     .to_vec(),
             );
@@ -1860,3 +1860,5 @@ fn demand_reach_stream_preserves_lazy_holds_refusals_and_room_reuse() {
 }
 
 pub(super) mod capability_test;
+
+use ryo_values::domain::rows::types::{RowCount, Table};

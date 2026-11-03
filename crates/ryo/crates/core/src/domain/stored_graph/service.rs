@@ -49,7 +49,7 @@ pub(crate) fn build_borrowed(
     let mut pairs = Vec::new();
     let mut tuple = Vec::with_capacity(keys.len());
     for position in 0..rows.count() {
-        let position = crate::domain::table_cells::types::RowIndex(position);
+        let position = ryo_values::domain::rows::types::RowIndex(position);
         tuple.clear();
         let mut complete = true;
         for column in keys {

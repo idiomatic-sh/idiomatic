@@ -97,6 +97,7 @@ struct State {
     required_backend_bytes: usize,
 }
 pub(crate) struct DerivedOwner {
+    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     next_scope: std::cell::Cell<usize>,
     ledger: std::rc::Rc<RefCell<super::ledger::Ledger>>,
     backend: RefCell<Option<CacheBackend>>,
@@ -104,8 +105,18 @@ pub(crate) struct DerivedOwner {
     max_entries: usize,
 }
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn new(max_entries: usize) -> Self {
+    pub(in crate::application::file_dag) fn semantic_port(
+        &self,
+    ) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        Arc::clone(&self.semantic)
+    }
+
+    pub(in crate::application::file_dag) fn new(
+        max_entries: usize,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
         Self {
+            semantic,
             next_scope: std::cell::Cell::new(0),
             ledger: std::rc::Rc::new(RefCell::new(super::ledger::Ledger::default())),
             state: RefCell::new(State::default()),
@@ -291,3 +302,5 @@ pub(in crate::application::file_dag) fn build_scoped(
     let _ready = registered(plan.kind).view(plan, storage)?;
     Ok(())
 }
+
+pub(in crate::application::file_dag) mod raw_scope;

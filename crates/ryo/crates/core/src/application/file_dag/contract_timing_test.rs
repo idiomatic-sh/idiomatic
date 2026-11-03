@@ -4,17 +4,14 @@ use crate::domain::features::service::kind_of;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::service::registered;
-use crate::domain::table_model::{
-    errors::TableModelError,
-    types::{RowCount, Rows, Table},
-};
+use crate::domain::table_model::{errors::TableModelError, types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-        service::node_id,
-        types::{CellKind, FileId, Integer, Position, Relation, Value},
-    };
+    service::node_id,
+    types::{CellKind, FileId, Integer, Position, Relation, Value},
+};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, RepeatedRows},
     plans::types::Operation,
@@ -164,3 +161,5 @@ fn collected_axis_computed_empty_domain_keeps_its_original_shortcut() {
         }))
     );
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

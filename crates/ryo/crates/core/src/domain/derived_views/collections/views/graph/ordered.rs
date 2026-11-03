@@ -5,7 +5,6 @@ use crate::domain::{
         graph::{OrderedMatching, OwnedOrderedKey, OwnedOrderedRow},
         views::BorrowedRows,
     },
-    table_cells::types::RowIndex,
     table_model::service::{cell, check_columns},
     table_texts::{
         service::datum,
@@ -89,3 +88,5 @@ pub(super) fn prepare(
         right: ordered_rows(right, right_on, right_order, texts, buffer)?,
     })
 }
+
+use ryo_values::domain::rows::types::RowIndex;

@@ -11,16 +11,16 @@ use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
 use crate::domain::rules::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier, ParameterBinding, Table};
+use crate::domain::table_model::types::{Frontier, ParameterBinding};
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::types::{Needs, RelationRead};
+use ryo_language::domain::symbols::service::places_mut;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
     Value as Cell, Words, WorkerNumber,
 };
-use ryo_language::domain::symbols::service::places_mut;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
@@ -475,3 +475,5 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
         | None => String::new(),
     }
 }
+
+use ryo_values::domain::rows::types::Table;

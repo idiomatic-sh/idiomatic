@@ -4,7 +4,6 @@
 use ryo_relations::domain::relations::types::{CellKind, Value};
 
 use crate::domain::lowering::types::Counting;
-use crate::domain::table_model::types::Table;
 
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Room;
@@ -122,3 +121,5 @@ pub(crate) enum TreeSteps {
 /// Which steps keep their rows in the pool's table of the step, by the step's place.
 #[derive(Debug, Default)]
 pub(crate) struct KeptSteps(pub Vec<bool>);
+
+use ryo_values::domain::rows::types::Table;

@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::types::{CellKind, Class, FileId, Missing, 
 use super::constants::REPOSITORY;
 use super::constants::{UNKNOWN_BECAUSE, UNKNOWN_IN};
 use super::types::{CoverageScope, Keying, Lacking, LackingKind, Message, Partial, Recovery};
-use crate::domain::table_model::types::Table;
+
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
 
@@ -108,7 +108,7 @@ pub(crate) fn drop_uncertain(
     };
     let Some(column) = keyed.filter(|column| *column < width && !everywhere) else {
         out.cells.clear();
-        out.count = crate::domain::table_model::types::RowCount(0);
+        out.count = ryo_values::domain::rows::types::RowCount(0);
         return;
     };
     let mut kept: Vec<Value> = Vec::with_capacity(out.cells.len());
@@ -125,7 +125,7 @@ pub(crate) fn drop_uncertain(
         }
     }
     out.cells = kept;
-    out.count = crate::domain::table_model::types::RowCount(rows);
+    out.count = ryo_values::domain::rows::types::RowCount(rows);
 }
 
 /// The relations of a file that are read in part: those the reader said so of, and, when the whole file is only a recovery of what was
@@ -200,3 +200,5 @@ pub(crate) fn unknown_message(partial: &Partial, scope: CoverageScope<'_>) -> Me
         .into(),
     )
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -4,10 +4,10 @@ use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
-use ryo_relations::domain::relations::types::Value as Cell;
-use ryo_relations::domain::relations::types::{FileId, Flag, KindBits, Offset, Position};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::Value as Cell;
+use ryo_relations::domain::relations::types::{FileId, Flag, KindBits, Offset, Position};
 use ryo_relations::domain::terms::types::NameText;
 
 use super::service::{count, firsts, hits, in_tree, row, sorted, value};
@@ -16,7 +16,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::types::{
     Counting, ElementPart, LoweredColumn, LoweredShape, Lowering, RowPosition, RowWidth,
 };
-use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
 
 /// A tree of four elements: a `file` node holding the tokens `word`, `other` and `word`, in this order, at positions 1 to 3.
 pub(crate) struct SmallTree {
@@ -250,3 +250,5 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+use ryo_values::domain::rows::types::RowIndex;

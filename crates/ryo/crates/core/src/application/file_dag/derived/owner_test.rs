@@ -8,7 +8,7 @@ use crate::domain::{
     },
     operation_schema::types::InputSchema,
     operator::contract::views::BorrowedRows,
-    table_model::{service::push_row, types::Table},
+    table_model::service::push_row,
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -101,7 +101,7 @@ fn acquire(
 
 #[test]
 fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
-    let owner = DerivedOwner::new(0);
+    let owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
     let population = PopulationId(7);
     owner.pin(population);
     let source = source();
@@ -144,7 +144,7 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
 
 #[test]
 fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
-    let owner = DerivedOwner::new(1);
+    let owner = DerivedOwner::new(1, crate::outbound::derived::factory::test_port());
     let source = source();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
@@ -176,7 +176,7 @@ fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
 
 #[test]
 fn optional_misses_do_not_accumulate_identity_metadata() {
-    let owner = DerivedOwner::new(0);
+    let owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
     let source = source();
     let plan = plan();
     let mut scratch = DerivedScratch::default();
@@ -199,7 +199,7 @@ fn optional_misses_do_not_accumulate_identity_metadata() {
 
 #[test]
 fn release_drops_only_the_dependent_required_view() {
-    let owner = DerivedOwner::new(0);
+    let owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
     let first_population = PopulationId(1);
     let second_population = PopulationId(2);
     owner.pin(first_population);
@@ -245,7 +245,7 @@ fn release_drops_only_the_dependent_required_view() {
 
 #[test]
 fn two_population_view_survives_either_release_and_repin_without_duplicate_dependencies() {
-    let owner = DerivedOwner::new(0);
+    let owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
     let populations = [PopulationId(1), PopulationId(2)];
     let source = source();
     let plan = membership_plan();
@@ -302,7 +302,7 @@ fn two_population_view_survives_either_release_and_repin_without_duplicate_depen
 
 #[test]
 fn population_and_semantic_context_are_part_of_the_view_identity() {
-    let owner = DerivedOwner::new(0);
+    let owner = DerivedOwner::new(0, crate::outbound::derived::factory::test_port());
     let first_population = PopulationId(1);
     let second_population = PopulationId(2);
     owner.pin(first_population);
@@ -342,3 +342,5 @@ fn population_and_semantic_context_are_part_of_the_view_identity() {
     assert!(!other_population.same_storage(&other_context));
     assert_eq!(owner.counts(), (3, 0, 3));
 }
+
+use ryo_values::domain::rows::types::Table;

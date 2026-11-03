@@ -2,10 +2,9 @@
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::{graph::ClosurePartition, views::BorrowedRows},
-    table_cells::types::RowIndex,
     table_model::{
         service::{check_columns, index, push_row},
-        types::{KeyIndex, On, Table},
+        types::{KeyIndex, On},
     },
 };
 use ryo_relations::domain::relations::types::Value;
@@ -65,3 +64,5 @@ pub(super) fn prepare(
     part.sources.dedup();
     Ok(part)
 }
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

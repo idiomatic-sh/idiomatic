@@ -7,10 +7,10 @@ use crate::domain::operating::{
 };
 use crate::domain::operator::contract::{types::*, views::BorrowedRows};
 use crate::domain::replay::types::Collect;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::{
     service::{push_row, reset},
-    types::{RowCount, Rows, Table},
+    types::Rows,
 };
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_relations::domain::relations::types::Value;
@@ -20,24 +20,29 @@ mod transport;
 /// The shared engine borrows its portable semantic capability from the caller.
 #[derive(Debug)]
 pub(crate) struct CommonOperatorEngine<'a> {
+    pub(super) derived: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     pub(super) operators: &'a dyn crate::outbound::operators::interface::OperatorsPort,
 }
 impl<'a> CommonOperatorEngine<'a> {
     pub(crate) const fn new(
         operators: &'a dyn crate::outbound::operators::interface::OperatorsPort,
+        derived: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
-        Self { operators }
+        Self { operators, derived }
     }
 }
 #[cfg(test)]
 impl CommonOperatorEngine<'static> {
     pub(crate) fn fixture() -> Self {
-        Self::new(crate::outbound::operators::factory::test_port())
+        Self::new(
+            crate::outbound::operators::factory::test_port(),
+            crate::outbound::derived::factory::test_port(),
+        )
     }
     pub(crate) fn fixture_ref() -> &'static Self {
-        static ENGINE: CommonOperatorEngine<'static> =
-            CommonOperatorEngine::new(crate::outbound::operators::factory::test_port());
-        &ENGINE
+        static ENGINE: std::sync::OnceLock<CommonOperatorEngine<'static>> =
+            std::sync::OnceLock::new();
+        ENGINE.get_or_init(Self::fixture)
     }
 }
 static EMPTY: Table = Table {
@@ -113,7 +118,7 @@ impl CommonOperatorEngine<'_> {
             inputs,
             context,
             out,
-            InvocationWorkspace::default(),
+            InvocationWorkspace::new(std::sync::Arc::clone(&self.derived)),
         )
     }
     #[cfg(test)]
@@ -125,7 +130,7 @@ impl CommonOperatorEngine<'_> {
         out: &mut Table,
         owner: std::rc::Rc<super::relations::RelationOwner>,
     ) -> Result<(), OperatingError> {
-        let mut workspace = InvocationWorkspace::default();
+        let mut workspace = InvocationWorkspace::new(std::sync::Arc::clone(&self.derived));
         workspace.capture_provided(
             owner,
             ryo_values::domain::plans::service::named(&contract.inputs),
@@ -470,6 +475,10 @@ impl CommonOperatorEngine<'_> {
 }
 
 impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperatorEngine<'_> {
+    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        std::sync::Arc::clone(&self.derived)
+    }
+
     fn stream(
         &self,
         contract: &OperatorContract,
@@ -584,3 +593,5 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
         self.port.operators(call)
     }
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

@@ -8,7 +8,6 @@ use super::service::{decode_combined, encode_table, pack, unpacked};
 use super::types::WordSlice;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]
@@ -150,3 +149,5 @@ fn exact_size_packing_matches_legacy_varints_and_retains_no_capacity_slack() {
         Some(usize::MAX)
     );
 }
+
+use ryo_values::domain::rows::types::Table;

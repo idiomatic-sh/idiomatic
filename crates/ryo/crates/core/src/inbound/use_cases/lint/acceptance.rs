@@ -118,6 +118,7 @@ fn runs(world: &mut Behavior) {
             Arc::new(ryo_core::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
             )),
+std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
             Arc::new(SchedulerFake::default()),
             ryo_core::outbound::scheduler::types::WorkerCount(1),
             Arc::clone(&kept),

@@ -8,18 +8,16 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::service::materialize;
-use crate::domain::table_model::types::{
-    ParameterBinding, Rows, SelectedRows, StoredSelection, Table,
-};
+use crate::domain::table_model::types::{ParameterBinding, Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
+use ryo_language::domain::symbols::service::intern_derived;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell,
 };
-use ryo_language::domain::symbols::service::intern_derived;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::{DeclarationKind, NameText, Symbol};
 use ryo_values::domain::plan_parts::types::{
@@ -1122,3 +1120,5 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     assert_eq!(table, baseline(changed, &first)?);
     Ok(())
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -15,7 +15,7 @@ use crate::domain::replay::{
 };
 use crate::domain::table_model::{
     service::{count_of, reset},
-    types::{Rows, Table},
+    types::Rows,
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::Value;
@@ -28,7 +28,7 @@ pub(super) fn stream(
     room: &mut Room,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
-    let mut workspace = InvocationWorkspace::default();
+    let mut workspace = InvocationWorkspace::new(std::sync::Arc::clone(&engine.derived));
     workspace.predicates = std::mem::take(&mut room.scratch.select_scratch);
     workspace.predicate_memo = std::mem::take(&mut room.memo);
     workspace.downstream_scratch = std::mem::take(&mut room.scratch);
@@ -243,7 +243,7 @@ fn stream_scoped(
                 if native {
                     feed.found(
                         InputPlace(1),
-                        crate::domain::table_model::types::RowCount(found),
+                        ryo_values::domain::rows::types::RowCount(found),
                     );
                 }
                 result
@@ -469,3 +469,5 @@ fn held<'f>(
         )
     }
 }
+
+use ryo_values::domain::rows::types::Table;

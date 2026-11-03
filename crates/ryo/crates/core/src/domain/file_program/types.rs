@@ -1,6 +1,5 @@
 //! Immutable request graph and bounded, invocation-local shared results.
 
-use crate::domain::table_model::types::Table;
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 
@@ -53,3 +52,5 @@ pub(crate) struct FileProgram {
     pub shared_executions: u64,
     pub peak_retained_cells: usize,
 }
+
+use ryo_values::domain::rows::types::Table;

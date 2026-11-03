@@ -1,16 +1,16 @@
 //! The `hosted` service: free functions over the relations the host declares, with no IO and no ports.
 
-use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 use ryo_relations::domain::terms::types::NameText;
 
 use super::constants::tab;
 use super::types::NumberedFiles;
 use crate::domain::keeping::types::HostedText;
 use crate::domain::table_model::service::{push_row, reset};
-use crate::domain::table_model::types::Table;
+
 use ryo_values::domain::hosted::service::kind_of;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::records::types::Cell;
@@ -81,3 +81,5 @@ pub(crate) fn table_of(
     }
     table
 }
+
+use ryo_values::domain::rows::types::Table;

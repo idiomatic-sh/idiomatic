@@ -9,14 +9,14 @@ use crate::domain::operating::{
 use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::{contract::types::OperatorContract, service::registered};
 use crate::domain::replay::types::Pipe;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::{
     service::read_row,
-    types::{ParameterBinding, RowCount, Rows, Table},
+    types::{ParameterBinding, Rows},
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plans::types::Operation;
 
@@ -277,3 +277,5 @@ pub(crate) fn request_fixture(
         .expect("fixture metadata"),
     )
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

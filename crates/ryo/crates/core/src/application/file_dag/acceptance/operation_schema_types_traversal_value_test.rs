@@ -9,7 +9,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::{
     errors::TableModelError,
     service::{kinds_of, push_row},
-    types::{Rows, Table},
+    types::Rows,
 };
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
@@ -17,11 +17,11 @@ use ryo_language::domain::elements::{
     service::{enter_node, leave_node, table_builder, token},
     types::Elements,
 };
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, KindBits, Offset, Position, Relation, Value as Cell,
 };
-use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, Input as Source, JoinColumn, Side,
 };
@@ -392,3 +392,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

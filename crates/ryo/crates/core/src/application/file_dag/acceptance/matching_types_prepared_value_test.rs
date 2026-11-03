@@ -5,12 +5,12 @@ use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
+use crate::domain::table_model::types::{ParameterBinding, Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Comparison, Function, Input, LiteralText, Operand, ParameterId,
@@ -306,3 +306,5 @@ fn concurrent_literal_users_initialize_one_slot() {
     });
     assert_eq!(prepared.builds.load(Ordering::Relaxed), 1);
 }
+
+use ryo_values::domain::rows::types::Table;

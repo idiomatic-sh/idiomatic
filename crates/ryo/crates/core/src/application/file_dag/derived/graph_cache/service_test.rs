@@ -246,10 +246,10 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     );
     assert_eq!(fixture.snapshot().counts.forest_hits, 1);
     // A computed domain cannot borrow stable relation membership identity.
-    let table = crate::domain::table_model::types::Table {
+    let table = ryo_values::domain::rows::types::Table {
         kinds: vec![CellKind::Number],
         cells: vec![Value::Number(Integer(2))],
-        count: crate::domain::table_model::types::RowCount(1),
+        count: ryo_values::domain::rows::types::RowCount(1),
     };
     let different = fixture
         .domain(

@@ -8,7 +8,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::table_groups::types::CountRoom;
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{KeyIndex, On, Table};
+use crate::domain::table_model::types::{KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// A scenario: what a row asks of the part.
@@ -126,3 +126,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

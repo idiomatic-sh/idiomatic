@@ -8,17 +8,14 @@ use crate::domain::operating::{
 };
 use crate::domain::operator::collections::operators::source_matches::item::SourceMatchesItem;
 use crate::domain::replay::types::Pipe;
-use crate::domain::table_model::{
-    service::push_row,
-    types::{Rows, Table},
-};
+use crate::domain::table_model::{service::push_row, types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-        constants::NO_SPAN,
-        types::{CellKind, Integer, Relation, Span, Value},
-    };
+    constants::NO_SPAN,
+    types::{CellKind, Integer, Relation, Span, Value},
+};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, LiteralText, StepId},
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
@@ -112,3 +109,5 @@ fn malformed_source_and_line_refuse_without_acquiring_bad_regex() {
         assert_eq!(builds, 1);
     }
 }
+
+use ryo_values::domain::rows::types::Table;

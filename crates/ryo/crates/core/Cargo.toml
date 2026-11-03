@@ -15,6 +15,7 @@ autobenches = false
 name = "ryo_core"
 
 [dependencies]
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
 thiserror.workspace = true
 ignore.workspace = true

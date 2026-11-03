@@ -6,7 +6,7 @@ use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::types::RowsFed;
 use crate::domain::table_model::{
     service::{copy_table, count_of, kinds_of},
-    types::{Frontier, RowCount, Rows, Table},
+    types::{Frontier, Rows},
 };
 use crate::domain::trust::service::{files_for, needs_of};
 use ryo_values::domain::plan_parts::{service::step_in, types::Input};
@@ -209,3 +209,5 @@ static NOTHING: Table = Table {
     cells: Vec::new(),
     count: RowCount(0),
 };
+
+use ryo_values::domain::rows::types::{RowCount, Table};

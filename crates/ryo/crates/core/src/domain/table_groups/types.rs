@@ -1,9 +1,8 @@
 //! The types of the `table_groups` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl.
 
-use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_model::types::KeyIndex;
-use crate::domain::table_model::types::RowCount;
+
 use ryo_relations::domain::relations::types::Value;
 
 /// The digest of the set of distinct values a group holds; zero when none was asked for.
@@ -39,3 +38,5 @@ pub(crate) struct CountRoom<'a> {
     /// The values of a group, to count the distinct ones.
     pub values: &'a mut Vec<Value>,
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex};

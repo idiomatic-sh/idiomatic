@@ -3,7 +3,7 @@ use super::*;
 
 #[test]
 fn lazy_source_refusal_preserves_required_normalization_and_charges_finalized_retention() {
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
     let mut physical = columns(schema);

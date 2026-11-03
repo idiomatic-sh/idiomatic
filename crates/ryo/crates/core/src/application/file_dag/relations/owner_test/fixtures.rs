@@ -4,12 +4,12 @@ use crate::domain::table_model::{
     types::{Rows, SelectedRows, StoredSelection},
 };
 use ryo_relations::domain::relations::{
-        service::{node_id, to_bits},
-        types::{
-            CellKind, ColumnsView, FactColumn, FileId, Flag, Integer, Offset, Position, Relation,
-            Span, Value,
-        },
-    };
+    service::{node_id, to_bits},
+    types::{
+        CellKind, ColumnsView, FactColumn, FileId, Flag, Integer, Offset, Position, Relation, Span,
+        Value,
+    },
+};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -57,7 +57,7 @@ pub(super) fn read(rows: &Rows<'_>) -> Vec<Vec<Value>> {
         .map(|at| {
             read_row(
                 rows,
-                crate::domain::table_cells::types::RowIndex(at),
+                ryo_values::domain::rows::types::RowIndex(at),
                 &mut decode,
             )
             .unwrap()

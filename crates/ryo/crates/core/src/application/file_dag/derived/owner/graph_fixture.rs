@@ -65,7 +65,11 @@ impl GraphFixture {
         max_views: usize,
     ) -> Self {
         let fixture = Self {
-            owner: Rc::new(RelationOwner::for_request(stable, max_views)),
+            owner: Rc::new(RelationOwner::for_request(
+                stable,
+                max_views,
+                crate::outbound::derived::factory::test_port(),
+            )),
             wanted: wanted.to_vec(),
             partials: partials.to_vec(),
             limit,
@@ -140,7 +144,8 @@ impl GraphFixture {
         fixture
     }
     fn workspace(&self, input: Input, rows: &Rows<'_>) -> InvocationWorkspace {
-        let mut workspace = InvocationWorkspace::default();
+        let mut workspace =
+            InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
         workspace
             .capture_provided(Rc::clone(&self.owner), &[input], &[rows.clone()])
             .unwrap();

@@ -62,7 +62,7 @@ impl DerivedViewsItem for EqualityItem {
             }
             crate::domain::operator::contract::views::BorrowedRows::Tree(_) => {
                 crate::domain::table_model::service::index_cells(
-                    crate::domain::table_model::types::RowCount(source.count()),
+                    ryo_values::domain::rows::types::RowCount(source.count()),
                     columns,
                     &mut out,
                     |row, column| source.cell(row, column),

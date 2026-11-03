@@ -3,7 +3,7 @@ use super::*;
 use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace};
 use crate::domain::{
     operator::contract::axis::PreparedAxis,
-    table_model::{service::push_row, types::Table},
+    table_model::service::push_row,
     table_reach::{
         borrowed::{follow, reach_breadth},
         types::Walk,
@@ -59,7 +59,10 @@ fn acquired(
             )
             .unwrap(),
     );
-    let owner = crate::application::file_dag::relations::RelationOwner::new(false);
+    let owner = crate::application::file_dag::relations::RelationOwner::new(
+        false,
+        crate::outbound::derived::factory::test_port(),
+    );
     let proof = owner.admit_external(rows).unwrap();
     let (population, _) = proof.identity(&owner).unwrap();
     let inputs = [rows];
@@ -148,3 +151,5 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
         Some(OperatingError::WrongOperation),
     );
 }
+
+use ryo_values::domain::rows::types::Table;

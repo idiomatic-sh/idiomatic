@@ -5,9 +5,9 @@ use hashbrown::hash_table::OccupiedEntry;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 
 use super::types::RowFound;
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::service::{mix, word_of};
-use crate::domain::table_model::types::{Addition, KeyCellsHash, RowCount, Table};
+use crate::domain::table_model::types::{Addition, KeyCellsHash};
 
 /// The row `index` of `cells`, rows of as many cells as `kinds` has columns; empty past the last row.
 fn row_at<'c>(cells: &'c [Value], kinds: &[CellKind], index: RowIndex) -> &'c [Value] {
@@ -94,3 +94,5 @@ pub(crate) fn distinct(table: &mut Table, seen: &mut HashTable<RowIndex>) {
     table.cells.truncate(kept * width);
     table.count = RowCount(kept);
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

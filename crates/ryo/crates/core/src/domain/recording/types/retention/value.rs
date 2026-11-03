@@ -1,6 +1,6 @@
 //! Exact capacities of the owned handover components at a lifecycle boundary.
 
-use crate::domain::table_model::types::{Frontier, Table};
+use crate::domain::table_model::types::Frontier;
 use ryo_values::domain::records::types::{FileOutcome, HandedNotes, Handing, Record, RecordWords};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
 use ryo_values::domain::stores::types::StoredHanded;
@@ -206,3 +206,5 @@ impl RetainedBytes {
 fn capacity<T>(values: &Vec<T>) -> usize {
     values.capacity().saturating_mul(size_of::<T>())
 }
+
+use ryo_values::domain::rows::types::Table;

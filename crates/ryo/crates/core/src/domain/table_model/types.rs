@@ -3,7 +3,6 @@
 
 use ryo_relations::domain::relations::types::{CellKind, Value};
 
-use crate::domain::table_cells::types::RowIndex;
 use crate::domain::table_cells::types::TreeRows;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -13,8 +12,6 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 
 /// How many rows a table holds.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct RowCount(pub usize);
 
 /// Which cells of a row say which rows are alike.
 #[derive(Clone, Copy, Debug)]
@@ -62,15 +59,6 @@ pub(crate) struct ChainLink(pub u32);
 
 /// Rows under typed columns, flat: the cells of every row one after another, each row as wide as
 /// there are kinds. A table is cleared and filled again for the next file, keeping its room.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Table {
-    /// What each column holds.
-    pub kinds: Vec<CellKind>,
-    /// The cells of every row, one row after another.
-    pub cells: Vec<Value>,
-    /// How many rows the cells hold.
-    pub count: RowCount,
-}
 
 /// The rows an operator reads: the columns of a relation as the store keeps them, or the table
 /// another step computed.
@@ -204,3 +192,5 @@ pub(crate) enum Verdict {
     /// It does not.
     Fails,
 }
+
+use ryo_values::domain::rows::types::RowIndex;

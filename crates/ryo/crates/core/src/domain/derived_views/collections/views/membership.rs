@@ -4,7 +4,6 @@ use crate::domain::{
     derived_views::{service, types::*},
     operating::errors::OperatingError,
     operation_schema::types::InputSchema,
-    table_cells::types::RowIndex,
 };
 use ryo_relations::domain::relations::{
     service::{node_file, node_position},
@@ -72,3 +71,5 @@ impl DerivedViewsItem for MembershipItem {
         service::view(DerivedKind::Membership, contract, storage)
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

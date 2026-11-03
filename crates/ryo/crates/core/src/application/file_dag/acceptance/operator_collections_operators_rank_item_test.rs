@@ -1,8 +1,8 @@
 //! The `rank` item's cases.
 
-use ryo_relations::domain::relations::types::{CellKind, Integer, Offset, Relation, Value as Cell};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Offset, Relation, Value as Cell};
 
 use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -10,7 +10,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::rank::item::RankItem;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
+use crate::domain::table_model::types::{ParameterBinding, Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_values::domain::plan_parts::types::LiteralText;
@@ -157,3 +157,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

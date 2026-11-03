@@ -11,3 +11,5 @@ pub mod operators;
 pub mod query_language;
 pub mod rows;
 pub mod scheduler;
+
+pub mod derived;

@@ -134,6 +134,7 @@ pub struct LintUseCaseImpl {
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
     operators: Arc<dyn OperatorsPort>,
+    derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     /// Runs the files' jobs on the workers.
     scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on: the run makes one worker for each.
@@ -173,6 +174,7 @@ impl LintUseCaseImpl {
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
         operators: Arc<dyn OperatorsPort>,
+        derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowsPort>,
@@ -191,6 +193,7 @@ impl LintUseCaseImpl {
             ),
             memory,
             operators,
+            derived,
             scheduler,
             workers,
             rows,
@@ -1414,6 +1417,7 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let executor = crate::application::file_dag::execution::CommonOperatorEngine::new(
             self.operators.as_ref(),
+            std::sync::Arc::clone(&self.derived),
         );
         let mut setting = VisitSetting {
             source_language: request.source_language.as_ref(),

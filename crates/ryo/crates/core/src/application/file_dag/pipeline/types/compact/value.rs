@@ -4,7 +4,7 @@ use crate::application::file_dag::pipeline::types::Stepper;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::types::StepPlace;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::trust::service::blocked;
 use crate::domain::trust::types::Blocking;
 
@@ -76,3 +76,5 @@ impl<'a, 'p, 'f: 'p> CompactInput<'a, 'p, 'f> {
         Ok(Some(rows))
     }
 }
+
+use ryo_values::domain::rows::types::Table;

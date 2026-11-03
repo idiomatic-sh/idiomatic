@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::{CellKind, Position};
 use super::service::{nearest_at, walk_kinds};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::types::Table;
+
 use crate::domain::table_scratch::types::ElementPlaces;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
@@ -105,3 +105,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

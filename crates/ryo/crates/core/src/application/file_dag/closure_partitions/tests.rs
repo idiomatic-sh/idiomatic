@@ -1,6 +1,6 @@
 use super::PartitionedClosure;
 use crate::domain::operator::contract::views::BorrowedRows;
-use crate::domain::table_model::{service::push_row, types::Table};
+use crate::domain::table_model::service::push_row;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -155,3 +155,5 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
         Err(crate::domain::operating::errors::OperatingError::WrongOperation)
     ));
 }
+
+use ryo_values::domain::rows::types::Table;

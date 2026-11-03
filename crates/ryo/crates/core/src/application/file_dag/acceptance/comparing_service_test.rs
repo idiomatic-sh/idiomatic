@@ -1,12 +1,12 @@
 //! The `comparing` service's cases: what is decided for a name or a text is remembered, and a comparison of what is not bound is refused.
 
+use ryo_language::domain::symbols::service::intern;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{
     CellKind, Name, Offset, PlaceNumber, Relation, TextHash, Value as Cell,
 };
-use ryo_language::domain::symbols::service::intern;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
 
 use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -15,7 +15,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
 use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows, Table, Verdict};
+use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_values::domain::plan_parts::types::Applied;
@@ -406,3 +406,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -1,0 +1,22 @@
+[package]
+name = "idiomatic-sh-ryo-derived"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Portable derived-view semantics for Ryo"
+autobenches = false
+
+[lib]
+name = "ryo_derived"
+
+[dependencies]
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
+hashbrown.workspace = true
+
+[lints]
+workspace = true

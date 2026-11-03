@@ -14,7 +14,7 @@ use crate::domain::positions::types::LoweredRoom;
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::service::count_of;
-use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::table_model::types::Rows;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::types::Plan;
 
@@ -208,3 +208,5 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
         Ok(held)
     }
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

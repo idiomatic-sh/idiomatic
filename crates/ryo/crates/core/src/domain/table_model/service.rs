@@ -23,10 +23,10 @@ use ryo_relations::domain::relations::types::{
 };
 
 use super::errors::TableModelError;
-use super::types::{ChainLink, HashWord, KeyCellsHash, KeyIndex, On, RowCount, Rows, Table};
+use super::types::{ChainLink, HashWord, KeyCellsHash, KeyIndex, On, Rows};
 use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
-use crate::domain::table_cells::types::{RowIndex, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// The one of `items` that the column `index` names, when there is one: the one conversion between a column number and a place.
@@ -521,3 +521,5 @@ pub(crate) fn index_cells(
     }));
     chain(order, count.0);
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

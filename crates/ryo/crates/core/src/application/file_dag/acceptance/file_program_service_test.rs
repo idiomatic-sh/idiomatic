@@ -11,8 +11,8 @@ use crate::domain::operator::types::PreparedPool;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use legacy::program;
-use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOriginId, Input, LiteralText, Operand, ParameterId, QueryLiteral,
     RepeatedRows, StepId, Test,
@@ -342,7 +342,6 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
 
 #[test]
 fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
-    use crate::domain::table_model::types::{RowCount, Table};
     use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());
@@ -375,7 +374,7 @@ fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
 /// resident-fact callback is an observable evaluator read, not a timing proxy.
 fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (usize, u64) {
     use crate::domain::table_model::service::push_row;
-    use crate::domain::table_model::types::Table;
+
     use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
     let mut query = plan();
     query.steps.push(PlanStep {
@@ -520,3 +519,5 @@ fn partial_population_never_cuts_ancestor_execution() {
     assert!(reads > 0);
     assert_eq!(hits, 0);
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

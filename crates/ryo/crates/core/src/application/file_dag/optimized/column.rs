@@ -18,7 +18,7 @@ use crate::domain::table_dedup::service::distinct;
 use crate::domain::table_model::{
     reading::Reading,
     service::{column_in, rectangular, reset},
-    types::{Rows, SelectedRows, StoredSelection, Table},
+    types::{Rows, SelectedRows, StoredSelection},
 };
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::{service::kinds as relation_kinds, types::CellKind};
@@ -152,3 +152,5 @@ pub(crate) fn execute(
     }
     Ok(true)
 }
+
+use ryo_values::domain::rows::types::Table;

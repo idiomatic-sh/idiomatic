@@ -1,10 +1,10 @@
 //! The `capture` item's cases.
 
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::types::{CellKind, Offset, Relation, Value as Cell};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Offset, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::CapturePattern;
 use ryo_values::domain::plans::types::QueryOperator;
 
@@ -14,7 +14,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::capture::item::CaptureItem;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{ParameterBinding, Rows, Table};
+use crate::domain::table_model::types::{ParameterBinding, Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
@@ -274,3 +274,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

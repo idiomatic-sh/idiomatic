@@ -1,5 +1,5 @@
 //! Pure byte accounting for typed equality storage; acquisition lives in application.
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_model::types::{ChainLink, HashedRow, KeyCellsHash, KeyIndex};
 const ARC_BYTES: usize =
     size_of::<KeyIndex>() + 2 * size_of::<usize>() + align_of::<KeyIndex>() - 1;
@@ -23,3 +23,5 @@ pub(crate) fn index_bytes(index: &KeyIndex) -> Option<usize> {
             bytes.checked_add(capacity.checked_mul(width)?)
         })
 }
+
+use ryo_values::domain::rows::types::RowIndex;

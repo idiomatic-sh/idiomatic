@@ -39,7 +39,7 @@ impl OperatorsItem for HostedItem {
         let result = (|| {
             for at in 0..source.count() {
                 if let Some(each) =
-                    source.read(crate::domain::table_cells::types::RowIndex(at), &mut row)
+                    source.read(ryo_values::domain::rows::types::RowIndex(at), &mut row)
                 {
                     sink.row(lease, each)?;
                 }

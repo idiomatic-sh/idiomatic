@@ -259,8 +259,8 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     use ryo_language::domain::elements::types::{
         DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact,
     };
-    use ryo_relations::domain::relations::types::{Offset, ReportText};
     use ryo_language::domain::symbols::types::ByteSlice;
+    use ryo_relations::domain::relations::types::{Offset, ReportText};
 
     let source = ByteSlice(b"x");
     let mut elements = Elements::default();
@@ -789,7 +789,13 @@ fn prepared_resource_state(
         boundaries: Vec::new(),
         rule_liveness: Vec::new(),
     };
-    let dag = FileDagExecution::new_for_population(Arc::new(graph), |_| true, &[], true);
+    let dag = FileDagExecution::new_for_population(
+        Arc::new(graph),
+        |_| true,
+        &[],
+        true,
+        crate::outbound::derived::factory::test_port(),
+    );
     dag.prepare_resources(
         enabled,
         &[Relation::Function],
@@ -955,7 +961,7 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
 #[test]
 fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     use super::types::{FileVisit, Worker};
-    use crate::domain::table_model::types::{RowCount, Table};
+
     use crate::domain::table_words::service::{encode_table, pack};
     use crate::domain::table_words::types::WordSlice;
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
@@ -1218,7 +1224,7 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
 #[test]
 fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() {
     use super::types::{FileVisit, Worker};
-    use crate::domain::table_model::types::{RowCount, Table};
+
     use crate::domain::table_words::service::{encode_table, pack};
     use crate::domain::table_words::types::WordSlice;
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
@@ -1445,3 +1451,5 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             .is_err()
     );
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

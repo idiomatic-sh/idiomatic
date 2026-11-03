@@ -9,7 +9,6 @@ use crate::domain::{
     },
     operating::errors::OperatingError,
     operator::contract::{graph::ClosurePartition, views::BorrowedRows},
-    table_cells::types::RowIndex,
     table_model::types::{ChainLink, HashedRow, KeyCellsHash},
 };
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -71,7 +70,7 @@ impl<'f> PartitionedClosure<'f> {
             key: Vec::new(),
             sources: Vec::new(),
             index: Default::default(),
-            table: crate::domain::table_model::types::Table {
+            table: ryo_values::domain::rows::types::Table {
                 kinds: vec![schema[source.0 as usize], schema[destination.0 as usize]],
                 ..Default::default()
             },
@@ -118,7 +117,10 @@ impl<'f> PartitionedClosure<'f> {
             },
             &schema,
         )?);
-        let owner = Rc::new(RelationOwner::new(true));
+        let owner = Rc::new(RelationOwner::new(
+            true,
+            crate::outbound::derived::factory::test_port(),
+        ));
         let proof = owner.admit_external(input)?;
         let (population, _) = proof.identity(owner.as_ref())?;
         let ordered = owner.derived.acquire_stored(
@@ -252,3 +254,5 @@ impl<'f> PartitionedClosure<'f> {
 
 #[cfg(test)]
 mod tests;
+
+use ryo_values::domain::rows::types::RowIndex;

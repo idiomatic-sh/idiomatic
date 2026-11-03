@@ -2,7 +2,7 @@
 use super::*;
 #[test]
 fn many_selected_consumers_reacquire_one_generation_proof() {
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let relation = Relation::FilesystemLineCount;
     let schema = kinds(relation);
     let physical = columns(schema);

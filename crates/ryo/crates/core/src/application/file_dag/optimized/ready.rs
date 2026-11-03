@@ -64,7 +64,7 @@ pub(crate) fn evaluate(
             } else {
                 tree
             };
-            let mut schema = crate::domain::table_model::types::Table::default();
+            let mut schema = ryo_values::domain::rows::types::Table::default();
             walk_kinds(
                 kinds_of(left),
                 kinds_of(&Rows::Tree(*reached)),

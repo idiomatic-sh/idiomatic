@@ -10,11 +10,11 @@ use crate::domain::replay::service::scan;
 use crate::domain::replay::types::{Collect, Pipe};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, RepeatedRows, Side};
 use ryo_values::domain::plans::types::Operation;
 const SOURCE: &[u8] = b"replayed";
@@ -245,3 +245,5 @@ fn computed_inputs_use_the_common_typed_index_without_a_native_tree_finding() {
         [Value::Number(Integer(20))]
     );
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

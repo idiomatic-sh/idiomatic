@@ -23,11 +23,11 @@ pub(crate) mod words;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;
 
+pub(crate) mod fits_rendered;
 pub(crate) mod ordered_match;
+pub(crate) mod render_syntax;
 pub(crate) mod replace;
 pub(crate) mod source_matches;
-pub(crate) mod render_syntax;
-pub(crate) mod fits_rendered;
 pub(crate) mod span_between;
 pub(crate) mod span_bounds;
 

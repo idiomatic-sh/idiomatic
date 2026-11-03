@@ -1,8 +1,8 @@
 //! The `comparing` service: whether comparisons hold for a row, with no IO and no ports.
 
-use ryo_relations::domain::relations::types::{CellKind, TextHash, Value};
 use ryo_language::domain::symbols::service::{hash_in, hash_of, text_of};
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::types::{CellKind, TextHash, Value};
 
 use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use crate::domain::comparing::collections::comparisons::equality::item::EqualityItem;

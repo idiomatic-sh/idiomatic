@@ -11,3 +11,5 @@ pub(crate) mod resources;
 pub(crate) mod service;
 pub(crate) mod types;
 pub(crate) mod views;
+
+pub(crate) mod derived;

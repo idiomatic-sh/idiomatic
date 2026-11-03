@@ -1,10 +1,10 @@
 //! The `table_texts` service: how a value reads as text or as a number when it is compared, with no IO and no ports.
 
+use ryo_language::domain::symbols::service::{derived_of, file_in, place_of, places_of, text_of};
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::{
     CROSS_FILE, FileId, Flag, Integer, Name, Origin, Value,
 };
-use ryo_language::domain::symbols::service::{derived_of, file_in, place_of, places_of, text_of};
-use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::terms::types::Symbol;
 
 use crate::domain::table_texts::types::{Datum, TextView, Texts};

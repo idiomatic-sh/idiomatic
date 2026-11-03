@@ -22,7 +22,7 @@ use crate::domain::replay::service::scan;
 use crate::domain::replay::types::{Collect, Pipe};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{copy_table, materialize, reset};
-use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::trust::service::blocked;
 use crate::domain::trust::types::Blocking;
 use ryo_relations::domain::relations::types::ColumnsView;
@@ -823,6 +823,7 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
     let relation_owner = file_dag.map(|dag| dag.relation_owner()).unwrap_or_else(|| {
         std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
             false,
+            executor.derived_port(),
         ))
     });
     let dag_shared = (0..plan.steps.len())
@@ -1038,3 +1039,5 @@ fn hand_over<'f>(
     }
     Ok(())
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

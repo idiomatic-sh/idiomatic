@@ -1,8 +1,6 @@
 //! Charge owned capacities, including required views refused optional retention.
 use crate::domain::{
-    derived_views::types::*,
-    operating::errors::OperatingError,
-    table_model::types::{KeyIndex, Table},
+    derived_views::types::*, operating::errors::OperatingError, table_model::types::KeyIndex,
 };
 fn vector<T>(values: &Vec<T>) -> usize {
     values.capacity().saturating_mul(size_of::<T>())
@@ -122,3 +120,5 @@ pub(super) fn storage_bytes(storage: &DerivedStorage) -> Result<usize, Operating
         .checked_add(size_of::<DerivedStorage>() + 2 * size_of::<usize>())
         .ok_or(OperatingError::ShapeMismatch)
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -18,12 +18,12 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::service::{column_name, columns, name, provenance_of};
-use ryo_relations::domain::relations::types::{Integer, Provenance};
 use ryo_language::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures, Point};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
+use ryo_relations::domain::relations::service::{column_name, columns, name, provenance_of};
+use ryo_relations::domain::relations::types::{Integer, Provenance};
 use ryo_values::domain::files::types::{CorpusFile, FileBytes, Glob};
 use ryo_values::domain::plan_parts::types::{LiteralText, ParameterName, QueryText};
 use ryo_values::domain::records::types::{Cell as Typed, RowTotal};
@@ -574,6 +574,9 @@ fn use_case_over(
             Arc::clone(&analysis_memory),
             Arc::new(crate::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+            )),
+            std::sync::Arc::new(crate::outbound::derived::factory::use_case(
+                ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
             )),
             scheduler,
             crate::outbound::scheduler::types::WorkerCount(1),

@@ -6,10 +6,12 @@ use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputSchema,
     operator::contract::views::BorrowedRows,
-    table_model::types::{ParameterBinding, RowCount, Rows},
+    table_model::types::{ParameterBinding, Rows},
 };
-use ryo_language::domain::{symbols::types::Symbols};
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value};
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{
+    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
+};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::{rc::Rc, sync::Arc};
 fn table(values: &[i64], width: usize) -> Table {
@@ -59,12 +61,15 @@ fn context<'a>(
 }
 #[test]
 fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof() {
-    let owner = Rc::new(RelationOwner::new(true));
+    let owner = Rc::new(RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    ));
     let published = owner.computed(table(&[3, 1, 3], 1)).unwrap();
     let rows = owner
         .resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
-    let mut workspace = InvocationWorkspace::default();
+    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
     workspace.relation_owner = Some(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone())];
     let equality = use_(
@@ -126,12 +131,15 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
 }
 #[test]
 fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
-    let owner = Rc::new(RelationOwner::new(true));
+    let owner = Rc::new(RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    ));
     let published = owner.computed(table(&[1, 0], 2)).unwrap();
     let left = owner
         .resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
-    let mut workspace = InvocationWorkspace::default();
+    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
     workspace.relation_owner = Some(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone()), None];
     let use_ = use_(
@@ -213,7 +221,10 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
 }
 #[test]
 fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
-    let owner = Rc::new(RelationOwner::new(true));
+    let owner = Rc::new(RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    ));
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![3])];
     let raw = Rows::Stored(ColumnsView {
         kinds: &[CellKind::Number; 2],
@@ -221,7 +232,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     });
     let published = owner.source(Relation::LanguageTarget, &raw).unwrap();
     let normalized = owner.normalized(&published, raw).unwrap().unwrap();
-    let mut workspace = InvocationWorkspace::default();
+    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
     workspace.relation_owner = Some(owner);
     workspace.publications = vec![Some((published).clone())];
     let use_ = use_(
@@ -259,7 +270,7 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
         &[&[CellKind::Number]],
         1,
     );
-    let mut workspace = InvocationWorkspace::default();
+    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
     let first = [table(&[9], 1)];
     let feed = crate::application::file_dag::testing::Held {
         tables: &first,
@@ -300,7 +311,10 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
 
 #[test]
 fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication() {
-    let owner = Rc::new(RelationOwner::new(true));
+    let owner = Rc::new(RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    ));
     let values = table(&[7], 1);
     let rows = [BorrowedRows::Computed(&values)];
     let use_ = use_(
@@ -311,7 +325,7 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
         &[&[CellKind::Number]],
         1,
     );
-    let mut workspace = InvocationWorkspace::default();
+    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
     workspace.relation_owner = Some(Rc::clone(&owner));
     workspace.origins = vec![crate::application::file_dag::feed::InputOrigin::Temporary];
     workspace.publications = vec![None];
@@ -341,3 +355,5 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
         "a supplied publication cannot silently become temporary"
     );
 }
+
+use ryo_values::domain::rows::types::RowCount;

@@ -9,7 +9,7 @@ use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, S
 use crate::domain::replay::service::scan;
 use crate::domain::replay::types::Collect;
 use crate::domain::table_model::service::reset;
-use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use std::cell::OnceCell;
 use std::sync::Arc;
@@ -32,13 +32,20 @@ impl FileDagExecution {
         active: impl Fn(usize) -> bool,
         complete: &[Relation],
     ) -> Self {
-        Self::new_for_population(graph, active, complete, true)
+        Self::new_for_population(
+            graph,
+            active,
+            complete,
+            true,
+            crate::outbound::derived::factory::test_port(),
+        )
     }
     pub(crate) fn new_for_population(
         graph: Arc<RequestGraph>,
         active: impl Fn(usize) -> bool,
         complete: &[Relation],
         stable: bool,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
         let active = graph
             .cuts
@@ -84,6 +91,7 @@ impl FileDagExecution {
             relations: std::rc::Rc::new(super::relations::RelationOwner::for_request(
                 stable,
                 graph.nodes.len() + complete.len() + 1,
+                semantic,
             )),
             graph,
             active,
@@ -557,3 +565,5 @@ mod representation_test;
 #[cfg(test)]
 #[path = "service/executor_test.rs"]
 mod executor_test;
+
+use ryo_values::domain::rows::types::{RowCount, Table};

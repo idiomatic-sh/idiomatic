@@ -9,6 +9,8 @@ use ryo_values::domain::plans::types::Plan;
 /// The rows of the lowered steps for the file being run, and the room the steps work in.
 #[derive(Debug)]
 pub(crate) struct FragmentRun<'a, 'f> {
+    /// Finite derived access whose engine lease lasts only through each callback.
+    pub derived: &'a mut dyn crate::domain::operator::contract::derived::ScopedDerived,
     /// The plan.
     pub plan: &'a Plan,
     /// What was lowered of it.

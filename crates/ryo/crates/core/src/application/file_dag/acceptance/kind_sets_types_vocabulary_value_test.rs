@@ -10,8 +10,8 @@ use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
-use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, LiteralText, Operand, QueryLiteral, Test,
@@ -255,7 +255,7 @@ fn prepared_vocabulary_is_send_and_sync() {
 fn prepared_masks_match_uncached_select_outputs() {
     use crate::application::file_dag::testing::TestOperator as _;
     use crate::domain::operator::collections::operators::select::item::SelectItem;
-    use crate::domain::table_model::types::{Rows, Table};
+    use crate::domain::table_model::types::Rows;
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::Input;
     use ryo_values::domain::plans::types::Operation;
@@ -315,3 +315,5 @@ fn prepared_masks_match_uncached_select_outputs() {
         }
     }
 }
+
+use ryo_values::domain::rows::types::Table;

@@ -3,18 +3,15 @@ use super::indexes::LIMIT;
 use super::*;
 use crate::application::file_dag::{interface::DagExecution, types::FileDagExecution};
 use crate::domain::{
-    file_program::service::compile_prepared,
-    operating::types::OperatorContext,
-    operator::contract::types::RequestOperators,
-    table_model::types::{Rows, Table},
-    table_scratch::types::OperatorScratch,
-    table_texts::types::SourceView,
+    file_program::service::compile_prepared, operating::types::OperatorContext,
+    operator::contract::types::RequestOperators, table_model::types::Rows,
+    table_scratch::types::OperatorScratch, table_texts::types::SourceView,
 };
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-        service::{kinds, to_bits},
-        types::{CellKind, ColumnsView, FactColumn, FileId, Integer, Relation, Value},
-    };
+    service::{kinds, to_bits},
+    types::{CellKind, ColumnsView, FactColumn, FileId, Integer, Relation, Value},
+};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, JoinColumn, RepeatedRows, Side, StepId},
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
@@ -203,3 +200,5 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
 }
 
 mod cancellation;
+
+use ryo_values::domain::rows::types::Table;

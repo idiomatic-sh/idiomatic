@@ -5,7 +5,7 @@ use crate::domain::operating::types::Memo;
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, RepeatedRows},

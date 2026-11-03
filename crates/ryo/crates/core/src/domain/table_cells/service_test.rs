@@ -2,17 +2,17 @@
 
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Flag;
 use ryo_relations::domain::relations::types::{
     FileId, KindBits, Offset, Position, Span, Value as Cell,
 };
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
 
 use super::service::read_tree_cells;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
 use crate::domain::table_model::errors::TableModelError;
 
 /// A scenario: what a row asks of the part.
@@ -67,3 +67,5 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::RowIndex;

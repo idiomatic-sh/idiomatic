@@ -7,14 +7,14 @@ use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, S
 use crate::domain::operator::collections::operators::span_bounds::item::SpanBoundsItem;
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{RowCount, Rows, Table};
+use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, Offset, Relation, Span, Value,
 };
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 use ryo_values::domain::plans::types::{Operation, QueryOperator};
 
@@ -205,3 +205,5 @@ fn contract() {
         QueryOperator::SpanBounds,
     );
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

@@ -68,7 +68,10 @@ impl SelectionFixture {
         authored: impl IntoIterator<Item = Arc<Selector>>,
         kinds: &'static [CellKind],
     ) -> Result<Self, OperatingError> {
-        let owner = Rc::new(RelationOwner::new(true));
+        let owner = Rc::new(RelationOwner::new(
+            true,
+            crate::outbound::derived::factory::test_port(),
+        ));
         let mut cache = super::super::indexes::new(wanted, partials, super::super::indexes::LIMIT)
             .ok_or(OperatingError::ShapeMismatch)?;
         cache.selectors = active;

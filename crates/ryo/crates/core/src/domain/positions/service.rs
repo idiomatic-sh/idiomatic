@@ -11,8 +11,8 @@ use super::types::{
 };
 use crate::domain::lowering::types::{ElementPart, LoweredColumn};
 use crate::domain::table_cells::service::{kind_name_at, ordinal_number_at, span_at};
-use crate::domain::table_cells::types::{RowIndex, TreeRows};
-use crate::domain::table_model::types::RowCount;
+use crate::domain::table_cells::types::TreeRows;
+
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::StepId;
 
@@ -229,3 +229,5 @@ pub(crate) fn selected<'a>(
         .flatten()?;
     classes.get(class.0)
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex};

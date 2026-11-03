@@ -1,6 +1,6 @@
 //! Immutable engine-prepared graph inputs and invocation-bounded traversal work.
-use crate::domain::table_cells::types::RowIndex;
-use crate::domain::table_model::types::{KeyIndex, Table};
+
+use crate::domain::table_model::types::KeyIndex;
 use crate::domain::table_scratch::types::WalkStep;
 use ryo_relations::domain::relations::types::{Integer, Value};
 #[derive(Debug, Default)]
@@ -59,3 +59,5 @@ pub(crate) struct DfsWorkspace {
     pub(crate) expanded: usize,
     pub(crate) examined: usize,
 }
+
+use ryo_values::domain::rows::types::{RowIndex, Table};

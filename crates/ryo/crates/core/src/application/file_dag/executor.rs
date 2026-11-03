@@ -5,7 +5,7 @@ use crate::domain::operating::{
     types::{Emit, OperatorContext, Room},
 };
 use crate::domain::operator::contract::types::OperatorContract;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use std::sync::Arc;
 
 use super::{
@@ -17,6 +17,8 @@ pub(crate) enum StepMaterialization {
     Selected(std::sync::Arc<crate::domain::table_model::types::StoredSelection>),
 }
 pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
+    fn derived_port(&self) -> Arc<dyn crate::outbound::derived::interface::DerivedPort>;
+
     fn stream(
         &self,
         contract: &OperatorContract,
@@ -96,3 +98,5 @@ pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
         Ok(StepMaterialization::Materialized)
     }
 }
+
+use ryo_values::domain::rows::types::Table;

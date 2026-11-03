@@ -180,11 +180,20 @@ pub(crate) fn schema_of(
             }
             appended(input.kinds, &[], CellKind::Symbol)
         }
-        Operation::FitsRendered { texts, literals, span, .. } => {
+        Operation::FitsRendered {
+            texts,
+            literals,
+            span,
+            ..
+        } => {
             let input = first()?;
-            if texts.is_empty() || literals.len() != texts.len() + 1
-                || texts.iter().any(|text| projected(input.kinds, &[*text]).ok() != Some(vec![CellKind::Symbol]))
-                || projected(input.kinds, &[*span])? != [CellKind::Span] {
+            if texts.is_empty()
+                || literals.len() != texts.len() + 1
+                || texts.iter().any(|text| {
+                    projected(input.kinds, &[*text]).ok() != Some(vec![CellKind::Symbol])
+                })
+                || projected(input.kinds, &[*span])? != [CellKind::Span]
+            {
                 return Err(OperatingError::ShapeMismatch);
             }
             Ok(input.kinds.to_vec())

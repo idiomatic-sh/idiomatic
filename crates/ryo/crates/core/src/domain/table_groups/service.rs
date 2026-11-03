@@ -6,11 +6,11 @@ use std::hash::Hasher as _;
 use ryo_relations::domain::relations::types::Value;
 
 use super::types::{Group, Hashes, SetDigest, ValueHash};
-use crate::domain::table_cells::types::RowIndex;
+
 use crate::domain::table_groups::types::CountRoom;
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{check_columns, column_in, hash_row, positions, row_in};
-use crate::domain::table_model::types::{HashedRow, KeyCellsHash, KeyIndex, On, RowCount, Table};
+use crate::domain::table_model::types::{HashedRow, KeyCellsHash, KeyIndex, On};
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, FlagState};
@@ -231,3 +231,5 @@ pub(crate) fn digest_groups(
     groups.sort_unstable_by_key(|group| group.first);
     Ok(())
 }
+
+use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};

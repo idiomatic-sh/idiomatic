@@ -10,17 +10,17 @@ use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
 use crate::domain::rules::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier, ParameterBinding, Table};
+use crate::domain::table_model::types::{Frontier, ParameterBinding};
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::service::files_for;
 use crate::domain::trust::types::{Needs, RelationRead};
+use ryo_language::domain::symbols::service::places_mut;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
     Value as Cell, Words, WorkerNumber,
 };
-use ryo_language::domain::symbols::service::places_mut;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::runs::types::{RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::PartialCause;
 
@@ -386,3 +386,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

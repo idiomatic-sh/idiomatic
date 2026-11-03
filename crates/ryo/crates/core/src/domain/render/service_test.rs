@@ -3,13 +3,13 @@
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::service::intern;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, KindBits, Offset, Position, Span, Value as Cell,
 };
-use ryo_language::domain::symbols::service::intern;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::records::types::Cell as Typed;
 use ryo_values::domain::records::types::{CellText, RowsTextView};
 
@@ -22,7 +22,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::types::{LineStarts, RuleNumber};
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Table;
+
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
@@ -385,3 +385,5 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::rows::types::Table;

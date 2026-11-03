@@ -6,7 +6,7 @@ use crate::domain::stored_graph::types::{
     GraphDomain, GraphIdentity, GraphWalk, Orientation, Population,
 };
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Rows, Table};
+use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -120,3 +120,5 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
     );
     assert_ne!(UNKNOWN, ABSENT);
 }
+
+use ryo_values::domain::rows::types::Table;

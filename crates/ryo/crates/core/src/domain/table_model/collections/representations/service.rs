@@ -75,7 +75,7 @@ impl<'f> RepresentationInput<'f> {
     }
     pub(crate) fn cell(
         self,
-        row: crate::domain::table_cells::types::RowIndex,
+        row: ryo_values::domain::rows::types::RowIndex,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Option<ryo_relations::domain::relations::types::Value> {
         match registered(kind(self)).cell(self, row, column).ok()? {
@@ -85,7 +85,7 @@ impl<'f> RepresentationInput<'f> {
     }
     pub(crate) fn read<'r>(
         self,
-        row: crate::domain::table_cells::types::RowIndex,
+        row: ryo_values::domain::rows::types::RowIndex,
         decode: &'r mut Vec<ryo_relations::domain::relations::types::Value>,
     ) -> Option<&'r [ryo_relations::domain::relations::types::Value]>
     where

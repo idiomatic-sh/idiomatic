@@ -16,7 +16,7 @@ use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
 use crate::domain::shared_walk::service::install;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::Table;
+
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::{encode_table, pack_onto};
 use crate::domain::table_words::types::WordSlice;
@@ -185,3 +185,5 @@ pub(crate) fn first_buckets(plans: &[Plan]) -> Vec<Bucket> {
     }
     first
 }
+
+use ryo_values::domain::rows::types::Table;

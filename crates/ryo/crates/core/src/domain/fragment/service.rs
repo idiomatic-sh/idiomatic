@@ -178,6 +178,7 @@ fn make_rows(
     let tree = run.tree;
     let lowering = run.lowering;
     let work = Work {
+        derived: &mut *run.derived,
         room: &mut *run.room,
         context,
     };
@@ -373,7 +374,7 @@ pub(crate) fn emit_counts(
     groups.sort_unstable();
     for (first, counted) in groups {
         cells.clear();
-        let each = row(rows, crate::domain::table_cells::types::RowIndex(first));
+        let each = row(rows, ryo_values::domain::rows::types::RowIndex(first));
         for index in keys {
             let column = column_at(&shape.columns, *index);
             cells.push(value(&tree, column.field, slot_of(each, column)));

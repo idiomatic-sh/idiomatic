@@ -4,10 +4,10 @@ use crate::application::file_dag::testing::{execute, execute_with_semantic, same
 use crate::domain::features::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::service::registered;
-use crate::domain::table_model::types::Table;
+
 use fixtures::*;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
@@ -107,7 +107,7 @@ fn repeated(table: &Table, times: usize) -> Table {
     Table {
         kinds: table.kinds.clone(),
         cells: table.cells.repeat(times),
-        count: crate::domain::table_model::types::RowCount(table.count.0 * times),
+        count: ryo_values::domain::rows::types::RowCount(table.count.0 * times),
     }
 }
 #[test]
@@ -399,3 +399,5 @@ fn positive_row_contracts_keep_partial_input_distinction() {
         }
     }
 }
+
+use ryo_values::domain::rows::types::Table;

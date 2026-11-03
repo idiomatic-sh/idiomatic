@@ -1,7 +1,7 @@
 //! Borrowed representation data; admission and retained ownership live in the engine.
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::TreeRows;
-use crate::domain::table_model::types::Table;
+
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -51,3 +51,5 @@ pub(crate) enum RowRead<'a> {
     Decoded(&'a [Value]),
     MissingPhysical,
 }
+
+use ryo_values::domain::rows::types::Table;

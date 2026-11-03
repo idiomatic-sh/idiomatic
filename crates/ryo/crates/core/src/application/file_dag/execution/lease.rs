@@ -17,8 +17,8 @@ use crate::domain::table_texts::{
     types::{Datum, Texts},
 };
 use crate::outbound::operators::interface::OperatorsPort;
-use ryo_relations::domain::relations::types::Value;
 use ryo_language::domain::symbols::service::query_reborrow;
+use ryo_relations::domain::relations::types::Value;
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
 pub(super) fn evaluate(

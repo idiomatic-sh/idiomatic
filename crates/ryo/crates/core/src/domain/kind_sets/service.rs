@@ -2,10 +2,10 @@
 
 use ryo_language::domain::elements::service::{kind_names, kind_vocabulary};
 use ryo_language::domain::kind_index::service::of_kind;
-use ryo_relations::domain::relations::constants::NO_SYMBOL;
-use ryo_relations::domain::relations::types::KindBits;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::types::KindBits;
 
 use super::constants::{NO_NAME, SET_OF_TEST};
 use super::types::{KindScratch, PreparedKindTest, PreparedVocabulary};

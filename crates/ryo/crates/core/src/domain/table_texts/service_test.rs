@@ -1,10 +1,10 @@
 //! The `table_texts` service's cases, on values alone.
 
-use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::service::{name_count, places_mut};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};
 
 use super::service::datum;
 use crate::cases::{Case, CaseName, Expect, Word, run};

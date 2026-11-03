@@ -18,10 +18,7 @@ use crate::domain::replay::{
     service::scan,
     types::{Collect, Pipe},
 };
-use crate::domain::table_model::{
-    service::reset,
-    types::{Rows, Table},
-};
+use crate::domain::table_model::{service::reset, types::Rows};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::StepId;
 
@@ -82,7 +79,14 @@ impl CommonOperatorEngine<'_> {
         let semantics = super::execution::PrimitiveSemanticsBridge {
             port: self.operators,
         };
+        let owner = stepper
+            .relation_owner
+            .as_ref()
+            .cloned()
+            .ok_or(OperatingError::NotRun)?;
+        let mut derived = super::derived::owner::raw_scope::RawScope::new(owner);
         let mut run = FragmentRun {
+            derived: &mut derived,
             plan: stepper.plan,
             lowering: &stepper.layout.lowering,
             tree,
@@ -113,7 +117,7 @@ impl CommonOperatorEngine<'_> {
             stepper,
             id,
             crate::domain::operating::types::InputPlace(0),
-            crate::domain::table_model::types::RowCount(made),
+            ryo_values::domain::rows::types::RowCount(made),
         );
         result
     }
@@ -178,3 +182,5 @@ impl CommonOperatorEngine<'_> {
 pub(crate) mod column;
 pub(crate) mod join;
 pub(crate) mod ready;
+
+use ryo_values::domain::rows::types::Table;

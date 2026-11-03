@@ -3,14 +3,14 @@
 use crate::domain::finish::service::carry;
 use crate::domain::table_dedup::service::distinct;
 use crate::domain::table_model::service::materialize;
-use crate::domain::table_model::types::{Frontier, Rows, Table};
+use crate::domain::table_model::types::{Frontier, Rows};
 use crate::domain::table_words::service::decode_combined;
 use hashbrown::HashTable;
+use ryo_language::domain::symbols::service::places_mut;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::Provenance;
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
-use ryo_language::domain::symbols::service::places_mut;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::stored_facts::types::KeptWords;
 
@@ -49,3 +49,5 @@ pub(crate) fn project_input(
 pub(crate) fn decode_input(words: &KeptWords, cross: &mut Symbols) -> Table {
     decode_combined(&words.0, places_mut(cross))
 }
+
+use ryo_values::domain::rows::types::Table;

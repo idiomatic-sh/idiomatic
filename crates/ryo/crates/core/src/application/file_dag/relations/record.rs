@@ -1,7 +1,5 @@
 //! Engine-private publication and admission state. Domain representations cannot mint it.
-use super::{
-    OperatingError, PhysicalShape, PublishedRelation, RelationBody, RepresentationKind, Table,
-};
+use super::{OperatingError, PhysicalShape, PublishedRelation, RelationBody, RepresentationKind};
 use std::sync::{Arc, OnceLock};
 /// Only this application module can construct or mutate proof state.
 #[derive(Debug)]
@@ -22,3 +20,5 @@ impl PublishedRelation for RelationResult {
         self.kind
     }
 }
+
+use ryo_values::domain::rows::types::Table;

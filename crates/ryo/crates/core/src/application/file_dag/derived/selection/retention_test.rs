@@ -6,11 +6,11 @@ use crate::domain::{
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-        service::to_bits,
-        types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell},
-    };
+    service::to_bits,
+    types::{CellKind, ColumnsView, FactColumn, Integer, Relation, Value as Cell},
+};
 use std::sync::Arc;
 type Failure = OperatingError;
 /// Entries append into spare owned capacity instead of moving every retained entry.
@@ -128,7 +128,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
         operation_schema::types::InputSchema,
         operator::contract::{types::PredicateProgram, views::BorrowedRows},
         stored_selection::types::Selector,
-        table_model::types::{RowCount, SelectionIdentity, Table, Verdict},
+        table_model::types::{SelectionIdentity, Verdict},
     };
     use ryo_relations::domain::relations::types::Value;
 
@@ -302,7 +302,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         derived_views::{collections::views::registration::registered, types::*},
         operation_schema::types::InputSchema,
         operator::contract::views::BorrowedRows,
-        table_model::{service::push_row, types::Table},
+        table_model::service::push_row,
     };
     use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -329,7 +329,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         },
         &schema,
     )?);
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let proof = owner.admit_external(BorrowedRows::Computed(&table))?;
     let (population, _) = proof.identity(&owner)?;
     let acquired = owner.derived.acquire_stored(
@@ -438,3 +438,5 @@ fn empty_retention_counts_no_position_slots_and_invalid_group_is_not_allocation_
     );
     Ok(())
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

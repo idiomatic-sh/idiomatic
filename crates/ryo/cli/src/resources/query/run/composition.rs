@@ -83,6 +83,7 @@ pub(crate) fn build(
             Arc::new(ryo_core::outbound::operators::factory::use_case(
                 ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
             )),
+std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new())),
             Arc::new(scheduler::factory::rayon(scheduler::factory::pool(workers))),
             scheduler::factory::workers(workers),
             Arc::new(crate::output::schemas::rows(out, edge.format)),

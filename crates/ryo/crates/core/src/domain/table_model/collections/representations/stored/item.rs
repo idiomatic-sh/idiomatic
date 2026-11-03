@@ -1,6 +1,6 @@
 //! Physical row semantics; policy and allocation ownership remain in the engine.
 use super::super::{interface::RepresentationsItem, types::*};
-use crate::domain::{operating::errors::OperatingError, table_cells::types::RowIndex};
+use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 pub(crate) struct StoredItem;
@@ -95,3 +95,5 @@ impl RepresentationsItem for StoredItem {
         Ok(RowRead::Decoded(&decode[..view.kinds.len()]))
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

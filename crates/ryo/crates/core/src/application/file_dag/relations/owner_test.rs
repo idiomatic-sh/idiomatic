@@ -25,7 +25,7 @@ use fixtures::{columns, group, read, row, selected};
 
 #[test]
 fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema() {
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let mut groups = [0; 3];
     for relation in all() {
         let schema = kinds(*relation);
@@ -73,7 +73,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     let relation = Relation::FilesystemLineCount;
     let schema = kinds(relation);
     let mut physical = columns(schema);
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let original = {
         let rows = Rows::Stored(ColumnsView {
             kinds: schema,
@@ -131,7 +131,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     expected[0][1] = Value::Number(Integer(200));
     expected[1][1] = Value::Number(Integer(201));
     assert_eq!(read(&resolved), expected);
-    let other = RelationOwner::new(true);
+    let other = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     assert!(matches!(
         other.inspect(fresh.as_ref(), BorrowedRows::from(&rows)),
         Err(OperatingError::NotRead)
@@ -177,7 +177,7 @@ fn different_projections_and_positions_have_distinct_admissions_and_correct_valu
         first.selection.columns.clone(),
         first.selection.kinds.clone(),
     );
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let mut publications = Vec::new();
     let a = [
         row(schema, 0)[numeric[0].0 as usize],
@@ -255,7 +255,7 @@ fn arbitrary_selected_metadata_never_gains_a_trusted_complete_stamp() {
         )
         .unwrap(),
     );
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     for view in [
         selected(
             source,
@@ -297,7 +297,7 @@ impl PublishedRelation for Forged {
 }
 #[test]
 fn a_foreign_publication_with_correct_kind_has_no_admission_authority() {
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let physical = columns(&[CellKind::Number]);
     let rows = Rows::Stored(ColumnsView {
         kinds: &[CellKind::Number],
@@ -334,7 +334,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
         lacking: Lacking::Any,
         at: Some(FileId(9)),
     }];
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let first = owner.source(relation, &rows).unwrap();
     let second = owner.source(relation, &rows).unwrap();
     assert!(first.same_record(&second));
@@ -372,7 +372,7 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
         kinds: schema,
         columns: &physical,
     };
-    let owner = RelationOwner::new(true);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let publication = owner
         .source(Relation::Function, &Rows::Stored(source))
         .unwrap();

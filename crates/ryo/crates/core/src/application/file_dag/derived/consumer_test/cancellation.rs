@@ -11,6 +11,9 @@ use std::cell::Cell;
 #[derive(Debug)]
 struct Refuse;
 impl PrimitiveExecutor for Refuse {
+    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        crate::outbound::derived::factory::test_port()
+    }
     fn stream(
         &self,
         _: &OperatorContract,

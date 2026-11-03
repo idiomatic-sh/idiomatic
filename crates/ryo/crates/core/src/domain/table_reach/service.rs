@@ -43,7 +43,7 @@ pub(crate) fn reach_all(edges: &Edges<'_>, start: Value, walk: &mut Walk) {
 
 /// Prepare exact adjacency groups once, sorted numerically within each source.
 pub(crate) fn prepare_ordered(
-    table: &crate::domain::table_model::types::Table,
+    table: &ryo_values::domain::rows::types::Table,
     ordinal: ryo_values::domain::plan_parts::types::ColumnIndex,
     index: &mut crate::domain::table_model::types::KeyIndex,
     graph: &mut super::types::OrderedGraph,
@@ -162,7 +162,7 @@ pub(crate) fn next_ordered(
     walk: &mut super::types::OrderedWalk,
 ) -> Result<
     Option<(
-        crate::domain::table_cells::types::RowIndex,
+        ryo_values::domain::rows::types::RowIndex,
         ryo_relations::domain::relations::types::Integer,
     )>,
     crate::domain::operating::errors::OperatingError,

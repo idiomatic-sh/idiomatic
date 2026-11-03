@@ -11,7 +11,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{Bits, Integer, Position, Span, Value};
 use ryo_relations::domain::terms::types::Symbol;
 
-use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, RowIndex, TreeForm, TreeRows};
+use crate::domain::table_cells::types::{CellsRead, ColumnPlaces, TreeForm, TreeRows};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 
 /// The name of the kind of the element at `at`, as the table's vocabulary names it.
@@ -141,3 +141,5 @@ pub(crate) fn read_tree_cells(
         CellsRead::Missing
     }
 }
+
+use ryo_values::domain::rows::types::RowIndex;

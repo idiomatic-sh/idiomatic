@@ -3,11 +3,11 @@ use super::*;
 use crate::application::file_dag::executor::PrimitiveExecutor;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
-use ryo_language::domain::{symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
-        service::to_bits,
-        types::{ColumnsView, FactColumn, FileId, Integer},
-    };
+    service::to_bits,
+    types::{ColumnsView, FactColumn, FileId, Integer},
+};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
     plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
@@ -20,6 +20,9 @@ struct CountingExecutor {
     refuse: bool,
 }
 impl PrimitiveExecutor for CountingExecutor {
+    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        crate::outbound::derived::factory::test_port()
+    }
     fn stream(
         &self,
         contract: &crate::domain::operator::contract::types::OperatorContract,

@@ -2,11 +2,11 @@
 
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, KindBits, Offset,
 };
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::FileBytes;
 
 use super::errors::AdmissionError;
