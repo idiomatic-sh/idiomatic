@@ -5,7 +5,10 @@ use crate::domain::{
     elements::{service::*, types::*},
     expansions::service::{append_embedded, write_embedded},
     relations::{constants::NO_SYMBOL, types::*},
-    symbols::service::text_of,
+    symbols::{
+        service::text_of,
+        types::{ByteSlice, Symbols},
+    },
     terms::types::NameText,
 };
 use std::panic::{AssertUnwindSafe, catch_unwind};
