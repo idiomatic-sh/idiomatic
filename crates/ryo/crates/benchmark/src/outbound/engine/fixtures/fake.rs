@@ -1,6 +1,5 @@
 //! Deterministic SDK substitute preserves the submitted file set.
 use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
-use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::interface::EnginePort;
 #[derive(Clone, Copy, Debug, Default)]
 /// Deterministic engine substitute for orchestration and contract tests.
@@ -9,7 +8,11 @@ pub struct EngineFake {
     pub refuses: bool,
 }
 impl EnginePort for EngineFake {
-    fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+    fn run(
+        &self,
+        request: crate::domain::suite::types::WorkerRequest,
+        _prepared: crate::outbound::engine::types::PreparedMissingInputs,
+    ) -> Result<RunReport, Error> {
         if self.refuses {
             return Err(Error::Invalid("no candidate queries".into()));
         }

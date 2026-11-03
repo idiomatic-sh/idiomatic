@@ -89,7 +89,11 @@ struct Engine {
     refuses: bool,
 }
 impl EnginePort for Engine {
-    fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+    fn run(
+        &self,
+        request: WorkerRequest,
+        _prepared: crate::outbound::engine::types::PreparedMissingInputs,
+    ) -> Result<RunReport, Error> {
         let _previous = self.calls.fetch_add(1, Ordering::SeqCst);
         if self.refuses {
             return Err(Error::Invalid("fixture engine failure".into()));

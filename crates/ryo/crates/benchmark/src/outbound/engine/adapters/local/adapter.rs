@@ -7,6 +7,7 @@ use crate::domain::diagnostics::{
 use crate::domain::suite::service::relative_path;
 use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::factory::FrontendDiagnosticProjection;
+use crate::outbound::engine::types::PreparedMissingInputs;
 use ryo::linter::{
     self, Cache, CaseSource, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule,
     RuleApplicability, RuleId, Slot, SourceText, WorkerPool, Workers,
@@ -178,7 +179,12 @@ impl EngineLocalAdapter {
     }
 }
 impl EnginePort for EngineLocalAdapter {
-    fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+    fn run(
+        &self,
+        request: WorkerRequest,
+        prepared: PreparedMissingInputs,
+    ) -> Result<RunReport, Error> {
+        let selected_missing = prepared.selected_missing;
         validate_context(&request)?;
         let _trace = if let Some(path) = &self.trace {
             let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
@@ -206,14 +212,14 @@ impl EnginePort for EngineLocalAdapter {
             let frontend = rules
                 .get_mut(&projection.rule)
                 .ok_or_else(|| Error::Invalid("frontend projection was not registered".into()))?;
-            frontend.exclude = frontend_exclusions(&request)?;
+            frontend.exclude = frontend_exclusions(&selected_missing)?;
         }
         let selected_rules = rules.keys().cloned().collect();
         let selected_rule_count = rules
             .len()
             .saturating_sub(usize::from(self.frontend_diagnostic.is_some()));
         let selected_pairs = selected_rule_count.saturating_mul(request.files.len());
-        let (sources, accepted) = source_inputs(&request)?;
+        let (sources, accepted) = source_inputs(&request, &selected_missing)?;
         let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
         let cache = match request.state {
             crate::domain::suite::types::WorkerState::Fresh => Cache::None,
@@ -248,10 +254,7 @@ impl EnginePort for EngineLocalAdapter {
         .map_err(|error| Error::Invalid(error.to_string()))?;
         let unexpected_unread = report.unread.iter().any(|unread| {
             !matches!(&unread.reason, linter::Unreadable::Failed(_))
-                || !request.context_manifest.as_ref().is_some_and(|manifest| {
-                    request.files.contains(&unread.path)
-                        && crate::domain::suite::service::declares_missing(manifest, &unread.path)
-                })
+                || !selected_missing.contains(&unread.path)
         });
         if !report.unknowns.is_empty() || unexpected_unread {
             return Err(Error::Invalid(format!(
@@ -346,30 +349,6 @@ fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
         (crate::domain::suite::types::ProjectContextMode::Isolated, None) => {}
         (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(manifest)) => {
             crate::outbound::context::adapters::local::adapter::validate(manifest, &request.root)?;
-            let requested: std::collections::BTreeSet<_> = request
-                .files
-                .iter()
-                .map(|file| {
-                    crate::domain::suite::service::context_input_path(&manifest.logical_root, file)
-                })
-                .collect();
-            let sealed_sources: std::collections::BTreeSet<_> =
-                manifest.source_files.keys().cloned().collect();
-            let selected_missing: std::collections::BTreeSet<_> = request
-                .files
-                .iter()
-                .filter(|file| crate::domain::suite::service::declares_missing(manifest, file))
-                .map(|file| {
-                    crate::domain::suite::service::context_input_path(&manifest.logical_root, file)
-                })
-                .collect();
-            if !sealed_sources.is_subset(&requested)
-                || requested != sealed_sources.union(&selected_missing).cloned().collect()
-            {
-                return Err(Error::Invalid(
-                    "context source seal differs from requested inventory".into(),
-                ));
-            }
         }
         _ => {
             return Err(Error::Invalid(
@@ -383,6 +362,7 @@ fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
 /// Read each explicitly requested source once, retaining its exact ordered inventory.
 fn source_inputs(
     request: &WorkerRequest,
+    selected_missing: &std::collections::BTreeSet<linter::RelativePath>,
 ) -> Result<
     (
         Vec<CaseSource>,
@@ -399,11 +379,7 @@ fn source_inputs(
                 crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
             ));
         }
-        if request
-            .context_manifest
-            .as_ref()
-            .is_some_and(|manifest| crate::domain::suite::service::declares_missing(manifest, file))
-        {
+        if selected_missing.contains(file) {
             // Context validation already observed this absence. Keep the requested path,
             // but supply neither bytes nor metadata overlays to the engine.
             continue;
@@ -480,15 +456,11 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
 
 /// The auto frontend projection governs only declared readable inputs. Authored rules still
 /// govern the complete primary inventory; an absence seal is not a statement about syntax.
-pub(super) fn frontend_exclusions(request: &WorkerRequest) -> Result<Vec<linter::Glob>, Error> {
-    request
-        .files
+pub(super) fn frontend_exclusions(
+    selected_missing: &std::collections::BTreeSet<linter::RelativePath>,
+) -> Result<Vec<linter::Glob>, Error> {
+    selected_missing
         .iter()
-        .filter(|file| {
-            request.context_manifest.as_ref().is_some_and(|manifest| {
-                crate::domain::suite::service::declares_missing(manifest, file)
-            })
-        })
         .map(|file| {
             #[cfg(unix)]
             let literal = file.0.replace('\\', "\\\\");

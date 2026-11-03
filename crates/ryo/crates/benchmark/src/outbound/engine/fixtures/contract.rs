@@ -35,18 +35,24 @@ pub fn check(adapter: &impl EnginePort) {
     let temporary = tempfile::tempdir().expect("rules directory");
     let subject = |()| {
         adapter
-            .run(WorkerRequest {
-                project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
-                context_manifest: None,
-                root: temporary.path().into(),
-                rules: temporary.path().into(),
-                query_modules: std::collections::BTreeMap::default(),
-                rule_applicability: std::collections::BTreeMap::default(),
-                parser_configuration: None,
-                source_language: None,
-                files: vec![ryo::linter::RelativePath("input.txt".into())],
-                state: crate::domain::suite::types::WorkerState::Fresh,
-            })
+            .run(
+                WorkerRequest {
+                    project_context_mode: crate::domain::suite::types::ProjectContextMode::default(
+                    ),
+                    context_manifest: None,
+                    root: temporary.path().into(),
+                    rules: temporary.path().into(),
+                    query_modules: std::collections::BTreeMap::default(),
+                    rule_applicability: std::collections::BTreeMap::default(),
+                    parser_configuration: None,
+                    source_language: None,
+                    files: vec![ryo::linter::RelativePath("input.txt".into())],
+                    state: crate::domain::suite::types::WorkerState::Fresh,
+                },
+                crate::outbound::engine::types::PreparedMissingInputs {
+                    selected_missing: std::collections::BTreeSet::new(),
+                },
+            )
             .map(|_| ())
             .map_err(|error| match error {
                 Error::Invalid(message) if message == "no candidate queries" => Failure::NoQueries,
