@@ -40,6 +40,8 @@ impl Fixture {
         let rules = source.join("rules");
         let receipt = source.join("cases.jsonl");
         let profile = Tool {
+            rule_observation_selection:
+                crate::domain::suite::types::ObservationSelectionPolicy::Declared,
             supporting_rules: Vec::new(),
             rule_observations: std::collections::BTreeMap::new(),
             rule_context: None,

@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let default_roots = select parent as function, child as value, file from "semantic-child" where field = "defaults";
 let default_wrappers = select id, file from "semantic-syntax" where kind = "parameter-with-default";
@@ -73,4 +74,8 @@ let mutable_defaults_and_calls = union(left=mutable_defaults, right=default_call
 let unannotated_defaults = antijoin(left=mutable_defaults_and_calls, right=immutable_annotation_defaults, left-on=["id","file"], right-on=["id","file"]);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from unannotated_defaults as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*B006(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B006)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*B006(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B006)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "B006"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

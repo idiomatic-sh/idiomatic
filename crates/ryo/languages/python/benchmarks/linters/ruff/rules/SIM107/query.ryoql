@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 
 let syntax = select id, kind, file from "semantic-syntax";
@@ -23,4 +24,8 @@ let first_final_returns = antijoin(left=final_returns, right=later_final_returns
 let reportable = select l.id as id, l.file as file from first_final_returns as l join earlier_returns as r on l.try_node = r.try_node and l.file = r.file;
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*SIM107(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:SIM107)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*SIM107(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:SIM107)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "SIM107"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

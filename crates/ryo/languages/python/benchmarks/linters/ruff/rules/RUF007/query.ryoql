@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file from "semantic-syntax";
 let calls = select id, file from nodes where kind = "call";
@@ -40,4 +41,8 @@ let successive = select call, file from matching where integer_successor(first_s
 let reportable = select l.call as id, r.function as function, l.file as file from successive as l join zip_calls as r on l.call = r.call and l.file = r.file;
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.function = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="RUF007($|[, #])", range-pattern="(?:^|,)RUF007(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="RUF007($|[, #])", range-pattern="(?:^|,)RUF007(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF007"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

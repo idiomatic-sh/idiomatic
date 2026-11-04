@@ -56,3 +56,28 @@ pub(crate) fn closure<'a>(
     }
     found
 }
+
+/// Resolve only profile defaults; an explicit case declaration bypasses this policy.
+pub(crate) fn project_profile(
+    declarations: &RuleObservationDeclarations,
+    selected: &[ryo::linter::RuleId],
+    policy: super::types::ObservationSelectionPolicy,
+) -> RuleObservationDeclarations {
+    let mut resolved = declarations.clone();
+    if policy == super::types::ObservationSelectionPolicy::Selected {
+        let selected: std::collections::BTreeSet<_> = selected.iter().collect();
+        for bindings in resolved.values_mut() {
+            for binding in bindings {
+                binding.producers.retain(|producer| match producer {
+                    ryo::linter::ObservationProducer::Output { rule, .. }
+                    | ryo::linter::ObservationProducer::NoQuery { rule } => selected.contains(rule),
+                });
+            }
+        }
+    }
+    let needed = closure(selected.iter().cloned(), |id| {
+        resolved.get(id).map(Vec::as_slice)
+    });
+    resolved.retain(|id, _| needed.contains(id));
+    resolved
+}

@@ -212,9 +212,31 @@ def rule_phase(phases: dict[str, object], rule: str) -> dict[str, object]:
         return supplemental[rule]
     raise ValueError(f'no pinned execution phase for registered rule {rule}')
 
+def projected_profile_observations(profile: dict[str, object], rules: list[str]) -> dict[str, object]:
+    """Project explicitly selected profile producers; case declarations bypass this policy."""
+    import copy
+    policy = profile.get('rule-observation-selection', 'declared')
+    if policy not in {'declared', 'selected'}:
+        raise ValueError('unknown profile observation-selection policy')
+    declarations = copy.deepcopy(profile.get('rule-observations', {}))
+    selected = set(rules)
+    if policy == 'selected':
+        for bindings in declarations.values():
+            for binding in bindings:
+                binding['producers'] = [producer for producer in binding['producers'] if producer['rule'] in selected]
+    found, pending = set(), list(rules)
+    while pending:
+        rule = pending.pop()
+        if rule in found:
+            continue
+        found.add(rule)
+        for binding in declarations.get(rule, []):
+            pending.extend(producer['rule'] for producer in binding['producers'] if producer['kind'] == 'output')
+    return {rule: bindings for rule, bindings in declarations.items() if rule in found}
+
 def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], phases: dict[str, object]) -> dict[str, object]:
     """Normalize a selected profile without silently ignoring new execution flags."""
-    allowed = {'supporting-rules', 'project-search-roots', 'parser-configuration', 'deferred', 'file-observation', 'project-context-mode', 'sha256', 'tool', 'defaults', 'query-modules', 'rule-observations', 'version', 'source-language', 'rule-applicability', 'rule-context'}
+    allowed = {'rule-observation-selection', 'supporting-rules', 'project-search-roots', 'parser-configuration', 'deferred', 'file-observation', 'project-context-mode', 'sha256', 'tool', 'defaults', 'query-modules', 'rule-observations', 'version', 'source-language', 'rule-applicability', 'rule-context'}
     if set(profile) - allowed:
         raise ValueError('unreviewed execution settings in canonical profile')
     if profile.get('tool') != 'ruff' or profile.get('version') != profile_config.PINNED_RUFF_VERSION:
@@ -236,10 +258,12 @@ def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], pha
     if selection is not None and (not isinstance(selection, str) or not selection or selection.strip() != selection):
         raise ValueError('source language must be an exact nonblank provider name')
     extra = {'source_language': selection} if selection is not None else {}
+    extra['performance'] = {'node_result_reuse': 'disabled', 'column_kernel': False, 'diagnostics': {name: False for name in ['execution', 'lifecycle_memory', 'resource_routes', 'row_progress', 'steps', 'joins', 'prefixes', 'subplans', 'selection_detail']}}
     if profile.get('rule-context') is not None:
         extra['rule_context_declaration'] = profile['rule-context']
-    if profile.get('rule-observations'):
-        extra['rule_observations'] = profile['rule-observations']
+    observations = projected_profile_observations(profile, rules)
+    if observations:
+        extra['rule_observations'] = observations
     roots = profile.get('project-search-roots')
     if roots is not None:
         if not isinstance(roots, list) or any((not isinstance(root, str) or (root and (Path(root).is_absolute() or any(part in {'.', '..'} for part in Path(root).parts)))) for root in roots):

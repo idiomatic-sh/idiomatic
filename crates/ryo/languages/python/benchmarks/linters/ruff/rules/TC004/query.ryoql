@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 import annotation_context from "python/ruff/annotation-evaluation-context";
 import symbols from "python/ruff/modernization-symbols";
@@ -92,4 +93,8 @@ let ordinary_candidates = select l.id as id, l.file as file, r.span as span, r."
 let aliased_candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from alias_tokens as l join "source-location" as r on l.token = r.id and l.file = r.file;
 let candidates = union(left=ordinary_candidates, right=aliased_candidates);
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])TC004(?:$|[^A-Z0-9])", range-pattern="(?:^|,)TC004(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])TC004(?:$|[^A-Z0-9])", range-pattern="(?:^|,)TC004(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "TC004"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

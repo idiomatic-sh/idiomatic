@@ -13,6 +13,7 @@ pub(crate) struct LinterRyoAdapter {
     /// Frozen default cohort; supporting query definitions are not implicitly enabled.
     pub defaults: Vec<ryo::linter::RuleId>,
     /// Explicit profile declarations; supporting definitions alone never bind a consumer.
+    pub rule_observation_selection: crate::domain::suite::types::ObservationSelectionPolicy,
     pub rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
     /// Explicit isolation contract selected by the frozen profile.
     pub project_context_mode: crate::domain::suite::types::ProjectContextMode,
@@ -38,16 +39,11 @@ impl LinterPort for LinterRyoAdapter {
             .selected_rules
             .clone()
             .unwrap_or_else(|| self.defaults.clone());
-        let profile_closure =
-            crate::domain::suite::observations::closure(selected_rules.iter().cloned(), |id| {
-                self.rule_observations.get(id).map(Vec::as_slice)
-            });
-        let profile_observations: crate::domain::suite::types::RuleObservationDeclarations = self
-            .rule_observations
-            .iter()
-            .filter(|(id, _)| profile_closure.contains(*id))
-            .map(|(id, bindings)| (id.clone(), bindings.clone()))
-            .collect();
+        let profile_observations = crate::domain::suite::observations::project_profile(
+            &self.rule_observations,
+            &selected_rules,
+            self.rule_observation_selection,
+        );
         let worker = WorkerRequest {
             performance: request.performance,
             rule_context: request.rule_context.clone(),

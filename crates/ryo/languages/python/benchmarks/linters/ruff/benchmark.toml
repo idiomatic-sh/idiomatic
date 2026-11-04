@@ -1,3 +1,4 @@
+rule-observation-selection = "selected"
 # Shipped defaults independently matched to tagged upstream DEFAULT_SELECTORS:
 # https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/src/settings/mod.rs
 # Native executable pins extracted from official Ruff 0.16.5 wheels after checking

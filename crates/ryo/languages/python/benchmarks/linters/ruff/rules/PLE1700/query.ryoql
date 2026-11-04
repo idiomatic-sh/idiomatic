@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import evaluation_regions from "python/ruff/python-evaluation-regions";
 import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file from "semantic-syntax";
@@ -17,4 +18,8 @@ let contexts = union(left=nested_only, right=direct);
 let reportable = select id, file from contexts where kind = "async-function-def";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PLE1700(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLE1700)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PLE1700(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLE1700)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLE1700"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

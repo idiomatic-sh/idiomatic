@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let edges = select parent, child, field, file from "semantic-child";
@@ -57,4 +58,8 @@ let wrapped_iter_candidates = select id, file, span, line from wrapped_candidate
 let iter_candidates = union(left=plain_iter_candidates, right=wrapped_iter_candidates);
 let all_candidates = union(left=compare_candidates, right=iter_candidates);
 let violations = suppress(candidates=all_candidates, inline-pattern="(?:^|[^A-Z0-9])SIM118(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:SIM118)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=all_candidates, inline-pattern="(?:^|[^A-Z0-9])SIM118(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:SIM118)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "SIM118"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

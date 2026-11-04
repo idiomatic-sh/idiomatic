@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
@@ -157,4 +158,8 @@ let all_candidates = union(left=candidates3, right=overload_candidates);
 let unique_candidates = group-count(from=all_candidates, keys=["id", "file", "span", "line"], count="count", distinct="id");
 let candidate_locations = select id, file, span, line from unique_candidates;
 let violations = suppress(candidates=candidate_locations, inline-pattern="PYI036($|[, #])", range-pattern="(?:^|,)PYI036(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="PYI036($|[, #])", range-pattern="(?:^|,)PYI036(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI036"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

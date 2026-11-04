@@ -107,6 +107,8 @@ fn wrong_oracle_cannot_satisfy_the_intended_candidate_contract() {
 fn approved_platform_digest_can_differ_from_observed_evidence_binary() {
     let identity = identity();
     let profile = Tool {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: std::collections::BTreeMap::new(),
         rule_context: None,

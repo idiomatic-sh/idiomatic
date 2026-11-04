@@ -274,9 +274,14 @@ impl SuitePort for SuiteLocalAdapter {
             .cloned()
             .chain(tool.supporting_rules.iter().cloned())
             .collect();
+        let defaults = crate::domain::suite::observations::project_profile(
+            &tool.rule_observations,
+            &audit.implemented,
+            tool.rule_observation_selection,
+        );
         definitions.extend(crate::domain::suite::observations::closure(
             audit.implemented.iter().cloned(),
-            |id| tool.rule_observations.get(id).map(Vec::as_slice),
+            |id| defaults.get(id).map(Vec::as_slice),
         ));
         for owner in &audit.implemented {
             let cases = super::schemas::cases(&std::fs::read_to_string(
@@ -286,11 +291,16 @@ impl SuitePort for SuiteLocalAdapter {
                     .join(constants::CASES),
             )?)?;
             for case in cases.cases {
+                let selected = case.selected_rules.as_deref().unwrap_or(&audit.implemented);
+                let profile_declarations = crate::domain::suite::observations::project_profile(
+                    &tool.rule_observations,
+                    selected,
+                    tool.rule_observation_selection,
+                );
                 let declarations = case
                     .rule_observations
                     .as_ref()
-                    .unwrap_or(&tool.rule_observations);
-                let selected = case.selected_rules.as_deref().unwrap_or(&audit.implemented);
+                    .unwrap_or(&profile_declarations);
                 definitions.extend(crate::domain::suite::observations::closure(
                     selected.iter().cloned(),
                     |id| declarations.get(id).map(Vec::as_slice),

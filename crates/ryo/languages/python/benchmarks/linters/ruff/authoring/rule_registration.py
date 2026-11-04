@@ -81,7 +81,22 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
     closure = {}
     cohort = {rule}
     for case in cases:
-        cohort.update(case.get('selected-rules', [rule]))
+        selected = case.get('selected-rules', [rule])
+        cohort.update(selected)
+        declarations = case.get('rule-observations')
+        if declarations is None:
+            declarations = profile_sources.projected_profile_observations(data, selected)
+        pending, visited = list(selected), set()
+        while pending:
+            consumer = pending.pop()
+            if consumer in visited:
+                continue
+            visited.add(consumer)
+            for binding in declarations.get(consumer, []):
+                for producer in binding['producers']:
+                    if producer['kind'] == 'output':
+                        cohort.add(producer['rule'])
+                        pending.append(producer['rule'])
     supporting = sorted(cohort - {rule})
     supporting_queries = {code: profile_sources.registered_query_path(code) for code in supporting}
     pending = [query, *supporting_queries.values()]

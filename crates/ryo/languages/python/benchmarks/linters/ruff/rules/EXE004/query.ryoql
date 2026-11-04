@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let elements = select id, kind, text, file from "syntax-tree";
 let shebangs = select id, file from elements where kind = "comment" and starts_with(text, "#!");
@@ -14,4 +15,8 @@ let bounds = select l.id as id, l.file as file, r.first_span as first_span, l.la
 let composed = span-between(from=bounds, start="first_span", end="last_span", output="span");
 let candidates = select id, file, span, line from composed;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])EXE004(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:EXE004)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])EXE004(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:EXE004)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "EXE004"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

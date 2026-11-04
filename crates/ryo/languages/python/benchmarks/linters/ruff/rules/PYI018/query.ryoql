@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let assignments = select id, file from "semantic-syntax" where kind = "assign";
 let targets = select l.parent as assignment, l.child as target, l.file as file from "semantic-child" as l join assignments as r on l.parent = r.id and l.file = r.file where l.field = "targets";
@@ -16,4 +17,8 @@ let unused = antijoin(left=typevar_declarations, right=uses, left-on=["binding",
 let locations = select r.id as id, r.file as file, r.span as span, r."start-line" as line from "source-location" as r;
 let candidates = select l.binding as id, l.file as file, r.span as span, r.line as line from unused as l join locations as r on l.binding = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="PYI018(?:$|[, #])", range-pattern="(?:^|,)PYI018(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="PYI018(?:$|[, #])", range-pattern="(?:^|,)PYI018(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI018"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

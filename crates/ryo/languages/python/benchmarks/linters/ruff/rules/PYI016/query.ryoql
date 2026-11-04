@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 import type_context from "python/ruff/type-definition-context";
 let nodes = select id, kind, file from "semantic-syntax";
@@ -49,4 +50,8 @@ let duplicate_nulls = select l.id as id, l.file as file from null_members as l j
 let duplicate_ids = union(left=duplicate_ordinary, right=duplicate_nulls);
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from duplicate_ids as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PYI016(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PYI016)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PYI016(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PYI016)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI016"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

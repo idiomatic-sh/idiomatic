@@ -64,9 +64,20 @@ pub struct PreparedRuleContext {
     pub configuration: RuleConfiguration,
 }
 
+/// How profile-default bindings choose producers; explicit case bindings are always declared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObservationSelectionPolicy {
+    /// Bind exactly the profile's declared producers, independent of diagnostic selection.
+    Declared,
+    /// Bind only producers in the resolved diagnostic cohort.
+    Selected,
+}
+
 /// The independently pinned reference executable and its shipped defaults.
 #[derive(Clone, Debug)]
 pub struct Tool {
+    /// Explicit preparation policy for profile-default observation declarations.
+    pub rule_observation_selection: ObservationSelectionPolicy,
     /// Explicit executable support definitions; never default selection or case-owner credit.
     pub supporting_rules: Vec<RuleId>,
     /// Default authored named inputs; case overrides are explicit and source-bound.

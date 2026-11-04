@@ -208,6 +208,8 @@ expected = []
     )
     .expect("oracle cases");
     let tool = crate::domain::suite::types::Tool {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: std::collections::BTreeMap::new(),
         rule_context: None,
@@ -470,8 +472,12 @@ expected = []
 "#,
     )
     .unwrap();
-    let tool = SuiteLocalAdapter::new(None).profile(ArtifactPath(root)).unwrap();
-    let audited = SuiteLocalAdapter::new(None).audit(ArtifactPath(root), &tool).unwrap();
+    let tool = SuiteLocalAdapter::new(None)
+        .profile(ArtifactPath(root))
+        .unwrap();
+    let audited = SuiteLocalAdapter::new(None)
+        .audit(ArtifactPath(root), &tool)
+        .unwrap();
     assert_eq!(audited.implemented, vec!["A001".try_into().unwrap()]);
     assert!(audited.missing.is_empty());
     let snapshot = destination.path().join("profile");
@@ -516,5 +522,9 @@ expected = []
             .is_err()
     );
     std::fs::remove_file(root.join("rules/B002/query.ryoql")).unwrap();
-    assert!(SuiteLocalAdapter::new(None).audit(ArtifactPath(root), &tool).is_err());
+    assert!(
+        SuiteLocalAdapter::new(None)
+            .audit(ArtifactPath(root), &tool)
+            .is_err()
+    );
 }

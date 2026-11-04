@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let assertions = select id, file, span from "semantic-syntax" where kind = "assert";
 let named_expressions = select id, file, span from "semantic-syntax" where kind = "named-expr";
@@ -19,4 +20,8 @@ let outside_bindings = select named_expr from outside_uses;
 let reportable = select l.named_expr as id, l.file as file, r.span as span from outside_uses as l join named_expressions as r on l.named_expr = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*RUF018(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF018)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*RUF018(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF018)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF018"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

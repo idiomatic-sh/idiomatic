@@ -28,6 +28,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(nonempty: Input) -> Result<Value, Failure> {
     let tool = Tool {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: std::collections::BTreeMap::new(),
         rule_context: None,

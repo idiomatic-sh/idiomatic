@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let binops = select id, file, span from "semantic-syntax" where kind = "bin-op";
 let left_fields = select parent, child from "semantic-child" where field = "left";
@@ -60,4 +61,8 @@ let fallback_candidates = select format_id as id, file from fallback_operands;
 let candidates = union(left=normal_candidates, right=fallback_candidates);
 let locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=locations, inline-pattern="(?:^|[^A-Z0-9])UP031(?:$|[^A-Z0-9])", range-pattern="(?:^|,)UP031(?:,|$)");
+let ruf100_matches = observation_matches(candidates=locations, inline-pattern="(?:^|[^A-Z0-9])UP031(?:$|[^A-Z0-9])", range-pattern="(?:^|,)UP031(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "UP031"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

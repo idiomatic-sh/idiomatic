@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 #[serde(deny_unknown_fields)]
 /// Pinned reference profile and explicit default-rule accounting.
 struct ToolSchema {
+    #[serde(default, rename = "rule-observation-selection")]
+    rule_observation_selection: Option<String>,
     #[serde(default, rename = "supporting-rules")]
     supporting_rules: Vec<String>,
     #[serde(default, rename = "rule-observations")]
@@ -276,6 +278,15 @@ impl TryFrom<ToolSchema> for types::Tool {
                 .map(TryInto::try_into)
                 .transpose()
                 .map_err(Error::Invalid)?,
+            rule_observation_selection: match wire.rule_observation_selection.as_deref() {
+                None | Some("declared") => types::ObservationSelectionPolicy::Declared,
+                Some("selected") => types::ObservationSelectionPolicy::Selected,
+                Some(_) => {
+                    return Err(Error::Invalid(
+                        "unknown profile observation-selection policy".into(),
+                    ));
+                }
+            },
             rule_observations: observation_declarations(wire.rule_observations)
                 .map_err(Error::Invalid)?,
             deferred: dispositions(wire.deferred)?,

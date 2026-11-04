@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import annotation_origins from "python/ruff/annotation-origins";
 import suppress from "python/ruff/suppress";
 
@@ -95,4 +96,8 @@ let ordinary_diagnostics = antijoin(left=diagnostic_roots, right=annotated_nodes
 let diagnostics = union(left=ordinary_diagnostics, right=terminal_inner);
 let located = select l.annotation as id, l.file as file, r.span as span, r."start-line" as line from diagnostics as l join "source-location" as r on l.annotation = r.id and l.file = r.file;
 let violations = suppress(candidates=located, inline-pattern="(?:^|[^A-Z0-9])RUF013(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF013)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=located, inline-pattern="(?:^|[^A-Z0-9])RUF013(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF013)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF013"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

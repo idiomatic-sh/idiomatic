@@ -20,6 +20,7 @@ pub fn ryo(
         None,
         crate::domain::suite::types::ProjectContextMode::Isolated,
         defaults,
+        crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         rule_observations,
     )
 }
@@ -35,9 +36,11 @@ pub fn ryo_context(
     source_language: Option<String>,
     project_context_mode: crate::domain::suite::types::ProjectContextMode,
     defaults: Vec<ryo::linter::RuleId>,
+    rule_observation_selection: crate::domain::suite::types::ObservationSelectionPolicy,
     rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     LinterRyoAdapter {
+        rule_observation_selection,
         defaults,
         rule_observations,
         project_context_mode,

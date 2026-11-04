@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 import literal_members from "python/ruff/literal-members";
 let members = literal_members();
@@ -6,4 +7,8 @@ let reportable = select l.member as id, l.file as file from members as l join nu
 let locations = select id, span, "start-line", file from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="PYI061($|[, #])", range-pattern="(?:^|,)PYI061(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="PYI061($|[, #])", range-pattern="(?:^|,)PYI061(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI061"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

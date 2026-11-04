@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import assigned_values from "python/ruff/assigned-values";
 import suppress from "python/ruff/suppress";
 let loops = select id, file from "semantic-syntax" where kind = "for" or kind = "async-for";
@@ -76,4 +77,8 @@ let variable_casts = select call as id, file from stable_casts;
 let candidates = union(left=direct_literal_casts, right=variable_casts);
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PERF101(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PERF101)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PERF101(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PERF101)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PERF101"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

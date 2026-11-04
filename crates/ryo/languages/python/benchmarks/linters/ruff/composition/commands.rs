@@ -153,6 +153,7 @@ pub(super) fn verify_cases(
     tool.defaults = audit.authored().to_vec();
     let candidate_defaults = tool.defaults.clone();
     let candidate_observations = tool.rule_observations.clone();
+    let candidate_observation_selection = tool.rule_observation_selection;
     let reference = Arc::new(reference(executable, tool)?);
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
@@ -167,6 +168,7 @@ pub(super) fn verify_cases(
         source_language,
         project_context_mode,
         candidate_defaults,
+        candidate_observation_selection,
         candidate_observations,
     ));
     let count = ryo_benchmark::application::run::service::verify_accounted_shard(

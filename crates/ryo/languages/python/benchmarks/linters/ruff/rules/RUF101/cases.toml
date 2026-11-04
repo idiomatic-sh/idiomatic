@@ -240,3 +240,47 @@ name = "all-canonical-targets-are-controls"
 comparison = "full"
 files = {"case.py" = "# noqa: ASYNC1, ASYNC10, ASYNC100, ASYNC105, ASYNC109, ASYNC11, ASYNC110, ASYNC115, B026, B033, B035, B904, C419, C420, C90, FIX001, FIX002, FIX003, FIX004, G010, ICN0, ICN00, ICN001, PD0, PD002, PD003, PD004, PD007, PD008, PD009, PD01, PD010, PD011, PD012, PD013, PD015, PD9, PD90, PD901, PLW0177, RET5, RET50, RET501, RET502, RET503, RET504, RET505, RET506, RET507, RET508, RUF100, S307, S704, SIM101, SIM110, T10, T20, TC001, TC002, TC003, TC004, TC005, TC010, TID2, TID25, TID252, TRY203, UP0, UP00, UP001, UP003, UP004, UP005, UP006, UP007, UP008, UP009, UP01, UP010, UP011, UP012, UP013, UP014, UP015, UP016, UP017, UP019\n"}
 expected = []
+
+# Pinned Ruff 0.16.5 U001 redirect and RUF101 self-suppression controls.
+
+[[cases]]
+"name" = "redirect-baseline"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa: U001\n" }
+"expected" = [{ "end" = 19, "file" = "case.py", "rule" = "RUF101", "start" = 15 }]
+
+[[cases]]
+"name" = "redirect-file-blanket"
+"comparison" = "full"
+"files" = { "case.py" = "# ruff: noqa\nx = 1  # noqa: U001\n" }
+"expected" = []
+
+[[cases]]
+"name" = "redirect-file-code"
+"comparison" = "full"
+"files" = { "case.py" = "# ruff: noqa: RUF101\nx = 1  # noqa: U001\n" }
+"expected" = []
+
+[[cases]]
+"name" = "redirect-file-other-code"
+"comparison" = "full"
+"files" = { "case.py" = "# ruff: noqa: F401\nx = 1  # noqa: U001\n" }
+"expected" = [{ "end" = 38, "file" = "case.py", "rule" = "RUF101", "start" = 34 }]
+
+[[cases]]
+"name" = "redirect-inline-blanket-after"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa: U001  # noqa\n" }
+"expected" = [{ "end" = 19, "file" = "case.py", "rule" = "RUF101", "start" = 15 }]
+
+[[cases]]
+"name" = "redirect-inline-blanket-before"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa  # noqa: U001\n" }
+"expected" = []
+
+[[cases]]
+"name" = "redirect-inline-code"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1  # noqa: U001, RUF101\n" }
+"expected" = [{ "end" = 19, "file" = "case.py", "rule" = "RUF101", "start" = 15 }]

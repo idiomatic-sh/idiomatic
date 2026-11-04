@@ -122,6 +122,7 @@ pub(crate) fn run(
             tool.defaults = audit.authored().to_vec();
             let candidate_defaults = tool.defaults.clone();
             let candidate_observations = tool.rule_observations.clone();
+            let candidate_observation_selection = tool.rule_observation_selection;
             let declared_rule_context = tool.rule_context.clone();
             let configured_cohort = declared_rule_context
                 .as_ref()
@@ -158,6 +159,7 @@ pub(crate) fn run(
                     source_language,
                     project_context_mode,
                     candidate_defaults,
+                    candidate_observation_selection,
                     candidate_observations,
                 ));
             let case_scratch = tempfile::tempdir()?;

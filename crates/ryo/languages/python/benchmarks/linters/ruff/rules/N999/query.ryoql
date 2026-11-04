@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let identities = select file, "module-name" as module_name, "package-name" as package_name, "package-root-name" as root_name from "module-identity";
 let python_sources = select file, module_name, package_name, root_name from identities where matches(file, "[.]pyi?$");
@@ -22,4 +23,8 @@ let points = select id, file, point as span from origins;
 let located_points = extend(from=points, values={line: 1});
 let candidates = select l.id as id, l.file as file, l.span as span, l.line as line from located_points as l join reportable as r on l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])N999(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:N999)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])N999(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:N999)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "N999"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

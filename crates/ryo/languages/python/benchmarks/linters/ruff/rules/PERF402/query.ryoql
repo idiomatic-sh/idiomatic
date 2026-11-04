@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import binding_type from "python/ruff/binding-type";
 import suppress from "python/ruff/suppress";
 let loops = select id, file, span from "semantic-syntax" where kind = "for";
@@ -47,4 +48,8 @@ let keyword_free_receivers = antijoin(left=initialized_receivers, right=keyword_
 let reportable_calls = select l.call as id, l.file as file, r.span as span from keyword_free_receivers as l join calls as r on l.call = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable_calls as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let located = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PERF402(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PERF402)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PERF402(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PERF402)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PERF402"});
+observe ruf100_used as noqa_matches;
 emit located subject file key(id);

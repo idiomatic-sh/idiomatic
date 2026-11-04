@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let calls = select id, file, span from nodes where kind = "call";
@@ -63,4 +64,8 @@ let candidates = select l.id as id, l.file as file, r.span as span from found as
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let visible_locations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLR1733(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLR1733)(?:,|$)");
 let violations = select l.id as id, l.file as file, r.span as span, l.context as context from found as l join visible_locations as r on l.id = r.id and l.file = r.file;
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLR1733(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLR1733)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLR1733"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id,context);

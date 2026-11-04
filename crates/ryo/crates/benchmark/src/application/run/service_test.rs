@@ -550,6 +550,8 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         });
     }
     suite.profile = Some(crate::domain::suite::types::Tool {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: std::collections::BTreeMap::new(),
         rule_context: None,
@@ -636,6 +638,8 @@ fn discrepancy_suite() -> SuiteFake {
         }],
     });
     suite.profile = Some(Tool {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: std::collections::BTreeMap::new(),
         rule_context: None,

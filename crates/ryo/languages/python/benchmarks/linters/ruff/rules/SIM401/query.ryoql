@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import binding_type from "python/ruff/binding-type";
 import without_effect from "python/ruff/without-effect";
 import suppress from "python/ruff/suppress";
@@ -107,4 +108,8 @@ let located_statements = select l.id as id, l.file as file, l.span as span, r."s
 let located_expressions = select l.id as id, l.file as file, l.span as span, r."start-line" as line from expression_fitting as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let located = union(left=located_statements, right=located_expressions);
 let violations = suppress(candidates=located, inline-pattern="(?:^|[^A-Z0-9])SIM401(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:SIM401)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=located, inline-pattern="(?:^|[^A-Z0-9])SIM401(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:SIM401)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "SIM401"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 import union_members from "python/ruff/union-members";
 let members = union_members();
@@ -54,4 +55,8 @@ let reportable = select l.id as id, l.file as file from redundant_type_unions as
 let locations = select id, span, "start-line", file from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="PYI055($|[, #])", range-pattern="(?:^|,)PYI055(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="PYI055($|[, #])", range-pattern="(?:^|,)PYI055(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI055"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

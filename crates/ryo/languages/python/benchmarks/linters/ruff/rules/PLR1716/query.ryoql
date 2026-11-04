@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let boolops = select id, file from nodes where kind = "bool-op";
@@ -38,4 +39,8 @@ let bounds = select l.id as id, l.file as file, l.line as line, l.start_span as 
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");
 let candidates = select id, file, span, line from composed;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PLR1716(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLR1716)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])PLR1716(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLR1716)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLR1716"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(span,id);

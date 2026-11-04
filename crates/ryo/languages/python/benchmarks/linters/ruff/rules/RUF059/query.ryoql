@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let events = select occurrence, name, scope, phase, kind, file from "binding-event";
 let bindings = select occurrence as binding, name, scope, phase, file from events where kind = "bind";
@@ -50,4 +51,8 @@ let unused_unpacked = select l.binding as id, l.file as file from report_unused 
 let reportable = select l.id as id, l.file as file, r.span as span from unused_unpacked as l join nodes as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*RUF059(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF059)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*RUF059(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF059)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF059"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

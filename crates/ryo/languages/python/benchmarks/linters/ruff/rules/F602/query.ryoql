@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let dictionaries = select id, file from "semantic-syntax" where kind = "dict";
 let key_fields = select parent, child, ordinal from "semantic-child" where field = "keys";
@@ -16,4 +17,8 @@ let repeated_names = select id from repeated_name_counts;
 let reportable = select l.id as id, r.file as file, r.span as span from repeated_names as l join "semantic-syntax" as r on l.id = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F602(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F602)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F602(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F602)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "F602"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

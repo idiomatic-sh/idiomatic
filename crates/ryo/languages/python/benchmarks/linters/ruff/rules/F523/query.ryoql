@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
@@ -36,4 +37,8 @@ let extra_argument_counts = group-count(from=extra_positional_arguments, keys=["
 let candidates = select l.call as call, l.file as file, r.span as span from extra_argument_counts as l join parsed_calls as r on l.call = r.call and l.file = r.file where r.outcome = "parsed";
 let candidate_locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.call = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])F523(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:F523)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])F523(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:F523)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "F523"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

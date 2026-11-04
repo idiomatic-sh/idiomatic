@@ -21,6 +21,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 )]
 fn subject(_: Input) -> Result<Value, Failure> {
     check(&LinterRyoAdapter {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         rule_observations: Default::default(),
         defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
@@ -60,6 +62,8 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
         state: state.clone(),
     };
     let adapter = LinterRyoAdapter {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         rule_observations: Default::default(),
         defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
@@ -139,7 +143,9 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         )])
     };
     let original = declarations("matched λ\t\\source");
-    let adapter = LinterRyoAdapter {
+    let mut adapter = LinterRyoAdapter {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         rule_observations: original.clone(),
         defaults: vec![consumer.clone(), producer.clone()],
         project_context_mode: Default::default(),
@@ -150,11 +156,23 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         parser_configuration: None,
         source_language: None,
     };
-    for (index, explicit) in [None, Some(declarations("different")), Some(BTreeMap::new())]
-        .into_iter()
-        .enumerate()
+    use crate::domain::suite::types::ObservationSelectionPolicy::{Declared, Selected};
+    for (index, (policy, explicit)) in [
+        (Declared, None),
+        (Declared, Some(declarations("different"))),
+        (Declared, Some(BTreeMap::new())),
+        (Selected, None),
+        (Selected, Some(declarations("different"))),
+        (Selected, Some(BTreeMap::new())),
+    ]
+    .into_iter()
+    .enumerate()
     {
-        let expected = explicit.clone().unwrap_or_else(|| original.clone());
+        adapter.rule_observation_selection = policy;
+        let mut expected = explicit.clone().unwrap_or_else(|| original.clone());
+        if policy == Selected && explicit.is_none() {
+            expected.get_mut(&consumer).unwrap()[0].producers.clear();
+        }
         let request = RunRequest {
             performance: Default::default(),
             project_search_roots: None,

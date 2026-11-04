@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let calls = select id, file from "semantic-syntax" where kind = "call";
 let function_fields = select parent as call, child as function, file from "semantic-child" where field = "func";
@@ -52,4 +53,8 @@ let async_direct_methods = select l.call as call, l.function as function, l.file
 let all_candidates = union(left=async_direct_methods, right=run_spawn_calls);
 let locations = select l.function as id, l.file as file, l.span as span, r."start-line" as line from all_candidates as l join "source-location" as r on l.function = r.id and l.file = r.file;
 let violations = suppress(candidates=locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*ASYNC221(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)ASYNC221(?:,|$)");
+let ruf100_matches = observation_matches(candidates=locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*ASYNC221(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)ASYNC221(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "ASYNC221"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

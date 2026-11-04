@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 import deferred_events from "python/ruff/deferred-read-events";
 let nodes = select id, kind, file, span from "semantic-syntax";
@@ -130,4 +131,8 @@ let global_report_candidates = select current as id, file, span from unreference
 let report_candidates = union(left=ordinary_report_candidates, right=global_report_candidates);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from report_candidates as l join "source-location" as r on l.id = r.id;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F811(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F811)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*F811(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:F811)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "F811"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

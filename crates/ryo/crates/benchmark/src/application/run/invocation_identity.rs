@@ -58,8 +58,18 @@ pub(super) fn normalized_invocation(
         settings["rule_context"] = crate::domain::suite::rule_context::prepared_value(context);
     }
     if !profile.rule_observations.is_empty() {
-        settings["rule_observations"] =
-            crate::domain::suite::observations::value(&profile.rule_observations);
+        let declarations = crate::domain::suite::observations::project_profile(
+            &profile.rule_observations,
+            case.request
+                .selected_rules
+                .as_deref()
+                .unwrap_or(&profile.defaults),
+            profile.rule_observation_selection,
+        );
+        if !declarations.is_empty() {
+            settings["rule_observations"] =
+                crate::domain::suite::observations::value(&declarations);
+        }
     }
     if let Some(declarations) = &case.request.rule_observations {
         settings["rule_observations"] = crate::domain::suite::observations::value(declarations);

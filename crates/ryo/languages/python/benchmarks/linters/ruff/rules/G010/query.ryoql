@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let calls = select id, file from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
@@ -47,4 +48,8 @@ let custom_warn_locations = select l.id as id, r.file as file, r.span as span fr
 let reportable_locations = union(left=direct_warn_locations,right=custom_warn_locations);
 let candidate_locations = select id, file, span, r."start-line" as line from reportable_locations as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*G010(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:G010)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*G010(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:G010)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "G010"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

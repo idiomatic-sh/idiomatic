@@ -105,6 +105,8 @@ fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result
         }
     };
     let tool = Tool {
+        rule_observation_selection:
+            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: std::collections::BTreeMap::new(),
         rule_context: None,

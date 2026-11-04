@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let debugger_calls = select id, file from "qualified-name" where path = "pdb.set_trace" or path = "pudb.set_trace" or path = "ipdb.set_trace" or path = "ipdb.sset_trace" or path = "IPython.terminal.embed.InteractiveShellEmbed" or path = "IPython.frontend.terminal.embed.InteractiveShellEmbed" or path = "celery.contrib.rdb.set_trace" or path = "builtins.breakpoint" or path = "debugpy.breakpoint" or path = "debugpy.listen" or path = "debugpy.wait_for_client" or path = "ptvsd.break_into_debugger" or path = "ptvsd.wait_for_attach" or path = "sys.breakpointhook" or path = "sys.__breakpointhook__" or path = "breakpoint" and provenance = "builtin";
 let call_nodes = select id, file, span from "semantic-syntax" where kind = "call";
@@ -30,4 +31,8 @@ let all_statement_locations = select l.id as id, l.file as file, l.span as span,
 let import_candidates = select l.occurrence as id, l.file as file, r.span as span, r.line as line from all_occurrence_statements as l join all_statement_locations as r on l.statement = r.id and l.file = r.file;
 let candidate_locations = union(left=call_candidates,right=import_candidates);
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*T100(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:T100)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*T100(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:T100)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "T100"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

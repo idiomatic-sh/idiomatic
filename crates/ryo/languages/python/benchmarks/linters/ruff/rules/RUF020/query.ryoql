@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import typing_match from "python/ruff/typing-match-at-visit";
 import suppress from "python/ruff/suppress";
 import type_context from "python/ruff/type-definition-context";
@@ -34,4 +35,8 @@ let never_names = union(left=never_members, right=noreturn_members);
 let candidates = select l.member as id, l.file as file from visited_members as l join never_names as r on l.member = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF020(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF020)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF020(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF020)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF020"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

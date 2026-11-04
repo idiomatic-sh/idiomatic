@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
@@ -52,4 +53,8 @@ let mode_strings = select l.call as call, l.value as value, l.file as file, r.sp
 let bad_modes = select * from mode_strings where matches(mode, ".*[^rwaxUbt+].*") or matches(mode, ".*r.*r.*") or matches(mode, ".*w.*w.*") or matches(mode, ".*a.*a.*") or matches(mode, ".*x.*x.*") or matches(mode, ".*U.*U.*") or matches(mode, ".*b.*b.*") or matches(mode, ".*t.*t.*") or matches(mode, ".*[+].*[+].*") or matches(mode, ".*r.*w.*") or matches(mode, ".*w.*r.*") or matches(mode, ".*r.*a.*") or matches(mode, ".*a.*r.*") or matches(mode, ".*r.*x.*") or matches(mode, ".*x.*r.*") or matches(mode, ".*w.*a.*") or matches(mode, ".*a.*w.*") or matches(mode, ".*w.*x.*") or matches(mode, ".*x.*w.*") or matches(mode, ".*a.*x.*") or matches(mode, ".*x.*a.*") or matches(mode, ".*U.*[wax].*") or matches(mode, ".*[wax].*U.*") or matches(mode, ".*b.*t.*") or matches(mode, ".*t.*b.*") or matches(mode, "^[bt+]*$");
 let candidate_locations = select value as id, file as file, span as span, r."start-line" as line from bad_modes as l join "source-location" as r on l.value = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLW1501(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLW1501)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLW1501(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLW1501)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLW1501"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

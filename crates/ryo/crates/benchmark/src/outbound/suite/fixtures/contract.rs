@@ -121,6 +121,8 @@ pub fn check(adapter: &impl SuitePort) {
     let subject = |operation| {
         let selected = !matches!(operation, Operation::Empty);
         let tool = Tool {
+            rule_observation_selection:
+                crate::domain::suite::types::ObservationSelectionPolicy::Declared,
             supporting_rules: Vec::new(),
             rule_observations: std::collections::BTreeMap::new(),
             rule_context: None,

@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-unmapped-matches";
 import suppress from "python/ruff/suppress-unmapped";
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
@@ -39,4 +40,8 @@ let valid_zip_calls = antijoin(left=keyword_free_zip,right=all_starred_calls,lef
 let reportable = select l.outer as id, l.file as file, r.span as span from valid_zip_calls as l join calls as r on l.outer = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*RUF058(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF058)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*RUF058(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF058)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF058"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

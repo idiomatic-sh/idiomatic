@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let names = select parent as function, child as name, file from "semantic-child" where field = "name";
@@ -36,4 +37,8 @@ let aiter_candidates = select l.annotation as id, l.file as file from async_iter
 let all_candidates = union(left=iter_candidates, right=aiter_candidates);
 let locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from all_candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI045(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)PYI045(?:,|$)");
+let ruf100_matches = observation_matches(candidates=locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI045(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)PYI045(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI045"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

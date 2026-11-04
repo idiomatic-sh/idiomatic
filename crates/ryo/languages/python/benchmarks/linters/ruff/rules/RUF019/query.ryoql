@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import suppress from "python/ruff/suppress";
 import boolean_context from "python/ruff/boolean-test-context";
 import in_comparison from "python/ruff/in-comparison";
@@ -35,4 +36,8 @@ let allowed_keys = select l.owner as owner, l.container as container, l.file as 
 let candidates = select l.owner as id, l.file as file from allowed_keys as l join pure_objects as r on l.container = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF019(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF019)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF019(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF019)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF019"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

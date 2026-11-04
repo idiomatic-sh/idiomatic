@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 import annotation_origins from "python/ruff/annotation-origins";
 import suppress from "python/ruff/suppress";
 import dataclass_decorators from "python/ruff/dataclass-decorators";
@@ -114,4 +115,8 @@ let exemptions = union(left=exemptions_d, right=immutable_newtype_defaults);
 let eligible = antijoin(left=annotations, right=exemptions, left-on=["statement","file"], right-on=["statement","file"]);
 let candidate_locations = select l.value as id, l.file as file, r.span as span, r."start-line" as line from eligible as l join "source-location" as r on l.value = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF009(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF009)(?:,|$)");
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])RUF009(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF009)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF009"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);
