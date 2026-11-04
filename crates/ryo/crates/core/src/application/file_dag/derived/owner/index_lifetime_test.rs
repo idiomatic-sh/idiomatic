@@ -6,6 +6,7 @@ use crate::domain::{
     table_texts::types::SourceView,
 };
 use resource_fixture::ResourceFixture;
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,

@@ -24,9 +24,7 @@ impl<'f> SelectedInput<'f> {
         original: &SelectedRows<'f>,
         columns: &[ColumnIndex],
     ) -> Result<Self, OperatingError> {
-        use crate::domain::derived_views::{
-            collections::views::registration::registered, types::*,
-        };
+        use crate::domain::derived_views::types::*;
         let rows = BorrowedRows::Selected {
             source: original.source,
             positions: &original.selection.rows,
@@ -34,7 +32,8 @@ impl<'f> SelectedInput<'f> {
             kinds: &original.selection.kinds,
         };
         rows.validate()?;
-        let plan = std::sync::Arc::new(registered(DerivedKind::Equality).prepare(
+        let plan = std::sync::Arc::new(super::derived::prepare::view(
+            crate::outbound::derived::factory::test_port(),
             &ViewRequest::Equality {
                 columns: columns.to_vec(),
             },

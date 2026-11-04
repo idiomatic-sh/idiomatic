@@ -6,6 +6,7 @@ use crate::domain::{
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::to_bits,
@@ -124,7 +125,7 @@ fn retained_selections_keep_spare_owner_capacity_and_bounded_reacquisition() -> 
 fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<(), Failure> {
     use crate::application::file_dag::derived::owner::ViewContext;
     use crate::domain::{
-        derived_views::{collections::views::registration::registered, types::*},
+        derived_views::types::*,
         operation_schema::types::InputSchema,
         operator::contract::{types::PredicateProgram, views::BorrowedRows},
         stored_selection::types::Selector,
@@ -168,7 +169,8 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let owner = fixture.owner();
     let proof = owner.admit_external(BorrowedRows::Computed(&table))?;
     let (population, _) = proof.identity(owner)?;
-    let plan = Arc::new(registered(DerivedKind::PredicateMatches).prepare(
+    let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
+        crate::outbound::derived::factory::test_port(),
         &ViewRequest::PredicateMatches(selector),
         &[InputSchema {
             kinds: &[],
@@ -302,10 +304,8 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
 fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> Result<(), Failure> {
     use crate::application::file_dag::{derived::owner::ViewContext, relations::RelationOwner};
     use crate::domain::{
-        derived_views::{collections::views::registration::registered, types::*},
-        operation_schema::types::InputSchema,
-        operator::contract::views::BorrowedRows,
-        table_model::service::push_row,
+        derived_views::types::*, operation_schema::types::InputSchema,
+        operator::contract::views::BorrowedRows, table_model::service::push_row,
     };
     use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -320,13 +320,15 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
         kinds: &table.kinds,
         tree: None,
     }];
-    let distinct = Arc::new(registered(DerivedKind::DistinctRepresentatives).prepare(
+    let distinct = Arc::new(crate::application::file_dag::derived::prepare::view(
+        crate::outbound::derived::factory::test_port(),
         &ViewRequest::DistinctRepresentatives {
             columns: vec![ColumnIndex(0)],
         },
         &schema,
     )?);
-    let order = Arc::new(registered(DerivedKind::PartitionOrder).prepare(
+    let order = Arc::new(crate::application::file_dag::derived::prepare::view(
+        crate::outbound::derived::factory::test_port(),
         &ViewRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
         },

@@ -55,7 +55,7 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
     assert_eq!(
         walk.reached
             .iter()
-            .map(|vertex| reverse.graph.vertices[*vertex as usize])
+            .map(|vertex| reverse.graph.vertices()[*vertex as usize])
             .collect::<Vec<_>>(),
         [number(1), number(2)]
     );
@@ -100,7 +100,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         .unwrap()
         .unwrap();
     let mut walk = GraphWalk::default();
-    let root = graph.graph.vertex_ids[&(0, number(1))];
+    let root = graph.graph.vertex(0, number(1)).expect("prepared vertex");
     let nearest = fixture
         .nearest(
             &graph,
@@ -112,7 +112,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         )
         .unwrap()
         .unwrap();
-    assert_eq!(graph.graph.vertices[nearest as usize], number(3));
+    assert_eq!(graph.graph.vertices()[nearest as usize], number(3));
     let answer = fixture
         .reach(&graph, &[], number(1), &mut walk)
         .unwrap()
@@ -310,7 +310,7 @@ fn impossible_selected_position_admission_does_not_evict_dormant_index() {
         .unwrap();
     assert!(!first.shared);
     assert_eq!(
-        first.graph.vertices,
+        first.graph.vertices(),
         vec![1, 2, 3].into_iter().map(number).collect::<Vec<_>>()
     );
     let cost = fixture.graph_cost(&first);
@@ -370,14 +370,14 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
             .nearest(
                 &graph,
                 &domain,
-                graph.graph.vertex_ids[&(0, number(1))],
+                graph.graph.vertex(0, number(1)).expect("prepared vertex"),
                 Orientation::Forward,
                 &mut local,
                 &mut walk,
             )
             .unwrap();
         assert_eq!(
-            nearest.map(|at| graph.graph.vertices[at as usize]),
+            nearest.map(|at| graph.graph.vertices()[at as usize]),
             Some(number(2))
         );
     }

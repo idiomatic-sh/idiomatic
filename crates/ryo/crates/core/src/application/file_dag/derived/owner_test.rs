@@ -2,14 +2,12 @@
 use super::*;
 use crate::application::file_dag::derived::indexes;
 use crate::domain::{
-    derived_views::{
-        service,
-        types::{MembershipSpace, ViewRequest},
-    },
+    derived_views::types::{MembershipSpace, ViewRequest},
     operation_schema::types::InputSchema,
     operator::contract::views::BorrowedRows,
     table_model::service::push_row,
 };
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -26,8 +24,8 @@ fn source() -> Table {
 
 fn plan() -> Arc<DerivedContract> {
     Arc::new(
-        service::prepare(
-            DerivedKind::PartitionOrder,
+        crate::application::file_dag::derived::prepare::view(
+            crate::outbound::derived::factory::test_port(),
             &ViewRequest::PartitionOrder {
                 keys: vec![ColumnIndex(0)],
             },
@@ -42,8 +40,8 @@ fn plan() -> Arc<DerivedContract> {
 
 fn membership_plan() -> Arc<DerivedContract> {
     Arc::new(
-        service::prepare(
-            DerivedKind::Membership,
+        crate::application::file_dag::derived::prepare::view(
+            crate::outbound::derived::factory::test_port(),
             &ViewRequest::Membership {
                 column: ColumnIndex(0),
             },

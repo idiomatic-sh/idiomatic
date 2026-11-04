@@ -12,12 +12,13 @@ use crate::domain::{
         types::{Emit, OperatorContext, Room},
     },
     operator::contract::types::OperatorContract,
-    table_model::types::{Rows, Table},
+    table_model::types::Rows,
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::{
     plan_parts::types::{Input, StepId},
     plans::types::{Operation, OperationKind},
