@@ -12,7 +12,7 @@ use crate::domain::{
         types::{Emit, OperatorContext, Room},
     },
     operator::contract::types::OperatorContract,
-    table_model::types::{RowCount, Rows, Table},
+    table_model::types::{Rows, Table},
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
@@ -21,6 +21,7 @@ use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::{
     plan_parts::types::{Input, StepId},
     plans::types::{Operation, OperationKind},
+    rows::types::RowCount,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug)]
