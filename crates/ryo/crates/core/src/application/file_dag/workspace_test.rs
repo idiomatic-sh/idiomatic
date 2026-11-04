@@ -148,6 +148,10 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
         .unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone()), None];
+    workspace.origins = vec![
+        crate::application::file_dag::feed::InputOrigin::Internal,
+        crate::application::file_dag::feed::InputOrigin::External,
+    ];
     let use_ = use_(
         DerivedKind::OrderedKeys,
         ViewRequest::OrderedKeys {
@@ -238,6 +242,9 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     let normalized = owner.normalized(&published, raw).unwrap().unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone())];
+    workspace.origins = vec![crate::application::file_dag::feed::InputOrigin::Relation(
+        Relation::LanguageTarget,
+    )];
     let use_ = use_(
         DerivedKind::Equality,
         ViewRequest::Equality {
@@ -257,6 +264,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
         Err(OperatingError::NotRead)
     ));
     workspace.publications[0] = None;
+    workspace.origins[0] = crate::application::file_dag::feed::InputOrigin::External;
     assert!(
         workspace.acquire_rows(&use_, &inputs, &mut context).is_ok(),
         "explicit unpublished temporary uses invocation ownership"
@@ -360,6 +368,12 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
         builds,
         "a supplied publication cannot silently become temporary"
     );
+    workspace.origins.clear();
+    assert!(matches!(
+        workspace.acquire_rows(&use_, &rows, &mut context),
+        Err(OperatingError::MissingInput { position: 1 })
+    ));
+    assert_eq!(owner.derived.counts().0, builds);
 }
 
 use ryo_values::domain::rows::types::RowCount;
