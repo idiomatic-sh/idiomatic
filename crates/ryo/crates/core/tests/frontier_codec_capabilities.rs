@@ -227,7 +227,8 @@ fn compact_lease_pins_backing_until_metadata_is_retired() {
 
 #[test]
 fn compact_random_access_all_value_kinds_and_zero_width_frames() {
-    use ryo_relations::domain::relations::types::{Flag, NodeId, Offset, Span, Symbol};
+    use ryo_relations::domain::relations::types::{Flag, NodeId, Offset, Span};
+    use ryo_relations::domain::terms::types::Symbol;
     let values = Table {
         kinds: vec![
             CellKind::Node,
