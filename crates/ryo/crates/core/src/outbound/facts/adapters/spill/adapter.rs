@@ -15,9 +15,9 @@ use super::types::{
 };
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{ColumnsMut, WordsToKeep};
+use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
+use ryo_values::domain::stored_facts::types::Bucket;
 
 /// The spill facts adapter: the rows of each worker in memory, a file of the adapter's directory for its words.
 #[derive(Debug)]
@@ -181,9 +181,9 @@ impl FactsWorker for SpillWorker {
     }
 
     fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
-        let bytes = &words.0.0;
+        let bytes = &words.words.0;
         if bytes.is_empty() {
-            return Ok(());
+            return Err(refused());
         }
         let spill = &mut self.spill;
         let offset = SpillOffset(
@@ -200,6 +200,8 @@ impl FactsWorker for SpillWorker {
             .push(SpillStretch {
                 offset,
                 length: PackedLength(u64::try_from(bytes.len()).unwrap_or(u64::MAX)),
+                file: words.file,
+                proof: words.proof.clone(),
             });
         // The file is made only when what waits reaches the bound: a run that keeps little spills nothing to disk.
         if spill.pending.0.len() >= FLUSH_AT {
@@ -236,8 +238,8 @@ struct SpillFinish {
 }
 
 impl FactsFinish for SpillFinish {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
-        let mut words = KeptWords::default();
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let mut words = KeptBucket::default();
         for spill in &self.spilled {
             let Some(stretches) = spill.stretches.get(&bucket) else {
                 continue;
@@ -246,11 +248,17 @@ impl FactsFinish for SpillFinish {
                 let length = usize::try_from(stretch.length.0).unwrap_or(usize::MAX);
                 match &spill.file {
                     SpillFile::Open(file) => {
-                        let start = words.0.0.len();
-                        words.0.0.resize(start.saturating_add(length), 0);
-                        let room = words.0.0.get_mut(start..).ok_or_else(refused)?;
+                        let start = words.words.0.0.len();
+                        words.words.0.0.resize(start.saturating_add(length), 0);
+                        let room = words.words.0.0.get_mut(start..).ok_or_else(refused)?;
                         read_exact_at(file, RoomToFill(room), stretch.offset)
                             .map_err(|error| spilled(&error))?;
+                        words.sources.push(BucketSource {
+                            file: stretch.file,
+                            start,
+                            length,
+                            proof: stretch.proof.clone(),
+                        });
                     }
                     SpillFile::Missing => {
                         let start = usize::try_from(stretch.offset.0).unwrap_or(usize::MAX);
@@ -259,7 +267,14 @@ impl FactsFinish for SpillFinish {
                             .0
                             .get(start..start.saturating_add(length))
                             .ok_or_else(refused)?;
-                        words.0.0.extend_from_slice(held);
+                        let start = words.words.0.0.len();
+                        words.words.0.0.extend_from_slice(held);
+                        words.sources.push(BucketSource {
+                            file: stretch.file,
+                            start,
+                            length,
+                            proof: stretch.proof.clone(),
+                        });
                     }
                 }
             }
@@ -275,10 +290,18 @@ struct Joined {
 }
 
 impl FactsFinish for Joined {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
-        let mut words = KeptWords::default();
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let mut words = KeptBucket::default();
         for part in &self.parts {
-            words.0.0.extend(part.kept(bucket)?.0.0);
+            let each = part.kept(bucket)?;
+            let offset = words.words.0.0.len();
+            words.words.0.0.extend(each.words.0.0);
+            words
+                .sources
+                .extend(each.sources.into_iter().map(|mut source| {
+                    source.start += offset;
+                    source
+                }));
         }
         Ok(words)
     }

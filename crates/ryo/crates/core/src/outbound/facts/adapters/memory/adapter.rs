@@ -11,9 +11,9 @@ use super::constants::SCHEMAS;
 use super::types::RefusalText;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
-use crate::outbound::facts::types::{ColumnsMut, WordsToKeep};
+use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
+use ryo_values::domain::stored_facts::types::Bucket;
 
 /// The memory facts adapter: it holds nothing, so workers share nothing through it.
 #[derive(Debug)]
@@ -38,7 +38,7 @@ struct MemoryWorker {
     /// The columns of each relation for the worker's file, in the order of all relations.
     tables: Vec<Vec<FactColumn>>,
     /// The words kept so far, in a column for each bucket.
-    words: BTreeMap<Bucket, KeptWords>,
+    words: BTreeMap<Bucket, KeptBucket>,
 }
 
 impl FactsWorker for MemoryWorker {
@@ -73,12 +73,18 @@ impl FactsWorker for MemoryWorker {
     }
 
     fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError> {
-        self.words
-            .entry(bucket)
-            .or_default()
-            .0
-            .0
-            .extend_from_slice(&words.0.0);
+        if words.words.0.is_empty() {
+            return Err(refused(RefusalText(SCHEMAS)));
+        }
+        let kept = self.words.entry(bucket).or_default();
+        let start = kept.words.0.0.len();
+        kept.words.0.0.extend_from_slice(&words.words.0);
+        kept.sources.push(BucketSource {
+            file: words.file,
+            start,
+            length: words.words.0.len(),
+            proof: words.proof.clone(),
+        });
         Ok(())
     }
 
@@ -105,15 +111,15 @@ impl FactsWorker for MemoryWorker {
 /// What a worker finished with: its words in each bucket.
 struct MemoryFinish {
     /// Its words, in a column for each bucket.
-    kept: BTreeMap<Bucket, KeptWords>,
+    kept: BTreeMap<Bucket, KeptBucket>,
 }
 
 impl FactsFinish for MemoryFinish {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
         Ok(self
             .kept
             .get(&bucket)
-            .map_or_else(KeptWords::default, Clone::clone))
+            .map_or_else(KeptBucket::default, Clone::clone))
     }
 }
 
@@ -124,10 +130,18 @@ struct Joined {
 }
 
 impl FactsFinish for Joined {
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError> {
-        let mut words = KeptWords::default();
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        let mut words = KeptBucket::default();
         for part in &self.parts {
-            words.0.0.extend(part.kept(bucket)?.0.0);
+            let each = part.kept(bucket)?;
+            let offset = words.words.0.0.len();
+            words.words.0.0.extend(each.words.0.0);
+            words
+                .sources
+                .extend(each.sources.into_iter().map(|mut source| {
+                    source.start += offset;
+                    source
+                }));
         }
         Ok(words)
     }

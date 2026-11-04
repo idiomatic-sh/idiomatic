@@ -290,6 +290,9 @@ pub(super) struct ObservationSchema {
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct RestSchema<'a> {
     observations: Vec<ObservationSchema>,
+    /// Source identity and coverage for each payload row, in the rest section
+    /// so existing bucket byte framing and unchanged-bucket copying stay exact.
+    proofs: Vec<FrontierProofSchema>,
     /// Every text the rows name, each once.
     #[serde(borrow)]
     strings: Vec<Cow<'a, str>>,
@@ -303,6 +306,29 @@ pub(super) struct RestSchema<'a> {
     covered: Vec<CoveredSchema<'a>>,
     /// The relations of each file read in part.
     partials: Vec<PartialSchema>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum FrontierAffectedSchema {
+    CurrentFile,
+    Repository,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum FrontierCoverageSchema {
+    Complete,
+    Partial(Vec<FrontierAffectedSchema>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct FrontierProofSchema {
+    file: u32,
+    bucket: u32,
+    version: u32,
+    rule: u32,
+    input: u32,
+    rule_digest: [u8; 16],
+    coverage: FrontierCoverageSchema,
 }
 
 /// The words one file handed one bucket: one row for each file, in a section of the bucket's own.
@@ -804,6 +830,68 @@ impl TryFrom<TablesSchema<'_>> for Stored {
 }
 
 /// The section of what the files of `stored` handed but their words.
+fn proof_schema(
+    row: &ryo_values::domain::stores::types::StoredFrontierProof,
+) -> FrontierProofSchema {
+    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
+    FrontierProofSchema {
+        file: row.file.0,
+        bucket: row.bucket.0,
+        version: row.proof.version,
+        rule: row.proof.rule,
+        input: row.proof.input,
+        rule_digest: row.proof.rule_digest.0,
+        coverage: match &row.proof.coverage {
+            FrontierCoverage::Complete => FrontierCoverageSchema::Complete,
+            FrontierCoverage::Partial(affected) => FrontierCoverageSchema::Partial(
+                affected
+                    .iter()
+                    .map(|cause| match cause {
+                        FrontierAffected::CurrentFile => FrontierAffectedSchema::CurrentFile,
+                        FrontierAffected::Repository => FrontierAffectedSchema::Repository,
+                    })
+                    .collect(),
+            ),
+        },
+    }
+}
+
+fn proof_row(
+    row: &FrontierProofSchema,
+) -> Result<ryo_values::domain::stores::types::StoredFrontierProof, postcard::Error> {
+    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage, FrontierProof};
+    if row.version != 1 {
+        return Err(postcard::Error::DeserializeBadEncoding);
+    }
+    let coverage = match &row.coverage {
+        FrontierCoverageSchema::Complete => FrontierCoverage::Complete,
+        FrontierCoverageSchema::Partial(affected) => {
+            let values = affected
+                .iter()
+                .map(|cause| match cause {
+                    FrontierAffectedSchema::CurrentFile => FrontierAffected::CurrentFile,
+                    FrontierAffectedSchema::Repository => FrontierAffected::Repository,
+                })
+                .collect::<Vec<_>>();
+            if values.is_empty() || !values.windows(2).all(|pair| pair[0] < pair[1]) {
+                return Err(postcard::Error::DeserializeBadEncoding);
+            }
+            FrontierCoverage::Partial(values)
+        }
+    };
+    Ok(ryo_values::domain::stores::types::StoredFrontierProof {
+        file: StoredFileNumber(row.file),
+        bucket: Bucket(row.bucket),
+        proof: FrontierProof {
+            version: row.version,
+            rule: row.rule,
+            input: row.input,
+            rule_digest: Digest(row.rule_digest),
+            coverage,
+        },
+    })
+}
+
 fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
     let mut strings = StringsSchema::default();
     let bytes = |file: StoredFileNumber, bytes: &'a [u8]| BytesSchema {
@@ -857,6 +945,7 @@ fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
         .collect();
     RestSchema {
         observations,
+        proofs: stored.proofs.iter().map(proof_schema).collect(),
         texts: stored
             .texts
             .iter()
@@ -887,6 +976,18 @@ fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
 /// What the files handed but their words, from its section.
 fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
     let strings = &rest.strings;
+    let mut proofs = rest
+        .proofs
+        .iter()
+        .map(proof_row)
+        .collect::<Result<Vec<_>, _>>()?;
+    proofs.sort_by_key(|row| (row.file.0, row.bucket.0));
+    if proofs
+        .windows(2)
+        .any(|pair| pair[0].file == pair[1].file && pair[0].bucket == pair[1].bucket)
+    {
+        return Err(postcard::Error::DeserializeBadEncoding);
+    }
     let mut covered = rest
         .covered
         .iter()
@@ -914,6 +1015,7 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
         }
     }
     Ok(StoredHanded {
+        proofs,
         observations: rest
             .observations
             .iter()
@@ -1144,17 +1246,28 @@ pub(super) fn rest_from(bytes: &[u8]) -> Option<StoredHanded> {
 
 /// The words the files handed `bucket`, from its section's bytes.
 #[cfg(test)]
-pub(super) fn bucket_from(bucket: Bucket, bytes: &[u8]) -> Option<Vec<StoredWords>> {
+pub(super) fn bucket_from(
+    bucket: Bucket,
+    bytes: &[u8],
+    proofs: &[ryo_values::domain::stores::types::StoredFrontierProof],
+) -> Option<Vec<StoredWords>> {
     postcard::from_bytes::<Vec<WordsSchema<'_>>>(bytes)
         .ok() // ignore: idiomatic.arch/no-ok-on-result - a section that does not read back holds nothing the run can use again: the files are read again
-        .map(|rows| {
+        .and_then(|rows| {
             rows.into_iter()
-                .map(|each| StoredWords {
-                    file: StoredFileNumber(each.file),
-                    bucket,
-                    words: PackedWords(each.words.into_owned()),
+                .map(|each| {
+                    Some(StoredWords {
+                        file: StoredFileNumber(each.file),
+                        bucket,
+                        proof: proofs
+                            .iter()
+                            .find(|row| row.file.0 == each.file && row.bucket == bucket)?
+                            .proof
+                            .clone(),
+                        words: PackedWords(each.words.into_owned()),
+                    })
                 })
-                .collect()
+                .collect::<Option<Vec<_>>>()
         })
 }
 

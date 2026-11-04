@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::{FileId, Relation, Rows};
 
 use ryo_relations::domain::relations::types::FactColumn;
 
-use ryo_values::domain::stored_facts::types::PackedWords;
+use ryo_values::domain::stored_facts::types::{KeptWords, PackedWords};
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
 
 /// Whether resident fact rows remain unchanged during one file's read/keep phase.
@@ -18,9 +18,30 @@ pub enum ResidentStability {
     Unstable,
 }
 
-/// The words one call of `keep` adds to a bucket, packed and borrowed.
+/// One physical file's packed frontier, with the identity and coverage issued
+/// by the owner that captured it. The proof is required even for empty rows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct WordsToKeep<'a>(pub &'a PackedWords);
+pub struct WordsToKeep<'a> {
+    pub words: &'a PackedWords,
+    pub file: FileId,
+    pub proof: &'a ryo_values::domain::records::types::FrontierProof,
+}
+
+/// One exact source range inside the concatenated bucket bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BucketSource {
+    pub file: FileId,
+    pub start: usize,
+    pub length: usize,
+    pub proof: ryo_values::domain::records::types::FrontierProof,
+}
+
+/// The existing bucket payload and its mandatory per-source provenance.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct KeptBucket {
+    pub words: KeptWords,
+    pub sources: Vec<BucketSource>,
+}
 
 /// What the columns the worker's file writes to are made of, generated from the catalog's one list: a field for
 /// each relation, and the rows of each pushed onto its own columns.

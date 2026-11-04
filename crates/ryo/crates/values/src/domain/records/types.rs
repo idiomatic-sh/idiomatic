@@ -233,8 +233,45 @@ impl From<PackedWords> for RecordWords {
 pub struct HandedWords {
     /// The bucket.
     pub bucket: Bucket,
+    /// Source-bound coverage and root identity for this exact bucket.
+    pub proof: FrontierProof,
     /// The words.
     pub words: RecordWords,
+}
+
+/// The physical absence scope retained with a per-file frontier.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FrontierAffected {
+    /// This frontier's containing file is incomplete.
+    CurrentFile,
+    /// The source reported a repository-wide incomplete relation.
+    Repository,
+}
+
+/// A complete frontier or the precise physical scopes still uncertain.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FrontierCoverage {
+    /// Every physical input needed by this frontier was complete.
+    Complete,
+    /// A nonempty, distinct set of affected scopes; validated at admission.
+    Partial(Vec<FrontierAffected>),
+}
+
+/// Persisted root identity. The containing file and bucket remain part of the
+/// enclosing record; a new owner validates this proof against its current rule
+/// digest, frontier ordinal, physical file and observed coverage before use.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FrontierProof {
+    /// Proof layout version; unknown versions are refused.
+    pub version: u32,
+    /// Producer rule ordinal in the request that wrote this bucket.
+    pub rule: u32,
+    /// Original frontier ordinal within that rule.
+    pub input: u32,
+    /// Current compiled rule identity, compared with the stored rule contract.
+    pub rule_digest: Digest,
+    /// The exact physical coverage of this frontier.
+    pub coverage: FrontierCoverage,
 }
 
 /// The rules that govern a file, by their place among the rules.
@@ -264,6 +301,8 @@ pub struct Unread {
 pub struct Kept {
     /// The bucket.
     pub bucket: Bucket,
+    /// Proof of this bucket's producer and physical coverage.
+    pub proof: FrontierProof,
     /// The words, as the store keeps them.
     pub words: KeptWords,
 }

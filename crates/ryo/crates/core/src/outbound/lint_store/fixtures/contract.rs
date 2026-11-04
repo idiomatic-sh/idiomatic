@@ -31,11 +31,13 @@ pub fn materialized_handed(
         rows.push(StoredWords {
             file: row.file,
             bucket: row.bucket,
+            proof: row.proof,
             words,
         });
     }
     Ok(StoredHanded {
         observations: handed.observations,
+        proofs: handed.proofs,
         frontier: rows,
         texts: handed.texts,
         notes: handed.notes,
@@ -189,6 +191,7 @@ fn answer(
             let read_now = StoredWords {
                 file: StoredFileNumber(0),
                 bucket: Bucket(3),
+                proof: super::proof(),
                 words: PackedWords(vec![5]),
             };
             let was = stored(1).handed.frontier;

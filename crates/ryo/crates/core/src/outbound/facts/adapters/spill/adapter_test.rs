@@ -6,9 +6,8 @@ use std::path::PathBuf;
 use super::adapter::FactsSpillAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::fixtures::contract::check;
+use crate::outbound::facts::fixtures::contract::{check, test_words};
 use crate::outbound::facts::interface::FactsPort as _;
-use crate::outbound::facts::types::WordsToKeep;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 
@@ -60,10 +59,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let adapter = FactsSpillAdapter::new(directory.path().to_path_buf());
             let mut worker = adapter.worker()?;
             let words = past_the_bound();
-            worker.keep(Bucket(4), WordsToKeep(&words))?;
-            worker.keep(Bucket(4), WordsToKeep(&PackedWords(vec![7, 8, 9])))?;
+            worker.keep(Bucket(4), test_words(&words))?;
+            worker.keep(Bucket(4), test_words(&PackedWords(vec![7, 8, 9])))?;
             let finished = adapter.finish(&mut vec![worker].into_iter())?;
-            let kept = finished.kept(Bucket(4))?.0.0;
+            let kept = finished.kept(Bucket(4))?.words.0.0;
             Ok(usize::from(
                 kept.len() == words.0.len() + 3 && kept.ends_with(&[7, 8, 9]),
             ))
@@ -72,14 +71,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let directory = tempfile::tempdir().expect("a directory");
             let adapter = FactsSpillAdapter::new(directory.path().to_path_buf());
             let mut worker = adapter.worker()?;
-            worker.keep(Bucket(4), WordsToKeep(&PackedWords(vec![7, 8, 9])))?;
+            worker.keep(Bucket(4), test_words(&PackedWords(vec![7, 8, 9])))?;
             let finished = adapter.finish(&mut vec![worker].into_iter())?;
             let empty = std::fs::read_dir(directory.path())
                 .expect("the directory reads")
                 .next()
                 .is_none();
             Ok(usize::from(
-                empty && finished.kept(Bucket(4))?.0.0 == [7, 8, 9],
+                empty && finished.kept(Bucket(4))?.words.0.0 == [7, 8, 9],
             ))
         }
         Scenario::MissingDirectory => {
@@ -87,7 +86,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 FactsSpillAdapter::new(PathBuf::from("/this/directory/is/missing/for/the/spill"));
             let mut worker = adapter.worker()?;
             worker
-                .keep(Bucket(4), WordsToKeep(&past_the_bound()))
+                .keep(Bucket(4), test_words(&past_the_bound()))
                 .map(|()| 0)
         }
     }

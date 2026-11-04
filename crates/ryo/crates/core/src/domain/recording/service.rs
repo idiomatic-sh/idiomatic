@@ -106,6 +106,7 @@ pub(crate) fn moved_words(
         remap_packed(&each.words.0, &plain, &mut words)?;
         moved.push(BucketWords {
             bucket: each.bucket,
+            proof: each.proof.clone(),
             word_count: words.0.len(),
             words: pack(WordSlice(&words.0)),
         });
@@ -197,6 +198,7 @@ pub(crate) fn made_ran(
                 .into_iter()
                 .map(|each| HandedWords {
                     bucket: each.bucket,
+                    proof: each.proof,
                     words: each.words.into(),
                 })
                 .collect(),

@@ -48,6 +48,7 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
             handed: Handing::Made(Handed {
                 buckets: vec![HandedWords {
                     bucket: Bucket(0),
+                    proof: crate::outbound::lint_store::fixtures::proof(),
                     words: PackedWords(packed).into(),
                 }],
                 text: ArenaBytes(text),
@@ -187,6 +188,7 @@ fn staged_records_and_final_store_retain_only_descriptors_for_large_logical_payl
                 handed: Handing::Made(Handed {
                     buckets: vec![HandedWords {
                         bucket: Bucket(0),
+                        proof: crate::outbound::lint_store::fixtures::proof(),
                         words: RecordWords::Staged(StagedWords {
                             session: StagingSession(1),
                             offset: u64::from(number) * 1024 * 1024,

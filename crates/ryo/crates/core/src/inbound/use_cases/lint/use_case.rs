@@ -1389,9 +1389,11 @@ impl LintUseCase for LintUseCaseImpl {
             self.operators.as_ref(),
         );
         let services = ProgramServices::new(&executor, Arc::clone(&self.derived));
+        let rule_digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let program = facade::prepare(
             compiled,
             &rules,
+            &rule_digests,
             &request.hosted,
             Arc::clone(&self.derived),
             identities.observations,

@@ -30,12 +30,12 @@ pub(crate) fn cross_rule_with_inputs(
             .iter()
             .flat_map(|input| -> Box<dyn Iterator<Item = Name> + '_> {
                 match input {
-                    FrontierInput::Decoded(input) => {
-                        Box::new(input.table.cells.iter().filter_map(|value| match value {
-                            Value::Name(name) => Some(*name),
-                            _ => None,
-                        }))
-                    }
+                    FrontierInput::Decoded {
+                        frontier: input, ..
+                    } => Box::new(input.table.cells.iter().filter_map(|value| match value {
+                        Value::Name(name) => Some(*name),
+                        _ => None,
+                    })),
                     FrontierInput::Compact { spelling, .. } => Box::new(spelling.iter().copied()),
                 }
             }),

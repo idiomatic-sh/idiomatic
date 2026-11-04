@@ -568,7 +568,13 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 &plan,
                 frontier
                     .into_iter()
-                    .map(crate::application::cross_file::types::FrontierInput::Decoded)
+                    .map(
+                        |frontier| crate::application::cross_file::types::FrontierInput::Decoded {
+                            frontier,
+                            coverage:
+                                crate::application::file_dag::completion::CoverageState::Complete,
+                        },
+                    )
                     .collect(),
                 &[],
                 &partials,

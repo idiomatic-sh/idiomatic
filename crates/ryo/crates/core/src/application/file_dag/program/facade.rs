@@ -33,6 +33,8 @@ pub(crate) use super::facade_runtime::{
 };
 pub(crate) struct CaptureContext<'a> {
     pub file: ryo_relations::domain::relations::types::FileId,
+    /// Current rule identity validated by the store before warm replay.
+    pub rule_digest: ryo_values::domain::stored_facts::types::Digest,
     pub worker: ryo_relations::domain::relations::types::WorkerNumber,
     pub retained: crate::domain::finish::types::Retained<'a>,
     pub words: &'a mut Words,
@@ -49,6 +51,8 @@ pub(crate) struct FrontierCapture {
 pub(crate) struct CapturedFrontier {
     pub input: ryo_values::domain::plan_parts::types::InputNumber,
     pub bucket: ryo_values::domain::stored_facts::types::Bucket,
+    /// Source-bound root and physical coverage retained with the packed words.
+    pub proof: ryo_values::domain::records::types::FrontierProof,
     pub words: ryo_values::domain::stored_facts::types::PackedWords,
 }
 #[derive(Clone, Copy)]
@@ -148,6 +152,7 @@ pub(in crate::application) struct ObservationMetadata {
 /// Immutable executable state has no RequestGraph, Plan, layout or old executor.
 pub(crate) struct PreparedProgram {
     program: Arc<ExecutableProgram>,
+    rule_digests: Box<[ryo_values::domain::stored_facts::types::Digest]>,
     bindings: Box<[Box<[ParameterBinding]>]>,
     rules: Box<[RuleMetadata]>,
     observations: Option<ObservationMetadata>,
@@ -158,6 +163,15 @@ pub(crate) struct PreparedProgram {
     derived: super::super::derived::prepared::PreparedDerived,
 }
 impl PreparedProgram {
+    pub(crate) fn rule_digest(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ryo_values::domain::stored_facts::types::Digest, OperatingError> {
+        self.rule_digests
+            .get(rule.0)
+            .copied()
+            .ok_or(OperatingError::NotRun)
+    }
     pub(super) fn program(&self) -> &Arc<ExecutableProgram> {
         &self.program
     }
@@ -371,10 +385,14 @@ impl PreparedProgram {
 pub(crate) fn prepare(
     compiled: Compiled,
     rules: &[RuleSpec],
+    rule_digests: &[ryo_values::domain::stored_facts::types::Digest],
     hosted: &[HostRelation],
     derived: Arc<dyn DerivedPort>,
     identity: ObservationIdentity,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
+    if rule_digests.len() != rules.len() {
+        return Err(OperatingError::WrongOperation);
+    }
     let Compiled {
         plans,
         bindings,
@@ -512,6 +530,7 @@ pub(crate) fn prepare(
     );
     Ok(Arc::new(PreparedProgram {
         program,
+        rule_digests: rule_digests.to_vec().into_boxed_slice(),
         bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),
         rules: metadata.into_boxed_slice(),
         observations: named,

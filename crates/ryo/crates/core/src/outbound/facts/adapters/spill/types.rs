@@ -22,12 +22,15 @@ pub(crate) struct SpillOffset(pub u64);
 pub(crate) struct PackedLength(pub u64);
 
 /// A stretch of a spill file: the words one call of `keep` added to a bucket.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct SpillStretch {
     /// Where the stretch starts.
     pub offset: SpillOffset,
     /// How many bytes of packed words it holds.
     pub length: PackedLength,
+    /// Exact physical file and root proof that issued these bytes.
+    pub file: ryo_relations::domain::relations::types::FileId,
+    pub proof: ryo_values::domain::records::types::FrontierProof,
 }
 
 /// The file the words of a worker are kept in.

@@ -18,6 +18,7 @@ fn row(file: u32, length: usize) -> StoredWords {
     StoredWords {
         file: StoredFileNumber(file),
         bucket: Bucket(3),
+        proof: crate::outbound::lint_store::fixtures::proof(),
         words: PackedWords(
             (0..length)
                 .map(|at| u8::try_from(at % 256).expect("byte"))

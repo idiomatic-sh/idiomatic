@@ -49,6 +49,9 @@ impl ReadStore for MemoryRead {
             handed
                 .frontier
                 .retain(|each| buckets.binary_search(&each.bucket).is_ok());
+            handed
+                .proofs
+                .retain(|each| buckets.binary_search(&each.bucket).is_ok());
         }
         Ok(ryo_values::domain::stores::service::read_handed(handed))
     }
@@ -93,6 +96,11 @@ impl ReadStore for MemoryRead {
             .handed
             .frontier
             .sort_by_key(|each| (each.file, each.bucket));
+        ryo_values::domain::stores::service::carry_proofs(
+            &mut stored.handed,
+            &self.was.handed,
+            kept,
+        );
         *self.cell.0.lock().unwrap_or_else(PoisonError::into_inner) = Arc::new(stored);
         Ok(())
     }

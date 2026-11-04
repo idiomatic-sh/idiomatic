@@ -615,6 +615,7 @@ impl FileAnalysis {
                     &mut context,
                     facade::CaptureContext {
                         file,
+                        rule_digest: visit.setting.program.rule_digest(rule)?,
                         worker: tables.number,
                         retained: crate::domain::finish::types::Retained {
                             arena: crate::domain::finish::types::Arena(&mut tables.arena.0),
@@ -651,13 +652,23 @@ impl FileAnalysis {
                 {
                     continue;
                 }
-                worker
-                    .facts
-                    .keep(capture.bucket, WordsToKeep(&capture.words))?;
+                worker.facts.keep(
+                    capture.bucket,
+                    WordsToKeep {
+                        words: &capture.words,
+                        file,
+                        proof: &capture.proof,
+                    },
+                )?;
                 run.commit_frontier(rule, capture.input)?;
                 if visit.setting.keeping == Keeping::Keeps {
                     tables.packed = capture.words;
-                    capture_frontier(tables, visit.setting.answering, capture.bucket);
+                    capture_frontier(
+                        tables,
+                        visit.setting.answering,
+                        capture.bucket,
+                        capture.proof,
+                    );
                 }
             }
             let counts = run.counts(rule)?;
@@ -1025,7 +1036,16 @@ impl FileAnalysis {
                             &loaded
                         }
                     };
-                    Self::hand_words_again(worker, setting, each.bucket, words, &map, &mut out)?;
+                    Self::hand_words_again(
+                        worker,
+                        setting,
+                        number,
+                        each.bucket,
+                        &each.proof,
+                        words,
+                        &map,
+                        &mut out,
+                    )?;
                 }
             }
             // What the store kept of the file is handed as it is read, its words moved as they are unpacked: none is copied first.
@@ -1081,7 +1101,16 @@ impl FileAnalysis {
                             &loaded
                         }
                     };
-                    Self::hand_words_again(worker, setting, each.bucket, words, &map, &mut out)?;
+                    Self::hand_words_again(
+                        worker,
+                        setting,
+                        number,
+                        each.bucket,
+                        &each.proof,
+                        words,
+                        &map,
+                        &mut out,
+                    )?;
                 }
             }
         }
@@ -1093,11 +1122,47 @@ impl FileAnalysis {
     fn hand_words_again(
         worker: &mut Worker,
         setting: &VisitSetting<'_>,
+        file: FileId,
         bucket: Bucket,
+        proof: &ryo_values::domain::records::types::FrontierProof,
         words: &PackedWords,
         map: &Remap,
         out: &mut Words,
     ) -> Result<(), FileAnalysisError> {
+        use ryo_values::domain::records::types::FrontierCoverage;
+        let rule = RuleIndex(usize::try_from(proof.rule).unwrap_or(usize::MAX));
+        let input = usize::try_from(proof.input).unwrap_or(usize::MAX);
+        let valid = proof.version == 1
+            && setting.program.rule_digest(rule).ok() == Some(proof.rule_digest)
+            && setting
+                .program
+                .frontiers(rule)
+                .ok()
+                .and_then(|frontiers| frontiers.get(input))
+                .is_some()
+            && setting
+                .metadata
+                .get(rule.0)
+                .and_then(|rule| rule.frontier_capture.get(input))
+                .copied()
+                == Some(true)
+            && setting.first_bucket.get(rule.0).copied().map(|first| {
+                crate::domain::reading::service::frontier_bucket(first, InputNumber(input))
+            }) == Some(bucket)
+            && match &proof.coverage {
+                FrontierCoverage::Complete => true,
+                FrontierCoverage::Partial(affected) => {
+                    !affected.is_empty() && affected.windows(2).all(|pair| pair[0] < pair[1])
+                }
+            };
+        if !valid {
+            return Err(
+                crate::domain::operating::errors::OperatingError::ObservationIncomplete {
+                    reason: "stored frontier proof does not match the prepared root".into(),
+                }
+                .into(),
+            );
+        }
         if let BucketsWanted::These(buckets) = setting.wanted_buckets
             && buckets.binary_search(&bucket).is_err()
         {
@@ -1108,9 +1173,14 @@ impl FileAnalysis {
             let packed = &mut worker.tables.packed;
             packed.0.clear();
             pack_onto(WordSlice(&out.0), packed);
-            worker
-                .facts
-                .keep(bucket, WordsToKeep(&worker.tables.packed))?;
+            worker.facts.keep(
+                bucket,
+                WordsToKeep {
+                    words: &worker.tables.packed,
+                    file,
+                    proof,
+                },
+            )?;
         }
         Ok(())
     }

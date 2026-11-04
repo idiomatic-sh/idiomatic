@@ -209,9 +209,20 @@ impl LintStorePostcardAdapter {
             for row in super::types::frames::value::old_word_rows(file, each.span)
                 .map_err(|error| self.unreadable(&error))?
             {
+                let proof = handed
+                    .proofs
+                    .binary_search_by_key(&(row.file.0, each.bucket.0), |entry| {
+                        (entry.file.0, entry.bucket.0)
+                    })
+                    .ok()
+                    .and_then(|at| handed.proofs.get(at))
+                    .ok_or_else(|| self.unreadable(&UNDECODED))?
+                    .proof
+                    .clone();
                 handed.frontier.push(ReadWords {
                     file: row.file,
                     bucket: each.bucket,
+                    proof,
                     words: ReadWordPayload::Old(OldWords {
                         snapshot,
                         bucket: each.bucket,
@@ -628,7 +639,7 @@ impl ReadStore for PostcardRead {
             .map_err(|error| self.adapter.unreadable(&error))
     }
 
-    fn keep(&self, stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
+    fn keep(&self, mut stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {
         let store = &self.adapter.store;
         let unchanged = &kept.unchanged;
         let unwritable = |reason: &dyn std::fmt::Display| LintStoreError::Unwritable {
@@ -655,10 +666,49 @@ impl ReadStore for PostcardRead {
         }
         let by_bucket = super::types::frames::value::fresh(&stored.handed.frontier, &kept.staged)
             .map_err(|error| unwritable(&error))?;
-        let old_contents = old
+        let old_tables = old
             .as_ref()
-            .and_then(|opened| contents(&store.build.0, &opened.contents.0))
-            .map(|each| each.buckets);
+            .and_then(|opened| contents(&store.build.0, &opened.contents.0));
+        if let (Some(opened), Some(tables)) = (old.as_deref_mut(), old_tables.as_ref()) {
+            let rest = section(&mut opened.file, tables.rest)
+                .map_err(|error| self.adapter.unreadable(&error))?;
+            let previous = rest_from(&rest.0).ok_or_else(|| self.adapter.unreadable(&UNDECODED))?;
+            ryo_values::domain::stores::service::carry_proofs(&mut stored.handed, &previous, kept);
+        }
+        stored
+            .handed
+            .proofs
+            .sort_by_key(|row| (row.file.0, row.bucket.0));
+        let proofs = &stored.handed.proofs;
+        if proofs
+            .windows(2)
+            .any(|pair| (pair[0].file.0, pair[0].bucket.0) >= (pair[1].file.0, pair[1].bucket.0))
+        {
+            return Err(unwritable(
+                &"frontier proofs have duplicate or unordered source keys",
+            ));
+        }
+        let proof_for = |file: ryo_values::domain::stores::types::StoredFileNumber,
+                         bucket: Bucket| {
+            proofs
+                .binary_search_by_key(&(file.0, bucket.0), |row| (row.file.0, row.bucket.0))
+                .ok()
+                .and_then(|at| proofs.get(at))
+                .map(|row| &row.proof)
+        };
+        if stored
+            .handed
+            .frontier
+            .iter()
+            .any(|row| proof_for(row.file, row.bucket) != Some(&row.proof))
+            || kept
+                .staged
+                .iter()
+                .any(|row| proof_for(row.file, row.bucket).is_none())
+        {
+            return Err(unwritable(&"frontier payload lacks its exact source proof"));
+        }
+        let old_contents = old_tables.map(|each| each.buckets);
         std::fs::create_dir_all(Path::new(&*store.directory.0))
             .map_err(|error| unwritable(&error))?;
         let temporary = Path::new(&*store.directory.0).join(format!(

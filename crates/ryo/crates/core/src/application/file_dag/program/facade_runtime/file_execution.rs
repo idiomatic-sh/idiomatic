@@ -230,6 +230,7 @@ impl FileRun<'_, '_> {
         };
         let CaptureContext {
             file,
+            rule_digest,
             worker,
             retained,
             words,
@@ -243,6 +244,7 @@ impl FileRun<'_, '_> {
                     &Partition::File(FileGeneration::from_owner(file, &self.owner)),
                     context,
                 )?;
+                let coverage = file_frontier_coverage(admitted.coverage()?, file)?;
                 let mut table = table_of(&self.owner, &admitted, read)?;
                 let before = places.len();
                 crate::domain::finish::service::escape(
@@ -267,6 +269,13 @@ impl FileRun<'_, '_> {
                 Ok(CapturedFrontier {
                     input,
                     bucket: crate::domain::reading::service::frontier_bucket(first, input),
+                    proof: ryo_values::domain::records::types::FrontierProof {
+                        version: 1,
+                        rule: u32::try_from(rule.0).map_err(|_| OperatingError::ShapeMismatch)?,
+                        input: u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
+                        rule_digest,
+                        coverage,
+                    },
                     words: packed,
                 })
             })();
@@ -332,6 +341,38 @@ impl FileRun<'_, '_> {
             .ok()?;
         }
         Some(Arc::new(map))
+    }
+}
+
+fn file_frontier_coverage(
+    coverage: crate::application::file_dag::completion::CoverageState,
+    file: FileId,
+) -> Result<ryo_values::domain::records::types::FrontierCoverage, OperatingError> {
+    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
+    match coverage {
+        crate::application::file_dag::completion::CoverageState::Complete => {
+            Ok(FrontierCoverage::Complete)
+        }
+        crate::application::file_dag::completion::CoverageState::Partial { files } => {
+            let mut affected = files
+                .into_iter()
+                .map(|cause| match cause {
+                    None => Ok(FrontierAffected::Repository),
+                    Some(at) if at == file => Ok(FrontierAffected::CurrentFile),
+                    Some(_) => Err(OperatingError::ObservationIncomplete {
+                        reason: "file frontier carries a foreign physical partition".into(),
+                    }),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            affected.sort_unstable();
+            affected.dedup();
+            if affected.is_empty() {
+                return Err(OperatingError::ObservationIncomplete {
+                    reason: "partial frontier has no affected physical partition".into(),
+                });
+            }
+            Ok(FrontierCoverage::Partial(affected))
+        }
     }
 }
 fn readiness_of(

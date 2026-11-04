@@ -1276,6 +1276,7 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
             buckets: (0..64)
                 .map(|bucket| HandedWords {
                     bucket: Bucket(bucket),
+                    proof: crate::outbound::lint_store::fixtures::proof(),
                     words: PackedWords(vec![7; 4096]).into(),
                 })
                 .collect(),
@@ -1377,6 +1378,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
         handed: Handing::Made(Handed {
             buckets: vec![HandedWords {
                 bucket: Bucket(0),
+                proof: crate::outbound::lint_store::fixtures::proof(),
                 words: packed.into(),
             }],
             text: ArenaBytes::default(),
@@ -1405,6 +1407,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     };
     handed.buckets.push(HandedWords {
         bucket: Bucket(1),
+        proof: crate::outbound::lint_store::fixtures::proof(),
         words: RecordWords::Staged(StagedWords {
             session: StagingSession(u64::MAX),
             offset: u64::MAX,
@@ -1511,11 +1514,13 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     old_handed.frontier.push(ReadWords {
         file: StoredFileNumber(0),
         bucket: Bucket(1),
+        proof: crate::outbound::lint_store::fixtures::proof(),
         words: ReadWordPayload::Old(invalid),
     });
     old_handed.frontier.push(ReadWords {
         file: StoredFileNumber(1),
         bucket: Bucket(0),
+        proof: crate::outbound::lint_store::fixtures::proof(),
         words: ReadWordPayload::Old(invalid),
     });
     let mut old_record = record.clone();

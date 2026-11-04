@@ -82,10 +82,18 @@ pub(crate) fn hand_into(
                     .and_then(|count| inline.checked_add(count))
             })
             .unwrap_or(u64::MAX);
+        stored
+            .proofs
+            .push(ryo_values::domain::stores::types::StoredFrontierProof {
+                file,
+                bucket: each.bucket,
+                proof: each.proof.clone(),
+            });
         match each.words {
             RecordWords::Inline(words) => stored.frontier.push(StoredWords {
                 file,
                 bucket: each.bucket,
+                proof: each.proof,
                 words,
             }),
             RecordWords::Staged(words) => {

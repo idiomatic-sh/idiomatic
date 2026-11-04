@@ -7,6 +7,8 @@ use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
 pub(crate) struct BucketWords {
     /// The bucket.
     pub bucket: Bucket,
+    /// Source-bound root and physical coverage for this exact payload.
+    pub proof: ryo_values::domain::records::types::FrontierProof,
     /// Valid normalized word count, used by the unchanged digest framing.
     pub word_count: usize,
     /// Exact-size normalized packed words, ready to move into the store.

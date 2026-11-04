@@ -200,10 +200,16 @@ pub(crate) fn prepare_frontier(
 }
 
 /// Capture the prepared words only after the caller successfully retained them.
-pub(crate) fn capture_frontier(tables: &mut Tables, answering: &Answering, bucket: Bucket) {
+pub(crate) fn capture_frontier(
+    tables: &mut Tables,
+    answering: &Answering,
+    bucket: Bucket,
+    proof: ryo_values::domain::records::types::FrontierProof,
+) {
     if *answering == Answering::Findings {
         tables.captured.push(Kept {
             bucket,
+            proof,
             words: KeptWords(tables.packed.clone()),
         });
     }

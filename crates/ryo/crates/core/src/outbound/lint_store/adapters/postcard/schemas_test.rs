@@ -91,7 +91,7 @@ fn handed_reads_back(stored: &Stored) -> bool {
             .collect();
         let Some(read) = bucket_bytes(&rows)
             .ok()
-            .and_then(|bytes| bucket_from(bucket, &bytes))
+            .and_then(|bytes| bucket_from(bucket, &bytes, &stored.handed.proofs))
         else {
             return false;
         };
@@ -197,4 +197,63 @@ fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
         rest_from(&bytes[..bytes.len() - 1]).is_none(),
         "truncated readiness cannot become a complete empty source"
     );
+}
+
+#[test]
+fn frontier_proof_roundtrip_preserves_partial_and_rejects_old_layout() {
+    use ryo_values::domain::{
+        records::types::{FrontierAffected, FrontierCoverage},
+        stored_facts::types::{Bucket, Digest},
+        stores::types::{StoredFileNumber, StoredFrontierProof},
+    };
+    let mut handed = StoredHanded::default();
+    let mut partial = crate::outbound::lint_store::fixtures::proof();
+    partial.rule = 7;
+    partial.input = 2;
+    partial.rule_digest = Digest([9; 16]);
+    partial.coverage = FrontierCoverage::Partial(vec![
+        FrontierAffected::CurrentFile,
+        FrontierAffected::Repository,
+    ]);
+    handed.proofs.push(StoredFrontierProof {
+        file: StoredFileNumber(3),
+        bucket: Bucket(11),
+        proof: partial.clone(),
+    });
+    handed.frontier.push(StoredWords {
+        file: StoredFileNumber(3),
+        bucket: Bucket(11),
+        proof: partial.clone(),
+        words: PackedWords(vec![2, 0, 0]),
+    });
+    let bytes = rest_bytes(&handed).expect("typed proof");
+    let mut restored = rest_from(&bytes).expect("versioned proof table");
+    let payload = bucket_bytes(&[&handed.frontier[0]]).expect("bucket bytes");
+    restored.frontier = bucket_from(Bucket(11), &payload, &restored.proofs)
+        .expect("exact source proof accompanies bucket bytes");
+    assert_eq!(restored, handed);
+    let read = ryo_values::domain::stores::service::read_handed(restored);
+    assert_eq!(read.frontier[0].proof, partial);
+    assert_eq!(read.frontier[0].file, StoredFileNumber(3));
+    assert_eq!(read.frontier[0].bucket, Bucket(11));
+
+    let mut wrong_root = handed.clone();
+    wrong_root.proofs[0].bucket = Bucket(12);
+    let wrong = rest_from(&rest_bytes(&wrong_root).unwrap()).unwrap();
+    assert!(bucket_from(Bucket(11), &payload, &wrong.proofs).is_none());
+
+    handed.proofs[0].proof.version = 0;
+    let old = rest_bytes(&handed).expect("old proof bytes");
+    assert!(
+        rest_from(&old).is_none(),
+        "old proof cannot become Complete"
+    );
+
+    let mut complete = StoredHanded::default();
+    complete.proofs.push(StoredFrontierProof {
+        file: StoredFileNumber(0),
+        bucket: Bucket(1),
+        proof: crate::outbound::lint_store::fixtures::proof(),
+    });
+    assert_eq!(rest_from(&rest_bytes(&complete).unwrap()), Some(complete));
 }

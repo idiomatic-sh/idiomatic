@@ -112,6 +112,9 @@ pub type ReadHanded = HandedRows<ReadWords>;
 pub struct HandedRows<W> {
     /// Per-file named-root readiness, in stored file order.
     pub observations: Vec<StoredFrontierReadiness>,
+    /// One typed source/coverage proof for each retained physical bucket row.
+    /// This metadata stays beside the existing packed payload sections.
+    pub proofs: Vec<StoredFrontierProof>,
     /// What each file handed the steps that read across files, one row for each file and bucket.
     pub frontier: Vec<W>,
     /// The text the names of each file made that is in no file, one row for each file that made some.
@@ -126,12 +129,22 @@ impl<W> Default for HandedRows<W> {
     fn default() -> Self {
         Self {
             observations: Vec::new(),
+            proofs: Vec::new(),
             frontier: Vec::new(),
             texts: Vec::new(),
             notes: Vec::new(),
             covered: Vec::new(),
         }
     }
+}
+
+/// Versioned provenance of one file/bucket pair, validated against the
+/// prepared rule and file identity before a warm row is read.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredFrontierProof {
+    pub file: StoredFileNumber,
+    pub bucket: Bucket,
+    pub proof: crate::domain::records::types::FrontierProof,
 }
 
 /// Read-only row metadata, retaining physical row order and duplicates.
@@ -141,6 +154,8 @@ pub struct ReadWords {
     pub file: StoredFileNumber,
     /// Original bucket identity.
     pub bucket: Bucket,
+    /// Source-bound root and physical coverage beside the retained payload.
+    pub proof: crate::domain::records::types::FrontierProof,
     /// Inline custom-store bytes or a lazy old-file descriptor.
     pub words: ReadWordPayload,
 }
@@ -182,6 +197,8 @@ pub struct StoredWords {
     pub file: StoredFileNumber,
     /// The bucket.
     pub bucket: Bucket,
+    /// Source-bound root and physical coverage beside the retained payload.
+    pub proof: crate::domain::records::types::FrontierProof,
     /// The words, as if the file were the first read by the first worker, packed.
     pub words: PackedWords,
 }

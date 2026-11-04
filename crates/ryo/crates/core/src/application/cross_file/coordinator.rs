@@ -87,8 +87,29 @@ impl CrossFile {
                     .ok_or(OperatingError::NotRun)?;
                 let bucket = frontier_bucket(first, root.frontier);
                 if let std::collections::btree_map::Entry::Vacant(entry) = physical.entry(bucket) {
-                    let words = run.facts.kept(bucket)?;
-                    entry.insert(publications.prepare_frontier(words));
+                    let payload = run.facts.kept(bucket)?;
+                    let verified = super::frontiers::validate_bucket(
+                        &run.program,
+                        root.producer,
+                        root.frontier.0,
+                        first,
+                        bucket,
+                        run.domain.files.len(),
+                        &payload,
+                    );
+                    let prepared = match verified {
+                        Ok(crate::application::file_dag::completion::CoverageState::Complete) => {
+                            publications.prepare_frontier(payload.words)
+                        }
+                        Ok(crate::application::file_dag::completion::CoverageState::Partial {
+                            ..
+                        }) => Err(OperatingError::ObservationIncomplete {
+                            reason: "named producer frontier has incomplete physical coverage"
+                                .into(),
+                        }),
+                        Err(error) => Err(error),
+                    };
+                    entry.insert(prepared);
                 }
                 match physical.get(&bucket).ok_or(OperatingError::NotRun)? {
                     Ok(prepared) => publications.install_frontier(slot, prepared, &readiness)?,
@@ -208,6 +229,7 @@ fn prepare_frontiers(
         run.project,
         run.project_symbols,
         symbols,
+        run.domain.files.len(),
         super::frontiers::PreparationPolicy::Observations { ready },
     )
     .map_err(|error| failed(&error))

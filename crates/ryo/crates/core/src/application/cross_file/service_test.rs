@@ -168,7 +168,10 @@ fn prepared(rows: Vec<Frontier>) -> super::types::PreparedFrontiers {
     super::types::PreparedFrontiers {
         rows: rows
             .into_iter()
-            .map(super::types::FrontierInput::Decoded)
+            .map(|frontier| super::types::FrontierInput::Decoded {
+                frontier,
+                coverage: crate::application::file_dag::completion::CoverageState::Complete,
+            })
             .collect(),
         refused: Vec::new(),
     }

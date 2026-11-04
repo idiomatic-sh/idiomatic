@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::Relation;
 use super::errors::FactsError;
 use super::types::{ColumnsMut, ResidentStability, WordsToKeep};
 use ryo_relations::domain::relations::types::ColumnsView;
-use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
+use ryo_values::domain::stored_facts::types::Bucket;
 
 /// What every `facts` adapter implements.
 pub trait FactsPort: Send + Sync {
@@ -79,5 +79,5 @@ pub trait FactsFinish: Send + Sync {
     /// # Errors
     ///
     /// `Store` when it cannot be read; `File` when a file fails.
-    fn kept(&self, bucket: Bucket) -> Result<KeptWords, FactsError>;
+    fn kept(&self, bucket: Bucket) -> Result<super::types::KeptBucket, FactsError>;
 }

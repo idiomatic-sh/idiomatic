@@ -108,6 +108,9 @@ impl ReadStore for FakeRead {
             handed
                 .frontier
                 .retain(|each| buckets.binary_search(&each.bucket).is_ok());
+            handed
+                .proofs
+                .retain(|each| buckets.binary_search(&each.bucket).is_ok());
         }
         Ok(ryo_values::domain::stores::service::read_handed(handed))
     }
@@ -159,6 +162,11 @@ impl ReadStore for FakeRead {
             .handed
             .frontier
             .sort_by_key(|each| (each.file, each.bucket));
+        ryo_values::domain::stores::service::carry_proofs(
+            &mut stored.handed,
+            &self.was.handed,
+            kept,
+        );
         *self
             .fake
             .kept
@@ -174,6 +182,7 @@ pub fn words_of(file: u32, word: u8) -> StoredWords {
     StoredWords {
         file: StoredFileNumber(file),
         bucket: Bucket(3),
+        proof: super::proof(),
         words: PackedWords(vec![word]),
     }
 }
@@ -320,9 +329,15 @@ pub fn stored(tag: u8) -> Stored {
 fn handed(tag: u8) -> StoredHanded {
     StoredHanded {
         observations: Vec::new(),
+        proofs: vec![ryo_values::domain::stores::types::StoredFrontierProof {
+            file: StoredFileNumber(0),
+            bucket: Bucket(2),
+            proof: super::proof(),
+        }],
         frontier: vec![StoredWords {
             file: StoredFileNumber(0),
             bucket: Bucket(2),
+            proof: super::proof(),
             words: PackedWords(vec![1, tag, 0x81, 0x01]),
         }],
         texts: vec![StoredText {

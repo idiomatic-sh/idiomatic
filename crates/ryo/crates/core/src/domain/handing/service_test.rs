@@ -51,10 +51,12 @@ fn handed() -> Handed {
         buckets: vec![
             HandedWords {
                 bucket: Bucket(1),
+                proof: crate::outbound::lint_store::fixtures::proof(),
                 words: PackedWords(vec![1]).into(),
             },
             HandedWords {
                 bucket: Bucket(2),
+                proof: crate::outbound::lint_store::fixtures::proof(),
                 words: PackedWords(vec![2]).into(),
             },
         ],
@@ -165,18 +167,22 @@ fn staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_orde
         buckets: vec![
             HandedWords {
                 bucket: Bucket(0),
+                proof: crate::outbound::lint_store::fixtures::proof(),
                 words: PackedWords(vec![1]).into(),
             },
             HandedWords {
                 bucket: Bucket(1),
+                proof: crate::outbound::lint_store::fixtures::proof(),
                 words: RecordWords::Staged(span),
             },
             HandedWords {
                 bucket: Bucket(0),
+                proof: crate::outbound::lint_store::fixtures::proof(),
                 words: RecordWords::Staged(span),
             },
             HandedWords {
                 bucket: Bucket(0),
+                proof: crate::outbound::lint_store::fixtures::proof(),
                 words: PackedWords(vec![2]).into(),
             },
         ],

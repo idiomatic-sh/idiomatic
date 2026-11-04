@@ -31,10 +31,14 @@ pub(crate) struct PreparedFrontiers {
 /// Admitted phase inputs. Compact sources have schemas/name mappings but no
 /// decoded cell allocation; the same graph owner materializes them on demand.
 pub(crate) enum FrontierInput {
-    Decoded(crate::domain::table_model::types::Frontier),
+    Decoded {
+        frontier: crate::domain::table_model::types::Frontier,
+        coverage: crate::application::file_dag::completion::CoverageState,
+    },
     Compact {
         input: ryo_values::domain::plan_parts::types::Input,
         table: crate::domain::table_words::types::CompactTable,
         spelling: Vec<ryo_relations::domain::relations::types::Name>,
+        coverage: crate::application::file_dag::completion::CoverageState,
     },
 }

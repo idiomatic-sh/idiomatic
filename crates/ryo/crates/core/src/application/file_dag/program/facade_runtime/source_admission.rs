@@ -36,7 +36,7 @@ impl ProjectSources<'_> {
         for (at, input) in self.ordinary.iter().enumerate() {
             let Some(input) = input else { continue };
             let original = match input {
-                FrontierInput::Decoded(frontier) => frontier.input,
+                FrontierInput::Decoded { frontier, .. } => frontier.input,
                 FrontierInput::Compact { input, .. } => *input,
             };
             if source_for(program, rule, original).ok() == Some(source) {
@@ -48,12 +48,17 @@ impl ProjectSources<'_> {
             let input = self.ordinary[at]
                 .take()
                 .expect("demanded source was present");
-            let publication = match input {
-                FrontierInput::Decoded(frontier) => owner.computed(frontier.table),
-                FrontierInput::Compact { table, .. } => owner.compact(Arc::new(table)),
+            let (publication, coverage) = match input {
+                FrontierInput::Decoded { frontier, coverage } => {
+                    (owner.computed(frontier.table), coverage)
+                }
+                FrontierInput::Compact {
+                    table, coverage, ..
+                } => (owner.compact(Arc::new(table)), coverage),
             };
             let result = publication
-                .and_then(|publication| admit_published(owner, publication, source, partition));
+                .and_then(|publication| admit_published(owner, publication, source, partition))
+                .map(|admitted| admitted.with_coverage(coverage));
             if let Ok(input) = &result {
                 self.cache.push((source, input.clone()));
             }
