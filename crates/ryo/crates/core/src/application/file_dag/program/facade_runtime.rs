@@ -60,10 +60,28 @@ impl<'service> ProgramServices<'service> {
 pub(crate) struct PublicationScope {
     owner: Rc<RelationOwner>,
     execution: std::cell::OnceCell<ProgramExecution>,
+    symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,
 }
 impl PublicationScope {
     pub(in crate::application::file_dag) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
+    }
+    fn claim_symbols(
+        &self,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    ) -> Result<ryo_language::domain::symbols::types::TransportPermit, OperatingError> {
+        use ryo_language::domain::symbols::service::{same_transport_generation, transport_permit};
+        let current = transport_permit(symbols);
+        if let Some(expected) = self.symbols.get() {
+            if !same_transport_generation(expected, &current) {
+                return Err(OperatingError::NotRead);
+            }
+        } else {
+            self.symbols
+                .set(transport_permit(symbols))
+                .map_err(|_| OperatingError::NotRead)?;
+        }
+        Ok(current)
     }
 }
 pub(crate) fn publication_owner(
@@ -73,6 +91,7 @@ pub(crate) fn publication_owner(
     Ok(PublicationScope {
         owner: open_program_owner(program.program(), Arc::clone(services.derived())),
         execution: std::cell::OnceCell::new(),
+        symbols: std::cell::OnceCell::new(),
     })
 }
 

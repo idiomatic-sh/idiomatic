@@ -97,6 +97,9 @@ impl CrossFile {
                 }
             }
         }
+        // The retained project execution and every decoded text place share one
+        // live symbol generation across all producer and consumer batches.
+        let mut symbols = Symbols::default();
         for batch in batches {
             let mut tasks = Vec::new();
             for rule in batch {
@@ -133,7 +136,6 @@ impl CrossFile {
                 tasks
                     .iter()
                     .map(|task| {
-                        let mut symbols = Symbols::default();
                         let frontier = prepare_frontiers(
                             &run,
                             &task.todo,

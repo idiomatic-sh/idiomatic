@@ -30,7 +30,7 @@ pub(crate) fn open_project<'a, 'service>(
         return Err(OperatingError::WrongOperation);
     }
     let scope = frontiers.publication;
-    let transport = ryo_language::domain::symbols::service::transport_permit(symbols);
+    let transport = scope.claim_symbols(symbols)?;
     let owner = Rc::clone(scope.owner());
     if let Some(existing) = scope.execution.get() {
         if !Arc::ptr_eq(&existing.program, program.program())

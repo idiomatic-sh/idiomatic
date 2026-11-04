@@ -506,6 +506,15 @@ pub fn transport_permit(symbols: &mut Symbols) -> super::types::TransportPermit 
     super::types::TransportPermit(std::sync::Arc::clone(&symbols.transport_generation))
 }
 
+/// Whether two engine-issued frame permits name the same live symbol generation.
+/// Comparing permits exposes no place mutation to a query or semantic kernel.
+pub fn same_transport_generation(
+    first: &super::types::TransportPermit,
+    second: &super::types::TransportPermit,
+) -> bool {
+    std::sync::Arc::ptr_eq(&first.0, &second.0)
+}
+
 /// Let the owner decode one demanded transport frame in place. QuerySymbols
 /// alone cannot call this: it cannot mint the key, and a stale/foreign key
 /// refuses before any place is appended.
