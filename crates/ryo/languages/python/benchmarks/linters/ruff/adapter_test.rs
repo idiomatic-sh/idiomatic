@@ -315,6 +315,10 @@ fn reference_roots_must_match_the_declared_project_scope() {
         target_version: "py310".into(),
     });
     let mut request = RunRequest {
+        performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_search_roots: Some(vec![RelativePath("".into()), RelativePath("src".into())]),
         given_project_inventory: Default::default(),
         staged_sources: None,

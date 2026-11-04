@@ -47,6 +47,10 @@ fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(
         }
         let _new = seen.insert(case.name.0.as_ref());
         let report = engine.run_prepared(WorkerRequest {
+            performance: Default::default(),
+            selected_rules: Some(vec![ryo::linter::RuleId::try_from("RUF200").unwrap()]),
+            rule_observations: None,
+            rule_context: None,
             project_search_roots: None,
             given_project_inventory: Default::default(),
             project_context_mode: ProjectContextMode::ListedDisk,

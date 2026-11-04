@@ -242,6 +242,9 @@ fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_sou
             BTreeMap::new()
         };
         let request = WorkerRequest {
+            performance: Default::default(),
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
             selected_rules: Some(selected.clone()),
             rule_observations: None,
             rule_context: Some(PreparedRuleContext {

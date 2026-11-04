@@ -111,6 +111,7 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
     let root = std::path::PathBuf::from("/snapshot/project");
     let file = RelativePath("missing.py".into());
     let request = RunRequest {
+        performance: Default::default(),
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
