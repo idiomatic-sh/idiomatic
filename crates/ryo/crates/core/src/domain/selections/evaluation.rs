@@ -77,6 +77,19 @@ pub(crate) fn tree_each(
     context: &mut OperatorContext<'_>,
     each: &mut EachElement<'_>,
 ) -> Result<(), OperatingError> {
+    tree_each_with_visits(comparisons, tree, buffer, context, &mut |_| {}, each)
+}
+
+/// As `tree_each`, with one event for each candidate visited in source order, before its
+/// comparisons can refuse. The owner uses these events for actual logical work accounting.
+pub(crate) fn tree_each_with_visits(
+    comparisons: &[Comparison],
+    tree: &TreeRows<'_>,
+    buffer: &mut Vec<Value>,
+    context: &mut OperatorContext<'_>,
+    visit: &mut dyn FnMut(RowIndex),
+    each: &mut EachElement<'_>,
+) -> Result<(), OperatingError> {
     let rows = Rows::Tree(*tree);
     let names = NameCount(name_count(context.symbols.as_ref()).0);
     let mut needed = std::mem::take(&mut context.scratch.needed);
@@ -137,6 +150,7 @@ pub(crate) fn tree_each(
             } else {
                 RowIndex(place)
             };
+            visit(index);
             if kind_verdict(&kinds, tree, index) == Verdict::Fails {
                 continue;
             }

@@ -3,7 +3,7 @@
 use ryo_language::domain::symbols::service::name_count;
 use ryo_relations::domain::relations::types::Value;
 
-use super::evaluation::tree_each;
+use super::evaluation::{tree_each, tree_each_with_visits};
 use super::types::ProjectedColumns;
 use crate::domain::comparing::service::holds_all;
 use crate::domain::lowering::service::{kind_of, shape_at};
@@ -39,6 +39,31 @@ pub(crate) fn select_tree(
         context,
         &mut |index: RowIndex, _buffer: &mut Vec<Value>, _context: &mut OperatorContext<'_>| {
             out.push(u32::try_from(index.0).unwrap_or(u32::MAX));
+            Ok(())
+        },
+    );
+    context.scratch.row = buffer;
+    outcome
+}
+
+/// Select tree positions and report each visited candidate before semantic comparison.
+/// This keeps logical work accounting exact on early errors and narrowed scans.
+pub(crate) fn select_tree_with_visits(
+    tree: &TreeRows<'_>,
+    comparisons: &[Comparison],
+    context: &mut OperatorContext<'_>,
+    visit: &mut dyn FnMut(RowIndex),
+    out: &mut Slots,
+) -> Result<(), OperatingError> {
+    let mut buffer = std::mem::take(&mut context.scratch.row);
+    let outcome = tree_each_with_visits(
+        comparisons,
+        tree,
+        &mut buffer,
+        context,
+        visit,
+        &mut |index, _, _| {
+            out.0.push(u32::try_from(index.0).unwrap_or(u32::MAX));
             Ok(())
         },
     );

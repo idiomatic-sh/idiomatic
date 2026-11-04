@@ -40,8 +40,13 @@ pub(super) fn select(
     };
     let mut slots = Slots::default();
     if matches!(from, Input::Relation(_)) {
-        crate::domain::selections::service::select_tree(tree, comparisons, context, &mut slots)?;
-        counts.found(0, tree.elements.kind.len() as u64);
+        crate::domain::selections::service::select_tree_with_visits(
+            tree,
+            comparisons,
+            context,
+            &mut |_| counts.found(0, 1),
+            &mut slots,
+        )?;
     } else {
         let source = inputs
             .first()
