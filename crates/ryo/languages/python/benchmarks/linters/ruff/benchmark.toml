@@ -872,6 +872,13 @@ typing_rules = ["FA100", "FA102", "PYI002", "PYI003", "PYI004", "PYI005", "PYI00
 upstream_inactive = ["F621"]
 
 [query-modules]
+"python/ruff/io-base-annotation" = "fragments/io-base-annotation.ryoql"
+"python/ruff/io-base-binding" = "fragments/io-base-binding.ryoql"
+"python/ruff/io-base-initializer" = "fragments/io-base-initializer.ryoql"
+"python/ruff/repeated-octets" = "fragments/repeated-octets.ryoql"
+"python/ruff/round-values" = "fragments/round-values.ryoql"
+"python/ruff/sequence-index-accesses" = "fragments/sequence-index-accesses.ryoql"
+"python/ruff/text-units" = "fragments/text-units.ryoql"
 "python/ruff/suppress-matches" = "fragments/suppress-matches.ryoql"
 "python/ruff/suppress-unmapped-matches" = "fragments/suppress-unmapped-matches.ryoql"
 "python/ruff/suppress-with-additional-lines-matches" = "fragments/suppress-with-additional-lines-matches.ryoql"

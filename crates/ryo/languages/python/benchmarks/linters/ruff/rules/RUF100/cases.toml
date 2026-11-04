@@ -149,3 +149,84 @@ expected = [{ "end" = 116, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 
 "rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
 "rule-context" = { "external-prefixes" = [], "disabled-rules" = { "case.py" = [] } }
 
+
+[[cases]]
+"name" = "family-async100-unsuppressed"
+"comparison" = "full"
+"files" = { "case.py" = "import asyncio\nasync def f():\n    async with asyncio.timeout(1):\n        work()\n" }
+"expected" = [{ "end" = 79, "file" = "case.py", "rule" = "ASYNC100", "start" = 34 }]
+"selected-rules" = ["RUF100", "ASYNC100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "ASYNC100", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-async100-used"
+"comparison" = "full"
+"files" = { "case.py" = "import asyncio\nasync def f():\n    async with asyncio.timeout(1):  # noqa: ASYNC100\n        work()\n" }
+"expected" = []
+"selected-rules" = ["RUF100", "ASYNC100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "ASYNC100", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-async100-unmatched"
+"comparison" = "full"
+"files" = { "case.py" = "import asyncio\nasync def f():\n    async with asyncio.timeout(1):  # noqa: ASYNC100\n        await work()\n" }
+"expected" = [{ "end" = 82, "file" = "case.py", "rule" = "RUF100", "start" = 66 }]
+"selected-rules" = ["RUF100", "ASYNC100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "ASYNC100", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-pie807-unsuppressed"
+"comparison" = "full"
+"files" = { "case.py" = "factory = lambda: []\n" }
+"expected" = [{ "end" = 20, "file" = "case.py", "rule" = "PIE807", "start" = 10 }]
+"selected-rules" = ["RUF100", "PIE807"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "PIE807", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-pie807-used"
+"comparison" = "full"
+"files" = { "case.py" = "factory = lambda: []  # noqa: PIE807\n" }
+"expected" = []
+"selected-rules" = ["RUF100", "PIE807"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "PIE807", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-pie807-unmatched"
+"comparison" = "full"
+"files" = { "case.py" = "factory = lambda value: []  # noqa: PIE807\n" }
+"expected" = [{ "end" = 42, "file" = "case.py", "rule" = "RUF100", "start" = 28 }]
+"selected-rules" = ["RUF100", "PIE807"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "PIE807", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-f822-unsuppressed"
+"comparison" = "full"
+"files" = { "case.py" = "__all__ = [\"missing\"]\n" }
+"expected" = [{ "end" = 20, "file" = "case.py", "rule" = "F822", "start" = 11 }]
+"selected-rules" = ["RUF100", "F822"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F822", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-f822-used"
+"comparison" = "full"
+"files" = { "case.py" = "__all__ = [  # noqa: F822\n    \"missing\",\n]\n" }
+"expected" = []
+"selected-rules" = ["RUF100", "F822"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F822", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "family-f822-unmatched"
+"comparison" = "full"
+"files" = { "case.py" = "x = 1\n__all__ = [  # noqa: F822\n    \"x\",\n]\n" }
+"expected" = [{ "end" = 31, "file" = "case.py", "rule" = "RUF100", "start" = 19 }]
+"selected-rules" = ["RUF100", "F822"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F822", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
