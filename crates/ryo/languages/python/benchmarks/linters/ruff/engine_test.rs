@@ -1440,10 +1440,17 @@ fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay
                     .all(|finding| finding.rule == consumer)
             );
         } else {
-            assert!(
-                matches!(answer, Err(Error::Invalid(_))),
-                "mixed known/Unknown project input cannot certify publication"
-            );
+            match answer {
+                Err(Error::Invalid(message)) => assert!(
+                    message.contains("incomplete candidate")
+                        && message.contains("CONSUMER")
+                        && !message.contains("unknown_count=0;"),
+                    "expected actual consumer Unknown, got {message}"
+                ),
+                other => panic!(
+                    "mixed known/Unknown project input cannot certify publication: {other:?}"
+                ),
+            }
         }
     }
     Ok(())

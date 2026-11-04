@@ -299,12 +299,7 @@ pub(super) fn validate(
         &suite.digest(ArtifactPath(&profile_root.join("benchmark.toml")))?,
     )?;
     let settings = super::invocation_identity::invocation_settings(&invocation, case, &profile)?;
-    let files = case
-        .request
-        .files
-        .iter()
-        .map(|file| std::path::PathBuf::from(file.0.as_ref()))
-        .collect::<Vec<_>>();
+    let files = crate::domain::suite::service::materialized_sources(&case.request);
     let evidence = item
         .evidence
         .iter()

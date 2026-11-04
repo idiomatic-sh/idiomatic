@@ -55,24 +55,7 @@ pub(super) fn write(
     let expected = finding_values(&case.expected.diagnostics);
     let source_identity = suite.case_source_digest(
         crate::outbound::suite::types::ArtifactPath(&case.request.root),
-        &case
-            .request
-            .staged_sources
-            .as_deref()
-            .unwrap_or(&case.request.files)
-            .iter()
-            .filter(|file| {
-                case.request.staged_sources.is_some()
-                    || !case
-                        .request
-                        .context_manifest
-                        .as_ref()
-                        .is_some_and(|manifest| {
-                            crate::domain::suite::service::declares_missing(manifest, file)
-                        })
-            })
-            .map(|file| std::path::PathBuf::from(file.0.as_ref()))
-            .collect::<Vec<_>>(),
+        &crate::domain::suite::service::materialized_sources(&case.request),
     );
     let metadata_identity =
         crate::domain::suite::input_metadata::digest(case.request.file_metadata.as_ref());

@@ -260,3 +260,53 @@ fn canonical_unicode_multisets_match_the_python_certificate_encoding() {
             .expect("same normalized finding order and multiplicity")
     );
 }
+
+#[test]
+fn unselected_context_source_remains_bound_to_discrepancy_identity() {
+    use crate::outbound::suite::{interface::SuitePort as _, types::discrepancy::CaseArtifacts};
+    let root = tempfile::tempdir().unwrap();
+    std::fs::write(root.path().join("case.py"), "import local\n").unwrap();
+    std::fs::write(root.path().join("local.py"), "value = 1\n").unwrap();
+    let mut prepared = case();
+    prepared.request.root = root.path().into();
+    prepared.request.staged_sources = Some(
+        vec!["case.py", "local.py"]
+            .into_iter()
+            .map(|path| ryo::linter::RelativePath(path.into()))
+            .collect(),
+    );
+    let files = crate::domain::suite::service::materialized_sources(&prepared.request);
+    assert_eq!(
+        prepared.request.files.len(),
+        1,
+        "diagnostic selection remains independent"
+    );
+    let suite = crate::outbound::suite::factory::local();
+    let digest = suite
+        .case_source_digest(ArtifactPath(root.path()), &files)
+        .unwrap();
+    let check = || {
+        suite.verify_discrepancy_artifacts(CaseArtifacts {
+            profile: root.path(),
+            root: root.path(),
+            files: &files,
+            source_sha256: &digest.0,
+            file_metadata_files: &[],
+            file_metadata_sha256: None,
+            evidence: &[],
+        })
+    };
+    check().unwrap();
+    std::fs::write(root.path().join("local.py"), "value = 2\n").unwrap();
+    assert!(
+        check().is_err(),
+        "unselected context mutation must invalidate evidence"
+    );
+    std::fs::write(root.path().join("local.py"), "value = 1\n").unwrap();
+    check().unwrap();
+    prepared.request.staged_sources = None;
+    assert_eq!(
+        crate::domain::suite::service::materialized_sources(&prepared.request),
+        vec![std::path::PathBuf::from("case.py")]
+    );
+}

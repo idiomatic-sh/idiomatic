@@ -3,6 +3,25 @@ use super::types::{Cases, audit::value::Audit};
 use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use std::path::{Component, Path};
 
+/// Materialized source identity includes context files, independently of requested diagnostics.
+#[must_use]
+pub fn materialized_sources(request: &super::types::RunRequest) -> Vec<std::path::PathBuf> {
+    request
+        .staged_sources
+        .as_deref()
+        .unwrap_or(&request.files)
+        .iter()
+        .filter(|file| {
+            request.staged_sources.is_some()
+                || !request
+                    .context_manifest
+                    .as_ref()
+                    .is_some_and(|manifest| declares_missing(manifest, file))
+        })
+        .map(|file| std::path::PathBuf::from(file.0.as_ref()))
+        .collect()
+}
+
 /// Only explicit default definitions own case evidence; supporting definitions supply executable queries.
 #[must_use]
 pub fn owns_cases(tool: &super::types::Tool, rule: &ryo::linter::RuleId) -> bool {
