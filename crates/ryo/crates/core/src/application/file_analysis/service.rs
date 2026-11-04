@@ -370,6 +370,7 @@ impl FileAnalysis {
     /// The rest of a visit of a file the language read: the per-file steps of the rules that govern it run on its rows, the words of
     /// what leaves it wait in the buckets, and the rows are released.
     fn read_file(
+        &self,
         worker: &mut Worker,
         visit: &FileVisit<'_>,
         file: FileId,
@@ -1133,7 +1134,7 @@ impl FileAnalysis {
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
-                Self::read_file(worker, visit, number, &semantic)?;
+                self.read_file(worker, visit, number, &semantic)?;
                 if semantic.is_incomplete() {
                     None
                 } else {
@@ -1156,7 +1157,7 @@ impl FileAnalysis {
                 if asked.any == EngineRows::Asked {
                     clear_symbols(&mut worker.tables.symbols);
                     index_kinds(&mut worker.tables.elements);
-                    Self::read_file(worker, visit, number, &semantic)?;
+                    self.read_file(worker, visit, number, &semantic)?;
                 } else {
                     let unavailable_acceptance = syntax_acceptance(&worker.tables.elements);
                     if Self::may_gate_rules(setting, unavailable_acceptance) {
