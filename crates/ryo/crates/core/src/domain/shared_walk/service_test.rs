@@ -16,7 +16,17 @@ use crate::domain::{
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
-use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_language::domain::{
+    completion::service::{completion, name_kind},
+    elements::service::{enter_node, leave_node, table_builder, token},
+    elements::types::Elements,
+    kind_index::service::index_kinds,
+    symbols::types::{ByteSlice, Symbols},
+};
+use ryo_relations::domain::{
+    relations::types::{FileId, KindBits, Offset, Relation},
+    terms::types::NameText,
+};
 use ryo_values::domain::{
     plan_parts::types::{
         ColumnIndex, Comparison, Input, LiteralText, Operand, ParameterId, QueryLiteral, StepId,
@@ -187,6 +197,86 @@ fn a_reached_semantic_error_is_kept_for_its_class() {
     assert!(matches!(batch.class(ClassPlace(0)), Some(Err(_))));
     assert_eq!(batch.visits(ClassPlace(0)), 1);
     assert!(batch.class(ClassPlace(1)).is_none());
+}
+
+#[test]
+fn different_kind_errors_keep_the_first_source_row() {
+    let source = b"[(a";
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(source));
+    enter_node(&mut builder, KindBits(1), Offset(0));
+    token(&mut builder, KindBits(3), Offset(0), Offset(1));
+    token(&mut builder, KindBits(2), Offset(1), Offset(2));
+    token(&mut builder, KindBits(2), Offset(2), Offset(3));
+    leave_node(&mut builder, Offset(3));
+    for (kind, name) in [(1, "file"), (2, "second"), (3, "first")] {
+        name_kind(
+            &mut completion(&mut elements, &mut symbols, ByteSlice(source), FileId(0)),
+            KindBits(kind),
+            NameText(name),
+        );
+    }
+    index_kinds(&mut elements);
+    let mut plans = plans();
+    for rule in [0, 2] {
+        let Operation::Select { comparisons, .. } = &mut plans[rule].steps[0].operation else {
+            unreachable!();
+        };
+        *comparisons = vec![
+            Comparison {
+                test: Test::NotEqual,
+                left: Operand::Column(ColumnIndex(1)),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText("file".into()))),
+                origin: None,
+            },
+            Comparison {
+                test: Test::Matches,
+                left: Operand::Literal(QueryLiteral::Text(LiteralText("x".into()))),
+                right: Operand::Column(ColumnIndex(2)),
+                origin: None,
+            },
+        ];
+    }
+    let bindings = vec![Vec::new(); plans.len()];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    let mut scratch = OperatorScratch::default();
+    let mut memo = Vec::new();
+    let mut context = OperatorContext {
+        semantic: None,
+        prepared_kinds: None,
+        prepared_matchers: None,
+        bindings: &[],
+        symbols: (&mut symbols).into(),
+        source: SourceView(source),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let bound = bindings
+        .iter()
+        .cloned()
+        .map(Vec::into_boxed_slice)
+        .collect::<Vec<_>>();
+    let batch = evaluate(
+        &prepared,
+        TreeRows {
+            elements: &elements,
+            file: FileId(0),
+            form: TreeForm::Elements,
+        },
+        &bound,
+        &mut context,
+        &[true; 4],
+        &mut WalkWork::default(),
+    );
+    let Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { reason })) =
+        batch.class(ClassPlace(0))
+    else {
+        panic!("first source row must retain its regex error");
+    };
+    assert!(reason.contains('['), "{reason}");
+    assert_eq!(batch.visits(ClassPlace(0)), 1);
 }
 
 #[test]

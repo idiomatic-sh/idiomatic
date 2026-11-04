@@ -100,8 +100,8 @@ pub(crate) struct ClassWork {
 pub(crate) struct WalkWork {
     pub work: Vec<ClassWork>,
     pub by_kind: Vec<Vec<ClassPlace>>,
+    pub columns_by_kind: Vec<ColumnPlaces>,
     pub every: Vec<ClassPlace>,
-    pub union: ColumnPlaces,
     pub cells: [Value; ELEMENT_COLUMNS],
 }
 
@@ -110,8 +110,8 @@ impl Default for WalkWork {
         Self {
             work: Vec::new(),
             by_kind: Vec::new(),
+            columns_by_kind: Vec::new(),
             every: Vec::new(),
-            union: ColumnPlaces::default(),
             cells: [Value::Flag(Flag::Lowered); ELEMENT_COLUMNS],
         }
     }

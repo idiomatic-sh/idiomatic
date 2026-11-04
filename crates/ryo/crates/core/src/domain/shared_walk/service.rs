@@ -28,11 +28,10 @@ use crate::domain::{
     text_gate::service::{needed_of_rest, text_admitted, text_gate, undecided},
 };
 use ryo_language::domain::{
-    elements::service::{kind_names, positions},
-    kind_index::service::of_kind,
+    elements::service::{kind_at, kind_names, positions},
     symbols::service::{name_count, query_reborrow},
 };
-use ryo_relations::domain::relations::types::{CellKind, KindBits, Position, Value};
+use ryo_relations::domain::relations::types::{CellKind, Position, Value};
 use ryo_values::domain::{plans::types::Plan, rows::types::RowIndex};
 
 impl PreparedWalk {
@@ -171,8 +170,8 @@ pub(crate) fn evaluate(
     let WalkWork {
         work,
         by_kind,
+        columns_by_kind,
         every,
-        union,
         cells,
     } = scratch;
     work.resize_with(program.classes().len(), ClassWork::default);
@@ -258,61 +257,40 @@ pub(crate) fn evaluate(
     let rows = Rows::Tree(tree);
     let element_kinds = kinds_of(&rows);
 
-    for (kind, group) in by_kind.iter().enumerate() {
-        if group.is_empty() {
-            continue;
-        }
-        needed_together(union, work, group);
-        let kind = KindBits(u16::try_from(kind).unwrap_or(u16::MAX));
-        for position in of_kind(tree.elements, kind) {
-            let mut read = false;
-            for place in group {
-                if let (Some(class), Some(each)) =
-                    (program.classes().get(place.0), work.get_mut(place.0))
-                {
-                    consider(
-                        &tree,
-                        class,
-                        each,
-                        &mut batch,
-                        *place,
-                        *position,
-                        union,
-                        names,
-                        element_kinds,
-                        bindings,
-                        context,
-                        cells,
-                        &mut read,
-                    );
-                }
-            }
-        }
+    // The vocabulary dispatch is prepared once, but rows themselves are visited
+    // in source order. This preserves the first semantic error of each class.
+    columns_by_kind.resize_with(by_kind.len(), ColumnPlaces::default);
+    for (group, columns) in by_kind.iter_mut().zip(columns_by_kind.iter_mut()) {
+        group.extend(every.iter().copied());
+        group.sort_unstable_by_key(|place| place.0);
+        group.dedup();
+        needed_together(columns, work, group);
     }
-    if !every.is_empty() {
-        needed_together(union, work, every);
-        for position in positions(tree.elements) {
-            let mut read = false;
-            for place in every.iter() {
-                if let (Some(class), Some(each)) =
-                    (program.classes().get(place.0), work.get_mut(place.0))
-                {
-                    consider(
-                        &tree,
-                        class,
-                        each,
-                        &mut batch,
-                        *place,
-                        position,
-                        union,
-                        names,
-                        element_kinds,
-                        bindings,
-                        context,
-                        cells,
-                        &mut read,
-                    );
-                }
+    for position in positions(tree.elements) {
+        let kind = usize::from(kind_at(tree.elements, position).0);
+        let (Some(group), Some(columns)) = (by_kind.get(kind), columns_by_kind.get(kind)) else {
+            continue;
+        };
+        let mut read = false;
+        for place in group {
+            if let (Some(class), Some(each)) =
+                (program.classes().get(place.0), work.get_mut(place.0))
+            {
+                consider(
+                    &tree,
+                    class,
+                    each,
+                    &mut batch,
+                    *place,
+                    position,
+                    columns,
+                    names,
+                    element_kinds,
+                    bindings,
+                    context,
+                    cells,
+                    &mut read,
+                );
             }
         }
     }
