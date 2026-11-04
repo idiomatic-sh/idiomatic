@@ -55,3 +55,6 @@ pub(in crate::application) mod activation;
 
 mod ordered_existence;
 pub(in crate::application) mod observations;
+
+pub(in crate::application) mod scope;
+pub(in crate::application) mod completion;

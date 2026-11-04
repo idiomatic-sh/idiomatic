@@ -2,10 +2,9 @@
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::{
     file_program::{
-        service::{compile_prepared_observations, observations::replay_closure},
+        service::observations::replay_closure,
         types::ObservationRequest,
     },
-    operator::contract::types::RequestOperators,
     storing::types::{MadeAgain, Reuse},
 };
 use ryo_values::domain::{plans::types::Plan, records::types::PlacedRule};
@@ -13,7 +12,7 @@ use ryo_values::domain::{plans::types::Plan, records::types::PlacedRule};
 pub(crate) fn observation_closure(
     again: Reuse,
     plans: &[Plan],
-    operators: &RequestOperators,
+    request_graph: &std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
     observations: ObservationRequest<'_>,
     first_bucket: &[ryo_values::domain::stored_facts::types::Bucket],
 ) -> Result<
@@ -26,8 +25,7 @@ pub(crate) fn observation_closure(
     let Reuse::Cross(MadeAgain::These(selected)) = again else {
         return Ok((again, Vec::new()));
     };
-    let graph = compile_prepared_observations(plans, operators, observations);
-    let graph = graph
+    let graph = request_graph
         .observations
         .as_ref()
         .ok_or(crate::domain::file_program::errors::ObservationError::InvalidReference)?;

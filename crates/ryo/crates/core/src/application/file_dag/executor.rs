@@ -161,6 +161,19 @@ impl<'a> ScopedExecutor<'a> {
     pub(crate) fn derived_port(&self) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         self.owner.derived.semantic_port()
     }
+    pub(crate) fn stream(
+        &self,
+        contract: &OperatorContract,
+        feed: &mut dyn Feed<'_>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        if !Rc::ptr_eq(&self.owner, &feed.relation_owner()) {
+            return Err(OperatingError::NotRead);
+        }
+        self.executor.stream(&self.owner, contract, feed, context, room, emit)
+    }
     pub(crate) fn collect(
         &self,
         contract: &OperatorContract,

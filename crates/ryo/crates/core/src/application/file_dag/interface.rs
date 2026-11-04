@@ -32,7 +32,7 @@ pub(crate) trait DagExecution {
             crate::domain::table_model::types::Rows<'f>,
             crate::domain::operating::errors::OperatingError,
         >,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
     ) -> Result<
         crate::application::file_dag::relations::PublishedInput,

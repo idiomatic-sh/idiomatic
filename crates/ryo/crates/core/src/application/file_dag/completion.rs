@@ -45,6 +45,8 @@ impl CompletedRows {
 }
 #[derive(Debug)]
 pub(crate) enum NodeCompletion {
+    /// Deferred original failure: other independent roots retain their own state.
+    Failed(OperatingError),
     Available {
         rows: CompletedRows,
         coverage: CoverageState,
@@ -89,17 +91,20 @@ impl<'a> CompletionPolicy<'a> {
         needs: &[RelationRead],
         probed_kinds: &[CellKind],
         evaluate: impl FnOnce() -> Result<Table, OperatingError>,
-    ) -> Result<NodeCompletion, OperatingError> {
+    ) -> NodeCompletion {
         if let CompletionBehavior::BlockBeforeRun(partials) = self.behavior
             && blocked(needs, partials) == Blocking::Blocked
         {
-            return Ok(NodeCompletion::Unavailable(UnavailableCompletion {
+            return NodeCompletion::Unavailable(UnavailableCompletion {
                 scope: self.scope,
                 reason: UnavailableReason::AbsenceBlockedByPartial,
-            }));
+            });
         }
         // The closure owns staged output. An error cannot mint CompletedRows.
-        let mut table = evaluate()?;
+        let mut table = match evaluate() {
+            Ok(table) => table,
+            Err(error) => return NodeCompletion::Failed(error),
+        };
         let coverage = match self.behavior {
             CompletionBehavior::BlockBeforeRun(_) => CoverageState::Complete,
             CompletionBehavior::DropAfterCollect(partials) => {
@@ -112,10 +117,10 @@ impl<'a> CompletionPolicy<'a> {
                 }
             }
         };
-        Ok(NodeCompletion::Available {
+        NodeCompletion::Available {
             rows: CompletedRows(table),
             coverage,
-        })
+        }
     }
 }
 

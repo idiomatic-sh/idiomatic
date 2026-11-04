@@ -137,7 +137,6 @@ pub(crate) fn prepare_request(pool: &mut PreparedPool, request: &RequestOperator
     {
         return;
     }
-    pool.file_graph = None;
     pool.ordered_existence = Arc::clone(&request.ordered_existence);
     pool.selection_plans = (request.selection_plans).clone();
     pool.selection_views = Some((request.selection_views).clone());

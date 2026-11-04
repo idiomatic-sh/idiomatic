@@ -13,6 +13,7 @@ use ryo_values::domain::plan_parts::types::Input;
 
 pub(super) fn observed(
     crossing: &CrossingInput<'_>,
+    executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
     rule: RuleIndex,
     input: &BoundInputWords,
     symbols: &mut Symbols,
@@ -41,7 +42,7 @@ pub(super) fn observed(
         tables,
         &input.kinds,
         input.union.as_ref().map_err(Clone::clone)?,
-        crossing.executor,
+        executor,
         &mut context,
     )?;
     Ok(Frontier {

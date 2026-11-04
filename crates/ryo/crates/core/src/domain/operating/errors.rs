@@ -57,6 +57,9 @@ pub(crate) enum OperatingError {
     /// A step reads a relation nobody read.
     #[error("a step reads a relation that was not read")]
     NotRead,
+    /// A project input was required but no admitted frontier was supplied.
+    #[error("required frontier {input:?} is unavailable")]
+    FrontierUnavailable { input: ryo_values::domain::plan_parts::types::Input },
     /// A query reads a parameter nothing was bound to.
     #[error("the parameter has no value")]
     Unbound,

@@ -321,6 +321,7 @@ pub(super) struct LintRun<'a> {
     pub observations: crate::domain::file_program::types::ObservationRequest<'a>,
     pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
     pub operators: std::sync::Arc<crate::domain::operator::contract::types::RequestOperators>,
+    pub graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
     /// What the caller asked.
     pub request: &'a LintRequest,
     /// The rules, compiled.

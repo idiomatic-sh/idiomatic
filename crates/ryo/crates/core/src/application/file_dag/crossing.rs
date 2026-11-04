@@ -40,16 +40,21 @@ pub(crate) fn cross_rule(
     frontier: Vec<Frontier>,
     cross: &mut Symbols,
 ) -> Result<Evaluated, RulesError> {
-    cross_rule_with_inputs(crossing, todo, frontier, &[], cross)
+    let scope = super::scope::ExecutionScope::new(std::sync::Arc::clone(&crossing.graph), super::scope::ScopePhase::Project, false, crossing.executor)
+        .map_err(|error| failed(&todo.id, &error))?;
+    cross_rule_with_inputs(crossing, &scope, todo, frontier, &[], cross)
 }
 
 pub(crate) fn cross_rule_with_inputs(
     crossing: &CrossingInput<'_>,
+    scope: &super::scope::ExecutionScope<'_>,
     todo: &Todo,
     mut frontier: Vec<Frontier>,
     refused: &[crate::domain::crossing::types::RefusedFrontier],
     cross: &mut Symbols,
 ) -> Result<Evaluated, RulesError> {
+    if !std::sync::Arc::ptr_eq(scope.graph(), &crossing.graph) { return Err(failed(&todo.id, &crate::domain::operating::errors::OperatingError::WrongOperation)); }
+    let executor = scope.executor();
     let rule = todo.rule;
     let (Some(plan), Some(bound)) = (crossing.plans.get(rule.0), crossing.bindings.get(rule.0))
     else {
@@ -95,7 +100,9 @@ pub(crate) fn cross_rule_with_inputs(
                 crate::domain::recording::types::retention::value::RetainedBytes::inputs(&frontier);
             tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_shape", owner = "decoded_inputs", objects = bytes.objects, decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity, metadata_capacity_bytes = bytes.metadata, payload_copied = false);
         }
+        let completion = scope.completion(rule, super::scope::ScopePartials::Project(&partials)).map_err(|error| refuse(&error))?;
         let evaluated = evaluate_cross_roots_with_executor(
+            &completion,
             plan,
             frontier,
             refused,
@@ -104,7 +111,7 @@ pub(crate) fn cross_rule_with_inputs(
             &mut context,
             &mut fed,
             &hosted,
-            crossing.executor,
+            executor,
             crossing
                 .operators
                 .rules

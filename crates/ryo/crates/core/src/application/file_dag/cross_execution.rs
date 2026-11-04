@@ -1,6 +1,6 @@
 //! Plan result delivery uses the mandatory application-owned operator engine.
 use super::executor::PrimitiveExecutor;
-use crate::domain::coverage::{service::drop_uncertain, types::Partials};
+use crate::domain::coverage::types::Partials;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::types::RowsFed;
@@ -17,6 +17,7 @@ use ryo_values::domain::plans::{
 
 /// Whatever an operator refuses, or `NotRun`/`NotRead` when a step reads what nothing provides.
 pub(crate) fn evaluate_cross_roots_with_executor(
+    completion: &super::completion::CompletionPolicy<'_>,
     plan: &Plan,
     frontier: Vec<Frontier>,
     refused: &[crate::domain::crossing::types::RefusedFrontier],
@@ -25,7 +26,7 @@ pub(crate) fn evaluate_cross_roots_with_executor(
     context: &mut OperatorContext<'_>,
     fed: &mut [RowsFed],
     hosted: &[Table],
-    executor: &dyn PrimitiveExecutor,
+    executor: &super::executor::ScopedExecutor<'_>,
     operators: &[std::sync::Arc<OperatorContract>],
 ) -> Result<crate::domain::crossing::types::PhaseRoots, OperatingError> {
     let needs = crate::domain::trust::service::needs_of_contracts(plan, operators)?;
@@ -100,8 +101,14 @@ pub(crate) fn evaluate_cross_roots_with_executor(
                         }
                         Some(StepScope::PerFile) | None => return Err(OperatingError::NotRun),
                     },
-                    (Input::Relation(_), None) => return Err(OperatingError::NotRead),
-                    (Input::BoundObservation(_), None) => return Err(OperatingError::NotRun),
+                    (Input::Relation(_), None) | (Input::BoundObservation(_), None) => {
+                        let super::completion::NodeCompletion::Unavailable(_provenance) =
+                            completion.missing_frontier(*input)
+                        else {
+                            return Err(OperatingError::WrongOperation);
+                        };
+                        return Err(OperatingError::FrontierUnavailable { input: *input });
+                    }
                 };
             }
             // Hosted is supplied as an explicit request source to its registered evaluator.
@@ -130,48 +137,58 @@ pub(crate) fn evaluate_cross_roots_with_executor(
                         counted.saturating_add(u64::try_from(count_of(each).0).unwrap_or(u64::MAX));
                 }
             }
-            executor.collect(
-                operators.get(index).ok_or(OperatingError::NotRun)?,
-                used,
-                context,
-                out,
-            )?;
-            // Rows made from the absence of rows, where rows of the relations could be missing, are dropped if the missing ones could change them.
-            let uncertain = files_for(partials, needs.get(index).map_or(&[][..], Vec::as_slice));
-            if !uncertain.is_empty() {
-                let probed = match &step.operation {
-                    Operation::Antijoin { .. } | Operation::Difference { .. } => rows.get(1),
-                    Operation::Select { .. }
-                    | Operation::Project { .. }
-                    | Operation::Extend { .. }
-                    | Operation::Join { .. }
-                    | Operation::Union { .. }
-                    | Operation::Intersection { .. }
-                    | Operation::GroupCount { .. }
-                    | Operation::Replace { .. }
-                    | Operation::SourceMatches { .. }
-                    | Operation::RenderSyntax { .. }
-                    | Operation::FitsRendered { .. }
-                    | Operation::SpanBounds { .. }
-                    | Operation::SpanBetween { .. }
-                    | Operation::OrderedMatch { .. }
-                    | Operation::OrderedDfs { .. }
-                    | Operation::GroupDigest { .. }
-                    | Operation::Capture { .. }
-                    | Operation::Rank { .. }
-                    | Operation::Words { .. }
-                    | Operation::Axis { .. }
-                    | Operation::Closure { .. }
-                    | Operation::Cycles { .. }
-                    | Operation::Rows { .. }
-                    | Operation::Hosted { .. } => rows.first(),
-                };
-                drop_uncertain(
-                    &step.operation,
-                    probed.map_or(&[][..], kinds_of),
-                    out,
-                    &uncertain,
-                );
+            let probed = match &step.operation {
+                Operation::Antijoin { .. } | Operation::Difference { .. } => rows.get(1),
+                Operation::Select { .. }
+                | Operation::Project { .. }
+                | Operation::Extend { .. }
+                | Operation::Join { .. }
+                | Operation::Union { .. }
+                | Operation::Intersection { .. }
+                | Operation::GroupCount { .. }
+                | Operation::Replace { .. }
+                | Operation::SourceMatches { .. }
+                | Operation::RenderSyntax { .. }
+                | Operation::FitsRendered { .. }
+                | Operation::SpanBounds { .. }
+                | Operation::SpanBetween { .. }
+                | Operation::OrderedMatch { .. }
+                | Operation::OrderedDfs { .. }
+                | Operation::GroupDigest { .. }
+                | Operation::Capture { .. }
+                | Operation::Rank { .. }
+                | Operation::Words { .. }
+                | Operation::Axis { .. }
+                | Operation::Closure { .. }
+                | Operation::Cycles { .. }
+                | Operation::Rows { .. }
+                | Operation::Hosted { .. } => rows.first(),
+            };
+            match completion.evaluate(
+                &step.operation,
+                needs.get(index).map_or(&[][..], Vec::as_slice),
+                probed.map_or(&[][..], kinds_of),
+                || {
+                    let mut staged = Table::default();
+                    executor.collect(
+                        operators.get(index).ok_or(OperatingError::NotRun)?,
+                        used,
+                        context,
+                        &mut staged,
+                    )?;
+                    Ok(staged)
+                },
+            ) {
+                super::completion::NodeCompletion::Available {
+                    rows,
+                    coverage: _coverage,
+                } => *out = rows.into_table(),
+                super::completion::NodeCompletion::Failed(error) => return Err(error),
+                super::completion::NodeCompletion::Unavailable(reason) => {
+                    return Err(OperatingError::SemanticIncomplete {
+                        reason: format!("scope input unavailable: {reason:?}"),
+                    });
+                }
             }
             Ok(())
         })();
@@ -289,7 +306,7 @@ pub(crate) fn evaluate_cross_with_executor(
     context: &mut OperatorContext<'_>,
     fed: &mut [RowsFed],
     hosted: &[Table],
-    executor: &dyn PrimitiveExecutor,
+    executor: &super::executor::ScopedExecutor<'_>,
     operators: &[std::sync::Arc<OperatorContract>],
 ) -> Result<Table, OperatingError> {
     let roots = evaluate_cross_roots_with_executor(

@@ -35,8 +35,6 @@ pub(crate) struct Pool {
 /// Request-owned immutable schemas/programs, literal matchers and counters; no row payload.
 #[derive(Debug, Default)]
 pub(crate) struct PreparedPool {
-    /// Opt-in typed request graph; no file rows or provider handles live here.
-    pub file_graph: Option<std::sync::Arc<crate::domain::file_program::types::RequestGraph>>,
     /// Opt-in execution strategy selected once for this request's workers.
     pub kernel_strategy: crate::domain::column_kernel::types::KernelStrategy,
     /// Immutable fused chains aligned with `layouts` by plan identity.

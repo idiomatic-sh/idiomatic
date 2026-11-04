@@ -392,25 +392,7 @@ impl FileAnalysis {
             &visit.setting.operators,
         );
         let graph_enabled = true;
-        if graph_enabled {
-            let same_request = tables.pool.file_graph.as_ref().is_some_and(|graph| {
-                graph.plans.len() == visit.setting.plans.len()
-                    && graph
-                        .plans
-                        .iter()
-                        .zip(visit.setting.plans)
-                        .all(|(address, plan)| *address == std::ptr::from_ref(plan).addr())
-            });
-            if !same_request {
-                tables.pool.file_graph = Some(Arc::new(
-                    crate::domain::file_program::service::compile_prepared_observations(
-                        visit.setting.plans,
-                        &visit.setting.operators,
-                        visit.setting.observations,
-                    ),
-                ));
-            }
-        }
+        let graph = &visit.setting.graph;
         // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
         let acceptance = syntax_acceptance(&tables.elements);
         let scoped_mask =
@@ -471,23 +453,14 @@ impl FileAnalysis {
         }
         // The generation owner is unconditional. The benchmark switch changes
         // retention only; every class keeps the same executor and semantics.
-        let semantic_port = visit.setting.executor.derived_port();
         let stable = facts.resident_stability() == ResidentStability::Stable;
-        // One explicit generation owner serves every rule, including files without a DAG schedule.
-        let owner = std::rc::Rc::new(if let Some(graph) = &tables.pool.file_graph {
-            crate::application::file_dag::relations::RelationOwner::for_request(
-                stable,
-                graph.nodes.len() + complete.len() + 1,
-                semantic_port,
-            )
-        } else {
-            crate::application::file_dag::relations::RelationOwner::new(stable, semantic_port)
-        });
-        let executor = crate::application::file_dag::executor::ScopedExecutor::new(
-            visit.setting.executor,
-            std::rc::Rc::clone(&owner),
+        let scope = crate::application::file_dag::scope::ExecutionScope::new(
+            std::sync::Arc::clone(graph), crate::application::file_dag::scope::ScopePhase::File(file),
+            stable, visit.setting.executor,
         )?;
-        let file_dag = tables.pool.file_graph.as_ref().map(|graph| {
+        let owner = std::rc::Rc::clone(scope.owner());
+        let executor = scope.executor();
+        let file_dag = {
             let schedule = activation.activate(
                 graph,
                 |index| {
@@ -510,8 +483,8 @@ impl FileAnalysis {
             {
                 execution.limit = 0;
             }
-            std::cell::RefCell::new(execution)
-        });
+            Some(std::cell::RefCell::new(execution))
+        };
         executor.prepare_resources(
             Self::resource_generation_enabled(tables, facts.as_ref()),
             active_wanted.as_ref(),
@@ -1306,11 +1279,7 @@ impl FileAnalysis {
             });
         }
         let moved = moved_words(tables, number, base)?;
-        let graph = tables
-            .pool
-            .file_graph
-            .as_ref()
-            .and_then(|graph| graph.observations.as_ref());
+        let graph = setting.graph.observations.as_ref();
         let (observations, slots) = match (tables.current_observations.as_deref(), graph) {
             (Some(map), Some(graph)) => {
                 let count = ryo_values::domain::observations::types::ObservationReadinessCount(

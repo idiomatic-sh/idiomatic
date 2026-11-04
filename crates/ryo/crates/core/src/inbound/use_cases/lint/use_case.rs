@@ -1015,6 +1015,7 @@ impl LintUseCaseImpl {
                         domain,
                         executor: run.executor,
                         operators: std::sync::Arc::clone(&run.operators),
+                        graph: std::sync::Arc::clone(&run.graph),
                         scheduler: self.scheduler.as_ref(),
                         workers: self.workers,
                         observations: run.observations,
@@ -1032,6 +1033,7 @@ impl LintUseCaseImpl {
         let crossing = CrossingInput {
             executor: run.executor,
             operators: std::sync::Arc::clone(&run.operators),
+            graph: std::sync::Arc::clone(&run.graph),
             arenas: &*handed.arenas,
             domain,
         };
@@ -1473,7 +1475,11 @@ impl LintUseCase for LintUseCaseImpl {
                 .map_err(crate::application::rule_compilation::errors::RuleCompilationError::from)?
             }
         };
+        let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared_observations(
+            &plans, &operators, observation_request,
+        ));
         let mut setting = VisitSetting {
+            graph: std::sync::Arc::clone(&graph),
             source_language: request.source_language.as_ref(),
             executor: &executor,
             operators: std::sync::Arc::clone(&operators),
@@ -1516,7 +1522,7 @@ impl LintUseCase for LintUseCaseImpl {
             crate::application::rule_compilation::replay::observation_closure(
                 again,
                 &plans,
-                &operators,
+                &graph,
                 observation_request,
                 &first_bucket,
             )?;
@@ -1537,6 +1543,7 @@ impl LintUseCase for LintUseCaseImpl {
         let records = records_of(&listing.files, &kept_records);
         setting.records = &records;
         let run = LintRun {
+            graph: std::sync::Arc::clone(&graph),
             observations: setting.observations,
             executor: &executor,
             operators: std::sync::Arc::clone(&operators),

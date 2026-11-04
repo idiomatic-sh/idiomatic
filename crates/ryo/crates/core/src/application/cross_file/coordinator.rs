@@ -17,7 +17,7 @@ use crate::domain::{
         types::{Answered, Todo},
     },
     coverage::types::RuleIndex,
-    file_program::{service::compile_prepared_observations, types::ObservationRequest},
+    file_program::types::ObservationRequest,
     frontiers::service::{project_input, project_relation},
     operating::errors::OperatingError,
     reading::service::frontier_bucket,
@@ -48,13 +48,15 @@ impl CrossFile {
                 "observation execution requires the prepared named graph".into(),
             ));
         };
-        let graph =
-            compile_prepared_observations(run.domain.plans, &run.operators, run.observations);
-        let graph = graph
+        let graph = run.graph
             .observations
             .as_ref()
             .ok_or_else(|| CrossError::Contract("named request graph is absent".into()))?;
-        let mut publications = CrossPublications::new(graph, arenas);
+        let publication_scope = crate::application::file_dag::scope::ExecutionScope::new(
+            std::sync::Arc::clone(&run.graph), crate::application::file_dag::scope::ScopePhase::Project,
+            true, run.executor,
+        )?;
+        let mut publications = CrossPublications::new(graph, std::rc::Rc::clone(publication_scope.owner()), arenas);
         let mut selected = vec![false; run.domain.plans.len()];
         for todo in run.todo {
             *selected
@@ -136,6 +138,7 @@ impl CrossFile {
                     arenas: publications.arenas(),
                     executor: run.executor,
                     operators: std::sync::Arc::clone(&run.operators),
+                    graph: std::sync::Arc::clone(&run.graph),
                     domain: run.domain.clone(),
                 };
                 job_execution::service::drain(run.scheduler, run.workers, &tasks, |_, task| {

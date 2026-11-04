@@ -74,23 +74,22 @@ pub(crate) struct RelationOwner {
     pub reuses: Cell<u64>,
 }
 impl RelationOwner {
-    pub(in crate::application) fn new(
-        stable: bool,
-        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
-    ) -> Self {
-        Self::with_limits(stable, 1024, 1024, semantic)
-    }
-    pub(in crate::application) fn for_request(
+    pub(super) fn for_scope(
+        _permit: super::scope::ScopePermit,
         stable: bool,
         views: usize,
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
-        Self::with_limits(
-            stable,
-            views,
-            views.saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()),
-            semantic,
-        )
+        Self::with_limits(stable, views,
+            views.saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()), semantic)
+    }
+    #[cfg(test)]
+    pub(in crate::application) fn new(stable: bool, semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>) -> Self {
+        Self::for_scope(super::scope::ScopePermit::fixture(), stable, 1024, semantic)
+    }
+    #[cfg(test)]
+    pub(in crate::application) fn for_request(stable: bool, views: usize, semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>) -> Self {
+        Self::for_scope(super::scope::ScopePermit::fixture(), stable, views, semantic)
     }
     fn with_limits(
         stable: bool,

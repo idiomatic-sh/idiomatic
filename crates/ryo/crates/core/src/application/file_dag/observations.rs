@@ -1,5 +1,5 @@
 //! Named roots extend the existing file graph's publication and last-consumer lifetime.
-use super::{executor::PrimitiveExecutor, relations::PublishedInput, types::FileDagExecution};
+use super::{executor::ScopedExecutor, relations::PublishedInput, types::FileDagExecution};
 use crate::domain::{
     file_program::types::{
         GraphObservationRoot, NodeId, ObservationSlot, ResolvedObservationProducer,
@@ -120,7 +120,7 @@ impl FileDagExecution {
         &mut self,
         slot: ObservationSlot,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<PublishedInput, OperatingError> {
         let graph = Arc::clone(&self.graph);
@@ -159,7 +159,7 @@ impl FileDagExecution {
                 }
             }
         }
-        let owner = std::rc::Rc::clone(&self.relations);
+        if !std::rc::Rc::ptr_eq(&self.relations, executor.owner()) { return Err(OperatingError::NotRead); }
         let kinds = binding
             .input
             .schema
@@ -168,7 +168,6 @@ impl FileDagExecution {
             .map(|column| column.kind)
             .collect::<Vec<_>>();
         let result = union::combine(
-            &owner,
             &sources,
             &kinds,
             binding.union.as_ref().map_err(Clone::clone)?,

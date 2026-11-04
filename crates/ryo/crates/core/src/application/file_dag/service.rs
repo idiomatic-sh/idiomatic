@@ -508,7 +508,7 @@ impl DagExecution for std::cell::RefCell<FileDagExecution> {
         &self,
         slot: crate::domain::file_program::types::ObservationSlot,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<super::relations::PublishedInput, OperatingError> {
         self.borrow_mut()
@@ -548,7 +548,7 @@ impl DagExecution for std::cell::RefCell<&mut FileDagExecution> {
         &self,
         slot: crate::domain::file_program::types::ObservationSlot,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        executor: &dyn PrimitiveExecutor,
+        executor: &ScopedExecutor<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<super::relations::PublishedInput, OperatingError> {
         self.borrow_mut()

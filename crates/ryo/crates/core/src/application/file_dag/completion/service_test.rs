@@ -32,12 +32,10 @@ fn file_blocks_before_run_but_project_preserves_evaluation_error_timing() {
     let partials = [partial()];
     let calls = Cell::new(0);
     let file = CompletionPolicy::file(RuleIndex(3), FileId(0), &partials);
-    let result = file
-        .evaluate(&anti(), &needs(), &[CellKind::File], || {
-            calls.set(calls.get() + 1);
-            Err(OperatingError::NotRead)
-        })
-        .unwrap();
+    let result = file.evaluate(&anti(), &needs(), &[CellKind::File], || {
+        calls.set(calls.get() + 1);
+        Err(OperatingError::NotRead)
+    });
     assert!(matches!(
         result,
         NodeCompletion::Unavailable(UnavailableCompletion {
@@ -58,7 +56,10 @@ fn file_blocks_before_run_but_project_preserves_evaluation_error_timing() {
         calls.set(calls.get() + 1);
         Err(OperatingError::NotRead)
     });
-    assert!(matches!(result, Err(OperatingError::NotRead)));
+    assert!(matches!(
+        result,
+        NodeCompletion::Failed(OperatingError::NotRead)
+    ));
     assert_eq!(calls.get(), 1);
 }
 #[test]
@@ -71,15 +72,13 @@ fn project_filters_after_success_and_retains_partial_coverage() {
         unavailable_files: vec![],
     };
     let policy = CompletionPolicy::project(RuleIndex(4), &partials);
-    let result = policy
-        .evaluate(&anti(), &needs(), &[CellKind::File], || {
-            Ok(Table {
-                kinds: vec![CellKind::File],
-                cells: vec![Value::File(FileId(0)), Value::File(FileId(1))],
-                count: RowCount(2),
-            })
+    let result = policy.evaluate(&anti(), &needs(), &[CellKind::File], || {
+        Ok(Table {
+            kinds: vec![CellKind::File],
+            cells: vec![Value::File(FileId(0)), Value::File(FileId(1))],
+            count: RowCount(2),
         })
-        .unwrap();
+    });
     let NodeCompletion::Available { rows, coverage } = result else {
         panic!("successful collection")
     };

@@ -80,6 +80,11 @@ impl CrossFile {
         bound_inputs: &[crate::domain::crossing::types::BoundInputWords],
         publication: super::types::PublicationSlot,
     ) -> Result<Crossed, RulesError> {
+        let scope = crate::application::file_dag::scope::ExecutionScope::new(
+            std::sync::Arc::clone(&crossing.graph),
+            crate::application::file_dag::scope::ScopePhase::Project,
+            false, crossing.executor,
+        ).map_err(|error| failed(&todo.id, &error))?;
         #[cfg(feature = "diagnostic-row-progress")]
         let _project_progress =
             crate::application::file_dag::route_counts::FileScope::begin(usize::MAX);
@@ -95,7 +100,7 @@ impl CrossFile {
             return Ok(Crossed::default());
         };
         for input in bound_inputs {
-            match super::inputs::observed(crossing, todo.rule, input, cross) {
+            match super::inputs::observed(crossing, scope.executor(), todo.rule, input, cross) {
                 Ok(input) => frontier.rows.push(input),
                 Err(error) => {
                     frontier
@@ -110,7 +115,7 @@ impl CrossFile {
             }
         }
         let evaluated =
-            cross_rule_with_inputs(crossing, todo, frontier.rows, &frontier.refused, cross)?;
+            cross_rule_with_inputs(crossing, &scope, todo, frontier.rows, &frontier.refused, cross)?;
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let roots = evaluated.roots;
         let mut unknowns = if let Some(error) = &roots.emit_error {
