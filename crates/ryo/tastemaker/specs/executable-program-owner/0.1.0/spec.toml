@@ -1,0 +1,49 @@
+description = "The cohesive file DAG executable-program application owner and its exact nested parts."
+why = "The application service owns one request's preparation, admission, invocation, and publication. These exact files are declared so a new nested implementation must be deliberately placed; the existing application-service sibling boundary and program implementation dependency rule remain active."
+closed      = false
+
+templates = [
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "cross_execution.rs", description = "Project execution coordination owned by file DAG." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "crossing.rs", description = "Project crossing entry owned by file DAG." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program.rs", description = "The executable-program module boundary." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/admission.rs", description = "Owner-issued source admission and lineage." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade.rs", description = "The supported prepared-program caller surface." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime.rs", description = "Outer file and project execution orchestration." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/file_execution.rs", description = "File-owned frontier capture and commit." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/project_execution.rs", description = "Project-owned deferred source admission." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/facade_runtime/source_admission.rs", description = "Typed deferred source handles." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/kernel_session.rs", description = "Borrowed physical-kernel bridge under invocation permit." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/partitions.rs", description = "Prepared producer partition requirements." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/partitions_test.rs", description = "Partition behavior controls." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_identity.rs", description = "One request's source and generation identity." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/restored.rs", description = "Validated deferred restoration." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime.rs", description = "Single owner of dependency scheduling and release." },
+]
+rules = []
+
+[[scenarios]]
+id = "declared-program-parts"
+scenario = "The exact declared owner parts are placed."
+given.at = "src/application/file_dag"
+given.files."src/application/file_dag/cross_execution.rs" = "pub fn coordinate() {}"
+given.files."src/application/file_dag/crossing.rs" = "pub fn cross() {}"
+given.files."src/application/file_dag/program.rs" = "pub mod runtime;"
+given.files."src/application/file_dag/program/admission.rs" = "pub fn admit() {}"
+given.files."src/application/file_dag/program/facade.rs" = "pub fn prepare() {}"
+given.files."src/application/file_dag/program/facade_runtime.rs" = "pub fn run() {}"
+given.files."src/application/file_dag/program/facade_runtime/file_execution.rs" = "pub fn run_file() {}"
+given.files."src/application/file_dag/program/facade_runtime/project_execution.rs" = "pub fn run_project() {}"
+given.files."src/application/file_dag/program/facade_runtime/source_admission.rs" = "pub fn source() {}"
+given.files."src/application/file_dag/program/kernel_session.rs" = "pub fn invoke() {}"
+given.files."src/application/file_dag/program/partitions.rs" = "pub fn partition() {}"
+given.files."src/application/file_dag/program/partitions_test.rs" = "#[test] fn partition() {}"
+given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
+given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
+given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
+
+[[scenarios]]
+id = "missing-owner"
+scenario = "An absent owner cannot satisfy required program parts."
+given.at = "src/application/file_dag"
+given.files."src/application/other.rs" = "pub fn other() {}"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]
