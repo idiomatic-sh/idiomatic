@@ -96,6 +96,7 @@ impl ProjectRun<'_, '_> {
             self.program,
             Rc::clone(&self.owner),
             &unavailable,
+            None,
         );
         let partition = Partition::Project(self.required.clone());
         let mut absent = HashMap::new();

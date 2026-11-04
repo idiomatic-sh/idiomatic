@@ -177,8 +177,46 @@ pub(crate) struct PreparedProgram {
     hosted: Box<[HostRelation]>,
     matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     derived: super::super::derived::prepared::PreparedDerived,
+    walk: crate::domain::shared_walk::types::PreparedWalk,
 }
 impl PreparedProgram {
+    pub(super) fn walk(&self) -> &crate::domain::shared_walk::types::PreparedWalk {
+        &self.walk
+    }
+    pub(super) fn all_bindings(&self) -> &[Box<[ParameterBinding]>] {
+        &self.bindings
+    }
+    pub(super) fn walk_class(
+        &self,
+        instruction: &crate::domain::executable_program::types::Instruction,
+    ) -> Option<crate::domain::positions::types::ClassPlace> {
+        let ryo_values::domain::plans::types::Operation::Select {
+            from: Input::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
+            comparisons,
+            kept,
+        } = &instruction.operation
+        else {
+            return None;
+        };
+        if !kept.is_empty() {
+            return None;
+        }
+        let original = self
+            .program
+            .rules()
+            .get(instruction.producer.0)?
+            .original_steps
+            .iter()
+            .filter_map(|origin| origin.as_ref().ok())
+            .find(|origin| origin.logical == instruction.logical)?;
+        let class = self
+            .walk
+            .class_of(instruction.producer)?
+            .get(original.step.0 as usize)
+            .copied()
+            .flatten()?;
+        (self.walk.classes().get(class.0)?.comparisons == *comparisons).then_some(class)
+    }
     pub(super) fn rule_id(
         &self,
         rule: RuleIndex,
@@ -421,6 +459,7 @@ pub(crate) fn prepare(
         schedule,
         observations,
     } = compiled;
+    let walk = crate::domain::shared_walk::types::PreparedWalk::compile(&plans, &bindings);
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
     let operators = RequestOperators::prepare(&plans, &bindings, hosted, derived)?;
@@ -562,6 +601,7 @@ pub(crate) fn prepare(
         hosted: hosted.to_vec().into_boxed_slice(),
         matchers,
         derived,
+        walk,
     }))
 }
 fn source(

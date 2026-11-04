@@ -33,6 +33,7 @@ pub(super) struct KernelSession<'a, 'facts> {
     prepared: &'a super::facade::PreparedProgram,
     owner: Rc<RelationOwner>,
     read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+    walk: Option<&'a super::native_walk::FileWalk>,
 }
 impl<'a, 'facts> KernelSession<'a, 'facts> {
     pub(super) fn new(
@@ -40,12 +41,14 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
         prepared: &'a super::facade::PreparedProgram,
         owner: Rc<RelationOwner>,
         read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        walk: Option<&'a super::native_walk::FileWalk>,
     ) -> Self {
         Self {
             kernels,
             prepared,
             owner,
             read,
+            walk,
         }
     }
 }
@@ -173,6 +176,41 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         .map(|publication| self.owner.resolve(publication.as_ref(), self.read))
                         .collect::<Result<Vec<_>, _>>()
                         .map_err(InvocationFailure::Semantic)?;
+                    if mode == EvaluationMode::Collected {
+                        if let (Some(walk), [Rows::Tree(tree)]) = (self.walk, originals.as_slice())
+                        {
+                            if let Some(class) = walk.class(self.prepared, instruction) {
+                                walk.prepare(self.prepared, permit, *tree, context, self.kernels)
+                                    .map_err(InvocationFailure::Semantic)?;
+                                let batch = walk.batch();
+                                let batch = batch
+                                    .as_ref()
+                                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
+                                if let Some(result) = batch.class(class) {
+                                    workspace.work.found(0, batch.visits(class));
+                                    let positions = result.as_ref().map_err(|error| {
+                                        InvocationFailure::Semantic(error.clone())
+                                    })?;
+                                    let tree_rows = Rows::Tree(*tree);
+                                    let mut cells = Vec::new();
+                                    for position in &positions.0 {
+                                        let row = read_row(
+                                            &tree_rows,
+                                            RowIndex(*position as usize),
+                                            &mut cells,
+                                        )
+                                        .ok_or(
+                                            InvocationFailure::Semantic(OperatingError::NotRead),
+                                        )?;
+                                        output
+                                            .row(context, row)
+                                            .map_err(InvocationFailure::Delivery)?;
+                                    }
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
                     let views: Vec<_> = originals.iter().map(BorrowedRows::from).collect();
                     workspace.capture_admitted(publications.clone());
                     let meaning = match mode {

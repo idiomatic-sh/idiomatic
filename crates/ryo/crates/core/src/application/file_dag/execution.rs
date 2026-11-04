@@ -39,6 +39,10 @@ impl PrimitiveExecutor for CommonOperatorEngine<'_> {
                 .map_err(KernelFault::Refused)?;
                 Ok(KernelAnswer::Complete)
             }
+            KernelCall::Walk { request } => request
+                .dispatch()
+                .map(KernelAnswer::Walk)
+                .map_err(KernelFault::Refused),
             KernelCall::Physical { request } => {
                 request.dispatch(self.operators).map(KernelAnswer::Physical)
             }

@@ -15,6 +15,9 @@ pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
         lease: &'call mut PrimitiveLease<'resources>,
         output: &'call mut dyn RowSink,
     },
+    Walk {
+        request: super::program::native_walk::PermittedWalk<'call, 'resources, 'invocation>,
+    },
     Physical {
         request: super::program::admission::PermittedPhysical<'call, 'resources, 'invocation>,
     },
@@ -22,6 +25,7 @@ pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
 pub(crate) enum KernelAnswer {
     Complete,
     Physical(OperatorAnswer),
+    Walk(crate::domain::shared_walk::types::NativeBatch),
 }
 pub(crate) enum KernelFault {
     Refused(OperatingError),

@@ -130,8 +130,6 @@ pub(crate) struct Tables {
     pub unknowns: Vec<Unknown>,
     /// Rules explicitly skipped for files whose syntax they require was rejected.
     pub skipped: Vec<Skipped>,
-    /// The steps of the rules that select from the elements of a file, merged to be decided in one pass over them.
-    pub shared: crate::domain::shared_walk::types::MergedWalk,
 }
 
 /// What a visit of a file reads that is the same for every file.

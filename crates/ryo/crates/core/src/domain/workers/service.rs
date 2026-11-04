@@ -67,7 +67,6 @@ pub(crate) fn tables_for(
         covered: Vec::new(),
         unknowns: Vec::new(),
         skipped: Vec::new(),
-        shared: crate::domain::shared_walk::types::MergedWalk::default(),
     }
 }
 

@@ -11,3 +11,4 @@ mod restored;
 mod request_identity;
 
 mod context;
+mod native_walk;

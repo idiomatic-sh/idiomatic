@@ -17,6 +17,7 @@ pub(crate) struct FileRun<'a, 'service> {
     roots: Vec<Vec<FileRoot>>,
     observed: HashMap<usize, AdmittedInput>,
     context: super::super::context::RunContext<'a>,
+    walk: super::super::native_walk::FileWalk,
 }
 pub(crate) fn open_file<'a, 'service>(
     program: &'a Arc<PreparedProgram>,
@@ -73,6 +74,7 @@ pub(crate) fn open_file<'a, 'service>(
         partials,
         roots,
         observed: HashMap::new(),
+        walk: super::super::native_walk::FileWalk::new(file, demanded),
         context: super::super::context::RunContext::file(
             services, source, symbols, semantic, kinds,
         ),
@@ -115,6 +117,7 @@ impl FileRun<'_, '_> {
             self.program,
             Rc::clone(&self.owner),
             read,
+            Some(&self.walk),
         );
         let mut sources = SourceInputs {
             execution: &self.execution,
@@ -230,6 +233,7 @@ impl FileRun<'_, '_> {
             self.program,
             Rc::clone(&self.owner),
             read,
+            Some(&self.walk),
         );
         let mut inputs = SourceInputs {
             execution: &self.execution,

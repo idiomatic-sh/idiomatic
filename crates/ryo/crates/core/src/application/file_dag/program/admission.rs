@@ -332,6 +332,38 @@ impl<'scope> KernelPermit<'scope> {
             authority,
         })
     }
+    pub(super) fn validate_live(&self) -> Result<(), OperatingError> {
+        if self.live.is_live() {
+            Ok(())
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    }
+    pub(super) fn walk<'call, 'tree>(
+        &'call self,
+        prepared: &'call super::facade::PreparedProgram,
+        tree: crate::domain::table_cells::types::TreeRows<'tree>,
+        context: &'call mut crate::domain::operating::types::OperatorContext<'tree>,
+        active: &'call [bool],
+        work: &'call mut crate::domain::shared_walk::types::WalkWork,
+    ) -> Result<super::native_walk::PermittedWalk<'call, 'tree, 'scope>, OperatingError> {
+        self.validate_live()?;
+        if !std::ptr::eq(self.program, prepared.program().as_ref()) {
+            return Err(OperatingError::WrongOperation);
+        }
+        let instruction = &self.program.regions()[self.region.0].instructions[self.instruction];
+        if prepared.walk_class(instruction).is_none() {
+            return Err(OperatingError::WrongOperation);
+        }
+        Ok(super::native_walk::PermittedWalk {
+            permit: self,
+            prepared,
+            tree,
+            context,
+            active,
+            work,
+        })
+    }
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
         self.program.regions()[self.region.0].instructions[self.instruction]
             .contract
