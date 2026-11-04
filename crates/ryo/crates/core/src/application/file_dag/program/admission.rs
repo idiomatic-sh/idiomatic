@@ -497,6 +497,16 @@ impl<'scope> KernelPermit<'scope> {
             .as_deref()
             .map_err(Clone::clone)
     }
+    pub(in crate::application::file_dag) fn validate_registered(
+        &self,
+        operation: &ryo_values::domain::plans::types::Operation,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        if !matches!(self.strategy, KernelStrategy::Registered) || self.operation() != operation {
+            return Err(OperatingError::WrongOperation);
+        }
+        Ok(())
+    }
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
         self.program.regions()[self.region.0].instructions[self.instruction]
             .contract
