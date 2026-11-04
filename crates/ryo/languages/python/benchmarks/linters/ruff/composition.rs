@@ -119,6 +119,12 @@ pub(crate) fn run(
             let source_language = tool.source_language.clone();
             let project_context_mode = tool.project_context_mode;
             tool.defaults = audit.authored().to_vec();
+            let candidate_defaults = tool.defaults.clone();
+            let candidate_observations = tool.rule_observations.clone();
+            let declared_rule_context = tool.rule_context.clone();
+            let configured_cohort = declared_rule_context
+                .as_ref()
+                .map(|_| tool.defaults.clone());
             let reference = Arc::new(commands::reference(executable.clone(), tool)?);
             let selected_scratch = tempfile::Builder::new()
                 .prefix(constants::CERTIFICATION_PREFIX)
@@ -150,6 +156,8 @@ pub(crate) fn run(
                     parser_configuration,
                     source_language,
                     project_context_mode,
+                    candidate_defaults,
+                    candidate_observations,
                 ));
             let case_scratch = tempfile::tempdir()?;
             let certificate = CertifyUseCaseImpl::new(
@@ -236,6 +244,12 @@ pub(crate) fn run(
                     ) {
                         let preflight = RunRequest {
                             performance: Default::default(),
+                            selected_rules: configured_cohort.clone(),
+                            rule_observations: None,
+                            rule_context: ryo_benchmark::domain::suite::rule_context::resolve(
+                                declared_rule_context.as_ref(),
+                                None,
+                            )?,
                             file_metadata: None,
                             context_manifest: None,
                             root: workspace.root().to_owned(),
@@ -303,6 +317,12 @@ pub(crate) fn run(
                             .keep();
                         let request = RunRequest {
                             performance: Default::default(),
+                            selected_rules: configured_cohort.clone(),
+                            rule_observations: None,
+                            rule_context: ryo_benchmark::domain::suite::rule_context::resolve(
+                                declared_rule_context.as_ref(),
+                                None,
+                            )?,
                             file_metadata: None,
                             context_manifest: None,
                             root: workspace.root().to_owned(),

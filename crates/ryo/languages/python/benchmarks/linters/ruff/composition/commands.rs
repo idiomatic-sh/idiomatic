@@ -102,9 +102,14 @@ pub(super) fn verify_cases(
     let mut shard = None;
     let mut case_selection = None;
     for argument in args {
-        if let Some(path) = argument.0.strip_prefix(ryo_benchmark::outbound::inventory::types::CASE_RECEIPTS_ARGUMENT) {
+        if let Some(path) = argument
+            .0
+            .strip_prefix(ryo_benchmark::outbound::inventory::types::CASE_RECEIPTS_ARGUMENT)
+        {
             if path.is_empty() || case_receipts.replace(PathBuf::from(path)).is_some() {
-                return Err(Error::Invalid("case receipt destination must be nonempty and supplied once".into()));
+                return Err(Error::Invalid(
+                    "case receipt destination must be nonempty and supplied once".into(),
+                ));
             }
         } else if argument.0.starts_with("--shard=") {
             if shard.replace(parse_shard(&argument.0)?).is_some() {
@@ -131,7 +136,9 @@ pub(super) fn verify_cases(
         }
     }
     let suite_source: Arc<dyn SuitePort> = match case_receipts {
-        Some(path) => Arc::new(ryo_benchmark::outbound::suite::factory::local_with_case_receipts(path)),
+        Some(path) => {
+            Arc::new(ryo_benchmark::outbound::suite::factory::local_with_case_receipts(path))
+        }
         None => Arc::new(ryo_benchmark::outbound::suite::factory::local()),
     };
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
@@ -144,6 +151,8 @@ pub(super) fn verify_cases(
     let audit = suite_source.audit(ArtifactPath(&source), &tool)?;
     ryo_benchmark::domain::suite::service::require_accounted(&audit, &tool)?;
     tool.defaults = audit.authored().to_vec();
+    let candidate_defaults = tool.defaults.clone();
+    let candidate_observations = tool.rule_observations.clone();
     let reference = Arc::new(reference(executable, tool)?);
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
@@ -157,6 +166,8 @@ pub(super) fn verify_cases(
         parser_configuration,
         source_language,
         project_context_mode,
+        candidate_defaults,
+        candidate_observations,
     ));
     let count = ryo_benchmark::application::run::service::verify_accounted_shard(
         suite_source.as_ref(),

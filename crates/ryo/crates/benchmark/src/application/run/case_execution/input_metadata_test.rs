@@ -9,6 +9,9 @@ use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interfac
 use std::{cell::Cell, collections::BTreeMap};
 struct ObservedPrepare(Cell<usize>);
 impl LinterPort for ObservedPrepare {
+    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
+        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    }
     fn prepare(&self, _: &RunRequest) -> Result<Invocation, Error> {
         self.0.set(self.0.get() + 1);
         Err(Error::Invalid("preparation reached".into()))
@@ -34,6 +37,9 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
             name: "mode".into(),
             request: RunRequest {
                 performance: Default::default(),
+                selected_rules: None,
+                rule_observations: None,
+                rule_context: None,
                 file_metadata: Some(BTreeMap::from([(file.clone(), expected)])),
                 context_manifest: None,
                 root: root.path().to_path_buf(),
@@ -130,6 +136,9 @@ fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
         rule: ryo::linter::RuleId::try_from("R1").unwrap(),
         name: "missing".into(),
         request: RunRequest {
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             file_metadata: None,
             context_manifest: Some(manifest),
             root: root.clone(),

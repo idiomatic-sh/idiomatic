@@ -65,6 +65,7 @@ impl EngineLocalAdapter {
         registry: &BTreeMap<String, std::path::PathBuf>,
         applicability_by_rule: &BTreeMap<String, String>,
         frontend_diagnostic: Option<FrontendDiagnosticProjection>,
+        declarations: Option<&crate::domain::suite::types::RuleObservationDeclarations>,
     ) -> Result<BTreeMap<RuleId, Rule>, Error> {
         let modules = query_modules(directory, registry)?;
         let mut rules = BTreeMap::new();
@@ -101,11 +102,15 @@ impl EngineLocalAdapter {
                 RyoQlQuery::with_modules(&format!("rules/{id}"), &query, modules.clone())
                     .map_err(|error| Error::Invalid(error.to_string()))?
             };
+            let observations = declarations
+                .and_then(|values| values.get(&id))
+                .cloned()
+                .unwrap_or_default();
             if rules
                 .insert(
                     id,
                     Rule {
-                        observations: Vec::new(),
+                        observations,
                         query,
                         applicability,
                         parameters: BTreeMap::new(),
@@ -144,6 +149,15 @@ impl EngineLocalAdapter {
                 .is_some()
         {
             return Err(Error::Invalid(constants::DUPLICATE_RULE.into()));
+        }
+        if let Some(declarations) = declarations {
+            for consumer in declarations.keys() {
+                if !rules.contains_key(consumer) {
+                    return Err(Error::Invalid(format!(
+                        "observation declarations name an unregistered consumer: {consumer}"
+                    )));
+                }
+            }
         }
         Ok(rules)
     }
@@ -212,6 +226,7 @@ impl EnginePort for EngineLocalAdapter {
             &request.query_modules,
             &request.rule_applicability,
             self.frontend_diagnostic.clone(),
+            request.rule_observations.as_ref(),
         )?;
         if let Some(projection) = &self.frontend_diagnostic {
             let frontend = rules
@@ -227,6 +242,8 @@ impl EnginePort for EngineLocalAdapter {
             .len()
             .saturating_sub(usize::from(self.frontend_diagnostic.is_some()));
         let selected_pairs = selected_rule_count.saturating_mul(request.files.len());
+        let configured = rule_context::project(&request, &mut rules, selected_pairs)?;
+        let selected_pairs = configured.selected_pairs;
         let (sources, accepted) = source_inputs(&request, &selected_missing)?;
         let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
         let cache = match request.state {
@@ -254,7 +271,7 @@ impl EnginePort for EngineLocalAdapter {
                 root: request.root.clone(),
                 rules,
                 files: vec![],
-                hosted: vec![],
+                hosted: configured.hosted,
                 corpus,
                 beside,
             },
@@ -301,7 +318,9 @@ impl EnginePort for EngineLocalAdapter {
             skipped: report.skipped,
             coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
                 selected: selected_pairs,
-                evaluated: selected_pairs.saturating_sub(skips_count),
+                evaluated: selected_pairs.checked_sub(skips_count).ok_or_else(|| {
+                    Error::Invalid("skipped rule pairs exceed the configured selection".into())
+                })?,
                 skipped: skips_count,
                 unknown_or_unread: 0,
             }),
@@ -519,3 +538,5 @@ fn project_input_exclusions(
         })
         .collect()
 }
+#[path = "rule_context.rs"]
+mod rule_context;

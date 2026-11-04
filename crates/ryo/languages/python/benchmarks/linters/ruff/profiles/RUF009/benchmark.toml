@@ -28,6 +28,10 @@ defaults = ["RUF009"]
 parser-configuration = "python-target=3.10"
 
 [query-modules]
+"python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
+"python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
+"python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
+"python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql"
 "python/ruff/annotation-origins" = "fragments/annotation-origins.ryoql"
 "python/ruff/dataclass-decorators" = "fragments/dataclass-decorators.ryoql"
 "python/ruff/future-annotation-context" = "fragments/future-annotation-context.ryoql"

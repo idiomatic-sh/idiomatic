@@ -21,6 +21,9 @@ pub(crate) struct LinterRuffAdapter {
     target_version: String,
 }
 impl LinterPort for LinterRuffAdapter {
+    fn rule_configuration(&self) -> ryo_benchmark::domain::suite::types::RuleConfigurationSupport {
+        ryo_benchmark::domain::suite::types::RuleConfigurationSupport::Explicit
+    }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         if request.files.is_empty() {
             return Err(Error::Invalid(constants::EMPTY_INPUT.into()));
@@ -41,8 +44,15 @@ impl LinterPort for LinterRuffAdapter {
                 .into(),
             constants::TARGET_VERSION.into(),
             self.target_version.clone().into(),
-            constants::END_OPTIONS.into(),
         ];
+        if let Some(context) = &request.rule_context {
+            let root = std::path::absolute(&request.root)?;
+            arguments.extend(schemas::configuration_arguments(
+                &context.configuration,
+                &root,
+            )?);
+        }
+        arguments.push(constants::END_OPTIONS.into());
         for file in &request.files {
             relative_path(file.0.as_ref())?;
             arguments.push(file.0.as_ref().into());

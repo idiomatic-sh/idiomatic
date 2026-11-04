@@ -47,11 +47,28 @@ pub(super) fn normalized_invocation(
         "project_context_mode": format!("{:?}", profile.project_context_mode),
     });
     settings["performance"] = serde_json::to_value(
-        crate::outbound::worker::schemas::OptionsSchema::from(
-            case.request.performance,
-        ),
+        crate::outbound::worker::schemas::OptionsSchema::from(case.request.performance),
     )
     .map_err(|error| Error::Invalid(error.to_string()))?;
+    if let Some(declaration) = &profile.rule_context {
+        settings["rule_context_declaration"] =
+            crate::domain::suite::rule_context::declaration_value(declaration);
+    }
+    if let Some(context) = &case.request.rule_context {
+        settings["rule_context"] = crate::domain::suite::rule_context::prepared_value(context);
+    }
+    if !profile.rule_observations.is_empty() {
+        settings["rule_observations"] =
+            crate::domain::suite::observations::value(&profile.rule_observations);
+    }
+    if let Some(declarations) = &case.request.rule_observations {
+        settings["rule_observations"] = crate::domain::suite::observations::value(declarations);
+    }
+    if let Some(selected) = &case.request.selected_rules {
+        let selected: std::collections::BTreeSet<_> =
+            selected.iter().map(ToString::to_string).collect();
+        settings["selected_rules"] = serde_json::json!(selected);
+    }
     if let Some(language) = &profile.source_language {
         settings["source_language"] = serde_json::json!(language);
     }

@@ -131,6 +131,16 @@ pub(super) fn write(
         "case_passed": passed && source_error.is_none(),
         "complete": true,
     });
+    if let Some(context) = &case.request.rule_context {
+        record["rule_context"] = crate::domain::suite::rule_context::prepared_value(context);
+    }
+    if let Some(declarations) = &case.request.rule_observations {
+        record["rule_observations"] = crate::domain::suite::observations::value(declarations);
+    }
+    if let Some(selected) = &case.request.selected_rules {
+        record["selected_rules"] =
+            serde_json::json!(selected.iter().map(ToString::to_string).collect::<Vec<_>>());
+    }
     if let Some(digest) = &metadata_sha256 {
         record["file_metadata_sha256"] = serde_json::json!(digest);
     }

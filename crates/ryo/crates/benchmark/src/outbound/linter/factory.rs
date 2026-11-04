@@ -8,6 +8,8 @@ pub fn ryo(
     query_modules: std::collections::BTreeMap<String, std::path::PathBuf>,
     rule_applicability: std::collections::BTreeMap<String, String>,
     parser_configuration: Option<String>,
+    defaults: Vec<ryo::linter::RuleId>,
+    rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     ryo_context(
         executable,
@@ -17,6 +19,8 @@ pub fn ryo(
         parser_configuration,
         None,
         crate::domain::suite::types::ProjectContextMode::Isolated,
+        defaults,
+        rule_observations,
     )
 }
 
@@ -30,8 +34,12 @@ pub fn ryo_context(
     parser_configuration: Option<String>,
     source_language: Option<String>,
     project_context_mode: crate::domain::suite::types::ProjectContextMode,
+    defaults: Vec<ryo::linter::RuleId>,
+    rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     LinterRyoAdapter {
+        defaults,
+        rule_observations,
         project_context_mode,
         executable,
         rules,

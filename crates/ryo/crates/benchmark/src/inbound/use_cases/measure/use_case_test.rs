@@ -59,6 +59,9 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
     };
     let request = RunRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         file_metadata: None,
         context_manifest: None,
         root: ".".into(),

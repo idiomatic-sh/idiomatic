@@ -27,5 +27,9 @@ sha256 = [
 defaults = ["G201"]
 
 [query-modules]
+"python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
+"python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
+"python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
+"python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql"
 "python/ruff/suppress-directives" = "fragments/suppress-directives.ryoql"
 "python/ruff/suppress" = "fragments/suppress.ryoql"

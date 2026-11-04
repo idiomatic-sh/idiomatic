@@ -10,6 +10,10 @@ use std::path::PathBuf;
 #[derive(Debug)]
 /// Constructs explicit candidate invocations and validates their reports.
 pub(crate) struct LinterRyoAdapter {
+    /// Frozen default cohort; supporting query definitions are not implicitly enabled.
+    pub defaults: Vec<ryo::linter::RuleId>,
+    /// Explicit profile declarations; supporting definitions alone never bind a consumer.
+    pub rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
     /// Explicit isolation contract selected by the frozen profile.
     pub project_context_mode: crate::domain::suite::types::ProjectContextMode,
     /// Pinned candidate executable.
@@ -26,9 +30,22 @@ pub(crate) struct LinterRyoAdapter {
     pub source_language: Option<String>,
 }
 impl LinterPort for LinterRyoAdapter {
+    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
+        crate::domain::suite::types::RuleConfigurationSupport::Explicit
+    }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let worker = WorkerRequest {
             performance: request.performance,
+            rule_context: request.rule_context.clone(),
+            rule_observations: request.rule_observations.clone().or_else(|| {
+                (!self.rule_observations.is_empty()).then(|| self.rule_observations.clone())
+            }),
+            selected_rules: Some(
+                request
+                    .selected_rules
+                    .clone()
+                    .unwrap_or_else(|| self.defaults.clone()),
+            ),
             project_context_mode: self.project_context_mode,
             context_manifest: request.context_manifest.clone(),
             root: request.root.clone(),

@@ -7,12 +7,18 @@ use crate::domain::suite::types::WorkerRequest;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(deny_unknown_fields)]
 /// Explicit candidate invocation at the JSON process boundary.
 struct RyoWorkerRequestSchema {
     #[serde(default)]
     performance: crate::outbound::worker::schemas::OptionsSchema,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    selected_rules: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rule_context: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rule_observations: Option<serde_json::Value>,
     #[serde(default)]
     /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
@@ -102,6 +108,14 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
     fn from(request: WorkerRequest) -> Self {
         Self {
             performance: request.performance.into(),
+            rule_context: request
+                .rule_context
+                .as_ref()
+                .map(crate::domain::suite::rule_context::prepared_value),
+            rule_observations: request
+                .rule_observations
+                .as_ref()
+                .map(crate::domain::suite::observations::value),
             project_context_mode: request.project_context_mode.into(),
             context_manifest: request.context_manifest.map(Into::into),
             root: request.root,

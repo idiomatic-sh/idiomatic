@@ -21,6 +21,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 )]
 fn subject(_: Input) -> Result<Value, Failure> {
     check(&LinterRyoAdapter {
+        rule_observations: Default::default(),
+        defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         executable: "fixture".into(),
         rules: "rules".into(),
@@ -43,6 +45,9 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     let state = root.path().join("state");
     let request = RunRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         file_metadata: None,
         context_manifest: None,
         root: root.path().to_owned(),
@@ -52,6 +57,8 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
         state: state.clone(),
     };
     let adapter = LinterRyoAdapter {
+        rule_observations: Default::default(),
+        defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         executable: "candidate".into(),
         rules: "rules".into(),
@@ -89,4 +96,98 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
         "small file-based argv must spawn"
     );
     Ok(())
+}
+
+#[test]
+fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override() {
+    use crate::outbound::worker::interface::WorkerPort as _;
+    use ryo::linter::{
+        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationKind, ObservationName, ObservationProducer, RuleId,
+    };
+    let root = tempfile::tempdir().unwrap();
+    let consumer = RuleId::try_from("A001").unwrap();
+    let producer = RuleId::try_from("B002").unwrap();
+    let declarations = |output: &str| {
+        BTreeMap::from([(
+            consumer.clone(),
+            vec![ObservationBinding {
+                name: ObservationBindingName("published".into()),
+                columns: [
+                    ObservationKind::Node,
+                    ObservationKind::Symbol,
+                    ObservationKind::File,
+                    ObservationKind::Span,
+                    ObservationKind::Number,
+                    ObservationKind::Flag,
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(index, kind)| ObservationColumn {
+                    name: ObservationColumnName(format!("column-{index}").into()),
+                    kind,
+                })
+                .collect(),
+                producers: vec![ObservationProducer::Output {
+                    rule: producer.clone(),
+                    output: ObservationName(output.into()),
+                }],
+            }],
+        )])
+    };
+    let original = declarations("matched λ\t\\source");
+    let adapter = LinterRyoAdapter {
+        rule_observations: original.clone(),
+        defaults: vec![consumer.clone(), producer.clone()],
+        project_context_mode: Default::default(),
+        executable: "worker".into(),
+        rules: "rules".into(),
+        query_modules: BTreeMap::new(),
+        rule_applicability: BTreeMap::new(),
+        parser_configuration: None,
+        source_language: None,
+    };
+    for (index, explicit) in [None, Some(declarations("different")), Some(BTreeMap::new())]
+        .into_iter()
+        .enumerate()
+    {
+        let expected = explicit.clone().unwrap_or_else(|| original.clone());
+        let request = RunRequest {
+            selected_rules: None,
+            rule_observations: explicit,
+            rule_context: None,
+            file_metadata: None,
+            context_manifest: None,
+            root: root.path().to_owned(),
+            files: vec![RelativePath("input.py".into())],
+            state: root.path().join(index.to_string()),
+        };
+        let invocation = adapter.prepare(&request).unwrap();
+        let path = std::path::PathBuf::from(&invocation.arguments[2]);
+        let json = std::fs::read_to_string(path).unwrap();
+        let worker =
+            crate::outbound::worker::factory::json(json.clone().into(), Box::new(Vec::<u8>::new()));
+        let received = worker.receive().unwrap();
+        assert_eq!(received.rule_observations.as_ref(), Some(&expected));
+        assert_eq!(
+            adapter.rule_observations, original,
+            "case override cannot mutate profile defaults"
+        );
+        if index == 0 {
+            for kind in ["not-a-kind", "file"] {
+                let mut forged: serde_json::Value = serde_json::from_str(&json).unwrap();
+                if kind == "not-a-kind" {
+                    forged["rule_observations"]["A001"][0]["columns"][0]["kind"] =
+                        serde_json::json!(kind);
+                } else {
+                    forged["rule_observations"]["A001"][0]["unknown"] = serde_json::json!(true);
+                }
+                let worker = crate::outbound::worker::factory::json(
+                    forged.to_string().into(),
+                    Box::new(Vec::<u8>::new()),
+                );
+                assert!(worker.receive().is_err());
+            }
+        }
+    }
 }

@@ -18,6 +18,9 @@ pub struct LinterFake {
     pub arguments: Vec<std::ffi::OsString>,
 }
 impl LinterPort for LinterFake {
+    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
+        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
             executable: PathBuf::from("fixture"),

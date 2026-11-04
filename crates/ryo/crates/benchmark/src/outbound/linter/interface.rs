@@ -5,6 +5,8 @@ use crate::domain::suite::types::RunRequest;
 
 /// Bind one linter invocation to its canonical result decoding.
 pub trait LinterPort {
+    /// Whether this concrete adapter honors the shared explicit rule configuration contract.
+    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport;
     /// Construct an invocation over the exact supplied input set.
     ///
     /// # Errors

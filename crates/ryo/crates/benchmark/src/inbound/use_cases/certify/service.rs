@@ -66,6 +66,9 @@ pub(super) fn certify(
     let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     let probe = crate::domain::suite::types::RunRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         file_metadata: None,
         context_manifest: None,
         root: directory.to_owned(),

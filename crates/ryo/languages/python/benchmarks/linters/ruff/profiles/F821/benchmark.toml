@@ -25,6 +25,10 @@ sha256 = [
 defaults = ["F821"]
 
 [query-modules]
+"python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
+"python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
+"python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
+"python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql"
 "python/ruff/deferred-read-resolutions" = "fragments/deferred-read-resolutions.ryoql"
 "python/ruff/deferred-type-reads" = "fragments/deferred-type-reads.ryoql"
 "python/ruff/eager-before-future" = "fragments/eager-before-future.ryoql"

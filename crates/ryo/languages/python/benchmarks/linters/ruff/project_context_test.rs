@@ -30,7 +30,15 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
         source.join("rules/PLW0406/cases.toml"),
         profile.join("rules/PLW0406/cases.toml"),
     )?;
-    for name in ["suppress", "suppress-directives", "text-units"] {
+    for name in [
+        "suppress",
+        "suppress-directives",
+        "text-units",
+        "noqa-line-map",
+        "noqa-locations",
+        "noqa-additional-locations",
+        "suppression-edges",
+    ] {
         let _copied_fragment = std::fs::copy(
             source.join(format!("fragments/{name}.ryoql")),
             profile.join(format!("fragments/{name}.ryoql")),
@@ -45,6 +53,9 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
 fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ProjectContextMode::ListedDisk,
         context_manifest: case.request.context_manifest.clone(),
         root: case.request.root.clone(),

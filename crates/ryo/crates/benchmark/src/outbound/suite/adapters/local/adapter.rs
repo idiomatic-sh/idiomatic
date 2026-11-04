@@ -188,7 +188,10 @@ impl SuitePort for SuiteLocalAdapter {
         Vec<crate::outbound::suite::types::discrepancy::CaseReferenceWire>,
         crate::outbound::suite::types::discrepancy::ArtifactError,
     > {
-        super::discrepancy_artifacts::case_reference_wires(profile)
+        let tool = self.profile(ArtifactPath(profile)).map_err(|error| {
+            crate::outbound::suite::types::discrepancy::ArtifactError::Invalid(error.to_string())
+        })?;
+        super::discrepancy_artifacts::case_reference_wires(profile, &tool)
     }
     fn verify_discrepancy_artifacts(
         &self,
@@ -383,6 +386,12 @@ fn prepare_cases(
             .into_string()
             .map_err(|_invalid_utf8| Error::Invalid(constants::INVALID_RULE_ID_TEXT.into()))?;
         let rule = super::schemas::rule(&rule)?;
+        if profile
+            .as_ref()
+            .is_some_and(|profile| !crate::domain::suite::service::owns_cases(profile, &rule))
+        {
+            continue;
+        }
         let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
             entry.path().join(constants::CASES),
         )?)?;
@@ -446,8 +455,22 @@ fn prepare_cases(
                     super::input_metadata::stage(&path, *executable)?;
                 }
             }
+            let rule_context = crate::domain::suite::rule_context::resolve(
+                profile
+                    .as_ref()
+                    .and_then(|profile| profile.rule_context.as_ref()),
+                case.rule_context.as_ref(),
+            )?;
+            let selected_rules = case.selected_rules.or_else(|| {
+                rule_context
+                    .as_ref()
+                    .and_then(|_| profile.as_ref().map(|profile| profile.defaults.clone()))
+            });
             let request = RunRequest {
                 performance: case.performance,
+                rule_context,
+                selected_rules,
+                rule_observations: case.rule_observations,
                 file_metadata: case.file_metadata,
                 context_manifest,
                 root,

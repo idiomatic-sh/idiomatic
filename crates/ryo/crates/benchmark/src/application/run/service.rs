@@ -23,6 +23,7 @@ pub fn run(
     if let Some(context) = &request.context_manifest {
         crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
     }
+    super::case_execution::configuration(linter, request)?;
     let invocation = linter.prepare(request)?;
     let output = execution.run(invocation)?;
     finish(linter, request, output)

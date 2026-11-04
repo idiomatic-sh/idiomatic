@@ -133,10 +133,15 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             std::collections::BTreeMap::default()
         },
         None,
+        vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
+        std::collections::BTreeMap::new(),
     );
     let temporary = tempfile::tempdir().map_err(|_invalid_parser| Refusal::Unexpected)?;
     let request = RunRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         file_metadata: None,
         context_manifest: None,
         root: "workspace".into(),

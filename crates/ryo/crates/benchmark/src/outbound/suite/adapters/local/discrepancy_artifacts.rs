@@ -26,6 +26,7 @@ fn relative(path: &Path) -> Result<(), ArtifactError> {
 /// Read raw optional reference expectations; interpretation belongs to application orchestration.
 pub(super) fn case_reference_wires(
     profile: &Path,
+    tool: &crate::domain::suite::types::Tool,
 ) -> Result<Vec<CaseReferenceWire>, ArtifactError> {
     let mut result = Vec::new();
     for entry in std::fs::read_dir(profile.join("rules"))? {
@@ -37,10 +38,15 @@ pub(super) fn case_reference_wires(
             .file_name()
             .into_string()
             .map_err(|_bytes| ArtifactError::Invalid("non-UTF8 rule directory".into()))?;
+        let rule = super::schemas::rule(&rule)
+            .map_err(|error| ArtifactError::Invalid(error.to_string()))?;
+        if !crate::domain::suite::service::owns_cases(tool, &rule) {
+            continue;
+        }
         let text = std::fs::read_to_string(entry.path().join("cases.toml"))?;
         for (name, discrepancy, basis) in super::schemas::case_reference_wires(&text)? {
             result.push(CaseReferenceWire {
-                rule: rule.clone(),
+                rule: rule.to_string(),
                 name,
                 basis,
                 discrepancy,

@@ -11,6 +11,15 @@ use std::collections::BTreeSet;
 /// # Errors
 /// Refuses a mismatched mode, source seal, or requested path inventory.
 pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
+    crate::domain::suite::service::validate_selected_rules(request.selected_rules.as_deref())?;
+    if let Some(context) = &request.rule_context {
+        crate::domain::suite::rule_context::check(context, &request.files)?;
+        crate::domain::suite::rule_context::check_selection(
+            context,
+            request.selected_rules.as_deref(),
+        )?;
+    }
+
     let selected_missing = match (request.project_context_mode, &request.context_manifest) {
         (ProjectContextMode::Isolated, None) => BTreeSet::new(),
         (ProjectContextMode::ListedDisk, Some(manifest)) => {

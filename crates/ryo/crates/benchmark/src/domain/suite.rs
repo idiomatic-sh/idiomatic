@@ -17,3 +17,7 @@ pub mod input_metadata;
 
 #[cfg(test)]
 mod input_metadata_test;
+
+pub(crate) mod observations;
+
+pub mod rule_context;

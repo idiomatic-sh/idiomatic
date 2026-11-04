@@ -1,4 +1,5 @@
 //! Actual SDK projection distinguishes generic lazy validity from dedicated future codes.
+use super::PreparedEngine as _;
 use super::*;
 
 #[test]
@@ -34,6 +35,9 @@ fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), E
             )
             .run_prepared(WorkerRequest {
                 performance: Default::default(),
+                selected_rules: None,
+                rule_observations: None,
+                rule_context: None,
                 project_context_mode:
                     ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
                 context_manifest: None,

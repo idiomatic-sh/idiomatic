@@ -22,10 +22,15 @@ def toml_value(value: object) -> str:
     raise TypeError(f'unsupported benchmark TOML value: {type(value).__name__}')
 
 def write_cases(path: Path, cases: list[dict[str, object]]) -> None:
+    """Preserve admitted case context; omission and explicitly empty declarations differ."""
     lines = []
+    primary = {'name', 'comparison', 'files', 'expected'}
     for case in cases:
-        lines.extend(['[[cases]]', f"name = {toml_value(case['name'])}", f"comparison = {toml_value(case.get('comparison', 'rule'))}", f"files = {toml_value(case['files'])}", f"expected = {toml_value(case['expected'])}", ''])
+        lines.extend(['[[cases]]', f"name = {toml_value(case['name'])}", f"comparison = {toml_value(case.get('comparison', 'rule'))}", f"files = {toml_value(case['files'])}", f"expected = {toml_value(case['expected'])}"])
+        lines.extend(f'{toml_value(key)} = {toml_value(value)}' for key, value in case.items() if key not in primary)
+        lines.append('')
     path.write_text('\n'.join(lines), encoding='utf-8')
+
 
 def prepared_profile_path(profile_name: str, recorded: dict[str, object]) -> Path:
     """Resolve a sealed profile TOML, allowing target-specific profile aliases."""
@@ -195,9 +200,21 @@ def combined_modules(profile_data: dict[str, object], selected_rules: list[str],
 def profile_tool_matches(profile_data: dict[str, object], manifest: dict[str, object]) -> bool:
     return profile_data.get('tool') == 'ruff' and profile_data.get('version') == manifest['reference_version'] and (profile_data.get('sha256') == manifest['reference_sha256'])
 
+def rule_phase(phases: dict[str, object], rule: str) -> dict[str, object]:
+    """Resolve a registered definition without changing the shipped-default inventory."""
+    defaults = phases['rules']
+    supplemental = phases.get('registered_nondefault_rules', {})
+    if set(defaults) & set(supplemental):
+        raise ValueError('phase registration duplicates a shipped default')
+    if rule in defaults:
+        return defaults[rule]
+    if rule in supplemental:
+        return supplemental[rule]
+    raise ValueError(f'no pinned execution phase for registered rule {rule}')
+
 def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], phases: dict[str, object]) -> dict[str, object]:
     """Normalize a selected profile without silently ignoring new execution flags."""
-    allowed = {'tool', 'version', 'sha256', 'defaults', 'parser-configuration', 'source-language', 'project-context-mode', 'file-observation', 'query-modules', 'rule-applicability', 'deferred'}
+    allowed = {'tool', 'version', 'sha256', 'defaults', 'parser-configuration', 'source-language', 'project-context-mode', 'file-observation', 'query-modules', 'rule-applicability', 'supporting-rules', 'rule-observations', 'rule-context', 'deferred'}
     if set(profile) - allowed:
         raise ValueError('unreviewed execution settings in canonical profile')
     if profile.get('tool') != 'ruff' or profile.get('version') != profile_config.PINNED_RUFF_VERSION:
@@ -206,7 +223,7 @@ def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], pha
         raise ValueError('execution selection is not in the canonical profile')
     if phases.get('ruff_version') != profile_config.PINNED_RUFF_VERSION or phases.get('ruff_source_commit') != profile_config.PINNED_RUFF_SOURCE_COMMIT:
         raise ValueError('execution phase registry has a different source pin')
-    applicability = {rule: phases['rules'][rule]['applicability'] for rule in rules}
+    applicability = {rule: rule_phase(phases, rule)['applicability'] for rule in [*rules, *profile.get('supporting-rules', [])]}
     if set(applicability.values()) - {'always', 'accepted-syntax'}:
         raise ValueError('unreviewed canonical execution phase')
     declared = profile.get('rule-applicability', {})
@@ -219,9 +236,26 @@ def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], pha
     if selection is not None and (not isinstance(selection, str) or not selection or selection.strip() != selection):
         raise ValueError('source language must be an exact nonblank provider name')
     extra = {'source_language': selection} if selection is not None else {}
+    if profile.get('rule-context') is not None:
+        extra['rule_context_declaration'] = profile['rule-context']
+    if profile.get('rule-observations'):
+        extra['rule_observations'] = profile['rule-observations']
     observation = profile.get('file-observation')
     if observation is not None:
         if observation != 'posix-executable':
             raise ValueError('unsupported file observation requirement')
         extra['file_observation'] = observation
     return {**extra, 'defaults': sorted(set(rules)), 'parser_configuration': profile.get('parser-configuration', 'python-target=3.10'), 'project_context_mode': context, 'rule_applicability': applicability, 'flags': {}}
+
+def registered_query_path(rule: str) -> Path:
+    """Resolve the same admitted canonical definition for every explicit cohort route."""
+    return profile_config.REPOSITORY / module_path(f'rules/{rule}/query.ryoql')
+
+def copy_supporting_queries(profile: Path, destination: Path) -> None:
+    """Copy exact declared executable support definitions, never synthesize cases/default credit."""
+    data = tomllib.loads(profile.read_text(encoding='utf-8'))
+    for rule in data.get('supporting-rules', []):
+        source = registered_query_path(rule)
+        target = destination / 'rules' / rule / 'query.ryoql'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)

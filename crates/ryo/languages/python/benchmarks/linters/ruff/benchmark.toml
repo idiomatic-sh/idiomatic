@@ -439,6 +439,8 @@ defaults = [
 ]
 
 # Every default binds its tagged source phase; accepted-syntax rules skip rejected files.
+supporting-rules = ["E501", "W191", "SIM300", "S307", "ERA001"]
+
 [rule-applicability]
 ASYNC100 = "accepted-syntax"
 ASYNC105 = "accepted-syntax"
@@ -870,6 +872,10 @@ typing_rules = ["FA100", "FA102", "PYI002", "PYI003", "PYI004", "PYI005", "PYI00
 upstream_inactive = ["F621"]
 
 [query-modules]
+"python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
+"python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
+"python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
+"python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql"
 "python/ruff/modernization-symbols" = "fragments/modernization-symbols.ryoql"
 "python/ruff/pep604-candidates" = "fragments/pep604-candidates.ryoql"
 "python/ruff/unpack-symbols" = "fragments/unpack-symbols.ryoql"

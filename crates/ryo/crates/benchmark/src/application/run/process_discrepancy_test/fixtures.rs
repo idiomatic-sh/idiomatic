@@ -40,6 +40,9 @@ impl Fixture {
         let rules = source.join("rules");
         let receipt = source.join("cases.jsonl");
         let profile = Tool {
+            supporting_rules: Vec::new(),
+            rule_observations: std::collections::BTreeMap::new(),
+            rule_context: None,
             file_observation: None,
             project_context_mode: ProjectContextMode::Isolated,
             tool: name.into(),
@@ -72,6 +75,9 @@ impl Fixture {
             name: name.into(),
             request: RunRequest {
                 performance: Default::default(),
+                selected_rules: None,
+                rule_observations: None,
+                rule_context: None,
                 file_metadata: None,
                 root: source.clone(),
                 state: source.join("state"),

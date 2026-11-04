@@ -111,6 +111,9 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
     let root = std::path::PathBuf::from("/snapshot/project");
     let file = RelativePath("missing.py".into());
     let request = RunRequest {
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         file_metadata: None,
         context_manifest: Some(ContextManifest {
             boundary: "/snapshot".into(),
@@ -151,4 +154,37 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
     finding["end_location"]["column"] = serde_json::json!(1);
     finding["fix"] = serde_json::json!({"edits":[]});
     assert!(decode(&request, finding).is_err());
+}
+
+#[test]
+fn rule_configuration_arguments_round_trip_as_toml_including_control_characters() {
+    use ryo_benchmark::domain::suite::types::RuleConfiguration;
+    let configuration = RuleConfiguration {
+        external_prefixes: vec!["V\u{7f}\n\"".into(), "é\\".into()],
+        disabled_rules: std::collections::BTreeMap::from([(
+            ryo::linter::RelativePath("pkg/[é]\u{7f}.py".into()),
+            vec!["F401".try_into().unwrap()],
+        )]),
+    };
+    let args =
+        super::schemas::configuration_arguments(&configuration, std::path::Path::new("/root"))
+            .unwrap();
+    assert_eq!(args.len(), 4);
+    let external: toml::Value = toml::from_str(args[1].to_str().unwrap()).unwrap();
+    assert_eq!(
+        external["lint"]["external"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect::<Vec<_>>(),
+        configuration.external_prefixes
+    );
+    let disabled: toml::Value = toml::from_str(args[3].to_str().unwrap()).unwrap();
+    let expected =
+        ryo_benchmark::domain::suite::rule_context::literal_glob("/root/pkg/[é]\u{7f}.py");
+    assert_eq!(
+        disabled["lint"]["per-file-ignores"][expected.as_str()][0].as_str(),
+        Some("F401")
+    );
 }

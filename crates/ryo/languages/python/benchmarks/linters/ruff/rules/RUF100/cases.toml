@@ -1,0 +1,141 @@
+[[cases]]
+name = "unused-blanket"
+comparison = "full"
+files = { "case.py" = "value = 1  # noqa\n" }
+expected = [{ "end" = 17, "file" = "case.py", "rule" = "RUF100", "start" = 11 }]
+"selected-rules" = ["RUF100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [] }] }
+
+[[cases]]
+name = "no-directive"
+comparison = "full"
+files = { "case.py" = "value = 1\n" }
+expected = []
+"selected-rules" = ["RUF100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [] }] }
+
+[[cases]]
+name = "upstream-0"
+comparison = "full"
+files = { "RUF100_0.py" = "def f() -> None:\n    # Valid\n    a = 1  # noqa\n\n    # Valid\n    b = 2  # noqa: F841\n\n    # Invalid\n    c = 1  # noqa\n    print(c)\n\n    # Invalid\n    d = 1  # noqa: E501\n\n    # Invalid\n    d = 1  # noqa: F841, E501\n\n    # Invalid (and unimplemented or not enabled)\n    d = 1  # noqa: F841, W191, F821\n\n    # Invalid (but external)\n    d = 1  # noqa: F841, V101\n\n    # Invalid (but external)\n    d = 1  # noqa: V500\n\n    # fmt: off\n    # Invalid - no space before #\n    d = 1  # noqa: E501\n\n    # Invalid - many spaces before #\n    d = 1  # noqa: E501\n    # fmt: on\n\n\n# Valid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\"\"\"  # noqa: E501\n\n# Valid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\"\"\"  # noqa\n\n# Invalid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\"\"\"  # noqa: E501, F841\n\n# Invalid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.\n\"\"\"  # noqa: E501\n\n# Invalid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.\n\"\"\"  # noqa\n\n# Valid\n# this is a veryyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy long comment  # noqa: E501\n\n# Valid\n_ = \"\"\"Here's a source: https://github.com/ethereum/web3.py/blob/ffe59daf10edc19ee5f05227b25bac8d090e8aa4/web3/_utils/events.py#L201\n\nMay raise:\n- DeserializationError if the abi string is invalid or abi or log topics/data do not match\n\"\"\"  # noqa: E501\n\nimport collections  # noqa\nimport os  # noqa: F401, RUF100\nimport shelve  # noqa: RUF100\nimport sys  # noqa: F401, RUF100\n\nprint(sys.path)\n\n\"shape:  (6,)\\nSeries: '' [duration[μs]]\\n[\\n\\t0µs\\n\\t1µs\\n\\t2µs\\n\\t3µs\\n\\t4µs\\n\\t5µs\\n]\"  # noqa: F401\n\n\ndef f():\n    # Ensure that the `noqa` applies to both the overlong line _and_ the unused\n    # variable.\n    a = \"\"\"Lorem ipsum dolor sit amet.\n\n    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n    \"\"\"  # noqa\n\n\ndef f():\n    # Invalid - nonexistent error code with multibyte character\n    d = 1  # noqa: F841, E50\n    e = 1  # noqa: E50\n\n\ndef f():\n    # Disabled - check redirects are reported correctly\n    eval(command)  # noqa: PGH001\n\n\n# Check duplicate code detection\ndef f():\n    x = 2  # noqa: F841, F841, X200\n\n    y = 2 == bar  # noqa: SIM300, F841, SIM300, SIM300\n\n    z = 2  # noqa: F841 F841  F841, F841, F841\n\n    return\n\n\n# Allow code redirects\nx = eval(command)  # noqa: PGH001, S307\nx = eval(command)  # noqa: S307, PGH001, S307, S307, S307\nx = eval(command)  # noqa: PGH001, S307, PGH001\nx = eval(command)  # noqa: PGH001, S307, PGH001, S307\n" }
+expected = [{ "end" = 116, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 110 }, { "end" = 168, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 156 }, { "end" = 213, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 195 }, { "end" = 299, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 275 }, { "end" = 359, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 341 }, { "end" = 487, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 475 }, { "end" = 531, "file" = "RUF100_0.py", "rule" = "F841", "start" = 530 }, { "end" = 549, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 537 }, { "end" = 1508, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 1490 }, { "end" = 1780, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 1768 }, { "end" = 2046, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 2040 }, { "end" = 2524, "file" = "RUF100_0.py", "rule" = "F401", "start" = 2518 }, { "end" = 2688, "file" = "RUF100_0.py", "rule" = "E501", "start" = 2687 }, { "end" = 2702, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 2690 }, { "end" = 3105, "file" = "RUF100_0.py", "rule" = "F841", "start" = 3104 }, { "end" = 3305, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3281 }, { "end" = 3361, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3325 }, { "end" = 3409, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3374 }, { "end" = 3544, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3506 }, { "end" = 3592, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3564 }, { "end" = 3646, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3612 }]
+"selected-rules" = ["RUF100", "E501", "F401", "F841", "W191", "SIM300", "S307"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "E501", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F841", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "W191", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "SIM300", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "S307", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = ["V101"], "disabled-rules" = {  } }
+
+[[cases]]
+name = "upstream-1"
+comparison = "full"
+files = { "RUF100_1.py" = "def f():\n    # This should ignore both errors.\n    from typing import (  # noqa: F401\n        List,\n        Sequence,\n    )\n\n\ndef f():\n    # This should ignore both errors.\n    from typing import (  # noqa\n        List,\n        Sequence,\n    )\n\n\ndef f():\n    # This should ignore both errors.\n    from typing import (\n        List,  # noqa: F401\n        Sequence,  # noqa: F401\n    )\n\n\ndef f():\n    # This should ignore both errors.\n    from typing import (\n        List,  # noqa\n        Sequence,  # noqa\n    )\n\n\ndef f():\n    # This should ignore the first error.\n    from typing import (\n        Mapping,  # noqa: F401\n        Union,\n    )\n\n\ndef f():\n    # This should ignore both errors.\n    from typing import (  # noqa\n        List,\n        Sequence,\n    )\n\n\ndef f():\n    # This should ignore the error, but the inner noqa should be marked as unused.\n    from typing import (  # noqa: F401\n        Optional,  # noqa: F401\n    )\n\n\ndef f():\n    # This should ignore the error, but the inner noqa should be marked as unused.\n    from typing import (  # noqa\n        Optional,  # noqa: F401\n    )\n\n\ndef f():\n    # This should ignore the error, but mark F501 as unused.\n    from typing import (  # noqa: F401\n        Dict,  # noqa: F501\n    )\n\n\ndef f():\n    # This should ignore the error, but mark F501 as unused.\n    from typing import (  # noqa: F501\n        Tuple,  # noqa: F401\n    )\n\n\ndef f():\n    # This should ignore both errors.\n    from typing import Any, AnyStr  # noqa: F401\n\n\ndef f():\n    # This should ignore both errors.\n    from typing import AsyncIterable, AsyncGenerator  # noqa\n\n\ndef f():\n    # This should mark F501 as unused.\n    from typing import Awaitable, AwaitableGenerator  # noqa: F501\n" }
+expected = [{ "end" = 634, "file" = "RUF100_1.py", "rule" = "F401", "start" = 629 }, { "end" = 926, "file" = "RUF100_1.py", "rule" = "RUF100", "start" = 914 }, { "end" = 1091, "file" = "RUF100_1.py", "rule" = "RUF100", "start" = 1079 }, { "end" = 1236, "file" = "RUF100_1.py", "rule" = "RUF100", "start" = 1224 }, { "end" = 1353, "file" = "RUF100_1.py", "rule" = "RUF100", "start" = 1341 }, { "end" = 1679, "file" = "RUF100_1.py", "rule" = "F401", "start" = 1670 }, { "end" = 1699, "file" = "RUF100_1.py", "rule" = "F401", "start" = 1681 }, { "end" = 1713, "file" = "RUF100_1.py", "rule" = "RUF100", "start" = 1701 }]
+"selected-rules" = ["RUF100", "F401"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+name = "upstream-2"
+comparison = "full"
+files = { "RUF100_2.py" = "import itertools  # noqa: F401" }
+expected = [{ "end" = 30, "file" = "RUF100_2.py", "rule" = "RUF100", "start" = 18 }]
+"selected-rules" = ["RUF100", "F401"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = { "RUF100_2.py" = ["F401"] } }
+
+[[cases]]
+name = "upstream-3"
+comparison = "full"
+files = { "RUF100_3.py" = "# noqa\n# noqa # comment\nprint()  # noqa\nprint()  # noqa # comment\nprint()  # noqa  # comment\nprint()  # noqa comment\nprint()  # noqa  comment\nprint(a)  # noqa\nprint(a)  # noqa # comment\nprint(a)  # noqa  # comment\nprint(a)  # noqa comment\nprint(a)  # noqa  comment\n\n# noqa: E501, F821\n# noqa: E501, F821 # comment\nprint()  # noqa: E501, F821\nprint()  # noqa: E501, F821 # comment\nprint()  # noqa: E501, F821  # comment\nprint()  # noqa: E501, F821 comment\nprint()  # noqa: E501, F821  comment\nprint(a)  # noqa: E501, F821\nprint(a)  # noqa: E501, F821 # comment\nprint(a)  # noqa: E501, F821  # comment\nprint(a)  # noqa: E501, F821 comment\nprint(a)  # noqa: E501, F821  comment\nprint(a)  # noqa: E501,,F821  comment\nprint(a)  # noqa: E501, ,F821  comment\nprint(a)  # noqa: E501 F821  comment\n\nprint(a)  # comment with unicode µ    # noqa: E501\nprint(a)  # comment with unicode µ    # noqa: E501, F821\n" }
+expected = [{ "end" = 6, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 0 }, { "end" = 13, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 7 }, { "end" = 39, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 33 }, { "end" = 55, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 49 }, { "end" = 81, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 75 }, { "end" = 108, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 102 }, { "end" = 132, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 126 }, { "end" = 284, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 266 }, { "end" = 303, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 285 }, { "end" = 341, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 323 }, { "end" = 369, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 351 }, { "end" = 407, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 389 }, { "end" = 446, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 428 }, { "end" = 482, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 464 }, { "end" = 520, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 502 }, { "end" = 549, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 531 }, { "end" = 588, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 570 }, { "end" = 628, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 610 }, { "end" = 665, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 647 }, { "end" = 703, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 685 }, { "end" = 742, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 723 }, { "end" = 779, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 762 }, { "end" = 797, "file" = "RUF100_3.py", "rule" = "F821", "start" = 796 }, { "end" = 841, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 829 }, { "end" = 899, "file" = "RUF100_3.py", "rule" = "RUF100", "start" = 881 }]
+"selected-rules" = ["RUF100", "E501", "F821"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "E501", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F821", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+name = "upstream-4"
+comparison = "full"
+files = { "RUF100_4.py" = "# ruff: noqa: RUF100\n\nimport os  # noqa: F401\n\nprint(os.sep)\n" }
+expected = []
+"selected-rules" = ["RUF100", "F401"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+name = "upstream-5"
+comparison = "full"
+files = { "RUF100_5.py" = "#import os  # noqa\n#import os  # noqa: ERA001\n\ndictionary = {\n    # \"key1\": 123,  # noqa: ERA001\n    # \"key2\": 456,  # noqa\n    # \"key3\": 789,\n}\n\n\n#import os  # noqa: E501\n\ndef f():\n    data = 1\n    # line below should autofix to `return data  # fmt: skip`\n    return data  # noqa: RET504 # fmt: skip\n\ndef f():\n    data = 1\n    # line below should autofix to `return data`\n    return data  # noqa: RET504 - intentional incorrect noqa, will be removed\n\n\n# Regression test for https://github.com/astral-sh/ruff/issues/25386\n# )\n# )  # noqa: ERA001\n\n# (\n# (  # noqa: ERA001\n" }
+expected = [{ "end" = 142, "file" = "RUF100_5.py", "rule" = "ERA001", "start" = 128 }, { "end" = 171, "file" = "RUF100_5.py", "rule" = "ERA001", "start" = 147 }, { "end" = 171, "file" = "RUF100_5.py", "rule" = "RUF100", "start" = 159 }, { "end" = 288, "file" = "RUF100_5.py", "rule" = "RUF100", "start" = 274 }, { "end" = 404, "file" = "RUF100_5.py", "rule" = "RUF100", "start" = 390 }, { "end" = 525, "file" = "RUF100_5.py", "rule" = "ERA001", "start" = 522 }, { "end" = 550, "file" = "RUF100_5.py", "rule" = "ERA001", "start" = 547 }]
+"selected-rules" = ["RUF100", "E501", "ERA001"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "E501", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "ERA001", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+name = "upstream-6"
+comparison = "full"
+files = { "RUF100_6.py" = "# ruff: noqa: F841 -- intentional unused file directive; will be removed\n" }
+expected = [{ "end" = 18, "file" = "RUF100_6.py", "rule" = "RUF100", "start" = 0 }]
+"selected-rules" = ["RUF100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+name = "upstream-7"
+comparison = "full"
+files = { "RUF100_7.py" = "# flake8: noqa: F841, E501 -- used followed by unused code\n# ruff: noqa: E701, F541 -- unused followed by used code\n\n\ndef a():\n    # Violating noqa'd F841 (unused) and F541 (no-placeholder f-string)\n    x = f\"Hello, world\"\n    return 6\n" }
+expected = [{ "end" = 26, "file" = "RUF100_7.py", "rule" = "RUF100", "start" = 0 }, { "end" = 83, "file" = "RUF100_7.py", "rule" = "RUF100", "start" = 59 }]
+"selected-rules" = ["RUF100", "F541", "E501", "F841"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F541", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "E501", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F841", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = {  } }
+
+[[cases]]
+name = "upstream-0-external-prefix"
+comparison = "full"
+files = { "RUF100_0.py" = "def f() -> None:\n    # Valid\n    a = 1  # noqa\n\n    # Valid\n    b = 2  # noqa: F841\n\n    # Invalid\n    c = 1  # noqa\n    print(c)\n\n    # Invalid\n    d = 1  # noqa: E501\n\n    # Invalid\n    d = 1  # noqa: F841, E501\n\n    # Invalid (and unimplemented or not enabled)\n    d = 1  # noqa: F841, W191, F821\n\n    # Invalid (but external)\n    d = 1  # noqa: F841, V101\n\n    # Invalid (but external)\n    d = 1  # noqa: V500\n\n    # fmt: off\n    # Invalid - no space before #\n    d = 1  # noqa: E501\n\n    # Invalid - many spaces before #\n    d = 1  # noqa: E501\n    # fmt: on\n\n\n# Valid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\"\"\"  # noqa: E501\n\n# Valid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\"\"\"  # noqa\n\n# Invalid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\"\"\"  # noqa: E501, F841\n\n# Invalid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.\n\"\"\"  # noqa: E501\n\n# Invalid\n_ = \"\"\"Lorem ipsum dolor sit amet.\n\n    https://github.com/PyCQA/pycodestyle/pull/258/files#diff-841c622497a8033d10152bfdfb15b20b92437ecdea21a260944ea86b77b51533\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.\n\"\"\"  # noqa\n\n# Valid\n# this is a veryyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy long comment  # noqa: E501\n\n# Valid\n_ = \"\"\"Here's a source: https://github.com/ethereum/web3.py/blob/ffe59daf10edc19ee5f05227b25bac8d090e8aa4/web3/_utils/events.py#L201\n\nMay raise:\n- DeserializationError if the abi string is invalid or abi or log topics/data do not match\n\"\"\"  # noqa: E501\n\nimport collections  # noqa\nimport os  # noqa: F401, RUF100\nimport shelve  # noqa: RUF100\nimport sys  # noqa: F401, RUF100\n\nprint(sys.path)\n\n\"shape:  (6,)\\nSeries: '' [duration[μs]]\\n[\\n\\t0µs\\n\\t1µs\\n\\t2µs\\n\\t3µs\\n\\t4µs\\n\\t5µs\\n]\"  # noqa: F401\n\n\ndef f():\n    # Ensure that the `noqa` applies to both the overlong line _and_ the unused\n    # variable.\n    a = \"\"\"Lorem ipsum dolor sit amet.\n\n    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n    \"\"\"  # noqa\n\n\ndef f():\n    # Invalid - nonexistent error code with multibyte character\n    d = 1  # noqa: F841, E50\n    e = 1  # noqa: E50\n\n\ndef f():\n    # Disabled - check redirects are reported correctly\n    eval(command)  # noqa: PGH001\n\n\n# Check duplicate code detection\ndef f():\n    x = 2  # noqa: F841, F841, X200\n\n    y = 2 == bar  # noqa: SIM300, F841, SIM300, SIM300\n\n    z = 2  # noqa: F841 F841  F841, F841, F841\n\n    return\n\n\n# Allow code redirects\nx = eval(command)  # noqa: PGH001, S307\nx = eval(command)  # noqa: S307, PGH001, S307, S307, S307\nx = eval(command)  # noqa: PGH001, S307, PGH001\nx = eval(command)  # noqa: PGH001, S307, PGH001, S307\n" }
+expected = [{ "end" = 116, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 110 }, { "end" = 168, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 156 }, { "end" = 213, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 195 }, { "end" = 299, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 275 }, { "end" = 359, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 341 }, { "end" = 487, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 475 }, { "end" = 531, "file" = "RUF100_0.py", "rule" = "F841", "start" = 530 }, { "end" = 549, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 537 }, { "end" = 1508, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 1490 }, { "end" = 1780, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 1768 }, { "end" = 2046, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 2040 }, { "end" = 2524, "file" = "RUF100_0.py", "rule" = "F401", "start" = 2518 }, { "end" = 2688, "file" = "RUF100_0.py", "rule" = "E501", "start" = 2687 }, { "end" = 2702, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 2690 }, { "end" = 3105, "file" = "RUF100_0.py", "rule" = "F841", "start" = 3104 }, { "end" = 3305, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3281 }, { "end" = 3361, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3325 }, { "end" = 3409, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3374 }, { "end" = 3544, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3506 }, { "end" = 3592, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3564 }, { "end" = 3646, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 3612 }]
+"selected-rules" = ["RUF100", "E501", "F401", "F841", "W191", "SIM300", "S307"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "E501", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F841", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "W191", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "SIM300", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "S307", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = ["V"], "disabled-rules" = {  } }
+
+[[cases]]
+"name" = "disabled-only-blanket"
+"comparison" = "full"
+"files" = { "case.py" = "import os  # noqa\n" }
+"expected" = [{ "rule" = "RUF100", "file" = "case.py", "start" = 11, "end" = 17 }]
+"selected-rules" = ["RUF100", "F401"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = { "case.py" = ["F401"] } }
+
+[[cases]]
+"name" = "disabled-enabled-mixed-blanket"
+"comparison" = "full"
+"files" = { "case.py" = "import os; missing  # noqa\n" }
+"expected" = []
+"selected-rules" = ["RUF100", "F401", "F821"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F821", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = { "case.py" = ["F401"] } }
+
+[[cases]]
+"name" = "selected-code-match"
+"comparison" = "full"
+"files" = { "case.py" = "import os  # noqa: F401\n" }
+"expected" = []
+"selected-rules" = ["RUF100", "F401"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = { "case.py" = [] } }
+
+[[cases]]
+"name" = "disabled-external-code"
+"comparison" = "full"
+"files" = { "case.py" = "import os  # noqa: F401, V101\n" }
+"expected" = [{ "rule" = "RUF100", "file" = "case.py", "start" = 11, "end" = 29 }]
+"selected-rules" = ["RUF100", "F401"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = ["V"], "disabled-rules" = { "case.py" = ["F401"] } }
+
+[[cases]]
+"name" = "disabled-enabled-mixed-codes"
+"comparison" = "full"
+"files" = { "case.py" = "import os; missing  # noqa: F401, F821\n" }
+"expected" = [{ "rule" = "RUF100", "file" = "case.py", "start" = 20, "end" = 38 }]
+"selected-rules" = ["RUF100", "F401", "F821"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F821", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = { "case.py" = ["F401"] } }

@@ -48,6 +48,9 @@ pub fn check(adapter: &impl LinterPort) {
     let temporary = tempfile::tempdir().expect("isolated linter fixture");
     let request = RunRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         file_metadata: None,
         context_manifest: None,
         root: PathBuf::new(),

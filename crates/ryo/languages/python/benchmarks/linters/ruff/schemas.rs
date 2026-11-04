@@ -230,3 +230,41 @@ pub(super) fn offset(source: &str, row: usize, column: usize) -> Result<usize, E
         .checked_add(relative)
         .ok_or_else(|| Error::Invalid("Ruff column outside source".into()))
 }
+
+/// Serialize declared configuration into Ruff's documented inline TOML overrides.
+/// Exact absolute patterns preserve the shared exact-file contract instead of Ruff's basename shortcut.
+pub(super) fn configuration_arguments(
+    configuration: &ryo_benchmark::domain::suite::types::RuleConfiguration,
+    root: &Path,
+) -> Result<Vec<std::ffi::OsString>, Error> {
+    let strings = |values: Vec<String>| {
+        toml::Value::Array(values.into_iter().map(toml::Value::String).collect()).to_string()
+    };
+    let mut arguments = Vec::new();
+    if !configuration.external_prefixes.is_empty() {
+        arguments.push("--config".into());
+        arguments.push(
+            format!(
+                "lint.external = {}",
+                strings(configuration.external_prefixes.clone())
+            )
+            .into(),
+        );
+    }
+    if !configuration.disabled_rules.is_empty() {
+        let mut entries = Vec::new();
+        for (file, rules) in &configuration.disabled_rules {
+            let absolute = root.join(file.0.as_ref());
+            let text = absolute
+                .to_str()
+                .ok_or_else(|| Error::Invalid("non-UTF8 configuration path".into()))?;
+            let literal = ryo_benchmark::domain::suite::rule_context::literal_glob(text);
+            let key = toml::Value::String(literal).to_string();
+            let rules: Vec<_> = rules.iter().map(ToString::to_string).collect();
+            entries.push(format!("{key} = {}", strings(rules)));
+        }
+        arguments.push("--config".into());
+        arguments.push(format!("lint.per-file-ignores = {{ {} }}", entries.join(", ")).into());
+    }
+    Ok(arguments)
+}

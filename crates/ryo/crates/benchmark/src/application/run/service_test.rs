@@ -93,6 +93,9 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
     if matches!(scenario, Scenario::OmittedInput) {
         let request = RunRequest {
             performance: Default::default(),
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             file_metadata: None,
             context_manifest: None,
             root: ".".into(),
@@ -406,6 +409,9 @@ use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
 struct Empty;
 impl LinterPort for Empty {
+    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
+        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
             executable: "unused".into(),
@@ -513,6 +519,9 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
             name: "positive".into(),
             request: RunRequest {
                 performance: Default::default(),
+                selected_rules: None,
+                rule_observations: None,
+                rule_context: None,
                 file_metadata: None,
                 context_manifest: None,
                 root: ".".into(),
@@ -535,6 +544,9 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         });
     }
     suite.profile = Some(crate::domain::suite::types::Tool {
+        supporting_rules: Vec::new(),
+        rule_observations: std::collections::BTreeMap::new(),
+        rule_context: None,
         file_observation: None,
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
@@ -554,6 +566,9 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
 /// Candidate fixture exposes complete execution accounting independently of its findings.
 struct CoveredCandidate(LinterFake);
 impl LinterPort for CoveredCandidate {
+    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
+        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         LinterPort::prepare(&self.0, request)
     }
@@ -614,6 +629,9 @@ fn discrepancy_suite() -> SuiteFake {
         }],
     });
     suite.profile = Some(Tool {
+        supporting_rules: Vec::new(),
+        rule_observations: std::collections::BTreeMap::new(),
+        rule_context: None,
         file_observation: None,
         project_context_mode: ProjectContextMode::Isolated,
         tool: "fixture".into(),
@@ -775,6 +793,9 @@ fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidat
         drift: bool,
     }
     impl LinterPort for DriftingReference {
+        fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
+            crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+        }
         fn prepare(
             &self,
             request: &RunRequest,

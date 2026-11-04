@@ -88,3 +88,55 @@ fn offline_entry_emits_a_recomputed_witness_and_never_echoes_a_stale_declared_di
     assert!(audit.verified.is_empty());
     assert!(audit.metadata_verified.is_empty());
 }
+
+#[test]
+fn explicit_cohort_receipts_cannot_be_reused_for_other_or_omitted_selection() {
+    let (mut case, mut rows) = pair(false);
+    case["selected_rules"] = json!(["A001", "B002"]);
+    for row in &mut rows {
+        row["selected_rules"] = case["selected_rules"].clone();
+    }
+    assert_eq!(
+        validate(std::slice::from_ref(&case), &rows).unwrap(),
+        (1, 0, 0)
+    );
+    let mut different = case.clone();
+    different["selected_rules"] = json!(["A001"]);
+    assert!(validate(&[different], &rows).is_err());
+    for side in 0..2 {
+        let mut missing = rows.clone();
+        missing[side]
+            .as_object_mut()
+            .unwrap()
+            .remove("selected_rules");
+        assert!(validate(std::slice::from_ref(&case), &missing).is_err());
+    }
+    case.as_object_mut().unwrap().remove("selected_rules");
+    assert!(validate(&[case], &rows).is_err());
+}
+
+#[test]
+fn explicit_observation_declarations_are_bound_to_both_durable_side_receipts() {
+    let (mut case, mut rows) = pair(false);
+    case["rule_observations"] = json!({"A001":[{"name":"matched","columns":[{"name":"file","kind":"file"}],"producers":[{"kind":"output","rule":"B002","output":"used λ\t\\source"}]}]});
+    for row in &mut rows {
+        row["rule_observations"] = case["rule_observations"].clone();
+    }
+    assert_eq!(
+        validate(std::slice::from_ref(&case), &rows).unwrap(),
+        (1, 0, 0)
+    );
+    for side in 0..2 {
+        let mut changed = rows.clone();
+        changed[side]["rule_observations"]["A001"][0]["producers"][0]["output"] = json!("other");
+        assert!(validate(std::slice::from_ref(&case), &changed).is_err());
+        let mut missing = rows.clone();
+        missing[side]
+            .as_object_mut()
+            .unwrap()
+            .remove("rule_observations");
+        assert!(validate(std::slice::from_ref(&case), &missing).is_err());
+    }
+    case.as_object_mut().unwrap().remove("rule_observations");
+    assert!(validate(&[case], &rows).is_err());
+}

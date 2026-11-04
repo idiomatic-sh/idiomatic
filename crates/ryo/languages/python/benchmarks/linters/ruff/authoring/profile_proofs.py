@@ -153,11 +153,14 @@ def verify_rule_phase_registry(manifest: dict[str, object], registry: dict[str, 
     expected_rules.update((rule for descriptor in manifest.get('combined_profiles', {}).values() if descriptor.get('validation_status') == 'active-current' for rule in descriptor['selected_rules']))
     rules = registry.get('rules')
     shipped_defaults = registry.get('shipped_default_rules')
-    if not isinstance(shipped_defaults, list) or len(shipped_defaults) != len(set(shipped_defaults)) or (not isinstance(rules, dict)) or (set(rules) != set(shipped_defaults)) or (not expected_rules <= set(rules)):
-        missing = expected_rules - set(rules or {})
+    supplemental = registry.get('registered_nondefault_rules', {})
+    if not isinstance(supplemental, dict) or (isinstance(rules, dict) and set(rules) & set(supplemental)):
+        raise ValueError('nondefault phase registrations must be distinct from shipped defaults')
+    if not isinstance(shipped_defaults, list) or len(shipped_defaults) != len(set(shipped_defaults)) or (not isinstance(rules, dict)) or (set(rules) != set(shipped_defaults)) or (not expected_rules <= (set(rules) | set(supplemental))):
+        missing = expected_rules - (set(rules or {}) | set(supplemental))
         extra = set(rules or {}) - set(shipped_defaults or [])
         raise ValueError(f'pinned Ruff phase coverage mismatch: missing={sorted(missing)} extra={sorted(extra)}')
-    for rule, record in rules.items():
+    for rule, record in {**rules, **supplemental}.items():
         if not isinstance(record, dict):
             raise ValueError(f'invalid phase classification for {rule}')
         phases = record.get('phases')

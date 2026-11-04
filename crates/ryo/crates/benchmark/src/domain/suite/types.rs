@@ -26,9 +26,53 @@ pub struct Project {
     pub patch: PathBuf,
 }
 
+/// Explicit consumer declarations, keyed by the actual configured rule identity.
+pub type RuleObservationDeclarations = BTreeMap<RuleId, Vec<ryo::linter::ObservationBinding>>;
+
+/// Positive configuration knowledge, distinct from whether an executable producer completed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleConfiguration {
+    /// Literal prefixes the tool/query treats as external rule identifiers.
+    pub external_prefixes: Vec<String>,
+    /// Exact requested relative files and the rules disabled there; these are not glob patterns.
+    pub disabled_rules: BTreeMap<RelativePath, Vec<RuleId>>,
+}
+/// Explicit names of existing hosted request-scope configuration tables.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleContextTables {
+    /// Selected configured rule IDs, one text column `code`.
+    pub selected: String,
+    /// Disabled file/rule pairs, columns `file` and `code`.
+    pub disabled: String,
+    /// Declared external prefixes, one text column `prefix`.
+    pub external: String,
+}
+/// A profile opts into configuration inputs with required table names and explicit defaults.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleContextDeclaration {
+    /// Required semantic table names; no implicit fallback names exist.
+    pub tables: RuleContextTables,
+    /// Complete declared configuration when a case supplies no override.
+    pub defaults: RuleConfiguration,
+}
+/// The resolved data transported to one candidate invocation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PreparedRuleContext {
+    /// Actual declared table names.
+    pub tables: RuleContextTables,
+    /// Complete configuration chosen from the same profile/case data as the reference.
+    pub configuration: RuleConfiguration,
+}
+
 /// The independently pinned reference executable and its shipped defaults.
 #[derive(Clone, Debug)]
 pub struct Tool {
+    /// Explicit executable support definitions; never default selection or case-owner credit.
+    pub supporting_rules: Vec<RuleId>,
+    /// Default authored named inputs; case overrides are explicit and source-bound.
+    pub rule_observations: RuleObservationDeclarations,
+    /// Optional explicitly declared request-scope rule configuration inputs.
+    pub rule_context: Option<RuleContextDeclaration>,
     /// File observation this correctness profile requires for every declared source.
     pub file_observation: Option<FileObservation>,
     /// Whether the candidate receives an isolated input or an explicitly sealed disk context.
@@ -93,6 +137,12 @@ pub enum ExpectedRule {
 pub struct Case {
     /// Explicit execution and diagnostic policy for this case.
     pub performance: PerformanceOptions,
+    /// Explicit rule cohort for this case; absence preserves the frozen profile selection.
+    pub selected_rules: Option<Vec<RuleId>>,
+    /// Explicit named input declarations for the configured consumer queries.
+    pub rule_observations: Option<RuleObservationDeclarations>,
+    /// Explicit complete override of the profile rule configuration.
+    pub rule_context: Option<RuleConfiguration>,
     /// Explicit primary inventory, including selected paths sealed absent by the context.
     /// None preserves the legacy inventory of exactly the source-text map's keys.
     pub requested_files: Option<Vec<RelativePath>>,
@@ -279,6 +329,12 @@ pub struct Expected {
 pub struct RunRequest {
     /// Typed physical execution and diagnostic choices.
     pub performance: PerformanceOptions,
+    /// Explicit rule cohort for this case; absence preserves the frozen profile selection.
+    pub selected_rules: Option<Vec<RuleId>>,
+    /// Explicit named input declarations for the configured consumer queries.
+    pub rule_observations: Option<RuleObservationDeclarations>,
+    /// Configuration resolved once by shared request preparation.
+    pub rule_context: Option<PreparedRuleContext>,
     /// Declared file observations, reverified before each contestant is prepared.
     pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Sealed disk context shared by both contestants, when explicitly selected.
@@ -304,6 +360,12 @@ pub enum BenchmarkCoverage {
 pub struct WorkerRequest {
     /// Typed execution and diagnostic choices, included in invocation identity.
     pub performance: PerformanceOptions,
+    /// Explicit rule cohort for this case; absence preserves the frozen profile selection.
+    pub selected_rules: Option<Vec<RuleId>>,
+    /// Explicit named input declarations for the configured consumer queries.
+    pub rule_observations: Option<RuleObservationDeclarations>,
+    /// Explicitly materialized rule configuration for this invocation.
+    pub rule_context: Option<PreparedRuleContext>,
     /// Whether this invocation may consult the explicitly sealed disk context.
     pub project_context_mode: ProjectContextMode,
     /// Context dependencies sealed before this invocation.
@@ -660,4 +722,13 @@ pub struct DiagnosticOptions {
     pub prefixes: bool,
     pub subplans: bool,
     pub selection_detail: bool,
+}
+
+/// Whether this concrete contestant implements the declared configuration contract.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RuleConfigurationSupport {
+    /// This adapter must refuse a configured request before starting a process.
+    Unsupported,
+    /// Exact disabled-file pairs and external prefixes are projected without a second matcher.
+    Explicit,
 }

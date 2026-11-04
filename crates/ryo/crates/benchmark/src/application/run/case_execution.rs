@@ -27,6 +27,8 @@ fn prepare(
     linter: &dyn LinterPort,
     request: &crate::domain::suite::types::RunRequest,
 ) -> Result<crate::domain::measurements::types::Invocation, Error> {
+    crate::domain::suite::service::validate_selected_rules(request.selected_rules.as_deref())?;
+    configuration(linter, request)?;
     suite.validate_file_metadata(request)?;
     if let Some(context) = &request.context_manifest {
         crate::outbound::context::adapters::local::adapter::validate(context, &request.root)?;
@@ -150,3 +152,25 @@ pub(super) fn run(
 
 #[cfg(all(test, unix))]
 mod input_metadata_test;
+
+/// One shared configuration admission boundary for both contestants and measured/verification calls.
+pub(super) fn configuration(
+    linter: &dyn LinterPort,
+    request: &crate::domain::suite::types::RunRequest,
+) -> Result<(), Error> {
+    if let Some(context) = &request.rule_context {
+        crate::domain::suite::rule_context::check(context, &request.files)?;
+        crate::domain::suite::rule_context::check_selection(
+            context,
+            request.selected_rules.as_deref(),
+        )?;
+        if linter.rule_configuration()
+            != crate::domain::suite::types::RuleConfigurationSupport::Explicit
+        {
+            return Err(Error::Invalid(
+                "contestant does not implement the declared rule configuration contract".into(),
+            ));
+        }
+    }
+    Ok(())
+}

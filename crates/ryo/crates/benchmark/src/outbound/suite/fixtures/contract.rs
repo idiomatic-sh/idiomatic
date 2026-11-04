@@ -121,6 +121,9 @@ pub fn check(adapter: &impl SuitePort) {
     let subject = |operation| {
         let selected = !matches!(operation, Operation::Empty);
         let tool = Tool {
+            supporting_rules: Vec::new(),
+            rule_observations: std::collections::BTreeMap::new(),
+            rule_context: None,
             file_observation: None,
             project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
             tool: "fixture".into(),

@@ -1,0 +1,19 @@
+[[cases]]
+name = "tab-indented-body"
+files = { "case.py" = "if True:\n\tpass\n" }
+expected = [{ file = "case.py", start = 9, end = 10 }]
+
+[[cases]]
+name = "space-indented-body"
+files = { "case.py" = "if True:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "tab-inside-string"
+files = { "case.py" = "text = \"\tvalue\"\n" }
+expected = []
+
+[[cases]]
+name = "suppressed-tab"
+files = { "case.py" = "if True:\n\tpass  # noqa: W191\n" }
+expected = []

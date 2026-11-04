@@ -79,7 +79,12 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
         raise ValueError('conflicting explicit parser target registrations')
     registry = {**base.get('query-modules', {}), **data.get('query-modules', {})}
     closure = {}
-    pending = [query]
+    cohort = {rule}
+    for case in cases:
+        cohort.update(case.get('selected-rules', [rule]))
+    supporting = sorted(cohort - {rule})
+    supporting_queries = {code: profile_sources.registered_query_path(code) for code in supporting}
+    pending = [query, *supporting_queries.values()]
     while pending:
         source = pending.pop()
         for logical in re.findall('^\\s*import\\s+\\w+\\s+from\\s+"([^"]+)"\\s*;', source.read_text(encoding='utf-8'), re.MULTILINE):
@@ -104,7 +109,7 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
     projected['parser-configuration'] = configuration
     if stage_registry:
         projected['query-modules'] = stage_registry
-    projected['rule-applicability'] = {rule: phases['rules'][rule]['applicability']}
+    projected['rule-applicability'] = {code: profile_sources.rule_phase(phases, code)['applicability'] for code in sorted(cohort)}
     profile_sources.canonical_run_ryo_settings(projected, [rule], phases)
     profile = destination / 'benchmark.toml'
     profile.write_text(''.join((f'{key} = {profile_sources.toml_value(value)}\n' for key, value in projected.items())), encoding='utf-8')

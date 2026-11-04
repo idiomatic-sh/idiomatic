@@ -9,8 +9,14 @@ use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 use ryo_benchmark::outbound::suite::interface::SuitePort as _;
 use std::collections::BTreeMap;
 
-/// Exercise the same request and sealed-input preparation as the worker use case.
+/// Reuse the production worker preparation boundary before exercising the SDK adapter.
 trait PreparedEngine: EnginePort {
+    fn run_prepared(
+        &self,
+        request: WorkerRequest,
+    ) -> Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error>;
+}
+impl<T: EnginePort + ?Sized> PreparedEngine for T {
     fn run_prepared(
         &self,
         request: WorkerRequest,
@@ -19,7 +25,6 @@ trait PreparedEngine: EnginePort {
         EnginePort::run(self, prepared.request, prepared.missing)
     }
 }
-impl<T: EnginePort + ?Sized> PreparedEngine for T {}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum EngineScenario {
@@ -174,6 +179,9 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     }
     let request = WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -206,6 +214,9 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
     std::fs::write(root.path().join("input.py"), "value = ur\"hello\"\n")?;
     let request = WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -390,6 +401,22 @@ fn modules_for(scenario: EngineScenario) -> Result<BTreeMap<String, std::path::P
 fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
     BTreeMap::from([
         (
+            "python/ruff/noqa-line-map".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-line-map.ryoql"),
+        ),
+        (
+            "python/ruff/noqa-locations".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-locations.ryoql"),
+        ),
+        (
+            "python/ruff/noqa-additional-locations".to_owned(),
+            std::path::PathBuf::from("fragments/noqa-additional-locations.ryoql"),
+        ),
+        (
+            "python/ruff/suppression-edges".to_owned(),
+            std::path::PathBuf::from("fragments/suppression-edges.ryoql"),
+        ),
+        (
             "python/ruff/suppress".to_owned(),
             std::path::PathBuf::from("fragments/suppress.ryoql"),
         ),
@@ -404,6 +431,22 @@ fn write_suppress_module(root: &std::path::Path) -> Result<(), Error> {
     let directory = root.join("fragments");
     std::fs::create_dir_all(&directory)?;
     for (name, source) in [
+        (
+            "noqa-line-map",
+            include_str!("fragments/noqa-line-map.ryoql"),
+        ),
+        (
+            "noqa-locations",
+            include_str!("fragments/noqa-locations.ryoql"),
+        ),
+        (
+            "noqa-additional-locations",
+            include_str!("fragments/noqa-additional-locations.ryoql"),
+        ),
+        (
+            "suppression-edges",
+            include_str!("fragments/suppression-edges.ryoql"),
+        ),
         ("suppress", include_str!("fragments/suppress.ryoql")),
         (
             "suppress-directives",
@@ -465,7 +508,7 @@ fn check_expected_failure(
     if scenario == EngineScenario::Unread {
         assert!(
             matches!(result, Err(Error::Invalid(message)) if message.starts_with("incomplete candidate:") && message.contains("input.unknown")),
-            "unread input must be reported as incomplete candidate coverage"
+            "unread input must be reported as incomplete candidate coverage: {result:?}"
         );
     }
     if scenario == EngineScenario::Partial {
@@ -563,6 +606,9 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
     )?;
     let request = WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.to_owned(),
@@ -622,6 +668,9 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
     let plain = factory::local(languages.clone(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
@@ -653,6 +702,9 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     );
     let imported = factory::local(languages, None).run_prepared(WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
@@ -757,6 +809,9 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         )
         .run_prepared(WorkerRequest {
             performance: Default::default(),
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -891,6 +946,9 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         let state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
         let inline = inline_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -905,6 +963,9 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         })?;
         let fragmented = imported_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -984,6 +1045,9 @@ fn assert_single_rule_fragment_equivalence(
             .ok_or_else(|| Error::Invalid(format!("missing imported case for {key:?}")))?;
         let inline = inline_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -998,6 +1062,9 @@ fn assert_single_rule_fragment_equivalence(
         })?;
         let fragmented = imported_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -1036,6 +1103,9 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
     std::fs::write(root.path().join("false.py"), "value = False\n")?;
     let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -1100,6 +1170,9 @@ fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries(
     std::fs::write(root.path().join("numeric.py"), source)?;
     let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),

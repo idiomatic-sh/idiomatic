@@ -115,6 +115,9 @@ fn check_case(
     )
     .run_prepared(WorkerRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         project_context_mode: ProjectContextMode::Isolated,
         context_manifest: None,
         root: source,
@@ -181,4 +184,193 @@ fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> R
         check_case(temporary.path(), &modules, case)?;
     }
     Ok(())
+}
+
+#[test]
+fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source()
+-> Result<(), Error> {
+    use ryo_benchmark::domain::suite::types::{
+        PreparedRuleContext, RuleConfiguration, RuleContextTables,
+    };
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    let corpus = root.path().join("corpus");
+    std::fs::create_dir_all(corpus.join("pkg"))?;
+    for file in ["input.py", "pkg/input.py"] {
+        std::fs::write(corpus.join(file), "def f():\n    pass\n")?;
+    }
+    let modified = std::fs::metadata(corpus.join("input.py"))?.modified()?;
+    for (id, query) in [
+        (
+            "A001",
+            "let functions = select id, file, span from \"function\"; emit functions subject file key(span);",
+        ),
+        (
+            "B002",
+            "let functions = select id, file, span from \"function\"; let configured = select code from \"config.selected\" where code = \"B002\"; let selected = join(left=functions, right=configured, left-on=[], right-on=[], output={id:[left,id],file:[left,file],span:[left,span],code:[right,code]}); let disabled = select file, code from \"config.disabled\"; let enabled = antijoin(left=selected, right=disabled, left-on=[file,code], right-on=[file,code]); let external = select prefix from \"config.external\" where prefix = \"V\"; let found = join(left=enabled, right=external, left-on=[], right-on=[], output={id:[left,id],file:[left,file],span:[left,span]}); emit found subject file key(span);",
+        ),
+    ] {
+        std::fs::create_dir_all(rules.join(id))?;
+        std::fs::write(rules.join(id).join("query.ryoql"), query)?;
+    }
+    let selected = ["A001", "B002"]
+        .into_iter()
+        .map(ryo::linter::RuleId::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let files = ["input.py", "pkg/input.py"]
+        .into_iter()
+        .map(|file| ryo::linter::RelativePath(file.into()))
+        .collect::<Vec<_>>();
+    let tables = RuleContextTables {
+        selected: "config.selected".into(),
+        disabled: "config.disabled".into(),
+        external: "config.external".into(),
+    };
+    for (prefix, exclude, expected) in [
+        ("V", false, 2),
+        ("V", true, 1),
+        ("V", true, 1),
+        ("W", false, 0),
+        ("V", false, 2),
+    ] {
+        let disabled_rules = if exclude {
+            BTreeMap::from([(files[0].clone(), vec![selected[1].clone()])])
+        } else {
+            BTreeMap::new()
+        };
+        let request = WorkerRequest {
+            selected_rules: Some(selected.clone()),
+            rule_observations: None,
+            rule_context: Some(PreparedRuleContext {
+                tables: tables.clone(),
+                configuration: RuleConfiguration {
+                    external_prefixes: vec![prefix.into()],
+                    disabled_rules,
+                },
+            }),
+            project_context_mode: ProjectContextMode::Isolated,
+            context_manifest: None,
+            root: corpus.clone(),
+            rules: rules.clone(),
+            query_modules: BTreeMap::new(),
+            rule_applicability: BTreeMap::new(),
+            parser_configuration: Some("python-target=3.10".into()),
+            source_language: None,
+            files: files.clone(),
+            state: WorkerState::Retained(root.path().join("cache")),
+        };
+        let report = factory::local(super::python_310(), None).run_prepared(request)?;
+        assert_eq!(
+            report
+                .diagnostics
+                .iter()
+                .filter(|finding| finding.rule == selected[0])
+                .count(),
+            2
+        );
+        let configured: Vec<_> = report
+            .diagnostics
+            .iter()
+            .filter(|finding| finding.rule == selected[1])
+            .collect();
+        assert_eq!(
+            configured.len(),
+            expected,
+            "prefix={prefix}, exclude={exclude}"
+        );
+        if exclude {
+            assert_eq!(configured[0].file.0.as_ref(), "pkg/input.py");
+        }
+        assert_eq!(
+            report.coverage.as_ref().unwrap().selected,
+            if exclude { 3 } else { 4 }
+        );
+    }
+    assert_eq!(
+        std::fs::metadata(corpus.join("input.py"))?.modified()?,
+        modified
+    );
+    Ok(())
+}
+
+#[test]
+fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
+    use ryo::query::{
+        BoundObservationSchema, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationKind, ObservationScope, QueryModuleSource, RyoQlQuery, ValidateRequest,
+    };
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
+    let modules = [
+        "noqa-line-map",
+        "noqa-locations",
+        "noqa-additional-locations",
+        "suppression-edges",
+    ]
+    .into_iter()
+    .map(|name| {
+        QueryModuleSource::try_new(
+            &format!("python/ruff/{name}"),
+            &std::fs::read_to_string(root.join(format!("fragments/{name}.ryoql"))).unwrap(),
+        )
+        .unwrap()
+    })
+    .collect::<Vec<_>>();
+    let mut failures = Vec::new();
+    for code in ["RUF100", "S307", "W191", "E501", "SIM300", "ERA001"] {
+        let text = std::fs::read_to_string(root.join(format!("rules/{code}/query.ryoql"))).unwrap();
+        let query =
+            RyoQlQuery::with_modules(&format!("test/{code}"), &text, modules.clone()).unwrap();
+        let request = ValidateRequest {
+            query,
+            hosted: if code == "RUF100" {
+                vec![ryo::linter::HostDeclaration {
+                    name: ryo::linter::HostRelationName("config.external".into()),
+                    columns: vec![ryo::linter::HostColumn {
+                        name: ryo::linter::HostColumnName("prefix".into()),
+                        kind: ryo::linter::HostKind::Text,
+                    }],
+                }]
+            } else {
+                Vec::new()
+            },
+            observations: if code == "RUF100" {
+                vec![BoundObservationSchema {
+                    name: ObservationBindingName("suppression_matches".into()),
+                    columns: vec![
+                        ObservationColumn {
+                            name: ObservationColumnName("directive".into()),
+                            kind: ObservationKind::Node,
+                        },
+                        ObservationColumn {
+                            name: ObservationColumnName("file".into()),
+                            kind: ObservationKind::File,
+                        },
+                        ObservationColumn {
+                            name: ObservationColumnName("code".into()),
+                            kind: ObservationKind::Symbol,
+                        },
+                    ],
+                    scope: ObservationScope::CrossFile,
+                }]
+            } else {
+                Vec::new()
+            },
+        };
+        let undeclared = (code == "RUF100").then(|| ValidateRequest {
+            query: request.query.clone(),
+            hosted: request.hosted.clone(),
+            observations: Vec::new(),
+        });
+        let answer = ryo::query::validate(&super::python_310(), request);
+        if let Err(error) = answer {
+            failures.push(format!("{code}: {error:?}"));
+        }
+        if let Some(request) = undeclared {
+            if ryo::query::validate(&super::python_310(), request).is_ok() {
+                failures.push("RUF100 undeclared root input was accepted".into());
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

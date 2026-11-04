@@ -50,6 +50,9 @@ struct Contestant {
     arguments: Vec<std::ffi::OsString>,
 }
 impl LinterPort for Contestant {
+    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
+        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
             executable: self.executable.clone(),
@@ -239,6 +242,9 @@ pub fn exercise(
     .expect(constants::FIXTURE_PRECONDITION);
     let request = RunRequest {
         performance: Default::default(),
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         file_metadata: None,
         context_manifest: None,
         root: measured_root,

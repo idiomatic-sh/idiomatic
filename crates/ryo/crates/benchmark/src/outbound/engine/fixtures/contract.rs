@@ -38,6 +38,9 @@ pub fn check(adapter: &impl EnginePort) {
             .run(
                 WorkerRequest {
                     performance: Default::default(),
+                    selected_rules: None,
+                    rule_observations: None,
+                    rule_context: None,
                     project_context_mode: crate::domain::suite::types::ProjectContextMode::default(
                     ),
                     context_manifest: None,

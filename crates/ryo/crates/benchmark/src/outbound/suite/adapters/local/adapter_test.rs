@@ -208,6 +208,9 @@ expected = []
     )
     .expect("oracle cases");
     let tool = crate::domain::suite::types::Tool {
+        supporting_rules: Vec::new(),
+        rule_observations: std::collections::BTreeMap::new(),
+        rule_context: None,
         file_observation: None,
         project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
         tool: "fixture".into(),
@@ -441,3 +444,76 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
 }
 
 mod input_metadata;
+
+#[test]
+fn supporting_queries_are_staged_but_never_receive_default_or_case_owner_credit() {
+    let source = tempfile::tempdir().unwrap();
+    let destination = tempfile::tempdir().unwrap();
+    let root = source.path();
+    std::fs::create_dir_all(root.join("rules/A001")).unwrap();
+    std::fs::create_dir_all(root.join("rules/B002")).unwrap();
+    std::fs::write(root.join("benchmark.toml"), "tool='fixture'\nversion='1'\nsha256=['pin']\ndefaults=['A001']\nsupporting-rules=['B002']\n").unwrap();
+    std::fs::write(root.join("rules/A001/query.ryoql"), "main query").unwrap();
+    std::fs::write(root.join("rules/B002/query.ryoql"), "actual support query").unwrap();
+    std::fs::write(
+        root.join("rules/A001/cases.toml"),
+        r#"
+[[cases]]
+name = "positive"
+files = { "input.txt" = "x" }
+expected = [{ file = "input.txt", start = 0, end = 1 }]
+[[cases]]
+name = "negative"
+files = { "input.txt" = "y" }
+expected = []
+"#,
+    )
+    .unwrap();
+    let tool = SuiteLocalAdapter.profile(ArtifactPath(root)).unwrap();
+    let audited = SuiteLocalAdapter.audit(ArtifactPath(root), &tool).unwrap();
+    assert_eq!(audited.implemented, vec!["A001".try_into().unwrap()]);
+    assert!(audited.missing.is_empty());
+    let snapshot = destination.path().join("profile");
+    SuiteLocalAdapter
+        .stage(ArtifactPath(root), ArtifactPath(&snapshot), &audited)
+        .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(snapshot.join("rules/B002/query.ryoql")).unwrap(),
+        "actual support query"
+    );
+    let cases = SuiteLocalAdapter
+        .cases(
+            ArtifactPath(&snapshot.join("rules")),
+            ArtifactPath(&destination.path().join("scratch")),
+        )
+        .unwrap();
+    assert_eq!(cases.len(), 2);
+    assert!(cases.iter().all(|case| case.rule.as_ref() == "A001"));
+    assert!(
+        SuiteLocalAdapter
+            .case_reference_wires(ArtifactPath(&snapshot))
+            .unwrap()
+            .is_empty()
+    );
+    // Support definitions do not acquire case ownership even if an unrelated file is present.
+    std::fs::write(
+        snapshot.join("rules/B002/cases.toml"),
+        "not a case registration",
+    )
+    .unwrap();
+    assert!(
+        SuiteLocalAdapter
+            .case_reference_wires(ArtifactPath(&snapshot))
+            .unwrap()
+            .is_empty()
+    );
+    // Missing owned case evidence remains an error, rather than being silently skipped.
+    std::fs::remove_file(snapshot.join("rules/A001/cases.toml")).unwrap();
+    assert!(
+        SuiteLocalAdapter
+            .case_reference_wires(ArtifactPath(&snapshot))
+            .is_err()
+    );
+    std::fs::remove_file(root.join("rules/B002/query.ryoql")).unwrap();
+    assert!(SuiteLocalAdapter.audit(ArtifactPath(root), &tool).is_err());
+}

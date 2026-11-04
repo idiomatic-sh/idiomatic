@@ -3,6 +3,12 @@ use super::types::{Cases, audit::value::Audit};
 use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use std::path::{Component, Path};
 
+/// Only explicit default definitions own case evidence; supporting definitions supply executable queries.
+#[must_use]
+pub fn owns_cases(tool: &super::types::Tool, rule: &ryo::linter::RuleId) -> bool {
+    tool.defaults.contains(rule)
+}
+
 /// Require a nonempty complete implementation inventory.
 ///
 /// # Errors

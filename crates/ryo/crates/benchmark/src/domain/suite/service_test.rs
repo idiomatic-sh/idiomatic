@@ -86,6 +86,9 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
         cases: vec![
             SuiteCase {
                 performance: Default::default(),
+                selected_rules: None,
+                rule_observations: None,
+                rule_context: None,
                 requested_files: None,
                 file_metadata: None,
                 reference_discrepancy: None,
@@ -97,6 +100,9 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
             },
             SuiteCase {
                 performance: Default::default(),
+                selected_rules: None,
+                rule_observations: None,
+                rule_context: None,
                 requested_files: None,
                 file_metadata: None,
                 reference_discrepancy: None,
@@ -134,6 +140,9 @@ fn requested_missing_inputs_require_a_real_absence_contract_and_only_origin_span
     let readable = ryo::linter::RelativePath("companion.py".into());
     let missing = ryo::linter::RelativePath("missing.py".into());
     let case = SuiteCase {
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
         requested_files: Some(vec![readable.clone(), missing.clone()]),
         file_metadata: None,
         reference_discrepancy: None,

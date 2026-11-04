@@ -35,6 +35,9 @@ fn case() -> PreparedCase {
         name: "independent-contract".into(),
         request: RunRequest {
             performance: Default::default(),
+            selected_rules: None,
+            rule_observations: None,
+            rule_context: None,
             file_metadata: None,
             root: ".".into(),
             state: "cache".into(),
@@ -101,6 +104,9 @@ fn wrong_oracle_cannot_satisfy_the_intended_candidate_contract() {
 fn approved_platform_digest_can_differ_from_observed_evidence_binary() {
     let identity = identity();
     let profile = Tool {
+        supporting_rules: Vec::new(),
+        rule_observations: std::collections::BTreeMap::new(),
+        rule_context: None,
         file_observation: None,
         project_context_mode: ProjectContextMode::Isolated,
         tool: "fixture".into(),

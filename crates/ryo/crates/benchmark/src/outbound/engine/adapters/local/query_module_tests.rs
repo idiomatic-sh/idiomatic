@@ -25,8 +25,9 @@ fn worker_reads_explicit_module_text_from_the_frozen_profile() {
         "python/ruff/suppress".to_owned(),
         PathBuf::from("fragments/suppress.ryoql"),
     )]);
-    let queries = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None)
-        .expect("module bundle is loaded in the worker");
+    let queries =
+        EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None, None)
+            .expect("module bundle is loaded in the worker");
     assert_eq!(queries.len(), 1);
     assert_eq!(
         queries.values().next().expect("rule").query.root_text(),
@@ -43,7 +44,7 @@ fn selected_rules_receive_the_pinned_syntax_applicability() {
     let (_root, rules) = profile();
     let applicability = BTreeMap::from([("F401".to_owned(), "accepted-syntax".to_owned())]);
     let queries =
-        EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None)
+        EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
             .expect("complete applicability map loads");
     assert_eq!(
         queries.values().next().expect("rule").applicability,
@@ -58,8 +59,9 @@ fn explicit_applicability_must_match_every_loaded_rule() {
         ("F401".to_owned(), "accepted-syntax".to_owned()),
         ("F402".to_owned(), "always".to_owned()),
     ]);
-    let error = EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None)
-        .expect_err("extra applicability entry is refused");
+    let error =
+        EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+            .expect_err("extra applicability entry is refused");
     assert!(error.to_string().contains("does not exactly match"));
 }
 
@@ -67,8 +69,9 @@ fn explicit_applicability_must_match_every_loaded_rule() {
 fn explicit_applicability_rejects_unknown_policy_values() {
     let (_root, rules) = profile();
     let applicability = BTreeMap::from([("F401".to_owned(), "parse-only".to_owned())]);
-    let error = EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None)
-        .expect_err("unknown applicability is refused");
+    let error =
+        EngineLocalAdapter::load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+            .expect_err("unknown applicability is refused");
     assert!(error.to_string().contains("unsupported applicability"));
 }
 
@@ -133,7 +136,7 @@ fn worker_refuses_module_paths_outside_the_profile() {
         "python/ruff/suppress".to_owned(),
         PathBuf::from("../outside.ryoql"),
     )]);
-    let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None)
+    let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None, None)
         .expect_err("traversal is refused");
     assert!(error.to_string().contains("unsafe corpus path"));
 }
@@ -151,7 +154,48 @@ fn worker_refuses_symlinked_module_paths() {
         "python/ruff/suppress".to_owned(),
         PathBuf::from("fragments/suppress.ryoql"),
     )]);
-    let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None)
+    let error = EngineLocalAdapter::load_rules(&rules, &registry, &BTreeMap::default(), None, None)
         .expect_err("symlink is refused");
     assert!(error.to_string().contains("query module is a symlink"));
+}
+
+#[test]
+fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers() {
+    use ryo::linter::{
+        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationKind, ObservationName, ObservationProducer,
+    };
+    let (_root, rules) = profile();
+    let consumer = RuleId::try_from("F401").unwrap();
+    let binding = ObservationBinding {
+        name: ObservationBindingName("published".into()),
+        columns: vec![ObservationColumn {
+            name: ObservationColumnName("file".into()),
+            kind: ObservationKind::File,
+        }],
+        producers: vec![ObservationProducer::Output {
+            rule: RuleId::try_from("B002").unwrap(),
+            output: ObservationName("matched".into()),
+        }],
+    };
+    let mut declarations = BTreeMap::from([(consumer.clone(), vec![binding.clone()])]);
+    let queries = EngineLocalAdapter::load_rules(
+        &rules,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        None,
+        Some(&declarations),
+    )
+    .unwrap();
+    assert_eq!(queries[&consumer].observations, vec![binding.clone()]);
+    declarations.insert(RuleId::try_from("typo").unwrap(), vec![binding]);
+    let error = EngineLocalAdapter::load_rules(
+        &rules,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        None,
+        Some(&declarations),
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("unregistered consumer"));
 }

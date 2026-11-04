@@ -11,6 +11,14 @@ pub(super) enum WorkerSchemaError {
     /// Request argument cannot be interpreted as JSON text.
     #[error("worker request is not UTF-8")]
     NotText,
+    #[error("invalid selected rule: {0}")]
+    InvalidRule(String),
+    /// Named-input identities could not be decoded.
+    #[error("invalid observation declaration: {0}")]
+    Observation(String),
+    /// Rule configuration could not be decoded.
+    #[error("invalid rule configuration: {0}")]
+    Configuration(String),
     /// JSON does not conform to the worker wire representation.
     #[error(transparent)]
     Json(#[from] serde_json::Error),
@@ -21,6 +29,10 @@ pub(super) enum WorkerSchemaError {
 struct RequestSchema {
     #[serde(default)]
     performance: crate::outbound::worker::schemas::OptionsSchema,
+    #[serde(default)]
+    rule_context: Option<PreparedRuleContextSchema>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rule_observations: Option<std::collections::BTreeMap<String, Vec<ObservationBindingSchema>>>,
     #[serde(default)]
     /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
@@ -47,10 +59,33 @@ struct RequestSchema {
     /// Retained worker state directory, or no retained state for a fresh run.
     cache: Option<PathBuf>,
 }
-impl From<RequestSchema> for WorkerRequest {
-    fn from(request: RequestSchema) -> Self {
-        Self {
+impl TryFrom<RequestSchema> for WorkerRequest {
+    type Error = WorkerSchemaError;
+    fn try_from(request: RequestSchema) -> Result<Self, Self::Error> {
+        Ok(Self {
             performance: request.performance.into(),
+            selected_rules: request
+                .selected_rules
+                .map(|rules| {
+                    rules
+                        .into_iter()
+                        .map(|id| {
+                            ryo::linter::RuleId::try_from(id.as_str())
+                                .map_err(|error| WorkerSchemaError::InvalidRule(error.to_string()))
+                        })
+                        .collect()
+                })
+                .transpose()?,
+            rule_context: request
+                .rule_context
+                .map(TryInto::try_into)
+                .transpose()
+                .map_err(WorkerSchemaError::Configuration)?,
+            rule_observations: request
+                .rule_observations
+                .map(observation_declarations)
+                .transpose()
+                .map_err(WorkerSchemaError::Observation)?,
             project_context_mode: request.project_context_mode.into(),
             context_manifest: request.context_manifest.map(Into::into),
             root: request.root,
@@ -68,7 +103,7 @@ impl From<RequestSchema> for WorkerRequest {
                 crate::domain::suite::types::WorkerState::Fresh,
                 crate::domain::suite::types::WorkerState::Retained,
             ),
-        }
+        })
     }
 }
 #[derive(Debug, Serialize)]
@@ -168,3 +203,162 @@ pub(super) fn report(report: &RunReport) -> Result<WorkerResponseBytes, WorkerSc
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// Explicit authored input at a private process/TOML serialization boundary.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservationBindingSchema {
+    name: String,
+    columns: Vec<ObservationColumnSchema>,
+    producers: Vec<ObservationProducerSchema>,
+}
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservationColumnSchema {
+    name: String,
+    kind: ObservationKindSchema,
+}
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum ObservationKindSchema {
+    Node,
+    Symbol,
+    File,
+    Span,
+    Number,
+    Flag,
+}
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+enum ObservationProducerSchema {
+    Output { rule: String, output: String },
+    NoQuery { rule: String },
+}
+
+/// Convert checked identities while leaving actual producer/schema validation to request compilation.
+fn observation_declarations(
+    declarations: std::collections::BTreeMap<String, Vec<ObservationBindingSchema>>,
+) -> Result<crate::domain::suite::types::RuleObservationDeclarations, String> {
+    use ryo::linter::{
+        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationKind, ObservationName, ObservationProducer, RuleId,
+    };
+    declarations
+        .into_iter()
+        .map(|(consumer, bindings)| {
+            let consumer =
+                RuleId::try_from(consumer.as_str()).map_err(|error| error.to_string())?;
+            let bindings = bindings
+                .into_iter()
+                .map(|binding| {
+                    let producers = binding
+                        .producers
+                        .into_iter()
+                        .map(|producer| {
+                            Ok(match producer {
+                                ObservationProducerSchema::Output { rule, output } => {
+                                    ObservationProducer::Output {
+                                        rule: RuleId::try_from(rule.as_str())
+                                            .map_err(|error| error.to_string())?,
+                                        output: ObservationName(output.into()),
+                                    }
+                                }
+                                ObservationProducerSchema::NoQuery { rule } => {
+                                    ObservationProducer::NoQuery {
+                                        rule: RuleId::try_from(rule.as_str())
+                                            .map_err(|error| error.to_string())?,
+                                    }
+                                }
+                            })
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+                    Ok(ObservationBinding {
+                        name: ObservationBindingName(binding.name.into()),
+                        columns: binding
+                            .columns
+                            .into_iter()
+                            .map(|column| ObservationColumn {
+                                name: ObservationColumnName(column.name.into()),
+                                kind: match column.kind {
+                                    ObservationKindSchema::Node => ObservationKind::Node,
+                                    ObservationKindSchema::Symbol => ObservationKind::Symbol,
+                                    ObservationKindSchema::File => ObservationKind::File,
+                                    ObservationKindSchema::Span => ObservationKind::Span,
+                                    ObservationKindSchema::Number => ObservationKind::Number,
+                                    ObservationKindSchema::Flag => ObservationKind::Flag,
+                                },
+                            })
+                            .collect(),
+                        producers,
+                    })
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            Ok((consumer, bindings))
+        })
+        .collect()
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RuleContextTablesSchema {
+    selected: String,
+    disabled: String,
+    external: String,
+}
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RuleConfigurationSchema {
+    #[serde(rename = "external-prefixes")]
+    external_prefixes: Vec<String>,
+    #[serde(rename = "disabled-rules")]
+    disabled_rules: std::collections::BTreeMap<String, Vec<String>>,
+}
+impl From<RuleContextTablesSchema> for crate::domain::suite::types::RuleContextTables {
+    fn from(value: RuleContextTablesSchema) -> Self {
+        Self {
+            selected: value.selected,
+            disabled: value.disabled,
+            external: value.external,
+        }
+    }
+}
+impl TryFrom<RuleConfigurationSchema> for crate::domain::suite::types::RuleConfiguration {
+    type Error = String;
+    fn try_from(value: RuleConfigurationSchema) -> Result<Self, Self::Error> {
+        Ok(Self {
+            external_prefixes: value.external_prefixes,
+            disabled_rules: value
+                .disabled_rules
+                .into_iter()
+                .map(|(path, rules)| {
+                    Ok((
+                        ryo::linter::RelativePath(path.into()),
+                        rules
+                            .into_iter()
+                            .map(|rule| {
+                                ryo::linter::RuleId::try_from(rule.as_str())
+                                    .map_err(|error| error.to_string())
+                            })
+                            .collect::<Result<Vec<_>, String>>()?,
+                    ))
+                })
+                .collect::<Result<_, String>>()?,
+        })
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PreparedRuleContextSchema {
+    tables: RuleContextTablesSchema,
+    configuration: RuleConfigurationSchema,
+}
+impl TryFrom<PreparedRuleContextSchema> for crate::domain::suite::types::PreparedRuleContext {
+    type Error = String;
+    fn try_from(value: PreparedRuleContextSchema) -> Result<Self, Self::Error> {
+        Ok(Self {
+            tables: value.tables.into(),
+            configuration: value.configuration.try_into()?,
+        })
+    }
+}
