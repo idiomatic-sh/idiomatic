@@ -253,7 +253,26 @@ pub(crate) fn compile(
                     .as_ref()
                     .map(|origin| InputSource::Region(logical_regions[origin.logical.0]))
                     .map_err(Clone::clone),
-                Input::BoundObservation(id) => Ok(InputSource::Observation(id.0 as usize)),
+                Input::BoundObservation(id) => {
+                    let missing = || OperatingError::ObservationIncomplete {
+                        reason: format!(
+                            "rule {rule} observation input {} has no request-qualified slot",
+                            id.0
+                        ),
+                    };
+                    plan.observation_inputs
+                        .get(id.0 as usize)
+                        .ok_or_else(missing)?;
+                    let slot = graph
+                        .observations
+                        .as_ref()
+                        .ok_or_else(missing)?
+                        .slots
+                        .iter()
+                        .position(|slot| slot.rule == rule && slot.input == *id)
+                        .ok_or_else(missing)?;
+                    Ok(InputSource::Observation(slot))
+                }
             }
         };
         let emit = from(&Input::Step(plan.emit.step)).and_then(|source| match source {
@@ -280,3 +299,7 @@ pub(crate) fn compile(
         fused_instruction_count,
     })
 }
+
+#[cfg(test)]
+#[path = "observation_slot_test.rs"]
+mod observation_slot_test;
