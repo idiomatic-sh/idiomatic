@@ -32,7 +32,9 @@ fn alone(error: &LintError) -> String {
         LintError::MissingParameter { .. } => {
             "the query has no value for a parameter it declares".to_owned()
         }
-        other @ (LintError::Execution { .. }
+        other @ (LintError::ObservationExecution { .. }
+        | LintError::ObservationBindings { .. }
+        | LintError::Execution { .. }
         | LintError::SourceLanguage { .. }
         | LintError::BlankRuleId
         | LintError::DuplicateRuleId { .. }
