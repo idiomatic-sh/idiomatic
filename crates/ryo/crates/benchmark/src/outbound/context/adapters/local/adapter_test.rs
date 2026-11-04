@@ -137,12 +137,15 @@ fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result
     assert!(receipt(&manifest, root, missing("untracked.py")).is_err());
     assert!(receipt(&manifest, root, missing("source.py")).is_err());
     assert!(receipt(&manifest, root, missing("pkg/../source.py")).is_err());
+    assert!(receipt(&manifest, root, missing("source.py/../new.py")).is_err());
+    assert!(receipt(&manifest, root, missing("absent/../new.py")).is_err());
     assert!(receipt(&manifest, root, missing("../escape.py")).is_err());
     assert!(receipt(&manifest, root, missing("untracked.py/child")).is_err());
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(root, root.join("linked"))?;
         assert!(receipt(&manifest, root, missing("linked/absent.py")).is_err());
+        assert!(receipt(&manifest, root, missing("linked/../new.py")).is_err());
         std::os::unix::fs::symlink(root.join("absent-target"), root.join("dangling"))?;
         assert!(receipt(&manifest, root, missing("dangling")).is_err());
     }

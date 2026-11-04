@@ -57,6 +57,49 @@ fn resolve(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
     Ok(resolved)
 }
 
+/// Preserve the filesystem meaning of the original dependency path before lexical resolution.
+/// A cancelled component must be an existing directory, and no walked component may be a symlink.
+fn walked_dependency(manifest: &ContextManifest, path: &Path) -> Result<PathBuf, Error> {
+    let resolved = resolve(manifest, path)?;
+    let mut walked = manifest.boundary.join(&manifest.logical_root);
+    for part in path.components() {
+        match part {
+            Component::Normal(name) => {
+                walked.push(name);
+                match std::fs::symlink_metadata(&walked) {
+                    Ok(metadata) if metadata.file_type().is_symlink() => {
+                        return Err(Error::Invalid(format!(
+                            "symlink in context dependency: {}",
+                            path.display()
+                        )));
+                    }
+                    Ok(_) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                }
+            }
+            Component::ParentDir => {
+                let metadata = std::fs::symlink_metadata(&walked)?;
+                if !metadata.is_dir() || metadata.file_type().is_symlink() {
+                    return Err(Error::Invalid(format!(
+                        "non-directory in context dependency: {}",
+                        path.display()
+                    )));
+                }
+                let _parent = walked.pop();
+            }
+            Component::CurDir => {}
+            Component::Prefix(_) | Component::RootDir => {
+                return Err(Error::Invalid(format!(
+                    "unsafe context dependency: {}",
+                    path.display()
+                )));
+            }
+        }
+    }
+    Ok(resolved)
+}
+
 /// Reject symlinks within the snapshot, including missing paths with a symlinked parent.
 fn no_symlinks(boundary: &Path, relative: &Path) -> Result<(), Error> {
     let mut path = boundary.to_owned();
@@ -276,7 +319,7 @@ pub(crate) fn receipt(
     let mut observed = BTreeMap::new();
     for dependency in dependencies {
         let path = PathBuf::from(dependency.path.0.as_ref());
-        let declared = resolve(manifest, &path)?;
+        let declared = walked_dependency(manifest, &path)?;
         let state = match dependency.state {
             ryo::linter::ProjectDependencyState::Present(fingerprint) => {
                 if !manifest.auxiliary_files.contains_key(&declared)
