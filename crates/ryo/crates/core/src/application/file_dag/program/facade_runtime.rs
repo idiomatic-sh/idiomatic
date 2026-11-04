@@ -98,6 +98,7 @@ struct ProjectSources<'a> {
         crate::domain::executable_program::types::InputSource,
         AdmittedInput,
     )>,
+    transport: &'a ryo_language::domain::symbols::types::TransportPermit,
 }
 impl ProjectSources<'_> {
     /// Called only by an actual DemandAction::Admit. Raw source handles and
@@ -169,7 +170,9 @@ impl ProjectSources<'_> {
                                 &words.0,
                                 ryo_language::domain::symbols::service::query_places_mut(
                                     &mut context.symbols,
-                                ),
+                                    self.transport,
+                                )
+                                .map_err(|_| OperatingError::NotRead)?,
                             )
                             .map_err(|error| {
                                 OperatingError::ObservationIncomplete {
@@ -335,10 +338,10 @@ impl Inputs for SourceInputs<'_, '_> {
     }
 }
 
-fn table_of(
+fn table_of<'facts>(
     owner: &Rc<RelationOwner>,
     input: &AdmittedInput,
-    read: &dyn Fn(Relation) -> Result<Rows<'_>, OperatingError>,
+    read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> Result<Table, OperatingError> {
     let rows = owner.resolve(input.publication(owner)?.as_ref(), read)?;
     let mut table = Table::default();
@@ -649,10 +652,10 @@ fn classify(error: OperatingError) -> RootOutcome {
         other => RootOutcome::Failed(other),
     }
 }
-fn outcome_of(
+fn outcome_of<'facts>(
     result: Result<InvocationOutcome, OperatingError>,
     owner: &Rc<RelationOwner>,
-    read: &dyn Fn(Relation) -> Result<Rows<'_>, OperatingError>,
+    read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> RootOutcome {
     match result {
         Ok(InvocationOutcome::Published(input)) => match table_of(owner, &input, read) {
@@ -681,19 +684,21 @@ pub(crate) struct ProjectRun<'a, 'service> {
         crate::domain::executable_program::types::InputSource,
         AdmittedInput,
     )>,
+    transport: ryo_language::domain::symbols::types::TransportPermit,
 }
 pub(crate) fn open_project<'a, 'service>(
     program: &'a Arc<PreparedProgram>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
     frontiers: ProjectFrontiers<'a>,
-    _symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    symbols: &mut ryo_language::domain::symbols::types::Symbols,
     services: &'a ProgramServices<'service>,
 ) -> Result<ProjectRun<'a, 'service>, OperatingError> {
     if !matches!(partials, ScopePartials::Project { .. }) {
         return Err(OperatingError::WrongOperation);
     }
     let scope = frontiers.publication;
+    let transport = ryo_language::domain::symbols::service::transport_permit(symbols);
     let owner = Rc::clone(scope.owner());
     if let Some(existing) = scope.execution.get() {
         if !Arc::ptr_eq(&existing.program, program.program())
@@ -723,6 +728,7 @@ pub(crate) fn open_project<'a, 'service>(
         refused: frontiers.ordinary.refused,
         bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
         cache: Vec::new(),
+        transport,
     })
 }
 impl ProjectRun<'_, '_> {
@@ -754,6 +760,7 @@ impl ProjectRun<'_, '_> {
                 refused: &self.refused,
                 bound: &mut self.bound,
                 cache: &mut self.cache,
+                transport: &self.transport,
             }),
         };
         let emit = match demand.emit {

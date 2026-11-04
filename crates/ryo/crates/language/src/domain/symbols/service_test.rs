@@ -298,3 +298,31 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+#[test]
+fn transported_places_require_the_same_live_symbol_generation() {
+    use super::service::{clear_symbols, query_places_mut, transport_permit};
+    use ryo_relations::domain::relations::types::NamePlace;
+
+    let mut first = Symbols::default();
+    let mut second = Symbols::default();
+    let key = transport_permit(&mut first);
+    {
+        let mut query = QuerySymbols::from(&mut second);
+        assert!(query_places_mut(&mut query, &key).is_err());
+    }
+    {
+        let mut query = QuerySymbols::from(&mut first);
+        let places = query_places_mut(&mut query, &key).expect("exact live pool");
+        places.push(NamePlace {
+            origin: Origin::Derived(WorkerNumber(0)),
+            file: FileId(0),
+            start: Offset(0),
+            end: Offset(1),
+        });
+        assert_eq!(places.len(), 1);
+    }
+    clear_symbols(&mut first);
+    let mut query = QuerySymbols::from(&mut first);
+    assert!(query_places_mut(&mut query, &key).is_err());
+}

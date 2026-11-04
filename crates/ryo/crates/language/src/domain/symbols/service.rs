@@ -23,6 +23,7 @@ use ryo_relations::domain::terms::types::Symbol;
 /// Empties the names, keeping their room for the next file.
 pub fn clear_symbols(symbols: &mut Symbols) {
     let symbols: &mut SymbolsEngine = symbols.as_mut();
+    symbols.transport_generation = std::sync::Arc::new(());
     symbols.start.clear();
     symbols.end.clear();
     symbols.hash.clear();
@@ -498,10 +499,23 @@ pub fn places_mut(symbols: &mut Symbols) -> &mut Vec<NamePlace> {
     &mut symbols.places
 }
 
-/// Name places decoded from an admitted project publication. This grants a
-/// query only the transport place table, never source-name interning or notes.
-pub fn query_places_mut<'borrow>(
-    symbols: &'borrow mut super::types::QuerySymbols<'_>,
-) -> &'borrow mut Vec<NamePlace> {
-    places_mut(symbols.0)
+/// Mint a frame-admission key before the query borrows this exact symbol pool.
+/// The key is held by the application input owner and is not given to kernels.
+pub fn transport_permit(symbols: &mut Symbols) -> super::types::TransportPermit {
+    let symbols: &SymbolsEngine = symbols.as_ref();
+    super::types::TransportPermit(std::sync::Arc::clone(&symbols.transport_generation))
+}
+
+/// Let the owner decode one demanded transport frame in place. QuerySymbols
+/// alone cannot call this: it cannot mint the key, and a stale/foreign key
+/// refuses before any place is appended.
+pub fn query_places_mut<'a>(
+    symbols: &'a mut QuerySymbols<'_>,
+    permit: &super::types::TransportPermit,
+) -> Result<&'a mut Vec<NamePlace>, super::types::TransportRefusal> {
+    let pool: &mut SymbolsEngine = symbols.0.as_mut();
+    if !std::sync::Arc::ptr_eq(&pool.transport_generation, &permit.0) {
+        return Err(super::types::TransportRefusal);
+    }
+    Ok(&mut pool.places)
 }

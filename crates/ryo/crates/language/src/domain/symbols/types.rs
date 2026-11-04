@@ -32,6 +32,20 @@ pub struct Symbols(SymbolsEngine);
 #[derive(Debug)]
 pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
 
+/// Engine-held authority to admit transported name places into exactly one
+/// live symbol generation. A query only receives QuerySymbols, never this key.
+///
+/// ```compile_fail
+/// use ryo_language::domain::symbols::types::TransportPermit;
+/// let forged = TransportPermit(std::sync::Arc::new(()));
+/// ```
+#[derive(Debug)]
+pub struct TransportPermit(pub(super) std::sync::Arc<()>);
+
+/// A frame belongs to another symbol pool or a generation already cleared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TransportRefusal;
+
 impl<'a> From<&'a mut Symbols> for QuerySymbols<'a> {
     fn from(symbols: &'a mut Symbols) -> Self {
         Self(symbols)
@@ -48,6 +62,8 @@ impl AsRef<Symbols> for QuerySymbols<'_> {
 /// vocabulary and the places of the names that left their file.
 #[derive(Debug, Default)]
 pub(crate) struct SymbolsEngine {
+    /// Changes on clear, so a transport key cannot outlive a file generation.
+    pub transport_generation: std::sync::Arc<()>,
     /// Where each name starts: in the file's bytes, or in `derived` from `sources` on.
     pub start: Vec<Offset>,
     /// Where each name ends.

@@ -30,7 +30,7 @@ pub(crate) fn placeable(emit: &Emit, table: &Table) -> Placeability {
     let places = emit
         .key
         .iter()
-        .chain(std::iter::once(&plan.emit.subject))
+        .chain(std::iter::once(&emit.subject))
         .any(|column| {
             table
                 .kinds
