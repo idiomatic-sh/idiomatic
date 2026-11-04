@@ -79,6 +79,11 @@ pub(super) fn semantic_scope<'a>(
         executor,
     )
 }
+/// Real required raw-order capability for bounded semantic fixtures only.
+pub(crate) fn raw_scope() -> Result<impl crate::domain::operator::contract::derived::ScopedDerived, OperatingError> {
+    let scope = semantic_scope(super::execution::CommonOperatorEngine::fixture_ref())?;
+    Ok(super::derived::owner::raw_scope::RawScope::new(std::rc::Rc::clone(scope.owner())))
+}
 pub(crate) struct Held<'a> {
     pub(crate) owner: std::rc::Rc<super::relations::RelationOwner>,
     pub(crate) tables: &'a [Table],

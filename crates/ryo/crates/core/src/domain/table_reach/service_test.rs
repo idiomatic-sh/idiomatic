@@ -8,10 +8,11 @@ use super::service::reach_all;
 use super::types::{Edges, Walk};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
+use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_model::errors::TableModelError;
-use crate::domain::table_model::service::{index, push_row};
+use crate::domain::table_model::service::push_row;
+use crate::domain::table_model::types::Rows;
 
-use ryo_derived::domain::contract::types::{KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// A scenario: what a row asks of the part.
@@ -39,8 +40,8 @@ fn edges_table() -> Table {
 /// The entities a walk from 1 reaches, nearest first, or in ascending order.
 fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, TableModelError> {
     let table = edges_table();
-    let (from, mut order, mut walk) = ([ColumnIndex(0)], KeyIndex::default(), Walk::default());
-    index(&table, On::Columns(&from), &mut order)?;
+    let (from, mut walk) = ([ColumnIndex(0)], Walk::default());
+    let order = prepared_index(&Rows::Computed(&table), &from)?;
     let edges = Edges {
         table: &table,
         order: &order,

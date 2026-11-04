@@ -1,17 +1,15 @@
 //! Ordered nearest and forest compression are different from sorted closure order.
 
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};
-use crate::domain::stored_graph::service::build;
-use crate::domain::stored_graph::types::{
-    GraphDomain, GraphIdentity, GraphWalk, Orientation, Population,
-};
+
+use crate::domain::stored_graph::types::{GraphDomain, GraphWalk, Orientation};
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
-fn graph(edges: &[[i64; 2]]) -> ryo_derived::domain::contract::types::CompactGraph {
+fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::contract::types::CompactGraph> {
     let mut table = Table {
         kinds: vec![CellKind::Number; 2],
         ..Default::default()
@@ -19,38 +17,32 @@ fn graph(edges: &[[i64; 2]]) -> ryo_derived::domain::contract::types::CompactGra
     for edge in edges {
         push_row(&mut table, &edge.map(|value| Value::Number(Integer(value))));
     }
-    build(
-        GraphIdentity {
-            population: Population {
-                relation: Relation::Function,
-                kinds: &[CellKind::Number; 2],
-                rows: edges.len(),
-                native_file: None,
-                selected: None,
-                positions: None,
-            },
+    let payload = crate::domain::positions::service_test::prepared_payload(
+        ryo_derived::domain::contract::types::ViewRequest::Adjacency {
             endpoints: [ColumnIndex(0), ColumnIndex(1)],
             keys: vec![],
         },
         &Rows::Computed(&table),
-        [ColumnIndex(0), ColumnIndex(1)],
-        &[],
     )
-    .expect("columns")
-    .expect("graph")
+    .expect("valid graph schema");
+    payload
+        .share_adjacency()
+        .expect("successful adjacency payload")
 }
 
 fn vertex(graph: &ryo_derived::domain::contract::types::CompactGraph, value: i64) -> u32 {
-    graph.vertex_ids[&(0, Value::Number(Integer(value)))]
+    graph
+        .vertex(0, Value::Number(Integer(value)))
+        .expect("stored vertex")
 }
 
 #[test]
 fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
     let graph = graph(&[[1, 9], [1, 2], [1, 9], [9, 4], [2, 4], [4, 1]]);
-    assert!(graph.forests[0].is_none());
+    assert!(graph.forest(0).is_none());
     let mut domain = GraphDomain {
         identity: None,
-        members: Arc::new(vec![false; graph.vertices.len()]),
+        members: Arc::new(vec![false; graph.vertices().len()]),
     };
     Arc::make_mut(&mut domain.members)[vertex(&graph, 9) as usize] = true;
     Arc::make_mut(&mut domain.members)[vertex(&graph, 2) as usize] = true;
@@ -84,10 +76,10 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
 #[test]
 fn validated_forest_compresses_shared_chains_without_including_the_start() {
     let graph = graph(&[[1, 2], [2, 3], [3, 4], [8, 2], [1, 2]]);
-    assert!(graph.forests[0].is_some());
+    assert!(graph.forest(0).is_some());
     let mut domain = GraphDomain {
         identity: None,
-        members: Arc::new(vec![false; graph.vertices.len()]),
+        members: Arc::new(vec![false; graph.vertices().len()]),
     };
     Arc::make_mut(&mut domain.members)[vertex(&graph, 4) as usize] = true;
     Arc::make_mut(&mut domain.members)[vertex(&graph, 1) as usize] = true;

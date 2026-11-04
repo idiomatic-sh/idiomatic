@@ -19,6 +19,7 @@ use ryo_values::domain::{
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AdmissionDecline {
+    NoEligiblePlan,
     UnprovenPopulation,
 }
 pub(crate) enum StrategyOutcome {

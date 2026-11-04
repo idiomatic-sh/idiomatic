@@ -59,6 +59,8 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 #[derive(Debug, Default)]
 struct CountingExecutor {
+    ordered_calls: std::sync::atomic::AtomicUsize,
+    decline_ordered: bool,
     calls: Mutex<Vec<OperationKind>>,
     emitted: Mutex<Vec<(OperationKind, usize)>>,
 }
@@ -74,7 +76,12 @@ impl PrimitiveExecutor for CountingExecutor {
         room: &mut Room,
     ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
     {
+        self.ordered_calls
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.calls.lock().unwrap().push(OperationKind::Select);
+        if self.decline_ordered {
+            return Ok(crate::application::file_dag::ordered_existence::StrategyOutcome::Declined(crate::application::file_dag::ordered_existence::AdmissionDecline::UnprovenPopulation));
+        }
         crate::application::file_dag::execution::CommonOperatorEngine::fixture().ordered_existence(
             owner,
             shape,
@@ -725,3 +732,232 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
 mod generations;
 
 use ryo_values::domain::rows::types::Table;
+
+#[test]
+fn ordered_existence_stream_and_collection_use_the_same_prepared_strategy() {
+    use crate::application::file_dag::interface::DagExecution as _;
+    use std::sync::atomic::Ordering;
+    let (plan, schema) = ordered_strategy_fixture();
+    let numbers = [1_i64, 3, 2];
+    let columns = schema
+        .iter()
+        .map(|kind| {
+            FactColumn(
+                numbers
+                    .iter()
+                    .map(|number| {
+                        let value = match kind {
+                            CellKind::Node => {
+                                Value::Node(ryo_relations::domain::relations::types::NodeId(0))
+                            }
+                            CellKind::Symbol => {
+                                Value::Symbol(ryo_relations::domain::terms::types::Symbol(0))
+                            }
+                            CellKind::File => Value::File(FileId(0)),
+                            CellKind::Span => {
+                                Value::Span(ryo_relations::domain::relations::types::Span {
+                                    start: Offset(0),
+                                    end: Offset(1),
+                                })
+                            }
+                            CellKind::Number => Value::Number(Integer(*number)),
+                            CellKind::Flag => {
+                                Value::Flag(ryo_relations::domain::relations::types::Flag::Raised)
+                            }
+                        };
+                        to_bits(value).0
+                    })
+                    .collect(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let read = |relation| {
+        if relation == Relation::SourceLocation {
+            Ok(Rows::Stored(ColumnsView {
+                kinds: kinds(relation),
+                columns: &columns,
+            }))
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    };
+    let mut expected = None;
+    for stream in [false, true] {
+        for decline in [true, false] {
+            let executor = CountingExecutor {
+                decline_ordered: decline,
+                ..CountingExecutor::default()
+            };
+            let prepared = RequestOperators::prepare(
+                std::slice::from_ref(&plan),
+                &[vec![]],
+                &[],
+                executor.derived_port(),
+            )
+            .unwrap();
+            let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
+            let project = graph.program_nodes[0][3]
+                .clone()
+                .expect("retained projection is scheduled");
+            let scope = crate::application::file_dag::testing::FileScope::new(
+                graph,
+                &executor,
+                |_| true,
+                &[Relation::SourceLocation],
+                &[],
+            )
+            .unwrap();
+            scope.execution.begin_rule(0).unwrap();
+            let mut symbols = Symbols::default();
+            let mut scratch = OperatorScratch::default();
+            let mut memo = Vec::new();
+            let mut context = OperatorContext {
+                semantic: None,
+                prepared_matchers: None,
+                prepared_kinds: None,
+                bindings: &[],
+                symbols: (&mut symbols).into(),
+                source: SourceView(b""),
+                paths: &[],
+                arenas: &[],
+                memo: &mut memo,
+                scratch: &mut scratch,
+            };
+            let mut actual = Table::default();
+            if stream {
+                super::types::FileDagExecution::stream_scoped(
+                    &scope.execution,
+                    project,
+                    &read,
+                    scope.scope.executor(),
+                    &mut context,
+                    &mut crate::domain::replay::types::Collect(&mut actual),
+                )
+                .unwrap();
+            } else {
+                let publication = scope
+                    .execution
+                    .demand(project, &read, scope.scope.executor(), &mut context)
+                    .unwrap();
+                let rows = scope
+                    .scope
+                    .owner()
+                    .resolve(publication.as_ref(), &read)
+                    .unwrap();
+                crate::domain::table_model::service::materialize(
+                    &rows,
+                    &mut actual,
+                    &mut Vec::new(),
+                );
+            }
+            assert_eq!(
+                actual.count.0, 2,
+                "strict order retains the two values below the maximum"
+            );
+            if let Some(expected) = &expected {
+                assert_eq!(
+                    &actual, expected,
+                    "same exact ordered output across physical routes"
+                );
+            } else {
+                expected = Some(actual);
+            }
+            assert_eq!(
+                executor.ordered_calls.load(Ordering::Relaxed),
+                1,
+                "each entry consults the shared prepared strategy once"
+            );
+            let joins = executor
+                .calls
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|kind| **kind == OperationKind::Join)
+                .count();
+            assert_eq!(
+                joins > 0,
+                decline,
+                "eligible strategy skips Join; genuine decline uses the common ordinary operator path"
+            );
+        }
+    }
+}
+
+fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    let schema = kinds(ryo_relations::domain::relations::types::Relation::SourceLocation).to_vec();
+    let number = ColumnIndex(
+        schema
+            .iter()
+            .position(|kind| *kind == CellKind::Number)
+            .expect("typed numeric source") as u32,
+    );
+    let source = Operation::Select {
+        from: Input::Relation(ryo_relations::domain::relations::types::Relation::SourceLocation),
+        comparisons: vec![],
+        kept: vec![],
+    };
+    let join = Operation::Join {
+        left: Input::Step(StepId(0)),
+        right: Input::Step(StepId(0)),
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(0)],
+        output: vec![
+            JoinColumn {
+                side: Side::Left,
+                column: number,
+            },
+            JoinColumn {
+                side: Side::Right,
+                column: number,
+            },
+        ],
+        filter: vec![],
+        view: vec![],
+        reach: None,
+    };
+    let select = Operation::Select {
+        from: Input::Step(StepId(1)),
+        comparisons: vec![Comparison {
+            test: Test::LessThan,
+            left: Operand::Column(ColumnIndex(0)),
+            right: Operand::Column(ColumnIndex(1)),
+            origin: None,
+        }],
+        kept: vec![],
+    };
+    let project = Operation::Project {
+        from: Input::Step(StepId(2)),
+        columns: vec![ColumnIndex(0)],
+        distinct: RepeatedRows::Dropped,
+    };
+    let anti = Operation::Antijoin {
+        left: Input::Step(StepId(0)),
+        right: Input::Step(StepId(3)),
+        left_on: vec![number],
+        right_on: vec![ColumnIndex(0)],
+    };
+    (
+        Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
+            parameters: vec![],
+            steps: [source, join, select, project, anti]
+                .into_iter()
+                .map(|operation| PlanStep {
+                    operation,
+                    scope: StepScope::PerFile,
+                })
+                .collect(),
+            comparison_origins: vec![],
+            emit: PlanEmit {
+                step: StepId(4),
+                subject: ColumnIndex(0),
+                key: vec![],
+                headings: vec![],
+            },
+            frontier: vec![],
+        },
+        schema,
+    )
+}

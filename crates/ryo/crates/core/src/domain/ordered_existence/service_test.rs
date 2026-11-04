@@ -57,6 +57,8 @@ fn fixture() -> (Plan, Vec<CellKind>) {
     };
     (
         Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
             parameters: vec![],
             steps: [source, join, select, project, anti]
                 .into_iter()

@@ -55,6 +55,7 @@ type Failure = RulesError;
 
 /// What the cross-file steps of every rule read, owned.
 struct World {
+    graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
     ids: Vec<RuleId>,
@@ -102,7 +103,17 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 }
 
 fn world(plan: Plan) -> World {
+    let prepared = crate::application::file_dag::testing::request_fixture(
+        std::slice::from_ref(&plan),
+        &[Vec::new()],
+        &[],
+    );
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        std::slice::from_ref(&plan),
+        &prepared,
+    ));
     World {
+        graph,
         plans: vec![plan],
         bindings: vec![Vec::new()],
         ids: vec![RuleId("rule".into())],
@@ -118,11 +129,7 @@ fn world(plan: Plan) -> World {
 fn crossing(world: &World) -> CrossingInput<'_> {
     CrossingInput {
         executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        operators: crate::application::file_dag::testing::request_fixture(
-            &world.plans,
-            &world.bindings,
-            &[],
-        ),
+        graph: std::sync::Arc::clone(&world.graph),
         arenas: &world.arenas,
         domain: crate::domain::crossing::types::CrossingInput {
             observations: &[],
@@ -283,7 +290,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut cross = Symbols::default();
             let frontier = handed_over(&mut cross);
             let done = cross_rule(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
-            [done.table.count.0, done.fed.len(), done.table.cells.len()]
+            [
+                done.roots.emit.as_ref().map_or(0, |table| table.count.0),
+                done.fed.len(),
+                done.roots
+                    .emit
+                    .as_ref()
+                    .map_or(0, |table| table.cells.len()),
+            ]
         }
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
@@ -293,7 +307,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Vec::new(),
                 &mut Symbols::default(),
             )?;
-            [done.table.count.0, done.fed.len(), done.table.cells.len()]
+            [
+                done.roots.emit.as_ref().map_or(0, |table| table.count.0),
+                done.fed.len(),
+                done.roots
+                    .emit
+                    .as_ref()
+                    .map_or(0, |table| table.cells.len()),
+            ]
         }
         Scenario::CrossSpellings => {
             let mut rules = world(counting_plan(1, Vec::new()));
@@ -313,7 +334,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 table,
             }];
             let done = cross_rule(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
-            [done.table.count.0, 0, 0]
+            [
+                done.roots.emit.as_ref().map_or(0, |table| table.count.0),
+                0,
+                0,
+            ]
         }
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
@@ -323,7 +348,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Vec::new(),
                 &mut Symbols::default(),
             )?;
-            [done.table.count.0, 0, 0]
+            [
+                done.roots.emit.as_ref().map_or(0, |table| table.count.0),
+                0,
+                0,
+            ]
         }
     })
 }
@@ -417,18 +446,74 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     #[derive(Debug)]
     struct RefuseCount;
     impl PrimitiveExecutor for RefuseCount {
+        fn derived_port(
+            &self,
+        ) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+            crate::outbound::derived::factory::test_port()
+        }
+        fn ordered_existence(
+            &self,
+            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+            shape: &crate::domain::ordered_existence::types::ResolvedShape,
+            source: &crate::application::file_dag::relations::PublishedInput,
+            rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+            output_kinds: &[CellKind],
+            context: &mut OperatorContext<'_>,
+            room: &mut Room,
+        ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
+        {
+            CommonOperatorEngine::fixture().ordered_existence(
+                owner,
+                shape,
+                source,
+                rows,
+                output_kinds,
+                context,
+                room,
+            )
+        }
+        fn native_classes(
+            &self,
+            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+            declaration: &crate::application::file_dag::executor::NativeClassBatch<'_>,
+            shared: &mut crate::domain::shared_walk::types::MergedWalk,
+            walking: crate::domain::shared_walk::types::Walking<'_>,
+        ) -> Result<(), OperatingError> {
+            CommonOperatorEngine::fixture().native_classes(owner, declaration, shared, walking)
+        }
+        fn stream_representation(
+            &self,
+            contract: &OperatorContract,
+            physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+            feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+            context: &mut OperatorContext<'_>,
+            room: &mut Room,
+            emit: &mut dyn crate::domain::operating::types::Emit,
+        ) -> Result<(), OperatingError> {
+            if contract.kind == OperationKind::GroupCount {
+                return Err(OperatingError::NotRun);
+            }
+            CommonOperatorEngine::fixture()
+                .stream_representation(contract, physical, feed, owner, context, room, emit)
+        }
         fn stream(
             &self,
+            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
             contract: &OperatorContract,
             feed: &mut dyn Feed<'_>,
             context: &mut OperatorContext<'_>,
             room: &mut Room,
             emit: &mut dyn crate::domain::operating::types::Emit,
         ) -> Result<(), OperatingError> {
-            CommonOperatorEngine::fixture().stream(contract, feed, context, room, emit)
+            if contract.kind == OperationKind::GroupCount {
+                return Err(OperatingError::NotRun);
+            }
+            CommonOperatorEngine::fixture().stream(owner, contract, feed, context, room, emit)
         }
         fn collect(
             &self,
+            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
             contract: &OperatorContract,
             inputs: &[Rows<'_>],
             context: &mut OperatorContext<'_>,
@@ -437,7 +522,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             if contract.kind == OperationKind::GroupCount {
                 return Err(OperatingError::NotRun);
             }
-            CommonOperatorEngine::fixture().collect(contract, inputs, context, out)
+            CommonOperatorEngine::fixture().collect(owner, contract, inputs, context, out)
         }
     }
     for failed_emit in [true, false] {
@@ -466,8 +551,13 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 kind: CellKind::Number,
             });
         }
-        let request =
-            RequestOperators::prepare(std::slice::from_ref(&plan), &[Vec::new()], &[]).unwrap();
+        let request = RequestOperators::prepare(
+            std::slice::from_ref(&plan),
+            &[Vec::new()],
+            &[],
+            crate::outbound::derived::factory::test_port(),
+        )
+        .unwrap();
         let mut symbols = Symbols::default();
         let mut memo = Vec::new();
         let mut scratch = OperatorScratch::default();
@@ -487,22 +577,46 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             input: PlanInput::Step(StepId(0)),
             table: Table {
                 kinds: vec![CellKind::Node],
-                cells: vec![Cell::Node(ryo_relations::domain::relations::types::Node(0))],
-                count: crate::domain::table_model::types::RowCount(1),
+                cells: vec![Cell::Node(ryo_relations::domain::relations::types::NodeId(
+                    0,
+                ))],
+                count: ryo_values::domain::rows::types::RowCount(1),
             },
         }];
+        let executor = RefuseCount;
+        let scope = crate::application::file_dag::scope::ExecutionScope::new(
+            std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+                std::slice::from_ref(&plan),
+                &request,
+            )),
+            crate::application::file_dag::scope::ScopePhase::Project,
+            false,
+            &executor,
+        )
+        .unwrap();
+        let partials = crate::domain::coverage::types::Partials::default();
+        let completion = scope
+            .completion(
+                RuleIndex(0),
+                crate::application::file_dag::scope::ScopePartials::Project {
+                    evaluation: &partials,
+                    publication: &partials,
+                },
+            )
+            .unwrap();
         let roots =
             crate::application::file_dag::cross_execution::evaluate_cross_roots_with_executor(
+                &completion,
+                &scope,
+                0,
                 &plan,
                 frontier,
                 &[],
-                &Default::default(),
-                &Default::default(),
+                &partials,
                 &mut context,
                 &mut vec![Default::default(); plan.steps.len()],
-                &[],
-                &RefuseCount,
-                &request.rules[0],
+                Vec::new(),
+                scope.executor(),
             )
             .unwrap();
         assert_eq!(roots.emit_error.is_some(), failed_emit);

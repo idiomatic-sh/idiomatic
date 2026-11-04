@@ -116,6 +116,9 @@ impl CompletionPolicy {
             CompletionBehavior::DropAfterCollect(partials) => files_for(partials, reads).is_empty(),
         }
     }
+    pub(super) fn requires_buffer(&self) -> bool {
+        matches!(self.behavior, CompletionBehavior::DropAfterCollect(_))
+    }
     pub(super) fn allows_region(&self, needs: &[RelationRead]) -> bool {
         match &self.behavior {
             CompletionBehavior::BlockBeforeRun(partials) => {

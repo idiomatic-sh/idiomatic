@@ -63,12 +63,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         domain_view: Vec::new(),
         output: Vec::new(),
     };
+    let mut derived = crate::application::file_dag::testing::raw_scope()?;
     let mut out = Slots::default();
     axis(
         &rows,
         &lowering_of(&[ElementPart::Node]),
         &operation,
         Work {
+            derived: &mut derived,
             room: &mut room_of(&[&[scenario.from]]),
             context: &mut context,
         },

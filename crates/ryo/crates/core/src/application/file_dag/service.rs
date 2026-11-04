@@ -38,6 +38,15 @@ impl ScopeState for std::cell::RefCell<&mut FileDagExecution> {
     }
 }
 
+enum NodeDelivery<'a> {
+    Retain,
+    Forward(&'a mut dyn Emit),
+}
+enum NodeOutput {
+    Retained(super::relations::PublishedInput),
+    Forwarded,
+}
+
 /// Retained result buffers only; injected typed indexes keep their existing allowance.
 const RESULT_LIMIT: usize = 6 * 1024 * 1024;
 pub(super) fn table_bytes(table: &Table) -> usize {
@@ -312,6 +321,57 @@ impl FileDagExecution {
         }
         first_global
     }
+    /// One prepared physical alternative for both streamed and retained supply.
+    /// The scheduler owns acquisition and skipped-edge cancellation in either mode.
+    fn prepared_strategy<'f>(
+        scope: &dyn ScopeState,
+        id: NodeId,
+        graph: &crate::domain::file_program::types::RequestGraph,
+        relations: &std::rc::Rc<super::relations::RelationOwner>,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &ScopedExecutor<'_>,
+        context: &mut OperatorContext<'_>,
+        room: &mut crate::domain::operating::types::Room,
+    ) -> Result<super::ordered_existence::StrategyOutcome, OperatingError> {
+        let node = graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
+        use crate::domain::ordered_existence::types::ResolvedAlternative;
+        let alternative = graph.ordered_existence.get(id.0).and_then(Option::as_ref);
+        if let Some(ResolvedAlternative::Declined(reason)) = alternative {
+            let _ = reason;
+            super::route_counts::event("ordered_existence", "declined_shared_consumer");
+        }
+        if let Some(ResolvedAlternative::Eligible(shape)) = alternative {
+            // The request compiler matched original plan coordinates to these
+            // exact producer edges. Demand only S: J/F remain unexecuted and
+            // their ordinary edges are cancelled by consumed below.
+            if shape.select != id || node.inputs != [NodeInput::Node(shape.join)] {
+                return Err(OperatingError::WrongOperation);
+            }
+            let source = Self::demand_scoped(scope, shape.source, read, executor, context)?;
+            let rows = relations.resolve(source.as_ref(), read)?;
+            match executor.ordered_existence(
+                shape,
+                &source,
+                crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+                node.contract.schema.as_ref().map_err(Clone::clone)?,
+                context,
+                room,
+            )? {
+                super::ordered_existence::StrategyOutcome::Executed(result) => {
+                    super::route_counts::event("ordered_existence", "executed_skipped_join");
+                    return Ok(super::ordered_existence::StrategyOutcome::Executed(result));
+                }
+                super::ordered_existence::StrategyOutcome::Declined(_reason) => {
+                    super::route_counts::event("ordered_existence", "declined_population");
+                }
+            }
+            // Admission declined before output. Ordinary evaluation retains
+            // all malformed/unsupported representation and fault behavior.
+        }
+        Ok(super::ordered_existence::StrategyOutcome::Declined(
+            super::ordered_existence::AdmissionDecline::NoEligiblePlan,
+        ))
+    }
     pub(super) fn stream_scoped<'f>(
         scope: &dyn ScopeState,
         id: NodeId,
@@ -320,6 +380,66 @@ impl FileDagExecution {
         context: &mut OperatorContext<'_>,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
+        Self::invoke_node(
+            scope,
+            id,
+            read,
+            executor,
+            context,
+            &mut NodeDelivery::Forward(emit),
+        )
+        .map(|_| ())
+    }
+    pub(super) fn demand_scoped<'f>(
+        scope: &dyn ScopeState,
+        id: NodeId,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &ScopedExecutor<'_>,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<super::relations::PublishedInput, OperatingError> {
+        match Self::invoke_node(
+            scope,
+            id,
+            read,
+            executor,
+            context,
+            &mut NodeDelivery::Retain,
+        )? {
+            NodeOutput::Retained(publication) => Ok(publication),
+            NodeOutput::Forwarded => Err(OperatingError::WrongOperation),
+        }
+    }
+    /// Delivery is downstream of the single admission/execution/commit owner.
+    /// A callback refusal cannot invalidate an already completed producer.
+    fn deliver_publication<'f>(
+        delivery: &mut NodeDelivery<'_>,
+        publication: super::relations::PublishedInput,
+        relations: &super::relations::RelationOwner,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<NodeOutput, OperatingError> {
+        match delivery {
+            NodeDelivery::Retain => Ok(NodeOutput::Retained(publication)),
+            NodeDelivery::Forward(emit) => {
+                let rows = relations.resolve(publication.as_ref(), read)?;
+                let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
+                let mut memo = Vec::new();
+                let mut output = super::execution::output::State::take(&mut scratch, &mut memo);
+                output.run(*emit, |emit| scan(&rows, &mut Vec::new(), context, emit))?;
+                Ok(NodeOutput::Forwarded)
+            }
+        }
+    }
+    /// Sole node lifecycle: owner validation, admission, strategy, first error,
+    /// dependency release and publication are independent of output delivery.
+    fn invoke_node<'f>(
+        scope: &dyn ScopeState,
+        id: NodeId,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &ScopedExecutor<'_>,
+        context: &mut OperatorContext<'_>,
+        delivery: &mut NodeDelivery<'_>,
+    ) -> Result<NodeOutput, OperatingError> {
         let _node = super::route_counts::node(id.0);
         let (graph, relations, rooms, cached) = {
             let mut state = scope.state_mut();
@@ -329,32 +449,37 @@ impl FileDagExecution {
             if let Some(error) = state.failed.get(id.0).and_then(Option::as_ref) {
                 return Err(error.clone());
             }
-            let cached = if let Some(provided) = state.provided.get(&id) {
-                Some(provided.clone()?)
-            } else if let Some(table) = state.required.get(id.0).and_then(Option::as_ref) {
-                Some(table.clone())
-            } else if let Some(table) = state.ready.get(id.0).and_then(Option::as_ref) {
-                let table = state.relations.required_publication(table)?;
-                state.pin_required(id, table.clone());
-                Some(table)
-            } else {
-                None
-            };
-            if cached.is_none() {
-                let declared = state.graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
-                if declared.phase != state.phase {
+            let node = state.graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
+            // Supplied frontiers are owned publications from an earlier phase.
+            // Their typed refusal must survive; phase checks govern execution,
+            // never consumption of a declared supplied input.
+            if !state.provided.contains_key(&id) {
+                if node.phase != state.phase {
                     return Err(OperatingError::NotRun);
                 }
-                if crate::domain::features::service::kind_of(&declared.operation)
-                    != declared.contract.kind
+                if crate::domain::features::service::kind_of(&node.operation) != node.contract.kind
                 {
                     return Err(OperatingError::WrongOperation);
                 }
-                // A blocked streamed node emits no rows; it is a typed Partial,
-                // not an error that aborts independent branches.
-                if state.partial_node(id)?.is_some() {
-                    return Ok(());
-                }
+                node.needs.as_ref().map_err(Clone::clone)?;
+            }
+            state.demands += 1;
+            let cached = if let Some(provided) = state.provided.get(&id) {
+                Some(provided.clone()?)
+            } else if let Some(table) = state.required.get(id.0).and_then(Option::as_ref).cloned() {
+                state.hits += 1;
+                state.publish_observed_node(id, &table);
+                Some(table)
+            } else if let Some(table) = state.ready.get(id.0).and_then(Option::as_ref).cloned() {
+                state.hits += 1;
+                let table = state.relations.required_publication(&table)?;
+                state.pin_required(id, table.clone());
+                state.publish_observed_node(id, &table);
+                Some(table)
+            } else {
+                state.partial_node(id)?
+            };
+            if cached.is_none() {
                 if state.visiting.get(id.0).copied().unwrap_or(true) {
                     return Err(OperatingError::NotRun);
                 }
@@ -368,158 +493,11 @@ impl FileDagExecution {
             )
         };
         if let Some(publication) = cached {
-            let rows = relations.resolve(publication.as_ref(), read)?;
-            let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
-            let mut memo = Vec::new();
-            let mut output = super::execution::output::State::take(&mut scratch, &mut memo);
-            return output.run(emit, |emit| scan(&rows, &mut Vec::new(), context, emit));
+            return Self::deliver_publication(delivery, publication, &relations, read, context);
         }
-        let node = graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
-        let request_source = scope.state().hosted.get(&id).cloned();
+        let node = &graph.nodes[id.0];
         #[cfg(feature = "diagnostic-row-progress")]
         super::route_counts::node_description(&node.operation);
-        let mut room = match rooms.take(id) {
-            Ok(room) => room,
-            Err(error) => {
-                scope.state_mut().visiting[id.0] = false;
-                return Err(error);
-            }
-        };
-        let held = (0..node.inputs.len())
-            .map(|_| OnceCell::new())
-            .collect::<Vec<_>>();
-        let room = match room.room() {
-            Ok(room) => room,
-            Err(error) => {
-                scope.state_mut().visiting[id.0] = false;
-                return Err(error);
-            }
-        };
-        let mut output = super::execution::output::State::take(&mut room.scratch, &mut room.memo);
-        let mut downstream = crate::domain::operator::contract::failure::FailureLatch::default();
-        let result = output.run(emit, |emit| {
-            let mut sticky = crate::domain::replay::types::Pipe(
-                |each: &mut OperatorContext<'_>, row: &[Value]| {
-                    downstream.run(|| emit.row(each, row)).map_err(|()| {
-                        downstream
-                            .error()
-                            .expect("latched downstream error")
-                            .clone()
-                    })
-                },
-            );
-            let mut feed = GraphInputs {
-                execution: scope,
-                owner: std::rc::Rc::clone(&relations),
-                node: id,
-                phase: node.phase,
-                region: node
-                    .regions
-                    .iter()
-                    .find(|region| Some(region.rule) == scope.state().current_rule),
-                request_source: request_source.as_ref(),
-                source_kinds: node
-                    .contract
-                    .collected_kinds
-                    .as_ref()
-                    .map_or(&[], Vec::as_slice),
-                inputs: &node.inputs,
-                schemas: &node.contract.input_kinds,
-                supply: &node.input_supply,
-                held: &held,
-                read,
-                executor,
-            };
-            executor.stream_representation(
-                &node.contract,
-                &node.physical,
-                &mut feed,
-                context,
-                room,
-                &mut sticky,
-            )
-        });
-        output.restore(&mut room.scratch, &mut room.memo);
-        let downstream_error = downstream.take();
-        let semantic_failure = downstream_error.is_none();
-        let result = downstream_error.map_or(result, Err);
-
-        // No scheduler borrow was held during upstream or downstream callbacks.
-        let mut state = scope.state_mut();
-        state.visiting[id.0] = false;
-        if let Err(error) = result {
-            if semantic_failure {
-                state.failed[id.0] = Some(error.clone());
-                state.completed_inputs(id, &node.inputs);
-            }
-            return Err(error);
-        }
-        state.completed_inputs(id, &node.inputs);
-        Ok(())
-    }
-    pub(super) fn demand_scoped<'f>(
-        scope: &dyn ScopeState,
-        id: NodeId,
-        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        executor: &ScopedExecutor<'_>,
-        context: &mut OperatorContext<'_>,
-    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
-        let _node = crate::application::file_dag::route_counts::node(id.0);
-        let (graph, relations, rooms) = {
-            let mut state = scope.state_mut();
-            if !std::rc::Rc::ptr_eq(&state.relations, executor.owner()) {
-                return Err(OperatingError::NotRead);
-            }
-            if let Some(error) = state.failed.get(id.0).and_then(Option::as_ref) {
-                return Err(error.clone());
-            }
-            if let Some(provided) = state.provided.get(&id) {
-                return provided.clone();
-            }
-            if state
-                .graph
-                .nodes
-                .get(id.0)
-                .is_none_or(|node| node.phase != state.phase)
-            {
-                return Err(OperatingError::NotRun);
-            }
-            state.demands += 1;
-            if let Some(table) = state.required.get(id.0).and_then(Option::as_ref).cloned() {
-                state.hits += 1;
-                state.publish_observed_node(id, &table);
-                return Ok(table);
-            }
-            if let Some(table) = state
-                .ready
-                .get(id.0)
-                .and_then(Option::as_ref)
-                .map(Clone::clone)
-            {
-                state.hits += 1;
-                let table = state.relations.required_publication(&table)?;
-                state.pin_required(id, table.clone());
-                state.publish_observed_node(id, &table);
-                return Ok(table);
-            }
-            if let Some(publication) = state.partial_node(id)? {
-                return Ok(publication);
-            }
-            if state.visiting.get(id.0).copied().unwrap_or(true) {
-                return Err(OperatingError::NotRun);
-            }
-            let graph = Arc::clone(&state.graph);
-            let node = &graph.nodes[id.0];
-            #[cfg(feature = "diagnostic-row-progress")]
-            super::route_counts::node_description(&node.operation);
-            if crate::domain::features::service::kind_of(&node.operation) != node.contract.kind {
-                return Err(OperatingError::WrongOperation);
-            }
-            state.visiting[id.0] = true;
-            let relations = std::rc::Rc::clone(&state.relations);
-            (graph, relations, std::rc::Rc::clone(&state.rooms))
-        };
-        let node = &graph.nodes[id.0];
         let completion = scope.state().completion.clone();
         let request_source = scope.state().hosted.get(&id).cloned();
         let mut room = match rooms.take(id) {
@@ -529,40 +507,15 @@ impl FileDagExecution {
                 return Err(error);
             }
         };
+        let mut downstream = crate::domain::operator::contract::failure::FailureLatch::default();
         let outcome = (|| {
-            use crate::domain::ordered_existence::types::ResolvedAlternative;
-            let alternative = graph.ordered_existence.get(id.0).and_then(Option::as_ref);
-            if let Some(ResolvedAlternative::Declined(reason)) = alternative {
-                let _ = reason;
-                super::route_counts::event("ordered_existence", "declined_shared_consumer");
-            }
-            if let Some(ResolvedAlternative::Eligible(shape)) = alternative {
-                // The request compiler matched original plan coordinates to these
-                // exact producer edges. Demand only S: J/F remain unexecuted and
-                // their ordinary edges are cancelled by consumed below.
-                if shape.select != id || node.inputs != [NodeInput::Node(shape.join)] {
-                    return Err(OperatingError::WrongOperation);
-                }
-                let source = Self::demand_scoped(scope, shape.source, read, executor, context)?;
-                let rows = relations.resolve(source.as_ref(), read)?;
-                match executor.ordered_existence(
-                    shape,
-                    &source,
-                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-                    node.contract.schema.as_ref().map_err(Clone::clone)?,
-                    context,
-                    room.room()?,
-                )? {
-                    super::ordered_existence::StrategyOutcome::Executed(result) => {
-                        super::route_counts::event("ordered_existence", "executed_skipped_join");
-                        return Ok(result);
-                    }
-                    super::ordered_existence::StrategyOutcome::Declined(_reason) => {
-                        super::route_counts::event("ordered_existence", "declined_population");
-                    }
-                }
-                // Admission declined before output. Ordinary evaluation retains
-                // all malformed/unsupported representation and fault behavior.
+            let room = room.room()?;
+            if let super::ordered_existence::StrategyOutcome::Executed(publication) =
+                Self::prepared_strategy(
+                    scope, id, &graph, &relations, read, executor, context, room,
+                )?
+            {
+                return Ok(NodeOutput::Retained(publication));
             }
             let held = (0..node.inputs.len())
                 .map(|_| OnceCell::new())
@@ -589,26 +542,61 @@ impl FileDagExecution {
                 read,
                 executor,
             };
-            executor.keep_representation(
-                &node.contract,
-                &node.physical,
-                &mut feed,
-                context,
-                room.room()?,
-            )
+            // Project completion filters after collection. It may not forward
+            // uncertain rows before the same required policy has examined them.
+            if matches!(delivery, NodeDelivery::Retain) || completion.requires_buffer() {
+                return executor
+                    .keep_representation(&node.contract, &node.physical, &mut feed, context, room)
+                    .map(NodeOutput::Retained);
+            }
+            let NodeDelivery::Forward(emit) = delivery else {
+                return Err(OperatingError::WrongOperation);
+            };
+            let mut output =
+                super::execution::output::State::take(&mut room.scratch, &mut room.memo);
+            let result = output.run(*emit, |emit| {
+                let mut sticky = crate::domain::replay::types::Pipe(
+                    |each: &mut OperatorContext<'_>, row: &[Value]| {
+                        downstream.run(|| emit.row(each, row)).map_err(|()| {
+                            downstream
+                                .error()
+                                .expect("latched downstream error")
+                                .clone()
+                        })
+                    },
+                );
+                executor.stream_representation(
+                    &node.contract,
+                    &node.physical,
+                    &mut feed,
+                    context,
+                    room,
+                    &mut sticky,
+                )
+            });
+            output.restore(&mut room.scratch, &mut room.memo);
+            result.map(|()| NodeOutput::Forwarded)
         })();
-        let mut state = scope.state_mut();
-        state.visiting[id.0] = false;
-        drop(state);
-        let probed = if matches!(
+        scope.state_mut().visiting[id.0] = false;
+        if let Some(error) = downstream.take() {
+            // The producer did not fail. Its edges remain available for retry.
+            return Err(error);
+        }
+        let publication = match outcome {
+            Ok(NodeOutput::Forwarded) => {
+                let mut state = scope.state_mut();
+                state.coverage[id.0] = Some(super::completion::CoverageState::Complete);
+                state.completed_inputs(id, &node.inputs);
+                return Ok(NodeOutput::Forwarded);
+            }
+            Ok(NodeOutput::Retained(publication)) => Ok(publication),
+            Err(error) => Err(error),
+        };
+        let probed = usize::from(matches!(
             &node.operation,
             ryo_values::domain::plans::types::Operation::Antijoin { .. }
                 | ryo_values::domain::plans::types::Operation::Difference { .. }
-        ) {
-            1
-        } else {
-            0
-        };
+        ));
         let (table, coverage) = match completion.finish(
             &node.operation,
             node.needs.as_ref().map_err(Clone::clone)?,
@@ -616,7 +604,7 @@ impl FileDagExecution {
                 .input_kinds
                 .get(probed)
                 .map_or(&[], Vec::as_slice),
-            outcome,
+            publication,
             &relations,
             read,
         ) {
@@ -681,7 +669,8 @@ impl FileDagExecution {
             derived_backend_overlap_bytes=state.relations.derived.required_backend_overlap(),
             derived_peak_required_views=state.relations.derived.peak_required_views(),
             derived_metadata_bytes=state.relations.derived.metadata_bytes());
-        Ok(table)
+        drop(state);
+        Self::deliver_publication(delivery, table, &relations, read, context)
     }
 }
 

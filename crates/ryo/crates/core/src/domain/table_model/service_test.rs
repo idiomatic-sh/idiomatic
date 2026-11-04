@@ -16,11 +16,12 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::NameText;
 
 use super::errors::TableModelError;
-use super::service::{cell, count_of, index, kinds_of, matching, push_row, read_row, reset};
+use super::service::{cell, count_of, kinds_of, matching, push_row, read_row, reset};
 use super::types::Rows;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::domain::positions::service_test::prepared_index;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use ryo_derived::domain::contract::types::{KeyIndex, On};
+use ryo_derived::domain::contract::types::On;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -205,8 +206,8 @@ fn pairs(rows: &[[i64; 2]]) -> Table {
 /// Looking up a key finds the rows that have it, in the order they came, whatever the order of the table.
 fn finds_the_rows_of_a_key() -> Result<Value, TableModelError> {
     let table = pairs(&[[2, 1], [1, 2], [2, 3], [3, 4]]);
-    let (on, mut order) = ([ColumnIndex(0)], KeyIndex::default());
-    index(&table, On::Columns(&on), &mut order)?;
+    let on = [ColumnIndex(0)];
+    let order = prepared_index(&Rows::Computed(&table), &on)?;
     let found: Vec<RowIndex> = matching(
         &table,
         On::Columns(&on),
@@ -230,8 +231,8 @@ fn finds_the_rows_of_a_key() -> Result<Value, TableModelError> {
 fn finds_a_key_among_many() -> Result<Value, TableModelError> {
     let rows: Vec<[i64; 2]> = (0..700).map(|each| [each % 7, each]).collect();
     let table = pairs(&rows);
-    let (on, mut order) = ([ColumnIndex(0)], KeyIndex::default());
-    index(&table, On::Columns(&on), &mut order)?;
+    let on = [ColumnIndex(0)];
+    let order = prepared_index(&Rows::Computed(&table), &on)?;
     let found: Vec<RowIndex> = matching(
         &table,
         On::Columns(&on),
@@ -453,7 +454,7 @@ fn refuses() {
 
 #[test]
 fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
-    use super::service::{index_stored, matching_stored, rectangular};
+    use super::service::{matching_stored, rectangular};
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
     let columns = [
         FactColumn(vec![2, 1, 2, 2]),
@@ -467,15 +468,14 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
     assert!(rectangular(view));
     let mut materialized = Table::default();
     super::service::materialize(&Rows::Stored(view), &mut materialized, &mut Vec::new());
-    let mut stored = KeyIndex::default();
-    let mut computed = KeyIndex::default();
     for key_columns in [
         vec![ColumnIndex(0)],
         vec![ColumnIndex(1), ColumnIndex(0)],
         Vec::new(),
     ] {
-        index_stored(view, &key_columns, &mut stored).expect("valid stored key");
-        index(&materialized, On::Columns(&key_columns), &mut computed).expect("valid computed key");
+        let stored = prepared_index(&Rows::Stored(view), &key_columns).expect("valid stored key");
+        let computed = prepared_index(&Rows::Computed(&materialized), &key_columns)
+            .expect("valid computed key");
         for row in 0..materialized.count.0 {
             let row = super::service::row_in(&materialized, RowIndex(row)).expect("row");
             let key = key_columns
@@ -499,7 +499,7 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
             );
         }
     }
-    index_stored(view, &[ColumnIndex(1)], &mut stored).expect("flag index");
+    let stored = prepared_index(&Rows::Stored(view), &[ColumnIndex(1)]).expect("flag index");
     assert_eq!(
         matching_stored(
             view,
@@ -530,7 +530,7 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() {
 
 #[test]
 fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() {
-    use super::service::{index_stored, matching_stored};
+    use super::service::matching_stored;
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
     let colliding_word = 0x517c_c1b7_2722_0a95_u64.rotate_left(5);
     let columns = [
@@ -541,11 +541,11 @@ fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() {
         kinds: KINDS,
         columns: &columns,
     };
-    let mut index = KeyIndex::default();
     let on = [ColumnIndex(0), ColumnIndex(1)];
-    index_stored(view, &on, &mut index).expect("key");
+    let index = prepared_index(&Rows::Stored(view), &on).expect("key");
     assert_eq!(
-        index.hashes[0], index.hashes[1],
+        index.hashes()[0],
+        index.hashes()[1],
         "fixture must exercise an actual full-hash collision"
     );
     assert_eq!(
@@ -565,7 +565,7 @@ fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() {
 
 #[test]
 fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
-    use super::service::{index_stored, matching_stored, rectangular};
+    use super::service::{matching_stored, rectangular};
     const KINDS: &[CellKind] = &[CellKind::Number];
     let columns = [FactColumn(vec![7, 7])];
     let empty = [FactColumn(Vec::new())];
@@ -578,9 +578,13 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
         columns: &empty,
     };
     let on = [ColumnIndex(0)];
-    let mut order = KeyIndex::default();
-    index_stored(view, &on, &mut order).expect("full");
-    index_stored(vacant, &on, &mut order).expect("empty");
+    let full = prepared_index(&Rows::Stored(view), &on).expect("full");
+    let order = prepared_index(&Rows::Stored(vacant), &on).expect("empty");
+    assert_eq!(
+        full.rows().len(),
+        2,
+        "new empty payload does not mutate an outstanding full index"
+    );
     assert!(
         matching_stored(
             vacant,
@@ -594,10 +598,10 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() {
         .is_none()
     );
     assert_eq!(
-        index_stored(vacant, &[ColumnIndex(1)], &mut order),
-        Err(TableModelError::NoSuchColumn { index: 1 })
+        prepared_index(&Rows::Stored(vacant), &[ColumnIndex(1)]).err(),
+        Some(TableModelError::NoSuchColumn { index: 1 })
     );
-    index_stored(view, &[], &mut order).expect("cartesian");
+    let order = prepared_index(&Rows::Stored(view), &[]).expect("cartesian");
     assert_eq!(
         matching_stored(
             view,

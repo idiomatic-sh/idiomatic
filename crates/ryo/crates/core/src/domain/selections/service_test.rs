@@ -50,6 +50,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         elements,
         mut symbols,
     } = small_tree();
+    let mut derived = crate::application::file_dag::testing::raw_scope()?;
     let mut out = Slots::default();
     let lowering = lowering_of(&[ElementPart::Kind]);
     let mut room = room_of(&[&[1, 2, 3]]);
@@ -80,27 +81,31 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     StepId(0),
                     &[on_kind],
                     Work {
+                        derived: &mut derived,
                         room: &mut room,
                         context: &mut context,
                     },
                     &mut out,
                 )?;
             }
-            Scenario::Distinct | Scenario::Kept => project(
-                &rows,
-                &lowering,
-                StepId(0),
-                ProjectedColumns {
-                    columns: &[ColumnIndex(0)],
-                    repeats: if matches!(scenario, Scenario::Distinct) {
-                        RepeatedRows::Dropped
-                    } else {
-                        RepeatedRows::Kept
+            Scenario::Distinct | Scenario::Kept => {
+                project(
+                    &mut derived,
+                    &rows,
+                    &lowering,
+                    StepId(0),
+                    ProjectedColumns {
+                        columns: &[ColumnIndex(0)],
+                        repeats: if matches!(scenario, Scenario::Distinct) {
+                            RepeatedRows::Dropped
+                        } else {
+                            RepeatedRows::Kept
+                        },
                     },
-                },
-                &mut room,
-                &mut out,
-            ),
+                    &mut room,
+                    &mut out,
+                )?;
+            }
         }
     }
     // The answer is leaked: a case compares it with text that lives for the whole run.

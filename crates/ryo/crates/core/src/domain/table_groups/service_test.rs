@@ -9,7 +9,8 @@ use crate::domain::table_groups::types::CountRoom;
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
 
-use ryo_derived::domain::contract::types::{KeyIndex, On};
+use crate::domain::{positions::service_test::prepared_order, table_model::types::Rows};
+use ryo_derived::domain::contract::types::On;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// A scenario: what a row asks of the part.
@@ -37,18 +38,15 @@ fn pairs(rows: &[[i64; 2]]) -> Table {
 /// Groups come in the order their first row came, each counted by its rows or by its distinct values.
 fn counts_the_groups_in_the_order_they_appeared() -> Result<Value, TableModelError> {
     let table = pairs(&[[2, 7], [1, 7], [2, 7], [2, 8]]);
-    let (on, mut order, mut groups, mut values) = (
-        [ColumnIndex(0)],
-        KeyIndex::default(),
-        Vec::new(),
-        Vec::new(),
-    );
+    let on = [ColumnIndex(0)];
+    let order = prepared_order(&Rows::Computed(&table), &on)?;
+    let (mut groups, mut values) = (Vec::new(), Vec::new());
     count_groups(
         &table,
         On::Columns(&on),
         None,
         &mut CountRoom {
-            order: &mut order,
+            order: &order,
             groups: &mut groups,
             values: &mut values,
         },
@@ -62,7 +60,7 @@ fn counts_the_groups_in_the_order_they_appeared() -> Result<Value, TableModelErr
         On::Columns(&on),
         Some(ColumnIndex(1)),
         &mut CountRoom {
-            order: &mut order,
+            order: &order,
             groups: &mut groups,
             values: &mut values,
         },
@@ -79,18 +77,15 @@ fn counts_the_groups_in_the_order_they_appeared() -> Result<Value, TableModelErr
 /// Counting by the distinct values of a column the table lacks is refused.
 fn counts_by_a_column_the_table_lacks() -> Result<Value, TableModelError> {
     let table = pairs(&[[2, 7]]);
-    let (on, mut order, mut groups, mut values) = (
-        [ColumnIndex(0)],
-        KeyIndex::default(),
-        Vec::new(),
-        Vec::new(),
-    );
+    let on = [ColumnIndex(0)];
+    let order = prepared_order(&Rows::Computed(&table), &on)?;
+    let (mut groups, mut values) = (Vec::new(), Vec::new());
     count_groups(
         &table,
         On::Columns(&on),
         Some(ColumnIndex(9)),
         &mut CountRoom {
-            order: &mut order,
+            order: &order,
             groups: &mut groups,
             values: &mut values,
         },

@@ -61,6 +61,7 @@ type Failure = RulesError;
 
 /// What the cross-file steps of every rule read, owned.
 struct World {
+    graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
     ids: Vec<RuleId>,
@@ -106,7 +107,17 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 }
 
 fn world(plan: Plan) -> World {
+    let prepared = crate::application::file_dag::testing::request_fixture(
+        std::slice::from_ref(&plan),
+        &[Vec::new()],
+        &[],
+    );
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        std::slice::from_ref(&plan),
+        &prepared,
+    ));
     World {
+        graph,
         plans: vec![plan],
         bindings: vec![Vec::new()],
         ids: vec![RuleId("rule".into())],
@@ -120,11 +131,7 @@ fn world(plan: Plan) -> World {
 fn crossing(world: &World) -> CrossingInput<'_> {
     CrossingInput {
         executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        operators: crate::application::file_dag::testing::request_fixture(
-            &world.plans,
-            &world.bindings,
-            &[],
-        ),
+        graph: std::sync::Arc::clone(&world.graph),
         arenas: &world.arenas,
         domain: crate::domain::crossing::types::CrossingInput {
             observations: &[],
@@ -265,9 +272,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let done =
                 service().evaluate(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
             [
-                done.rendered.order.len(),
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
                 done.fed.len(),
-                done.rendered.cells.len(),
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.cells.len()),
             ]
         }
         Scenario::CrossNoBinding => {
@@ -279,11 +290,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Vec::new(),
                 &mut Symbols::default(),
             )?;
-            [
-                usize::from(done.rendered != crate::domain::render::types::Rendered::default()),
-                done.fed.len(),
-                0,
-            ]
+            [usize::from(done.rendered.is_some()), done.fed.len(), 0]
         }
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
@@ -293,7 +300,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Vec::new(),
                 &mut Symbols::default(),
             )?;
-            [done.rendered.order.len(), done.fed.len(), 0]
+            [
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                done.fed.len(),
+                0,
+            ]
         }
         Scenario::CrossSpellings => {
             let mut rules = world(counting_plan(1, Vec::new()));
@@ -314,7 +327,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }];
             let done =
                 service().evaluate(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
-            [done.rendered.order.len(), 0, 0]
+            [
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                0,
+                0,
+            ]
         }
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
@@ -324,7 +343,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Vec::new(),
                 &mut Symbols::default(),
             )?;
-            [done.rendered.order.len(), 0, 0]
+            [
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                0,
+                0,
+            ]
         }
     })
 }
