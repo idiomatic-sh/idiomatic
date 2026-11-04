@@ -12,7 +12,7 @@ use std::path::PathBuf;
 /// Explicit candidate invocation at the JSON process boundary.
 struct RyoWorkerRequestSchema {
     #[serde(default)]
-    performance: crate::outbound::worker::adapters::json::options::OptionsSchema,
+    performance: crate::outbound::worker::schemas::OptionsSchema,
     #[serde(default)]
     /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,

@@ -47,7 +47,7 @@ pub(super) fn normalized_invocation(
         "project_context_mode": format!("{:?}", profile.project_context_mode),
     });
     settings["performance"] = serde_json::to_value(
-        crate::outbound::worker::adapters::json::options::OptionsSchema::from(
+        crate::outbound::worker::schemas::OptionsSchema::from(
             case.request.performance,
         ),
     )

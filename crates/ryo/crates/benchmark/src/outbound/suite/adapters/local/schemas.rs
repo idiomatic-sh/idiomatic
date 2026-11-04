@@ -73,7 +73,7 @@ struct CasesSchema {
 /// One independent source example.
 struct CaseSchema {
     #[serde(default)]
-    performance: crate::outbound::worker::adapters::json::options::OptionsSchema,
+    performance: crate::outbound::worker::schemas::OptionsSchema,
     /// Explicit POSIX executable observations for declared source files.
     #[serde(default, rename = "file-metadata")]
     file_metadata: Option<BTreeMap<String, bool>>,
