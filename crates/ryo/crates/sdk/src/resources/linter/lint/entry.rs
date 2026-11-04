@@ -50,6 +50,12 @@ impl Linter {
             cache,
         ))
     }
+    /// Select execution explicitly; the same choice controls runtime and persisted identity.
+    #[must_use]
+    pub fn with_execution(mut self, execution: super::types::ExecutionOptions) -> Self {
+        self.0.execution = execution;
+        self
+    }
 }
 
 /// `linter lint` over `linter`: checks rules over a repository, as `lint` does, with no setup of its own.

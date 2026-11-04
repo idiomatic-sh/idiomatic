@@ -28,6 +28,7 @@ pub(crate) struct LinterRyoAdapter {
 impl LinterPort for LinterRyoAdapter {
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let worker = WorkerRequest {
+            performance: request.performance,
             project_context_mode: self.project_context_mode,
             context_manifest: request.context_manifest.clone(),
             root: request.root.clone(),

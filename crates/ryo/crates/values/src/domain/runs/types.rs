@@ -94,3 +94,22 @@ pub enum AnswerShape {
     /// row is counted. Nothing is kept for the next run.
     Rows(crate::domain::records::types::RowTotal),
 }
+
+/// Whether the common file DAG may retain optional completed node results.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NodeResultReuse {
+    /// Required live consumer leases remain; optional completed node retention is disabled.
+    #[default]
+    Disabled,
+    /// Admit optional completed node results under the existing bounded policy.
+    Enabled,
+}
+
+/// Physical execution choices selected at the caller edge.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ExecutionOptions {
+    /// Optional node result retention; does not select a different executor.
+    pub node_result_reuse: NodeResultReuse,
+    /// Enable eligible column kernels.
+    pub column_kernel: bool,
+}

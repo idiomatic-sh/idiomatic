@@ -190,8 +190,11 @@ impl EnginePort for EngineLocalAdapter {
             .map_err(|error| Error::Invalid(error.to_string()))?;
             Some(guard)
         } else if let Some(path) = &self.diagnostic_events {
-            tracing::subscriber::set_global_default(super::diagnostic_events::subscriber(path)?)
-                .map_err(|error| Error::Invalid(error.to_string()))?;
+            tracing::subscriber::set_global_default(super::diagnostic_events::subscriber(
+                path,
+                request.performance.diagnostics,
+            )?)
+            .map_err(|error| Error::Invalid(error.to_string()))?;
             None
         } else {
             None
@@ -221,11 +224,11 @@ impl EnginePort for EngineLocalAdapter {
                 (Corpus::Listed(request.files.clone()), sources)
             }
         };
-        let report = linter::lint(
-            self.languages.clone(),
-            &pool,
-            MemoryBudget::Machine,
-            cache,
+        let engine =
+            linter::Linter::new(self.languages.clone(), pool, MemoryBudget::Machine, cache)
+                .with_execution(request.performance.execution);
+        let report = linter::lint_with(
+            &engine,
             LintRequest {
                 source_language: request
                     .source_language

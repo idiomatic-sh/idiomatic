@@ -72,6 +72,8 @@ struct CasesSchema {
 #[serde(deny_unknown_fields)]
 /// One independent source example.
 struct CaseSchema {
+    #[serde(default)]
+    performance: crate::outbound::worker::adapters::json::options::OptionsSchema,
     /// Explicit POSIX executable observations for declared source files.
     #[serde(default, rename = "file-metadata")]
     file_metadata: Option<BTreeMap<String, bool>>,
@@ -288,6 +290,7 @@ impl TryFrom<CasesSchema> for types::Cases {
                 .into_iter()
                 .map(|case| {
                     Ok(types::Case {
+                        performance: case.performance.into(),
                         file_metadata: case.file_metadata.map(|values| {
                             values
                                 .into_iter()

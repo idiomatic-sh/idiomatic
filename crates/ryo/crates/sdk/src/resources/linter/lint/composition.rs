@@ -83,6 +83,7 @@ pub(crate) fn build_engine(
         ),
     );
     LinterLintEngine {
+        execution: Default::default(),
         skipped,
         language: Arc::new(language::factory::use_case(handles)),
         query_language: Arc::new(query_language::factory::use_case(compile, typecheck)),
@@ -153,7 +154,13 @@ pub(crate) fn build(
                     Arc::clone(&analysis_language),
                     Arc::clone(&analysis_digest),
                     Arc::clone(&analysis_memory),
-                ),
+                ).with_execution(ryo_values::domain::runs::types::ExecutionOptions {
+                    node_result_reuse: match engine.execution.node_result_reuse {
+                        super::types::NodeResultReuse::Disabled => ryo_values::domain::runs::types::NodeResultReuse::Disabled,
+                        super::types::NodeResultReuse::Enabled => ryo_values::domain::runs::types::NodeResultReuse::Enabled,
+                    },
+                    column_kernel: engine.execution.column_kernel,
+                }),
                 ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                     &analysis_corpus,
                 )),

@@ -20,6 +20,8 @@ pub(super) enum WorkerSchemaError {
 /// Explicit candidate invocation at the JSON process boundary.
 struct RequestSchema {
     #[serde(default)]
+    performance: crate::outbound::worker::adapters::json::options::OptionsSchema,
+    #[serde(default)]
     /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
     #[serde(default)]
@@ -48,6 +50,7 @@ struct RequestSchema {
 impl From<RequestSchema> for WorkerRequest {
     fn from(request: RequestSchema) -> Self {
         Self {
+            performance: request.performance.into(),
             project_context_mode: request.project_context_mode.into(),
             context_manifest: request.context_manifest.map(Into::into),
             root: request.root,

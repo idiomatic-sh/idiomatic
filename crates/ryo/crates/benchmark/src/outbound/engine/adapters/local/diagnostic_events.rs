@@ -54,55 +54,29 @@ impl DiagnosticEventWriter {
 /// Build the filtered JSONL subscriber used by an explicit diagnostic worker.
 pub(super) fn subscriber(
     path: &Path,
+    options: crate::domain::suite::types::DiagnosticOptions,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
-    let aggregate_level =
-        if std::env::var_os("RYO_DIAGNOSTIC_EXECUTION").is_some_and(|value| value == "1") {
-            tracing_subscriber::filter::LevelFilter::TRACE
-        } else {
-            tracing_subscriber::filter::LevelFilter::OFF
-        };
-    let lifecycle_only =
-        std::env::var_os("RYO_DIAGNOSTIC_LIFECYCLE_MEMORY").is_some_and(|value| value == "1");
-    let resource_routes =
-        std::env::var_os("RYO_DIAGNOSTIC_RESOURCE_ROUTES").is_some_and(|value| value == "1");
-    subscriber_with_aggregates(path, aggregate_level, lifecycle_only, resource_routes)
-}
-
-/// Admit aggregate targets only for an explicitly selected diagnostic profile.
-fn subscriber_with_aggregates(
-    path: &Path,
-    aggregate_level: tracing_subscriber::filter::LevelFilter,
-    lifecycle_only: bool,
-    resource_routes: bool,
-) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
-    use tracing_subscriber::Layer as _;
-    use tracing_subscriber::layer::SubscriberExt as _;
-    let aggregate_level = if lifecycle_only {
-        tracing_subscriber::filter::LevelFilter::OFF
+    let aggregate_level = if options.execution {
+        tracing_subscriber::filter::LevelFilter::TRACE
     } else {
-        aggregate_level
+        tracing_subscriber::filter::LevelFilter::OFF
     };
+    let lifecycle_only = options.lifecycle_memory;
+    let resource_routes = options.resource_routes;
     let lifecycle_level = if lifecycle_only {
         tracing_subscriber::filter::LevelFilter::TRACE
     } else {
         aggregate_level
     };
     let writer = DiagnosticEventWriter::create(path)?;
-    let progress_only = std::env::var_os("RYO_DIAGNOSTIC_ROW_PROGRESS").is_some_and(|v| v == "1");
-    let include_steps = !progress_only
-        && std::env::var_os("RYO_DIAGNOSTIC_STEPS").is_none_or(|value| value != "0")
-        && !lifecycle_only;
-    let include_joins = std::env::var_os("RYO_DIAGNOSTIC_JOINS").is_some_and(|value| value == "1")
-        && !lifecycle_only;
-    let include_prefixes = std::env::var_os("RYO_DIAGNOSTIC_PREFIXES")
-        .is_some_and(|value| value == "1")
-        && !lifecycle_only;
-    let include_subplans = std::env::var_os("RYO_DIAGNOSTIC_SUBPLANS")
-        .is_some_and(|value| value == "1")
-        && !lifecycle_only;
-    let include_selection_detail = std::env::var_os("RYO_DIAGNOSTIC_SELECTION_DETAIL")
-        .is_some_and(|value| value == "1")
-        && !lifecycle_only;
+    let progress_only = options.row_progress;
+    let include_steps = options.steps && !lifecycle_only && !progress_only;
+    let include_joins = options.joins && !lifecycle_only;
+    let include_prefixes = options.prefixes && !lifecycle_only;
+    let include_subplans = options.subplans && !lifecycle_only;
+    let include_selection_detail = options.selection_detail && !lifecycle_only;
+    use tracing_subscriber::Layer as _;
+    use tracing_subscriber::layer::SubscriberExt as _;
     let layer = tracing_subscriber::fmt::layer()
         .json()
         .with_ansi(false)
@@ -120,7 +94,7 @@ fn subscriber_with_aggregates(
                 )
                 .with_target(
                     "ryo::diagnostic::row_progress",
-                    if std::env::var_os("RYO_DIAGNOSTIC_ROW_PROGRESS").is_some_and(|v| v == "1") {
+                    if options.row_progress {
                         tracing_subscriber::filter::LevelFilter::TRACE
                     } else {
                         tracing_subscriber::filter::LevelFilter::OFF
@@ -143,7 +117,7 @@ fn subscriber_with_aggregates(
                 .with_target(LIFECYCLE_TARGET, lifecycle_level)
                 .with_target(
                     RULE_FILE_TARGET,
-                    if lifecycle_only || progress_only {
+                    if lifecycle_only || progress_only || !include_steps {
                         tracing_subscriber::filter::LevelFilter::OFF
                     } else {
                         tracing_subscriber::filter::LevelFilter::TRACE

@@ -27,22 +27,6 @@ struct CanonicalNode {
     schema_valid: bool,
 }
 
-/// Experimental execution choice fixed for this process and used by both the
-/// request digest and file executor. It is disabled in ordinary production runs.
-pub(crate) fn enabled() -> bool {
-    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    dag_enabled()
-        || *ENABLED
-            .get_or_init(|| std::env::var("RYO_FILE_PROGRAM_GRAPH").is_ok_and(|value| value == "1"))
-}
-
-/// Separate experimental strategy identity: ordinary and overlay receipts cannot
-/// reuse a snapshot produced by the application-owned execution DAG.
-pub(crate) fn dag_enabled() -> bool {
-    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var("RYO_FILE_DAG_EXECUTION").is_ok_and(|value| value == "1"))
-}
-
 fn node_input(input: Input, previous: &[Option<NodeId>]) -> Option<(Input, NodeInput)> {
     match input {
         Input::Relation(relation) => Some((input, NodeInput::Relation(relation))),

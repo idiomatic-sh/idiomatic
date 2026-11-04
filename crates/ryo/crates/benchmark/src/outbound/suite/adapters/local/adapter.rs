@@ -439,6 +439,7 @@ fn prepare_cases(
                 }
             }
             let request = RunRequest {
+                performance: case.performance,
                 file_metadata: case.file_metadata,
                 context_manifest,
                 root,

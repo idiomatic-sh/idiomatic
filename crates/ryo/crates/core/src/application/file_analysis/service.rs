@@ -115,7 +115,7 @@ pub(super) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recover
 /// Analysis of one file or the project, with resources supplied by the composition.
 pub struct FileAnalysis {
     /// One request's explicitly selected physical execution strategy.
-    column_kernel: bool,
+    execution: ryo_values::domain::runs::types::ExecutionOptions,
     /// Reads each file's bytes.
     corpus: Arc<dyn CorpusPort>,
     /// Parses a file into its syntax tree and rows, and names the languages linked.
@@ -229,8 +229,7 @@ impl FileAnalysis {
         memory: Arc<dyn MemoryPort>,
     ) -> Self {
         Self {
-            column_kernel: std::env::var_os("RYO_COLUMN_KERNEL")
-                .is_some_and(|value| value.as_os_str() == std::ffi::OsStr::new("1")),
+            execution: Default::default(),
             corpus,
             language,
             digest,
@@ -238,9 +237,24 @@ impl FileAnalysis {
         }
     }
 
+    /// Bind explicit strategy options at the application composition edge.
+    #[must_use]
+    pub fn with_execution(
+        mut self,
+        execution: ryo_values::domain::runs::types::ExecutionOptions,
+    ) -> Self {
+        self.execution = execution;
+        self
+    }
+
+    /// The same strategy controls execution and persisted result identity.
+    pub(crate) fn execution(&self) -> ryo_values::domain::runs::types::ExecutionOptions {
+        self.execution
+    }
+
     /// Pass the strategy to each worker without consulting the environment per file.
     pub(crate) fn kernel_strategy(&self) -> crate::domain::column_kernel::types::KernelStrategy {
-        if self.column_kernel {
+        if self.execution.column_kernel {
             crate::domain::column_kernel::types::KernelStrategy::Column
         } else {
             crate::domain::column_kernel::types::KernelStrategy::Existing
@@ -250,7 +264,7 @@ impl FileAnalysis {
     /// Inject the candidate in exact same-binary differential tests.
     #[cfg(test)]
     pub(crate) fn with_column_kernel(mut self, enabled: bool) -> Self {
-        self.column_kernel = enabled;
+        self.execution.column_kernel = enabled;
         self
     }
     /// Admits what the language `provider` wrote for the file `number`, against the file's length, its table and its number.
@@ -499,7 +513,9 @@ impl FileAnalysis {
                     &schedule,
                     std::rc::Rc::clone(&owner),
                 );
-            if !crate::domain::file_program::service::enabled() {
+            if self.execution.node_result_reuse
+                == ryo_values::domain::runs::types::NodeResultReuse::Disabled
+            {
                 execution.limit = 0;
             }
             std::cell::RefCell::new(execution)

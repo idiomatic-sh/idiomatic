@@ -46,6 +46,12 @@ pub(super) fn normalized_invocation(
         "parser_configuration": profile.parser_configuration,
         "project_context_mode": format!("{:?}", profile.project_context_mode),
     });
+    settings["performance"] = serde_json::to_value(
+        crate::outbound::worker::adapters::json::options::OptionsSchema::from(
+            case.request.performance,
+        ),
+    )
+    .map_err(|error| Error::Invalid(error.to_string()))?;
     if let Some(language) = &profile.source_language {
         settings["source_language"] = serde_json::json!(language);
     }

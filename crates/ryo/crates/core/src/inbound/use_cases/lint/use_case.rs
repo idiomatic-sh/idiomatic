@@ -397,15 +397,9 @@ impl LintUseCaseImpl {
         let hosted = self
             .digest
             .digest(DigestBytes(&configuration(&[], &lines(hosted)).0));
-        let graph_strategy = crate::domain::file_program::service::enabled().then(|| {
-            self.digest.digest(DigestBytes(
-                if crate::domain::file_program::service::dag_enabled() {
-                    b"ryo-file-dag-execution-v1"
-                } else {
-                    b"ryo-file-program-graph-v1"
-                },
-            ))
-        });
+        let node_reuse_policy = (self.file_analysis.execution().node_result_reuse
+            == ryo_values::domain::runs::types::NodeResultReuse::Enabled)
+            .then(|| self.digest.digest(DigestBytes(b"ryo-node-result-reuse-v1")));
         rules
             .iter()
             .zip(plans)
@@ -428,7 +422,7 @@ impl LintUseCaseImpl {
                     own
                 };
                 let own =
-                    graph_strategy.map_or(own, |strategy| self.digest.combine(&[own, strategy]));
+                    node_reuse_policy.map_or(own, |strategy| self.digest.combine(&[own, strategy]));
                 let reads = reads_project(plan) == PlanReads::Reads;
                 StoredRule {
                     rule: RuleId(rule.id.0.clone()),

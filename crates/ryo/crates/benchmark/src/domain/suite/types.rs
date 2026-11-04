@@ -91,6 +91,8 @@ pub enum ExpectedRule {
 /// An isolated set of source files and its exact expected findings.
 #[derive(Clone, Debug)]
 pub struct Case {
+    /// Explicit execution and diagnostic policy for this case.
+    pub performance: PerformanceOptions,
     /// Explicit per-file POSIX executable bits; None preserves legacy byte-only identity.
     pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Explicit logical root and auxiliary context, excluded from the lint file inventory.
@@ -215,6 +217,8 @@ pub struct Expected {
 /// Both contestants receive exactly this list, never independently walk the tree.
 #[derive(Clone, Debug)]
 pub struct RunRequest {
+    /// Typed physical execution and diagnostic choices.
+    pub performance: PerformanceOptions,
     /// Declared file observations, reverified before each contestant is prepared.
     pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Sealed disk context shared by both contestants, when explicitly selected.
@@ -238,6 +242,8 @@ pub enum BenchmarkCoverage {
 /// Inputs supplied to the SDK worker inside the measured child.
 #[derive(Clone, Debug)]
 pub struct WorkerRequest {
+    /// Typed execution and diagnostic choices, included in invocation identity.
+    pub performance: PerformanceOptions,
     /// Whether this invocation may consult the explicitly sealed disk context.
     pub project_context_mode: ProjectContextMode,
     /// Context dependencies sealed before this invocation.
@@ -572,3 +578,26 @@ impl std::fmt::Display for ReferenceCaseCount {
 
 /// Complete per-rule verification status, independent of any tool's rule count.
 pub mod inventory;
+
+/// Explicit performance controls; diagnostics are independent from timed execution.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PerformanceOptions {
+    /// Physical strategy forwarded through the SDK composition edge.
+    pub execution: ryo::linter::ExecutionOptions,
+    /// Diagnostic target selection used only with an explicit event destination.
+    pub diagnostics: DiagnosticOptions,
+}
+
+/// Bounded diagnostic target selection, never read from process environment.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct DiagnosticOptions {
+    pub execution: bool,
+    pub lifecycle_memory: bool,
+    pub resource_routes: bool,
+    pub row_progress: bool,
+    pub steps: bool,
+    pub joins: bool,
+    pub prefixes: bool,
+    pub subplans: bool,
+    pub selection_detail: bool,
+}

@@ -122,3 +122,5 @@ pub use lint::types::Corpus;
 pub use lint::types::FindingColumn;
 
 pub use crate::domain::relation::types::ColumnName;
+
+pub use lint::types::{ExecutionOptions, NodeResultReuse};
