@@ -15,6 +15,8 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// What the cross-file steps of every rule read besides the rows the files handed over.
 #[derive(Clone, Debug)]
 pub(crate) struct CrossingInput<'a> {
+    /// The same compiled file scopes used during per-file evaluation.
+    pub placed: &'a crate::domain::placement::types::PlacedScopes,
     /// Actual generation-bound readiness beside the producer frontier words.
     pub observations: &'a [crate::domain::coverage::types::FileObservationReadiness],
     /// The plans of the rules.

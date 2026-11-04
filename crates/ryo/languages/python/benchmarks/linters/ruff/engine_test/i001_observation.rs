@@ -130,7 +130,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
             false,
         ),
     ] {
-        for complete in [true, true, false, false, true] {
+        for (phase, complete) in [true, true, false, false, true].into_iter().enumerate() {
             let request = LintRequest {
                 source_language: None,
                 root: root.path().into(),
@@ -161,7 +161,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                 hosted: hosted.clone(),
             };
             let fresh = lint_with(&engine(Cache::None), request.clone()).unwrap();
-            let actual = lint_with(&cached, request).unwrap();
+            let actual = lint_with(&cached, request.clone()).unwrap();
             assert_eq!(actual, fresh, "warm result must match fresh result");
             let count = |rule: &RuleId| {
                 actual
@@ -186,6 +186,43 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     actual.unknowns.iter().any(|unknown| &unknown.rule == rule),
                     !complete,
                     "Unknown source population must not become a complete empty observation",
+                );
+            }
+            if first_line && phase == 0 {
+                // The producer is hidden only on case.py. Its independent
+                // observation still serves that file while another file's
+                // diagnostic Emit remains visible under the same rule.
+                let mut mixed = request;
+                mixed.rules.get_mut(&i001).unwrap().exclude =
+                    vec![Glob::try_from("case.py").unwrap()];
+                let Corpus::Given(files) = &mut mixed.corpus else {
+                    unreachable!()
+                };
+                files.push(CaseSource {
+                    path: RelativePath("other.py".into()),
+                    text: SourceText("import b\nimport a\n".into()),
+                    executable: ExecutablePermission::Unknown,
+                });
+                let fresh_mixed = lint_with(&engine(Cache::None), mixed.clone()).unwrap();
+                let warm_mixed = lint_with(&cached, mixed).unwrap();
+                assert_eq!(warm_mixed, fresh_mixed);
+                assert_eq!(
+                    warm_mixed
+                        .findings
+                        .iter()
+                        .filter(|finding| finding.rule == i001)
+                        .count(),
+                    1,
+                    "other.py alone remains governed by I001"
+                );
+                assert_eq!(
+                    warm_mixed
+                        .findings
+                        .iter()
+                        .filter(|finding| finding.rule == hidden)
+                        .count(),
+                    1,
+                    "excluded case.py still publishes its named output"
                 );
             }
         }

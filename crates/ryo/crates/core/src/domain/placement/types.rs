@@ -78,7 +78,7 @@ pub(crate) struct ScopePlacement {
 }
 
 /// The scopes of every rule, with their globs made ready by the `matching` port.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct PlacedScopes {
     /// What was decided of the scopes.
     pub placement: ScopePlacement,

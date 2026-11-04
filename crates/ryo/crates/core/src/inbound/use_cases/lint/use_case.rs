@@ -922,6 +922,7 @@ impl LintUseCaseImpl {
             .chain(now.unlisted.iter().map(|each| FilePath(each.0.clone())))
             .collect();
         let domain = crate::domain::crossing::types::CrossingInput {
+            placed: run.placed,
             observations: handed.observations,
             plans: run.plans,
             bindings: run.bindings,
@@ -1501,6 +1502,7 @@ impl LintUseCase for LintUseCaseImpl {
         let records = records_of(&listing.files, &kept_records);
         setting.records = &records;
         let run = LintRun {
+            placed: &placed,
             graph: std::sync::Arc::clone(&graph),
             observations: setting.observations,
             executor: &executor,

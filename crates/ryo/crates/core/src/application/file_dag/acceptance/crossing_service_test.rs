@@ -55,6 +55,7 @@ type Failure = RulesError;
 
 /// What the cross-file steps of every rule read, owned.
 struct World {
+    placed: crate::domain::placement::types::PlacedScopes,
     graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
@@ -103,6 +104,15 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 }
 
 fn world(plan: Plan) -> World {
+    use crate::outbound::matching::interface::MatchingPort as _;
+    let placement =
+        crate::domain::placement::service::decide(&[crate::domain::placement::types::RuleScope {
+            include: Vec::new(),
+            exclude: Vec::new(),
+        }]);
+    let matcher = crate::outbound::matching::fixtures::fake::MatchingFake
+        .compile(&placement.globs)
+        .unwrap();
     let prepared = crate::application::file_dag::testing::request_fixture(
         std::slice::from_ref(&plan),
         &[Vec::new()],
@@ -113,6 +123,7 @@ fn world(plan: Plan) -> World {
         &prepared,
     ));
     World {
+        placed: crate::domain::placement::types::PlacedScopes { placement, matcher },
         graph,
         plans: vec![plan],
         bindings: vec![Vec::new()],
@@ -132,6 +143,7 @@ fn crossing(world: &World) -> CrossingInput<'_> {
         graph: std::sync::Arc::clone(&world.graph),
         arenas: &world.arenas,
         domain: crate::domain::crossing::types::CrossingInput {
+            placed: &world.placed,
             observations: &[],
             unknown: &[],
             plans: &world.plans,

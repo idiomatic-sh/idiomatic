@@ -317,6 +317,8 @@ impl From<AdmissionError> for ProviderFault {
 
 /// What the stages after the reading share: the rules, the files and what the store kept.
 pub(super) struct LintRun<'a> {
+    /// Required file applicability for both per-file and cross-file diagnostic Emit.
+    pub placed: &'a crate::domain::placement::types::PlacedScopes,
     /// Resolved named-root demand, with independent scheduling for ordinary requests.
     pub observations: crate::domain::file_program::types::ObservationRequest<'a>,
     pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,

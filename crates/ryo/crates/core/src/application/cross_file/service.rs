@@ -10,6 +10,8 @@ use crate::domain::finish::service::{
 };
 use crate::domain::finish::types::{Arenas, FoundRow, HeldFile, Loaded, Resolving, RuleNumber};
 use crate::domain::ordering::service::{order_alike, sort_findings};
+use crate::domain::placement::service::{governs, place};
+use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::service::{end_row, key_count, next_row};
 use crate::domain::render::types::{
     AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
@@ -24,6 +26,7 @@ use crate::outbound::corpus::interface::CorpusPort;
 use ryo_language::domain::symbols::service::file_in;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Value};
+use ryo_values::domain::files::types::Hits;
 use ryo_values::domain::files::types::{CorpusInput, FileBytes};
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::records::types::RenderedText;
@@ -196,6 +199,25 @@ impl CrossFile {
         Ok(if let Some(table) = table {
             let mut found = founds(rule_number, &table, &plan.emit, FileId(u32::MAX))
                 .map_err(|error| refuse(&error))?;
+            // Observation demand can execute a rule on a file outside its
+            // diagnostic scope. Apply the same compiled placement decision to
+            // each actual source file before reporting its cross-file Emit.
+            let mut visible = std::collections::HashMap::new();
+            let (mut mask, mut hits) = (Mask::default(), Hits::default());
+            found.retain(|each| {
+                let Some(path) = usize::try_from(each.file.0)
+                    .ok()
+                    .and_then(|index| crossing.paths.get(index))
+                else {
+                    // Unplaceable project rows keep their existing rendering
+                    // contract; they do not claim a source-file scope.
+                    return true;
+                };
+                *visible.entry(each.file.0).or_insert_with(|| {
+                    place(crossing.placed, path, &mut mask, &mut hits);
+                    governs(&mask, rule_number) == Governing::Governs
+                })
+            });
             found.sort_by_key(|each| each.file);
             let mut bytes = FileBytes::default();
             if placeable(plan, &table) == Placeability::Placeable {
