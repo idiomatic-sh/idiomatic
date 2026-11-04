@@ -335,3 +335,10 @@ Reuse [measured demand/admission results](../../languages/python/benchmarks/lint
 | [Clippy](https://doc.rust-lang.org/stable/clippy/development/lint_passes.html) / [rustc queries](https://rustc-dev-guide.rust-lang.org/query.html) | Phase-correct compiler queries and tracked memoized dependencies; compiler work is reused, not standalone lint cost. |
 | [Go analysis](https://pkg.go.dev/golang.org/x/tools/go/analysis) | Requires/ResultOf/Facts and driver-controlled reads; package scope differs from file rows. |
 | [Credo](https://hexdocs.pm/credo/1.7.19/Credo.Check.html) / [Dialyzer](https://www.erlang.org/doc/apps/dialyzer/dialyzer_chapter.html) | Per-source checks versus persistent analysis summaries; distinct tools and contracts. |
+
+
+## Current checkpoint review
+
+The complete a402 inventory is406/413. Join left GroupCount exposes missing dependency readiness; generated-Union balancing does not prove arbitrary plan-depth safety. Both remain open contracts. Compact memory evidence is scoped and promotes no category.
+
+Each checkpoint requires independent Astra and Opus adversarial reviews bound to its immutable source/diff and actual receipts. Review shared-layer placement; required engine authority over schedule/cache/invalidation/data/lifetime; all callers; refusal and lifetime tests; no optional owner or bypass; readable orchestration; and honest matrix scope. Missing, stale or blocking reviews must reject acceptance. The paired enforcement gate is under construction; this paragraph alone is not enforcement.

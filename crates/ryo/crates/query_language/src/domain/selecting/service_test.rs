@@ -185,6 +185,7 @@ fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
     let program = winnow().read(QueryView(&query)).expect("readable OR query");
     let mut builder = Builder {
         catalog: CATALOG,
+        observation_inputs: &[],
         hosted_steps: Vec::new(),
         parameters: &program.parameters,
         kinds: Vec::new(),
@@ -213,7 +214,8 @@ fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
                 unions += 1;
                 let depth_of = |input: &ryo_values::domain::plan_parts::types::Input| match input {
                     ryo_values::domain::plan_parts::types::Input::Step(id) => depths[id.0 as usize],
-                    ryo_values::domain::plan_parts::types::Input::Relation(_) => 0,
+                    ryo_values::domain::plan_parts::types::Input::Relation(_)
+                    | ryo_values::domain::plan_parts::types::Input::BoundObservation(_) => 0,
                 };
                 1 + depth_of(left).max(depth_of(right))
             }

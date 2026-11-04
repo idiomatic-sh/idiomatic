@@ -1,6 +1,6 @@
 # Ruff benchmark
 
-**410 PASS / 3 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [complete exact-head replay](results/ci-8a7-full-inventory-2026-11-03/README.md) ran every pinned rule on source `8a7a563fd1cfad986f21f73903a53fd2481e0c22`. E902 passed; I001, RUF100, and RUF200 still lack implementations. The generated [per-rule inventory](RULES.md) records each status and its evidence. Full Ruff parity and performance acceptance remain open.
+**Latest complete integrated run: 406 PASS / 7 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [source-bound checkpoint](results/integrated-a402-full413-2026-11-04/README.md) ran every rule on `a402537b`. F541 admission, PLW0133/UP035 stack depth, RUF028/UP034 dependency readiness, RUF100 producer readiness, and UP031 archived identity failed. F541 later passes21 targeted cases; current source followups are not a new complete run. I001's precursor passed, but its N3 correction still needs fresh proof. The generated [per-rule inventory](RULES.md) distinguishes stale source evidence. Full parity and contract closure remain open.
 
 Run the current inventory from this directory with the shared runner:
 

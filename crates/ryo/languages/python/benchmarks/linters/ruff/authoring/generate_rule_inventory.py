@@ -13,7 +13,7 @@ import tomllib
 RUFF = Path(__file__).resolve().parents[1]
 RESULTS = RUFF / "results"
 REPOSITORY = RUFF.parents[6]
-LATEST_FULL_RESULT = RESULTS / "ci-8a7-full-inventory-2026-11-03/summary.json"
+LATEST_FULL_RESULT = RESULTS / "integrated-a402-full413-2026-11-04/summary.json"
 
 
 def sha(path: Path) -> str:

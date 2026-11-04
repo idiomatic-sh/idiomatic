@@ -1,0 +1,13 @@
+12 cases checked; failures:
+PLW0133/builtins-module-alias candidate: candidate failed (-6): 
+thread '<unknown>' (2969162) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+
+PLW0133/imported-alias candidate: candidate failed (-6): 
+thread '<unknown>' (2969204) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+
+PLW0133/qualified-builtin candidate: candidate failed (-6): 
+thread '<unknown>' (2969260) has overflowed its stack
+fatal runtime error: stack overflow, aborting
+
