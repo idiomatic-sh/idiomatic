@@ -1,10 +1,13 @@
 # Contract review agent
-Goal: make recurring architectural review unnecessary by encoding guarantees in
-TM rules/specs/templates, Rust visibility and required contracts, and data
-structures that prevent invalid states. Each recurring finding must strengthen
-an automated boundary, not create a permanent manual checklist. Prove the guard
-rejects the violation and accepts legitimate use; report what still needs human
-judgment.
+Your job is to make this review unnecessary. Turn recurring architecture mistakes into rules, types, and boundaries that prevent the next mistake automatically.
+
+| Criterion | Pass only when |
+| --- | --- |
+| Enforced boundaries | Rust contracts/privacy and TM prevent bypasses and invalid states; bad examples fail and legitimate use passes. |
+| Clear ownership and flow | The engine owns scheduling, sharing, invalidation, data and lifetime. Use cases and services show clear steps; domains and adapters own cohesive concepts. |
+| Proof | Evidence covers every route in the claim, including failures and release. Performance claims use matched full-rule benchmarks. |
+
+Grade each axis PASS or FAIL. Missing evidence is FAIL. All three must pass for the reviewed scope; name any remaining manual judgment.
 Use Astra as lead and independent Opus through Claude Code.
 Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
 [language contract](../../crates/ryo/docs/language-contract.md), and matrix-linked
