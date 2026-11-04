@@ -1,6 +1,42 @@
 //! Fixed position inputs and predicate admission, with no row-value materialization.
-use super::*;
+use crate::domain::comparing::service::holds_all;
+use crate::domain::lowering::constants::EDGE;
+use crate::domain::lowering::service::kind_of;
+use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::{NameCount, OperatorContext};
+use crate::domain::positions::service::{row, value};
+use crate::domain::positions::types::Positions;
+use crate::domain::table_cells::types::TreeRows;
+use crate::domain::table_model::types::Verdict;
+use crate::domain::walks::service::allows;
+use crate::domain::walks::types::Admit;
 use ryo_derived::domain::contract::types::RawOrder;
+use ryo_language::domain::symbols::service::name_count;
+use ryo_operators::domain::contract::types::{JoinInterrupted, PositionJoinDriver};
+use ryo_relations::domain::relations::types::{CellKind, Position, Value};
+use ryo_values::domain::plan_parts::types::Comparison;
+use ryo_values::domain::rows::types::RowIndex;
+
+/// Whether the edge to the element at `child` is one the comparisons admit.
+fn edge_admitted(
+    tree: &TreeRows<'_>,
+    comparisons: &[Comparison],
+    child: Position,
+    cells: &mut Vec<Value>,
+    context: &mut OperatorContext<'_>,
+) -> Result<Verdict, OperatingError> {
+    if comparisons.is_empty() {
+        return Ok(Verdict::Holds);
+    }
+    cells.clear();
+    for field in EDGE {
+        cells.push(value(tree, field, child));
+    }
+    let kinds: Vec<CellKind> = EDGE.iter().map(|field| kind_of(*field)).collect();
+    let names = NameCount(name_count(context.symbols.as_ref()).0);
+    holds_all(comparisons, cells, &kinds, names, context)
+}
+
 pub(super) struct Tree<'a, 'f, 'c, 'p> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,

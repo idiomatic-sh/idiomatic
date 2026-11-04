@@ -16,7 +16,6 @@ pub(crate) mod describing;
 pub(crate) mod features;
 pub(crate) mod file_program;
 pub(crate) mod finish;
-pub(crate) mod fragment;
 pub(crate) mod frontiers;
 pub(crate) mod functions;
 pub(crate) mod globbing;

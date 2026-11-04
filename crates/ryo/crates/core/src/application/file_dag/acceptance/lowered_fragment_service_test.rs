@@ -6,9 +6,12 @@ use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::LiteralText;
 
+use crate::application::file_dag::acceptance::fragment_oracle::types::FragmentRun;
+use crate::application::file_dag::acceptance::fragment_oracle::{
+    report::{counts, emit, emit_counts},
+    service::make,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::fragment::service::{counts, emit, emit_counts, make};
-use crate::domain::fragment::types::FragmentRun;
 use crate::domain::lowering::service::lower;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -121,9 +124,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
-        port: crate::outbound::operators::factory::test_port(),
-    };
+    let semantics = crate::application::file_dag::acceptance::OracleSemantics;
     let mut table = Table::default();
     let last = StepId(u32::try_from(plan.steps.len() - 1).unwrap_or(0));
     if counts(&running, last) == Counting::Counts {

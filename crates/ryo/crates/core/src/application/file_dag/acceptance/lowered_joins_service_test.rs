@@ -1,7 +1,9 @@
 //! The `joins` service's cases, over the small tree.
 
+use crate::application::file_dag::acceptance::fragment_oracle::service::set_rows::{
+    antijoin, union,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::fragment::service::{antijoin, union};
 use crate::domain::lowering::types::ElementPart;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -67,9 +69,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let rows = rows_over(&elements);
     let mut out = Slots::default();
     let columns = [ColumnIndex(0)];
-    let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
-        port: crate::outbound::operators::factory::test_port(),
-    };
+    let semantics = crate::application::file_dag::acceptance::OracleSemantics;
     let mut derived = crate::application::file_dag::testing::raw_scope()?;
     match scenario {
         Scenario::Antijoin => antijoin(
@@ -195,18 +195,22 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             room.made.push(Positions::default());
             room.ready.push(Readiness::NotMade);
             let mut derived = crate::application::file_dag::testing::raw_scope()?;
-            let mut run = crate::domain::fragment::types::FragmentRun {
-                derived: &mut derived,
-                plan: &plan,
-                lowering: &lowering,
-                tree: rows,
-                room: &mut room,
-                classes: &[],
-            };
-            let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
-                port: crate::outbound::operators::factory::test_port(),
-            };
-            crate::domain::fragment::service::make(&semantics, &mut run, root, &mut context)?;
+            let mut run =
+                crate::application::file_dag::acceptance::fragment_oracle::types::FragmentRun {
+                    derived: &mut derived,
+                    plan: &plan,
+                    lowering: &lowering,
+                    tree: rows,
+                    room: &mut room,
+                    classes: &[],
+                };
+            let semantics = crate::application::file_dag::acceptance::OracleSemantics;
+            crate::application::file_dag::acceptance::fragment_oracle::service::make(
+                &semantics,
+                &mut run,
+                root,
+                &mut context,
+            )?;
             out = run
                 .room
                 .made

@@ -1,12 +1,9 @@
 //! The `joins` service: the lowered steps that combine the rows of two steps, with no IO and no ports.
 
 use ryo_language::domain::elements::service::children;
-use ryo_language::domain::symbols::service::name_count;
-use ryo_relations::domain::relations::types::{CellKind, Position, Relation, Value};
+use ryo_relations::domain::relations::types::{Relation, Value};
 
-use crate::domain::comparing::service::holds_all;
-use crate::domain::lowering::constants::EDGE;
-use crate::domain::lowering::service::{kind_of, shape_at, step_of, viewed};
+use crate::domain::lowering::service::{shape_at, step_of, viewed};
 use crate::domain::lowering::types::{LoweredColumn, Lowering};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
@@ -16,7 +13,6 @@ use crate::domain::positions::types::{
 };
 use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::service::positions;
-use crate::domain::table_model::types::Verdict;
 use crate::domain::walks::service::take_filter;
 use crate::domain::walks::service::{allows, give};
 use crate::domain::walks::types::Admit;
@@ -30,26 +26,6 @@ use ryo_operators::domain::contract::types::{
     JoinInput, JoinInterrupted, OperatorCall, PositionJoinDriver,
 };
 mod drivers;
-/// Whether the edge to the element at `child` is one the comparisons admit.
-fn edge_admitted(
-    tree: &TreeRows<'_>,
-    comparisons: &[Comparison],
-    child: Position,
-    cells: &mut Vec<Value>,
-    context: &mut OperatorContext<'_>,
-) -> Result<Verdict, OperatingError> {
-    if comparisons.is_empty() {
-        return Ok(Verdict::Holds);
-    }
-    cells.clear();
-    for field in EDGE {
-        cells.push(value(tree, field, child));
-    }
-    let kinds: Vec<CellKind> = EDGE.iter().map(|field| kind_of(*field)).collect();
-    let names = NameCount(name_count(context.symbols.as_ref()).0);
-    holds_all(comparisons, cells, &kinds, names, context)
-}
-
 /// The rows of the join of the left step with the elements of the tree: each left row whose key column leads to an element the
 /// filter admits, with that element.
 ///
