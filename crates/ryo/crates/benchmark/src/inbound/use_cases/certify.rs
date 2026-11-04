@@ -10,3 +10,6 @@ mod use_case_test;
 mod constants;
 
 mod case_inventory;
+
+#[cfg(test)]
+mod registered_test;
