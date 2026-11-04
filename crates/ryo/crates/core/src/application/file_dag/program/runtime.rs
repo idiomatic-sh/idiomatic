@@ -78,6 +78,7 @@ struct Slot {
     fed: Box<[crate::domain::operator::types::RowsFed]>,
     remaining: usize,
     dependencies_consumed: bool,
+    release_pending: bool,
     completion: Option<crate::application::file_dag::completion::CompletionPolicy>,
 }
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
@@ -86,7 +87,7 @@ struct RetirementWork {
     simulated: Vec<usize>,
     touched: Vec<RegionId>,
     pending: Vec<RegionId>,
-    deferred: Vec<RegionId>,
+    deferred: std::collections::VecDeque<RegionId>,
     retired: Vec<(State, Vec<KernelScratch>)>,
 }
 impl RetirementWork {
@@ -130,6 +131,7 @@ impl ProgramExecution {
                 .into_boxed_slice(),
                 remaining: region.consumers,
                 dependencies_consumed: false,
+                release_pending: false,
                 completion: None,
             })
             .collect();
@@ -146,7 +148,7 @@ impl ProgramExecution {
                 simulated: vec![usize::MAX; region_count],
                 touched: Vec::new(),
                 pending: Vec::new(),
-                deferred: Vec::new(),
+                deferred: std::collections::VecDeque::new(),
                 retired: Vec::new(),
             }),
             slots: RefCell::new(slots),
@@ -250,14 +252,16 @@ impl ProgramExecution {
             }
             Ok(false) => {
                 work.reset();
-                if !work.deferred.contains(&consumer) {
-                    work.deferred.push(consumer);
+                if !slots[consumer.0].release_pending {
+                    slots[consumer.0].release_pending = true;
+                    work.deferred.push_back(consumer);
                 }
                 return Ok(());
             }
             Ok(true) => {}
         }
         slots[consumer.0].dependencies_consumed = true;
+        slots[consumer.0].release_pending = false;
         for at in 0..work.touched.len() {
             let id = work.touched[at];
             let slot = &mut slots[id.0];
