@@ -1,5 +1,18 @@
 {
   "scope": "Derived current context, not new process execution. Original raw captures remain immutable. stdout/stderr observations still reference their original archives.",
+  "profile_proof": {
+    "original_commit": "d55db0182c2736cba2e9cbd7254a48fbeac96203",
+    "original_git_blob": "de527acac5140871f7347e05289678b448197cb8",
+    "original_sha256": "8344014d66005d5bca9053d4af7a2fef2623dd6258755c7dfd371a6942d0178e",
+    "current_sha256": "26b273ef64f63ef1b9ab7d4215d8f1a90e43f100eb240d3ebff5daee896eeffa",
+    "allowed_query_module_additions": {
+      "python/ruff/suppress-matches": "fragments/suppress-matches.ryoql",
+      "python/ruff/noqa-line-map": "fragments/noqa-line-map.ryoql",
+      "python/ruff/noqa-locations": "fragments/noqa-locations.ryoql",
+      "python/ruff/suppression-edges": "fragments/suppression-edges.ryoql"
+    },
+    "all_other_parsed_profile_fields_equal": true
+  },
   "records": [
     {
       "case": "escaped-annotation-modulo",
