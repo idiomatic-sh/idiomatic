@@ -23,7 +23,7 @@ let local-kernel = select source as file, span, source-tail from kernel-targets 
 let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
 let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
 let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,domain/executable_program/kernel.rs,application/file_dag/request.rs,application/file_dag/relations.rs,application/file_dag/testing.rs,application/file_dag/derived/owner/resource_fixture.rs,**/*_test.rs,**/tests.rs}");
+let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,domain/executable_program/kernel.rs,application/file_dag/request.rs,application/file_dag/relations.rs,application/file_dag/testing.rs,application/file_dag/derived/owner/resource_fixture.rs}");
 let domain-violations = union(left=foreign-kernel, right=foreign-registry);
 let violations = union(left=app-violations, right=domain-violations);
 emit violations subject file key(span);
@@ -124,6 +124,13 @@ id = "peer-cannot-qualify-domain-registration"
 scenario = "A qualified registry call without an import is also forbidden."
 given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::registration::registered(); }'
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "production-named-test-is-still-forbidden"
+scenario = "A normally compiled module cannot gain registry access by ending in _test.rs."
+given.files.'src/application.rs' = 'pub mod file_dag; pub mod caller; pub mod caller_test;'
+given.files.'src/application/caller_test.rs' = 'pub fn run() { crate::domain::operator::contract::registration::registered(); }'
+then.findings = [{ path = "src/application/caller_test.rs", line = 1 }]
 
 [[scenarios]]
 id = "peer-cannot-dispatch-physical-lease"
