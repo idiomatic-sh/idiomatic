@@ -17,4 +17,3 @@ pub(in crate::application::file_dag) mod selection;
 
 pub(in crate::application::file_dag) mod native_join;
 
-pub(in crate::application::file_dag) mod positions;

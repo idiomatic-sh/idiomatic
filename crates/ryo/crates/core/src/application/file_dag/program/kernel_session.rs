@@ -166,21 +166,70 @@ impl KernelInvocation for KernelSession<'_, '_> {
                     .map_err(InvocationFailure::Semantic)?,
             )
             .map_err(InvocationFailure::Semantic)?;
-        let result = super::positions::evaluate(
-            permit,
-            shape,
-            &self.owner,
-            self.read,
+        let mut sources = Vec::new();
+        let mut rows = Vec::new();
+        for at in 0..instruction.inputs.len() {
+            let admitted = permit
+                .bound_input(at)
+                .map_err(InvocationFailure::Semantic)?;
+            let publication = admitted
+                .publication(&self.owner)
+                .map_err(InvocationFailure::Semantic)?;
+            let actual = admitted
+                .rows(&self.owner, self.read)
+                .map_err(InvocationFailure::Semantic)?;
+            self.owner
+                .admit(publication.as_ref(), BorrowedRows::from(&actual))
+                .map_err(InvocationFailure::Semantic)?;
+            sources.push(publication.clone());
+            rows.push(actual);
+        }
+        let result = crate::domain::native_positions::rows::evaluate(
             &semantics,
             &mut derived,
+            permit.operation(),
+            &rows,
+            shape,
             &mut rebound,
             &mut scratch.positions,
             &workspace.work,
         );
-        failure
+        let Some(positions) = failure
             .into_inner()
             .map_or(result, Err)
-            .map_err(InvocationFailure::Semantic)
+            .map_err(InvocationFailure::Semantic)?
+        else {
+            return Ok(None);
+        };
+        let source = sources
+            .first()
+            .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
+        let admitted = self
+            .owner
+            .admit(
+                source.as_ref(),
+                BorrowedRows::from(
+                    rows.first()
+                        .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?,
+                ),
+            )
+            .map_err(InvocationFailure::Semantic)?;
+        crate::application::file_dag::relations::positioned::publish(
+            &self.owner,
+            source,
+            &admitted,
+            positions,
+            std::sync::Arc::clone(shape),
+            std::sync::Arc::from(
+                instruction
+                    .contract
+                    .collected_kinds
+                    .clone()
+                    .map_err(InvocationFailure::Semantic)?,
+            ),
+        )
+        .map(Some)
+        .map_err(InvocationFailure::Semantic)
     }
     fn selected(
         &self,

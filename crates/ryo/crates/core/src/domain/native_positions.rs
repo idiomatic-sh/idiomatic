@@ -9,3 +9,5 @@ pub(crate) mod types;
 
 #[cfg(test)]
 mod axis_test;
+
+pub(crate) mod rows;

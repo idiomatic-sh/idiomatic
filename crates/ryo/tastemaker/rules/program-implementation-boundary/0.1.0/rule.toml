@@ -19,7 +19,7 @@ let foreign-cache = select file, span from raw-cache where not glob_any(source-t
 let dispatch-violations = union(left=program-violations, right=foreign-leases);
 let owner-violations = union(left=dispatch-violations, right=foreign-cache);
 let positioned-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/relations/{issuer}.rs", captures=["target-root", "issuer"]);
-let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and source-tail != "application/file_dag/program/positions.rs") or (issuer = "selection" and source-tail != "application/file_dag/program/selection.rs"));
+let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and source-tail != "application/file_dag/program/kernel_session.rs") or (issuer = "selection" and source-tail != "application/file_dag/program/selection.rs"));
 let app-violations = union(left=owner-violations, right=foreign-positioned);
 let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel.rs", captures=["target-root"]);
 let local-kernel = select source as file, span, source-tail from kernel-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
@@ -241,7 +241,7 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "declared-positioned-bridge"
 scenario = "The admitted native instruction may finish a relation population through its owner."
-given.files.'src/application/file_dag/program/positions.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
 
 [[scenarios]]
 id = "foreign-selected-population"

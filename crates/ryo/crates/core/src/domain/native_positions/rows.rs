@@ -1,43 +1,32 @@
-//! One admitted native tuple instruction. Dependencies remain in ProgramExecution.
-use super::admission::KernelPermit;
-use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
+//! Pure coordinate adaptation of already-admitted borrowed row representations.
+use super::types::{PositionInput, PositionWork};
 use crate::domain::{
     lowering::types::{LoweredColumn, LoweredShape, RowPosition, RowWidth},
-    native_positions::types::{PositionInput, PositionWork},
     operating::{errors::OperatingError, types::OperatorContext},
-    operator::contract::{types::WorkCounters, views::BorrowedRows},
+    operator::contract::{
+        derived::ScopedDerived,
+        types::{PrimitiveSemantics, WorkCounters},
+    },
     positions::types::{Positions, Slots},
     table_cells::types::TreeForm,
     table_model::types::Rows,
 };
-use std::{rc::Rc, sync::Arc};
-pub(super) fn evaluate<'facts>(
-    permit: &KernelPermit<'_>,
-    shape: &Arc<LoweredShape>,
-    owner: &Rc<RelationOwner>,
-    read: &dyn Fn(
-        ryo_relations::domain::relations::types::Relation,
-    ) -> Result<Rows<'facts>, OperatingError>,
-    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
-    derived: &mut dyn crate::domain::operator::contract::derived::ScopedDerived,
+use ryo_values::domain::plans::types::Operation;
+pub(crate) fn evaluate(
+    semantics: &dyn PrimitiveSemantics,
+    derived: &mut dyn ScopedDerived,
+    operation: &Operation,
+    rows: &[Rows<'_>],
+    shape: &LoweredShape,
     context: &mut OperatorContext<'_>,
     work: &mut PositionWork,
     counts: &WorkCounters,
-) -> Result<Option<PublishedInput>, OperatingError> {
-    permit.position_semantics(shape)?;
-    let code = permit.instruction();
-    let mut sources: Vec<PublishedInput> = Vec::new();
-    let mut rows = Vec::new();
-    for at in 0..code.inputs.len() {
-        let admitted = permit.bound_input(at)?;
-        let publication = admitted.publication(owner)?;
-        let actual = admitted.rows(owner, read)?;
-        owner.admit(publication.as_ref(), BorrowedRows::from(&actual))?;
-        if !matches!(actual, Rows::Tree(_) | Rows::Positioned(_)) {
-            return Ok(None);
-        }
-        sources.push(publication.clone());
-        rows.push(actual);
+) -> Result<Option<Positions>, OperatingError> {
+    if rows
+        .iter()
+        .any(|rows| !matches!(rows, Rows::Tree(_) | Rows::Positioned(_)))
+    {
+        return Ok(None);
     }
     let Some(tree) = rows.first().and_then(|rows| match rows {
         Rows::Tree(tree) => Some(*tree),
@@ -47,7 +36,7 @@ pub(super) fn evaluate<'facts>(
         return Ok(None);
     };
     let mut direct = Vec::new();
-    for rows in &rows {
+    for rows in rows {
         match rows {
             Rows::Tree(each) => {
                 if !std::ptr::eq(each.elements, tree.elements) || each.file != tree.file {
@@ -106,30 +95,7 @@ pub(super) fn evaluate<'facts>(
         })
         .collect::<Result<_, _>>()?;
     let result = crate::domain::native_positions::service::evaluate(
-        semantics,
-        derived,
-        permit.operation(),
-        &tree,
-        &inputs,
-        shape,
-        context,
-        work,
-        counts,
+        semantics, derived, operation, &tree, &inputs, shape, context, work, counts,
     );
-    let positions = result?;
-    let kinds = code.contract.collected_kinds.clone()?;
-    let source = sources.first().ok_or(OperatingError::NotRun)?;
-    let admitted = owner.admit(
-        source.as_ref(),
-        BorrowedRows::from(rows.first().ok_or(OperatingError::NotRun)?),
-    )?;
-    crate::application::file_dag::relations::positioned::publish(
-        owner,
-        source,
-        &admitted,
-        positions,
-        Arc::clone(shape),
-        Arc::from(kinds),
-    )
-    .map(Some)
+    result.map(Some)
 }

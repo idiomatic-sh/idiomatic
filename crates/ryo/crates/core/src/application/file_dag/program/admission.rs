@@ -403,7 +403,7 @@ impl<'scope> KernelPermit<'scope> {
             evaluation: self.evaluation,
         })
     }
-    pub(super) fn instruction(&self) -> &crate::domain::executable_program::types::Instruction {
+    pub(super) fn descriptor(&self) -> &crate::domain::executable_program::types::Instruction {
         &self.program.regions()[self.region.0].instructions[self.instruction]
     }
     pub(super) fn position_semantics(
