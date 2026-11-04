@@ -178,7 +178,7 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
             project_search_roots: None,
             given_project_inventory: Default::default(),
             staged_sources: None,
-            selected_rules: None,
+            selected_rules: (policy == Selected).then(|| vec![consumer.clone()]),
             rule_observations: explicit,
             rule_context: None,
             file_metadata: None,
