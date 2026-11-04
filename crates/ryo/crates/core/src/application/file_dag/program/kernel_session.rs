@@ -180,8 +180,15 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         if let (Some(walk), [Rows::Tree(tree)]) = (self.walk, originals.as_slice())
                         {
                             if let Some(class) = walk.class(self.prepared, instruction) {
-                                walk.prepare(self.prepared, permit, *tree, context, self.kernels)
-                                    .map_err(InvocationFailure::Semantic)?;
+                                walk.prepare(
+                                    self.prepared,
+                                    permit,
+                                    &admitted[0],
+                                    *tree,
+                                    context,
+                                    self.kernels,
+                                )
+                                .map_err(InvocationFailure::Semantic)?;
                                 let batch = walk.batch();
                                 let batch = batch
                                     .as_ref()

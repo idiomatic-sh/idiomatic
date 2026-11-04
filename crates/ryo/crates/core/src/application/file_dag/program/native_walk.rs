@@ -12,6 +12,7 @@ use std::cell::RefCell;
 pub(super) struct FileWalk {
     file: ryo_relations::domain::relations::types::FileId,
     active: Box<[bool]>,
+    population: std::cell::Cell<Option<super::super::derived::owner::PopulationId>>,
     batch: RefCell<Option<NativeBatch>>,
     work: RefCell<WalkWork>,
 }
@@ -23,6 +24,7 @@ impl FileWalk {
         Self {
             file,
             active: demanded.into(),
+            population: std::cell::Cell::new(None),
             batch: RefCell::new(None),
             work: RefCell::new(WalkWork::default()),
         }
@@ -38,20 +40,29 @@ impl FileWalk {
         &self,
         prepared: &PreparedProgram,
         permit: &KernelPermit<'_>,
+        source: &super::admission::AdmittedInput,
         tree: TreeRows<'_>,
         context: &mut OperatorContext<'_>,
         kernels: &dyn super::super::executor::PrimitiveExecutor,
     ) -> Result<(), OperatingError> {
-        permit.validate_live()?;
         if tree.file != self.file
             || tree.form != crate::domain::table_cells::types::TreeForm::Elements
         {
             return Err(OperatingError::NotRead);
         }
+        let admitted = permit.admit_tree(source, tree)?;
+        if self
+            .population
+            .get()
+            .is_some_and(|expected| expected != admitted.population())
+        {
+            return Err(OperatingError::NotRead);
+        }
+        self.population.set(Some(admitted.population()));
         let mut batch = self.batch.borrow_mut();
         if batch.is_none() {
             let mut work = self.work.borrow_mut();
-            let request = permit.walk(prepared, tree, context, &self.active, &mut work)?;
+            let request = permit.walk(prepared, admitted, context, &self.active, &mut work)?;
             *batch = Some(
                 match kernels.execute(super::super::executor::KernelCall::Walk { request }) {
                     Ok(super::super::executor::KernelAnswer::Walk(batch)) => batch,
@@ -73,7 +84,7 @@ impl FileWalk {
 pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     pub(super) permit: &'call KernelPermit<'scope>,
     pub(super) prepared: &'call PreparedProgram,
-    pub(super) tree: TreeRows<'call>,
+    pub(super) source: super::admission::AdmittedTree<'call>,
     pub(super) context: &'call mut OperatorContext<'context>,
     pub(super) active: &'call [bool],
     pub(super) work: &'call mut WalkWork,
@@ -83,7 +94,7 @@ impl PermittedWalk<'_, '_, '_> {
         self.permit.validate_live()?;
         Ok(crate::domain::shared_walk::service::evaluate(
             self.prepared.walk(),
-            self.tree,
+            self.source.rows(),
             self.prepared.all_bindings(),
             self.context,
             self.active,

@@ -214,6 +214,21 @@ impl FileGeneration {
     }
 }
 
+/// Borrowed native access issued by the same population admission as every representation.
+/// Private fields prevent pairing a valid generation with an unrelated tree.
+pub(super) struct AdmittedTree<'a> {
+    source: &'a AdmittedInput,
+    tree: crate::domain::table_cells::types::TreeRows<'a>,
+    population: PopulationId,
+}
+impl AdmittedTree<'_> {
+    pub(super) fn rows(&self) -> crate::domain::table_cells::types::TreeRows<'_> {
+        self.tree
+    }
+    pub(super) fn population(&self) -> PopulationId {
+        self.population
+    }
+}
 /// A borrowed semantic call can be made only under an admitted program invocation.
 /// Its fields/issuance are inaccessible to raw evaluator or provider callers.
 pub(crate) struct KernelPermit<'scope> {
@@ -339,15 +354,44 @@ impl<'scope> KernelPermit<'scope> {
             Err(OperatingError::NotRead)
         }
     }
+    pub(super) fn admit_tree<'call>(
+        &self,
+        source: &'call AdmittedInput,
+        tree: crate::domain::table_cells::types::TreeRows<'call>,
+    ) -> Result<AdmittedTree<'call>, OperatingError> {
+        self.validate_live()?;
+        if source.root
+            != ProducerRoot::Input(InputSource::Relation(
+                ryo_relations::domain::relations::types::Relation::SyntaxTree,
+            ))
+            || !Arc::ptr_eq(&source.proof.generation, self.generation)
+            || !matches!(&source.partition, Partition::File(file) if file.file == tree.file)
+        {
+            return Err(OperatingError::NotRead);
+        }
+        let publication = source.publication(&source.proof.owner)?;
+        source.proof.owner.admit(
+            publication.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::Tree(tree),
+        )?;
+        Ok(AdmittedTree {
+            source,
+            tree,
+            population: source.proof.population,
+        })
+    }
     pub(super) fn walk<'call, 'context>(
         &'call self,
         prepared: &'call super::facade::PreparedProgram,
-        tree: crate::domain::table_cells::types::TreeRows<'call>,
+        source: AdmittedTree<'call>,
         context: &'call mut crate::domain::operating::types::OperatorContext<'context>,
         active: &'call [bool],
         work: &'call mut crate::domain::shared_walk::types::WalkWork,
     ) -> Result<super::native_walk::PermittedWalk<'call, 'context, 'scope>, OperatingError> {
         self.validate_live()?;
+        if !Arc::ptr_eq(&source.source.proof.generation, self.generation) {
+            return Err(OperatingError::NotRead);
+        }
         if !std::ptr::eq(self.program, prepared.program().as_ref()) {
             return Err(OperatingError::WrongOperation);
         }
@@ -358,7 +402,7 @@ impl<'scope> KernelPermit<'scope> {
         Ok(super::native_walk::PermittedWalk {
             permit: self,
             prepared,
-            tree,
+            source,
             context,
             active,
             work,
