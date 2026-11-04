@@ -200,7 +200,7 @@ impl CrossFile {
             let mut bytes = FileBytes::default();
             if placeable(plan, &table) == Placeability::Placeable {
                 for group in found.chunk_by_mut(|left, right| left.file == right.file) {
-                    let Some(entry) = group
+                    let Some(CorpusInput::Available(entry)) = group
                         .first()
                         .and_then(|first| file_in(crossing.files, first.file))
                     else {

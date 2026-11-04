@@ -1071,7 +1071,7 @@ impl FileAnalysis {
             index_kinds(&mut worker.tables.elements);
             let semantic =
                 super::semantic::SemanticState::new(number, &worker.tables.elements, None);
-            Self::read_file(worker, visit, number, &semantic)?;
+            self.read_file(worker, visit, number, &semantic)?;
         } else if Self::may_gate_rules(setting, acceptance) {
             drop(Self::gate_rules(
                 &mut worker.tables,
