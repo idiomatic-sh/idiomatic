@@ -106,6 +106,10 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    pub(in crate::application::file_dag) fn release_inputs(&mut self) {
+        self.publications.clear();
+        self.origins.clear();
+    }
     pub(in crate::application::file_dag) fn capture_admitted(
         &mut self,
         publications: Vec<super::relations::PublishedInput>,

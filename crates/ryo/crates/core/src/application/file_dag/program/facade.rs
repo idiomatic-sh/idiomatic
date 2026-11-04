@@ -78,6 +78,20 @@ pub(crate) enum RootOutcome {
     Failed(OperatingError),
     NoQuery,
 }
+/// Opaque application handover of the actual admitted population. Packed bytes
+/// may accompany it, but never substitute for its owner/generation evidence.
+#[derive(Clone)]
+pub(in crate::application) struct ObservedPublication {
+    admitted: super::admission::AdmittedInput,
+}
+impl ObservedPublication {
+    pub(super) fn from_admitted(admitted: super::admission::AdmittedInput) -> Self {
+        Self { admitted }
+    }
+    pub(super) fn admitted(&self) -> &super::admission::AdmittedInput {
+        &self.admitted
+    }
+}
 pub(crate) struct LogicalCounts {
     pub fed: Box<[RowsFed]>,
 }

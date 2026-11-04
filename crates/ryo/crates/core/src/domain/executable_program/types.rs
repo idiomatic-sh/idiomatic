@@ -91,6 +91,7 @@ pub(crate) struct Region {
     pub instructions: Box<[Instruction]>,
     pub inputs: Box<[InputSource]>,
     pub consumers: usize,
+    pub dependencies: Box<[RegionId]>,
     pub publishes: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

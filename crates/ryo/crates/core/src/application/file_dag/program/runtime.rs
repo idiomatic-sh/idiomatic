@@ -126,13 +126,7 @@ impl ProgramExecution {
                 cancel
             };
             if dependencies {
-                for source in self.program.regions[id.0].inputs.iter() {
-                    if let crate::domain::executable_program::types::InputSource::Region(producer) =
-                        source
-                    {
-                        pending.push(*producer);
-                    }
-                }
+                pending.extend(self.program.regions[id.0].dependencies.iter().copied());
             }
         }
         Ok(())
@@ -146,11 +140,8 @@ impl ProgramExecution {
             }
             slot.dependencies_consumed = true;
         }
-        for source in self.program.regions[id.0].inputs.iter() {
-            if let crate::domain::executable_program::types::InputSource::Region(producer) = source
-            {
-                self.retire(*producer)?;
-            }
+        for producer in self.program.regions[id.0].dependencies.iter() {
+            self.retire(*producer)?;
         }
         Ok(())
     }

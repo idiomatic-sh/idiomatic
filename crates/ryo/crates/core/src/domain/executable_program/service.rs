@@ -259,6 +259,7 @@ pub(crate) fn compile(
             instructions: draft.instructions.into_boxed_slice(),
             inputs: inputs.into_boxed_slice(),
             consumers: consumers[logical],
+            dependencies: Box::new([]),
             publishes: boundary[logical] || consumers[logical] > 1,
         });
     }
@@ -328,6 +329,45 @@ pub(crate) fn compile(
         partitions,
         count,
     )?;
+    // Resolve aliases into the same prepared dependency graph once. Runtime
+    // completion consumes these edges without rescanning source kinds.
+    let mut named_readers = vec![0usize; observation_regions.len()];
+    for region in &mut regions {
+        let mut dependencies = Vec::new();
+        for source in region.inputs.iter() {
+            match source {
+                InputSource::Region(id) => dependencies.push(*id),
+                InputSource::Observation(slot) => {
+                    if let Some(Ok(root)) = observation_regions.get(*slot) {
+                        dependencies.push(*root);
+                        named_readers[*slot] += 1;
+                    }
+                }
+                InputSource::Relation(_)
+                | InputSource::Hosted { .. }
+                | InputSource::ObservationMember { .. } => {}
+            }
+        }
+        region.dependencies = dependencies.into_boxed_slice();
+    }
+    for rule in &rules {
+        for source in rule
+            .frontier
+            .iter()
+            .filter_map(|source| source.as_ref().ok())
+        {
+            if let InputSource::Observation(slot) = source {
+                if let Some(count) = named_readers.get_mut(*slot) {
+                    *count += 1;
+                }
+            }
+        }
+    }
+    for (slot, root) in observation_regions.iter().enumerate() {
+        if let Ok(root) = root {
+            regions[root.0].consumers = named_readers[slot];
+        }
+    }
     Ok(ExecutableProgram {
         regions: regions.into_boxed_slice(),
         rules: rules.into_boxed_slice(),

@@ -62,6 +62,7 @@ pub(super) fn compile_unions(
                         phase: binding.input.schema.scope,
                         inputs: pair.to_vec().into_boxed_slice(),
                         consumers: 0,
+                        dependencies: Box::new([]),
                         publishes: true,
                         instructions: vec![Instruction {
                             logical,
