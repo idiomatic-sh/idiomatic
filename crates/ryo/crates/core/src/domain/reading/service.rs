@@ -16,7 +16,6 @@ use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, RenderInput};
 use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
-use crate::domain::shared_walk::service::install;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 
 use crate::domain::table_texts::types::SourceView;

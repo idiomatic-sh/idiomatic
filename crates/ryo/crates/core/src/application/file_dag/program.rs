@@ -11,4 +11,4 @@ mod restored;
 mod request_identity;
 
 mod context;
-mod native_walk;
+pub(in crate::application::file_dag) mod native_walk;

@@ -43,7 +43,9 @@ impl FileWalk {
         kernels: &dyn super::super::executor::PrimitiveExecutor,
     ) -> Result<(), OperatingError> {
         permit.validate_live()?;
-        if tree.file != self.file {
+        if tree.file != self.file
+            || tree.form != crate::domain::table_cells::types::TreeForm::Elements
+        {
             return Err(OperatingError::NotRead);
         }
         let mut batch = self.batch.borrow_mut();
@@ -68,11 +70,11 @@ impl FileWalk {
     }
 }
 /// The semantic adapter can consume this request, but cannot construct one.
-pub(crate) struct PermittedWalk<'call, 'tree, 'scope> {
+pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     pub(super) permit: &'call KernelPermit<'scope>,
     pub(super) prepared: &'call PreparedProgram,
-    pub(super) tree: TreeRows<'tree>,
-    pub(super) context: &'call mut OperatorContext<'tree>,
+    pub(super) tree: TreeRows<'call>,
+    pub(super) context: &'call mut OperatorContext<'context>,
     pub(super) active: &'call [bool],
     pub(super) work: &'call mut WalkWork,
 }

@@ -176,7 +176,9 @@ pub(in crate::application::file_dag) fn evaluate(
         output: &mut output,
     }) {
         Ok(KernelAnswer::Complete) => Ok(()),
-        Ok(KernelAnswer::Physical(_)) => Err(OperatingError::WrongOperation),
+        Ok(KernelAnswer::Physical(_) | KernelAnswer::Walk(_)) => {
+            Err(OperatingError::WrongOperation)
+        }
         Err(KernelFault::Refused(error)) => Err(error),
         Err(KernelFault::Portable(error)) => Err(portable_fault(error)),
     };

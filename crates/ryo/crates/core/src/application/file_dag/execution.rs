@@ -77,7 +77,9 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_, '_> {
         };
         match self.port.execute(KernelCall::Physical { request }) {
             Ok(KernelAnswer::Physical(answer)) => Ok(answer),
-            Ok(KernelAnswer::Complete) => Err(PortableOperatorFault::ShapeMismatch),
+            Ok(KernelAnswer::Complete | KernelAnswer::Walk(_)) => {
+                Err(PortableOperatorFault::ShapeMismatch)
+            }
             Err(KernelFault::Portable(error)) => Err(error),
             Err(KernelFault::Refused(error)) => {
                 let _first = self.failure.set(error);

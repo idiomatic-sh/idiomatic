@@ -339,14 +339,14 @@ impl<'scope> KernelPermit<'scope> {
             Err(OperatingError::NotRead)
         }
     }
-    pub(super) fn walk<'call, 'tree>(
+    pub(super) fn walk<'call, 'context>(
         &'call self,
         prepared: &'call super::facade::PreparedProgram,
-        tree: crate::domain::table_cells::types::TreeRows<'tree>,
-        context: &'call mut crate::domain::operating::types::OperatorContext<'tree>,
+        tree: crate::domain::table_cells::types::TreeRows<'call>,
+        context: &'call mut crate::domain::operating::types::OperatorContext<'context>,
         active: &'call [bool],
         work: &'call mut crate::domain::shared_walk::types::WalkWork,
-    ) -> Result<super::native_walk::PermittedWalk<'call, 'tree, 'scope>, OperatingError> {
+    ) -> Result<super::native_walk::PermittedWalk<'call, 'context, 'scope>, OperatingError> {
         self.validate_live()?;
         if !std::ptr::eq(self.program, prepared.program().as_ref()) {
             return Err(OperatingError::WrongOperation);
