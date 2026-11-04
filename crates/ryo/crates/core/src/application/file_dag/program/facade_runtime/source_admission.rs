@@ -240,10 +240,11 @@ impl Inputs for SourceInputs<'_, '_> {
                     .ok_or(OperatingError::NotRun)?
                     .producer;
                 let completion = self.completion.for_rule(producer);
+                let kernels = self.kernels;
                 match self.execution.invoke(
                     id,
                     self,
-                    self.kernels,
+                    kernels,
                     &completion,
                     context,
                     Delivery::Retain,
@@ -272,10 +273,11 @@ impl Inputs for SourceInputs<'_, '_> {
                     .ok_or(OperatingError::NotRun)?
                     .producer;
                 let completion = self.completion.for_rule(producer);
+                let kernels = self.kernels;
                 let input = match self.execution.invoke(
                     union,
                     self,
-                    self.kernels,
+                    kernels,
                     &completion,
                     context,
                     Delivery::Retain,
@@ -360,7 +362,7 @@ impl Inputs for SourceInputs<'_, '_> {
         )?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
-            publication,
+            publication.clone(),
             &checked,
             root,
             partition.clone(),

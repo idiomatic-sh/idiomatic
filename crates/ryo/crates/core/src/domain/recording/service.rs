@@ -130,7 +130,7 @@ pub(crate) fn frontier_flat(
     let places = setting
         .metadata
         .get(rule.0)
-        .map_or(0, |plan| plan.frontier.len());
+        .map_or(0, |rule| rule.frontier_capture.len());
     flat.0.clear();
     for each in moved.iter().filter(|each| {
         each.bucket.0 >= first
