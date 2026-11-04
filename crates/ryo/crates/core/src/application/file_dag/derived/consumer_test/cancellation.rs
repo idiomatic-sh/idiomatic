@@ -102,6 +102,15 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         ));
         dag.borrow_mut().limit = 0;
         let owner = dag.relation_owner();
+        let engine = crate::application::file_dag::execution::CommonOperatorEngine::new(
+            crate::outbound::operators::factory::test_port(),
+            owner.derived.semantic_port(),
+        );
+        let executor = crate::application::file_dag::executor::ScopedExecutor::new(
+            &engine,
+            std::rc::Rc::clone(&owner),
+        )
+        .unwrap();
         owner.derived.prepare_file(
             true,
             &[Relation::LanguageTarget],
@@ -142,12 +151,7 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         };
         dag.begin_rule(0).unwrap();
         let first = dag
-            .demand(
-                roots[0],
-                &read,
-                &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-                &mut context,
-            )
+            .demand(roots[0], &read, &executor, &mut context)
             .unwrap();
         let rows = owner.resolve(first.as_ref(), &read).unwrap();
         let mut output = Table::default();
@@ -169,7 +173,12 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         dag.begin_rule(1).unwrap();
         if refuse {
             let refusal = Refuse(owner.derived.semantic_port());
-            let result = dag.demand(roots[1], &read, &refusal, &mut context);
+            let refused = crate::application::file_dag::executor::ScopedExecutor::new(
+                &refusal,
+                std::rc::Rc::clone(&owner),
+            )
+            .unwrap();
+            let result = dag.demand(roots[1], &read, &refused, &mut context);
             assert!(matches!(result, Err(OperatingError::NotRead)));
         }
         dag.borrow_mut().finish_rule(1);
