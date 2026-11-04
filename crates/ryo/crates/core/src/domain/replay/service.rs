@@ -18,14 +18,20 @@ pub(crate) fn scan(
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
-    if matches!(rows, Rows::Computed(_) | Rows::Compact(_)) {
+    if matches!(
+        rows,
+        Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_)
+    ) {
         crate::domain::table_model::collections::representations::service::borrowed(rows)
             .validate()?;
     }
     for position in positions(count_of(rows)) {
         if let Some(row) = read_row(rows, position, buffer) {
             emit.row(context, row)?;
-        } else if matches!(rows, Rows::Computed(_) | Rows::Compact(_)) {
+        } else if matches!(
+            rows,
+            Rows::Computed(_) | Rows::Compact(_) | Rows::Positioned(_)
+        ) {
             return Err(OperatingError::ShapeMismatch);
         }
     }

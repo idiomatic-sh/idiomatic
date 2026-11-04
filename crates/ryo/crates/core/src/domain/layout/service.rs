@@ -114,6 +114,10 @@ pub(crate) fn layout_of<'f>(
                 kinds: crate::domain::table_words::service::compact_kinds(table),
                 tree: None,
             },
+            Rows::Positioned(view) => InputSchema {
+                kinds: view.kinds,
+                tree: None,
+            },
             Rows::Selected(_) => return Err(OperatingError::WrongOperation),
         })
     };
