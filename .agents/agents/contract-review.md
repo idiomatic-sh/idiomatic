@@ -5,11 +5,11 @@ Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
 relation, operator, derived, and full-route audits; check their source dates.
 Keep both sessions alive; resume the same Opus session across rounds.
 Pin fresh base/head/tree/evidence; source changes invalidate approval.
-Print `Source: base=<sha> head=<sha> tree=<sha>` in each raw verdict.
+Return strict JSON `contract-review-verdict/v1`: source {base, head, tree},
+verdict (pass/blocking/unassessed), findings (blocking), dispositions (fixed/rejected).
 Review read-only: never edit, build, or run tests during a reviewer pass.
 Record actual command, model, session, round UUID, exit, and raw result.
 Transport errors and `Unassessed` are missing reviews, never approvals.
-
 ## Inputs
 Require immutable commits, exact source/diff, approved claim, matrix,
 test/performance receipts, and explicit exclusions.
@@ -28,7 +28,6 @@ A bounded review never closes wider architecture categories.
 - Match matrix claims to executable evidence and its actual breadth.
 - Keep orchestration thin; enforce shared guarantees in shared contracts.
 - Missing evidence for a claimed guarantee blocks approval.
-
 ## Output and enforcement
 Report short numbered blockers with file:line, failure, and required proof.
 Retain both reviewers' findings and dispositions. Only final independent PASS
@@ -37,4 +36,5 @@ Bind both model/session/round identities, source, raw results, and proof in an a
 Normal CI must reject missing/stale/invalid/unresolved reviews; prove failures and success.
 CI loads the trusted-base validator or immutable bootstrap 871be75a.
 This file is not enforcement: name `ci/contract_review/command.py` and its proof.
-Workflow edits still require trusted governance; do not claim server protection.
+Workflow edits require trusted governance; this is not server protection.
+Activation binds this Git history; squash needs deliberate receipt migration.

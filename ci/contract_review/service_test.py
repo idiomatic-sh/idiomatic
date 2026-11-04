@@ -52,7 +52,8 @@ def repository(tmp_path: Path):
         invocation = {"cli": cli, "model": model, "session_id": session, "before": state, "after": state,
                       "exit": 0, "command": [cli, "synthetic control; not actual approval", source["base"], source["head"], source["tree"]]}
         result = {"subtype": "success", "is_error": False, "session_id": session, "model": model,
-                  "modelUsage": {model: {}}, "uuid": "synthetic-round-" + cli, "result": f'Source: base={source["base"]} head={source["head"]} tree={source["tree"]}\nVerdict: pass\n\n| # | severity | finding |\n|---|---|---|\n'}
+                  "modelUsage": {model: {}}, "uuid": "synthetic-round-" + cli,
+                  "result": json.dumps({"schema": "contract-review-verdict/v1", "source": {key: source[key] for key in ("base", "head", "tree")}, "verdict": "pass", "findings": [], "dispositions": []})}
         reviews.append({**invocation, "source": source, "round_id": result["uuid"], "invocation": evidence(cli + "-invocation.json", invocation),
                         "result": evidence(cli + "-result.json", result), "findings": {}})
     artifact = {"schema": "paired-contract-review/v1", "source": source, "reviews": reviews, "dispositions": {},
@@ -100,23 +101,28 @@ def test_normal_gate_rejects_missing_stale_and_unresolved_reviews(repository, mu
     elif mutation in ("transport", "tampered-result", "unresolved", "omitted-finding", "self-rejected", "hyphen-id", "formatted-blocker", "duplicate-verdict", "relabelled-result"):
         record = review["result"]
         result = json.loads(files[record["path"]])
+        verdict = json.loads(result["result"])
+        finding = {"id": "SC-1", "severity": "blocking", "file": "source.rs:1", "failure": "wrong output", "required_proof": "independent negative control"}
         if mutation == "transport":
             result["subtype"] = "error"
-        elif mutation == "tampered-result":
-            result["result"] = "Verdict: Unassessed"
         elif mutation == "relabelled-result":
-            result["result"] = result["result"].replace(source, service.ACTIVATION)
-        elif mutation == "duplicate-verdict":
-            result["result"] += "Verdict: blocking\n"
-        elif mutation in ("hyphen-id", "formatted-blocker"):
-            severity = "**blocking**" if mutation == "formatted-blocker" else "blocking"
-            result["result"] += f"| SC-1 | {severity} | source.rs:1 | wrong output |\n"
-        else:
-            result["result"] = result["result"].replace("Verdict: pass", "Verdict: blocking") + "| F1 | blocking | source.rs:1 | wrong output |\n"
+            verdict["source"]["head"] = service.ACTIVATION
+        elif mutation == "formatted-blocker":
+            verdict["findings"] = [{**finding, "severity": "**blocking**"}]
+        elif mutation == "hyphen-id":
+            verdict["findings"] = [finding]
+        elif mutation not in ("duplicate-verdict", "tampered-result"):
+            verdict["verdict"] = "blocking"
+            verdict["findings"] = [finding]
             if mutation == "self-rejected":
-                review["findings"] = {"F1": {"state": "rejected", "reason": "author says fine", "proof": artifact["claim"]}}
+                review["findings"] = {"SC-1": {"state": "rejected", "reason": "author says fine", "proof": artifact["claim"]}}
             if mutation == "unresolved":
-                review["findings"] = {"F1": {"state": "open", "reason": "pending"}}
+                review["findings"] = {"SC-1": {"state": "open", "reason": "pending"}}
+        result["result"] = json.dumps(verdict)
+        if mutation == "duplicate-verdict":
+            result["result"] = result["result"].replace('"verdict": "pass"', '"verdict": "blocking", "verdict": "pass"')
+        if mutation == "tampered-result":
+            result["result"] = "Unassessed"
         files[record["path"]] = json.dumps(result).encode()
         if mutation != "tampered-result":
             record["sha256"] = service.digest(files[record["path"]])
@@ -153,3 +159,35 @@ def test_pull_request_merge_tree_must_match_reviewed_source(repository, protecte
     merged = subprocess.check_output(["git", "-C", str(root), "commit-tree", tree, "-p", approved, "-p", base], input=b"synthetic PR merge ref\n", env=env).decode().strip()
     result = run(root, merged)
     assert result.returncode == int(protected_merge), result.stderr
+
+
+@pytest.mark.parametrize("mutation", ["missing-findings", "text-findings", "critical", "blocker", "markdown", "unknown-field"])
+def test_structured_verdict_rejects_unknown_or_unparseable_findings(repository, mutation):
+    root, commit, source, files, artifact, path = repository
+    record = artifact["reviews"][1]["result"]
+    raw = json.loads(files[record["path"]])
+    verdict = json.loads(raw["result"])
+    if mutation == "missing-findings":
+        verdict.pop("findings")
+    elif mutation == "text-findings":
+        verdict["findings"] = "none"
+    elif mutation == "unknown-field":
+        verdict["author_waiver"] = True
+    elif mutation in ("critical", "blocker"):
+        verdict["findings"] = [{"id": "SC-1", "severity": mutation, "file": "source.rs:1", "failure": "wrong", "required_proof": "fix"}]
+    raw["result"] = "Verdict: pass\nSC-1 | critical | wrong" if mutation == "markdown" else json.dumps(verdict)
+    files[record["path"]] = json.dumps(raw).encode()
+    record["sha256"] = service.digest(files[record["path"]])
+    assert run(root, commit(source, {**files, path: artifact})).returncode == 1
+
+
+def test_final_pass_accepts_resolved_historical_dispositions(repository):
+    root, commit, source, files, artifact, path = repository
+    record = artifact["reviews"][1]["result"]
+    raw = json.loads(files[record["path"]])
+    verdict = json.loads(raw["result"])
+    verdict["dispositions"] = [{"id": "SC-1", "state": "fixed", "reason": "previous blocking identity failure fixed", "evidence": "source.rs:1; executed regression control"}]
+    raw["result"] = json.dumps(verdict)
+    files[record["path"]] = json.dumps(raw).encode()
+    record["sha256"] = service.digest(files[record["path"]])
+    assert run(root, commit(source, {**files, path: artifact})).returncode == 0

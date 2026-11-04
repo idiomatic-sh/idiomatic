@@ -87,17 +87,37 @@ def review(root: Path, head: str, source: dict, item: dict, identity: tuple[str,
         raise ValueError("Opus actual model is not in CLI result")
     if cli == "codex" and raw.get("model") != model:
         raise ValueError("Astra actual model is not in session result")
-    result = raw.get("result", "")
-    identity_line = f'Source: base={source["base"]} head={source["head"]} tree={source["tree"]}'
-    if result.splitlines().count(identity_line) != 1:
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate verdict field")
+            value[key] = item
+        return value
+
+    verdict = json.loads(raw["result"], object_pairs_hook=unique)
+    required = {"schema", "source", "verdict", "findings", "dispositions"}
+    if not isinstance(verdict, dict) or set(verdict) != required or verdict["schema"] != "contract-review-verdict/v1":
+        raise ValueError("missing or unrecognized structured review verdict")
+    if verdict["source"] != {key: source[key] for key in ("base", "head", "tree")}:
         raise ValueError("raw reviewer result does not bind exact source")
-    verdicts = re.findall(r"^Verdict: (.*)$", result, re.M)
-    # Only a final independent pass resolves a prior blocking review. An author's
-    # disposition can never convert the original blocking result into approval.
-    if verdicts != ["pass"] or item["findings"] != {}:
+    if verdict["verdict"] not in ("pass", "blocking", "unassessed") or not isinstance(verdict["findings"], list):
+        raise ValueError("invalid verdict or findings schema")
+    for finding in verdict["findings"]:
+        if set(finding) != {"id", "severity", "file", "failure", "required_proof"} or finding["severity"] != "blocking":
+            raise ValueError("unrecognized finding schema or severity")
+        if not all(isinstance(value, str) and value.strip() for value in finding.values()):
+            raise ValueError("empty or unparseable finding")
+    if not isinstance(verdict["dispositions"], list):
+        raise ValueError("invalid disposition schema")
+    for disposition in verdict["dispositions"]:
+        if set(disposition) != {"id", "state", "reason", "evidence"} or disposition["state"] not in ("fixed", "rejected"):
+            raise ValueError("unresolved disposition")
+        if not all(isinstance(value, str) and value.strip() for value in disposition.values()):
+            raise ValueError("empty or unparseable disposition")
+    # Author dispositions never turn a blocking reviewer result into approval.
+    if verdict["verdict"] != "pass" or verdict["findings"] or item["findings"] != {}:
         raise ValueError("both reviewers must pass this exact source without unresolved findings")
-    if re.search(r"^\|.*\b(blocking|high|medium)\b.*\|", result, re.M | re.I):
-        raise ValueError("pass result contains a blocking finding")
 
 
 def validate(root: Path, head: str = "HEAD") -> str:
