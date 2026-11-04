@@ -25,7 +25,7 @@ pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
 pub(crate) enum KernelAnswer {
     Complete,
     Physical(OperatorAnswer),
-    Walk(crate::domain::shared_walk::types::NativeBatch),
+    Walk(crate::domain::shared_walk::types::prepared_walk::value::NativeBatch),
 }
 pub(crate) enum KernelFault {
     Refused(OperatingError),

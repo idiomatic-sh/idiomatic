@@ -194,7 +194,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                     .as_ref()
                                     .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
                                 if let Some(result) = batch.class(class) {
-                                    workspace.work.found(0, batch.visits(class));
+                                    workspace.work.found(0, batch.visits(class).0);
                                     let positions = result.as_ref().map_err(|error| {
                                         InvocationFailure::Semantic(error.clone())
                                     })?;

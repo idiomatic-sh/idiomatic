@@ -177,10 +177,12 @@ pub(crate) struct PreparedProgram {
     hosted: Box<[HostRelation]>,
     matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     derived: super::super::derived::prepared::PreparedDerived,
-    walk: crate::domain::shared_walk::types::PreparedWalk,
+    walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
 impl PreparedProgram {
-    pub(super) fn walk(&self) -> &crate::domain::shared_walk::types::PreparedWalk {
+    pub(super) fn walk(
+        &self,
+    ) -> &crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
         &self.walk
     }
     pub(super) fn all_bindings(&self) -> &[Box<[ParameterBinding]>] {
@@ -463,7 +465,9 @@ pub(crate) fn prepare(
         schedule,
         observations,
     } = compiled;
-    let walk = crate::domain::shared_walk::types::PreparedWalk::compile(&plans, &bindings);
+    let walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
+        &plans, &bindings,
+    );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
     let operators = RequestOperators::prepare(&plans, &bindings, hosted, derived)?;

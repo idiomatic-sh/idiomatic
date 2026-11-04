@@ -4,14 +4,14 @@ use crate::domain::{
     executable_program::types::Instruction,
     operating::{errors::OperatingError, types::OperatorContext},
     positions::types::ClassPlace,
-    shared_walk::types::{NativeBatch, WalkWork},
+    shared_walk::types::{RuleActivity, WalkWork, prepared_walk::value::NativeBatch},
     table_cells::types::TreeRows,
 };
 use std::cell::RefCell;
 
 pub(super) struct FileWalk {
     file: ryo_relations::domain::relations::types::FileId,
-    active: Box<[bool]>,
+    active: Box<[RuleActivity]>,
     population: std::cell::Cell<Option<super::super::derived::owner::PopulationId>>,
     batch: RefCell<Option<NativeBatch>>,
     work: RefCell<WalkWork>,
@@ -23,7 +23,16 @@ impl FileWalk {
     ) -> Self {
         Self {
             file,
-            active: demanded.into(),
+            active: demanded
+                .iter()
+                .map(|active| {
+                    if *active {
+                        RuleActivity::Active
+                    } else {
+                        RuleActivity::Inactive
+                    }
+                })
+                .collect(),
             population: std::cell::Cell::new(None),
             batch: RefCell::new(None),
             work: RefCell::new(WalkWork::default()),
@@ -86,7 +95,7 @@ pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     pub(super) prepared: &'call PreparedProgram,
     pub(super) source: super::admission::AdmittedTree<'call>,
     pub(super) context: &'call mut OperatorContext<'context>,
-    pub(super) active: &'call [bool],
+    pub(super) active: &'call [RuleActivity],
     pub(super) work: &'call mut WalkWork,
 }
 impl PermittedWalk<'_, '_, '_> {

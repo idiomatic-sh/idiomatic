@@ -385,7 +385,7 @@ impl<'scope> KernelPermit<'scope> {
         prepared: &'call super::facade::PreparedProgram,
         source: AdmittedTree<'call>,
         context: &'call mut crate::domain::operating::types::OperatorContext<'context>,
-        active: &'call [bool],
+        active: &'call [crate::domain::shared_walk::types::RuleActivity],
         work: &'call mut crate::domain::shared_walk::types::WalkWork,
     ) -> Result<super::native_walk::PermittedWalk<'call, 'context, 'scope>, OperatingError> {
         self.validate_live()?;
