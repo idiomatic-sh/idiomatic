@@ -39,6 +39,13 @@ pub struct QuerySymbols<'a>(pub(super) &'a mut Symbols);
 /// use ryo_language::domain::symbols::types::TransportPermit;
 /// let forged = TransportPermit(std::sync::Arc::new(()));
 /// ```
+///
+/// ```compile_fail
+/// use ryo_language::domain::symbols::{service::transport_permit, types::{QuerySymbols, Symbols}};
+/// let mut symbols = Symbols::default();
+/// let query = QuerySymbols::from(&mut symbols);
+/// let stolen = transport_permit(query.as_ref());
+/// ```
 #[derive(Debug)]
 pub struct TransportPermit(pub(super) std::sync::Arc<()>);
 
