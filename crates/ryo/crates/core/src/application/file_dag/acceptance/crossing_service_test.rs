@@ -468,9 +468,9 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             if matches!(
                 &call,
                 crate::application::file_dag::executor::KernelCall::Registered {
-                    operation: Operation::GroupCount { .. },
-                    ..
+                    request,
                 }
+                if request.kind() == OperationKind::GroupCount
             ) {
                 return Err(
                     crate::application::file_dag::executor::KernelFault::Refused(

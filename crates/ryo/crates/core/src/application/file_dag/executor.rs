@@ -1,12 +1,11 @@
 //! One required semantic invocation contract for ordinary and physical kernels.
 //! It has no owner, dependency resolver, publication or cache acquisition API.
-use crate::domain::{operating::errors::OperatingError, operator::contract::types::RowSink};
+use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::contract::types::{OperatorAnswer, PortableOperatorFault};
 
 pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
     Registered {
         request: super::execution::lease::ExecutableLease<'call, 'resources, 'invocation>,
-        output: &'call mut dyn RowSink,
     },
     Walk {
         request: super::program::native_walk::PermittedWalk<'call, 'resources, 'invocation>,

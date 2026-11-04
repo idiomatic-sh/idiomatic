@@ -29,29 +29,36 @@ pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
     context: &'call mut PrimitiveLease<'resources>,
     operation: &'call ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'call>,
+    output: &'call mut dyn RowSink,
 }
 impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
+    pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
+        crate::domain::features::service::kind_of(self.operation)
+    }
+
     fn new(
         permit: &'call super::super::program::admission::KernelPermit<'scope>,
         context: &'call mut PrimitiveLease<'resources>,
         operation: &'call ryo_values::domain::plans::types::Operation,
         input: PreparedInputs<'call>,
+        output: &'call mut dyn RowSink,
     ) -> Self {
         Self {
             permit,
             context,
             operation,
             input,
+            output,
         }
     }
 
-    pub(super) fn dispatch(self, output: &mut dyn RowSink) -> Result<(), OperatingError> {
+    pub(super) fn dispatch(self) -> Result<(), OperatingError> {
         self.permit.validate_registered(self.operation)?;
         crate::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
             self.operation,
             self.input,
             self.context,
-            output,
+            self.output,
         )
     }
 }
@@ -204,11 +211,8 @@ pub(in crate::application::file_dag) fn evaluate(
         &semantics,
         &workspace.work,
         |context| {
-            let request = ExecutableLease::new(permit, context, operation, input);
-            match operators.execute(KernelCall::Registered {
-                request,
-                output: &mut output,
-            }) {
+            let request = ExecutableLease::new(permit, context, operation, input, &mut output);
+            match operators.execute(KernelCall::Registered { request }) {
                 Ok(KernelAnswer::Complete) => Ok(()),
                 Ok(KernelAnswer::Physical(_) | KernelAnswer::Walk(_)) => {
                     Err(OperatingError::WrongOperation)
