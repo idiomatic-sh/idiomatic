@@ -39,6 +39,7 @@ pub(crate) mod ordered_existence;
 
 pub(crate) mod placement;
 pub(crate) mod positions;
+pub(crate) mod native_positions;
 pub(crate) mod project;
 pub(crate) mod reading;
 pub(crate) mod recording;
