@@ -33,6 +33,7 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
             rule: ryo::linter::RuleId::try_from("A001").unwrap(),
             name: "mode".into(),
             request: RunRequest {
+                performance: Default::default(),
                 file_metadata: Some(BTreeMap::from([(file.clone(), expected)])),
                 context_manifest: None,
                 root: root.path().to_path_buf(),

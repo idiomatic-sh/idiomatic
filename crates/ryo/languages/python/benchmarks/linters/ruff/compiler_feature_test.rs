@@ -113,6 +113,7 @@ fn check_case(
         None,
     )
     .run(WorkerRequest {
+        performance: Default::default(),
         project_context_mode: ProjectContextMode::Isolated,
         context_manifest: None,
         root: source,

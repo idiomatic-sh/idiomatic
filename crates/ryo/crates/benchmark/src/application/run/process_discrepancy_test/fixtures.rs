@@ -71,6 +71,7 @@ impl Fixture {
             rule: ryo::linter::RuleId::try_from("A001").unwrap(),
             name: name.into(),
             request: RunRequest {
+                performance: Default::default(),
                 file_metadata: None,
                 root: source.clone(),
                 state: source.join("state"),

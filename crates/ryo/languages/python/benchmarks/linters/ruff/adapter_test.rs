@@ -167,6 +167,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         return Ok(true);
     }
     let mut request = RunRequest {
+        performance: Default::default(),
         file_metadata: None,
         context_manifest: None,
         root: root.path().to_owned(),

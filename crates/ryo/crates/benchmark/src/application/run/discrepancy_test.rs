@@ -34,6 +34,7 @@ fn case() -> PreparedCase {
         rule: ryo::linter::RuleId::try_from("F821").expect("valid ID"),
         name: "independent-contract".into(),
         request: RunRequest {
+            performance: Default::default(),
             file_metadata: None,
             root: ".".into(),
             state: "cache".into(),

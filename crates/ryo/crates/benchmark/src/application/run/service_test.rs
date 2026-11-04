@@ -92,6 +92,7 @@ const CASES: &[Case<Scenario, usize, &'static str>] = &[
 fn subject(scenario: Scenario) -> Result<usize, &'static str> {
     if matches!(scenario, Scenario::OmittedInput) {
         let request = RunRequest {
+            performance: Default::default(),
             file_metadata: None,
             context_manifest: None,
             root: ".".into(),
@@ -511,6 +512,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
             rule: ryo::linter::RuleId::try_from("E722").unwrap(),
             name: "positive".into(),
             request: RunRequest {
+                performance: Default::default(),
                 file_metadata: None,
                 context_manifest: None,
                 root: ".".into(),

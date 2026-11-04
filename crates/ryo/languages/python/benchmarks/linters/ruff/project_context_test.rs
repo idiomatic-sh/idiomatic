@@ -43,6 +43,7 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
 }
 fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
     WorkerRequest {
+        performance: Default::default(),
         project_context_mode: ProjectContextMode::ListedDisk,
         context_manifest: case.request.context_manifest.clone(),
         root: case.request.root.clone(),

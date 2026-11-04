@@ -15,6 +15,7 @@ const CASES: &[Case<(), (bool, usize), ()>] = &[Case {
 )]
 fn subject(_: ()) -> Result<(bool, usize), ()> {
     let request = RunRequest {
+        performance: Default::default(),
         file_metadata: None,
         context_manifest: None,
         root: ".".into(),
