@@ -33,9 +33,11 @@ impl PrimitiveSemantics for Portable {
 #[derive(Clone, Copy)]
 enum Scenario {
     Antijoin,
+    MissingRight,
     Union,
     JoinSteps,
     JoinTree,
+    UnsupportedRelation,
 }
 type Input = Scenario;
 type Value = &'static str;
@@ -98,7 +100,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let right_other = positions(&[3]);
     let left_union = positions(&[1, 2]);
     let (operation, left, right, output) = match scenario {
-        Scenario::Antijoin => (
+        Scenario::Antijoin | Scenario::MissingRight => (
             Operation::Antijoin {
                 left: PlanInput::Step(StepId(0)),
                 right: PlanInput::Step(StepId(1)),
@@ -109,7 +111,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 shape: &kind,
                 rows: &left_all,
             },
-            Some(PositionInput {
+            matches!(scenario, Scenario::Antijoin).then_some(PositionInput {
                 shape: &kind,
                 rows: &right_one,
             }),
@@ -142,8 +144,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }),
             shape(ElementPart::Kind, 2),
         ),
-        Scenario::JoinTree => (
-            join(PlanInput::Relation(Relation::SyntaxTree)),
+        Scenario::JoinTree | Scenario::UnsupportedRelation => (
+            join(PlanInput::Relation(
+                if matches!(scenario, Scenario::JoinTree) {
+                    Relation::SyntaxTree
+                } else {
+                    Relation::Function
+                },
+            )),
             PositionInput {
                 shape: &node,
                 rows: &left_tree,
@@ -202,8 +210,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::JoinTree,
         expect: Expect::Value("2 2"),
     },
+    Case {
+        name: CaseName("native_antijoin_refuses_missing_required_right_operand"),
+        word: Word::Refuses,
+        input: || Scenario::MissingRight,
+        expect: Expect::Error(OperatingError::MissingInput { position: 2 }),
+    },
+    Case {
+        name: CaseName("native_join_declines_non_tree_relation_without_running_it"),
+        word: Word::Refuses,
+        input: || Scenario::UnsupportedRelation,
+        expect: Expect::Error(OperatingError::NotAStep),
+    },
 ];
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
