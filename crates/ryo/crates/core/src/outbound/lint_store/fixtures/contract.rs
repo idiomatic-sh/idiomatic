@@ -35,6 +35,7 @@ pub fn materialized_handed(
         });
     }
     Ok(StoredHanded {
+        observations: handed.observations,
         frontier: rows,
         texts: handed.texts,
         notes: handed.notes,

@@ -186,6 +186,7 @@ fn converted_policy(applicability: RuleApplicability) -> Result<Value, Failure> 
         rules: [(
             id,
             Rule {
+                observations: Vec::new(),
                 query,
                 applicability,
                 parameters: std::collections::BTreeMap::new(),

@@ -241,9 +241,11 @@ const REQUESTS: &[Case<Declared, bool, Failure>] = &[
 fn requested((declared, expected): Declared) -> bool {
     let query = RyoQlQuery::try_from(TEXT).expect("the text is not blank");
     request(ValidateRequest {
+        observations: Vec::new(),
         query,
         hosted: declared,
     }) == CoreRequest {
+        observations: Vec::new(),
         text: ryo_values::domain::program::types::QueryBundle::from(QueryText(TEXT.into())),
         hosted: expected,
     }

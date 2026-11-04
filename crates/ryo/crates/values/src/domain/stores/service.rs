@@ -6,6 +6,7 @@ use super::types::{ReadHanded, ReadWordPayload, ReadWords, StoredHanded};
 #[must_use]
 pub fn read_handed(stored: StoredHanded) -> ReadHanded {
     ReadHanded {
+        observations: stored.observations,
         frontier: stored
             .frontier
             .into_iter()

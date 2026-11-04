@@ -52,58 +52,141 @@ impl RuleCompilation {
     ) -> Result<Compiled, RuleCompilationError> {
         check_ids(rules)?;
         let declared = declarations(hosted);
+        let schedule = crate::domain::file_program::service::observations::schedule(rules)?;
+        if let crate::domain::file_program::types::RuleSchedule::Dependencies { order, .. } =
+            &schedule
+        {
+            let mut plans: Vec<Option<ryo_values::domain::plans::types::Plan>> =
+                vec![None; rules.len()];
+            let mut bindings = vec![None; rules.len()];
+            let mut observations = vec![Vec::new(); rules.len()];
+            for index in order {
+                let rule = &rules[index.0];
+                let schemas = crate::domain::file_program::service::observations::schemas(
+                    rule, rules, &plans,
+                )?;
+                let plan = self.compile_one(rule, &declared, &schemas.schemas)?;
+                observations[index.0] = schemas.bindings;
+                bindings[index.0] = Some(bind(&plan, rule)?);
+                plans[index.0] = Some(plan);
+            }
+            let plans = plans
+                .into_iter()
+                .map(|plan| {
+                    plan.expect("topological preparation visits every original rule exactly once")
+                })
+                .collect();
+            let bindings = bindings
+                .into_iter()
+                .map(|bound| bound.expect("each prepared rule has its own checked bindings"))
+                .collect();
+            return Ok(Compiled {
+                plans,
+                bindings,
+                schedule,
+                observations,
+            });
+        }
         let (mut plans, mut bindings) = (Vec::new(), Vec::new());
         for rule in rules {
-            let known = self
-                .compiled
-                .0
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .plans
-                .get(&rule.id)
-                .filter(|cached| cached.query == rule.query && cached.hosted == declared)
-                .map(|cached| cached.plan.clone());
-            let plan = if let Some(plan) = known {
-                plan
-            } else {
-                let plan = self
-                    .query_language
-                    .compile(&rule.query, &declared)
-                    .map_err(|QueryLanguageError::Refused { error }| {
-                        RuleCompilationError::Query {
-                            id: rule.id.0.to_string(),
-                            error,
-                        }
-                    })?;
-                let cached = CachedPlan {
-                    query: rule.query.clone(),
-                    hosted: declared.clone(),
-                    plan: plan.clone(),
-                };
-                let mut kept = self
-                    .compiled
-                    .0
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner);
-                // Past the cap the plan kept longest is dropped, whichever run it was kept for and whatever this request names: a
-                // session that lints under new rule ids again and again stays bounded, and runs sharing the engine lose one plan at
-                // a time, never all of theirs at once. A run holds its own plans, so a dropped one is only compiled again later.
-                if kept.plans.insert(rule.id.clone(), cached).is_none() {
-                    kept.order.push_back(rule.id.clone());
-                }
-                while kept.plans.len() > COMPILED_PLANS {
-                    let Some(oldest) = kept.order.pop_front() else {
-                        break;
-                    };
-                    drop(kept.plans.remove(&oldest));
-                }
-                drop(kept);
-                plan
-            };
+            let plan = self.compile_one(rule, &declared, &[])?;
             bindings.push(bind(&plan, rule)?);
             plans.push(plan);
         }
-        Ok(Compiled { plans, bindings })
+        Ok(Compiled {
+            plans,
+            bindings,
+            schedule,
+            observations: Vec::new(),
+        })
+    }
+
+    /// Compile immutable declarations, then link only this request's actual observed roots.
+    pub(crate) fn prepare(
+        &self,
+        rules: &[RuleSpec],
+        hosted: &[HostRelation],
+    ) -> Result<Compiled, RuleCompilationError> {
+        let mut compiled = self.compile(rules, hosted)?;
+        let linked = crate::domain::file_program::service::link::link(
+            std::mem::take(&mut compiled.plans),
+            std::mem::take(&mut compiled.observations),
+        )?;
+        compiled.plans = linked.plans;
+        compiled.observations = linked.bindings;
+        if compiled.observations.iter().all(Vec::is_empty) {
+            compiled.observations.clear();
+            compiled.schedule = crate::domain::file_program::types::RuleSchedule::Independent;
+        }
+        Ok(compiled)
+    }
+
+    /// One immutable all-root plan, cached only under its full typed compilation contract.
+    fn compile_one(
+        &self,
+        rule: &RuleSpec,
+        declared: &[ryo_values::domain::hosted::types::HostedRelation],
+        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    ) -> Result<ryo_values::domain::plans::types::Plan, RuleCompilationError> {
+        if let Some(plan) = self
+            .compiled
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .plans
+            .get(&rule.id)
+            .filter(|cached| {
+                cached.query == rule.query
+                    && cached.hosted == declared
+                    && cached.observation_bindings == rule.observations
+                    && cached.observation_inputs == observations
+            })
+            .map(|cached| cached.plan.clone())
+        {
+            return Ok(plan);
+        }
+        let plan = self
+            .query_language
+            .compile(&rule.query, declared, observations)
+            .map_err(
+                |QueryLanguageError::Refused { error }| RuleCompilationError::Query {
+                    id: rule.id.0.to_string(),
+                    error,
+                },
+            )?;
+        self.cache_plan(rule, declared, observations, &plan);
+        Ok(plan)
+    }
+
+    /// The existing bounded session owns cached declarations; a request owns its cloned plans.
+    fn cache_plan(
+        &self,
+        rule: &RuleSpec,
+        declared: &[ryo_values::domain::hosted::types::HostedRelation],
+        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+        plan: &ryo_values::domain::plans::types::Plan,
+    ) {
+        let cached = CachedPlan {
+            query: rule.query.clone(),
+            hosted: declared.to_vec(),
+            observation_bindings: rule.observations.clone(),
+            observation_inputs: observations.to_vec(),
+            plan: plan.clone(),
+        };
+        let mut kept = self
+            .compiled
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if kept.plans.insert(rule.id.clone(), cached).is_none() {
+            kept.order.push_back(rule.id.clone());
+        }
+        while kept.plans.len() > COMPILED_PLANS {
+            let Some(oldest) = kept.order.pop_front() else {
+                break;
+            };
+            drop(kept.plans.remove(&oldest));
+        }
     }
 }
 

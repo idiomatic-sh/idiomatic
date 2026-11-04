@@ -103,6 +103,7 @@ fn setting(placed: &PlacedScopes) -> VisitSetting<'_> {
         executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
         domain: crate::domain::workers::types::VisitSetting {
+            observations: crate::domain::file_program::types::ObservationRequest::Independent,
             unknown: &[],
             plans: &[],
             bindings: &[],
@@ -188,6 +189,8 @@ fn ran() -> Ran {
 
 fn plan_with_a_frontier() -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Project {
@@ -402,7 +405,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 },
             ];
             let mut flat = Flat(vec![99]);
-            frontier_flat(&moved, &setting, RuleIndex(0), &mut flat);
+            frontier_flat(&moved, None, &[], &setting, RuleIndex(0), &mut flat);
             Ok(flat.0.iter().sum())
         }
         Scenario::MadeRan => {
@@ -608,7 +611,7 @@ fn prepared_packed_buckets_preserve_legacy_flat_digests_store_bytes_and_move_own
                 expected.extend_from_slice(&words.0);
             }
         }
-        frontier_flat(&moved, &setting, RuleIndex(rule), &mut flat);
+        frontier_flat(&moved, None, &[], &setting, RuleIndex(rule), &mut flat);
         assert_eq!(flat.0, expected, "digest framing and captured order");
         assert_eq!(
             DigestFake.digest_words(DigestWords(&flat.0)),

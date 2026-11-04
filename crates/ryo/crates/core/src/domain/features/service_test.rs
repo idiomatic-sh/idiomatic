@@ -41,6 +41,8 @@ type Failure = ();
 /// A plan of one step: a select over `function` that compares for equality.
 fn select_over_function() -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {

@@ -183,6 +183,7 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                 .rules
                 .into_iter()
                 .map(|(id, rule)| CoreRule {
+                    observations: observation_bindings(rule.observations),
                     id: ryo_values::domain::runs::types::RuleId(id.as_ref().into()),
                     query: rule.query.into_bundle(),
                     applicability: match rule.applicability {
@@ -276,6 +277,8 @@ impl From<LintErrorSchema> for LintError {
             CoreError::Execution { reason } => Self::Execution { reason },
 
             CoreError::SourceLanguage { name } => Self::SourceLanguage { name },
+            CoreError::ObservationBindings { reason } => Self::ObservationBindings { reason },
+            CoreError::ObservationExecution { reason } => Self::ObservationExecution { reason },
             CoreError::Query { id, error } => Self::Rule {
                 id: RuleId::from_text(id.into()),
                 error: compile_error(error),
@@ -584,3 +587,36 @@ pub(super) const fn budget(memory: MemoryBudget) -> Budget {
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+
+/// Translate edge-validated rule identities without changing producer selection.
+fn observation_bindings(
+    bindings: Vec<super::types::ObservationBinding>,
+) -> Vec<ryo_values::domain::observations::types::ObservationBinding> {
+    use ryo_values::domain::observations::types::{ObservationBinding, ObservationProducer};
+    bindings
+        .into_iter()
+        .map(|binding| ObservationBinding {
+            name: ryo_values::domain::observations::types::ObservationBindingName(binding.name.0),
+            columns: crate::domain::observation::service::columns(binding.columns),
+            producers: binding
+                .producers
+                .into_iter()
+                .map(|producer| match producer {
+                    super::types::ObservationProducer::Output { rule, output } => {
+                        ObservationProducer::Output {
+                            rule: ryo_values::domain::runs::types::RuleId(rule.as_ref().into()),
+                            output: ryo_values::domain::observations::types::ObservationName(
+                                output.0,
+                            ),
+                        }
+                    }
+                    super::types::ObservationProducer::NoQuery { rule } => {
+                        ObservationProducer::NoQuery {
+                            rule: ryo_values::domain::runs::types::RuleId(rule.as_ref().into()),
+                        }
+                    }
+                })
+                .collect(),
+        })
+        .collect()
+}

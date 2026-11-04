@@ -76,6 +76,8 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
         },
     };
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation,

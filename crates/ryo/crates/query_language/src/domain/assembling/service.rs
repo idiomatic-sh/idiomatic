@@ -8,12 +8,16 @@ use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::calling::service::lower_call;
 use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
-use crate::domain::inlining::service::{cut_relations, inline_views, reduced_frontier};
+use crate::domain::inlining::service::{
+    cut_relations, cut_relations_roots, inline_views, reduced_frontier, reduced_frontier_roots,
+};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
 use crate::domain::planning::service::{frontier_of, pushed};
-use crate::domain::pruning::service::without_unused;
-use crate::domain::pushing::service::{push_below_captures, push_lookups};
+use crate::domain::pruning::service::{without_unused, without_unused_roots};
+use crate::domain::pushing::service::{
+    push_below_captures, push_below_captures_roots, push_lookups, push_lookups_roots,
+};
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
 use crate::domain::rewriting::types::Planned;
 use crate::domain::selecting::service::lower_select;
@@ -33,11 +37,23 @@ use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
     clippy::too_many_lines,
     reason = "lowering keeps the ordered whole-plan optimization pipeline explicit"
 )]
+#[cfg(test)]
 pub(crate) fn lower(
     program: &syntax::Program,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
 ) -> Result<plans::Plan, LoweringError> {
+    lower_with_observations(program, catalog, hosted, &[])
+}
+
+/// Resolve every declared producer source through the same typed lowering pass.
+pub(crate) fn lower_with_observations(
+    program: &syntax::Program,
+    catalog: &[Relation],
+    hosted: &[hosted::HostedRelation],
+    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+) -> Result<plans::Plan, LoweringError> {
+    let observation_inputs = observations.to_vec();
     let mut kinds = Vec::new();
     for parameter in &program.parameters {
         let kind = parameter_kind_named(&parameter.kind.0).ok_or_else(|| {
@@ -50,6 +66,7 @@ pub(crate) fn lower(
     }
     let mut builder = Builder {
         catalog,
+        observation_inputs: observations,
         hosted_steps: Vec::new(),
         parameters: &program.parameters,
         kinds,
@@ -113,21 +130,74 @@ pub(crate) fn lower(
     let named = step_named(&builder, &program.emit.step)
         .map_err(|error| locate_error(program.emit_origin.clone(), error))?;
     let fields = step_of(&builder.lowered, named).fields.clone();
-    let Planned {
-        steps: pushed,
-        emitted: named,
-    } = push_lookups(
-        fuse_neighbours(fuse_descents(fuse_selects(inline_views(std::mem::take(
+    let observed = program
+        .observations
+        .iter()
+        .map(|output| {
+            let step = step_named(&builder, &output.step)
+                .map_err(|error| locate_error(output.origin.clone(), error))?;
+            let columns = step_of(&builder.lowered, step)
+                .fields
+                .iter()
+                .map(
+                    |field| ryo_values::domain::observations::types::ObservationColumn {
+                        name: ryo_values::domain::observations::types::ObservationColumnName(
+                            field.name.0.clone(),
+                        ),
+                        kind: field.kind,
+                    },
+                )
+                .collect();
+            Ok((output.name.clone(), step, columns))
+        })
+        .collect::<Result<Vec<_>, LoweringError>>()?;
+    let (steps, emitted, observations) = if observed.is_empty() {
+        let Planned {
+            steps: pushed,
+            emitted: named,
+        } = push_lookups(
+            fuse_neighbours(fuse_descents(fuse_selects(inline_views(std::mem::take(
+                &mut builder.steps,
+            ))))),
+            named,
+        );
+        let Planned { steps, emitted } = without_unused(pushed, named);
+        let Planned { steps, emitted } = push_below_captures(steps, emitted);
+        let Planned { steps, emitted } = reduced_frontier(steps, emitted);
+        let Planned { steps, emitted } = cut_relations(steps, emitted);
+        // Full-scan/exported consumers remain ordinary; pruning removes only fully replaced closure chains.
+        let Planned { steps, emitted } =
+            without_unused(fuse_keyed_reaches(steps, &[emitted]), emitted);
+        (steps, emitted, Vec::new())
+    } else {
+        let mut roots = std::iter::once(named)
+            .chain(observed.iter().map(|output| output.1))
+            .collect::<Vec<_>>();
+        let steps = fuse_neighbours(fuse_descents(fuse_selects(inline_views(std::mem::take(
             &mut builder.steps,
-        ))))),
-        named,
-    );
-    let Planned { steps, emitted } = without_unused(pushed, named);
-    let Planned { steps, emitted } = push_below_captures(steps, emitted);
-    let Planned { steps, emitted } = reduced_frontier(steps, emitted);
-    let Planned { steps, emitted } = cut_relations(steps, emitted);
-    // Full-scan/exported consumers remain ordinary; pruning removes only fully replaced closure chains.
-    let Planned { steps, emitted } = without_unused(fuse_keyed_reaches(steps, &[emitted]), emitted);
+        )))));
+        let steps = push_lookups_roots(steps, &mut roots);
+        let steps = without_unused_roots(steps, &mut roots);
+        let steps = push_below_captures_roots(steps, &mut roots);
+        let steps = reduced_frontier_roots(steps, &mut roots);
+        let steps = cut_relations_roots(steps, &mut roots);
+        let steps = fuse_keyed_reaches(steps, &roots);
+        let steps = without_unused_roots(steps, &mut roots);
+        let observations = observed
+            .into_iter()
+            .zip(roots.iter().skip(1))
+            .map(|((name, _, columns), step)| {
+                ryo_values::domain::observations::types::PlanObservation {
+                    name,
+                    source: parts::Input::Step(*step),
+                    columns,
+                    scope: steps[usize::try_from(step.0).expect("retained root fits step index")]
+                        .scope,
+                }
+            })
+            .collect();
+        (steps, roots[0], observations)
+    };
     let subject = position(
         &fields,
         QuerySpelling(&program.emit.subject.0),
@@ -142,6 +212,8 @@ pub(crate) fn lower(
         );
     }
     Ok(plans::Plan {
+        observation_inputs,
+        observations,
         parameters: program
             .parameters
             .iter()

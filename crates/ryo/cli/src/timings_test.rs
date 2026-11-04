@@ -191,6 +191,7 @@ fn a_query_run_reports_rows_of_ryo_itself() {
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("1".into()),
             query: ryo_values::domain::program::types::QueryBundle::from(
                 ryo_values::domain::plan_parts::types::QueryText(

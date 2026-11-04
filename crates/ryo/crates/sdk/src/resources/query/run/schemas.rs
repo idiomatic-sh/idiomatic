@@ -62,6 +62,7 @@ impl TryFrom<RunRequestSchema> for CoreRequest {
             files: Vec::new(),
             source_language: None,
             rules: vec![Rule {
+                observations: Vec::new(),
                 id: ryo_values::domain::runs::types::RuleId(QUERY_ID.into()),
                 query: request.query.into_bundle(),
                 applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
@@ -115,6 +116,8 @@ impl From<RunReportSchema> for RunReport {
 impl From<RunErrorSchema> for RunError {
     fn from(schema: RunErrorSchema) -> Self {
         match schema.0 {
+            CoreError::ObservationBindings { reason } => Self::Query { reason },
+            CoreError::ObservationExecution { reason } => Self::Evaluate { reason },
             CoreError::Query { error, .. } => Self::Query {
                 reason: error.to_string(),
             },

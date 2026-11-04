@@ -67,6 +67,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn plan_of(operation: Operation) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation,

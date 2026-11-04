@@ -30,6 +30,8 @@ type Failure = ();
 
 fn plan(frontier: Vec<PlanInput>, reads: &[Relation]) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: reads
             .iter()

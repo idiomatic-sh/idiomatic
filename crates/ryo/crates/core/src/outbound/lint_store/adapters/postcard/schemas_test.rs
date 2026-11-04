@@ -152,3 +152,49 @@ fn subject(offered: Input) -> Value {
 fn succeeds() {
     run(CASES, Word::Succeeds, |offered| Ok(subject(offered)));
 }
+
+#[test]
+fn named_frontier_readiness_roundtrips_independently_of_row_bytes() {
+    use ryo_values::domain::{
+        observations::{
+            service::{new_frontiers, set_frontier},
+            types::{
+                ObservationReadinessCount, ObservationReadinessLayout, ObservationReadinessSlot,
+                ObservationReason, ProducerReadiness,
+            },
+        },
+        stored_facts::types::Digest,
+        stores::types::{StoredFileNumber, StoredFrontierReadiness},
+    };
+    let mut handed = StoredHanded::default();
+    let mut root = new_frontiers(
+        ObservationReadinessLayout(Digest([7; 16])),
+        ObservationReadinessCount(5),
+    );
+    for (index, readiness) in [
+        ProducerReadiness::Complete,
+        ProducerReadiness::Unknown(ObservationReason("exact reason\tλ\0text".into())),
+        ProducerReadiness::Skipped,
+        ProducerReadiness::NoQuery,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        set_frontier(
+            &mut root,
+            ObservationReadinessSlot(u32::try_from(index).unwrap()),
+            readiness,
+        )
+        .unwrap();
+    }
+    handed.observations.push(StoredFrontierReadiness {
+        file: StoredFileNumber(0),
+        root: std::sync::Arc::new(root),
+    });
+    let bytes = rest_bytes(&handed).expect("current rest schema");
+    assert_eq!(rest_from(&bytes), Some(handed));
+    assert!(
+        rest_from(&bytes[..bytes.len() - 1]).is_none(),
+        "truncated readiness cannot become a complete empty source"
+    );
+}

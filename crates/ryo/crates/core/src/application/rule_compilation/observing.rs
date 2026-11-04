@@ -56,6 +56,7 @@ fn prefix(below: &[Option<Prefix>], operation: &Operation) -> Option<Prefix> {
         | Operation::SpanBetween { .. } => return None,
     };
     let (relation, mut chosen, columns) = match from {
+        Input::BoundObservation(_) => return None,
         Input::Relation(relation) => (
             relation,
             Vec::new(),

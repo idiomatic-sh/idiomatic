@@ -65,6 +65,8 @@ fn query(major: i64, join: bool) -> Plan {
         },
     });
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps,
         emit: Emit {
@@ -292,6 +294,8 @@ fn incomplete_or_invalid_population_stays_entirely_on_the_residual_executor() {
 #[test]
 fn opaque_first_failure_prevents_later_rule_graph_work() {
     let first = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![PlanStep {
             scope: StepScope::PerFile,

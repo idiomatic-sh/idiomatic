@@ -76,7 +76,7 @@ fn compile_query(bundle: &QueryBundle) -> Result<ryo_values::domain::plans::type
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
     ));
-    QueryLanguageUseCaseAdapter::new(compile, typecheck).compile(bundle, &[])
+    QueryLanguageUseCaseAdapter::new(compile, typecheck).compile(bundle, &[], &[])
 }
 
 /// Raw query backslashes must reach the regex evaluator unchanged.

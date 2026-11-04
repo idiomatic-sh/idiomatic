@@ -1,5 +1,5 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
-use crate::application::file_dag::crossing::cross_rule;
+use crate::application::file_dag::crossing::cross_rule_with_inputs;
 use crate::application::file_dag::settings::CrossingInput;
 use crate::domain::answering::types::{Crossed, Todo};
 use crate::domain::crossing::service::placeable;
@@ -51,12 +51,34 @@ impl CrossFile {
         Self { corpus }
     }
     /// Evaluate, place and render one cross-file rule without publishing it.
+    /// Diagnostic-only entry; demanded observation phases require the explicit reserved-slot entry.
     pub(crate) fn evaluate(
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
         frontier: Vec<Frontier>,
         cross: &mut Symbols,
+    ) -> Result<Crossed, RulesError> {
+        self.evaluate_phase(
+            crossing,
+            todo,
+            super::types::PreparedFrontiers {
+                rows: frontier,
+                refused: Vec::new(),
+            },
+            cross,
+            &[],
+            super::types::PublicationSlot::Unused,
+        )
+    }
+    pub(crate) fn evaluate_phase(
+        &self,
+        crossing: &CrossingInput<'_>,
+        todo: &Todo,
+        mut frontier: super::types::PreparedFrontiers,
+        cross: &mut Symbols,
+        bound_inputs: &[crate::domain::crossing::types::BoundInputWords],
+        publication: super::types::PublicationSlot,
     ) -> Result<Crossed, RulesError> {
         #[cfg(feature = "diagnostic-row-progress")]
         let _project_progress =
@@ -72,39 +94,126 @@ impl CrossFile {
         ) else {
             return Ok(Crossed::default());
         };
-        let evaluated = cross_rule(crossing, todo, frontier, cross)?;
-        let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
-        let rule_number = RuleNumber(u32::try_from(todo.rule.0).unwrap_or(u32::MAX));
-        let mut found = founds(rule_number, &evaluated.table, &plan.emit, FileId(u32::MAX))
-            .map_err(|error| refuse(&error))?;
-        found.sort_by_key(|each| each.file);
-        let mut bytes = FileBytes::default();
-        if placeable(plan, &evaluated.table) == Placeability::Placeable {
-            for group in found.chunk_by_mut(|left, right| left.file == right.file) {
-                let Some(entry) = group
-                    .first()
-                    .and_then(|first| file_in(crossing.files, first.file))
-                else {
-                    continue;
-                };
-                if self.corpus.read(entry, &mut bytes).is_ok() {
-                    place_all(group, &plan.emit, SourceView(&bytes.0), cross);
+        for input in bound_inputs {
+            match super::inputs::observed(crossing, todo.rule, input, cross) {
+                Ok(input) => frontier.rows.push(input),
+                Err(error) => {
+                    frontier
+                        .refused
+                        .push(crate::domain::crossing::types::RefusedFrontier {
+                            input: ryo_values::domain::plan_parts::types::Input::BoundObservation(
+                                input.input,
+                            ),
+                            error,
+                        })
                 }
             }
         }
-        let mut rendered = Rendered::default();
-        match crossing.answering {
-            Answering::Findings => self.render_cross(crossing, cross, &found, &mut rendered),
-            Answering::Rows(_) => {
-                order_found(&mut found, crossing.paths);
-                self.render_rows(crossing, cross, &found, &mut rendered);
-                Ok(())
+        let evaluated =
+            cross_rule_with_inputs(crossing, todo, frontier.rows, &frontier.refused, cross)?;
+        let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
+        let roots = evaluated.roots;
+        let mut unknowns = if let Some(error) = &roots.emit_error {
+            crossing
+                .paths
+                .iter()
+                .take(crossing.files.len())
+                .map(|path| crate::domain::coverage::types::Unknown {
+                    rule: todo.id.clone(),
+                    path: path.clone(),
+                    message: crate::domain::coverage::types::Message(error.to_string().into()),
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let rendered = match self.render_emit(crossing, todo, plan, roots.emit, cross) {
+            Ok(rendered) => rendered,
+            Err(error) if !plan.observations.is_empty() || !plan.observation_inputs.is_empty() => {
+                unknowns.extend(
+                    crossing
+                        .paths
+                        .iter()
+                        .take(crossing.files.len())
+                        .map(|path| crate::domain::coverage::types::Unknown {
+                            rule: todo.id.clone(),
+                            path: path.clone(),
+                            message: crate::domain::coverage::types::Message(
+                                error.to_string().into(),
+                            ),
+                        }),
+                );
+                None
             }
-        }
-        .map_err(|error| refuse(&error))?;
+            Err(error) => return Err(error),
+        };
+        let observations = if roots.observations.is_empty() {
+            None
+        } else {
+            let super::types::PublicationSlot::Reserved(worker) = publication else {
+                return Err(refuse(
+                    &"demanded observation phase has no reserved publication arena",
+                ));
+            };
+            Some(super::publication::pack_roots(
+                roots.observations,
+                cross,
+                crossing.arenas,
+                worker,
+            ))
+        };
         Ok(Crossed {
+            unknowns,
             rendered,
+            observations,
             fed: evaluated.fed,
+        })
+    }
+    /// Place and render the actual diagnostic root; named-root production is independent.
+    fn render_emit(
+        &self,
+        crossing: &CrossingInput<'_>,
+        todo: &Todo,
+        plan: &ryo_values::domain::plans::types::Plan,
+        table: Option<crate::domain::table_model::types::Table>,
+        cross: &mut Symbols,
+    ) -> Result<Option<Rendered>, RulesError> {
+        let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
+        let rule_number = RuleNumber(u32::try_from(todo.rule.0).unwrap_or(u32::MAX));
+        Ok(if let Some(table) = table {
+            let mut found = founds(rule_number, &table, &plan.emit, FileId(u32::MAX))
+                .map_err(|error| refuse(&error))?;
+            found.sort_by_key(|each| each.file);
+            let mut bytes = FileBytes::default();
+            if placeable(plan, &table) == Placeability::Placeable {
+                for group in found.chunk_by_mut(|left, right| left.file == right.file) {
+                    let Some(entry) = group
+                        .first()
+                        .and_then(|first| file_in(crossing.files, first.file))
+                    else {
+                        continue;
+                    };
+                    let CorpusInput::Available(entry) = entry else {
+                        continue;
+                    };
+                    if self.corpus.read(entry, &mut bytes).is_ok() {
+                        place_all(group, &plan.emit, SourceView(&bytes.0), cross);
+                    }
+                }
+            }
+            let mut rendered = Rendered::default();
+            match crossing.answering {
+                Answering::Findings => self.render_cross(crossing, cross, &found, &mut rendered),
+                Answering::Rows(_) => {
+                    order_found(&mut found, crossing.paths);
+                    self.render_rows(crossing, cross, &found, &mut rendered);
+                    Ok(())
+                }
+            }
+            .map_err(|error| refuse(&error))?;
+            Some(rendered)
+        } else {
+            None
         })
     }
     /// The cell `value` is in a report, its text kept at the end of `text`, reading the file it is about when it is not the one loaded.

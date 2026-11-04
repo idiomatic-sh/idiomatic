@@ -200,6 +200,11 @@ pub(crate) fn configuration_bytes(configuration: &Configuration<'_>) -> DigestIn
             put(&mut out, DigestPart(&source.text));
         }
         put(&mut out, DigestPart(&rule.spelled.0));
+        // Ordinary rules retain their historical bytes; declared dependency contracts
+        // carry a versioned frame including producer IDs, output names and schema.
+        out.0.extend_from_slice(
+            &ryo_values::domain::observations::service::identity(&rule.observations).0,
+        );
         for globs in [&rule.include, &rule.exclude] {
             out.0
                 .extend_from_slice(&u64::try_from(globs.len()).unwrap_or(0).to_le_bytes());

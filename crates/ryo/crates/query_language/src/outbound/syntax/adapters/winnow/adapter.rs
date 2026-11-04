@@ -22,7 +22,8 @@ use ryo_values::domain::program::types::{
     OperationName, ParameterDeclaration, Program, QuerySource, QuerySpan, QueryView,
     RelationSignature, Renaming, Select, SelectColumn, SignatureColumn, SourceReference,
     StepIdentity, StepName, TypeName, WordText, WrittenApplied, WrittenEmit, WrittenFunction,
-    WrittenLiteral, WrittenName, WrittenOperand, WrittenParameter, WrittenRelation, WrittenTest,
+    WrittenLiteral, WrittenName, WrittenObservation, WrittenOperand, WrittenParameter,
+    WrittenRelation, WrittenTest,
 };
 
 /// The winnow syntax adapter.
@@ -40,6 +41,8 @@ pub(super) enum ProgramLine {
     Parameter(ParameterDeclaration),
     /// A `let` line: a step that makes rows.
     Step(LetStep),
+    /// A separately named semantic output.
+    Observe(WrittenObservation),
     /// The `emit` line: the step whose rows are the findings.
     Emit(WrittenEmit),
 }
@@ -151,6 +154,7 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
     let mut imports = Vec::new();
     let mut steps = Vec::new();
     let mut emit = None;
+    let mut observations = Vec::new();
     loop {
         multispace0.void().parse_next(input)?;
         if opt(eof).parse_next(input)?.is_some() {
@@ -160,6 +164,7 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
             ProgramLine::Import(import) => imports.push(import),
             ProgramLine::Parameter(parameter) => parameters.push(parameter),
             ProgramLine::Step(step) => steps.push(step),
+            ProgramLine::Observe(output) => observations.push(output),
             ProgramLine::Emit(found) => {
                 if emit.replace(found).is_some() {
                     return Err(winnow::error::ErrMode::Cut(
@@ -172,12 +177,20 @@ pub(super) fn program(input: &mut Input<'_>) -> ModalResult<Program> {
     match emit {
         Some(mut emit) => {
             assign_step_identities(&mut steps, &mut emit.step);
+            for output in &mut observations {
+                output.step.1 = steps
+                    .iter()
+                    .rev()
+                    .find(|step| step.name.0 == output.step.0)
+                    .and_then(|step| step.name.1);
+            }
             Ok(Program {
                 linked: false,
                 imports,
                 origins: Vec::new(),
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
+                observations,
                 emit_origin: None,
                 parameters,
                 steps,
@@ -395,9 +408,33 @@ pub(super) fn line(input: &mut Input<'_>) -> ModalResult<ProgramLine> {
         import_line.map(ProgramLine::Import),
         parameter_line.map(ProgramLine::Parameter),
         step_line.map(ProgramLine::Step),
+        observe_line.map(ProgramLine::Observe),
         emit_line.map(ProgramLine::Emit),
     ))
     .parse_next(input)
+}
+
+/// `observe matched as "usage";`: a semantic output that never becomes a diagnostic by itself.
+pub(super) fn observe_line(input: &mut Input<'_>) -> ModalResult<WrittenObservation> {
+    let ((step, name), span) = delimited(
+        (keyword(Keyword::Observe), multispace1),
+        (
+            terminated(word, (multispace1, keyword(Keyword::As), multispace1)),
+            name_or_string,
+        ),
+        (multispace0, ';'),
+    )
+    .with_span()
+    .parse_next(input)?;
+    Ok(WrittenObservation {
+        step: StepName(step.0.into(), None),
+        name: ryo_values::domain::observations::types::ObservationName(name.0.into()),
+        span: QuerySpan {
+            start: ByteOffset(span.start),
+            end: ByteOffset(span.end),
+        },
+        origin: None,
+    })
 }
 
 /// `import suppress from "python/ruff/suppress";`.

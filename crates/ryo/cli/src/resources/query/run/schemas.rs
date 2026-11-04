@@ -89,6 +89,7 @@ impl TryFrom<RunArgumentsSchema> for LintRequest {
                 .into_iter()
                 .enumerate()
                 .map(|(place, text)| Rule {
+                    observations: Vec::new(),
                     id: RuleId((place + 1).to_string().into()),
                     query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
                         text.into(),

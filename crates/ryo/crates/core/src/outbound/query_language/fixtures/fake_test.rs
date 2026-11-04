@@ -37,6 +37,7 @@ fn subject(text: &Input) -> Result<Value, Failure> {
         .compile(
             &ryo_values::domain::program::types::QueryBundle::from(text.clone()),
             &[],
+            &[],
         )
         .map(|_| true)
 }

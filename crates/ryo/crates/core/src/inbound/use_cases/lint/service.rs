@@ -47,14 +47,20 @@ pub(super) fn handed_of(
     plans: &[Plan],
     first_bucket: &[Bucket],
     again: &Reuse,
+    producer_buckets: &[Bucket],
 ) -> Result<HandedAgain, LintError> {
-    let wanted = match again {
+    let mut wanted = match again {
         Reuse::Cross(MadeAgain::These(made)) => {
             BucketsWanted::These(buckets_of(plans, first_bucket, Some(made)))
         }
         Reuse::Cross(MadeAgain::All | MadeAgain::Nothing) | Reuse::Whole => BucketsWanted::All,
         Reuse::Again => BucketsWanted::These(Vec::new()),
     };
+    if let BucketsWanted::These(buckets) = &mut wanted {
+        buckets.extend_from_slice(producer_buckets);
+        buckets.sort_unstable();
+        buckets.dedup();
+    }
     let handed = match again {
         Reuse::Cross(_) => read
             .map(|read| read.handed(&wanted))

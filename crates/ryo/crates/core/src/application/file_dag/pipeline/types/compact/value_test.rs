@@ -141,6 +141,8 @@ fn subject_with_counting(
         },
     };
     let first = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![filter, project, join],
         comparison_origins: Vec::new(),

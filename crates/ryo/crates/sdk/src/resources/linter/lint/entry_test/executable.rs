@@ -13,6 +13,7 @@ fn request(root: &std::path::Path, observation: ExecutablePermission, query: &st
         rules: BTreeMap::from([(
             RuleId::try_from("permissions").unwrap(),
             Rule {
+                observations: Vec::new(),
                 query: crate::resources::query::RyoQlQuery::try_from(query).unwrap(),
                 applicability: crate::resources::linter::RuleApplicability::Always,
                 parameters: BTreeMap::new(),

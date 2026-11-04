@@ -64,6 +64,7 @@ fn spec(id: &str, include: &[&str], exclude: &[&str]) -> RuleSpec {
         query: ryo_values::domain::program::types::QueryBundle::from(QueryText("select".into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         given: Vec::new(),
+        observations: Vec::new(),
         spelled: RuleParameters("limit=3".into()),
         include: globs(include),
         exclude: globs(exclude),
@@ -93,6 +94,8 @@ fn given(name: &str, number: i64) -> Given {
 
 fn plan_with(parameters: Vec<PlanParameter>) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters,
         steps: Vec::new(),
         emit: Emit {

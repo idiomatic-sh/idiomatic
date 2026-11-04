@@ -169,6 +169,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 scope: StepScope::PerFile,
             });
             let plan = Plan {
+                observation_inputs: Vec::new(),
+                observations: Vec::new(),
                 parameters: vec![],
                 steps,
                 emit: Emit {

@@ -57,6 +57,8 @@ fn plan(swapped: bool) -> Plan {
         },
     ];
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: operations
             .into_iter()

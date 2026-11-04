@@ -81,6 +81,8 @@ impl GraphFixture {
         let relation = self.wanted.first().copied().unwrap_or(Relation::Function);
         // Real request eligibility, rather than directly toggling graph_enabled.
         Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
             parameters: vec![],
             steps: vec![PlanStep {
                 scope: StepScope::PerFile,

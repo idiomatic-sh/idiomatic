@@ -27,7 +27,7 @@ use crate::application::file_dag::settings::CrossingInput;
 use crate::domain::choosing::service::chosen;
 use crate::domain::features::service::{fed_over, work_over};
 use crate::domain::frontiers::service::{decode_input, project_input, project_relation};
-use crate::domain::hosted::service::lines;
+use crate::domain::hosted::service::identity as hosted_identity;
 use crate::domain::keeping::service::{rendered_of, rows_of};
 use crate::domain::kind_check::service::{first_unknown, kinds_asked, unknown_message};
 use crate::domain::lowering::types::Counting;
@@ -296,42 +296,19 @@ impl LintUseCaseImpl {
 
     /// Runs `work` for each of `tasks` on at most `workers` workers, each taking tasks until none is left, and answers what
     /// each gave, in the order of the tasks.
-    fn drain<I, T>(
+    fn drain<I: Sync, T: Send>(
         &self,
         workers: WorkerCount,
         tasks: &[I],
         work: impl Fn(TaskIndex, &I) -> T + Sync,
-    ) -> Result<Vec<T>, LintError>
-    where
-        I: Sync,
-        T: Send,
-    {
-        let total = JobCount(u32::try_from(tasks.len()).unwrap_or(u32::MAX));
-        let slots: Vec<Mutex<Option<T>>> = std::iter::repeat_with(|| Mutex::new(None))
-            .take(tasks.len())
-            .collect();
-        let next = AtomicUsize::new(0);
-        let mut started: Vec<Box<dyn FnMut(JobNumber) + Send + '_>> = Vec::new();
-        for _ in 0..workers.0.min(total.0) {
-            let (slots, next, work) = (&slots, &next, &work);
-            started.push(Box::new(move |_job: JobNumber| {
-                loop {
-                    let task = next.fetch_add(1, Ordering::Relaxed);
-                    let (Some(slot), Some(item)) = (slots.get(task), tasks.get(task)) else {
-                        break;
-                    };
-                    *slot.lock().unwrap_or_else(PoisonError::into_inner) =
-                        Some(work(TaskIndex(task), item));
-                }
-            }));
-        }
-        let count = JobCount(u32::try_from(started.len()).unwrap_or(u32::MAX));
-        self.scheduler.run(&mut started, count)?;
-        drop(started);
-        Ok(slots
-            .into_iter()
-            .map(|slot| answered(slot.into_inner().unwrap_or_else(PoisonError::into_inner)))
-            .collect())
+    ) -> Result<Vec<T>, LintError> {
+        crate::application::job_execution::service::drain(
+            self.scheduler.as_ref(),
+            workers,
+            tasks,
+            |index, each| work(TaskIndex(index.0), each),
+        )
+        .map_err(Into::into)
     }
 
     /// The files under the root in the order of their paths, and what the last run kept of them, read while they are listed, when
@@ -412,6 +389,19 @@ impl LintUseCaseImpl {
                     schema,
                     source_selection,
                 ]);
+                let own = if plan.observations.is_empty() {
+                    own
+                } else {
+                    self.digest.combine(&[
+                        own,
+                        self.digest.digest(DigestBytes(
+                            &ryo_values::domain::observations::service::output_identity(
+                                &plan.observations,
+                            )
+                            .0,
+                        )),
+                    ])
+                };
                 // Stored findings from the two physical backends are not interchangeable.
                 let own = if self.file_analysis.kernel_strategy()
                     == crate::domain::column_kernel::types::KernelStrategy::Column
@@ -801,7 +791,7 @@ impl LintUseCaseImpl {
         rules: &[RuleSpec],
         hosted: &[HostRelation],
     ) -> Result<Compiled, LintError> {
-        let compiled = self.compilation.compile(rules, hosted)?;
+        let compiled = self.compilation.prepare(rules, hosted)?;
         // A word a rule writes for a kind that no linked language has fails the run before a file is read: nothing runs until it is fixed.
         // Rules that write no word for a kind need no vocabulary.
         if compiled
@@ -996,24 +986,54 @@ impl LintUseCaseImpl {
             .cloned()
             .chain(now.unlisted.iter().map(|each| FilePath(each.0.clone())))
             .collect();
+        let domain = crate::domain::crossing::types::CrossingInput {
+            observations: handed.observations,
+            plans: run.plans,
+            bindings: run.bindings,
+            ids: run.ids,
+            needs: run.needs,
+            paths: &across,
+            files: &listing.files,
+            covered: handed.covered,
+            skipped: handed.skipped,
+            project: &now.partials,
+            hosted: &run.request.hosted,
+            answering: run.answering,
+            unknown: &unknown.0,
+        };
+        if matches!(
+            run.observations,
+            crate::domain::file_program::types::ObservationRequest::Bound { .. }
+        ) {
+            for each in todo {
+                self.within_budget(listing.budget, || vec![each.id.clone()])?;
+            }
+            return self
+                .cross_file
+                .observations(
+                    crate::application::cross_file::types::ObservationRun {
+                        domain,
+                        executor: run.executor,
+                        operators: std::sync::Arc::clone(&run.operators),
+                        scheduler: self.scheduler.as_ref(),
+                        workers: self.workers,
+                        observations: run.observations,
+                        first_bucket: run.first_bucket,
+                        facts: kept_facts.as_ref(),
+                        project: handle.facts.as_ref(),
+                        project_symbols: &handle.symbols,
+                        todo,
+                    },
+                    handed.arenas,
+                    answered,
+                )
+                .map_err(Into::into);
+        }
         let crossing = CrossingInput {
             executor: run.executor,
             operators: std::sync::Arc::clone(&run.operators),
-            domain: crate::domain::crossing::types::CrossingInput {
-                plans: run.plans,
-                bindings: run.bindings,
-                ids: run.ids,
-                needs: run.needs,
-                paths: &across,
-                arenas: &*handed.arenas,
-                files: &listing.files,
-                covered: handed.covered,
-                skipped: handed.skipped,
-                project: &now.partials,
-                hosted: &run.request.hosted,
-                answering: run.answering,
-                unknown: &unknown.0,
-            },
+            arenas: &*handed.arenas,
+            domain,
         };
         let made = self.drain(
             self.workers,
@@ -1064,7 +1084,19 @@ impl LintUseCaseImpl {
             },
         )?;
         for (each, crossed) in todo.iter().zip(made) {
-            settle(each, crossed?, &mut answered.later, &mut answered.fed);
+            if settle(
+                each,
+                crossed?,
+                &mut answered.later,
+                &mut answered.fed,
+                &mut answered.unknowns,
+            )
+            .is_some()
+            {
+                return Err(LintError::ObservationBindings {
+                    reason: "named publication was not admitted by the request owner".into(),
+                });
+            }
         }
         Ok(())
     }
@@ -1246,6 +1278,7 @@ impl LintUseCaseImpl {
         observed_arenas("after_files", &met.arenas);
         observed_notes("after_files", &met.notes);
         let WorkersMet {
+            observations,
             mut arenas,
             mut unread,
             unrecorded,
@@ -1257,6 +1290,7 @@ impl LintUseCaseImpl {
             ..
         } = met;
         let mut answered = Answered {
+            unknowns: Vec::new(),
             later: Rendered::default(),
             fed,
         };
@@ -1269,6 +1303,7 @@ impl LintUseCaseImpl {
             skipped.extend(run.skipped.iter().cloned());
         }
         let handed = CrossReading {
+            observations: &observations,
             arenas: &mut arenas,
             covered: &covered,
             skipped: &skipped,
@@ -1306,11 +1341,13 @@ impl LintUseCaseImpl {
             now
         };
         let Answered {
+            unknowns: mut observation_unknowns,
             mut later,
             fed: all_fed,
         } = answered;
         // The files whose bytes could not be read, before the refused manifests join them: the next run reads them again.
         let failed = read_outcomes(&mut unread, unrecorded, &now.refused);
+        unknowns.append(&mut observation_unknowns);
         sort_unique(&mut unknowns);
         sort_unique(&mut skipped);
         let files = RowCounts {
@@ -1350,7 +1387,12 @@ impl LintUseCase for LintUseCaseImpl {
             .validate_source_language(request.source_language.as_ref())?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
-        let Compiled { plans, bindings } = self.checked_rules(&rules, &request.hosted)?;
+        let Compiled {
+            plans,
+            bindings,
+            schedule,
+            observations,
+        } = self.checked_rules(&rules, &request.hosted)?;
         crate::application::rule_compilation::service::observed(
             &rules,
             &plans,
@@ -1389,6 +1431,14 @@ impl LintUseCase for LintUseCaseImpl {
             resolved,
             request.source_language.as_ref(),
         );
+        let identities = crate::application::rule_compilation::identity::with_producers(
+            self.digest.as_ref(),
+            stored_rules,
+            &plans,
+            &schedule,
+            &observations,
+        )?;
+        let stored_rules = identities.rules;
         let (nothing_handed, nothing_wanted) =
             (ReadHanded::default(), BucketsWanted::These(Vec::new()));
         let unknown = self.language.unknown_reasons();
@@ -1410,11 +1460,25 @@ impl LintUseCase for LintUseCaseImpl {
             self.operators.as_ref(),
             std::sync::Arc::clone(&self.derived),
         );
+        let observation_request = match identities.observations {
+            crate::application::rule_compilation::types::ObservationIdentity::Independent => {
+                crate::domain::file_program::types::ObservationRequest::Independent
+            }
+            crate::application::rule_compilation::types::ObservationIdentity::Named(layout) => {
+                crate::domain::file_program::service::observations::request(
+                    &schedule,
+                    &observations,
+                    layout,
+                )
+                .map_err(crate::application::rule_compilation::errors::RuleCompilationError::from)?
+            }
+        };
         let mut setting = VisitSetting {
             source_language: request.source_language.as_ref(),
             executor: &executor,
             operators: std::sync::Arc::clone(&operators),
             domain: crate::domain::workers::types::VisitSetting {
+                observations: observation_request,
                 plans: &plans,
                 bindings: &bindings,
                 wanted: &wants.walked,
@@ -1448,18 +1512,32 @@ impl LintUseCase for LintUseCaseImpl {
             skipped: alone_skipped,
             read_again,
         } = self.reused(&setting, &listing, &manifests, &stored_rules, &ids)?;
+        let (again, producer_buckets) =
+            crate::application::rule_compilation::replay::observation_closure(
+                again,
+                &plans,
+                &operators,
+                observation_request,
+                &first_bucket,
+            )?;
         setting.replaying = match again {
             Reuse::Cross(_) => Replaying::FindingsAndHanded,
             Reuse::Whole | Reuse::Again => Replaying::Findings,
         };
         // A run that makes cross-file steps again reads what the files handed them: the buckets of those rules alone.
-        let HandedAgain { wanted, handed } =
-            handed_of(listing.read.as_ref(), &plans, &first_bucket, &again)?;
+        let HandedAgain { wanted, handed } = handed_of(
+            listing.read.as_ref(),
+            &plans,
+            &first_bucket,
+            &again,
+            &producer_buckets,
+        )?;
         setting.handed = &handed;
         setting.wanted_buckets = &wanted;
         let records = records_of(&listing.files, &kept_records);
         setting.records = &records;
         let run = LintRun {
+            observations: setting.observations,
             executor: &executor,
             operators: std::sync::Arc::clone(&operators),
             request: &request,

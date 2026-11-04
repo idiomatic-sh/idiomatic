@@ -20,6 +20,8 @@ fn diamond() -> Plan {
         scope: StepScope::PerFile,
     };
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![
             step(Operation::Select {
@@ -262,6 +264,8 @@ fn failed_primitive_is_never_published_or_counted_as_a_successful_dependency() {
     use ryo_relations::domain::relations::types::{CellKind, Offset, Span};
     use ryo_values::domain::plan_parts::types::LiteralText;
     let plan = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![
             PlanStep {

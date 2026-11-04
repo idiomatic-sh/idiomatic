@@ -32,6 +32,8 @@ use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 #[test]
 fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
     let plan = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: Vec::new(),
         comparison_origins: Vec::new(),
@@ -54,10 +56,12 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             .expect("empty matcher"),
     };
     let setting = VisitSetting {
+        observations: crate::domain::file_program::types::ObservationRequest::Independent,
         source_language: None,
         executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
         domain: crate::domain::workers::types::VisitSetting {
+            observations: crate::domain::file_program::types::ObservationRequest::Independent,
             plans: &plans,
             bindings: &[],
             wanted: &[Relation::Function, Relation::Identifier],
@@ -492,6 +496,7 @@ fn visited_as_with_facts(
             executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
             operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
             domain: crate::domain::workers::types::VisitSetting {
+                observations: crate::domain::file_program::types::ObservationRequest::Independent,
                 unknown: &[],
                 plans: &[],
                 bindings: &[],
@@ -782,6 +787,7 @@ fn prepared_resource_state(
     use crate::domain::file_program::types::RequestGraph;
     use crate::domain::operator::types::PreparedPool;
     let graph = RequestGraph {
+        observations: None,
         derived_sources: Vec::new(),
         plans: Vec::new(),
         nodes: Vec::new(),
@@ -974,6 +980,8 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     use ryo_values::domain::records::types::Kept;
     use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, KeptWords};
     let plan = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![],
         comparison_origins: vec![],
@@ -997,10 +1005,12 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
+            observations: crate::domain::file_program::types::ObservationRequest::Independent,
             source_language: None,
             executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
             operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
             domain: crate::domain::workers::types::VisitSetting {
+                observations: crate::domain::file_program::types::ObservationRequest::Independent,
                 plans: &plans,
                 bindings: &[],
                 wanted: &[],
@@ -1329,6 +1339,7 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
             operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
             domain: crate::domain::workers::types::VisitSetting {
+                observations: crate::domain::file_program::types::ObservationRequest::Independent,
                 plans: &[],
                 bindings: &[],
                 wanted: &[],

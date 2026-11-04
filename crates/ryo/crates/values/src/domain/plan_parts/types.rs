@@ -61,12 +61,14 @@ pub enum FlagState {
 }
 
 /// What a step reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Input {
     /// A relation ryo owns.
     Relation(Relation),
     /// An earlier step.
     Step(StepId),
+    /// An explicit typed producer binding, resolved by the request graph rather than the relation catalog.
+    BoundObservation(crate::domain::observations::types::ObservationBindingId),
 }
 
 /// Which side of a join a column comes from.

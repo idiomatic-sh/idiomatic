@@ -19,6 +19,8 @@ pub(super) fn invalid(error: ValidationError) -> TypecheckError {
         | ValidationError::UnknownOperation { span, .. }
         | ValidationError::MissingArgument { span, .. }
         | ValidationError::DuplicateStep { span, .. }
+        | ValidationError::DuplicateObservation { span, .. }
+        | ValidationError::BlankObservation { span }
         | ValidationError::JoinNeedsColumns { span } => TypecheckError::Invalid {
             span,
             message: error.to_string(),

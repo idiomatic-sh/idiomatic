@@ -22,6 +22,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         .expect("query fixture parses");
     let mut builder = Builder {
         catalog: &[Relation::Function, Relation::SourceLocation],
+        observation_inputs: &[],
         hosted_steps: Vec::new(),
         parameters: &program.parameters,
         kinds: Vec::new(),

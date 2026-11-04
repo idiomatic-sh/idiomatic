@@ -63,3 +63,48 @@ pub fn named(inputs: &Inputs) -> &[Input] {
 pub fn step_scope(plan: &Plan, id: StepId) -> Option<StepScope> {
     step_in(&plan.steps, id).map(|step| step.scope)
 }
+
+/// Gives `visit` each input the operation reads.
+pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) {
+    match operation {
+        Operation::SpanBetween { from, .. }
+        | Operation::SpanBounds { from, .. }
+        | Operation::SourceMatches { from, .. }
+        | Operation::RenderSyntax { from, .. }
+        | Operation::FitsRendered { from, .. }
+        | Operation::Replace { from, .. }
+        | Operation::Select { from, .. }
+        | Operation::Project { from, .. }
+        | Operation::Extend { from, .. }
+        | Operation::GroupCount { from, .. }
+        | Operation::GroupDigest { from, .. }
+        | Operation::Capture { from, .. }
+        | Operation::Rank { from, .. }
+        | Operation::Words { from, .. } => visit(from),
+        Operation::OrderedMatch { left, right, .. }
+        | Operation::Join { left, right, .. }
+        | Operation::Union { left, right }
+        | Operation::Intersection { left, right }
+        | Operation::Difference { left, right }
+        | Operation::Antijoin { left, right, .. } => {
+            visit(left);
+            visit(right);
+        }
+        Operation::OrderedDfs { from, edges, .. } => {
+            visit(from);
+            visit(edges);
+        }
+        Operation::Axis {
+            from,
+            edges,
+            domain,
+            ..
+        } => {
+            visit(from);
+            visit(edges);
+            visit(domain);
+        }
+        Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => visit(edges),
+        Operation::Rows { .. } | Operation::Hosted { .. } => {}
+    }
+}

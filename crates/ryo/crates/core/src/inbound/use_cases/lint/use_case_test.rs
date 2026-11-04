@@ -283,6 +283,7 @@ fn request(given: &Given) -> LintRequest {
             .iter()
             .enumerate()
             .map(|(place, query)| Rule {
+                observations: Vec::new(),
                 id: RuleId(
                     given
                         .ids

@@ -433,6 +433,8 @@ fn positive_row_contracts_keep_partial_input_distinction() {
     ] {
         let case = fixture(kind);
         let plan = Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
             parameters: vec![],
             steps: vec![PlanStep {
                 operation: case.operation.clone(),

@@ -45,6 +45,7 @@ fn rule(id: &str, query: &str) -> RuleSpec {
         query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         given: Vec::new(),
+        observations: Vec::new(),
         spelled: RuleParameters("".into()),
         include: Vec::new(),
         exclude: Vec::new(),

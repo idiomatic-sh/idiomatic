@@ -22,7 +22,7 @@ pub(crate) fn project_relation(input: Input) -> Option<Relation> {
         Input::Relation(relation) if provenance_of(relation) == Provenance::Manifests => {
             Some(relation)
         }
-        Input::Relation(_) | Input::Step(_) => None,
+        Input::Relation(_) | Input::Step(_) | Input::BoundObservation(_) => None,
     }
 }
 

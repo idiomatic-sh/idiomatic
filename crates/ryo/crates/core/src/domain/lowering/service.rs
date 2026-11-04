@@ -74,7 +74,7 @@ fn earlier(shapes: &[Option<LoweredShape>], input: Input) -> Option<&LoweredShap
         Input::Step(id) => shapes
             .get(usize::try_from(id.0).unwrap_or(usize::MAX))?
             .as_ref(),
-        Input::Relation(_) => None,
+        Input::Relation(_) | Input::BoundObservation(_) => None,
     }
 }
 
@@ -172,7 +172,7 @@ fn join_shape(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<
                 })?,
             })
         }
-        Input::Relation(_) => None,
+        Input::Relation(_) | Input::BoundObservation(_) => None,
     }
 }
 
@@ -219,7 +219,7 @@ fn axis_shape(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<
             }
             TreeForm::Edges
         }
-        Input::Relation(_) => return None,
+        Input::Relation(_) | Input::BoundObservation(_) => return None,
     };
     let mut columns = if output.is_empty() {
         let mut each = from.columns.clone();
@@ -396,6 +396,6 @@ pub(crate) fn shape_at(lowering: &Lowering, id: StepId) -> Result<&LoweredShape,
 pub(crate) fn step_of(input: Input) -> Result<StepId, OperatingError> {
     match input {
         Input::Step(id) => Ok(id),
-        Input::Relation(_) => Err(OperatingError::NotAStep),
+        Input::Relation(_) | Input::BoundObservation(_) => Err(OperatingError::NotAStep),
     }
 }

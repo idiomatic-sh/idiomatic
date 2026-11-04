@@ -78,6 +78,8 @@ impl ResourceFixture {
         out: &mut Table,
     ) -> Result<(), OperatingError> {
         let plan = Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
             parameters: vec![],
             steps: vec![PlanStep {
                 operation: operation.clone(),
@@ -259,6 +261,8 @@ impl ResourceFixture {
         emit: &mut dyn crate::domain::operating::types::Emit,
     ) -> Result<(), OperatingError> {
         let plan = Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
             parameters: vec![],
             steps: vec![PlanStep {
                 operation: operation.clone(),
@@ -299,6 +303,7 @@ pub(crate) fn residual_frame(
     partials: &[Partial],
 ) -> crate::application::file_dag::types::FileDagExecution {
     let graph = crate::domain::file_program::types::RequestGraph {
+        observations: None,
         plans: plans
             .iter()
             .map(|plan| plan as *const Plan as usize)

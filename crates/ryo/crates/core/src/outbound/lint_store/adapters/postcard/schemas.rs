@@ -225,9 +225,27 @@ pub(super) struct PartialSchema {
     at: u32,
 }
 
+/// Typed named-root readiness beside the existing frontier bucket rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(super) enum ObservationReadinessSchema {
+    Unknown(TextSchema),
+    NoQuery,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(super) struct ObservationSchema {
+    file: u32,
+    version: u32,
+    layout: [u8; 16],
+    slots: u32,
+    complete: Vec<u64>,
+    skipped: Vec<u64>,
+    refusals: Vec<(u32, ObservationReadinessSchema)>,
+}
+
 /// What the files handed the steps that read across files and the project but their words.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct RestSchema<'a> {
+    observations: Vec<ObservationSchema>,
     /// Every text the rows name, each once.
     #[serde(borrow)]
     strings: Vec<Cow<'a, str>>,
@@ -743,7 +761,38 @@ fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
             });
         }
     }
+    let observations = stored
+        .observations
+        .iter()
+        .map(|each| ObservationSchema {
+            file: each.file.0,
+            version: each.root.version.0,
+            layout: each.root.layout.0.0,
+            slots: each.root.slots.0,
+            complete: each.root.complete.clone(),
+            skipped: each.root.skipped.clone(),
+            refusals: each
+                .root
+                .refusals
+                .iter()
+                .map(|refusal| {
+                    (
+                        refusal.slot.0,
+                        match &refusal.reason {
+                            ryo_values::domain::records::types::FrontierRefusalReason::Unknown(
+                                reason,
+                            ) => ObservationReadinessSchema::Unknown(text(&mut strings, &reason.0)),
+                            ryo_values::domain::records::types::FrontierRefusalReason::NoQuery => {
+                                ObservationReadinessSchema::NoQuery
+                            }
+                        },
+                    )
+                })
+                .collect(),
+        })
+        .collect();
     RestSchema {
+        observations,
         texts: stored
             .texts
             .iter()
@@ -801,6 +850,48 @@ fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
         }
     }
     Ok(StoredHanded {
+        observations: rest
+            .observations
+            .iter()
+            .map(|each| {
+                use ryo_values::domain::observations::types::{
+                    ObservationReadinessCount, ObservationReadinessLayout,
+                    ObservationReadinessSlot, ObservationReadinessVersion, ObservationReason,
+                };
+                use ryo_values::domain::records::types::{
+                    FrontierReadiness, FrontierRefusal, FrontierRefusalReason,
+                };
+                Ok(ryo_values::domain::stores::types::StoredFrontierReadiness {
+                    file: StoredFileNumber(each.file),
+                    root: std::sync::Arc::new(FrontierReadiness {
+                        version: ObservationReadinessVersion(each.version),
+                        layout: ObservationReadinessLayout(Digest(each.layout)),
+                        slots: ObservationReadinessCount(each.slots),
+                        complete: each.complete.clone(),
+                        skipped: each.skipped.clone(),
+                        refusals: each
+                            .refusals
+                            .iter()
+                            .map(|(slot, reason)| {
+                                Ok(FrontierRefusal {
+                                    slot: ObservationReadinessSlot(*slot),
+                                    reason: match *reason {
+                                        ObservationReadinessSchema::Unknown(reason) => {
+                                            FrontierRefusalReason::Unknown(ObservationReason(
+                                                named(strings, reason)?,
+                                            ))
+                                        }
+                                        ObservationReadinessSchema::NoQuery => {
+                                            FrontierRefusalReason::NoQuery
+                                        }
+                                    },
+                                })
+                            })
+                            .collect::<Result<_, postcard::Error>>()?,
+                    }),
+                })
+            })
+            .collect::<Result<_, postcard::Error>>()?,
         frontier: Vec::new(),
         texts: rest
             .texts

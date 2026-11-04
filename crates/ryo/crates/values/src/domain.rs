@@ -3,6 +3,7 @@
 pub mod descriptions;
 pub mod files;
 pub mod hosted;
+pub mod observations;
 pub mod plan_parts;
 pub mod plans;
 pub mod program;

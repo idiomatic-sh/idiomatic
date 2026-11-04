@@ -107,6 +107,8 @@ pub type ReadHanded = HandedRows<ReadWords>;
 /// Rest tables share their unchanged representation across persistent writes and snapshot reads.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HandedRows<W> {
+    /// Per-file named-root readiness, in stored file order.
+    pub observations: Vec<StoredFrontierReadiness>,
     /// What each file handed the steps that read across files, one row for each file and bucket.
     pub frontier: Vec<W>,
     /// The text the names of each file made that is in no file, one row for each file that made some.
@@ -120,6 +122,7 @@ pub struct HandedRows<W> {
 impl<W> Default for HandedRows<W> {
     fn default() -> Self {
         Self {
+            observations: Vec::new(),
             frontier: Vec::new(),
             texts: Vec::new(),
             notes: Vec::new(),
@@ -352,4 +355,11 @@ pub struct StoredUnknown {
     pub path: FilePath,
     /// What is partial there and why.
     pub message: UnknownText,
+}
+
+/// One existing stored file's named frontier readiness.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredFrontierReadiness {
+    pub file: StoredFileNumber,
+    pub root: std::sync::Arc<crate::domain::records::types::FrontierReadiness>,
 }

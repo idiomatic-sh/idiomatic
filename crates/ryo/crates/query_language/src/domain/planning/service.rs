@@ -177,7 +177,7 @@ pub(crate) fn frontier_of(steps: &[plans::PlanStep]) -> Vec<parts::Input> {
     {
         for input in inputs_of(&step.operation) {
             let handed_over = match input {
-                parts::Input::Relation(_) => true,
+                parts::Input::Relation(_) | parts::Input::BoundObservation(_) => true,
                 parts::Input::Step(id) => step_of(steps, id).scope == plans::StepScope::PerFile,
             };
             if handed_over && !frontier.contains(&input) {
@@ -200,6 +200,23 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
             },
             fields: relation_fields(relation),
         },
+        parts::Input::BoundObservation(id) => {
+            let bound = &builder.observation_inputs
+                [usize::try_from(id.0).expect("lowering assigned a valid binding index")];
+            ScopedInput {
+                scope: bound.scope,
+                fields: bound
+                    .columns
+                    .iter()
+                    .map(|column| PlannedColumn {
+                        name: syntax::ColumnName(column.name.0.clone()),
+                        kind: column.kind,
+                        unique: crate::domain::lowering::types::Uniqueness::Shared,
+                        words: ryo_relations::domain::terms::types::Vocabulary::Open,
+                    })
+                    .collect(),
+            }
+        }
         parts::Input::Step(id) => {
             let lowered = step_of(&builder.lowered, id);
             ScopedInput {

@@ -7,7 +7,7 @@ use super::types::{
     FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons, Pushed, Skipped,
 };
 use crate::domain::fusing::service::source_column;
-use crate::domain::pruning::service::each_input;
+use ryo_values::domain::plans::service::each_input;
 use crate::domain::rewriting::types::{Planned, StepIndex};
 use crate::domain::walking::service::width_of;
 use ryo_values::domain::plan_parts::service::{columns_of, each_column, remapped};
@@ -25,7 +25,13 @@ use ryo_values::domain::plans::types::PlanStep;
 /// asking the edges and the elements for the children of a few nodes does not need the children of every node.
 /// `Join(left, Join(edges, elements))` keyed on the parent of the edges becomes `Join(Join(left, edges), elements)`.
 #[must_use]
-pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+pub(crate) fn push_lookups(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+    let steps = push_lookups_roots(steps, std::slice::from_mut(&mut emitted));
+    Planned { steps, emitted }
+}
+
+/// The same rewrite with every externally observable root protected and renumbered together.
+pub(crate) fn push_lookups_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut place = 0;
     while place < steps.len() {
         if let Some(Pushed { below, above }) = pushed(&steps, StepIndex(place)) {
@@ -40,8 +46,10 @@ pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pla
                     }
                 });
             }
-            if emitted.0 >= first.0 {
-                emitted.0 += 1;
+            for root in roots.iter_mut() {
+                if root.0 >= first.0 {
+                    root.0 += 1;
+                }
             }
             #[expect(
                 clippy::indexing_slicing,
@@ -61,7 +69,7 @@ pub(crate) fn push_lookups(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pla
         }
         place += 1;
     }
-    Planned { steps, emitted }
+    steps
 }
 
 /// The second join, reading the first at `first`.
@@ -330,7 +338,16 @@ fn edge_lookup(
 /// The plan with each filter on the columns a capture was given, made before the capture instead of after it: the capture matches the
 /// paths of the rows the filter lets through, not of every row. Not done when another step reads the capture.
 #[must_use]
-pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+pub(crate) fn push_below_captures(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+    let steps = push_below_captures_roots(steps, std::slice::from_mut(&mut emitted));
+    Planned { steps, emitted }
+}
+
+/// The same rewrite with every externally observable root protected and renumbered together.
+pub(crate) fn push_below_captures_roots(
+    mut steps: Vec<PlanStep>,
+    roots: &mut [StepId],
+) -> Vec<PlanStep> {
     let mut place = 0;
     while place < steps.len() {
         if let Some(MovedComparisons {
@@ -338,7 +355,7 @@ pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId)
             input,
             before: moved,
             rest,
-        }) = movable(&steps, StepIndex(place), emitted)
+        }) = movable(&steps, StepIndex(place), roots)
         {
             let capture = capture.0;
             let before = StepId(u32::try_from(capture).unwrap_or(u32::MAX));
@@ -351,8 +368,10 @@ pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId)
                     }
                 });
             }
-            if emitted.0 >= before.0 {
-                emitted.0 += 1;
+            for root in roots.iter_mut() {
+                if root.0 >= before.0 {
+                    root.0 += 1;
+                }
             }
             #[expect(
                 clippy::indexing_slicing,
@@ -391,12 +410,12 @@ pub(crate) fn push_below_captures(mut steps: Vec<PlanStep>, mut emitted: StepId)
         }
         place += 1;
     }
-    Planned { steps, emitted }
+    steps
 }
 
 /// The filter at `place`, when it filters what a capture made on columns the capture was given: the capture, what it reads, and the
 /// comparisons that move before it and those that stay.
-fn movable(steps: &[PlanStep], place: StepIndex, emitted: StepId) -> Option<MovedComparisons> {
+fn movable(steps: &[PlanStep], place: StepIndex, roots: &[StepId]) -> Option<MovedComparisons> {
     let Operation::Select {
         from: Input::Step(read),
         comparisons,
@@ -420,7 +439,7 @@ fn movable(steps: &[PlanStep], place: StepIndex, emitted: StepId) -> Option<Move
             reads
         })
         .count();
-    if readers != 1 || emitted == *read || captured.scope != steps.get(place.0)?.scope {
+    if readers != 1 || roots.contains(read) || captured.scope != steps.get(place.0)?.scope {
         return None;
     }
     let width = width_of(steps, *from)?.0;

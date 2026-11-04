@@ -284,7 +284,8 @@ impl RequestViews {
                     ryo_values::domain::plan_parts::types::Input::Relation(relation) => {
                         Some(*relation)
                     }
-                    ryo_values::domain::plan_parts::types::Input::Step(_) => None,
+                    ryo_values::domain::plan_parts::types::Input::Step(_)
+                    | ryo_values::domain::plan_parts::types::Input::BoundObservation(_) => None,
                 })
         });
         let binding = self.bindings.iter().find(|binding| {

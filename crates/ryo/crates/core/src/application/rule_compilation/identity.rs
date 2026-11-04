@@ -1,0 +1,113 @@
+//! Retained findings depend on actual producer digests, through original rule indices.
+use super::errors::RuleCompilationError;
+use crate::domain::file_program::{
+    errors::ObservationError,
+    types::{ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule},
+};
+use crate::outbound::digest::{interface::DigestPort, types::DigestBytes};
+use ryo_values::domain::stores::types::{Crossing, StoredRule};
+
+/// Extend existing per-rule identities in dependency order. Ordinary requests allocate nothing here.
+pub(crate) fn with_producers(
+    digest: &dyn DigestPort,
+    mut rules: Vec<StoredRule>,
+    plans: &[ryo_values::domain::plans::types::Plan],
+    schedule: &RuleSchedule,
+    bindings: &[Vec<ResolvedObservationBinding>],
+) -> Result<super::types::PreparedRuleIdentities, RuleCompilationError> {
+    let RuleSchedule::Dependencies { order, .. } = schedule else {
+        return Ok(super::types::PreparedRuleIdentities {
+            rules,
+            observations: super::types::ObservationIdentity::Independent,
+        });
+    };
+    if rules.len() != plans.len() {
+        return Err(ObservationError::InvalidReference.into());
+    }
+    let layout = rules
+        .iter()
+        .zip(plans)
+        .map(|(rule, plan)| {
+            let outputs = plan
+                .observations
+                .iter()
+                .filter(|output| {
+                    output.scope == ryo_values::domain::plans::types::StepScope::PerFile
+                        && plan.frontier.contains(&output.source)
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            let outputs = if outputs.is_empty() {
+                ryo_values::domain::observations::types::ObservationOutputLayout::NoPersistentRoots
+            } else {
+                ryo_values::domain::observations::types::ObservationOutputLayout::Persistent {
+                    configuration: rule.digest,
+                    outputs,
+                }
+            };
+            Ok(
+                ryo_values::domain::observations::types::ObservationRuleLayout {
+                    rule: rule.rule.clone(),
+                    outputs,
+                    frontiers: ryo_values::domain::observations::types::ObservationFrontierCount(
+                        u32::try_from(plan.frontier.len())
+                            .map_err(|_| ObservationError::TooManyOutputs)?,
+                    ),
+                },
+            )
+        })
+        .collect::<Result<Vec<_>, ObservationError>>()?;
+    let layout = digest.digest(DigestBytes(
+        &ryo_values::domain::observations::service::layout_identity(&layout).0,
+    ));
+    for rule in &mut rules {
+        rule.digest = digest.combine(&[rule.digest, layout]);
+    }
+    for consumer in order {
+        let inputs = bindings
+            .get(consumer.0)
+            .ok_or(ObservationError::InvalidReference)?;
+        if inputs.is_empty() {
+            continue;
+        }
+        let own = rules
+            .get(consumer.0)
+            .ok_or(ObservationError::InvalidReference)?
+            .clone();
+        let mut parts = vec![
+            own.digest,
+            digest.digest(DigestBytes(b"ryo-observation-producers-v1")),
+        ];
+        let mut across = own.crossing == Crossing::Across;
+        for input in inputs {
+            across |= input.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile;
+            for producer in &input.producers {
+                match producer {
+                    ResolvedObservationProducer::Output { rule, .. } => {
+                        let upstream = rules
+                            .get(rule.0)
+                            .ok_or(ObservationError::InvalidReference)?;
+                        parts.push(upstream.digest);
+                        across |= upstream.crossing == Crossing::Across;
+                    }
+                    // Explicit NoQuery has no executable digest; its selected identity
+                    // is already included by the typed declaration codec.
+                    ResolvedObservationProducer::NoQuery { .. } => {}
+                }
+            }
+        }
+        let result = rules
+            .get_mut(consumer.0)
+            .ok_or(ObservationError::InvalidReference)?;
+        result.digest = digest.combine(&parts);
+        if across {
+            result.crossing = Crossing::Across;
+        }
+    }
+    Ok(super::types::PreparedRuleIdentities {
+        rules,
+        observations: super::types::ObservationIdentity::Named(
+            ryo_values::domain::observations::types::ObservationReadinessLayout(layout),
+        ),
+    })
+}

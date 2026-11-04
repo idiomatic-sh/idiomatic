@@ -111,3 +111,10 @@ pub(crate) enum Recovery {
     /// No language could parse the file.
     Unparsed,
 }
+
+/// Actual root readiness for one immutable request file generation.
+#[derive(Clone, Debug)]
+pub(crate) struct FileObservationReadiness {
+    pub file: FileId,
+    pub root: std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>,
+}

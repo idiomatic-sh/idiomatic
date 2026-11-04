@@ -103,6 +103,10 @@ type Failure = Refusal;
 /// The refusals the rows tell apart.
 #[derive(Debug, PartialEq, Eq)]
 enum Refusal {
+    /// Invalid declared observation bindings.
+    ObservationBindings,
+    /// Required observation publication failed during execution.
+    ObservationExecution,
     /// The explicitly requested source provider is not linked.
     SourceLanguage,
     /// A rule whose text is wrong.
@@ -414,6 +418,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         rules: BTreeMap::from([(
             id,
             Rule {
+                observations: Vec::new(),
                 query: crate::resources::query::RyoQlQuery::try_from(given.query).expect("a query"),
                 applicability: crate::resources::linter::RuleApplicability::Always,
                 parameters: BTreeMap::new(),
@@ -461,6 +466,8 @@ fn subject(given: Input) -> Result<Value, Failure> {
         request,
     )
     .map_err(|error| match error {
+        LintError::ObservationBindings { .. } => Refusal::ObservationBindings,
+        LintError::ObservationExecution { .. } => Refusal::ObservationExecution,
         LintError::SourceLanguage { .. } => Refusal::SourceLanguage,
         LintError::Rule { .. } => Refusal::Rule,
         LintError::Unrunnable { .. } => Refusal::Unrunnable,
@@ -507,6 +514,7 @@ fn fails() {
 /// two sets of files given as text.
 fn shared_calls(root: &std::path::Path) -> [LintRequest; 2] {
     let rule = |query: &str, include: &str| Rule {
+        observations: Vec::new(),
         query: crate::resources::query::RyoQlQuery::try_from(query).expect("a query"),
         applicability: crate::resources::linter::RuleApplicability::Always,
         parameters: BTreeMap::new(),
@@ -904,6 +912,7 @@ fn capability_cache(query: &str) -> Value {
         rules: BTreeMap::from([(
             RuleId::try_from("optional").expect("rule"),
             Rule {
+                observations: Vec::new(),
                 query: crate::resources::query::RyoQlQuery::try_from(query).expect("query"),
                 applicability: crate::resources::linter::RuleApplicability::Always,
                 parameters: BTreeMap::new(),
@@ -1099,3 +1108,7 @@ fn capability_cache(query: &str) -> Value {
 }
 
 mod executable;
+
+mod host_identity;
+
+mod observations;

@@ -17,8 +17,12 @@ pub(crate) struct Todo {
 /// What the cross-file steps of a rule found, and the rows each step was fed.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Crossed {
+    /// Actual consuming-rule coverage failures, separate from diagnostic rows.
+    pub unknowns: Vec<crate::domain::coverage::types::Unknown>,
     /// The findings, as typed cells.
-    pub rendered: Rendered,
+    pub rendered: Option<Rendered>,
+    /// Owned named-root publication bytes, never user diagnostics.
+    pub observations: Option<crate::domain::crossing::types::CrossPublicationTransfer>,
     /// The rows each step of the plan was fed.
     pub fed: Vec<RowsFed>,
 }
@@ -34,6 +38,7 @@ pub(crate) enum CrossSteps {
 
 /// What a run answers when its rows are written: what the cross-file steps found, and the rows each step was fed.
 pub(crate) struct Answered {
+    pub unknowns: Vec<crate::domain::coverage::types::Unknown>,
     /// The rows written after the files.
     pub later: Rendered,
     /// The rows each step of each rule was fed, by rule.

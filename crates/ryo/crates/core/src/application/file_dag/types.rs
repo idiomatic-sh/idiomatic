@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 /// Application owns one immutable physical file generation's execution state.
 pub(crate) struct FileDagExecution {
+    /// Actual named-root pins on this file generation, absent for ordinary requests.
+    pub(super) observations: Option<super::observations::FileObservations>,
     pub graph: Arc<RequestGraph>,
     pub(super) relations: Rc<RelationOwner>,
     /// A complete rule is admitted as a unit; partial rules use the residual executor.

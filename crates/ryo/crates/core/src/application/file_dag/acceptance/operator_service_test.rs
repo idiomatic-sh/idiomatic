@@ -87,6 +87,8 @@ fn union() -> Operation {
 /// A plan that counts across files the names a per-file step handed over.
 fn counting_plan(handed_over: bool) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![
             PlanStep {

@@ -5,6 +5,9 @@ use ryo_values::domain::runs::types::RuleId;
 /// Why a rule of a run is refused.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum RulesError {
+    /// A bound producer's observation is unavailable in this generation.
+    #[error("rule `{}` has incomplete observation input: {reason}", id.0)]
+    ObservationIncomplete { id: RuleId, reason: String },
     /// A rule has no id, so no finding could name it.
     #[error("a rule has a blank id")]
     BlankRuleId,

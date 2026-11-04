@@ -31,6 +31,8 @@ fn run(source_span: Option<Span>, line: i64, stream: bool) -> (Result<(), Operat
         capture_line: false,
     };
     let prepared = PreparedMatchers::new(&[Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![PlanStep {
             operation: operation.clone(),

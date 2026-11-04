@@ -31,6 +31,8 @@ impl Default for QueryLanguageFake {
     fn default() -> Self {
         Self {
             plan: Plan {
+                observation_inputs: Vec::new(),
+                observations: Vec::new(),
                 parameters: Vec::new(),
                 steps: Vec::new(),
                 emit: Emit {
@@ -62,6 +64,8 @@ fn select(comparisons: Vec<Comparison>) -> PlanStep {
 /// A plan of the steps given, emitting the step `step` as the rows of `function` are shown.
 fn plan_of(steps: Vec<PlanStep>, step: u32) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps,
         emit: Emit {
@@ -156,6 +160,7 @@ impl QueryLanguagePort for QueryLanguageFake {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<ValidateReport, QueryLanguageError> {
         if bundle.root.text.contains(REFUSED) {
             return Err(refused());
@@ -174,6 +179,7 @@ impl QueryLanguagePort for QueryLanguageFake {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<Plan, QueryLanguageError> {
         let _calls_before = self.calls.fetch_add(1, Ordering::SeqCst);
         if bundle.root.text.contains(REFUSED) {

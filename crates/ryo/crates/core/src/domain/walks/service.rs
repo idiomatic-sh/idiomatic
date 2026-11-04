@@ -268,6 +268,7 @@ pub(crate) fn axis(
     let LoweredRoom { made, found, .. } = room;
     let from_rows = made_of(made, from_id).ok_or(OperatingError::NotRun)?;
     let mut admit: Admit<'_> = match domain {
+        Input::BoundObservation(_) => return Err(OperatingError::NotAStep),
         Input::Relation(_) => {
             if domain_filter.is_empty() {
                 Admit::All

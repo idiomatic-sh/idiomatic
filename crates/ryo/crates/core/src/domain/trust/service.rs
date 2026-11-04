@@ -103,6 +103,22 @@ fn uses_of(plan: &Plan) -> Vec<StepReads> {
         for input in given {
             parts.push(match input {
                 Input::Relation(relation) => relation_reads(*relation),
+                // Named inputs have their own producer-readiness admission. They are not
+                // catalog relations and cannot manufacture a physical relation completeness claim.
+                Input::BoundObservation(id) => StepReads {
+                    uses: Vec::new(),
+                    provenance: vec![
+                        None;
+                        plan.observation_inputs
+                            .get(
+                                usize::try_from(id.0)
+                                    .expect("compiled bound input index fits usize")
+                            )
+                            .expect("compiled bound input has its schema")
+                            .columns
+                            .len()
+                    ],
+                },
                 Input::Step(id) => steps
                     .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                     .cloned()
@@ -240,6 +256,7 @@ pub(crate) fn needs_of(plan: &Plan) -> Vec<Vec<RelationRead>> {
 fn needs_from(plan: &Plan, reads: &[StepReads]) -> Vec<Vec<RelationRead>> {
     let of = |input: &Input| -> Vec<RelationRead> {
         match input {
+            Input::BoundObservation(_) => Vec::new(),
             Input::Relation(relation) => vec![RelationRead {
                 relation: *relation,
                 kinds: Vec::new(),
@@ -417,6 +434,7 @@ pub(crate) fn needs_of_contracts(
     Ok(needs_with_masks(
         plan,
         |input| match input {
+            Input::BoundObservation(_) => Vec::new(),
             Input::Relation(relation) => vec![RelationRead {
                 relation: *relation,
                 kinds: Vec::new(),
@@ -427,4 +445,29 @@ pub(crate) fn needs_of_contracts(
         },
         contracts.iter().map(|contract| contract.absence_inputs),
     ))
+}
+
+/// One topological physical-read pass for all demanded roots.
+pub(crate) fn physical_reads(plan: &Plan) -> Vec<Vec<RelationRead>> {
+    uses_of(plan).into_iter().map(|reads| reads.uses).collect()
+}
+/// All physical reads needed to certify demanded observations, including an observed
+/// intermediate whose diagnostic descendant narrows the same relation further.
+pub(crate) fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
+    if plan.observations.is_empty() {
+        return Vec::new();
+    }
+    let by_step = physical_reads(plan);
+    let mut reads = Vec::new();
+    for output in &plan.observations {
+        let each = match output.source {
+            Input::Step(step) => by_step
+                .get(step.0 as usize)
+                .map(Vec::as_slice)
+                .unwrap_or_default(),
+            Input::Relation(_) | Input::BoundObservation(_) => &[],
+        };
+        absorb(&mut reads, each.iter().cloned());
+    }
+    reads
 }

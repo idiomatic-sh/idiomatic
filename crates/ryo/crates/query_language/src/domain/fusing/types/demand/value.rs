@@ -146,9 +146,7 @@ impl<'a> DemandClosure<'a> {
                 from: Input::Step(id),
                 comparisons,
                 kept,
-            } if comparisons.is_empty() => {
-                project(before.get(offset(id.0))?.as_ref()?, kept, true)
-            }
+            } if comparisons.is_empty() => project(before.get(offset(id.0))?.as_ref()?, kept, true),
             Operation::Select { .. }
             | Operation::Project { .. }
             | Operation::Extend { .. }
@@ -307,7 +305,8 @@ fn graph_source(
 fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
     for _ in 0..=steps.len() {
         match input {
-            Input::Relation(Relation::SyntaxTree | Relation::SyntaxChild) => return false,
+            Input::Relation(Relation::SyntaxTree | Relation::SyntaxChild)
+            | Input::BoundObservation(_) => return false,
             Input::Relation(_) => return true,
             Input::Step(id) => {
                 let Some(step) = steps
@@ -348,8 +347,8 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> bool {
                     | Operation::Hosted { .. }
                     | Operation::SpanBounds { .. }
                     | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
+                    | Operation::RenderSyntax { .. }
+                    | Operation::FitsRendered { .. }
                     | Operation::SpanBetween { .. } => return false,
                 };
             }

@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::{Provenance, Relation};
 
 use super::types::StepReading;
-use crate::domain::pruning::service::each_input;
+use ryo_values::domain::plans::service::each_input;
 use crate::domain::rewriting::types::Planned;
 use ryo_values::domain::plan_parts::service::{each_column, each_column_mut};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -298,8 +298,8 @@ fn reading_through(
         | Operation::Replace { .. }
         | Operation::SpanBounds { .. }
         | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
         | Operation::OrderedDfs { .. }
@@ -364,19 +364,28 @@ fn projection_column(used: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
 /// one for each place in the file. Not done when a count of rows (not of distinct values) comes after the files, which
 /// would count the repeats.
 #[must_use]
-pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+pub(crate) fn reduced_frontier(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+    let steps = reduced_frontier_roots(steps, std::slice::from_mut(&mut emitted));
+    Planned { steps, emitted }
+}
+
+/// The same rewrite with every externally observable root protected and renumbered together.
+pub(crate) fn reduced_frontier_roots(
+    mut steps: Vec<PlanStep>,
+    roots: &mut [StepId],
+) -> Vec<PlanStep> {
     if steps.iter().any(|step| {
         step.scope == StepScope::CrossFile
             && matches!(step.operation, Operation::GroupCount { distinct: None, .. })
     }) {
-        return Planned { steps, emitted };
+        return steps;
     }
     for candidate in (0..steps.len()).rev() {
         let read = StepId(u32::try_from(candidate).unwrap_or(u32::MAX));
         let Some(cut_step) = steps.get(candidate) else {
             continue;
         };
-        if cut_step.scope != StepScope::PerFile || emitted == read {
+        if cut_step.scope != StepScope::PerFile || roots.contains(&read) {
             continue;
         }
         let consumers: Vec<usize> = steps
@@ -418,8 +427,8 @@ pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) ->
                 | Operation::Extend { .. }
                 | Operation::SpanBounds { .. }
                 | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
+                | Operation::RenderSyntax { .. }
+                | Operation::FitsRendered { .. }
                 | Operation::SpanBetween { .. }
                 | Operation::Project {
                     distinct: RepeatedRows::Kept,
@@ -440,8 +449,10 @@ pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) ->
                 }
             });
         }
-        if emitted.0 > read.0 {
-            emitted.0 += 1;
+        for root in roots.iter_mut() {
+            if root.0 > read.0 {
+                root.0 += 1;
+            }
         }
         steps.insert(
             candidate + 1,
@@ -467,7 +478,7 @@ pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) ->
             );
         }
     }
-    Planned { steps, emitted }
+    steps
 }
 
 /// Whether the operation reads the step `read`.
@@ -485,7 +496,13 @@ fn operation_reads(operation: &Operation, read: StepId) -> StepReading {
 /// The plan with, for each relation a cross-file step reads whole, one step that cuts it to the columns the cross-file steps ask of it:
 /// a file hands over those columns of its rows, and not the others. A relation read for all its columns is left as it is.
 #[must_use]
-pub(crate) fn cut_relations(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+pub(crate) fn cut_relations(steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
+    let steps = cut_relations_roots(steps, std::slice::from_mut(&mut emitted));
+    Planned { steps, emitted }
+}
+
+/// The same rewrite with every externally observable root protected and renumbered together.
+pub(crate) fn cut_relations_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut wanted: Vec<Relation> = Vec::new();
     for step in steps
         .iter()
@@ -540,7 +557,9 @@ pub(crate) fn cut_relations(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pl
                 }
             });
         }
-        emitted.0 += 1;
+        for root in roots.iter_mut() {
+            root.0 += 1;
+        }
         steps.insert(
             0,
             PlanStep {
@@ -565,5 +584,5 @@ pub(crate) fn cut_relations(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Pl
             );
         }
     }
-    Planned { steps, emitted }
+    steps
 }

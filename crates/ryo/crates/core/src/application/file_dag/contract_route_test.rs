@@ -118,6 +118,8 @@ impl PrimitiveExecutor for CountingExecutor {
 }
 fn plan(operation: Operation, scope: StepScope) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![PlanStep { operation, scope }],
         emit: PlanEmit {
@@ -302,6 +304,8 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 .map(|column| ColumnIndex(column as u32))
                 .collect();
             let plan = Plan {
+                observation_inputs: Vec::new(),
+                observations: Vec::new(),
                 parameters: vec![],
                 steps: vec![
                     PlanStep {

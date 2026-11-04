@@ -125,6 +125,7 @@ pub(crate) fn compile(query: &str) -> Result<Vec<PlanParameter>, String> {
     ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase::compile(
         &compiler,
         ryo_query_language::inbound::use_cases::compile::types::CompileRequest {
+            observations: Vec::new(),
             text: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
                 query.into(),
             )),
@@ -423,6 +424,7 @@ std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::
 /// The rule of a recording, as ryo is asked to run it.
 pub(crate) fn rule_of(each: &Recording) -> Rule {
     Rule {
+        observations: Vec::new(),
         id: ryo_values::domain::runs::types::RuleId(each.name.as_str().into()),
         query: ryo_values::domain::program::types::QueryBundle::from(CoreQueryText(
             each.query.as_str().into(),

@@ -119,6 +119,8 @@ pub struct Program {
     pub parameters: Vec<ParameterDeclaration>,
     /// The `let` lines, in order.
     pub steps: Vec<LetStep>,
+    /// Explicit named observation roots, separate from diagnostics.
+    pub observations: Vec<WrittenObservation>,
     /// The `emit` line.
     pub emit: WrittenEmit,
 }
@@ -543,4 +545,17 @@ pub struct WrittenEmit {
     pub key: Vec<ColumnName>,
     /// Where it is written.
     pub span: QuerySpan,
+}
+
+/// An explicit top-level named-output declaration. Linking resolves its source identity once.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WrittenObservation {
+    /// The actual source step.
+    pub step: StepName,
+    /// The exported name.
+    pub name: crate::domain::observations::types::ObservationName,
+    /// The complete declaration's source range.
+    pub span: QuerySpan,
+    /// Attribution preserved through hygienic fragment expansion.
+    pub origin: Option<QueryOrigin>,
 }

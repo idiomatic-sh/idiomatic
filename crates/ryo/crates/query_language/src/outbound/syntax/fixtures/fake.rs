@@ -28,6 +28,7 @@ impl Default for SyntaxFake {
                 origins: Vec::new(),
                 fragment_contracts: Vec::new(),
                 step_origins: std::collections::BTreeMap::new(),
+                observations: Vec::new(),
                 emit_origin: None,
                 parameters: Vec::new(),
                 steps: vec![LetStep {

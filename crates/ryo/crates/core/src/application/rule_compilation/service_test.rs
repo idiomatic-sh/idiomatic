@@ -74,6 +74,7 @@ fn rule(id: &str, text: &str) -> RuleSpec {
         query: QueryBundle::from(QueryText(text.into())),
         applicability: RuleApplicability::Always,
         given: Vec::new(),
+        observations: Vec::new(),
         spelled: RuleParameters("".into()),
         include: Vec::new(),
         exclude: Vec::new(),
@@ -196,8 +197,9 @@ impl QueryLanguagePort for LockCheckingCompiler {
         &self,
         bundle: &QueryBundle,
         hosted: &[HostedRelation],
+        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<ValidateReport, QueryLanguageError> {
-        self.compiler.validate(bundle, hosted)
+        self.compiler.validate(bundle, hosted, observations)
     }
     fn compile(
         &self,

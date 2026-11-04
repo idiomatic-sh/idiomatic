@@ -308,6 +308,8 @@ fn finding(table: &Table, scene: Scene<'_>) -> Result<Value, Failure> {
 /// Whether one rule's answer is its own columns, and two rules' are the rule, then every heading of each as often as one has it.
 fn answered() -> Value {
     let headed = |names: &[&str]| Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: Vec::new(),
         emit: Emit {

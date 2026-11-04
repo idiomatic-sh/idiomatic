@@ -54,6 +54,7 @@ pub(crate) fn sdk_request(
         rules: std::collections::BTreeMap::from([(
             RuleId::try_from("consumer").expect("rule id"),
             Rule {
+                observations: Vec::new(),
                 query: RyoQlQuery::try_from(query).expect("query"),
                 applicability: ryo_sdk::linter::RuleApplicability::Always,
                 parameters: std::collections::BTreeMap::new(),
@@ -213,6 +214,7 @@ fn sdk_validate_refuses_a_misspelled_kind(languages: &ryo_sdk::linter::Languages
     let misspelled = ryo_sdk::query::validate(
         languages,
         ryo_sdk::query::ValidateRequest {
+            observations: Vec::new(),
             query: RyoQlQuery::try_from(
                 r#"let n = select * from "syntax-tree" where kind = "nosuchkind"; emit n subject file key(span);"#,
             )

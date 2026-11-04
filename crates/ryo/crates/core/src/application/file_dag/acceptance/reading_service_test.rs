@@ -158,6 +158,8 @@ fn plan(comparing: u32, frontier: usize) -> Plan {
         scope: StepScope::PerFile,
     };
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![select, project],
         emit: Emit {
@@ -195,6 +197,7 @@ fn setting<'a>(
     bindings: &'a [Vec<ParameterBinding>],
 ) -> VisitSetting<'a> {
     VisitSetting {
+        observations: crate::domain::file_program::types::ObservationRequest::Independent,
         source_language: None,
         executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: std::sync::Arc::new(
@@ -214,6 +217,7 @@ fn setting<'a>(
             .expect("custom fixture relation metadata"),
         ),
         domain: crate::domain::workers::types::VisitSetting {
+            observations: crate::domain::file_program::types::ObservationRequest::Independent,
             unknown: &[],
             plans,
             bindings,
@@ -454,6 +458,8 @@ fn refuses() {
 fn duplicate_resident_join_plan() -> Plan {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Join {

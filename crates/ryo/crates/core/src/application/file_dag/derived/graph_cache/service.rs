@@ -60,6 +60,7 @@ pub(in crate::application::file_dag::derived) fn reserve(
                         | Operation::SpanBetween { .. } => return false,
                     };
                     let relation = match edges {
+                        Input::BoundObservation(_) => None,
                         Input::Relation(relation) => Some(relation),
                         Input::Step(id) => prepared
                             .and_then(|plan| plan.steps.get(id.0 as usize))

@@ -85,6 +85,8 @@ fn kind_is(name: &str) -> Comparison {
 /// A plan whose one step selects the elements of the kind `name` from the tree, or, when `name` is empty, those with no text.
 fn plan(name: &str) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {
@@ -115,10 +117,12 @@ fn setting<'a>(
     bindings: &'a [Vec<ParameterBinding>],
 ) -> VisitSetting<'a> {
     VisitSetting {
+        observations: crate::domain::file_program::types::ObservationRequest::Independent,
         source_language: None,
         executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
         operators: crate::application::file_dag::testing::request_fixture(plans, bindings, &[]),
         domain: crate::domain::workers::types::VisitSetting {
+            observations: crate::domain::file_program::types::ObservationRequest::Independent,
             unknown: &[],
             plans,
             bindings,

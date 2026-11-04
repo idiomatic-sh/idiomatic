@@ -44,6 +44,8 @@ type Failure = OperatingError;
 fn plan_of(steps: Vec<Operation>) -> Plan {
     let last = steps.len().saturating_sub(1);
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: steps
             .into_iter()

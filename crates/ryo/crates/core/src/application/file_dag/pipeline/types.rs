@@ -52,6 +52,9 @@ pub(crate) struct Stepper<'a, 'f> {
     pub dag: Option<&'a dyn crate::application::file_dag::interface::DagExecution>,
     /// Invocation leases pin a demanded graph handle without copying its cells.
     pub relation_owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+    /// Already-admitted bound inputs in this producer/consumer invocation.
+    pub bound_shared:
+        &'a [std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     pub dag_shared:
         &'a [std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     /// Ordered terminal identity; graph computation itself is shared across rules.
@@ -93,6 +96,7 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
     fn origin(&self, which: InputPlace) -> Result<super::super::feed::InputOrigin, OperatingError> {
         Ok(match input(self, which)? {
             Input::Relation(relation) => super::super::feed::InputOrigin::Relation(relation),
+            Input::BoundObservation(_) => super::super::feed::InputOrigin::Internal,
             Input::Step(id) => {
                 let id = id.0 as usize;
                 if self.layout.kept.0.get(id) == Some(&true)
@@ -112,6 +116,12 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
         which: InputPlace,
     ) -> Result<Option<super::super::relations::PublishedInput>, OperatingError> {
         Ok(match input(self, which)? {
+            Input::BoundObservation(id) => self
+                .bound_shared
+                .get(id.0 as usize)
+                .ok_or(OperatingError::NotRun)?
+                .get()
+                .cloned(),
             Input::Step(id) => self
                 .dag_shared
                 .get(id.0 as usize)
@@ -124,6 +134,11 @@ impl<'a> Feed<'a> for Stepper<'a, '_> {
 
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
         Ok(match input(self, which)? {
+            Input::BoundObservation(_) => self
+                .operators
+                .get(self.current.0)
+                .and_then(|contract| contract.input_kinds.get(which.0))
+                .ok_or(OperatingError::NotRun)?,
             Input::Relation(relation) => match self.read.rows(relation)? {
                 Rows::Stored(view) => view.kinds,
                 Rows::Tree(tree) => {

@@ -39,7 +39,14 @@ pub(crate) fn reads_of(plan: &Plan, id: StepPlace) -> ReadCount {
         .iter()
         .filter(|input| **input == Input::Step(StepId(u32::try_from(id).unwrap_or(u32::MAX))))
         .count();
-    ReadCount(steps + handed + usize::from(usize::try_from(plan.emit.step.0) == Ok(id)))
+    let observed = plan
+        .observations
+        .iter()
+        .filter(|output| {
+            output.source == Input::Step(StepId(u32::try_from(id).unwrap_or(u32::MAX)))
+        })
+        .count();
+    ReadCount(steps + handed + observed + usize::from(usize::try_from(plan.emit.step.0) == Ok(id)))
 }
 
 /// The layout of a plan: which steps keep their rows, and what columns each answers.
@@ -68,7 +75,14 @@ pub(crate) fn layout_of<'f>(
                     **input == Input::Step(StepId(u32::try_from(id).unwrap_or(u32::MAX)))
                 })
                 .count();
-            let exported = usize::from(id == emitted);
+            let exported = usize::from(id == emitted)
+                + plan
+                    .observations
+                    .iter()
+                    .filter(|output| {
+                        output.source == Input::Step(StepId(u32::try_from(id).unwrap_or(u32::MAX)))
+                    })
+                    .count();
             let reads = reads_of(plan, StepPlace(id)).0;
             (
                 step.scope != StepScope::CrossFile && (exported != 0 || handed != 0 || reads > 1),
@@ -229,6 +243,7 @@ pub(crate) fn shaped(
             }
             let kinds = match each.input {
                 Input::Relation(relation) => relation_kinds(relation).to_vec(),
+                Input::BoundObservation(id) => bound_kinds(plan, id)?,
                 Input::Step(id) => kinds
                     .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                     .cloned()
@@ -252,6 +267,17 @@ fn schema_steps<'a>(
     bindings: &[ParameterBinding],
 ) -> Result<Vec<Vec<CellKind>>, OperatingError> {
     let mut kinds: Vec<Vec<CellKind>> = vec![Vec::new(); plan.steps.len()];
+    let bound = plan
+        .observation_inputs
+        .iter()
+        .map(|input| {
+            input
+                .columns
+                .iter()
+                .map(|column| column.kind)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
     for (id, step) in plan.steps.iter().enumerate() {
         if step.scope == StepScope::CrossFile {
             continue;
@@ -267,6 +293,12 @@ fn schema_steps<'a>(
                             .ok_or(OperatingError::NotRun)?,
                         tree: None,
                     }),
+                    Input::BoundObservation(id) => Ok(InputSchema {
+                        kinds: bound
+                            .get(usize::try_from(id.0).map_err(|_| OperatingError::NotRun)?)
+                            .ok_or(OperatingError::NotRun)?,
+                        tree: None,
+                    }),
                     Input::Relation(relation) => {
                         // Do not substitute catalog metadata for a missing/refusing view.
                         read(*relation)
@@ -278,4 +310,16 @@ fn schema_steps<'a>(
         kinds[id] = answered;
     }
     Ok(kinds)
+}
+
+/// A bound input's schema is a compiled contract, not evidence of any resident rows or readiness.
+fn bound_kinds(
+    plan: &Plan,
+    id: ryo_values::domain::observations::types::ObservationBindingId,
+) -> Result<Vec<CellKind>, OperatingError> {
+    let input = plan
+        .observation_inputs
+        .get(usize::try_from(id.0).map_err(|_| OperatingError::NotRun)?)
+        .ok_or(OperatingError::NotRun)?;
+    Ok(input.columns.iter().map(|column| column.kind).collect())
 }

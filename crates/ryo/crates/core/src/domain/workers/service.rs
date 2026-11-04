@@ -31,6 +31,8 @@ pub(crate) fn tables_for(
     counting: Counting,
 ) -> Tables {
     Tables {
+        current_observations: None,
+        observations: Vec::new(),
         number,
         elements: Elements::default(),
         symbols: Symbols::default(),
@@ -136,6 +138,7 @@ pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables, plans: &[Plan]) {
         }
     }
     met.read.0 += tables.reads.0;
+    met.observations.extend(tables.observations);
     met.covered.extend(tables.covered);
     met.unknowns.extend(tables.unknowns);
     met.skipped.extend(tables.skipped);

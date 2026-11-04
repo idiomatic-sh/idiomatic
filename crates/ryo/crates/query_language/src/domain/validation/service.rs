@@ -25,10 +25,21 @@ use std::collections::BTreeSet;
 /// # Errors
 ///
 /// The first thing wrong, with the place it is written.
+#[cfg(test)]
 pub(crate) fn validate(
     program: &Program,
     catalog: &[Relation],
     hosted: &[HostedName],
+) -> Result<(), ValidationError> {
+    validate_with_observations(program, catalog, hosted, &[])
+}
+
+/// Validate declared typed named inputs without admitting arbitrary unknown step names.
+pub(crate) fn validate_with_observations(
+    program: &Program,
+    catalog: &[Relation],
+    hosted: &[HostedName],
+    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
 ) -> Result<(), ValidationError> {
     if program.linked {
         let mut identities = BTreeSet::new();
@@ -51,6 +62,7 @@ pub(crate) fn validate(
         linked: program.linked,
         steps: Vec::new(),
         hosted,
+        observations,
     };
     for step in &program.steps {
         if !program.linked && known.steps.iter().any(|known| known.0 == step.name.0) {
@@ -80,6 +92,33 @@ pub(crate) fn validate(
             }
         })?;
         known.steps.push(&step.name);
+    }
+    let mut exports = BTreeSet::new();
+    for output in &program.observations {
+        let error = if output.name.0.trim().is_empty() {
+            Some(ValidationError::BlankObservation { span: output.span })
+        } else if !exports.insert(&output.name) {
+            Some(ValidationError::DuplicateObservation {
+                name: output.name.0.to_string(),
+                span: output.span,
+            })
+        } else if !known.steps.contains(&&output.step) {
+            Some(ValidationError::UnknownStep {
+                name: output.step.0.to_string(),
+                span: output.span,
+            })
+        } else {
+            None
+        };
+        if let Some(error) = error {
+            return Err(match output.origin.clone() {
+                Some(origin) => ValidationError::Located {
+                    origin,
+                    error: Box::new(error),
+                },
+                None => error,
+            });
+        }
     }
     if !known.steps.contains(&&program.emit.step) {
         let error = ValidationError::UnknownStep {
@@ -147,6 +186,13 @@ fn check_source(
         SourceReference::Step(text) => {
             let exists = match text.1 {
                 Some(identity) => known.steps.iter().any(|step| step.1 == Some(identity)),
+                None if known
+                    .observations
+                    .iter()
+                    .any(|bound| bound.name.0 == text.0) =>
+                {
+                    true
+                }
                 None if known.linked => false,
                 None => known.steps.iter().any(|step| step.0 == text.0),
             };
@@ -169,7 +215,12 @@ fn check_relation(
     catalog: &[Relation],
     known: &Known<'_>,
 ) -> Result<(), ValidationError> {
-    if known.hosted.iter().any(|name| *name.0 == *text.0) {
+    if known.hosted.iter().any(|name| *name.0 == *text.0)
+        || known
+            .observations
+            .iter()
+            .any(|bound| *bound.name.0 == *text.0)
+    {
         return Ok(());
     }
     match relation_named(NameRef(text.0)) {
@@ -187,7 +238,12 @@ fn check_step(
     span: QuerySpan,
     known: &Known<'_>,
 ) -> Result<(), ValidationError> {
-    if known.steps.iter().any(|step| *step.0 == *text.0) {
+    if known.steps.iter().any(|step| *step.0 == *text.0)
+        || known
+            .observations
+            .iter()
+            .any(|bound| *bound.name.0 == *text.0)
+    {
         return Ok(());
     }
     Err(ValidationError::UnknownStep {
@@ -233,6 +289,14 @@ fn check_call(
                 ArgumentValue::Text(text) => {
                     check_relation(QuerySpelling(&text.0), call.span, catalog, known)?;
                 }
+                ArgumentValue::Word(text)
+                    if known
+                        .observations
+                        .iter()
+                        .any(|bound| bound.name.0 == text.0) =>
+                {
+                    ()
+                }
                 ArgumentValue::Word(text) if !known.linked => {
                     check_step(QuerySpelling(&text.0), call.span, known)?;
                 }
@@ -243,10 +307,15 @@ fn check_call(
                     });
                 }
                 ArgumentValue::Step(step) => {
-                    if !known
-                        .steps
-                        .iter()
-                        .any(|known| known.1 == step.1 && step.1.is_some())
+                    if !(step.1.is_none()
+                        && known
+                            .observations
+                            .iter()
+                            .any(|bound| bound.name.0 == step.0))
+                        && !known
+                            .steps
+                            .iter()
+                            .any(|known| known.1 == step.1 && step.1.is_some())
                     {
                         return Err(ValidationError::UnknownStep {
                             name: step.0.to_string(),

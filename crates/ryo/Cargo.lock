@@ -1618,6 +1618,7 @@ dependencies = [
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "thiserror",
 ]
 
 [[package]]

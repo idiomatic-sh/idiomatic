@@ -20,6 +20,8 @@ pub(crate) enum Keyword {
     Let,
     /// `emit`.
     Emit,
+    /// `observe`.
+    Observe,
     /// `subject`.
     Subject,
     /// `key`.
@@ -95,6 +97,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Relation => "relation",
         Keyword::Let => "let",
         Keyword::Emit => "emit",
+        Keyword::Observe => "observe",
         Keyword::Subject => "subject",
         Keyword::Key => "key",
         Keyword::Select => crate::domain::syntax::constants::SELECT,
@@ -136,7 +139,7 @@ pub(crate) fn mark_text(mark: Mark) -> &'static str {
 /// What the grammar expects when a text stops making sense and winnow said nothing more.
 #[must_use]
 pub(crate) fn expectation() -> &'static str {
-    "expected an `import`, `param`, `let` or `emit` line"
+    "expected an `import`, `param`, `let`, `observe` or `emit` line"
 }
 
 /// One production of the grammar as this adapter reads it: the parser fn that reads it, how it is written, and text it reads whole.

@@ -14,10 +14,21 @@ use super::types::{Bindings, Imported};
 use crate::domain::syntax::service::shape_named;
 
 /// Expands every imported-fragment call into fresh, identity-linked AST definitions.
+#[cfg(test)]
 pub(crate) fn link(
+    bundle: &QueryBundle,
+    root: Program,
+    fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
+) -> Result<Program, LinkError> {
+    link_with_observations(bundle, root, fragments, &[])
+}
+
+/// Bind declared external input names before expanding calls; no local definition is synthesized.
+pub(crate) fn link_with_observations(
     bundle: &QueryBundle,
     mut root: Program,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
+    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
 ) -> Result<Program, LinkError> {
     let root_id = bundle.root.id.clone();
     assign_root_identities(&mut root);
@@ -53,6 +64,7 @@ pub(crate) fn link(
     let mut root_visible = Vec::new();
     let mut contracts = Vec::new();
     let root_imports = imports.get(&root_id).cloned().unwrap_or_default();
+    bind_declared_sources(&mut root, observations, &root_imports, fragments, &root_id)?;
     for original in root.steps.clone() {
         if let Expression::Call(call) = &original.expression
             && let Some(import) = root_imports.get(call.name.0.as_ref())
@@ -136,6 +148,16 @@ fn assign_root_identities(program: &mut Program) {
                         .and_then(|candidate| candidate.name.1);
                 }
             }
+        }
+    }
+    for output in &mut program.observations {
+        if output.step.1.is_none() {
+            output.step.1 = program
+                .steps
+                .iter()
+                .rev()
+                .find(|step| step.name.0 == output.step.0)
+                .and_then(|step| step.name.1);
         }
     }
     if program.emit.step.1.is_none() {
@@ -1034,9 +1056,113 @@ fn attribute_root(program: &mut Program, root: &QuerySourceId) {
         span: program.emit.span,
         trace: Vec::new(),
     });
+    for output in &mut program.observations {
+        output.origin = Some(QueryOrigin {
+            source_id: root.clone(),
+            span: output.span,
+            trace: Vec::new(),
+        });
+        program.origins.push(
+            output
+                .origin
+                .clone()
+                .expect("the root origin was just assigned"),
+        );
+    }
     program.emit_origin = Some(QueryOrigin {
         source_id: root.clone(),
         span: program.emit.span,
         trace: Vec::new(),
     });
+}
+
+/// Root local definitions cannot shadow external inputs; hygienic private fragment definitions remain local.
+fn bind_declared_sources(
+    root: &mut Program,
+    observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
+    imports: &Imported,
+    fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
+    source: &QuerySourceId,
+) -> Result<(), LinkError> {
+    let names: BTreeSet<_> = observations
+        .iter()
+        .map(|input| input.name.0.as_ref())
+        .collect();
+    if names.is_empty() {
+        return Ok(());
+    }
+    for step in &root.steps {
+        if names.contains(step.name.0.as_ref()) {
+            return Err(located(
+                source,
+                step.span,
+                Vec::new(),
+                format!(
+                    "step `{}` conflicts with a declared observation input",
+                    step.name.0
+                ),
+            ));
+        }
+    }
+    for step in &mut root.steps {
+        match &mut step.expression {
+            Expression::Select(select) => {
+                let joined = match &mut select.join {
+                    ryo_values::domain::program::types::Joining::Alone => None,
+                    ryo_values::domain::program::types::Joining::Joined(join) => {
+                        Some(&mut join.source)
+                    }
+                };
+                for input in std::iter::once(&mut select.from).chain(joined) {
+                    if let SourceReference::Step(name) = &input.reference
+                        && name.1.is_none()
+                        && names.contains(name.0.as_ref())
+                    {
+                        input.reference = SourceReference::Relation(
+                            ryo_values::domain::program::types::WrittenRelation(name.0.clone()),
+                        );
+                    }
+                }
+            }
+            Expression::Call(call) => {
+                let shape = shape_named(&call.name);
+                let fragment = imports
+                    .get(call.name.0.as_ref())
+                    .map(|import| source_id(source, import))
+                    .transpose()?
+                    .and_then(|id| fragments.get(&id));
+                for argument in &mut call.arguments {
+                    let relation_input = shape.is_some_and(|shape| {
+                        crate::domain::syntax::service::is_input(shape.inputs, &argument.name)
+                            == crate::domain::syntax::types::ArgumentRole::Input
+                    }) || fragment.is_some_and(|fragment| {
+                        fragment
+                            .inputs
+                            .iter()
+                            .any(|input| input.name.0 == argument.name.0)
+                    });
+                    if !relation_input {
+                        continue;
+                    }
+                    let external = match &argument.value {
+                        ArgumentValue::Word(name) if names.contains(name.0.as_ref()) => {
+                            Some(name.0.clone())
+                        }
+                        ArgumentValue::Step(name)
+                            if name.1.is_none() && names.contains(name.0.as_ref()) =>
+                        {
+                            Some(name.0.clone())
+                        }
+                        _ => None,
+                    };
+                    if let Some(name) = external {
+                        argument.value = ArgumentValue::Text(
+                            ryo_values::domain::program::types::WrittenLiteral(name),
+                        );
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }

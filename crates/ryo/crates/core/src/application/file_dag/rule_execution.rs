@@ -170,6 +170,12 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
                     .map_err(|error| refuse(&error))?,
             )
             .map_err(|error| match error {
+                crate::domain::operating::errors::OperatingError::ObservationIncomplete {
+                    reason,
+                } => RulesError::ObservationIncomplete {
+                    id: id_at(setting.ids, rule),
+                    reason,
+                },
                 crate::domain::operating::errors::OperatingError::SemanticIncomplete { reason } => {
                     RulesError::SemanticIncomplete {
                         id: id_at(setting.ids, rule),

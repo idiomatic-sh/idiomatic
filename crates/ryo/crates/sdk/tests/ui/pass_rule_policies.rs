@@ -9,6 +9,7 @@ fn main() {
         RyoQlQuery::try_from("emit \"syntax-tree\" subject file key(id);").expect("a valid query");
     for applicability in [RuleApplicability::Always, RuleApplicability::AcceptedSyntax] {
         let rule = Rule {
+            observations: Vec::new(),
             query: query.clone(),
             applicability,
             parameters: BTreeMap::new(),

@@ -67,6 +67,8 @@ fn plan_reading_function() -> Plan {
 
 fn plan_reading(relation: Relation) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {

@@ -117,6 +117,8 @@ pub(crate) fn moved_words(
 /// changes only what one rule reads leaves the others' steps as they were.
 pub(crate) fn frontier_flat(
     moved: &[BucketWords],
+    observations: Option<ryo_values::domain::observations::types::ValidatedFrontiers<'_>>,
+    slots: &[crate::domain::file_program::types::ObservedFrontierRoot],
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     flat: &mut Flat,
@@ -140,6 +142,37 @@ pub(crate) fn frontier_flat(
         ]);
         flat.0.extend(unpacked(&each.words).map(|word| word.0));
     }
+    if let Some(observations) = observations {
+        let start = slots.partition_point(|slot| slot.producer.0 < rule.0);
+        let end = slots.partition_point(|slot| slot.producer.0 <= rule.0);
+        if start != end {
+            use ryo_values::domain::observations::types::{
+                ObservationReadinessCount, ObservationReadinessRange, ObservationReadinessSlot,
+            };
+            let bytes = ryo_values::domain::observations::service::frontier_identity(
+                observations,
+                ObservationReadinessRange {
+                    start: ObservationReadinessSlot(
+                        u32::try_from(start).expect("prepared status slot fits u32"),
+                    ),
+                    length: ObservationReadinessCount(
+                        u32::try_from(end - start).expect("prepared status range fits u32"),
+                    ),
+                },
+            )
+            .expect("validated status range follows the prepared root layout")
+            .0;
+            flat.0.extend([
+                u64::MAX,
+                u64::try_from(bytes.len()).expect("readiness identity length fits u64"),
+            ]);
+            for chunk in bytes.chunks(8) {
+                let mut word = [0; 8];
+                word[..chunk.len()].copy_from_slice(chunk);
+                flat.0.push(u64::from_le_bytes(word));
+            }
+        }
+    }
 }
 
 /// What the rules gave of the file: its findings, what it shows other files, and the words and the text it hands the steps that
@@ -159,6 +192,7 @@ pub(crate) fn made_ran(
         frontier: Vec::new(),
         noted: Digest([0; 16]),
         handed: Handing::Made(Handed {
+            observations: tables.current_observations.clone(),
             buckets: moved
                 .into_iter()
                 .map(|each| HandedWords {
@@ -402,7 +436,16 @@ pub(crate) fn hand_rest_again(
     notes: Option<&FileNotes>,
     governing: &GoverningRules,
     partials: &[StoredPartial],
+    observations: Option<&std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
 ) {
+    if let Some(root) = observations {
+        tables
+            .observations
+            .push(crate::domain::coverage::types::FileObservationReadiness {
+                file: number,
+                root: std::sync::Arc::clone(root),
+            });
+    }
     tables.arena.0.extend_from_slice(&text.0);
     if let Some(notes) = notes {
         tables.notes.push(PlacedNotes {

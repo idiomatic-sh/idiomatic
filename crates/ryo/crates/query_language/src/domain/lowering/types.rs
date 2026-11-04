@@ -203,6 +203,8 @@ pub(crate) struct Builder<'a> {
     pub catalog: &'a [Relation],
     /// The steps the relations the host declared were made into, by the name a rule writes.
     pub hosted_steps: Vec<HostedStep>,
+    /// Typed producer input schemas; these are not Hosted static tables.
+    pub observation_inputs: &'a [ryo_values::domain::observations::types::BoundObservationSchema],
     /// The parameters the query declares.
     pub parameters: &'a [ParameterDeclaration],
     /// What each parameter holds, in the order declared.

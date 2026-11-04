@@ -312,6 +312,7 @@ fn subject((text, declared, linked, compiler): Input) -> Result<Value, Failure> 
     };
     ValidateUseCaseImpl::new(compiling, language)
         .validate(ValidateRequest {
+            observations: Vec::new(),
             text: ryo_values::domain::program::types::QueryBundle::from(QueryText(text)),
             hosted,
         })
@@ -327,6 +328,7 @@ impl QueryLanguagePort for CompilesNothing {
         &self,
         _text: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<ValidateReport, QueryLanguageError> {
         Ok(ValidateReport {
             relations: Vec::new(),

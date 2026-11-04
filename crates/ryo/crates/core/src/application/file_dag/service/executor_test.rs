@@ -70,6 +70,8 @@ impl PrimitiveExecutor for CountingExecutor {
 fn dag_root_and_recursive_child_use_injected_executor() {
     let relation = Relation::LanguageTarget;
     let plan = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![
             PlanStep {

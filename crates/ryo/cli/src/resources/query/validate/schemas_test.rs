@@ -41,6 +41,7 @@ fn subject(line: Input) -> Result<Value, Failure> {
         .expect("the row's command line is well formed");
     let text = parsed.arguments.text;
     let expected = ValidateRequest {
+        observations: Vec::new(),
         text: ryo_values::domain::program::types::QueryBundle::from(QueryText(
             text.as_str().into(),
         )),

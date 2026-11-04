@@ -93,6 +93,8 @@ fn plan() -> Plan {
         },
     ];
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps,
         comparison_origins: Vec::new(),

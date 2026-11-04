@@ -58,7 +58,12 @@ impl FileDagExecution {
         let active = schedule.active.clone();
         let remaining = schedule.remaining.clone();
         let count = graph.nodes.len();
+        let observations = graph
+            .observations
+            .as_ref()
+            .map(super::observations::FileObservations::new);
         Self {
+            observations,
             relations: owner,
             graph,
             active,
@@ -117,6 +122,7 @@ impl FileDagExecution {
         }
     }
     pub(crate) fn finish_rule(&mut self, rule: usize) {
+        self.finish_observation_rule(rule);
         if !self.active.get(rule).copied().unwrap_or(false) {
             return;
         }
@@ -149,9 +155,10 @@ impl FileDagExecution {
         }
         let _node = crate::application::file_dag::route_counts::node(id.0);
         self.demands += 1;
-        if let Some(table) = self.required.get(id.0).and_then(Option::as_ref) {
+        if let Some(table) = self.required.get(id.0).and_then(Option::as_ref).cloned() {
             self.hits += 1;
-            return Ok((table).clone());
+            self.publish_observed_node(id, &table);
+            return Ok(table);
         }
         if let Some(table) = self
             .ready
@@ -162,6 +169,7 @@ impl FileDagExecution {
             self.hits += 1;
             let table = self.relations.required_publication(&table)?;
             self.pin_required(id, table.clone());
+            self.publish_observed_node(id, &table);
             return Ok(table);
         }
         if self.visiting.get(id.0).copied().unwrap_or(true) {
@@ -220,6 +228,7 @@ impl FileDagExecution {
         })();
         self.visiting[id.0] = false;
         let table = outcome?;
+        self.publish_observed_node(id, &table);
         if self.graph.derived_sources[id.0] {
             self.relations.bind_producer(id, table.as_ref())?;
         }
@@ -302,7 +311,9 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
             Some(NodeInput::Relation(relation)) => {
                 Ok(super::feed::InputOrigin::Relation(*relation))
             }
-            Some(NodeInput::Node(_)) => Ok(super::feed::InputOrigin::Internal),
+            Some(NodeInput::Node(_) | NodeInput::Observation(_)) => {
+                Ok(super::feed::InputOrigin::Internal)
+            }
             None => Err(OperatingError::MissingInput {
                 position: which.0 + 1,
             }),
@@ -361,6 +372,22 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
                 }
                 Ok(raw)
             }
+            NodeInput::Observation(binding) => {
+                let binding = self.execution.observation_slot(binding)?;
+                let held = self.held;
+                let slot = &held[which.0];
+                if slot.get().is_none() {
+                    let table = self.execution.observed_input(
+                        binding,
+                        self.read,
+                        self.executor,
+                        context,
+                    )?;
+                    let _installed = slot.set(table);
+                }
+                let table = slot.get().ok_or(OperatingError::NotRun)?;
+                self.execution.relations.resolve(table.as_ref(), self.read)
+            }
             NodeInput::Node(node) => {
                 let held = self.held;
                 let slot = &held[which.0];
@@ -407,6 +434,30 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
                 );
                 scan(&rows, &mut row, context, emit)
             }
+            NodeInput::Observation(binding) => {
+                let binding = self.execution.observation_slot(binding)?;
+                let held = self.held;
+                let slot = &held[which.0];
+                if slot.get().is_none() {
+                    let table = self.execution.observed_input(
+                        binding,
+                        self.read,
+                        self.executor,
+                        context,
+                    )?;
+                    let _installed = slot.set(table);
+                }
+                let table = slot.get().ok_or(OperatingError::NotRun)?;
+                scan(
+                    &self
+                        .execution
+                        .relations
+                        .resolve(table.as_ref(), self.read)?,
+                    &mut row,
+                    context,
+                    emit,
+                )
+            }
             NodeInput::Node(node) => {
                 let held = self.held;
                 let slot = &held[which.0];
@@ -445,6 +496,24 @@ impl DagExecution for std::cell::RefCell<FileDagExecution> {
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId> {
         self.borrow().owned(rule, step)
     }
+    fn refuse_observation(
+        &self,
+        rule: usize,
+        output: ryo_values::domain::observations::types::ObservationIndex,
+        reason: ryo_values::domain::observations::types::ObservationReason,
+    ) -> Result<(), OperatingError> {
+        self.borrow_mut().refuse_observation(rule, output, reason)
+    }
+    fn observation<'f>(
+        &self,
+        slot: crate::domain::file_program::types::ObservationSlot,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &dyn PrimitiveExecutor,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<super::relations::PublishedInput, OperatingError> {
+        self.borrow_mut()
+            .observed_input(slot, read, executor, context)
+    }
     fn demand<'f>(
         &self,
         node: NodeId,
@@ -466,6 +535,24 @@ impl DagExecution for std::cell::RefCell<&mut FileDagExecution> {
     }
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId> {
         self.borrow().owned(rule, step)
+    }
+    fn refuse_observation(
+        &self,
+        rule: usize,
+        output: ryo_values::domain::observations::types::ObservationIndex,
+        reason: ryo_values::domain::observations::types::ObservationReason,
+    ) -> Result<(), OperatingError> {
+        self.borrow_mut().refuse_observation(rule, output, reason)
+    }
+    fn observation<'f>(
+        &self,
+        slot: crate::domain::file_program::types::ObservationSlot,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+        executor: &dyn PrimitiveExecutor,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<super::relations::PublishedInput, OperatingError> {
+        self.borrow_mut()
+            .observed_input(slot, read, executor, context)
     }
     fn demand<'f>(
         &self,
@@ -500,6 +587,20 @@ impl GraphInputs<'_, '_> {
                 .execution
                 .relations
                 .source(relation, &(self.read)(relation)?),
+            NodeInput::Observation(binding) => {
+                let binding = self.execution.observation_slot(binding)?;
+                let slot = &self.held[which];
+                if slot.get().is_none() {
+                    let value = self.execution.observed_input(
+                        binding,
+                        self.read,
+                        self.executor,
+                        context,
+                    )?;
+                    let _installed = slot.set(value);
+                }
+                Ok(slot.get().ok_or(OperatingError::NotRun)?.clone())
+            }
             NodeInput::Node(node) => {
                 let slot = &self.held[which];
                 if slot.get().is_none() {

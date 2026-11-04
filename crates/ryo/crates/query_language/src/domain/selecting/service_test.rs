@@ -135,6 +135,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         .expect("the row's text is readable");
     let mut builder = Builder {
         catalog: CATALOG,
+        observation_inputs: &[],
         hosted_steps: Vec::new(),
         parameters: &program.parameters,
         kinds: Vec::new(),

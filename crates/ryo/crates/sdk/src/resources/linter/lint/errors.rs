@@ -14,6 +14,15 @@ pub enum LintError {
         /// Why execution failed.
         reason: String,
     },
+    /// A required named publication could not be admitted in this execution.
+    #[error("observation execution failed: {reason}")]
+    ObservationExecution { reason: String },
+    /// The explicitly declared named-output dependency contract is invalid.
+    #[error("invalid observation bindings: {reason}")]
+    ObservationBindings {
+        /// Configuration failure before file execution.
+        reason: String,
+    },
     /// An explicit source provider is unavailable at the request edge.
     #[error("explicit source provider `{name}` must name exactly one linked provider")]
     SourceLanguage {

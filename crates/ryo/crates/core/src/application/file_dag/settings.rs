@@ -26,6 +26,8 @@ impl DerefMut for VisitSetting<'_> {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct CrossingInput<'a> {
+    /// Invocation-owned physical arena lease view, supplied by the application coordinator.
+    pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     pub executor: &'a dyn PrimitiveExecutor,
     pub operators: Arc<RequestOperators>,
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,

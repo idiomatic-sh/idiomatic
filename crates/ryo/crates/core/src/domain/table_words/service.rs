@@ -33,6 +33,34 @@ pub(crate) fn encode_table(table: &Table, places: &[NamePlace], out: &mut Words)
 /// that cannot be read to its end is left out, and so are those after it.
 #[must_use]
 pub(crate) fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>) -> Table {
+    decode_combined_status(packed, places, DecodeMode::Permissive).0
+}
+/// The same decoder with an explicit completion proof for required named publications.
+/// Refusal rolls back this call's name-place additions; legacy permissive callers are unchanged.
+pub(crate) fn decode_complete(
+    packed: &PackedWords,
+    places: &mut Vec<NamePlace>,
+) -> Result<Table, super::errors::WordsDecodeError> {
+    let before = places.len();
+    let (table, complete) = decode_combined_status(packed, places, DecodeMode::Complete);
+    if complete {
+        Ok(table)
+    } else {
+        places.truncate(before);
+        Err(super::errors::WordsDecodeError::Incomplete)
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DecodeMode {
+    Permissive,
+    Complete,
+}
+fn decode_combined_status(
+    packed: &PackedWords,
+    places: &mut Vec<NamePlace>,
+    mode: DecodeMode,
+) -> (Table, bool) {
+    let mut complete = mode == DecodeMode::Permissive || canonical_words(packed);
     let mut combined = Table::default();
     // A value takes two words at least, and a packed word a byte at least.
     observed_decode("decode_before_reserve", packed, &combined, places);
@@ -41,17 +69,30 @@ pub(crate) fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>)
     let mut words = unpacked(packed);
     while let Some(Bits(columns)) = words.next() {
         let Some(Bits(rows)) = words.next() else {
+            complete = false;
             break;
         };
         let (cells, count, kept) = (combined.cells.len(), combined.count.0, places.len());
         let had_kinds = !combined.kinds.is_empty();
         let mut readable = true;
-        for _ in 0..columns {
+        for column in 0..columns {
             match decode_kind(&mut words) {
                 Some(kind) if !had_kinds => combined.kinds.push(kind),
-                Some(_) => {}
-                None => readable = false,
+                Some(kind) => {
+                    if mode == DecodeMode::Complete
+                        && combined.kinds.get(column as usize) != Some(&kind)
+                    {
+                        complete = false;
+                    }
+                }
+                None => {
+                    readable = false;
+                    break;
+                }
             }
+        }
+        if mode == DecodeMode::Complete && combined.kinds.len() != columns as usize {
+            complete = false;
         }
         if readable && decode_places(&mut words, places).is_none() {
             readable = false;
@@ -71,6 +112,7 @@ pub(crate) fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>)
             combined.count = RowCount(combined.count.0 + 1);
         }
         if !readable {
+            complete = false;
             combined.cells.truncate(cells);
             combined.count = RowCount(count);
             places.truncate(kept);
@@ -83,7 +125,7 @@ pub(crate) fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>)
     observed_decode("decode_before_shrink", packed, &combined, places);
     combined.cells.shrink_to_fit();
     observed_decode("decode_after_shrink", packed, &combined, places);
-    combined
+    (combined, complete)
 }
 
 /// Report only this decoder's caller-owned buffers, never process/allocator residency.
@@ -184,3 +226,26 @@ pub(crate) fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ 
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+/// Existing pack() emits minimal u64 varints. A required frame refuses a cut word,
+/// overflow or alternate spelling rather than letting unpacked() silently shorten it.
+fn canonical_words(packed: &PackedWords) -> bool {
+    let mut shift = 0_u32;
+    for &byte in &packed.0 {
+        let payload = byte & 0x7f;
+        if shift > 63 || (shift == 63 && payload > 1) {
+            return false;
+        }
+        if byte & 0x80 == 0 {
+            if shift != 0 && payload == 0 {
+                return false;
+            }
+            shift = 0;
+        } else {
+            if shift >= 63 {
+                return false;
+            }
+            shift += 7;
+        }
+    }
+    shift == 0
+}

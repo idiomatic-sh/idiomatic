@@ -32,6 +32,7 @@ impl TryFrom<ValidateArgumentsSchema> for ValidateRequest {
                 schema.text.into(),
             )),
             hosted: Vec::new(),
+            observations: Vec::new(),
         })
     }
 }

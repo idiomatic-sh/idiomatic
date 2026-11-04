@@ -46,6 +46,7 @@ pub(crate) fn begin(tables: &mut Tables) -> ArenaBase {
     tables.reads.0 += 1;
     let base = ArenaBase(u32::try_from(tables.arena.0.len()).unwrap_or(u32::MAX));
     tables.captured.clear();
+    tables.current_observations = None;
     clear_elements(&mut tables.elements);
     base
 }
@@ -105,6 +106,17 @@ pub(crate) fn prepare_frontier(
 ) -> Option<Bucket> {
     let plan = setting.plans.get(rule.0)?;
     if place.0 >= plan.frontier.len() {
+        return None;
+    }
+    if let Some(ryo_values::domain::plan_parts::types::Input::BoundObservation(id)) =
+        plan.frontier.get(place.0)
+        && plan
+            .observation_inputs
+            .get(id.0 as usize)
+            .is_some_and(|input| {
+                input.scope == ryo_values::domain::plans::types::StepScope::CrossFile
+            })
+    {
         return None;
     }
     let first = setting.first_bucket.get(rule.0).copied()?;

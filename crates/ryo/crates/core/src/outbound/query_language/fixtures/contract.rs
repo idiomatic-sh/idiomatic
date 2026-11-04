@@ -43,10 +43,10 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 ///
 /// When the implementation breaks the contract.
 pub fn check(adapter: &impl QueryLanguagePort) {
-    let subject = |text| adapter.compile(&text, &[]).map(|_| true);
+    let subject = |text| adapter.compile(&text, &[], &[]).map(|_| true);
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
-    let validated = |text| adapter.validate(&text, &[]).map(|_| true);
+    let validated = |text| adapter.validate(&text, &[], &[]).map(|_| true);
     run(CASES, Word::Succeeds, validated);
     run(CASES, Word::Refuses, validated);
 }

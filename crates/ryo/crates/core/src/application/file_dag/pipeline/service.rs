@@ -304,6 +304,46 @@ where
         .transpose()
 }
 
+/// Read a bound publication once, through the existing generation owner. No producer recomputation.
+fn bound_rows<'a, 'f>(
+    stepper: &Stepper<'a, 'f>,
+    id: ryo_values::domain::observations::types::ObservationBindingId,
+    context: &mut OperatorContext<'_>,
+) -> Result<Rows<'a>, OperatingError>
+where
+    'f: 'a,
+{
+    let slot = stepper
+        .bound_shared
+        .get(id.0 as usize)
+        .ok_or(OperatingError::NotRun)?;
+    if slot.get().is_none() {
+        let dag = stepper
+            .dag
+            .ok_or_else(|| OperatingError::ObservationIncomplete {
+                reason: "named input has no generation owner".into(),
+            })?;
+        let published = dag.observation(
+            crate::domain::file_program::types::ObservationSlot {
+                rule: stepper.rule,
+                input: id,
+            },
+            &|relation| stepper.read.rows(relation),
+            stepper.executor,
+            context,
+        )?;
+        slot.set(published).map_err(|_| OperatingError::NotRun)?;
+    }
+    let owner = stepper
+        .relation_owner
+        .as_ref()
+        .ok_or(OperatingError::NotRun)?;
+    owner.resolve(
+        slot.get().ok_or(OperatingError::NotRun)?.as_ref(),
+        &|relation| stepper.read.rows(relation),
+    )
+}
+
 /// Passes on the rows of the step `id`: its table when it keeps them, else as it makes them.
 ///
 /// # Errors
@@ -359,6 +399,10 @@ where
     'f: 'a,
 {
     match input(stepper, which)? {
+        Input::BoundObservation(id) => {
+            let rows = bound_rows(stepper, id, context)?;
+            scan(&rows, &mut Vec::new(), context, emit)
+        }
         Input::Relation(relation) => {
             let rows = stepper.read.rows(relation)?;
             let mut buffer = stepper.spare.pop().unwrap_or_default();
@@ -391,6 +435,7 @@ where
     'f: 'a,
 {
     match input(stepper, which)? {
+        Input::BoundObservation(id) => bound_rows(stepper, id, context),
         Input::Relation(relation) => Ok(stepper.read.rows(relation)?),
         Input::Step(id) => {
             let id = usize::try_from(id.0).unwrap_or(usize::MAX);
@@ -475,6 +520,7 @@ fn demanded_steps(plan: &Plan, eager: &[bool], cached: &[bool]) -> Vec<bool> {
     let mut demanded = vec![false; plan.steps.len()];
     pending.push(Input::Step(plan.emit.step));
     pending.extend(plan.frontier.iter().copied());
+    pending.extend(plan.observations.iter().map(|output| output.source));
     pending.extend(eager.iter().enumerate().filter_map(|(index, eager)| {
         (*eager && !bypassed[index]).then_some(Input::Step(StepId(index as u32)))
     }));
@@ -827,6 +873,9 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
     let dag_shared = (0..plan.steps.len())
         .map(|_| std::cell::OnceCell::new())
         .collect::<Vec<_>>();
+    let bound_shared = (0..plan.observation_inputs.len())
+        .map(|_| std::cell::OnceCell::new())
+        .collect::<Vec<_>>();
     // Only opaque steps remain in this schedule. Their Feed requests drive the
     // unique application DAG at the original lazy/error boundary.
     let execution_steps = file_dag.map(|dag| {
@@ -902,6 +951,7 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
             graph_kept: graph_kept.get(..index).unwrap_or(&[]),
             dag: file_dag,
             relation_owner: std::rc::Rc::clone(&relation_owner),
+            bound_shared: &bound_shared,
             dag_shared: &dag_shared,
             rule,
             selectors,
@@ -977,6 +1027,80 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
             shared_steps[index] = Some(shared);
         }
     }
+    // Eager publication happens at the producer boundary, with that producer's
+    // bindings/context, including observed Emit/frontier roots. Consumers only read these handles.
+    if let Some(dag) = file_dag {
+        for (output_index, output) in plan.observations.iter().enumerate() {
+            if output.scope != StepScope::PerFile {
+                continue;
+            }
+            let Input::Step(root) = output.source else {
+                return Err(OperatingError::NotRun);
+            };
+            let at = root.0 as usize;
+            if layout
+                .needs
+                .get(at)
+                .is_some_and(|needs| blocked(needs, partial) == Blocking::Blocked)
+            {
+                continue;
+            }
+            let Some(node) = dag.owned(rule, at) else {
+                continue;
+            };
+            match dag.demand(node, &read, executor, context) {
+                Ok(publication) => {
+                    if let Some(slot) = dag_shared.get(at)
+                        && slot.get().is_none()
+                    {
+                        let _installed = slot.set(publication);
+                    }
+                }
+                Err(error) => {
+                    dag.refuse_observation(
+                        rule,
+                        ryo_values::domain::observations::types::ObservationIndex(
+                            u32::try_from(output_index).map_err(|_| OperatingError::NotRun)?,
+                        ),
+                        ryo_values::domain::observations::types::ObservationReason(
+                            error.to_string().into(),
+                        ),
+                    )?;
+                    if root == plan.emit.step {
+                        return Err(error);
+                    }
+                    // An independent refused root remains Unknown; its completed Emit is preserved.
+                }
+            }
+        }
+    }
+    for input in &plan.frontier {
+        let Input::BoundObservation(id) = input else {
+            continue;
+        };
+        if plan
+            .observation_inputs
+            .get(id.0 as usize)
+            .is_some_and(|input| input.scope == StepScope::CrossFile)
+        {
+            continue;
+        }
+        let slot = bound_shared
+            .get(id.0 as usize)
+            .ok_or(OperatingError::NotRun)?;
+        if slot.get().is_none() {
+            let dag = file_dag.ok_or_else(|| OperatingError::ObservationIncomplete {
+                reason: "bound frontier has no generation owner".into(),
+            })?;
+            slot.set(dag.observation(
+                crate::domain::file_program::types::ObservationSlot { rule, input: *id },
+                &read,
+                executor,
+                context,
+            )?)
+            .map_err(|_| OperatingError::NotRun)?;
+        }
+    }
     drop(retained);
     hand_over(
         plan,
@@ -985,6 +1109,7 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
         &read,
         relation_owner.as_ref(),
         &dag_shared,
+        &bound_shared,
         context,
         frontier,
     )?;
@@ -1013,11 +1138,32 @@ fn hand_over<'f>(
     read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
     owner: &crate::application::file_dag::relations::RelationOwner,
     publications: &[std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
+    bound: &[std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
     context: &mut OperatorContext<'_>,
     frontier: &mut [Table],
 ) -> Result<(), OperatingError> {
     for (input, into) in plan.frontier.iter().zip(frontier.iter_mut()) {
         match input {
+            Input::BoundObservation(id) => {
+                // Cross-phase named inputs have no per-file publication or persisted empty stand-in.
+                if plan
+                    .observation_inputs
+                    .get(id.0 as usize)
+                    .is_some_and(|input| input.scope == StepScope::CrossFile)
+                {
+                    continue;
+                }
+                let publication = bound
+                    .get(id.0 as usize)
+                    .and_then(std::cell::OnceCell::get)
+                    .ok_or_else(|| OperatingError::ObservationIncomplete {
+                        reason: "bound frontier has no producer publication".into(),
+                    })?;
+                let rows = owner
+                    .ok_or(OperatingError::NotRun)?
+                    .resolve(publication.as_ref(), read)?;
+                materialize(&rows, into, &mut context.scratch.row);
+            }
             Input::Relation(relation) => {
                 materialize(&read(*relation)?, into, &mut context.scratch.row);
             }

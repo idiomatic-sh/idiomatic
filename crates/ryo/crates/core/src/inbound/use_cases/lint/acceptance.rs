@@ -43,6 +43,8 @@ fn file(path: &str) -> CorpusFile {
 /// A plan that keeps every row of the `function` relation.
 fn every_function() -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
             operation: Operation::Select {
@@ -141,6 +143,7 @@ std::sync::Arc::new(ryo_core::outbound::derived::factory::use_case(ryo_derived::
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("rule".into()),
             query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
             applicability: ryo_values::domain::runs::types::RuleApplicability::Always,

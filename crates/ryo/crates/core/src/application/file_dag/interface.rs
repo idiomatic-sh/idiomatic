@@ -15,6 +15,29 @@ pub(crate) trait DagExecution {
         rule: usize,
     ) -> Result<(), crate::domain::operating::errors::OperatingError>;
     fn owned(&self, rule: usize, step: usize) -> Option<NodeId>;
+    /// Preserve the independent root's original refusal without erasing a completed Emit.
+    fn refuse_observation(
+        &self,
+        rule: usize,
+        output: ryo_values::domain::observations::types::ObservationIndex,
+        reason: ryo_values::domain::observations::types::ObservationReason,
+    ) -> Result<(), crate::domain::operating::errors::OperatingError>;
+    /// Read already-published named roots; never execute the producer in a consumer context.
+    fn observation<'f>(
+        &self,
+        slot: crate::domain::file_program::types::ObservationSlot,
+        read: &dyn Fn(
+            Relation,
+        ) -> Result<
+            crate::domain::table_model::types::Rows<'f>,
+            crate::domain::operating::errors::OperatingError,
+        >,
+        executor: &dyn PrimitiveExecutor,
+        context: &mut crate::domain::operating::types::OperatorContext<'_>,
+    ) -> Result<
+        crate::application::file_dag::relations::PublishedInput,
+        crate::domain::operating::errors::OperatingError,
+    >;
     fn demand<'f>(
         &self,
         node: NodeId,

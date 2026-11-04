@@ -131,6 +131,8 @@ pub enum SkipReason {
 /// One rule: a query whose rows are violations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rule {
+    /// Explicit producer outputs bound to local query input names.
+    pub observations: Vec<ObservationBinding>,
     /// The RyoQL text.
     pub query: RyoQlQuery,
     /// Whether the rule runs on every parse or only files whose syntax the provider accepted.
@@ -478,4 +480,27 @@ pub struct ExecutionOptions {
     pub node_result_reuse: NodeResultReuse,
     /// Enable eligible column kernels.
     pub column_kernel: bool,
+}
+
+/// An explicit named input supplied as the distinct set union of selected producer outputs.
+/// Adding an empty producer never changes multiplicity; zero producers produce the declared empty set.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObservationBinding {
+    /// Local query source name; execution scope is inferred from actual producer plans.
+    pub name: crate::domain::observation::types::ObservationBindingName,
+    /// Required ordered column schema.
+    pub columns: Vec<crate::domain::observation::types::ObservationColumn>,
+    /// Selected producer declarations; no executable query is inferred from diagnostics.
+    pub producers: Vec<ObservationProducer>,
+}
+/// A selected producer's explicit output, or an explicit unavailable executable.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ObservationProducer {
+    /// Read the named output of the selected rule's actual query.
+    Output {
+        rule: RuleId,
+        output: crate::domain::observation::types::ObservationName,
+    },
+    /// The selection contains the rule but no query is registered.
+    NoQuery { rule: RuleId },
 }

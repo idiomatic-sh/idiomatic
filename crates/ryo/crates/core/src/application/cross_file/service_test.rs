@@ -73,6 +73,8 @@ struct World {
 /// A plan that counts across files the names a per-file step handed over, and emits the column `subject` of the counts.
 fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![
             PlanStep {
@@ -123,14 +125,16 @@ fn crossing(world: &World) -> CrossingInput<'_> {
             &world.bindings,
             &[],
         ),
+        arenas: &world.arenas,
         domain: crate::domain::crossing::types::CrossingInput {
+            observations: &[],
             unknown: &[],
             plans: &world.plans,
             bindings: &world.bindings,
             ids: &world.ids,
             needs: &world.needs,
             paths: &[],
-            arenas: &world.arenas,
+
             files: &[],
             covered: &world.covered,
             skipped: &[],

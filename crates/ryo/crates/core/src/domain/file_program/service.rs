@@ -1,5 +1,8 @@
 //! Typed request graph construction and bounded file-local successful result reuse.
 
+pub(crate) mod link;
+pub(crate) mod observations;
+
 use super::types::{FileProgram, Node, NodeId, NodeInput, RequestGraph};
 
 use ryo_relations::domain::relations::types::Relation;
@@ -27,9 +30,22 @@ struct CanonicalNode {
     schema_valid: bool,
 }
 
-fn node_input(input: Input, previous: &[Option<NodeId>]) -> Option<(Input, NodeInput)> {
+fn node_input(
+    input: Input,
+    previous: &[Option<NodeId>],
+    rule: usize,
+    bound_offsets: &[usize],
+) -> Option<(Input, NodeInput)> {
     match input {
         Input::Relation(relation) => Some((input, NodeInput::Relation(relation))),
+        Input::BoundObservation(input) => Some((
+            Input::Step(StepId(0)),
+            NodeInput::Observation(super::types::ObservationGraphInputId(
+                bound_offsets
+                    .get(rule)?
+                    .checked_add(usize::try_from(input.0).ok()?)?,
+            )),
+        )),
         Input::Step(step) => Some((
             Input::Step(StepId(0)),
             NodeInput::Node(*previous.get(step.0 as usize)?.as_ref()?),
@@ -42,10 +58,12 @@ fn node_input(input: Input, previous: &[Option<NodeId>]) -> Option<(Input, NodeI
 fn canonical(
     operation: &Operation,
     previous: &[Option<NodeId>],
+    rule: usize,
+    bound_offsets: &[usize],
 ) -> Option<(Operation, Vec<NodeInput>)> {
     let inputs = named(&inputs_of(operation))
         .iter()
-        .map(|input| node_input(*input, previous))
+        .map(|input| node_input(*input, previous, rule, bound_offsets))
         .collect::<Option<Vec<_>>>()?;
     let edges = inputs.iter().map(|(_, edge)| *edge).collect();
     let mut normalized = operation.clone();
@@ -104,10 +122,42 @@ fn fingerprint(operation: &Operation, inputs: &[NodeInput], scope: Option<usize>
 
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
+#[cfg(test)]
 pub(crate) fn compile_prepared(
     plans: &[Plan],
     operators: &crate::domain::operator::contract::types::RequestOperators,
 ) -> RequestGraph {
+    compile_prepared_observations(plans, operators, ObservationRequest::Independent)
+}
+
+/// Extend the same graph with named producer edges after all real contracts are prepared.
+pub(crate) fn compile_prepared_observations(
+    plans: &[Plan],
+    operators: &crate::domain::operator::contract::types::RequestOperators,
+    observations: ObservationRequest<'_>,
+) -> RequestGraph {
+    let bound_offsets = if matches!(observations, ObservationRequest::Bound { .. }) {
+        let mut offset = 0_usize;
+        plans
+            .iter()
+            .map(|plan| {
+                let start = offset;
+                offset = offset
+                    .checked_add(plan.observation_inputs.len())
+                    .expect("request binding slots fit address space");
+                start
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    let mut all_mapped = Vec::with_capacity(
+        if matches!(observations, ObservationRequest::Bound { .. }) {
+            plans.len()
+        } else {
+            0
+        },
+    );
     let mut nodes = Vec::<CanonicalNode>::new();
     let mut cuts = Vec::with_capacity(plans.len());
     let mut observed_outputs = Vec::new();
@@ -117,63 +167,74 @@ pub(crate) fn compile_prepared(
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
             let node = if step.scope == StepScope::PerFile {
-                canonical(&step.operation, &mapped).and_then(|(operation, inputs)| {
-                    let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
-                    let scope = (contract.reuse
-                        == crate::domain::operator::contract::types::ReuseScope::Rule
-                        || contract.effects
-                            != crate::domain::operator::contract::types::Effects::Pure)
-                        .then_some(rule);
-                    let hash = fingerprint(&operation, &inputs, scope);
-                    if let Some(found) = buckets.get(&hash).and_then(|bucket| {
-                        bucket.iter().copied().find(|id| {
-                            let existing = &nodes[id.0];
-                            existing.operation == operation
-                                && existing.inputs == inputs
-                                && existing.scope == scope
-                        })
-                    }) {
-                        return Some(found);
-                    }
-                    let mut relations = Vec::new();
-                    for input in &inputs {
-                        let sources: &[Relation] = match input {
-                            NodeInput::Relation(relation) => std::slice::from_ref(relation),
-                            NodeInput::Node(id) => &nodes[id.0].relations,
-                        };
-                        for relation in sources {
-                            if !relations.contains(relation) {
-                                relations.push(*relation);
+                canonical(&step.operation, &mapped, rule, &bound_offsets).and_then(
+                    |(operation, inputs)| {
+                        let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
+                        let scope = (contract.reuse
+                            == crate::domain::operator::contract::types::ReuseScope::Rule
+                            || contract.effects
+                                != crate::domain::operator::contract::types::Effects::Pure)
+                            .then_some(rule);
+                        let hash = fingerprint(&operation, &inputs, scope);
+                        if let Some(found) = buckets.get(&hash).and_then(|bucket| {
+                            bucket.iter().copied().find(|id| {
+                                let existing = &nodes[id.0];
+                                existing.operation == operation
+                                    && existing.inputs == inputs
+                                    && existing.scope == scope
+                            })
+                        }) {
+                            return Some(found);
+                        }
+                        let mut relations = Vec::new();
+                        for input in &inputs {
+                            let sources: &[Relation] = match input {
+                                NodeInput::Relation(relation) => std::slice::from_ref(relation),
+                                NodeInput::Node(id) => &nodes[id.0].relations,
+                                NodeInput::Observation(_) => &[],
+                            };
+                            for relation in sources {
+                                if !relations.contains(relation) {
+                                    relations.push(*relation);
+                                }
                             }
                         }
-                    }
-                    let validated = contract.schema.clone().ok();
-                    let schema_valid = validated.is_some()
-                        && inputs.iter().all(|input| match input {
-                            NodeInput::Node(id) => nodes[id.0].schema_valid,
-                            NodeInput::Relation(_) => true,
+                        let validated = contract.schema.clone().ok();
+                        let schema_valid = validated.is_some()
+                            && inputs.iter().all(|input| match input {
+                                NodeInput::Node(id) => nodes[id.0].schema_valid,
+                                NodeInput::Relation(_) | NodeInput::Observation(_) => true,
+                            });
+                        let id = NodeId(nodes.len());
+                        nodes.push(CanonicalNode {
+                            physical: operators.physical[rule][index].clone(),
+                            contract,
+                            scope,
+                            operation,
+                            inputs,
+                            relations,
+                            schema_valid,
                         });
-                    let id = NodeId(nodes.len());
-                    nodes.push(CanonicalNode {
-                        physical: operators.physical[rule][index].clone(),
-                        contract,
-                        scope,
-                        operation,
-                        inputs,
-                        relations,
-                        schema_valid,
-                    });
-                    buckets.entry(hash).or_default().push(id);
-                    Some(id)
-                })
+                        buckets.entry(hash).or_default().push(id);
+                        Some(id)
+                    },
+                )
             } else {
                 None
             };
-            let internal = index != plan.emit.step.0 as usize
-                && !plan.frontier.contains(&Input::Step(StepId(index as u32)));
-            if !internal { if let Some(node) = node { observed_outputs.push(node); } }
+            let exported = plan
+                .observations
+                .iter()
+                .any(|output| output.source == Input::Step(StepId(index as u32)));
+            let internal = exported
+                || (index != plan.emit.step.0 as usize
+                    && !plan.frontier.contains(&Input::Step(StepId(index as u32))));
+            if let Some(node) = node { if !internal || exported { observed_outputs.push(node); } }
             rule_cuts.push(node.filter(|_| internal));
             mapped.push(node);
+        }
+        if matches!(observations, ObservationRequest::Bound { .. }) {
+            all_mapped.push(mapped);
         }
         cuts.push(rule_cuts);
     }
@@ -307,8 +368,10 @@ pub(crate) fn compile_prepared(
             }));
         }
     }
+    let observations = observations::graph_outputs(plans, &all_mapped, observations);
     RequestGraph {
         ordered_existence,
+        observations,
         derived_sources,
         rule_liveness,
         boundaries,
@@ -439,3 +502,5 @@ impl FileProgram {
 }
 
 use ryo_values::domain::rows::types::Table;
+#[cfg(test)]
+mod service_test;

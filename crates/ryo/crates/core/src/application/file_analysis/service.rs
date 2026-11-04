@@ -403,9 +403,10 @@ impl FileAnalysis {
             });
             if !same_request {
                 tables.pool.file_graph = Some(Arc::new(
-                    crate::domain::file_program::service::compile_prepared(
+                    crate::domain::file_program::service::compile_prepared_observations(
                         visit.setting.plans,
                         &visit.setting.operators,
+                        visit.setting.observations,
                     ),
                 ));
             }
@@ -600,6 +601,17 @@ impl FileAnalysis {
             &classes,
             semantic,
         );
+        if let Some(dag) = &file_dag {
+            tables.current_observations = dag.borrow().observation_snapshot();
+            if let Some(root) = &tables.current_observations {
+                tables.observations.push(
+                    crate::domain::coverage::types::FileObservationReadiness {
+                        file,
+                        root: std::sync::Arc::clone(root),
+                    },
+                );
+            }
+        }
         if let Some(started) = rules_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
         }
@@ -648,8 +660,14 @@ impl FileAnalysis {
         classes: &crate::domain::shared_walk::types::SharedClasses,
         semantic: &super::semantic::SemanticState,
     ) -> Result<(), FileAnalysisError> {
-        for rule in (0..visit.setting.plans.len()).map(RuleIndex) {
+        for rule in crate::domain::file_program::service::observations::rule_order(
+            visit.setting.observations,
+            visit.setting.plans.len(),
+        ) {
             if governs_rule(tables, rule) == Governing::DoesNotGovern {
+                if let Some(dag) = file_dag {
+                    dag.borrow_mut().skip_observation_rule(rule.0);
+                }
                 continue;
             }
             if skipped
@@ -657,6 +675,9 @@ impl FileAnalysis {
                 .copied()
                 .unwrap_or(false)
             {
+                if let Some(dag) = file_dag {
+                    dag.borrow_mut().skip_observation_rule(rule.0);
+                }
                 continue;
             }
             // The worker already owns these columns. This callback only borrows resident views;
@@ -725,6 +746,32 @@ impl FileAnalysis {
             }
             let mut frontier = match outcome {
                 Ok(frontier) => frontier,
+                Err(FileAnalysisError::Rules(RulesError::ObservationIncomplete { id, reason })) => {
+                    let path = visit
+                        .setting
+                        .paths
+                        .get(usize::try_from(file.0).unwrap_or(usize::MAX))
+                        .ok_or(FileAnalysisError::Rules(
+                            RulesError::ObservationIncomplete {
+                                id: id.clone(),
+                                reason: reason.clone(),
+                            },
+                        ))?;
+                    tables
+                        .unknowns
+                        .push(crate::domain::coverage::types::Unknown {
+                            rule: id,
+                            path: path.clone(),
+                            message: crate::domain::coverage::types::Message(reason.into()),
+                        });
+                    if let Some(program) = file_program.as_deref_mut() {
+                        program.finish_rule(rule.0);
+                    }
+                    if let Some(dag) = file_dag {
+                        dag.borrow_mut().finish_rule(rule.0);
+                    }
+                    continue;
+                }
                 Err(FileAnalysisError::Rules(RulesError::SemanticIncomplete { id, reason })) => {
                     let path = visit
                         .setting
@@ -930,6 +977,7 @@ impl FileAnalysis {
                     notes,
                     &handed.governing,
                     &handed.partials,
+                    handed.observations.as_ref(),
                 );
                 let mut loaded = PackedWords::default();
                 for each in &handed.buckets {
@@ -976,6 +1024,10 @@ impl FileAnalysis {
                         .map(|each| &each.notes),
                     covered.map_or(&GoverningRules::default(), |each| &each.governing),
                     covered.map_or(&[][..], |each| &each.partials),
+                    match rows_of_file(&kept.observations, file, |each| each.file) {
+                        [one] => Some(&one.root),
+                        _ => None,
+                    },
                 );
                 let mut loaded = PackedWords::default();
                 for each in rows_of_file(&kept.frontier, file, |each| each.file) {
@@ -1254,10 +1306,39 @@ impl FileAnalysis {
             });
         }
         let moved = moved_words(tables, number, base)?;
+        let graph = tables
+            .pool
+            .file_graph
+            .as_ref()
+            .and_then(|graph| graph.observations.as_ref());
+        let (observations, slots) = match (tables.current_observations.as_deref(), graph) {
+            (Some(map), Some(graph)) => {
+                let count = ryo_values::domain::observations::types::ObservationReadinessCount(
+                    u32::try_from(graph.frontiers.len()).ok()?,
+                );
+                let checked = ryo_values::domain::observations::service::validate_frontiers(
+                    map,
+                    graph.layout,
+                    count,
+                )
+                .ok()?;
+                (Some(checked), graph.frontiers.as_slice())
+            }
+            (None, Some(graph)) if !graph.frontiers.is_empty() => return None,
+            (Some(_), None) => return None,
+            _ => (None, &[][..]),
+        };
         let mut flat = Flat::default();
         let frontier: Vec<Digest> = (0..setting.plans.len())
             .map(|rule| {
-                frontier_flat(&moved, setting, RuleIndex(rule), &mut flat);
+                frontier_flat(
+                    &moved,
+                    observations,
+                    slots,
+                    setting,
+                    RuleIndex(rule),
+                    &mut flat,
+                );
                 let digest = if flat.0.is_empty() {
                     Digest([0; 16])
                 } else {

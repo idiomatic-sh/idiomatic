@@ -34,6 +34,10 @@ pub(crate) fn handed_in<W>(
     let file = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
     let covered = rows_of_file(&handed.covered, file, |each| each.file).first();
     Handed {
+        observations: match rows_of_file(&handed.observations, file, |each| each.file) {
+            [one] => Some(std::sync::Arc::clone(&one.root)),
+            _ => None, // missing/ambiguous readiness remains unavailable to demanded roots
+        },
         buckets: Vec::new(),
         text: rows_of_file(&handed.texts, file, |each| each.file)
             .first()
@@ -93,6 +97,11 @@ pub(crate) fn hand_into(
                 })
             }
         }
+    }
+    if let Some(root) = handed.observations {
+        stored
+            .observations
+            .push(ryo_values::domain::stores::types::StoredFrontierReadiness { file, root });
     }
     if !handed.text.0.is_empty() {
         stored.texts.push(StoredText {

@@ -50,6 +50,7 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("1".into()),
             query: ryo_values::domain::program::types::QueryBundle::from(QueryText(
                 "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");".into()),

@@ -44,15 +44,22 @@ pub(crate) fn settle(
     crossed: Crossed,
     later: &mut Rendered,
     fed: &mut [Vec<RowsFed>],
-) {
+    unknowns: &mut Vec<crate::domain::coverage::types::Unknown>,
+) -> Option<crate::domain::crossing::types::CrossPublicationTransfer> {
     let Crossed {
         rendered: here,
         fed: more,
+        observations,
+        unknowns: mut incomplete,
     } = crossed;
     if let Some(slots) = fed.get_mut(todo.rule.0) {
         for (slot, each) in slots.iter_mut().zip(&more) {
             add_fed(slot, each);
         }
     }
-    append(later, &here);
+    if let Some(here) = here {
+        append(later, &here);
+    }
+    unknowns.append(&mut incomplete);
+    observations
 }

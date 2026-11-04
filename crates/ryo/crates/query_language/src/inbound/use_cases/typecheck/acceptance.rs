@@ -31,6 +31,7 @@ fn runs(world: &mut Behavior) {
     let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
     let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
     world.answer = match TypecheckUseCaseImpl::new(syntax, catalog).typecheck(TypecheckRequest {
+        observations: Vec::new(),
         text: ryo_values::domain::program::types::QueryBundle::from(QueryText(text.into())),
         hosted: Vec::new(),
     }) {

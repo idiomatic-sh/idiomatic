@@ -21,6 +21,8 @@ pub(crate) struct RuleSpec {
     pub applicability: RuleApplicability,
     /// What the rule binds its parameters to, by name.
     pub given: Vec<Given>,
+    /// Explicit named producer inputs, separate from externally hosted static rows.
+    pub observations: Vec<ryo_values::domain::observations::types::ObservationBinding>,
     /// The parameters as they are written, for the digest of the configuration.
     pub spelled: RuleParameters,
     /// The globs of the files the rule governs; none means every file.

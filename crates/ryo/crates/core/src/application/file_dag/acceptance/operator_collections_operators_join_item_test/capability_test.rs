@@ -537,6 +537,8 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         scope: StepScope::PerFile,
     });
     let plan = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps,
         emit: Emit {

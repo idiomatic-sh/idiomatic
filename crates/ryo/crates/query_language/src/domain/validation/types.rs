@@ -11,4 +11,6 @@ pub(crate) struct Known<'a> {
     pub steps: Vec<&'a StepName>,
     /// The names of the relations the host declared.
     pub hosted: &'a [ryo_values::domain::hosted::types::HostedName],
+    /// Exact typed external sources declared by this compilation request, not host tables.
+    pub observations: &'a [ryo_values::domain::observations::types::BoundObservationSchema],
 }

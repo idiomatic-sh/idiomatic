@@ -6,6 +6,9 @@ use ryo_language::domain::semantics::types::RenderError;
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum OperatingError {
+    /// An explicit bound producer did not publish a complete result in this generation.
+    #[error("named producer is incomplete: {reason}")]
+    ObservationIncomplete { reason: String },
     /// A semantic request named a stale or foreign syntax node.
     #[error(transparent)]
     SemanticRender(#[from] RenderError),

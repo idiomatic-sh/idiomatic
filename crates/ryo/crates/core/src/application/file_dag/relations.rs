@@ -47,6 +47,8 @@ enum RelationBody {
     },
     Computed(Arc<Table>),
 }
+mod packed;
+pub(crate) use packed::PackedPublication;
 mod record;
 mod number;
 pub(crate) use record::RelationResult;

@@ -99,6 +99,8 @@ pub(crate) fn plan() -> Plan {
         scope: StepScope::PerFile,
     };
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![select, project],
         emit: Emit {

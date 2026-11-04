@@ -296,7 +296,7 @@ pub(super) fn run(
                 semantics, derived, tree, lowering, sides, keys_of, room, out,
             )
         }
-        Input::Relation(_) => Err(OperatingError::NotAStep),
+        Input::Relation(_) | Input::BoundObservation(_) => Err(OperatingError::NotAStep),
     }
 }
 

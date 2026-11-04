@@ -37,6 +37,7 @@ fn a_member_of_a_workspace_the_scope_does_not_list_is_found() {
     let _beside = crate::beside();
     let root = workspace();
     let rule = Rule {
+        observations: Vec::new(),
         id: RuleId("members".into()),
         query: ryo_values::domain::program::types::QueryBundle::from(QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
@@ -124,6 +125,7 @@ fn a_manifest_that_does_not_parse_is_a_finding_and_the_others_are_read_cold_and_
     std::fs::create_dir_all(at.parent().expect("a parent")).expect("a directory");
     std::fs::write(&at, "[package\nbroken").expect("a file");
     let rule = Rule {
+        observations: Vec::new(),
         id: RuleId("members".into()),
         query: ryo_values::domain::program::types::QueryBundle::from(QueryText("let members = select * from \"workspace-member\"; emit members subject package key(package);".into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,

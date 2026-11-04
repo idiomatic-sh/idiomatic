@@ -124,3 +124,17 @@ pub use lint::types::FindingColumn;
 pub use crate::domain::relation::types::ColumnName;
 
 pub use lint::types::{ExecutionOptions, NodeResultReuse};
+/// Local typed query input name.
+pub use crate::domain::observation::types::ObservationBindingName;
+/// Ordered semantic column required by a bound input.
+pub use crate::domain::observation::types::ObservationColumn;
+/// Name of one bound input column.
+pub use crate::domain::observation::types::ObservationColumnName;
+/// Name of an explicitly authored producer output.
+pub use crate::domain::observation::types::ObservationName;
+/// Explicit authored query outputs consumed by another configured rule.
+pub use lint::types::ObservationBinding;
+/// A selected producer output or an explicitly unavailable query.
+pub use lint::types::ObservationProducer;
+
+pub use crate::domain::observation::types::ObservationKind;

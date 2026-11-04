@@ -45,7 +45,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
     fn validate(&self, request: ValidateRequest) -> Result<ValidateReport, ValidateError> {
         let report = self
             .query_language
-            .validate(&request.text, &request.hosted)
+            .validate(&request.text, &request.hosted, &request.observations)
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Refused { error },
             })?;
@@ -57,7 +57,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
         }
         let plan = self
             .query_language
-            .compile(&request.text, &request.hosted)
+            .compile(&request.text, &request.hosted, &[])
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Uncompilable { error },
             })?;

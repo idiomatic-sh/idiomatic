@@ -318,6 +318,7 @@ pub fn stored(tag: u8) -> Stored {
 /// What the files of `stored(tag)` handed.
 fn handed(tag: u8) -> StoredHanded {
     StoredHanded {
+        observations: Vec::new(),
         frontier: vec![StoredWords {
             file: StoredFileNumber(0),
             bucket: Bucket(2),

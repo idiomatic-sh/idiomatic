@@ -54,6 +54,8 @@ pub struct TaskIndex(pub usize);
 /// One rule: a query whose rows are violations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rule {
+    /// Explicit named producer outputs consumed by this rule.
+    pub observations: Vec<ryo_values::domain::observations::types::ObservationBinding>,
     /// The rule's id, named in every finding.
     pub id: RuleId,
     /// The RyoQL text.
@@ -283,6 +285,7 @@ impl From<&Rule> for RuleSpec {
                     value: parameter.value.clone().into(),
                 })
                 .collect(),
+            observations: rule.observations.clone(),
             spelled: RuleParameters(
                 format!("{:?}|{:?}", rule.parameters, rule.applicability).into(),
             ),
@@ -314,6 +317,8 @@ impl From<AdmissionError> for ProviderFault {
 
 /// What the stages after the reading share: the rules, the files and what the store kept.
 pub(super) struct LintRun<'a> {
+    /// Resolved named-root demand, with independent scheduling for ordinary requests.
+    pub observations: crate::domain::file_program::types::ObservationRequest<'a>,
     pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
     pub operators: std::sync::Arc<crate::domain::operator::contract::types::RequestOperators>,
     /// What the caller asked.

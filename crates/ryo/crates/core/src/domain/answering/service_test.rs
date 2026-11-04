@@ -35,6 +35,8 @@ type Failure = ();
 
 fn plan(scopes: &[StepScope]) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: scopes
             .iter()
@@ -82,10 +84,12 @@ fn settled(rows: u64, before: &[&str], found: &[&str]) -> (u64, String) {
     let mut later = rows_of(before);
     let mut fed = vec![vec![RowsFed::default()]];
     let crossed = Crossed {
-        rendered: rows_of(found),
+        unknowns: Vec::new(),
+        rendered: Some(rows_of(found)),
+        observations: None,
         fed: vec![RowsFed([rows, 0, 0])],
     };
-    settle(&todo, crossed, &mut later, &mut fed);
+    assert!(settle(&todo, crossed, &mut later, &mut fed, &mut Vec::new()).is_none());
     let texts: String = (0..later.ends.0.len())
         .flat_map(|row| {
             lent_row(

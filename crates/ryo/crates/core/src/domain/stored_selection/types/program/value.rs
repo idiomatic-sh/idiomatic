@@ -43,6 +43,7 @@ impl<'a> SelectionProgram<'a> {
     /// Compose the input map without changing its predicates, bags or physical order.
     fn input(&self, from: Input, steps: &[Option<Arc<Selector>>]) -> Option<Selector> {
         match from {
+            Input::BoundObservation(_) => None,
             Input::Step(id) => steps
                 .get(usize::try_from(id.0).ok()?)?
                 .as_deref()

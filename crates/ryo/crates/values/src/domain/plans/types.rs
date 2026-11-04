@@ -20,12 +20,16 @@ use crate::domain::program::types::QueryOrigin;
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Plan {
+    /// Ordered schemas of explicit bound inputs; source IDs remain stable through request pruning.
+    pub observation_inputs: Vec<crate::domain::observations::types::BoundObservationSchema>,
     /// The `param` lines.
     pub parameters: Vec<PlanParameter>,
     /// The steps, each reading only the relations and the steps before it.
     pub steps: Vec<PlanStep>,
     /// Source origins indexed by diagnostic-only comparison IDs.
     pub comparison_origins: Vec<QueryOrigin>,
+    /// Explicit named roots; request linking removes undemanded observation-only work.
+    pub observations: Vec<crate::domain::observations::types::PlanObservation>,
     /// The `emit` line.
     pub emit: Emit,
     /// What the per-file steps hand to the cross-file steps: the relations and the per-file steps

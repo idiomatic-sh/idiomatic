@@ -28,15 +28,34 @@ pub struct CachedPlan {
     pub query: QueryBundle,
     /// The relations the host declared when it was: a plan that names one is another plan when they are others.
     pub hosted: Vec<ryo_values::domain::hosted::types::HostedRelation>,
-    /// The plan.
+    /// Explicit binding declarations and inferred schema/phase are part of compilation identity.
+    pub observation_bindings: Vec<ryo_values::domain::observations::types::ObservationBinding>,
+    /// Typed producer inputs used by this cached query plan.
+    pub observation_inputs: Vec<ryo_values::domain::observations::types::BoundObservationSchema>,
+    /// The plan with every declared observation root retained, never request-pruned.
     pub plan: Plan,
 }
 
 /// The plans of the rules, and what each binds its parameters to.
 #[derive(Clone, Debug)]
 pub(crate) struct Compiled {
+    /// A once-resolved traversal over stable original rule indices.
+    pub schedule: crate::domain::file_program::types::RuleSchedule,
+    /// Names resolved once to real producer roots; empty on ordinary requests.
+    pub observations: Vec<Vec<crate::domain::file_program::types::ResolvedObservationBinding>>,
     /// The plans, in the order of the rules.
     pub plans: Vec<Plan>,
     /// What each rule binds its parameters to, in the order of the plan's parameters.
     pub bindings: Vec<Vec<ParameterBinding>>,
+}
+
+/// Retained rule identities and the required semantic layout for named frontier bits.
+pub(crate) struct PreparedRuleIdentities {
+    pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
+    pub observations: ObservationIdentity,
+}
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ObservationIdentity {
+    Independent,
+    Named(ryo_values::domain::observations::types::ObservationReadinessLayout),
 }

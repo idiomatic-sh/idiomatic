@@ -49,6 +49,12 @@ pub enum TypecheckError {
         /// What is wrong.
         message: String,
     },
+    /// The supplied observation declaration is invalid, independent of query text.
+    #[error("invalid observation inputs: {message}")]
+    ObservationInputs {
+        /// The declaration refusal.
+        message: String,
+    },
     /// The catalog of relations could not be read.
     #[error("the relation catalog failed: {reason}")]
     Catalog {

@@ -31,7 +31,7 @@ use ryo_values::domain::plans::types::Operation;
 fn made_of(input: Input) -> Option<StepId> {
     match input {
         Input::Step(id) => Some(id),
-        Input::Relation(_) => None,
+        Input::Relation(_) | Input::BoundObservation(_) => None,
     }
 }
 

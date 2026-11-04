@@ -21,6 +21,7 @@ use ryo_values::domain::plans::types::PlanStep;
 /// How many columns the rows of `input` have, when the plan says so.
 pub(crate) fn width_of(steps: &[PlanStep], input: Input) -> Option<InputWidth> {
     match input {
+        Input::BoundObservation(_) => None, // this legacy rewrite does not own the declared bound schema
         Input::Relation(relation) => Some(InputWidth(
             u32::try_from(columns(relation).len()).unwrap_or(u32::MAX),
         )),

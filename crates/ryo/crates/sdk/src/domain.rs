@@ -9,3 +9,5 @@ pub(crate) mod language;
 pub(crate) mod operator;
 pub(crate) mod query;
 pub(crate) mod relation;
+
+pub(crate) mod observation;

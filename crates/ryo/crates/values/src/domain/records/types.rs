@@ -174,6 +174,8 @@ pub enum Handing {
 /// in part with the rules that govern it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Handed {
+    /// Independently versioned readiness of demanded per-file named frontiers.
+    pub observations: Option<std::sync::Arc<FrontierReadiness>>,
     /// Its words in each bucket, as if it were the first file read by the first worker.
     pub buckets: Vec<HandedWords>,
     /// The text its names made, from the start of its own.
@@ -307,3 +309,36 @@ pub enum Freshness {
 /// A count of rows, to be written as a number.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RowTotal(pub u64);
+
+/// Compact actual readiness beside existing frontier words. Slots are bound to the stable semantic layout identity.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FrontierReadiness {
+    /// Encoding version; old versions cannot establish completion.
+    pub version: crate::domain::observations::types::ObservationReadinessVersion,
+    /// Stable ordered producer/output/query/config identity for these bits.
+    pub layout: crate::domain::observations::types::ObservationReadinessLayout,
+    /// Exact number of logical roots represented.
+    pub slots: crate::domain::observations::types::ObservationReadinessCount,
+    /// Successful production bits, including actual complete zero-row outputs.
+    pub complete: Vec<u64>,
+    /// Explicit not-applicable bits; empty storage means no skips, never completion.
+    pub skipped: Vec<u64>,
+    /// Only explicit failures need owned detail. An unset slot is Unknown, never Complete.
+    pub refusals: Vec<FrontierRefusal>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// One explicitly unavailable root; ordinary pending slots need no owned reason.
+pub struct FrontierRefusal {
+    /// Position in the enclosing validated map.
+    pub slot: crate::domain::observations::types::ObservationReadinessSlot,
+    /// Why production cannot establish complete rows.
+    pub reason: FrontierRefusalReason,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// A typed unavailable state, never an empty successful population.
+pub enum FrontierRefusalReason {
+    /// A real provider, dependency or retention refusal.
+    Unknown(crate::domain::observations::types::ObservationReason),
+    /// The selected producer has no executable query.
+    NoQuery,
+}

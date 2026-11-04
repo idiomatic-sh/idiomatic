@@ -54,26 +54,42 @@ impl RequestOperators {
         let mut rules = Vec::with_capacity(plans.len());
         let mut preparations = 0;
         for (rule, plan) in plans.iter().enumerate() {
+            let observed_kinds: Vec<Vec<CellKind>> = plan
+                .observation_inputs
+                .iter()
+                .map(|input| input.columns.iter().map(|column| column.kind).collect())
+                .collect();
             let mut contracts: Vec<Arc<OperatorContract>> = Vec::with_capacity(plan.steps.len());
             let mut tree_outputs: Vec<Option<TreeForm>> = Vec::with_capacity(plan.steps.len());
             for step in &plan.steps {
                 let dependencies = inputs_of(&step.operation);
                 let mut schemas = named(&dependencies)
                     .iter()
-                    .map(|input| match input {
-                        Input::Relation(relation) => InputSchema {
-                            kinds: relation_kinds(*relation),
-                            tree: crate::domain::table_cells::service::native_form(*relation),
-                        },
-                        Input::Step(id) => InputSchema {
-                            kinds: contracts
-                                .get(id.0 as usize)
-                                .and_then(|contract| contract.schema.as_ref().ok())
-                                .map_or(&[], Vec::as_slice),
-                            tree: tree_outputs.get(id.0 as usize).copied().flatten(),
-                        },
+                    .map(|input| {
+                        Ok(match input {
+                            Input::Relation(relation) => InputSchema {
+                                kinds: relation_kinds(*relation),
+                                tree: crate::domain::table_cells::service::native_form(*relation),
+                            },
+                            Input::BoundObservation(id) => InputSchema {
+                                kinds: observed_kinds
+                                    .get(
+                                        usize::try_from(id.0)
+                                            .map_err(|_| OperatingError::NotRun)?,
+                                    )
+                                    .ok_or(OperatingError::NotRun)?,
+                                tree: None,
+                            },
+                            Input::Step(id) => InputSchema {
+                                kinds: contracts
+                                    .get(id.0 as usize)
+                                    .and_then(|contract| contract.schema.as_ref().ok())
+                                    .map_or(&[], Vec::as_slice),
+                                tree: tree_outputs.get(id.0 as usize).copied().flatten(),
+                            },
+                        })
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, OperatingError>>()?;
                 // Hosted is a real request source. Its schema is not a pretend
                 // dependency and no evaluator special-case may bypass registration.
                 if let Operation::Hosted { relation } = &step.operation {

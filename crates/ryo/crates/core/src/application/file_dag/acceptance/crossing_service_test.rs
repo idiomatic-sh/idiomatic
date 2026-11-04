@@ -69,6 +69,8 @@ struct World {
 /// A plan that counts across files the names a per-file step handed over, and emits the column `subject` of the counts.
 fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![
             PlanStep {
@@ -121,14 +123,16 @@ fn crossing(world: &World) -> CrossingInput<'_> {
             &world.bindings,
             &[],
         ),
+        arenas: &world.arenas,
         domain: crate::domain::crossing::types::CrossingInput {
+            observations: &[],
             unknown: &[],
             plans: &world.plans,
             bindings: &world.bindings,
             ids: &world.ids,
             needs: &world.needs,
             paths: &world.paths,
-            arenas: &world.arenas,
+
             files: &[],
             covered: &world.covered,
             skipped: &world.skipped,
@@ -388,3 +392,131 @@ fn refuses() {
 }
 
 use ryo_values::domain::rows::types::Table;
+#[test]
+fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
+    use crate::application::file_dag::{
+        execution::CommonOperatorEngine, executor::PrimitiveExecutor, feed::Feed,
+    };
+    use crate::domain::{
+        operating::{
+            errors::OperatingError,
+            types::{OperatorContext, Room},
+        },
+        operator::contract::types::{OperatorContract, RequestOperators},
+        table_model::types::Rows,
+        table_scratch::types::OperatorScratch,
+        table_texts::types::SourceView,
+    };
+    use ryo_values::domain::{
+        observations::types::{
+            ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
+            ProducerReadiness,
+        },
+        plans::types::OperationKind,
+    };
+    #[derive(Debug)]
+    struct RefuseCount;
+    impl PrimitiveExecutor for RefuseCount {
+        fn stream(
+            &self,
+            contract: &OperatorContract,
+            feed: &mut dyn Feed<'_>,
+            context: &mut OperatorContext<'_>,
+            room: &mut Room,
+            emit: &mut dyn crate::domain::operating::types::Emit,
+        ) -> Result<(), OperatingError> {
+            CommonOperatorEngine::fixture().stream(contract, feed, context, room, emit)
+        }
+        fn collect(
+            &self,
+            contract: &OperatorContract,
+            inputs: &[Rows<'_>],
+            context: &mut OperatorContext<'_>,
+            out: &mut Table,
+        ) -> Result<(), OperatingError> {
+            if contract.kind == OperationKind::GroupCount {
+                return Err(OperatingError::NotRun);
+            }
+            CommonOperatorEngine::fixture().collect(contract, inputs, context, out)
+        }
+    }
+    for failed_emit in [true, false] {
+        let mut plan = counting_plan(0, Vec::new());
+        plan.steps.push(PlanStep {
+            operation: Operation::Project {
+                from: PlanInput::Step(StepId(0)),
+                columns: vec![ColumnIndex(0)],
+                distinct: RepeatedRows::Dropped,
+            },
+            scope: StepScope::CrossFile,
+        });
+        plan.emit.step = StepId(if failed_emit { 1 } else { 2 });
+        plan.observations.push(PlanObservation {
+            name: ObservationName("independent".into()),
+            source: PlanInput::Step(StepId(if failed_emit { 2 } else { 1 })),
+            columns: vec![ObservationColumn {
+                name: ObservationColumnName("subject".into()),
+                kind: CellKind::Node,
+            }],
+            scope: StepScope::CrossFile,
+        });
+        if !failed_emit {
+            plan.observations[0].columns.push(ObservationColumn {
+                name: ObservationColumnName("count".into()),
+                kind: CellKind::Number,
+            });
+        }
+        let request =
+            RequestOperators::prepare(std::slice::from_ref(&plan), &[Vec::new()], &[]).unwrap();
+        let mut symbols = Symbols::default();
+        let mut memo = Vec::new();
+        let mut scratch = OperatorScratch::default();
+        let mut context = OperatorContext {
+            semantic: None,
+            prepared_kinds: None,
+            prepared_matchers: None,
+            bindings: &[],
+            symbols: (&mut symbols).into(),
+            source: SourceView(&[]),
+            paths: &[],
+            arenas: &[],
+            memo: &mut memo,
+            scratch: &mut scratch,
+        };
+        let frontier = vec![Frontier {
+            input: PlanInput::Step(StepId(0)),
+            table: Table {
+                kinds: vec![CellKind::Node],
+                cells: vec![Cell::Node(ryo_relations::domain::relations::types::Node(0))],
+                count: crate::domain::table_model::types::RowCount(1),
+            },
+        }];
+        let roots =
+            crate::application::file_dag::cross_execution::evaluate_cross_roots_with_executor(
+                &plan,
+                frontier,
+                &[],
+                &Default::default(),
+                &Default::default(),
+                &mut context,
+                &mut vec![Default::default(); plan.steps.len()],
+                &[],
+                &RefuseCount,
+                &request.rules[0],
+            )
+            .unwrap();
+        assert_eq!(roots.emit_error.is_some(), failed_emit);
+        assert_eq!(roots.emit.is_some(), !failed_emit);
+        assert_eq!(roots.observations.len(), 1);
+        if failed_emit {
+            assert_eq!(roots.observations[0].readiness, ProducerReadiness::Complete);
+            assert_eq!(roots.observations[0].table.as_ref().unwrap().count.0, 1);
+        } else {
+            assert!(matches!(
+                roots.observations[0].readiness,
+                ProducerReadiness::Unknown(_)
+            ));
+            assert!(roots.observations[0].table.is_none());
+        }
+    }
+}

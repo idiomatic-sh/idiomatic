@@ -55,7 +55,7 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
                 .as_ref()?;
             (under.comparisons.clone(), under.columns.clone())
         }
-        Input::Relation(_) => return None,
+        Input::Relation(_) | Input::BoundObservation(_) => return None,
     };
     for comparison in comparisons {
         chosen.push(Comparison {

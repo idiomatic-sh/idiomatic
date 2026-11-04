@@ -56,6 +56,15 @@ pub(crate) fn partials_for(crossing: &CrossingInput<'_>, rule: RuleIndex) -> Par
         .needs
         .get(rule.0)
         .map_or(&[][..], |needs| needs.cross.as_slice());
+    partials_for_reads(crossing, rule, trusted)
+}
+
+/// Publication completeness uses actual root reads, not only absence-sensitive diagnostic Needs.
+pub(crate) fn partials_for_reads(
+    crossing: &CrossingInput<'_>,
+    rule: RuleIndex,
+    trusted: &[crate::domain::trust::types::RelationRead],
+) -> Partials {
     let matter = |partial: &&crate::domain::coverage::types::Partial| {
         trusted
             .iter()

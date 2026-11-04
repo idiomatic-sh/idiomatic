@@ -45,12 +45,14 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
+        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<ValidateReport, QueryLanguageError> {
         self.typecheck
             .0
             .typecheck(TypecheckRequest {
                 text: bundle.clone(),
                 hosted: hosted.to_vec(),
+                observations: observations.to_vec(),
             })
             .map_err(|error| QueryLanguageError::Refused {
                 error: invalid(error),
@@ -61,6 +63,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
         &self,
         bundle: &ryo_values::domain::program::types::QueryBundle,
         hosted: &[hosted::HostedRelation],
+        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<plans::Plan, QueryLanguageError> {
         let report = self
             .compile
@@ -68,6 +71,7 @@ impl QueryLanguagePort for QueryLanguageUseCaseAdapter {
             .compile(CompileRequest {
                 text: bundle.clone(),
                 hosted: hosted.to_vec(),
+                observations: observations.to_vec(),
             })
             .map_err(|error| QueryLanguageError::Refused {
                 error: refused(error),
@@ -110,6 +114,9 @@ fn refused(
             }
             CompileError::Invalid { span: at, message } => {
                 break (parts::RefusedKind::Invalid, message, span(at));
+            }
+            CompileError::ObservationInputs { message } => {
+                break (parts::RefusedKind::Invalid, message, nowhere);
             }
             CompileError::Catalog { reason } => {
                 break (parts::RefusedKind::Catalog, reason, nowhere);
@@ -158,6 +165,9 @@ fn invalid(
             }
             TypecheckError::Invalid { span: at, message } => {
                 break (parts::RefusedKind::Invalid, message, span(at));
+            }
+            TypecheckError::ObservationInputs { message } => {
+                break (parts::RefusedKind::Invalid, message, nowhere);
             }
             TypecheckError::Catalog { reason } => {
                 break (parts::RefusedKind::Catalog, reason, nowhere);

@@ -91,6 +91,7 @@ use ryo_values::domain::runs::types::RuleId;
 #[must_use]
 pub fn rule_from_query(id: &str, query: &str, include: &[String]) -> Rule {
     Rule {
+        observations: Vec::new(),
         id: RuleId(id.into()),
         query: ryo_values::domain::program::types::QueryBundle::from(QueryText(query.into())),
         applicability: ryo_values::domain::runs::types::RuleApplicability::Always,

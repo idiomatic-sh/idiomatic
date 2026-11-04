@@ -27,6 +27,8 @@ use ryo_values::domain::{
 
 fn plan(relation: Relation) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: vec![
             PlanStep {

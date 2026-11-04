@@ -22,6 +22,15 @@ pub enum LintError {
         /// Why the execution scope could not be established.
         reason: String,
     },
+    /// A required observation publication could not be admitted during execution.
+    #[error("observation execution failed: {reason}")]
+    ObservationExecution { reason: String },
+    /// The explicitly declared named-output dependency contract is invalid.
+    #[error("invalid observation bindings: {reason}")]
+    ObservationBindings {
+        /// Configuration failure before file execution.
+        reason: String,
+    },
     /// An explicitly selected source provider is not linked at this request edge.
     #[error("explicit source provider `{name}` must name exactly one linked provider")]
     SourceLanguage {
@@ -154,7 +163,8 @@ impl From<RulesError> for LintError {
                 id: id.0.to_string(),
                 reason,
             },
-            RulesError::SemanticIncomplete { id, reason } => Self::Rule {
+            RulesError::SemanticIncomplete { id, reason }
+            | RulesError::ObservationIncomplete { id, reason } => Self::Rule {
                 id: id.0.to_string(),
                 reason,
             },
@@ -287,6 +297,11 @@ impl std::fmt::Display for ProviderFault {
 impl From<crate::application::rule_compilation::errors::RuleCompilationError> for LintError {
     fn from(error: crate::application::rule_compilation::errors::RuleCompilationError) -> Self {
         match error {
+            crate::application::rule_compilation::errors::RuleCompilationError::Observations(
+                reason,
+            ) => Self::ObservationBindings {
+                reason: reason.to_string(),
+            },
             crate::application::rule_compilation::errors::RuleCompilationError::Rules(reason) => {
                 reason.into()
             }
@@ -294,6 +309,21 @@ impl From<crate::application::rule_compilation::errors::RuleCompilationError> fo
                 id,
                 error,
             } => Self::Query { id, error },
+        }
+    }
+}
+
+impl From<crate::application::cross_file::errors::CrossError> for LintError {
+    fn from(error: crate::application::cross_file::errors::CrossError) -> Self {
+        use crate::application::cross_file::errors::CrossError;
+        match error {
+            CrossError::Contract(reason) => Self::ObservationBindings { reason },
+            CrossError::Operating(error) => Self::ObservationExecution {
+                reason: error.to_string(),
+            },
+            CrossError::Rules(error) => error.into(),
+            CrossError::Facts(error) => error.into(),
+            CrossError::Scheduler(error) => error.into(),
         }
     }
 }

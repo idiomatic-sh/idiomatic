@@ -6,6 +6,8 @@ use ryo_values::domain::program::types::QueryBundle;
 /// The RyoQL text to check.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidateRequest {
+    /// Typed named producer inputs available to this query.
+    pub observations: Vec<ryo_values::domain::observations::types::BoundObservationSchema>,
     /// The query.
     pub text: QueryBundle,
     /// The relations the host declares, which the query may name: none when the caller declares none.

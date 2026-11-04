@@ -1,10 +1,11 @@
 //! The `resolving` service: where a name a query writes becomes what it names, and where the
 //! arguments of a call are read, for the lowering of a program.
 
-use ryo_relations::domain::relations::service::{is_key, vocabulary_of};
 use ryo_relations::domain::relations::service::{column_name, columns, kind, relation_named};
+use ryo_relations::domain::relations::service::{is_key, vocabulary_of};
 use ryo_relations::domain::relations::types::NameRef;
 use ryo_relations::domain::relations::types::{ColumnKeyness, Relation};
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
@@ -146,6 +147,38 @@ pub(crate) fn read_source(
     builder: &Builder<'_>,
     source: &syntax::QuerySource,
 ) -> Result<Sourced, LoweringError> {
+    let external = match &source.reference {
+        syntax::SourceReference::Relation(text) => Some(text.0.as_ref()),
+        syntax::SourceReference::Step(text) if text.1.is_none() => Some(text.0.as_ref()),
+        syntax::SourceReference::Step(_) => None,
+    };
+    if let Some((index, bound)) = builder
+        .observation_inputs
+        .iter()
+        .enumerate()
+        .find(|(_, bound)| Some(bound.name.0.as_ref()) == external)
+    {
+        let index = u32::try_from(index).map_err(|_| LoweringError::UnknownRelation {
+            name: bound.name.0.to_string(),
+            span: source.span,
+        })?;
+        return Ok(Sourced {
+            input: parts::Input::BoundObservation(
+                ryo_values::domain::observations::types::ObservationBindingId(index),
+            ),
+            fields: bound
+                .columns
+                .iter()
+                .map(|column| PlannedColumn {
+                    name: syntax::ColumnName(column.name.0.clone()),
+                    kind: column.kind,
+                    unique: Uniqueness::Shared,
+                    words: Vocabulary::Open,
+                })
+                .collect(),
+        });
+    }
+
     match &source.reference {
         syntax::SourceReference::Relation(text) => {
             if let Some(hosted) = builder

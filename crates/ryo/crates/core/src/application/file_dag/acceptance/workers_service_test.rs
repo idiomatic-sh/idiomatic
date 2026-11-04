@@ -87,6 +87,8 @@ fn yes(governing: Governing) -> u64 {
 /// A plan of this many steps, all of them the same.
 fn plan(steps: usize) -> Plan {
     Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: Vec::new(),
         steps: std::iter::repeat_with(|| PlanStep {
             operation: Operation::Project {
@@ -180,6 +182,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
                 operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
                 domain: crate::domain::workers::types::VisitSetting {
+                    observations: crate::domain::file_program::types::ObservationRequest::Independent,
                     unknown: &[],
                     plans: &[],
                     bindings: &[],

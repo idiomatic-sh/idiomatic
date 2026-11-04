@@ -60,6 +60,7 @@ fn program_with(filters: Vec<Filter>) -> Program {
         origins: Vec::new(),
         fragment_contracts: Vec::new(),
         step_origins: std::collections::BTreeMap::new(),
+        observations: Vec::new(),
         emit_origin: None,
         parameters: Vec::new(),
         steps: vec![read_function(filters)],
@@ -199,6 +200,7 @@ fn fragment_contract_compiles_against_real_relation_columns() {
     );
     let report = use_case
         .compile(CompileRequest {
+            observations: Vec::new(),
             text: root,
             hosted: Vec::new(),
         })
@@ -235,6 +237,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
         .unwrap();
         let error = use_case
             .compile(CompileRequest {
+                observations: Vec::new(),
                 text: bundle,
                 hosted: Vec::new(),
             })
@@ -256,6 +259,7 @@ fn fragment_relation_contracts_reject_input_and_output_shape_mismatches() {
     .unwrap();
     let error = use_case
         .compile(CompileRequest {
+            observations: Vec::new(),
             text: invalid_body,
             hosted: Vec::new(),
         })
@@ -295,6 +299,7 @@ fn nested_fragment_validation_error_keeps_the_inner_source_and_import_trace() {
     );
     let error = use_case
         .compile(CompileRequest {
+            observations: Vec::new(),
             text: bundle,
             hosted: Vec::new(),
         })
@@ -363,6 +368,7 @@ fn fragment_calls_cannot_capture_caller_or_nested_private_steps() {
     for (bundle, source) in bundles {
         let error = use_case
             .compile(CompileRequest {
+                observations: Vec::new(),
                 text: bundle,
                 hosted: Vec::new(),
             })
@@ -399,6 +405,7 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
     );
     let plan = use_case
         .compile(CompileRequest {
+            observations: Vec::new(),
             text: bundle,
             hosted: Vec::new(),
         })
@@ -533,6 +540,7 @@ fn subject(given: fn() -> Given) -> Result<Value, Failure> {
     let given = given();
     let use_case = CompileUseCaseImpl::new(Arc::new(given.syntax), Arc::new(given.catalog));
     let request = CompileRequest {
+        observations: Vec::new(),
         text: ryo_values::domain::program::types::QueryBundle::from(QueryText(given.text.into())),
         hosted: Vec::new(),
     };
@@ -596,6 +604,7 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
             );
             let report = compiler
                 .compile(CompileRequest {
+                    observations: Vec::new(),
                     text: QueryBundle::from(QueryText(text.into())),
                     hosted: Vec::new(),
                 })
@@ -620,4 +629,83 @@ fn raw_tree_file_joins_keep_single_and_and_or_filters_outside_the_join() {
             assert!(joins > 0, "the regression must retain its file-key join");
         }
     }
+}
+
+#[test]
+fn authored_observation_keeps_independent_root_through_optimization() {
+    use ryo_values::domain::plan_parts::types::Input;
+    use ryo_values::domain::program::types::QueryBundle;
+    let compiler = CompileUseCaseImpl::new(
+        Arc::new(crate::outbound::syntax::factory::winnow()),
+        Arc::new(crate::outbound::catalog::factory::language()),
+    );
+    let report = compiler
+        .compile(CompileRequest {
+            observations: Vec::new(),
+            hosted: Vec::new(),
+            text: QueryBundle::from(QueryText(
+                "let diagnostic = select file, span from \"function\"; \
+             let usage = select file, id from \"function\"; \
+             observe usage as used; emit diagnostic subject file key(span);"
+                    .into(),
+            )),
+        })
+        .expect("independent named and diagnostic roots compile");
+    assert_eq!(report.plan.observations.len(), 1);
+    let observed = &report.plan.observations[0];
+    assert_eq!(&*observed.name.0, "used");
+    assert_eq!(
+        observed
+            .columns
+            .iter()
+            .map(|column| &*column.name.0)
+            .collect::<Vec<_>>(),
+        ["file", "id"]
+    );
+    let Input::Step(root) = observed.source else {
+        panic!("export has a real producer step");
+    };
+    assert!(usize::try_from(root.0).expect("step fits usize") < report.plan.steps.len());
+    assert_ne!(
+        root, report.plan.emit.step,
+        "different output schemas retain separate roots"
+    );
+}
+
+#[test]
+fn bound_observation_preserves_declared_schema_and_phase() {
+    use ryo_relations::domain::relations::types::CellKind;
+    use ryo_values::domain::observations::types::{
+        BoundObservationSchema, ObservationBindingName, ObservationColumn, ObservationColumnName,
+    };
+    use ryo_values::domain::plan_parts::types::Input;
+    use ryo_values::domain::plans::types::StepScope;
+    use ryo_values::domain::program::types::QueryBundle;
+    let compiler = CompileUseCaseImpl::new(
+        Arc::new(crate::outbound::syntax::factory::winnow()),
+        Arc::new(crate::outbound::catalog::factory::language()),
+    );
+    let report = compiler.compile(CompileRequest {
+        hosted: Vec::new(),
+        observations: vec![BoundObservationSchema {
+            name: ObservationBindingName("published".into()),
+            columns: vec![ObservationColumn { name: ObservationColumnName("file".into()), kind: CellKind::File }, ObservationColumn { name: ObservationColumnName("span".into()), kind: CellKind::Span }],
+            scope: StepScope::CrossFile,
+        }],
+        text: QueryBundle::from(QueryText("let result = select file, span from published; emit result subject file key(span);".into())),
+    }).expect("typed bound input compiles independently of the closed catalog");
+    assert!(
+        report
+            .plan
+            .steps
+            .iter()
+            .all(|step| step.scope == StepScope::CrossFile)
+    );
+    assert!(
+        report
+            .plan
+            .frontier
+            .iter()
+            .any(|input| matches!(input, Input::BoundObservation(_)))
+    );
 }
