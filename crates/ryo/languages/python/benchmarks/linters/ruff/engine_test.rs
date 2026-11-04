@@ -400,14 +400,16 @@ fn modules_for(scenario: EngineScenario) -> Result<BTreeMap<String, std::path::P
         .get("query-modules")
         .and_then(toml::Value::as_table)
         .ok_or_else(|| Error::Invalid("F821 profile has no declared modules".into()))?;
-    modules
+    let mut resolved: BTreeMap<String, std::path::PathBuf> = modules
         .iter()
         .map(|(name, path)| {
             path.as_str()
                 .map(|path| (name.clone(), std::path::PathBuf::from(path)))
                 .ok_or_else(|| Error::Invalid("F821 module path is not text".into()))
         })
-        .collect()
+        .collect::<Result<_, Error>>()?;
+    resolved.extend(suppress_modules());
+    Ok(resolved)
 }
 
 fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
