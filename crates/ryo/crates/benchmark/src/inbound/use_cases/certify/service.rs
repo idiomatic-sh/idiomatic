@@ -77,6 +77,7 @@ pub(super) fn certify(
                 inventory_store,
                 suite,
                 registration,
+                directory,
                 &tool,
                 selected_rules,
                 reference_executable,

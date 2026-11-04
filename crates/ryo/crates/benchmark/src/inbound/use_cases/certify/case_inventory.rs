@@ -24,6 +24,7 @@ pub(super) fn prepare(
     store: &dyn InventoryPort,
     suite: &dyn SuitePort,
     registration: &Path,
+    measured_profile: &Path,
     tool: &Tool,
     rules: &Path,
     reference: &Path,
@@ -51,12 +52,7 @@ pub(super) fn prepare(
         ));
     };
     if suite
-        .digest(ArtifactPath(
-            &rules
-                .parent()
-                .ok_or_else(|| Error::Invalid("measured rules lack profile".into()))?
-                .join("benchmark.toml"),
-        ))?
+        .digest(ArtifactPath(&measured_profile.join("benchmark.toml")))?
         .0
         != *profile_sha256
     {
