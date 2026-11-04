@@ -108,6 +108,7 @@ pub(crate) struct DerivedOwner {
     next_scope: std::cell::Cell<usize>,
     ledger: std::rc::Rc<RefCell<super::ledger::Ledger>>,
     backend: RefCell<Option<CacheBackend>>,
+    file_prepared: std::cell::Cell<bool>,
     state: RefCell<State>,
     max_entries: usize,
 }
@@ -133,6 +134,7 @@ impl DerivedOwner {
             ledger: std::rc::Rc::new(RefCell::new(super::ledger::Ledger::default())),
             state: RefCell::new(State::default()),
             backend: RefCell::new(None),
+            file_prepared: std::cell::Cell::new(false),
             max_entries,
         }
     }

@@ -21,12 +21,19 @@ pub(crate) fn open_file<'a, 'service>(
     program: &'a Arc<PreparedProgram>,
     file: FileId,
     partials: ScopePartials<'a>,
+    demanded: &[bool],
     services: &'a ProgramServices<'service>,
 ) -> Result<FileRun<'a, 'service>, OperatingError> {
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }
     let owner = open_program_owner(program.program(), Arc::clone(services.derived()));
+    let ScopePartials::File { publication, .. } = partials else {
+        return Err(OperatingError::WrongOperation);
+    };
+    owner
+        .derived
+        .prepare_program_file(program.derived(), demanded, publication)?;
     let generation = FileGeneration::from_owner(file, &owner);
     let execution = ProgramExecution::open(
         Arc::clone(program.program()),

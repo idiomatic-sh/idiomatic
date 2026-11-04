@@ -402,6 +402,10 @@ impl FileAnalysis {
         } else {
             physical.as_slice()
         };
+        let demanded = visit
+            .setting
+            .program
+            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
         let mut run = facade::open_file(
             &visit.setting.program,
             file,
@@ -409,12 +413,9 @@ impl FileAnalysis {
                 evaluation,
                 publication: &physical,
             },
+            &demanded,
             visit.setting.services,
         )?;
-        let demanded = visit
-            .setting
-            .program
-            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
         let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
         let mut memo = Vec::new();
         for rule in visit.setting.program.rule_order() {

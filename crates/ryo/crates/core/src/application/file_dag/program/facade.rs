@@ -155,10 +155,14 @@ pub(crate) struct PreparedProgram {
     semantic_metadata: Vec<crate::domain::run_metadata::types::RuleMetadata>,
     hosted: Box<[HostRelation]>,
     matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
+    derived: super::super::derived::prepared::PreparedDerived,
 }
 impl PreparedProgram {
     pub(super) fn program(&self) -> &Arc<ExecutableProgram> {
         &self.program
+    }
+    pub(super) fn derived(&self) -> &super::super::derived::prepared::PreparedDerived {
+        &self.derived
     }
     pub(super) fn hosted(&self) -> &[HostRelation] {
         &self.hosted
@@ -439,6 +443,7 @@ pub(crate) fn prepare(
         graph,
         &partitions,
     )?);
+    let derived = super::super::derived::prepared::PreparedDerived::compile(&program, &operators)?;
     let mut metadata = Vec::with_capacity(plans.len());
     for (rule, plan) in plans.iter().enumerate() {
         let reads = crate::domain::trust::service::physical_reads(plan);
@@ -514,6 +519,7 @@ pub(crate) fn prepare(
         semantic_metadata: crate::domain::run_metadata::service::from_plans(&plans),
         hosted: hosted.to_vec().into_boxed_slice(),
         matchers,
+        derived,
     }))
 }
 fn source(

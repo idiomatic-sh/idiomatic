@@ -1,28 +1,8 @@
 //! File setup carries request metadata; demanded representation admission remains separate.
+use super::super::prepared::PreparedDerived;
 use super::*;
-use crate::domain::{coverage::types::Partial, operator::types::PreparedPool};
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plans::types::Plan;
+use crate::domain::coverage::types::Partial;
 impl DerivedOwner {
-    pub(in crate::application::file_dag) fn prepare_file(
-        &self,
-        enabled: bool,
-        wanted: &[Relation],
-        partial: &[Partial],
-        selectable: &[Relation],
-        plans: &[Plan],
-        pool: &PreparedPool,
-        active: impl Fn(usize) -> bool + Copy,
-    ) {
-        let mut backend = enabled
-            .then(|| super::super::indexes::new(wanted, partial, super::super::indexes::LIMIT))
-            .flatten();
-        if let Some(backend) = backend.as_mut() {
-            super::super::graph_cache::service::reserve(backend, plans, pool, active);
-            super::super::selection::activate(backend, pool, selectable, active);
-        }
-        *self.backend.borrow_mut() = backend;
-    }
     /// Configure the real installed backend for required-versus-optional controls.
     #[cfg(test)]
     pub(in crate::application::file_dag) fn set_optional_limit(
@@ -32,6 +12,33 @@ impl DerivedOwner {
         let mut backend = self.backend.borrow_mut();
         let backend = backend.as_mut().ok_or(OperatingError::NotRun)?;
         backend.limit = limit;
+        Ok(())
+    }
+}
+
+impl DerivedOwner {
+    pub(in crate::application::file_dag) fn prepare_program_file(
+        &self,
+        prepared: &PreparedDerived,
+        demanded: &[bool],
+        partial: &[Partial],
+    ) -> Result<(), OperatingError> {
+        if self.file_prepared.get() {
+            return Err(OperatingError::NotRun);
+        }
+        let wanted = prepared.wanted(demanded)?;
+        let mut backend =
+            super::super::indexes::new(&wanted, partial, super::super::indexes::LIMIT);
+        if let Some(cache) = backend.as_mut() {
+            cache.graph_enabled = prepared
+                .graph_rules
+                .iter()
+                .zip(demanded)
+                .any(|(graph, active)| *graph && *active);
+            super::super::selection::activate_program(cache, prepared, demanded);
+        }
+        *self.backend.borrow_mut() = backend;
+        self.file_prepared.set(true);
         Ok(())
     }
 }

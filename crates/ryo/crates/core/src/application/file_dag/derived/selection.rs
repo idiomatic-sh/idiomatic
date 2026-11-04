@@ -7,7 +7,7 @@ use crate::domain::{
         errors::OperatingError,
         types::{NameCount, OperatorContext},
     },
-    operator::{contract::views::BorrowedRows, types::PreparedPool},
+    operator::contract::views::BorrowedRows,
     stored_selection::types::{
         PreparedSelectionViews, PreparedSelectorViews, Selector, SelectorHistogram,
     },
@@ -42,7 +42,7 @@ use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use candidates::{candidates, first_literal};
 use fanout::fanout_candidates;
 use predicate::matches;
-pub(crate) use preparation::prepare_request;
+pub(in crate::application::file_dag::derived) use preparation::activate_program;
 pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas;
 pub(in crate::application::file_dag::derived) use preparation::{activate, install_views};
 #[cfg(test)]

@@ -18,3 +18,5 @@ pub(super) mod ledger;
 pub(in crate::application::file_dag) mod storage;
 
 pub(in crate::application::file_dag) mod semantics;
+
+pub(in crate::application::file_dag) mod prepared;

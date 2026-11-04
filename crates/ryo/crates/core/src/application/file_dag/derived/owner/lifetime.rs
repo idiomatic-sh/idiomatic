@@ -53,6 +53,7 @@ impl DerivedOwner {
     }
     /// Population mutation ends every identity and every owned view before provider refill.
     pub(in crate::application::file_dag) fn clear(&self) {
+        self.file_prepared.set(false);
         let mut state = self.state.borrow_mut();
         state.entries.clear();
         state.next_admission = 0;

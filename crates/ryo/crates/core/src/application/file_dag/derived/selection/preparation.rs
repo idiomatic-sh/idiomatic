@@ -1,8 +1,6 @@
 //! Request preparation and bounded activation; never rebuild descriptors in a row path.
 use super::*;
-use crate::domain::{
-    operation_schema::types::InputSchema, operator::contract::types::RequestOperators,
-};
+use crate::domain::operation_schema::types::InputSchema;
 use ryo_relations::domain::relations::types::Relation;
 use std::collections::HashMap;
 
@@ -127,50 +125,30 @@ pub(crate) fn prepare_views_with_schemas<'s>(
     Ok(Arc::new(prepared))
 }
 
-pub(crate) fn prepare_request(pool: &mut PreparedPool, request: &RequestOperators) {
-    if Arc::ptr_eq(&pool.ordered_existence, &request.ordered_existence)
-        && Arc::ptr_eq(&pool.selection_plans, &request.selection_plans)
-        && pool
-            .selection_views
-            .as_ref()
-            .is_some_and(|views| Arc::ptr_eq(views, &request.selection_views))
-    {
-        return;
-    }
-    pool.ordered_existence = Arc::clone(&request.ordered_existence);
-    pool.selection_plans = (request.selection_plans).clone();
-    pool.selection_views = Some((request.selection_views).clone());
-}
-
-pub(in crate::application::file_dag::derived) fn activate(
+pub(in crate::application::file_dag::derived) fn activate_program(
     cache: &mut CacheBackend,
-    pool: &PreparedPool,
-    selectable: &[Relation],
-    active: impl Fn(usize) -> bool,
+    prepared: &crate::application::file_dag::derived::prepared::PreparedDerived,
+    demanded: &[bool],
 ) {
     let mut selectors = Vec::new();
-    for (rule, plan) in pool.selection_plans.iter().enumerate() {
-        if !active(rule) {
+    for use_ in prepared.selectors.iter() {
+        if !demanded.get(use_.rule.0).copied().unwrap_or(false)
+            || !cache.eligible.contains(&use_.selector.relation)
+        {
             continue;
         }
-        for selector in plan.steps.iter().flatten() {
-            if !cache.eligible.contains(&selector.relation)
-                || !selectable.contains(&selector.relation)
-            {
-                continue;
-            }
-            let required = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
-            if required
-                .and_then(|bytes| cache.bytes.checked_add(bytes))
-                .is_none_or(|bytes| bytes > super::super::indexes::non_graph_limit(cache))
-            {
-                break;
-            }
-            selectors.push((selector).clone());
+        let bytes = (selectors.len() + 1).checked_mul(size_of::<Arc<Selector>>());
+        if bytes
+            .and_then(|bytes| cache.bytes.checked_add(bytes))
+            .is_none_or(|bytes| bytes > super::super::indexes::non_graph_limit(cache))
+        {
+            break;
         }
+        selectors.push(Arc::clone(&use_.selector));
     }
-    let bytes = selectors.capacity().checked_mul(size_of::<Arc<Selector>>());
-    if let Some(bytes) = bytes
+    if let Some(bytes) = selectors
+        .capacity()
+        .checked_mul(size_of::<Arc<Selector>>())
         .and_then(|bytes| cache.bytes.checked_add(bytes))
         .filter(|bytes| *bytes <= super::super::indexes::non_graph_limit(cache))
     {
@@ -179,9 +157,7 @@ pub(in crate::application::file_dag::derived) fn activate(
         cache.selectors = selectors;
         super::super::indexes::candidate_columns(cache);
     }
-    if let Some(views) = &pool.selection_views {
-        install_views(cache, (views).clone());
-    }
+    install_views(cache, Arc::clone(&prepared.views));
 }
 
 /// Install one immutable request descriptor and prepare active repetition once/file.
