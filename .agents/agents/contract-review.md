@@ -1,4 +1,10 @@
 # Contract review agent
+Goal: make recurring architectural review unnecessary by encoding guarantees in
+TM rules/specs/templates, Rust visibility and required contracts, and data
+structures that prevent invalid states. Each recurring finding must strengthen
+an automated boundary, not create a permanent manual checklist. Prove the guard
+rejects the violation and accepts legitimate use; report what still needs human
+judgment.
 Use Astra as lead and independent Opus through Claude Code.
 Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
 [language contract](../../crates/ryo/docs/language-contract.md), and matrix-linked
