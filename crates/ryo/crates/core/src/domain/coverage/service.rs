@@ -28,17 +28,18 @@ pub(crate) fn affected_ordinals(
     if affected.is_empty() || file_count == 0 {
         return Err(refuse());
     }
-    if affected.iter().any(Option::is_none) {
-        return Ok((0..file_count).collect());
-    }
+    let unlocated = affected.iter().any(Option::is_none);
     let mut ordinals = affected
         .iter()
+        .filter_map(|file| file.as_ref())
         .map(|file| {
-            let file = file.ok_or_else(refuse)?;
             let ordinal = usize::try_from(file.0).map_err(|_| refuse())?;
             (ordinal < file_count).then_some(ordinal).ok_or_else(refuse)
         })
         .collect::<Result<Vec<_>, _>>()?;
+    if unlocated {
+        return Ok((0..file_count).collect());
+    }
     ordinals.sort_unstable();
     ordinals.dedup();
     Ok(ordinals)

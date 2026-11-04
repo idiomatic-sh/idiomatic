@@ -204,4 +204,5 @@ fn partial_project_coverage_names_only_affected_files_and_refuses_unplaceable_ro
     assert!(affected_ordinals(&[], 3).is_err());
     assert!(affected_ordinals(&[None], 0).is_err());
     assert!(affected_ordinals(&[Some(FileId(3))], 3).is_err());
+    assert!(affected_ordinals(&[None, Some(FileId(999))], 3).is_err());
 }
