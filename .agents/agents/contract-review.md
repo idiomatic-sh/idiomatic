@@ -28,6 +28,11 @@ A bounded review never closes wider architecture categories.
 - Match matrix claims to executable evidence and its actual breadth.
 - Keep orchestration thin; enforce shared guarantees in shared contracts.
 - Missing evidence for a claimed guarantee blocks approval.
+## Architectural enforcement
+- For recurring findings, enumerate the class and all instances; require authors to reuse, strengthen, or create TM rules/specs/templates and scaffolds using [nu-hex](../../tastemaker/specs/nu-hex/0.2.0/spec.toml).
+- Require actual enforcement with failing bad and passing good fixtures; missing enforceable guards block architectural closure, not become future TODOs.
+- Require Rust types/privacy for impossible states and behavioral tests where TM cannot prove guarantees; state those limits explicitly.
+- Keep use cases and application services slim through meaningful ownership; reject arbitrary line caps, pass-through wrappers, and omnibus state.
 ## Output and enforcement
 Report short numbered blockers with file:line, failure, and required proof.
 Retain both reviewers' findings and dispositions. Only final independent PASS
