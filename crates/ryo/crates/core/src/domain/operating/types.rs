@@ -133,24 +133,6 @@ pub(crate) struct ComparisonNumber(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct InputPlace(pub usize);
 
-/// The columns a walk from the starts is made by: the one that holds the start, and the one of the domain that holds the entities.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WalkColumns {
-    /// The column of the start.
-    pub id: ColumnIndex,
-    /// The column of the domain.
-    pub domain: ColumnIndex,
-}
-
-/// What a walk is filtered by and what it answers.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct WalkShape<'o> {
-    /// The comparisons the domain's elements must satisfy.
-    pub comparisons: &'o [Comparison],
-    /// The columns the rows answered are made of; empty for the start and the entity found.
-    pub output: &'o [JoinColumn],
-}
-
 /// What a join of rows with a tree is filtered by and what it answers.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TreeShape<'a> {
@@ -161,14 +143,6 @@ pub(crate) struct TreeShape<'a> {
     /// The columns the rows answered are made of.
     pub output: &'a [JoinColumn],
 }
-
-/// How many starts a walk will have.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct StartCount(pub usize);
-
-/// How many elements a tree has.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ElementCount(pub usize);
 
 /// How the rows of an input of a step come to it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -195,15 +169,6 @@ pub(crate) enum KindNarrowing {
     Narrowed,
     /// The whole tree is looked at.
     Whole,
-}
-
-/// Whether a walk for the nearest ancestor keeps the answers it found for the elements it passed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Remembering {
-    /// The answers are kept, by element.
-    Kept,
-    /// Each start is answered by itself.
-    Forgotten,
 }
 
 /// A column the rows of a tree lack, by its place among the columns the comparisons read.

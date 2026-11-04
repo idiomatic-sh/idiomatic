@@ -2,7 +2,7 @@
 
 use ryo_relations::domain::relations::types::{CellKind, Position};
 
-use super::service::{nearest_at, walk_kinds};
+use super::service::walk_kinds;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 
@@ -56,6 +56,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// Historical oracle for the retired nearest-cache slot contract.
+const SLOT_OF_ELEMENT: &str = "a slot for each element of the tree the walk reads";
+#[expect(
+    clippy::expect_used,
+    reason = "the remembered answers hold one slot per element; a missing slot must crash"
+)]
+fn nearest_at(nearest: &ElementPlaces, element: Position) -> Position {
+    nearest
+        .0
+        .get(usize::try_from(element.0).unwrap_or(usize::MAX))
+        .map(|known| Position(*known))
+        .expect(SLOT_OF_ELEMENT)
+}
+
 /// Whether `work` crashed with the message a missing slot of the nearest ancestors gives: 1 when it did, 0 otherwise.
 fn crashed_on_missing_slot(work: impl FnOnce()) -> usize {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)).map_or_else(
@@ -65,7 +79,7 @@ fn crashed_on_missing_slot(work: impl FnOnce()) -> usize {
                 .map(|message| (*message).to_owned())
                 .or_else(|| payload.downcast_ref::<String>().cloned())
                 .unwrap_or_default();
-            usize::from(message == super::constants::SLOT_OF_ELEMENT)
+            usize::from(message == SLOT_OF_ELEMENT)
         },
         |()| 0,
     )
