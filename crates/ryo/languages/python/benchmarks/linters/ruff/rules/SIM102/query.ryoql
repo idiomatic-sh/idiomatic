@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 import conditional_guards from "python/ruff/conditional-guards";
 let nodes = select id, kind, file from "semantic-syntax";
@@ -58,10 +57,4 @@ let bounds = select l.id as id, r.span as start_span, l.end_span as end_span, r.
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");
 let candidates = select id, file, span, line from composed;
 let violations = suppress(candidates=candidates, inline-pattern="SIM102($|[, #])", range-pattern="(?:^|,)SIM102(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:SIM102)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:SIM102)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "SIM102"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

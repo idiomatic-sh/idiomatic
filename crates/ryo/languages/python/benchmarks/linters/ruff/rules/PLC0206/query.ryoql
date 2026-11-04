@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 import assigned_values from "python/ruff/assigned-values";
 import qualified_origins from "python/ruff/qualified-origins";
@@ -136,10 +135,4 @@ let bounds = select l.id as id, l.target_span as target_span, r.span as iter_spa
 let composed = span-between(from=bounds, start="target_span", end="iter_span", output="span");
 let candidates = select id, file, span, line from composed;
 let violations = suppress(candidates=candidates, inline-pattern="PLC0206($|[, #])", range-pattern="(?:^|,)PLC0206(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PLC0206)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLC0206)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLC0206"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 import modernization_symbols from "python/ruff/modernization-symbols";
 let nodes = select id, kind, file from "semantic-syntax";
@@ -25,10 +24,4 @@ let passes = select id, file from nodes where kind = "pass";
 let reportable = select l.id as id, l.file as file from single as l join passes as r on l.id = r.id and l.file = r.file;
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="TC005($|[, #])", range-pattern="(?:^|,)TC005(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:TC005)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:TC005)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "TC005"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

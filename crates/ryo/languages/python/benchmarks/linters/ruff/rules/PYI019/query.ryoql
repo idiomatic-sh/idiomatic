@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import class_bases from "python/ruff/class-bases";
 import metaclass from "python/ruff/metaclass";
 import suppress from "python/ruff/suppress";
@@ -132,10 +131,4 @@ let bounds = select l.id as id, l.file as file, l.name_span as name_span, l.line
 let composed = span-between(from=bounds, start="name_span", end="end_span", output="span");
 let candidates = select id, file, span, line from composed;
 let violations = suppress(candidates=candidates, inline-pattern="PYI019($|[, #])", range-pattern="(?:^|,)PYI019(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PYI019)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI019)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PYI019"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

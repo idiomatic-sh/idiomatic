@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 let syntax = select id, kind, file, span from "semantic-syntax";
 let import_nodes = select id, file, span from syntax where kind = "import" or kind = "import-from";
 let body = select parent, child, ordinal, file from "semantic-child" where field = "body";
@@ -293,10 +292,4 @@ let problems6a = union(left=problems6a0, right=comment_spacing_problems);
 let problems7 = union(left=problems6a, right=comment_width_problems);
 let problems8 = union(left=problems7, right=split_alias_problems);
 let problems9 = union(left=problems8, right=unwrap_problems);
-let ruf100_candidates = select file, span from problems9;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:I001)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:I001)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "I001"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=problems9, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(span);
+emit problems9 subject file key(span);

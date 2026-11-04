@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let assignments = select id, file, span, kind from "semantic-syntax" where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let modules = select id, file from "semantic-syntax" where kind = "module";
@@ -55,10 +54,4 @@ let invalid_elements = antijoin(left=sequence_elements, right=string_literals, l
 let candidates = select target as id, file, target_span as span from invalid_elements;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLE0604(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLE0604)(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PLE0604)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLE0604)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLE0604"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import enum_bases from "python/ruff/enum-bases";
 import suppress from "python/ruff/suppress";
 
@@ -93,10 +92,4 @@ let all_primitive_candidates = union(left=primitive_candidates, right=with_conta
 let locations = select id, file, span, "start-line" from "source-location";
 let located = select l.id as id, l.file as file, r.span as span, r."start-line" as line from all_primitive_candidates as l join locations as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=located, inline-pattern="PYI052($|[, #])", range-pattern="(?:^|,)PYI052(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PYI052)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI052)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PYI052"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

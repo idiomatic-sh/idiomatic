@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let qualified = select id, file, span, path from "qualified-name" where path = "datetime.datetime.max" or path = "datetime.datetime.min";
 let attributes = select id, file from "semantic-syntax" where kind = "attribute";
@@ -34,10 +33,4 @@ let unconverted = antijoin(left=qualified, right=safe_uses, left-on=["id"], righ
 let reportable = select id, file, span from unconverted;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*DTZ901(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:DTZ901)(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:DTZ901)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:DTZ901)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "DTZ901"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

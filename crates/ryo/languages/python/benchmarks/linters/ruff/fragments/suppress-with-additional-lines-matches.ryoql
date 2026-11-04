@@ -1,0 +1,15 @@
+import noqa_line_map from "python/ruff/noqa-line-map";
+import noqa_locations from "python/ruff/noqa-locations";
+import noqa_additional_locations from "python/ruff/noqa-additional-locations";
+import suppression_edges from "python/ruff/suppression-edges";
+input candidates: relation<id: node, file: file, span: span, line: number>;
+input additional_locations: relation<id: node, file: file, line: number>;
+param inline-pattern: string;
+param range-pattern: string;
+output relation<id: node, file: file, span: span, directive: node, scope: number>;
+let candidate_locations = select id, file, span, line from candidates;
+let mappings = noqa_line_map();
+let located = noqa_locations(candidates=candidate_locations, mappings=mappings);
+let located_export_parents = noqa_additional_locations(additional_locations=additional_locations, mappings=mappings);
+let matched = suppression_edges(candidates=candidate_locations, locations=located, additional_locations=located_export_parents, inline-pattern=$inline-pattern, range-pattern=$range-pattern);
+return matched;

@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let calls = select id, file, span from "semantic-syntax" where kind = "call";
 let function_fields = select parent, child from "semantic-child" where field = "func";
@@ -69,10 +68,4 @@ let bad_suffixes = select call, file from literal_suffixes where matches(value, 
 let reportable = select l.call as id, r.span as span, l.file as file from bad_suffixes as l join calls as r on l.call = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PTH210(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PTH210)(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PTH210)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PTH210)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PTH210"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

@@ -1,13 +1,6 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let pep585_symbols = select id, file from "qualified-name" where path = "typing.Dict" or path = "typing.FrozenSet" or path = "typing.List" or path = "typing.Set" or path = "typing.Tuple" or path = "typing.Type" or path = "typing_extensions.Type" or path = "typing.Deque" or path = "typing_extensions.Deque" or path = "typing.DefaultDict" or path = "typing_extensions.DefaultDict";
 let pep585_nodes = select l.id as id, l.file as file, r.span as span from pep585_symbols as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from pep585_nodes as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*UP006(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP006)(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:UP006)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP006)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "UP006"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);

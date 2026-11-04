@@ -1,4 +1,3 @@
-import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
@@ -158,10 +157,4 @@ let all_candidates = union(left=candidates3, right=overload_candidates);
 let unique_candidates = group-count(from=all_candidates, keys=["id", "file", "span", "line"], count="count", distinct="id");
 let candidate_locations = select id, file, span, line from unique_candidates;
 let violations = suppress(candidates=candidate_locations, inline-pattern="PYI036($|[, #])", range-pattern="(?:^|,)PYI036(?:,|$)");
-let ruf100_candidates = select file, span from violations;
-let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PYI036)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI036)(?:,|$)");
-let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PYI036"});
-observe ruf100_used as noqa_matches;
-let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
-emit ruf100_visible subject file key(id);
+emit violations subject file key(id);
