@@ -1,7 +1,7 @@
 //! The `joins` service's cases, over the small tree.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::joins::service::{antijoin, union};
+use crate::domain::fragment::service::{antijoin, union};
 use crate::domain::lowering::types::ElementPart;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -67,8 +67,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let rows = rows_over(&elements);
     let mut out = Slots::default();
     let columns = [ColumnIndex(0)];
+    let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+        port: crate::outbound::operators::factory::test_port(),
+    };
+    let mut derived = crate::application::file_dag::testing::raw_scope()?;
     match scenario {
         Scenario::Antijoin => antijoin(
+            &semantics,
+            &mut derived,
             &rows,
             &lowering_of(&[ElementPart::Kind, ElementPart::Kind]),
             Sides {
@@ -83,6 +89,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &mut out,
         )?,
         Scenario::AntijoinOfAStepNotRun => antijoin(
+            &semantics,
+            &mut derived,
             &rows,
             &lowering_of(&[ElementPart::Kind, ElementPart::Kind]),
             Sides {
@@ -97,6 +105,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &mut out,
         )?,
         Scenario::Union => union(
+            &semantics,
+            &mut derived,
             &rows,
             &lowering_of(&[ElementPart::Kind, ElementPart::Kind, ElementPart::Kind]),
             StepId(2),
