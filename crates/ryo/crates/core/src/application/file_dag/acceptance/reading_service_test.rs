@@ -196,26 +196,32 @@ fn setting<'a>(
     ids: &'a [RuleId],
     bindings: &'a [Vec<ParameterBinding>],
 ) -> VisitSetting<'a> {
+    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+    let derived = crate::application::file_dag::executor::PrimitiveExecutor::derived_port(executor);
+    let operators = std::sync::Arc::new(
+        crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+            plans,
+            bindings,
+            &[],
+            &|relation| {
+                if relation == Relation::Function {
+                    KINDS
+                } else {
+                    ryo_relations::domain::relations::service::kinds(relation)
+                }
+            },
+            derived,
+        )
+        .expect("custom fixture relation metadata"),
+    );
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        plans, &operators,
+    ));
     VisitSetting {
-        observations: crate::domain::file_program::types::ObservationRequest::Independent,
         source_language: None,
-        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        operators: std::sync::Arc::new(
-            crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
-                plans,
-                bindings,
-                &[],
-                &|relation| {
-                    if relation == Relation::Function {
-                        KINDS
-                    } else {
-                        ryo_relations::domain::relations::service::kinds(relation)
-                    }
-                },
-                crate::outbound::derived::factory::test_port(),
-            )
-            .expect("custom fixture relation metadata"),
-        ),
+        executor,
+        operators,
+        graph,
         domain: crate::domain::workers::types::VisitSetting {
             observations: crate::domain::file_program::types::ObservationRequest::Independent,
             unknown: &[],

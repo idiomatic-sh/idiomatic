@@ -176,11 +176,22 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 matcher: MatchingFake.compile(&globs).map_err(drop)?,
                 placement,
             };
+            let executor =
+                crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+            let operators = crate::application::file_dag::testing::request_for_executor(
+                executor,
+                &[],
+                &[],
+                &[],
+            );
+            let graph = std::sync::Arc::new(
+                crate::domain::file_program::service::compile_prepared(&[], &operators),
+            );
             let setting = VisitSetting {
                 source_language: None,
-                executor:
-                    crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-                operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
+                executor,
+                operators,
+                graph,
                 domain: crate::domain::workers::types::VisitSetting {
                     observations:
                         crate::domain::file_program::types::ObservationRequest::Independent,

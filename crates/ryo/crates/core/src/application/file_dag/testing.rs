@@ -389,4 +389,22 @@ pub(crate) fn request_fixture(
     )
 }
 
+/// Test request metadata bound to the same semantic port as its required executor.
+pub(crate) fn request_for_executor(
+    executor: &dyn super::executor::PrimitiveExecutor,
+    plans: &[ryo_values::domain::plans::types::Plan],
+    bindings: &[Vec<ParameterBinding>],
+    hosted: &[ryo_values::domain::hosted::types::HostRelation],
+) -> std::sync::Arc<crate::domain::operator::contract::types::RequestOperators> {
+    std::sync::Arc::new(
+        crate::domain::operator::contract::types::RequestOperators::prepare(
+            plans,
+            bindings,
+            hosted,
+            executor.derived_port(),
+        )
+        .expect("fixture metadata"),
+    )
+}
+
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
