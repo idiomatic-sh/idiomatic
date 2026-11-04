@@ -182,7 +182,11 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
                 .demand(root, &read, scope.scope.executor(), &mut context)
                 .unwrap();
             assert_eq!(result.kind(), *variant);
-            assert_eq!(dag.borrow().executions[root.0], 1);
+            assert_eq!(
+                dag.borrow().executions[root.0],
+                0,
+                "supplied input is published, not executed"
+            );
             let resolved = scope.scope.owner().resolve(result.as_ref(), &read).unwrap();
             let raw = borrowed(&resolved);
             assert_eq!(kind(registered(*variant).bulk(raw).unwrap()), *variant);
