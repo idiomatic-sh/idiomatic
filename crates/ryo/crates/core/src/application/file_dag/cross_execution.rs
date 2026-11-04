@@ -119,9 +119,6 @@ pub(crate) fn evaluate_cross_roots_with_executor(
                             super::completion::UnavailableReason::MissingFrontier { input } => {
                                 OperatingError::FrontierUnavailable { input }
                             }
-                            super::completion::UnavailableReason::AbsenceBlockedByPartial => {
-                                OperatingError::WrongOperation
-                            }
                         }
                     }
                     _ => OperatingError::WrongOperation,

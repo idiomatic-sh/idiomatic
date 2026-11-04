@@ -1,10 +1,13 @@
 //! Production-route probes supplement class fixtures; no catalog-only admission is counted.
-use super::{execution::CommonOperatorEngine, types::FileDagExecution};
+use super::execution::CommonOperatorEngine;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures;
 use crate::application::file_dag::cross_execution::evaluate_cross_with_executor;
+use crate::application::file_dag::executor::NativeClassBatch;
 use crate::application::file_dag::executor::PrimitiveExecutor;
 use crate::application::file_dag::feed::Feed;
 use crate::application::file_dag::pipeline::service::evaluate_file_with_executor;
+use crate::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::service::GraphInputs;
 use crate::domain::coverage::types::{Lacking, Partial, Partials};
 use crate::domain::features::service::kind_of;
 use crate::domain::file_program::service::compile_prepared;
@@ -52,10 +55,8 @@ use ryo_values::domain::{
     },
     stored_facts::types::PartialCause,
 };
-use std::{
-    cell::RefCell,
-    sync::{Arc, Mutex},
-};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 #[derive(Debug, Default)]
 struct CountingExecutor {
     calls: Mutex<Vec<OperationKind>>,
@@ -71,17 +72,59 @@ impl PrimitiveExecutor for CountingExecutor {
         output_kinds: &[ryo_relations::domain::relations::types::CellKind],
         context: &mut OperatorContext<'_>,
         room: &mut Room,
-    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError> {
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
+    {
         self.calls.lock().unwrap().push(OperationKind::Select);
-        crate::application::file_dag::execution::CommonOperatorEngine::fixture()
-            .ordered_existence(owner, shape, source, rows, output_kinds, context, room)
+        crate::application::file_dag::execution::CommonOperatorEngine::fixture().ordered_existence(
+            owner,
+            shape,
+            source,
+            rows,
+            output_kinds,
+            context,
+            room,
+        )
     }
 
+    fn native_classes(
+        &self,
+        owner: &Rc<RelationOwner>,
+        declaration: &NativeClassBatch<'_>,
+        shared: &mut crate::domain::shared_walk::types::MergedWalk,
+        walking: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        CommonOperatorEngine::fixture().native_classes(owner, declaration, shared, walking)
+    }
+    fn stream_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut GraphInputs<'_, '_>,
+        owner: &Rc<RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        self.calls.lock().unwrap().push(contract.kind);
+        CommonOperatorEngine::fixture().stream_representation(
+            contract,
+            physical,
+            feed,
+            owner,
+            context,
+            room,
+            &mut Pipe(|context: &mut OperatorContext<'_>, row: &[Value]| {
+                self.emitted.lock().unwrap().push((contract.kind, 1));
+                emit.row(context, row)
+            }),
+        )
+    }
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         crate::outbound::derived::factory::test_port()
     }
     fn stream(
         &self,
+        owner: &Rc<RelationOwner>,
         contract: &OperatorContract,
         feed: &mut dyn Feed<'_>,
         context: &mut OperatorContext<'_>,
@@ -90,6 +133,7 @@ impl PrimitiveExecutor for CountingExecutor {
     ) -> Result<(), OperatingError> {
         self.calls.lock().unwrap().push(contract.kind);
         CommonOperatorEngine::fixture().stream(
+            owner,
             contract,
             feed,
             context,
@@ -102,13 +146,14 @@ impl PrimitiveExecutor for CountingExecutor {
     }
     fn collect(
         &self,
+        owner: &Rc<RelationOwner>,
         contract: &OperatorContract,
         inputs: &[Rows<'_>],
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
         self.calls.lock().unwrap().push(contract.kind);
-        CommonOperatorEngine::fixture().collect(contract, inputs, context, out)?;
+        CommonOperatorEngine::fixture().collect(owner, contract, inputs, context, out)?;
         self.emitted
             .lock()
             .unwrap()
@@ -199,7 +244,15 @@ fn a_single_emitted_step_is_residual_not_a_dag_cut() {
     .unwrap();
     let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
     assert!(graph.cuts[0][0].is_none());
-    let dag = FileDagExecution::new(graph, |_| true, &[relation]);
+    let scope = crate::application::file_dag::testing::FileScope::new(
+        graph,
+        CommonOperatorEngine::fixture_ref(),
+        |_| true,
+        &[relation],
+        &[],
+    )
+    .unwrap();
+    let dag = scope.execution.borrow();
     assert!(dag.owned(0, 0).is_none());
 }
 #[test]
@@ -259,7 +312,15 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
             .unwrap();
             let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
             assert!(graph.cuts[0][0].is_none(), "Hosted remains cross-file");
-            let dag = FileDagExecution::new(graph, |_| true, &[]);
+            let scope = crate::application::file_dag::testing::FileScope::new(
+                graph,
+                &executor,
+                |_| true,
+                &[],
+                &[],
+            )
+            .unwrap();
+            let dag = scope.execution.borrow();
             assert!(dag.owned(0, 0).is_none());
             evaluate_cross_with_executor(
                 &plan,
@@ -268,7 +329,7 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 &mut context,
                 &mut [RowsFed::default()],
                 &case.inputs,
-                &executor,
+                scope.scope.executor(),
                 &[contract],
             )
             .unwrap()
@@ -278,6 +339,9 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 .map(|input| match input {
                     Input::Relation(relation) => *relation,
                     Input::Step(_) => panic!("single-step fixture"),
+                    Input::BoundObservation(_) => {
+                        panic!("ordinary relation fixture has no named bindings")
+                    }
                 })
                 .collect::<Vec<_>>();
             let storage = case.inputs.iter().map(columns).collect::<Vec<_>>();
@@ -341,7 +405,15 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
             let graph = Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared));
             assert!(graph.cuts[0][0].is_some(), "{kind:?} must reach the DAG");
             assert!(graph.cuts[0][1].is_none(), "emit stays residual");
-            let dag = RefCell::new(FileDagExecution::new(graph, |_| true, &relations));
+            let scope = crate::application::file_dag::testing::FileScope::new(
+                graph,
+                &executor,
+                |_| true,
+                &relations,
+                &[],
+            )
+            .unwrap();
+            let dag = &scope.execution;
             assert!(
                 dag.borrow().owned(0, 0).is_some(),
                 "{kind:?} owned before execution"
@@ -363,12 +435,9 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
                 &mut context,
                 &mut pool,
                 &mut PreparedPool::default(),
-                &[],
-                None,
                 0,
-                Some(&dag),
-                &executor,
-                &prepared.rules[0],
+                dag,
+                scope.scope.executor(),
             )
             .unwrap_or_else(|error| panic!("DAG-owned {kind:?}: {error:?}"));
             pool.steps.remove(1)
@@ -416,7 +485,7 @@ fn partial_route(
             tree: None,
         })
         .collect::<Vec<_>>();
-    let contract = Arc::new(
+    let _contract = Arc::new(
         super::derived::prepare::operator(
             registered(kind_of(&operation)),
             &operation,
@@ -430,6 +499,7 @@ fn partial_route(
         .map(|input| match input {
             Input::Relation(relation) => *relation,
             Input::Step(_) => panic!("relation fixture"),
+            Input::BoundObservation(_) => panic!("ordinary relation fixture has no named bindings"),
         })
         .collect::<Vec<_>>();
     let storage = case.inputs.iter().map(columns).collect::<Vec<_>>();
@@ -465,6 +535,29 @@ fn partial_route(
         memo: &mut memo,
         scratch: &mut scratch,
     };
+    let prepared = RequestOperators::prepare_with_schemas(
+        std::slice::from_ref(&plan),
+        &[vec![]],
+        &[],
+        &|relation| {
+            stored_kinds(
+                &case.inputs[inputs
+                    .iter()
+                    .position(|input| *input == relation)
+                    .expect("declared relation")],
+            )
+        },
+        executor.derived_port(),
+    )
+    .unwrap();
+    let scope = crate::application::file_dag::testing::FileScope::new(
+        Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared)),
+        executor,
+        |_| true,
+        &inputs,
+        &pool.partial,
+    )
+    .unwrap();
     evaluate_file_with_executor(
         &plan,
         &read,
@@ -472,12 +565,9 @@ fn partial_route(
         &mut context,
         &mut pool,
         &mut PreparedPool::default(),
-        &[],
-        None,
         0,
-        None,
-        executor,
-        &[contract],
+        &scope.execution,
+        scope.scope.executor(),
     )
     .unwrap();
     pool.steps.remove(0)
@@ -503,22 +593,45 @@ struct RejectingExecutor;
 impl PrimitiveExecutor for RejectingExecutor {
     fn ordered_existence(
         &self,
-        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        _owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         shape: &crate::domain::ordered_existence::types::ResolvedShape,
         source: &crate::application::file_dag::relations::PublishedInput,
         rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
         output_kinds: &[ryo_relations::domain::relations::types::CellKind],
         context: &mut OperatorContext<'_>,
         room: &mut Room,
-    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError> {
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
+    {
         Err(OperatingError::WrongOperation)
     }
 
+    fn native_classes(
+        &self,
+        _: &Rc<RelationOwner>,
+        _: &NativeClassBatch<'_>,
+        _: &mut crate::domain::shared_walk::types::MergedWalk,
+        _: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::WrongOperation)
+    }
+    fn stream_representation(
+        &self,
+        _: &OperatorContract,
+        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        _: &mut GraphInputs<'_, '_>,
+        _: &Rc<RelationOwner>,
+        _: &mut OperatorContext<'_>,
+        _: &mut Room,
+        _: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::WrongOperation)
+    }
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         crate::outbound::derived::factory::test_port()
     }
     fn stream(
         &self,
+        _owner: &Rc<RelationOwner>,
         _: &OperatorContract,
         _: &mut dyn Feed<'_>,
         _: &mut OperatorContext<'_>,
@@ -529,6 +642,7 @@ impl PrimitiveExecutor for RejectingExecutor {
     }
     fn collect(
         &self,
+        _owner: &Rc<RelationOwner>,
         _: &OperatorContract,
         _: &[Rows<'_>],
         _: &mut OperatorContext<'_>,
@@ -540,7 +654,7 @@ impl PrimitiveExecutor for RejectingExecutor {
 #[test]
 fn production_route_cannot_bypass_an_injected_executor_refusal() {
     let case = fixture(OperationKind::Select);
-    let contract = Arc::new(
+    let _contract = Arc::new(
         super::derived::prepare::operator(
             registered(OperationKind::Select),
             &case.operation,
@@ -575,6 +689,23 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
         memo: &mut memo,
         scratch: &mut scratch,
     };
+    let prepared = RequestOperators::prepare_with_schemas(
+        std::slice::from_ref(&plan),
+        &[vec![]],
+        &[],
+        &|_| stored_kinds(&case.inputs[0]),
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
+    let executor = RejectingExecutor;
+    let scope = crate::application::file_dag::testing::FileScope::new(
+        Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared)),
+        &executor,
+        |_| true,
+        &[Relation::Function],
+        &[],
+    )
+    .unwrap();
     assert_eq!(
         evaluate_file_with_executor(
             &plan,
@@ -583,12 +714,9 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
             &mut context,
             &mut pool_for(std::slice::from_ref(&plan)),
             &mut PreparedPool::default(),
-            &[],
-            None,
             0,
-            None,
-            &RejectingExecutor,
-            &[contract]
+            &scope.execution,
+            scope.scope.executor()
         ),
         Err(OperatingError::WrongOperation)
     );

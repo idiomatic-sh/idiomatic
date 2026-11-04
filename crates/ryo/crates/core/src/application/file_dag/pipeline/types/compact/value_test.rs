@@ -44,9 +44,7 @@ fn subject_with_counting(
     counting: crate::domain::lowering::types::Counting,
 ) -> Result<Value, Failure> {
     use crate::application::file_dag::derived::selection::prepare_request;
-    use crate::application::file_dag::pipeline::service::{
-        evaluate_file, evaluate_file_with_executor,
-    };
+    use crate::application::file_dag::pipeline::service::evaluate_file_with_executor;
     use crate::domain::operating::types::OperatorContext;
     use crate::domain::operator::service::pool_for;
     use crate::domain::table_scratch::types::OperatorScratch;
@@ -184,14 +182,16 @@ fn subject_with_counting(
         distinct,
     );
     assert!(prepared.selection_plans[0].steps[2].is_none());
-    let frame = std::cell::RefCell::new(
-        crate::application::file_dag::derived::owner::resource_fixture::residual_frame(
-            &plans,
-            &prepared,
-            &[Relation::Function],
-            &[],
-        ),
-    );
+    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+    let scope = crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
+        &plans,
+        &request,
+        &prepared,
+        &[Relation::Function],
+        &[],
+        executor,
+    )?;
+    let frame = &scope.execution;
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -207,14 +207,25 @@ fn subject_with_counting(
         scratch: &mut scratch,
     };
     for (rule, plan) in plans.iter().enumerate() {
-        evaluate_file(
+        let baseline_scope =
+            crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
+                &plans,
+                &request,
+                &baseline_prepared,
+                &[Relation::Function],
+                &[],
+                executor,
+            )?;
+        evaluate_file_with_executor(
             plan,
             &read,
             None,
             &mut context,
             &mut baseline,
             &mut baseline_prepared,
-            &[],
+            rule,
+            &baseline_scope.execution,
+            baseline_scope.scope.executor(),
         )?;
         {
             let mut actual = OperatorContext {
@@ -238,12 +249,9 @@ fn subject_with_counting(
                 &mut actual,
                 &mut compact,
                 &mut prepared,
-                &[],
-                None,
                 rule,
-                Some(&frame),
-                &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-                &request.rules[rule],
+                frame,
+                scope.scope.executor(),
             )?;
         }
         assert_eq!(compact.steps[2], baseline.steps[2]);
@@ -322,12 +330,9 @@ fn subject_with_counting(
             &mut actual,
             &mut compact,
             &mut prepared,
-            &[],
-            None,
             0,
-            Some(&frame),
-            &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-            &request.rules[0],
+            frame,
+            scope.scope.executor(),
         )
     };
     assert!(matches!(
@@ -335,15 +340,26 @@ fn subject_with_counting(
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));
     assert!(compact.selected.iter().all(Option::is_none));
+    let baseline_scope =
+        crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
+            &plans,
+            &request,
+            &baseline_prepared,
+            &[Relation::Function],
+            &[],
+            executor,
+        )?;
     assert!(matches!(
-        evaluate_file(
+        evaluate_file_with_executor(
             &plans[0],
             &read,
             None,
             &mut context,
             &mut baseline,
             &mut baseline_prepared,
-            &[]
+            0,
+            &baseline_scope.execution,
+            baseline_scope.scope.executor(),
         ),
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));

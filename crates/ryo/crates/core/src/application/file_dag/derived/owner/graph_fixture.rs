@@ -37,7 +37,7 @@ pub(in crate::application::file_dag) struct Snapshot {
     pub domains: usize,
     pub nearest: usize,
     pub indexes: usize,
-    pub index_capacity: usize,
+    pub owner_entries_capacity: usize,
     pub index_payloads: Vec<usize>,
     pub index_columns: Vec<Vec<ColumnIndex>>,
     pub required_bytes: usize,
@@ -146,28 +146,24 @@ impl GraphFixture {
         fixture
     }
     fn workspace(&self, input: Input, rows: &Rows<'_>) -> InvocationWorkspace {
-        let mut workspace =
-            InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
-        workspace
-            .capture_provided(Rc::clone(&self.owner), &[input], &[rows.clone()])
-            .unwrap();
+        let mut workspace = InvocationWorkspace::new(Rc::clone(&self.owner));
+        workspace.capture_inputs(&[input], &[rows.clone()]).unwrap();
         workspace
     }
     pub(in crate::application::file_dag) fn prepare(
         request: ViewRequest,
         rows: &Rows<'_>,
     ) -> Arc<DerivedContract> {
-        let kind = crate::domain::derived_views::service::kind(&request);
         Arc::new(
-            registered(kind)
-                .prepare(
-                    &request,
-                    &[InputSchema {
-                        kinds: kinds_of(rows),
-                        tree: None,
-                    }],
-                )
-                .unwrap(),
+            super::super::prepare::view(
+                crate::outbound::derived::factory::test_port(),
+                &request,
+                &[InputSchema {
+                    kinds: kinds_of(rows),
+                    tree: None,
+                }],
+            )
+            .unwrap(),
         )
     }
     pub(in crate::application::file_dag) fn acquire(
@@ -314,6 +310,16 @@ impl GraphFixture {
         let c = &cache.graph_counts;
         let ledger = self.owner.derived.ledger.borrow();
         let s = ledger.snapshot();
+        let state = self.owner.derived.state.borrow();
+        let mut indexes: Vec<_> = state
+            .entries
+            .values()
+            .filter(|entry| {
+                entry.retained.is_some()
+                    && matches!(entry._plan.request, ViewRequest::Equality { .. })
+            })
+            .collect();
+        indexes.sort_by_key(|entry| entry.admission);
         Snapshot {
             counts: GraphCounts {
                 reclaimed_indexes: c.reclaimed_indexes,
@@ -338,20 +344,15 @@ impl GraphFixture {
             graphs: cache.graphs.len(),
             domains: cache.graph_domains.len(),
             nearest: cache.nearest.len(),
-            indexes: cache.entries.len(),
-            index_capacity: cache.entries.capacity(),
-            index_payloads: cache
-                .entries
+            indexes: indexes.len(),
+            owner_entries_capacity: state.entries.capacity(),
+            index_payloads: indexes.iter().map(|entry| entry.bytes).collect(),
+            index_columns: indexes
                 .iter()
-                .map(|entry| {
-                    super::super::graph_cache::types::reclamation::value::index_payload(entry)
-                        .unwrap()
+                .map(|entry| match &entry._plan.request {
+                    ViewRequest::Equality { columns } => columns.clone(),
+                    _ => unreachable!("filtered equality entry"),
                 })
-                .collect(),
-            index_columns: cache
-                .entries
-                .iter()
-                .map(|entry| entry.columns.clone())
                 .collect(),
             required_bytes: s.required_bytes,
             optional_bytes: s.view_optional_bytes,

@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 struct CanonicalNode {
     publication_reads: Vec<crate::domain::trust::types::RelationRead>,
-    region: Option<super::types::PhysicalRegion>,
+    regions: Vec<super::types::PhysicalRegion>,
     needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,
@@ -30,6 +30,39 @@ struct CanonicalNode {
     inputs: Vec<NodeInput>,
     relations: Vec<Relation>,
     schema_valid: bool,
+}
+
+/// Original typed ancestry, prepared with the request. A boundary is an
+/// admitted input of the physical region, never re-evaluated by that region.
+fn region_ancestors(
+    plan: &Plan,
+    root: usize,
+    stop: Option<usize>,
+    mapped: &[Option<NodeId>],
+) -> Vec<NodeId> {
+    let mut pending = vec![root];
+    let mut seen = HashSet::new();
+    let mut nodes = Vec::new();
+    while let Some(step) = pending.pop() {
+        if !seen.insert(step) || Some(step) == stop {
+            continue;
+        }
+        if step != root
+            && let Some(Some(node)) = mapped.get(step)
+        {
+            nodes.push(*node);
+        }
+        if let Some(step) = plan.steps.get(step) {
+            for input in named(&inputs_of(&step.operation)) {
+                if let Input::Step(id) = input {
+                    pending.push(id.0 as usize);
+                }
+            }
+        }
+    }
+    nodes.sort_unstable_by_key(|id| id.0);
+    nodes.dedup();
+    nodes
 }
 
 fn node_input(
@@ -245,21 +278,36 @@ pub(crate) fn compile_prepared_observations(
                         || contract.effects
                             != crate::domain::operator::contract::types::Effects::Pure)
                         .then_some(rule);
-                    let input_supply = named(&inputs_of(&step.operation))
-                        .iter()
-                        .map(|input| {
-                            use crate::domain::operating::types::Supply;
-                            match input {
-                                Input::Step(id)
-                                    if step.scope == StepScope::PerFile
-                                        && !kept.get(id.0 as usize).copied().unwrap_or(false) =>
-                                {
-                                    Supply::Streamed
-                                }
-                                _ => Supply::AtHand,
-                            }
+                    let input_supply = Vec::new();
+                    let region = layout.as_ref().and_then(|layout| {
+                        let column = columns
+                            .as_ref()
+                            .and_then(|columns| columns.0.get(index))
+                            .cloned()
+                            .flatten();
+                        let native = layout
+                            .lowering
+                            .shapes
+                            .get(index)
+                            .is_some_and(Option::is_some)
+                            || layout.lowering.counting.get(index)
+                                == Some(&crate::domain::lowering::types::Counting::Counts);
+                        (native || column.is_some()).then(|| super::types::PhysicalRegion {
+                            native_nodes: if native {
+                                region_ancestors(plan, index, None, &mapped)
+                            } else {
+                                Vec::new()
+                            },
+                            column_nodes: column.as_ref().map_or_else(Vec::new, |chain| {
+                                region_ancestors(plan, index, Some(chain.left_step), &mapped)
+                            }),
+                            plan: Arc::clone(&physical_plan),
+                            layout: Arc::clone(layout),
+                            rule,
+                            step: StepId(index as u32),
+                            column,
                         })
-                        .collect::<Vec<_>>();
+                    });
                     let hash = fingerprint(&operation, &inputs, scope, step.scope);
                     if let Some(found) = buckets.get(&hash).and_then(|bucket| {
                         bucket.iter().copied().find(|id| {
@@ -268,9 +316,11 @@ pub(crate) fn compile_prepared_observations(
                                 && existing.inputs == inputs
                                 && existing.scope == scope
                                 && existing.phase == step.scope
-                                && existing.input_supply == input_supply
                         })
                     }) {
+                        if let Some(region) = region {
+                            nodes[found.0].regions.push(region);
+                        }
                         return Some(found);
                     }
                     let mut relations = Vec::new();
@@ -298,17 +348,7 @@ pub(crate) fn compile_prepared_observations(
                             .get(index)
                             .cloned()
                             .unwrap_or_default(),
-                        region: layout.as_ref().map(|layout| super::types::PhysicalRegion {
-                            plan: Arc::clone(&physical_plan),
-                            layout: Arc::clone(layout),
-                            rule,
-                            step: StepId(index as u32),
-                            column: columns
-                                .as_ref()
-                                .and_then(|columns| columns.0.get(index))
-                                .cloned()
-                                .flatten(),
-                        }),
+                        regions: region.into_iter().collect(),
                         needs: needs.as_ref().map_err(Clone::clone).and_then(|needs| {
                             needs
                                 .get(index)
@@ -442,6 +482,28 @@ pub(crate) fn compile_prepared_observations(
     for root in observed_outputs {
         resolved_readers[root.0] += 1;
     }
+    let mut canonical_roots = vec![false; nodes.len()];
+    for roots in &boundaries {
+        for (_, root) in roots {
+            canonical_roots[root.0] = true;
+        }
+    }
+    for node in &mut nodes {
+        node.input_supply = node
+            .inputs
+            .iter()
+            .map(|input| match input {
+                NodeInput::Node(child)
+                    if node.phase == StepScope::PerFile
+                        && resolved_readers[child.0] == 1
+                        && !canonical_roots[child.0] =>
+                {
+                    crate::domain::operating::types::Supply::Streamed
+                }
+                _ => crate::domain::operating::types::Supply::AtHand,
+            })
+            .collect();
+    }
     let mut ordered_existence = vec![None; nodes.len()];
     for (rule, program) in operators.ordered_existence.iter().enumerate() {
         let Some(plan) = plans.get(rule) else {
@@ -539,7 +601,7 @@ pub(crate) fn compile_prepared_observations(
             .into_iter()
             .map(|node| Node {
                 publication_reads: node.publication_reads,
-                region: node.region,
+                regions: node.regions,
                 needs: node.needs,
                 phase: node.phase,
                 input_supply: node.input_supply,

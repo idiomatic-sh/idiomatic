@@ -51,7 +51,7 @@ pub(crate) struct SelectionSnapshot {
     pub retained_positions_capacity: usize,
     pub first_retained_rows_address: Option<usize>,
     pub fanouts: usize,
-    pub fanouts_capacity: usize,
+    pub fanout_payload_bytes: usize,
     pub descriptor_address: Option<usize>,
     pub prepared_descriptor_address: Option<usize>,
     pub prepared_views_address: Option<usize>,
@@ -102,7 +102,8 @@ impl SelectionFixture {
         let Some(produced) = produced else {
             return Ok(None);
         };
-        let (publication, rows) = self.owner.deliver_selection(produced)?;
+        let publication = self.owner.publish_selection(produced)?;
+        let rows = self.owner.selected_rows(publication.as_ref(), source)?;
         let Rows::Selected(rows) = rows else {
             unreachable!("selected producer")
         };
@@ -164,47 +165,53 @@ impl SelectionFixture {
             let Some(retained) = &entry.retained else {
                 continue;
             };
-            match retained.storage.as_ref() {
-                DerivedStorage::RowIds { rows, .. } => {
-                    add_rows(rows);
-                    if entry._plan.kind == DerivedKind::PredicateMatches {
-                        predicates.push(Arc::as_ptr(rows) as usize);
-                    }
+            if let Some(shared) = retained.storage.payload().share_positions() {
+                add_rows(shared.backing());
+                if entry._plan.kind == DerivedKind::PredicateMatches {
+                    predicates.push(Arc::as_ptr(shared.backing()) as usize);
                 }
-                DerivedStorage::Postings(postings) => {
-                    for entry in postings.iter() {
-                        add_rows(&entry.rows);
-                    }
+            }
+            if let ryo_derived::domain::contract::types::DerivedView::Postings(postings) =
+                retained.storage.view().expect("valid retained payload")
+            {
+                for posting in postings {
+                    let shared = retained
+                        .storage
+                        .payload()
+                        .share_posting_positions(posting.text())
+                        .expect("stored posting");
+                    add_rows(shared.backing());
                 }
-                DerivedStorage::Adjacency(graph) => {
-                    if let Some(rows) = &graph.identity.population.positions {
-                        add_rows(rows);
-                    }
+            }
+            if let Some(graph) = retained.storage.graph_identity() {
+                if let Some(positions) = &graph.population.positions {
+                    add_rows(positions);
                 }
-                _ => {}
             }
         }
-        for fanout in &cache.fanouts {
-            for entry in fanout.literals.iter() {
-                add_rows(&entry.rows);
-            }
-        }
+        let fanouts: Vec<_> = state
+            .entries
+            .values()
+            .filter(|entry| {
+                entry.retained.is_some() && entry._plan.kind == DerivedKind::CandidatePostings
+            })
+            .collect();
         let capacity = rows.iter().map(|(_, capacity)| capacity).sum();
         let optional = self.owner.derived.ledger.borrow().snapshot();
         SelectionSnapshot {
             bytes: cache.bytes,
             limit: cache.limit,
             index_builds: cache.builds,
-            entries: cache.entries.len(),
+            entries: self.owner.derived.retained_index_count(),
             selections: predicates.len(),
             selections_capacity: state.entries.capacity(),
             owner_metadata_bytes: self.owner.derived.metadata_bytes(),
             optional_bytes: optional.view_optional_bytes,
-            retained_positions: optional.optional_units + cache.retained_positions,
+            retained_positions: optional.optional_units,
             first_retained_rows_address: predicates.first().copied(),
             retained_positions_capacity: capacity,
-            fanouts: cache.fanouts.len(),
-            fanouts_capacity: cache.fanouts.capacity(),
+            fanouts: fanouts.len(),
+            fanout_payload_bytes: fanouts.iter().map(|entry| entry.bytes).sum(),
             descriptor_address: cache.selector_descriptor,
             prepared_descriptor_address: descriptor
                 .and_then(|program| {

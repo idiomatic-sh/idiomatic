@@ -102,6 +102,7 @@ fn evaluate_file_with_fixture<'f, const LEGACY: bool>(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate_file_with_executor<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
@@ -115,10 +116,52 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
 ) -> Result<(), OperatingError> {
     evaluate_file_inner(
-        plan, relations, tree, context, pool, prepared, rule, file_dag, executor,
+        plan,
+        relations,
+        tree,
+        context,
+        pool,
+        prepared,
+        rule,
+        file_dag,
+        executor,
+        RuleRoots::EmitAndObservations,
     )
 }
 
+/// Roots requested by application policy; dependency execution stays graph-owned.
+#[derive(Clone, Copy)]
+pub(crate) enum RuleRoots<'a> {
+    EmitAndObservations,
+    ObservationsOnly(&'a [bool]),
+}
+impl RuleRoots<'_> {
+    fn emits(self) -> bool {
+        matches!(self, Self::EmitAndObservations)
+    }
+    fn frontier(self, at: usize) -> bool {
+        match self {
+            Self::EmitAndObservations => true,
+            Self::ObservationsOnly(frontiers) => frontiers.get(at).copied().unwrap_or(false),
+        }
+    }
+}
+pub(crate) fn evaluate_file_roots<'f>(
+    plan: &Plan,
+    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    tree: Option<TreeRows<'f>>,
+    context: &mut OperatorContext<'_>,
+    pool: &mut Pool,
+    prepared: &mut PreparedPool,
+    rule: usize,
+    file_dag: &dyn crate::application::file_dag::interface::DagExecution,
+    executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
+    roots: RuleRoots<'_>,
+) -> Result<(), OperatingError> {
+    evaluate_file_inner(
+        plan, relations, tree, context, pool, prepared, rule, file_dag, executor, roots,
+    )
+}
 fn evaluate_file_inner<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
@@ -130,6 +173,7 @@ fn evaluate_file_inner<'f>(
     rule: usize,
     file_dag: &dyn crate::application::file_dag::interface::DagExecution,
     executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
+    roots: RuleRoots<'_>,
 ) -> Result<(), OperatingError> {
     // Rule orchestration declares roots only. Every dependency is demanded by
     // the required graph owner, including non-retainable and incomplete inputs.
@@ -186,7 +230,15 @@ fn evaluate_file_inner<'f>(
             }
         }
     }
-    for (input, into) in plan.frontier.iter().zip(pool.frontier.iter_mut()) {
+    for (at, (input, into)) in plan
+        .frontier
+        .iter()
+        .zip(pool.frontier.iter_mut())
+        .enumerate()
+    {
+        if !roots.frontier(at) {
+            continue;
+        }
         match input {
             Input::Relation(relation) => {
                 materialize(&read(*relation)?, into, &mut context.scratch.row)
@@ -222,14 +274,17 @@ fn evaluate_file_inner<'f>(
             }
         }
     }
-    if let Some(error) = emit_error {
+    if roots.emits()
+        && let Some(error) = emit_error
+    {
         return Err(error);
     }
     let emit = plan.emit.step.0 as usize;
-    if plan
-        .steps
-        .get(emit)
-        .is_some_and(|step| step.scope == StepScope::PerFile)
+    if roots.emits()
+        && plan
+            .steps
+            .get(emit)
+            .is_some_and(|step| step.scope == StepScope::PerFile)
     {
         let target = pool.steps.get_mut(emit).ok_or(OperatingError::NotRun)?;
         let publication = match emitted {

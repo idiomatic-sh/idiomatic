@@ -528,7 +528,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
             .rows
             .is_empty()
     );
-    assert_eq!(fixture.snapshot(None).fanouts_capacity, 0);
+    assert_eq!(fixture.snapshot(None).fanout_payload_bytes, 0);
     let mut actual = Vec::new();
     for selector in &selectors {
         let selected = fixture

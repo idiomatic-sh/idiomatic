@@ -35,7 +35,7 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .expect("memo admitted");
     let values: Vec<_> = actual
         .iter()
-        .map(|vertex| first.graph.vertices[*vertex as usize])
+        .map(|vertex| first.graph.vertices()[*vertex as usize])
         .collect();
     assert_eq!(
         values,
@@ -213,7 +213,10 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         1,
         "exact membership shares one domain"
     );
-    let root = graph.graph.vertex_ids[&(0, Value::Number(Integer(1)))];
+    let root = graph
+        .graph
+        .vertex(0, Value::Number(Integer(1)))
+        .expect("stored vertex");
     let mut walk = GraphWalk::default();
     let mut local = Vec::new();
     let first = fixture
@@ -227,7 +230,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         )
         .unwrap();
     assert_eq!(
-        first.map(|vertex| graph.graph.vertices[vertex as usize]),
+        first.map(|vertex| graph.graph.vertices()[vertex as usize]),
         Some(Value::Number(Integer(3)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
@@ -272,7 +275,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         )
         .unwrap();
     assert_eq!(
-        changed.map(|vertex| graph.graph.vertices[vertex as usize]),
+        changed.map(|vertex| graph.graph.vertices()[vertex as usize]),
         Some(Value::Number(Integer(2)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
@@ -322,7 +325,7 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
     assert!(!Arc::ptr_eq(&old.graph, &new.graph));
     assert_eq!(fixture.snapshot().counts.builds, 1);
     assert_eq!(fixture.snapshot().counts.reuses, 0);
-    assert_ne!(old.graph.vertices, new.graph.vertices);
+    assert_ne!(old.graph.vertices(), new.graph.vertices());
 }
 
 #[test]
@@ -361,9 +364,12 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
         .unwrap();
     assert!(shared.shared);
     let admitted = fixture.snapshot();
-    assert_eq!(admitted.indexes, 1);
-    assert_eq!(admitted.index_capacity, before.index_capacity);
-    assert_eq!(admitted.counts.reclaimed_indexes, 0);
+    assert_eq!(admitted.indexes, 0);
+    assert_eq!(
+        admitted.owner_entries_capacity,
+        before.owner_entries_capacity
+    );
+    assert_eq!(admitted.counts.reclaimed_indexes, 1);
     assert_eq!(admitted.retained_view_bytes, 0);
     assert_eq!(
         admitted.counts.reclaimed_bytes,
@@ -371,8 +377,8 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
     );
     assert!(admitted.optional_bytes <= admitted.limit);
     assert!(Arc::ptr_eq(&local.graph, &shared.graph));
-    assert_eq!(local.graph.vertices, shared.graph.vertices);
-    assert_eq!(local.graph.neighbors, shared.graph.neighbors);
+    assert_eq!(local.graph.vertices(), shared.graph.vertices());
+    assert_eq!(local.graph.neighbors(), shared.graph.neighbors());
     assert_eq!(admitted.counts.builds, 1);
 }
 

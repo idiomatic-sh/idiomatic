@@ -20,24 +20,23 @@ pub(crate) fn prepare(
     semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
 ) {
     for node in &mut graph.nodes {
-        let Some(chain) = node
-            .region
-            .as_mut()
-            .and_then(|region| region.column.as_mut())
-        else {
-            continue;
-        };
-        let schemas = [crate::domain::operation_schema::types::InputSchema {
-            kinds: ryo_relations::domain::relations::service::kinds(chain.right),
-            tree: None,
-        }];
-        let request = crate::domain::derived_views::types::ViewRequest::Equality {
-            columns: chain.right_on.clone(),
-        };
-        if let Ok(index) = super::derived::prepare::view(Arc::clone(&semantic), &request, &schemas)
-            && index.metadata.is_ok()
-        {
-            chain.index = Some(Arc::new(index));
+        for region in &mut node.regions {
+            let Some(chain) = region.column.as_mut() else {
+                continue;
+            };
+            let schemas = [crate::domain::operation_schema::types::InputSchema {
+                kinds: ryo_relations::domain::relations::service::kinds(chain.right),
+                tree: None,
+            }];
+            let request = crate::domain::derived_views::types::ViewRequest::Equality {
+                columns: chain.right_on.clone(),
+            };
+            if let Ok(index) =
+                super::derived::prepare::view(Arc::clone(&semantic), &request, &schemas)
+                && index.metadata.is_ok()
+            {
+                chain.index = Some(Arc::new(index));
+            }
         }
     }
 }
@@ -72,6 +71,7 @@ fn stream_region_inner(
     let index = region.step.0 as usize;
     let (native, classes, picked) = feed.native_binding();
     if native == crate::domain::operator::types::TreeSteps::Lowered
+        && feed.region_allowed(&region.native_nodes)
         && (region
             .layout
             .lowering
@@ -124,6 +124,7 @@ fn stream_region_inner(
         return Ok(true);
     }
     if feed.column_enabled()
+        && feed.region_allowed(&region.column_nodes)
         && let Some(chain) = &region.column
     {
         let publication = feed.original_publication(region.rule, chain.left_step, context)?;

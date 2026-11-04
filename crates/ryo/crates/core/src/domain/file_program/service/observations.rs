@@ -338,7 +338,35 @@ pub(crate) fn graph_outputs(
                 .collect()
         })
         .collect();
+    let observation_frontiers = plans
+        .iter()
+        .map(|plan| {
+            let mut needed = std::collections::HashSet::new();
+            let mut pending = plan
+                .observations
+                .iter()
+                .map(|output| output.source)
+                .collect::<Vec<_>>();
+            while let Some(input) = pending.pop() {
+                if !needed.insert(input) {
+                    continue;
+                }
+                if let ryo_values::domain::plan_parts::types::Input::Step(step) = input {
+                    if let Some(step) = plan.steps.get(step.0 as usize) {
+                        pending.extend(ryo_values::domain::plans::service::named(
+                            &ryo_values::domain::plans::service::inputs_of(&step.operation),
+                        ));
+                    }
+                }
+            }
+            plan.frontier
+                .iter()
+                .map(|input| needed.contains(input))
+                .collect()
+        })
+        .collect();
     Some(GraphObservations {
+        observation_frontiers,
         layout,
         slots,
         frontiers,
@@ -503,5 +531,36 @@ fn bound_input_dependencies(
             .ok_or(ObservationError::InvalidReference),
         Input::BoundObservation(id) if (id.0 as usize) < count => Ok(BTreeSet::from([id])),
         Input::BoundObservation(_) => Err(ObservationError::InvalidReference),
+    }
+}
+
+/// Explicit bound producer demand is independent of diagnostic emission policy.
+/// Syntax/provider eligibility is deliberately applied by the caller afterward.
+pub(crate) fn demanded_rules(
+    graph: &super::super::types::RequestGraph,
+    emits: impl Fn(usize) -> bool,
+) -> Vec<bool> {
+    let mut demanded = (0..graph.cuts.len()).map(emits).collect::<Vec<_>>();
+    let Some(observations) = &graph.observations else {
+        return demanded;
+    };
+    loop {
+        let mut changed = false;
+        for (producer, outputs) in observations.outputs.iter().enumerate() {
+            if !demanded[producer]
+                && outputs.iter().any(|output| {
+                    output
+                        .consumers
+                        .iter()
+                        .any(|consumer| demanded.get(*consumer).copied().unwrap_or(false))
+                })
+            {
+                demanded[producer] = true;
+                changed = true;
+            }
+        }
+        if !changed {
+            return demanded;
+        }
     }
 }

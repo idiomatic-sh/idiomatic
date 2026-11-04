@@ -152,16 +152,18 @@ fn run_with_port<'f>(
         crate::outbound::derived::factory::test_port(),
     )?;
     prepare_request(&mut prepared, &request);
-    let frame = (strategy == KernelStrategy::Column).then(|| {
-        std::cell::RefCell::new(
-            crate::application::file_dag::derived::owner::resource_fixture::residual_frame(
-                std::slice::from_ref(plan),
-                &prepared,
-                &[Relation::Function, Relation::SemanticChild],
-                partial,
-            ),
-        )
-    });
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::new(
+        port,
+        crate::outbound::derived::factory::test_port(),
+    );
+    let frame = crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
+        std::slice::from_ref(plan),
+        &request,
+        &prepared,
+        &[Relation::Function, Relation::SemanticChild],
+        partial,
+        &engine,
+    )?;
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -184,17 +186,9 @@ fn run_with_port<'f>(
         &mut context,
         &mut pool,
         &mut prepared,
-        &[],
-        None,
         0,
-        frame
-            .as_ref()
-            .map(|frame| frame as &dyn crate::application::file_dag::interface::DagExecution),
-        &crate::application::file_dag::execution::CommonOperatorEngine::new(
-            port,
-            crate::outbound::derived::factory::test_port(),
-        ),
-        &request.rules[0],
+        &frame.execution,
+        frame.scope.executor(),
     );
     let reads = take_read_row_counts();
     result?;

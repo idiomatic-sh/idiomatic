@@ -84,6 +84,20 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     else {
         return Ok(Vec::new());
     };
+    let emit_diagnostics = crate::domain::workers::service::governs_rule(tables, rule)
+        == crate::domain::placement::types::Governing::Governs;
+    let roots = if emit_diagnostics {
+        super::pipeline::service::RuleRoots::EmitAndObservations
+    } else {
+        super::pipeline::service::RuleRoots::ObservationsOnly(
+            setting
+                .graph
+                .observations
+                .as_ref()
+                .and_then(|observations| observations.observation_frontiers.get(rule.0))
+                .map_or(&[], Vec::as_slice),
+        )
+    };
     let mut workspace = RuleWorkspace {
         pool: pool_for(std::slice::from_ref(plan)),
         ..RuleWorkspace::default()
@@ -132,40 +146,40 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
             memo: &mut workspace.memo,
             scratch: &mut workspace.scratch,
         };
-        let evaluated =
-            crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
-                plan,
-                relations,
-                Some(TreeRows {
-                    elements: &tables.elements,
-                    file,
-                    form: TreeForm::Edges,
-                }),
-                &mut context,
-                pool,
-                &mut tables.pool,
-                rule.0,
-                file_dag,
-                executor,
-            )
-            .map_err(|error| match error {
-                crate::domain::operating::errors::OperatingError::ObservationIncomplete {
-                    reason,
-                } => RulesError::ObservationIncomplete {
+        let evaluated = crate::application::file_dag::pipeline::service::evaluate_file_roots(
+            plan,
+            relations,
+            Some(TreeRows {
+                elements: &tables.elements,
+                file,
+                form: TreeForm::Edges,
+            }),
+            &mut context,
+            pool,
+            &mut tables.pool,
+            rule.0,
+            file_dag,
+            executor,
+            roots,
+        )
+        .map_err(|error| match error {
+            crate::domain::operating::errors::OperatingError::ObservationIncomplete { reason } => {
+                RulesError::ObservationIncomplete {
                     id: id_at(setting.ids, rule),
                     reason,
-                },
-                crate::domain::operating::errors::OperatingError::SemanticIncomplete { reason } => {
-                    RulesError::SemanticIncomplete {
-                        id: id_at(setting.ids, rule),
-                        reason,
-                    }
                 }
-                other => refuse(&other),
-            });
+            }
+            crate::domain::operating::errors::OperatingError::SemanticIncomplete { reason } => {
+                RulesError::SemanticIncomplete {
+                    id: id_at(setting.ids, rule),
+                    reason,
+                }
+            }
+            other => refuse(&other),
+        });
         evaluated?;
     }
-    if let Some(table) = emitted(plan, pool) {
+    if emit_diagnostics && let Some(table) = emitted(plan, pool) {
         let scene = Scene {
             file,
             symbols: &tables.symbols,

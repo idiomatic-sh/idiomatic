@@ -1,6 +1,6 @@
 //! Actual request topology, file activation differences, and independent consumer lifetimes.
 use super::types::ActivationCache;
-use crate::application::file_dag::{request::compile, types::FileDagExecution};
+use crate::application::file_dag::request::compile;
 use crate::domain::file_program::types::RequestGraph;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId};
@@ -9,6 +9,8 @@ use std::{rc::Rc, sync::Arc};
 
 fn request_graph() -> Arc<RequestGraph> {
     let plan = Plan {
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
         parameters: vec![],
         steps: (0..3)
             .map(|step| PlanStep {
@@ -104,18 +106,25 @@ fn shared_template_keeps_generation_owners_and_lazy_consumer_release_independent
     let graph = request_graph();
     let mut cache = ActivationCache::default();
     let schedule = cache.activate(&graph, |_| true, &[Relation::LanguageTarget]);
-    let port = crate::outbound::derived::factory::test_port();
-    let owner = || {
-        Rc::new(
-            crate::application::file_dag::relations::RelationOwner::for_request(
-                true,
-                graph.nodes.len() + 2,
-                Arc::clone(&port),
-            ),
-        )
-    };
-    let mut first = FileDagExecution::new_for_schedule(&schedule, owner());
-    let second = FileDagExecution::new_for_schedule(&schedule, owner());
+    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+    let first_scope = crate::application::file_dag::testing::FileScope::new(
+        Arc::clone(&graph),
+        executor,
+        |_| true,
+        &[Relation::LanguageTarget],
+        &[],
+    )
+    .unwrap();
+    let second_scope = crate::application::file_dag::testing::FileScope::new(
+        Arc::clone(&graph),
+        executor,
+        |_| true,
+        &[Relation::LanguageTarget],
+        &[],
+    )
+    .unwrap();
+    let mut first = first_scope.execution.borrow_mut();
+    let second = second_scope.execution.borrow();
     assert!(!Rc::ptr_eq(&first.relations, &second.relations));
     let before = second.remaining.clone();
     first.finish_rule(0);

@@ -20,11 +20,74 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plans::types::Operation;
 
+/// Explicit outer fixture scope. All dependency tests use the actual scheduler,
+/// required executor/owner and generation constructor; no fallback owner is minted.
+pub(crate) struct FileScope<'a> {
+    pub(crate) scope: super::scope::ExecutionScope<'a>,
+    pub(crate) execution: std::cell::RefCell<super::types::FileDagExecution>,
+}
+impl<'a> FileScope<'a> {
+    pub(crate) fn new(
+        graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
+        executor: &'a dyn super::executor::PrimitiveExecutor,
+        active: impl Fn(usize) -> bool,
+        complete: &[ryo_relations::domain::relations::types::Relation],
+        partials: &[crate::domain::coverage::types::Partial],
+    ) -> Result<Self, OperatingError> {
+        let scope = super::scope::ExecutionScope::new(
+            std::sync::Arc::clone(&graph),
+            super::scope::ScopePhase::File(ryo_relations::domain::relations::types::FileId(0)),
+            true,
+            executor,
+        )?;
+        let schedule =
+            super::activation::types::ActivationCache::default().activate(&graph, active, complete);
+        let completion = scope.completion(
+            crate::domain::coverage::types::RuleIndex(0),
+            super::scope::ScopePartials::File {
+                evaluation: partials,
+                publication: partials,
+            },
+        )?;
+        let execution = std::cell::RefCell::new(super::types::FileDagExecution::new_for_schedule(
+            &schedule,
+            std::rc::Rc::clone(scope.owner()),
+            completion,
+        ));
+        Ok(Self { scope, execution })
+    }
+}
+/// Standalone borrowed-row semantic oracles have an explicit empty request scope:
+/// no graph dependency is evaluated and no production owner/default is bypassed.
+pub(super) fn semantic_scope<'a>(
+    executor: &'a dyn super::executor::PrimitiveExecutor,
+) -> Result<super::scope::ExecutionScope<'a>, OperatingError> {
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare(
+        &[],
+        &[],
+        &[],
+        executor.derived_port(),
+    )?;
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        &[],
+        &request,
+    ));
+    super::scope::ExecutionScope::new(
+        graph,
+        super::scope::ScopePhase::File(ryo_relations::domain::relations::types::FileId(0)),
+        false,
+        executor,
+    )
+}
 pub(crate) struct Held<'a> {
+    pub(crate) owner: std::rc::Rc<super::relations::RelationOwner>,
     pub(crate) tables: &'a [Table],
     pub(crate) visits: Vec<usize>,
 }
 impl<'f> Feed<'f> for Held<'f> {
+    fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.owner)
+    }
     fn kinds(&self, place: InputPlace) -> Result<&[CellKind], OperatingError> {
         self.tables
             .get(place.0)
@@ -127,6 +190,29 @@ pub(crate) fn execute_with_semantic(
     stop_after: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
 ) -> Result<Observation, OperatingError> {
+    execute_with_port(
+        operation,
+        tables,
+        bindings,
+        source,
+        symbols,
+        stop_after,
+        semantic,
+        crate::outbound::operators::factory::test_port(),
+    )
+}
+pub(crate) fn execute_with_port(
+    operation: &Operation,
+    tables: &[Table],
+    bindings: &[ParameterBinding],
+    source: &[u8],
+    symbols: &mut Symbols,
+    stop_after: Option<usize>,
+    semantic: Option<&dyn SemanticLookup>,
+    port: &dyn crate::outbound::operators::interface::OperatorsPort,
+) -> Result<Observation, OperatingError> {
+    let engine = CommonOperatorEngine::new(port, crate::outbound::derived::factory::test_port());
+    let scope = semantic_scope(&engine)?;
     let contract = prepare(operation, tables, bindings)?;
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
@@ -144,16 +230,18 @@ pub(crate) fn execute_with_semantic(
     };
     let mut out = Table::default();
     let inputs = tables.iter().map(Rows::Computed).collect::<Vec<_>>();
-    let collected = CommonOperatorEngine::fixture()
-        .collect(&contract, &inputs, &mut context, &mut out)
+    let collected = engine
+        .collect(scope.owner(), &contract, &inputs, &mut context, &mut out)
         .map(|()| out);
     let mut room = Room::default();
     let mut rows = Vec::new();
     let mut feed = Held {
+        owner: std::rc::Rc::clone(scope.owner()),
         tables,
         visits: vec![0; tables.len()],
     };
-    let streamed = CommonOperatorEngine::fixture().stream(
+    let streamed = engine.stream(
+        scope.owner(),
         &contract,
         &mut feed,
         &mut context,
@@ -207,7 +295,9 @@ pub(crate) trait TestOperator:
             .collect::<Vec<_>>();
         let contract =
             super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
-        CommonOperatorEngine::fixture().collect(&contract, inputs, context, out)
+        let engine = CommonOperatorEngine::fixture();
+        let scope = semantic_scope(&engine)?;
+        engine.collect(scope.owner(), &contract, inputs, context, out)
     }
     fn stream(
         &self,
@@ -231,7 +321,14 @@ pub(crate) trait TestOperator:
             .collect::<Vec<_>>();
         let contract =
             super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
-        CommonOperatorEngine::fixture().stream(&contract, feed, context, room, emit)
+        CommonOperatorEngine::fixture().stream(
+            &feed.relation_owner(),
+            &contract,
+            feed,
+            context,
+            room,
+            emit,
+        )
     }
 }
 impl<T: crate::domain::operator::collections::operators::interface::OperatorsItem + ?Sized>
@@ -260,7 +357,14 @@ pub(crate) fn stream_with_inputs(
         })
         .collect::<Vec<_>>();
     let contract = super::derived::prepare::operator(item, operation, &schemas, context.bindings)?;
-    CommonOperatorEngine::fixture().stream(&contract, feed, context, room, emit)
+    CommonOperatorEngine::fixture().stream(
+        &feed.relation_owner(),
+        &contract,
+        feed,
+        context,
+        room,
+        emit,
+    )
 }
 
 /// Existing borrowed test worlds keep request metadata for their fixture lifetime.

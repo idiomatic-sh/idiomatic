@@ -73,7 +73,7 @@ fn set_delivery_failure_denies_later_callbacks_and_keeps_the_first_error() {
         &mut case.symbols,
         Some(1),
         None,
-        Some(&port),
+        &port,
     )
     .expect("the prepared Union remains executable");
     assert_eq!(observed.stream_error, Some(OperatingError::WrongOperation));

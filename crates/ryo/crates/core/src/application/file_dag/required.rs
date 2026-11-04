@@ -6,15 +6,15 @@ impl FileDagExecution {
         &mut self,
         rule: usize,
     ) -> Result<(), crate::domain::operating::errors::OperatingError> {
+        if !self.active.get(rule).copied().unwrap_or(false) {
+            return Err(crate::domain::operating::errors::OperatingError::NotRun);
+        }
         if self.current_rule == Some(rule) {
             return Ok(());
         }
         self.clear_required();
         for node in self.fed_touched.drain(..) {
             self.fed_rule[node.0] = Default::default();
-        }
-        if !self.active.get(rule).copied().unwrap_or(false) {
-            return Ok(());
         }
         self.current_rule = Some(rule);
         self.completion = self

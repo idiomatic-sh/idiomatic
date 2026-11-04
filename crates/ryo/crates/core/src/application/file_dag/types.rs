@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 /// Application owns one immutable physical file generation's execution state.
 pub(crate) struct FileDagExecution {
+    pub(super) failed: Vec<Option<crate::domain::operating::errors::OperatingError>>,
     pub(super) counting: crate::domain::lowering::types::Counting,
     pub(super) fed: Vec<crate::domain::operator::types::RowsFed>,
     pub(super) fed_rule: Vec<crate::domain::operator::types::RowsFed>,

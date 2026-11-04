@@ -4,7 +4,6 @@ use ryo_relations::domain::relations::types::{Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex, rows::types::RowCount, stored_facts::types::PartialCause,
 };
-use std::cell::Cell;
 fn partial() -> Partial {
     Partial {
         relation: Relation::SourceLocation,
@@ -28,22 +27,30 @@ fn needs() -> Vec<RelationRead> {
     }]
 }
 #[test]
-fn file_blocks_before_run_but_project_preserves_evaluation_error_timing() {
+fn file_partial_is_node_local_without_running_semantics_and_project_preserves_failure() {
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::fixture();
+    let scope = crate::application::file_dag::testing::semantic_scope(&engine).unwrap();
     let partials = [partial()];
-    let calls = Cell::new(0);
     let file = CompletionPolicy::file(RuleIndex(3), FileId(0), &partials);
-    let result = file.evaluate(&anti(), &needs(), &[CellKind::File], || {
-        calls.set(calls.get() + 1);
-        Err(OperatingError::NotRead)
-    });
-    assert!(matches!(
-        result,
-        NodeCompletion::Unavailable(UnavailableCompletion {
-            reason: UnavailableReason::AbsenceBlockedByPartial,
-            ..
-        })
-    ));
-    assert_eq!(calls.get(), 0);
+    let NodeAdmission::Blocked { rows, coverage } = file
+        .admit(&needs(), &Ok(vec![CellKind::File]), scope.owner())
+        .unwrap()
+    else {
+        panic!("absence-sensitive node must be blocked");
+    };
+    assert_eq!(
+        coverage,
+        CoverageState::Partial {
+            files: vec![Some(FileId(0))]
+        }
+    );
+    let read = |_| Err(OperatingError::NotRead);
+    let publication = rows.into_payload();
+    let rows = scope.owner().resolve(publication.as_ref(), &read).unwrap();
+    assert_eq!(
+        crate::domain::table_model::service::count_of(&rows),
+        RowCount(0)
+    );
     let project_partials = Partials {
         entries: vec![FilePartial {
             file: Some(FileId(0)),
@@ -52,18 +59,23 @@ fn file_blocks_before_run_but_project_preserves_evaluation_error_timing() {
         unavailable_files: vec![],
     };
     let project = CompletionPolicy::project(RuleIndex(3), &project_partials);
-    let result = project.evaluate(&anti(), &needs(), &[CellKind::File], || {
-        calls.set(calls.get() + 1);
-        Err(OperatingError::NotRead)
-    });
+    let result = project.finish(
+        &anti(),
+        &needs(),
+        &[CellKind::File],
+        Err(OperatingError::NotRead),
+        scope.owner(),
+        &read,
+    );
     assert!(matches!(
         result,
         NodeCompletion::Failed(OperatingError::NotRead)
     ));
-    assert_eq!(calls.get(), 1);
 }
 #[test]
 fn project_filters_after_success_and_retains_partial_coverage() {
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::fixture();
+    let scope = crate::application::file_dag::testing::semantic_scope(&engine).unwrap();
     let partials = Partials {
         entries: vec![FilePartial {
             file: Some(FileId(0)),
@@ -72,15 +84,24 @@ fn project_filters_after_success_and_retains_partial_coverage() {
         unavailable_files: vec![],
     };
     let policy = CompletionPolicy::project(RuleIndex(4), &partials);
-    let result = policy.evaluate(&anti(), &needs(), &[CellKind::File], || {
-        Ok(Table {
+    let publication = scope
+        .owner()
+        .computed(Table {
             kinds: vec![CellKind::File],
             cells: vec![Value::File(FileId(0)), Value::File(FileId(1))],
             count: RowCount(2),
         })
-    });
-    let NodeCompletion::Available { rows, coverage } = result else {
-        panic!("successful collection")
+        .unwrap();
+    let read = |_| Err(OperatingError::NotRead);
+    let NodeCompletion::Available { rows, coverage } = policy.finish(
+        &anti(),
+        &needs(),
+        &[CellKind::File],
+        Ok(publication),
+        scope.owner(),
+        &read,
+    ) else {
+        panic!("successful collection");
     };
     assert_eq!(
         coverage,
@@ -88,9 +109,12 @@ fn project_filters_after_success_and_retains_partial_coverage() {
             files: vec![Some(FileId(0))]
         }
     );
-    let rows = rows.into_payload();
-    assert_eq!(rows.count, RowCount(1));
-    assert_eq!(rows.cells, [Value::File(FileId(1))]);
+    let publication = rows.into_payload();
+    let rows = scope.owner().resolve(publication.as_ref(), &read).unwrap();
+    let mut table = Table::default();
+    crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());
+    assert_eq!(table.count, RowCount(1));
+    assert_eq!(table.cells, [Value::File(FileId(1))]);
 }
 #[test]
 fn missing_frontier_is_unavailable_with_exact_scope_and_input_not_complete_empty() {

@@ -1,5 +1,26 @@
 //! Exact sharing keys, physical partiality, bounded retention and generation-local lifetimes.
-use super::{LIMIT, acquire_fixture as acquire, index_bytes, new};
+use super::LIMIT;
+use super::owner::graph_fixture::GraphFixture;
+use super::view::AcquiredView;
+use crate::domain::table_model::types::Rows;
+use ryo_derived::domain::contract::types::DerivedView;
+fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> GraphFixture {
+    GraphFixture::new(wanted, partials, limit)
+}
+fn acquire(
+    owner: &GraphFixture,
+    relation: Relation,
+    rows: ColumnsView<'_>,
+    on: &[ColumnIndex],
+) -> Result<AcquiredView, crate::domain::operating::errors::OperatingError> {
+    owner.index(relation, &Rows::Stored(rows), on)
+}
+fn equality(view: &AcquiredView) -> &KeyIndex {
+    let DerivedView::Equality(index) = view.view().expect("valid equality payload") else {
+        panic!("equality payload")
+    };
+    index
+}
 use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
 
 use crate::domain::table_model::service::matching_stored;
@@ -22,22 +43,19 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
         kinds: &[CellKind::Number, CellKind::Number],
         columns: &columns,
     };
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    let mut local = KeyIndex::default();
+    let cache = new(&[Relation::Function], &[], LIMIT);
     let on = [ColumnIndex(0)];
-    let first = acquire(&mut cache, Relation::Function, view, &on, &mut local).expect("index");
-    assert!(first.built && first.eligible);
-    let second = acquire(&mut cache, Relation::Function, view, &on, &mut local).expect("reuse");
-    assert!(!second.built && second.eligible);
-    let first = first.shared.expect("shared first");
-    let second = second.shared.expect("shared second");
-    assert!(Arc::ptr_eq(&first, &second));
-    assert_eq!((cache.builds, cache.reuses, cache.entries.len()), (1, 1, 1));
+    let first = acquire(&cache, Relation::Function, view, &on).expect("index");
+    assert!(first.was_built());
+    let second = acquire(&cache, Relation::Function, view, &on).expect("reuse");
+    assert!(!second.was_built());
+    assert!(first.same_storage(&second));
+    assert_eq!(cache.snapshot().indexes, 1);
     assert_eq!(
         matching_stored(
             view,
             &on,
-            &second,
+            equality(&second),
             &[Value::Number(Integer(2))],
             #[cfg(feature = "diagnostic-row-progress")]
             |_, _| {},
@@ -45,10 +63,6 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
         .copied()
         .collect::<Vec<_>>(),
         [RowIndex(0), RowIndex(2), RowIndex(3)]
-    );
-    assert!(
-        local.rows.is_empty(),
-        "shared index vectors never copy into invocation scratch"
     );
 }
 
@@ -59,8 +73,7 @@ fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
         kinds: &[CellKind::Number, CellKind::Number],
         columns: &columns,
     };
-    let mut cache = new(&[Relation::Function, Relation::Identifier], &[], LIMIT).expect("cache");
-    let mut local = KeyIndex::default();
+    let cache = new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
     for (relation, on) in [
         (Relation::Function, vec![ColumnIndex(0), ColumnIndex(1)]),
         (Relation::Function, vec![ColumnIndex(1), ColumnIndex(0)]),
@@ -68,9 +81,9 @@ fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
         (Relation::Identifier, vec![ColumnIndex(0), ColumnIndex(1)]),
     ] {
         assert!(
-            acquire(&mut cache, relation, view, &on, &mut local)
+            acquire(&cache, relation, view, &on)
                 .expect("new key")
-                .built
+                .was_built()
         );
     }
     let flags = ColumnsView {
@@ -79,32 +92,26 @@ fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
     };
     assert!(
         acquire(
-            &mut cache,
+            &cache,
             Relation::Function,
             flags,
-            &[ColumnIndex(0), ColumnIndex(1)],
-            &mut local
+            &[ColumnIndex(0), ColumnIndex(1)]
         )
-        .expect("typed key")
-        .built
+        .is_err()
     );
-    let shorter = [FactColumn(vec![1]), FactColumn(vec![2])];
+    let shorter_columns = [FactColumn(vec![1]), FactColumn(vec![2])];
     let shorter = ColumnsView {
         kinds: view.kinds,
-        columns: &shorter,
+        columns: &shorter_columns,
     };
+    assert!(acquire(&cache, Relation::Function, shorter, &[ColumnIndex(0)]).is_err());
+    assert_eq!(cache.snapshot().indexes, 4);
+    let fresh = new(&[Relation::Function], &[], LIMIT);
     assert!(
-        acquire(
-            &mut cache,
-            Relation::Function,
-            shorter,
-            &[ColumnIndex(0), ColumnIndex(1)],
-            &mut local
-        )
-        .expect("population key")
-        .built
+        acquire(&fresh, Relation::Function, shorter, &[ColumnIndex(0)])
+            .expect("new generation")
+            .was_built()
     );
-    assert_eq!(cache.entries.len(), 6);
 }
 
 #[test]
@@ -115,24 +122,19 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
         lacking: Lacking::Kind(LackingKind("unknown".into())),
         at: None,
     }];
-    let mut cache = new(&[Relation::Function], &partials, LIMIT).expect("cache");
+    let cache = new(&[Relation::Function], &partials, LIMIT);
     let columns = [FactColumn(vec![1])];
     let view = ColumnsView {
         kinds: &[CellKind::Number],
         columns: &columns,
     };
     for relation in [Relation::Function, Relation::Identifier] {
-        let result = acquire(
-            &mut cache,
-            relation,
-            view,
-            &[ColumnIndex(0)],
-            &mut KeyIndex::default(),
-        )
-        .expect("local fallback");
-        assert!(result.shared.is_none() && result.built && !result.eligible);
+        let result =
+            acquire(&cache, relation, view, &[ColumnIndex(0)]).expect("local fallback");
+        assert!(result.was_built());
+        assert_eq!(equality(&result).rows().len(), 1);
     }
-    assert!(cache.entries.is_empty());
+    assert_eq!(cache.snapshot().indexes, 0);
 }
 
 #[test]
@@ -142,30 +144,19 @@ fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
         kinds: &[CellKind::Number],
         columns: &columns,
     };
-    let metadata = new(&[Relation::Function], &[], LIMIT)
-        .expect("metadata probe")
-        .bytes;
-    let mut cache = new(&[Relation::Function], &[], metadata).expect("exact metadata fits");
-    let initial = cache.bytes;
-    let mut local = KeyIndex::default();
-    let result = acquire(
-        &mut cache,
-        Relation::Function,
-        view,
-        &[ColumnIndex(0)],
-        &mut local,
-    )
-    .expect("local index");
-    assert!(result.shared.is_none() && result.built && result.eligible);
-    assert_eq!(cache.bytes, initial);
-    assert!(cache.bytes <= cache.limit && cache.entries.is_empty());
-    assert_eq!(cache.refusals, 1);
-    assert_eq!(local.rows.len(), 1024);
-    assert!(index_bytes(&local).expect("all capacities counted") > cache.limit);
-    assert!(new(&[Relation::Function], &[], 0).is_none());
-    local.sorted.reserve_exact(4096);
-    let expanded = index_bytes(&local).expect("sorting capacity also counted");
-    assert!(expanded >= 4096 * size_of::<RowIndex>());
+    let mut cache = new(&[Relation::Function], &[], LIMIT);
+    let metadata = cache.snapshot().bytes;
+    cache.set_limit(metadata);
+    let result =
+        acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("required index");
+    assert!(result.was_built());
+    assert_eq!(equality(&result).rows().len(), 1024);
+    let during = cache.snapshot();
+    assert_eq!(during.indexes, 0);
+    assert!(during.bytes <= during.limit);
+    assert!(during.required_bytes > 0);
+    drop(result);
+    assert_eq!(cache.snapshot().required_bytes, 0);
 }
 
 #[test]
@@ -176,34 +167,22 @@ fn cache_drop_releases_generation_and_new_file_id_reuse_starts_empty() {
         columns: &columns,
     };
     let weak = {
-        let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-        let acquired = acquire(
-            &mut cache,
-            Relation::Function,
-            view,
-            &[ColumnIndex(0)],
-            &mut KeyIndex::default(),
-        )
-        .expect("index");
-        Arc::downgrade(&acquired.shared.expect("shared"))
+        let cache = new(&[Relation::Function], &[], LIMIT);
+        let acquired =
+            acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("index");
+        Arc::downgrade(&acquired.storage)
     };
     assert!(
         weak.upgrade().is_none(),
         "no generation survives its owner or invocation handles"
     );
-    let mut next = new(&[Relation::Function], &[], LIMIT).expect("next generation");
+    let next = new(&[Relation::Function], &[], LIMIT);
     assert!(
-        acquire(
-            &mut next,
-            Relation::Function,
-            view,
-            &[ColumnIndex(0)],
-            &mut KeyIndex::default()
-        )
-        .expect("fresh")
-        .built
+        acquire(&next, Relation::Function, view, &[ColumnIndex(0)])
+            .expect("fresh")
+            .was_built()
     );
-    assert_eq!(next.reuses, 0);
+    assert_eq!(next.snapshot().indexes, 1);
 }
 
 #[test]
@@ -213,42 +192,17 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
         kinds: &[CellKind::Flag],
         columns: &columns,
     };
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    let mut local = KeyIndex::default();
-    let _invalid_key = acquire(
-        &mut cache,
-        Relation::Function,
-        view,
-        &[ColumnIndex(9)],
-        &mut local,
-    )
-    .expect_err("invalid column must be refused before admission");
-    assert!(cache.entries.is_empty());
-    drop(
-        acquire(
-            &mut cache,
-            Relation::Function,
-            view,
-            &[ColumnIndex(0)],
-            &mut local,
-        )
-        .expect("build"),
-    );
-    let reused = acquire(
-        &mut cache,
-        Relation::Function,
-        view,
-        &[ColumnIndex(0)],
-        &mut local,
-    )
-    .expect("reuse")
-    .shared
-    .expect("index");
+    let cache = new(&[Relation::Function], &[], LIMIT);
+    let _invalid_key = acquire(&cache, Relation::Function, view, &[ColumnIndex(9)])
+        .expect_err("invalid column must be refused before admission");
+    assert_eq!(cache.snapshot().indexes, 0);
+    drop(acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("build"));
+    let reused = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("reuse");
     assert_eq!(
         matching_stored(
             view,
             &[ColumnIndex(0)],
-            &reused,
+            equality(&reused),
             &[Value::Flag(Flag::Raised)],
             #[cfg(feature = "diagnostic-row-progress")]
             |_, _| {},
@@ -261,7 +215,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
         matching_stored(
             view,
             &[ColumnIndex(0)],
-            &reused,
+            equality(&reused),
             &[Value::Number(Integer(1))],
             #[cfg(feature = "diagnostic-row-progress")]
             |_, _| {},
@@ -278,33 +232,23 @@ fn repeated_admissions_never_evict_live_entries_or_exceed_actual_retention() {
         kinds: &[CellKind::Number],
         columns: &columns,
     };
-    let mut cache = new(&[Relation::Function], &[], 16 * 1024).expect("cache");
-    let mut local = KeyIndex::default();
-    let mut first = None;
-    let mut admitted = 0;
-    for width in 1..128 {
+    let cache = new(&[Relation::Function], &[], LIMIT);
+    let mut handles = Vec::new();
+    for width in 1..=64 {
         let key = vec![ColumnIndex(0); width];
-        let acquired =
-            acquire(&mut cache, Relation::Function, view, &key, &mut local).expect("index");
-        if let Some(index) = acquired.shared {
-            admitted += 1;
-            if first.is_none() {
-                first = Some(Arc::downgrade(&index));
-            }
-        }
-        assert!(cache.bytes <= cache.limit);
-        assert_eq!(cache.entries.len(), admitted);
+        handles.push(acquire(&cache, Relation::Function, view, &key).expect("required result"));
+        let state = cache.snapshot();
+        assert!(state.bytes <= state.limit);
+        assert!(state.required_bytes > 0);
     }
-    assert!(cache.refusals > 0);
-    assert!(
-        first
-            .as_ref()
-            .expect("at least one admission")
-            .upgrade()
-            .is_some()
-    );
+    let weak = Arc::downgrade(&handles[0].storage);
     drop(cache);
-    assert!(first.expect("weak handle").upgrade().is_none());
+    assert!(weak.upgrade().is_some(), "active consumers own the backing");
+    drop(handles);
+    assert!(
+        weak.upgrade().is_none(),
+        "last required consumer releases it"
+    );
 }
 
 #[test]
@@ -321,18 +265,8 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
         kinds: &[CellKind::Symbol],
         columns: &columns,
     };
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    let mut local = KeyIndex::default();
-    drop(
-        acquire(
-            &mut cache,
-            Relation::Function,
-            view,
-            &[ColumnIndex(0)],
-            &mut local,
-        )
-        .expect("index"),
-    );
+    let cache = new(&[Relation::Function], &[], LIMIT);
+    drop(acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("index"));
     for index in 0_u32..128 {
         let _derived = intern_derived(
             &mut symbols,
@@ -340,20 +274,13 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
             NameText(&format!("derived_{index}")),
         );
     }
-    let reused = acquire(
-        &mut cache,
-        Relation::Function,
-        view,
-        &[ColumnIndex(0)],
-        &mut local,
-    )
-    .expect("reuse");
-    assert!(!reused.built);
+    let reused = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("reuse");
+    assert!(!reused.was_built());
     assert_eq!(
         matching_stored(
             view,
             &[ColumnIndex(0)],
-            &reused.shared.expect("index"),
+            equality(&reused),
             &[Value::Symbol(original)],
             #[cfg(feature = "diagnostic-row-progress")]
             |_, _| {},
@@ -373,23 +300,21 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
         columns: &columns,
     };
     let on = [ColumnIndex(0), ColumnIndex(1)];
-    let mut cache = new(&[Relation::Function], &[], LIMIT).expect("cache");
-    let mut local = KeyIndex::default();
-    drop(acquire(&mut cache, Relation::Function, view, &on, &mut local).expect("initial index"));
-    let reused =
-        acquire(&mut cache, Relation::Function, view, &on, &mut local).expect("reused index");
-    assert!(!reused.built);
-    let index = reused.shared.expect("shared");
+    let cache = new(&[Relation::Function], &[], LIMIT);
+    drop(acquire(&cache, Relation::Function, view, &on).expect("initial index"));
+    let reused = acquire(&cache, Relation::Function, view, &on).expect("reused index");
+    assert!(!reused.was_built());
+    let index = equality(&reused);
     assert_eq!(
-        index.hashes.first(),
-        index.hashes.get(1),
+        index.hashes().first(),
+        index.hashes().get(1),
         "actual full-hash collision"
     );
     assert_eq!(
         matching_stored(
             view,
             &on,
-            &index,
+            index,
             &[Value::Number(Integer(0)), Value::Number(Integer(0))],
             #[cfg(feature = "diagnostic-row-progress")]
             |_, _| {},

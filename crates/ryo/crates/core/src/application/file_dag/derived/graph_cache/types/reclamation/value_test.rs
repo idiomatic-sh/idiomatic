@@ -34,8 +34,8 @@ fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
     let before = fixture.snapshot();
     assert_eq!(before.indexes, 1);
     let payload = before.index_payloads[0];
-    let capacity = before.index_capacity;
-    let cost = payload + before.retained_view_bytes;
+    let capacity = before.owner_entries_capacity;
+    let cost = payload;
     fixture.set_limit(before.bytes + payload / 2);
     assert!(!fixture.reclaim(cost));
     let pinned = fixture.snapshot();
@@ -51,7 +51,7 @@ fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
         "the owner accounts for the unique physical credit once"
     );
     assert_eq!(reclaimed.indexes, 0);
-    assert_eq!(reclaimed.index_capacity, capacity);
+    assert_eq!(reclaimed.owner_entries_capacity, capacity);
     assert_eq!(reclaimed.counts.reclaimed_indexes, 1);
     assert_eq!(reclaimed.counts.reclaimed_bytes, cost as u64);
     assert_eq!(reclaimed.optional_bytes, 0);
@@ -71,11 +71,11 @@ fn impossible_admission_does_not_mutate_even_dormant_payload_or_capacity() {
     let before = fixture.snapshot();
     let payload = before.index_payloads[0];
     fixture.set_limit(before.bytes);
-    assert!(!fixture.reclaim(payload + before.retained_view_bytes + 1));
+    assert!(!fixture.reclaim(payload + 1));
     let after = fixture.snapshot();
     assert_eq!(
-        (after.bytes, after.indexes, after.index_capacity),
-        (before.bytes, before.indexes, before.index_capacity)
+        (after.bytes, after.indexes, after.owner_entries_capacity),
+        (before.bytes, before.indexes, before.owner_entries_capacity)
     );
     assert_eq!(after.counts.reclaimed_bytes, 0);
 }
@@ -97,19 +97,19 @@ fn fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order() {
     );
     let before = fixture.snapshot();
     assert_eq!(before.indexes, 2);
-    let capacity = before.index_capacity;
+    let capacity = before.owner_entries_capacity;
     let first = before.index_payloads[0];
     fixture.set_limit(before.bytes);
-    assert!(fixture.reclaim(first + before.retained_view_bytes));
+    assert!(fixture.reclaim(first));
     let after = fixture.snapshot();
     assert_eq!(after.indexes, 1);
     assert_eq!(after.index_columns[0], [ColumnIndex(1)]);
-    assert_eq!(after.index_capacity, capacity);
+    assert_eq!(after.owner_entries_capacity, capacity);
     assert!(after.bytes <= before.bytes - first);
 }
 
 #[test]
-fn owner_retained_views_reclaim_oldest_before_newer_without_releasing_indexes() {
+fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
     let columns = columns();
     let rows = rows(&columns);
     let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
@@ -141,8 +141,8 @@ fn owner_retained_views_reclaim_oldest_before_newer_without_releasing_indexes() 
         second_storage.upgrade().is_some(),
         "newer owner view remains"
     );
-    assert_eq!(after.indexes, 2);
-    assert_eq!(after.counts.reclaimed_indexes, 0);
+    assert_eq!(after.indexes, 1);
+    assert_eq!(after.counts.reclaimed_indexes, 1);
     assert_eq!(
         after.retained_view_bytes,
         before.retained_view_bytes - first_view_bytes

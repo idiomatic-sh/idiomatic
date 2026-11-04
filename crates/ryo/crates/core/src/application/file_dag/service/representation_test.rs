@@ -1,5 +1,6 @@
 //! Actual DAG demands retain each bulk representation through the mandatory entry.
 use super::*;
+use crate::application::file_dag::interface::DagExecution as _;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::collections::representations::{
     publication::PublishedRelation,
@@ -129,8 +130,16 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
                 .expect("internal representation producer feeds the residual terminal")
                 .1;
             assert_eq!(graph.cuts[0][0], Some(root));
-            let mut dag = FileDagExecution::new(graph, |_| true, &[relation]);
-            dag.limit = budget;
+            let scope = crate::application::file_dag::testing::FileScope::new(
+                graph,
+                crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
+                |_| true,
+                &[relation],
+                &[],
+            )
+            .unwrap();
+            let dag = &scope.execution;
+            dag.borrow_mut().limit = budget;
             dag.begin_rule(0).unwrap();
             let read = |asked| {
                 if asked == relation {
@@ -153,33 +162,23 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
                 scratch: &mut scratch,
             };
             let result = dag
-                .demand_result(
-                    root,
-                    &read,
-                    &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-                    &mut context,
-                )
+                .demand(root, &read, scope.scope.executor(), &mut context)
                 .unwrap();
             assert_eq!(result.kind(), *variant);
-            assert_eq!(dag.executions[root.0], 1);
-            let resolved = dag.relations.resolve(result.as_ref(), &read).unwrap();
+            assert_eq!(dag.borrow().executions[root.0], 1);
+            let resolved = scope.scope.owner().resolve(result.as_ref(), &read).unwrap();
             let raw = borrowed(&resolved);
             assert_eq!(kind(registered(*variant).bulk(raw).unwrap()), *variant);
             assert_eq!(raw.count(), count);
-            assert_eq!(dag.relations.inspect(result.as_ref(),raw).unwrap(),crate::domain::table_model::collections::representations::types::PhysicalShape::Complete);
+            assert_eq!(scope.scope.owner().inspect(result.as_ref(),raw).unwrap(),crate::domain::table_model::collections::representations::types::PhysicalShape::Complete);
             let again = dag
-                .demand_result(
-                    root,
-                    &read,
-                    &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-                    &mut context,
-                )
+                .demand(root, &read, scope.scope.executor(), &mut context)
                 .unwrap();
             assert!(result.same_record(&again));
-            assert_eq!(dag.executions[root.0], 1);
-            dag.release_population();
+            assert_eq!(dag.borrow().executions[root.0], 1);
+            dag.borrow_mut().release_population();
             assert!(matches!(
-                dag.relations.resolve(result.as_ref(), &read),
+                scope.scope.owner().resolve(result.as_ref(), &read),
                 Err(OperatingError::NotRead)
             ));
         }

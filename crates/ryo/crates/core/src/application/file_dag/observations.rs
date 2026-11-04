@@ -18,6 +18,7 @@ mod union_test;
 #[derive(Clone)]
 enum RootReadiness {
     Pending,
+    Evaluated,
     Complete,
     Skipped,
     Unknown(ryo_values::domain::observations::types::ObservationReason),
@@ -80,7 +81,10 @@ impl FileObservations {
 impl FileDagExecution {
     /// This boundary runs under the producer's own context, after its actual root evaluation.
     pub(super) fn publish_observed_node(&mut self, node: NodeId, table: &PublishedInput) {
-        let complete = self
+        let complete = matches!(
+            self.coverage.get(node.0),
+            Some(Some(super::completion::CoverageState::Complete))
+        ) && self
             .graph
             .nodes
             .get(node.0)
@@ -106,7 +110,10 @@ impl FileDagExecution {
                     .expect("prepared publication output index");
                 if complete {
                     *slot = RootPublication::Complete(table.clone());
-                    state.readiness[producer][output.0 as usize] = RootReadiness::Complete;
+                    let readiness = &mut state.readiness[producer][output.0 as usize];
+                    if !matches!(readiness, RootReadiness::Complete) {
+                        *readiness = RootReadiness::Evaluated;
+                    }
                 } else {
                     *slot = RootPublication::Unavailable;
                     state.readiness[producer][output.0 as usize] = RootReadiness::Unknown(
@@ -215,6 +222,31 @@ impl FileDagExecution {
         }
         self.finish_observation_rule(rule);
     }
+    /// A completed node is not durable evidence until its actual words have
+    /// been accepted by FactsWorker::keep (including a real zero-row bucket).
+    pub(crate) fn commit_frontier(
+        &mut self,
+        rule: usize,
+        frontier: ryo_values::domain::plan_parts::types::InputNumber,
+    ) {
+        let (Some(graph), Some(state)) = (&self.graph.observations, &mut self.observations) else {
+            return;
+        };
+        for root in graph
+            .frontiers
+            .iter()
+            .filter(|root| root.producer.0 == rule && root.frontier == frontier)
+        {
+            if let Some(slot) = state
+                .readiness
+                .get_mut(rule)
+                .and_then(|roots| roots.get_mut(root.output.0 as usize))
+                && matches!(slot, RootReadiness::Evaluated)
+            {
+                *slot = RootReadiness::Complete;
+            }
+        }
+    }
     /// Snapshot only the precomputed demanded frontier slots. Retired handles do not erase
     /// evidence that the producer actually completed before its words were retained.
     pub(crate) fn observation_snapshot(
@@ -239,7 +271,7 @@ impl FileDagExecution {
         );
         for (slot, root) in graph.frontiers.iter().enumerate() {
             let readiness = match &state.readiness[root.producer.0][root.output.0 as usize] {
-                RootReadiness::Pending => continue, // unset is Unknown; no per-root reason allocation
+                RootReadiness::Pending | RootReadiness::Evaluated => continue, // unset is Unknown; no per-root reason allocation
                 RootReadiness::Complete => ProducerReadiness::Complete,
                 RootReadiness::Skipped => ProducerReadiness::Skipped,
                 RootReadiness::Unknown(reason) => ProducerReadiness::Unknown(reason.clone()),

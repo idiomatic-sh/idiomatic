@@ -1,8 +1,5 @@
 use super::*;
-use crate::domain::{
-    derived_views::{collections::views::registration::registered, types::DerivedStorage},
-    operator::contract::resources::{AxisResources, JoinResources},
-};
+use crate::domain::operator::contract::resources::{AxisResources, JoinResources};
 use ryo_relations::domain::relations::types::CellKind;
 
 fn kinds() -> Vec<Vec<CellKind>> {
@@ -21,7 +18,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
         columns: IndexColumns::Whole,
     };
     let first = views.bind_mode(&program, &kinds()[..1]).unwrap();
-    let use_plan = first[slot(DerivedKind::Equality)].as_ref().unwrap();
+    let use_plan = &first[slot(DerivedKind::Equality)].as_ref().unwrap().primary;
     assert_eq!(use_plan.inputs, [1, 0]);
     assert_eq!(use_plan.len, 1);
     assert_eq!(
@@ -29,15 +26,18 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
         Err(OperatingError::MissingInput { position: 2 })
     );
     assert_eq!(
-        registered(DerivedKind::Equality)
-            .view(&use_plan.plan, &DerivedStorage::Unbuilt)
+        crate::domain::derived_views::service::validate(DerivedKind::Equality, &use_plan.plan)
             .err(),
         Some(OperatingError::MissingInput { position: 2 }),
     );
     let second = views.bind_mode(&program, &kinds()[..1]).unwrap();
     assert!(Arc::ptr_eq(
         &use_plan.plan,
-        &second[slot(DerivedKind::Equality)].as_ref().unwrap().plan
+        &second[slot(DerivedKind::Equality)]
+            .as_ref()
+            .unwrap()
+            .primary
+            .plan
     ));
     assert_eq!(views.count(), 1);
 }
@@ -56,19 +56,27 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
     });
     let first = views.bind_mode(&join, &kinds[..2]).unwrap();
     let second = views.bind_mode(&join, &kinds[..2]).unwrap();
-    let equality = first[slot(DerivedKind::Equality)].as_ref().unwrap();
-    let lookup = first[slot(DerivedKind::NativeLookup)].as_ref().unwrap();
+    let equality = &first[slot(DerivedKind::Equality)].as_ref().unwrap().primary;
+    let lookup = &first[slot(DerivedKind::NativeLookup)]
+        .as_ref()
+        .unwrap()
+        .primary;
     assert_eq!((equality.inputs, equality.len), ([1, 0], 1));
     assert_eq!((lookup.inputs, lookup.len), ([0, 1], 2));
     assert!(Arc::ptr_eq(
         &equality.plan,
-        &second[slot(DerivedKind::Equality)].as_ref().unwrap().plan
+        &second[slot(DerivedKind::Equality)]
+            .as_ref()
+            .unwrap()
+            .primary
+            .plan
     ));
     assert!(Arc::ptr_eq(
         &lookup.plan,
         &second[slot(DerivedKind::NativeLookup)]
             .as_ref()
             .unwrap()
+            .primary
             .plan
     ));
     assert_eq!(views.count(), 3);
@@ -84,7 +92,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         direction: Direction::Parent,
     });
     let slots = views.bind_mode(&axis, &kinds).unwrap();
-    let edge = slots[slot(DerivedKind::Equality)].as_ref().unwrap();
+    let edge = &slots[slot(DerivedKind::Equality)].as_ref().unwrap().primary;
     let ViewRequest::Equality { columns } = &edge.plan.request else {
         panic!("edge lookup")
     };
@@ -94,6 +102,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         slots[slot(DerivedKind::Membership)]
             .as_ref()
             .unwrap()
+            .primary
             .inputs,
         [2, 1]
     );
@@ -101,7 +110,10 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
 
 #[test]
 fn family_slots_hold_compact_shared_binding_handles() {
-    assert_eq!(size_of::<DerivedSlots>(), 24 * size_of::<usize>());
+    assert_eq!(
+        size_of::<DerivedSlots>(),
+        2 * DerivedKind::ALL.len() * size_of::<usize>()
+    );
     let mut views = RequestViews::new(crate::outbound::derived::factory::test_port());
     let schema = kinds();
     let first = views

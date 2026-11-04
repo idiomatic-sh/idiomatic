@@ -1,10 +1,9 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
 use super::*;
 use crate::domain::{
-    derived_views::{collections::views::registration::registered, types::*},
-    operation_schema::types::InputSchema,
-    table_model::service::push_row,
+    derived_views::types::*, operation_schema::types::InputSchema, table_model::service::push_row,
 };
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
@@ -19,23 +18,40 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         &[Value::Number(Integer(1)), Value::Number(Integer(2))],
     );
     let plan = Arc::new(
-        registered(DerivedKind::CycleAdjacency)
-            .prepare(
-                &ViewRequest::CycleAdjacency {
-                    source: ColumnIndex(0),
-                    destination: ColumnIndex(1),
-                },
-                &[InputSchema {
-                    kinds: &table.kinds,
-                    tree: None,
-                }],
-            )
-            .unwrap(),
+        crate::application::file_dag::derived::prepare::view(
+            crate::outbound::derived::factory::test_port(),
+            &ViewRequest::CycleAdjacency {
+                source: ColumnIndex(0),
+                destination: ColumnIndex(1),
+            },
+            &[InputSchema {
+                kinds: &table.kinds,
+                tree: None,
+            }],
+        )
+        .unwrap(),
     );
-    let owner = crate::application::file_dag::relations::RelationOwner::new(
-        false,
-        crate::outbound::derived::factory::test_port(),
-    );
+    use crate::application::file_dag::executor::PrimitiveExecutor as _;
+    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare(
+        &[],
+        &[],
+        &[],
+        executor.derived_port(),
+    )
+    .unwrap();
+    let scope = crate::application::file_dag::testing::FileScope::new(
+        Arc::new(crate::domain::file_program::service::compile_prepared(
+            &[],
+            &request,
+        )),
+        executor,
+        |_| true,
+        &[],
+        &[],
+    )
+    .unwrap();
+    let owner = scope.scope.owner();
     let rows = BorrowedRows::Computed(&table);
     let proof = owner.admit_external(rows).unwrap();
     let (population, _) = proof.identity(&owner).unwrap();
@@ -53,31 +69,31 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     let DerivedView::CycleAdjacency(built) = acquired.view().unwrap() else {
         panic!("actual cycle builder");
     };
-    let pointer = built.values.as_ptr();
+    let pointer = built.values().as_ptr();
     let graph = InvocationResources::cycles_view(Some(&acquired))
         .unwrap()
         .unwrap();
     assert_eq!(
-        graph.values,
+        graph.values(),
         [Value::Number(Integer(1)), Value::Number(Integer(2))]
     );
     assert_eq!(
         pointer,
-        graph.values.as_ptr(),
+        graph.values().as_ptr(),
         "the semantic lease borrows the owned graph"
     );
     let equality = Arc::new(
-        registered(DerivedKind::Equality)
-            .prepare(
-                &ViewRequest::Equality {
-                    columns: vec![ColumnIndex(0)],
-                },
-                &[InputSchema {
-                    kinds: &table.kinds,
-                    tree: None,
-                }],
-            )
-            .unwrap(),
+        crate::application::file_dag::derived::prepare::view(
+            crate::outbound::derived::factory::test_port(),
+            &ViewRequest::Equality {
+                columns: vec![ColumnIndex(0)],
+            },
+            &[InputSchema {
+                kinds: &table.kinds,
+                tree: None,
+            }],
+        )
+        .unwrap(),
     );
     let wrong = owner
         .derived
@@ -97,5 +113,3 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
 }
 
 use ryo_values::domain::rows::types::Table;
-
-use ryo_derived::domain::contract::types::DerivedKind;

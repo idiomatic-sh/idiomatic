@@ -119,13 +119,12 @@ impl ResourceFixture {
             &schemas,
             context.bindings,
         )?;
-        CommonOperatorEngine::new(operators, self.owner.derived.semantic_port()).collect(
-            &contract,
-            inputs,
-            context,
-            out,
+        let engine = CommonOperatorEngine::new(operators, self.owner.derived.semantic_port());
+        crate::application::file_dag::executor::ScopedExecutor::new(
+            &engine,
             Rc::clone(&self.owner),
-        )
+        )?
+        .collect(&contract, inputs, context, out)
     }
     pub(crate) fn snapshot(&self) -> Snapshot {
         let cache = self.owner.derived.backend.borrow();
@@ -160,8 +159,15 @@ struct OwnedFeed<'a, 'f> {
     owner: Rc<RelationOwner>,
 }
 impl<'f> crate::application::file_dag::feed::Feed<'f> for OwnedFeed<'_, 'f> {
-    fn relation_owner(&self) -> Option<Rc<RelationOwner>> {
-        Some(Rc::clone(&self.owner))
+    fn relation_owner(&self) -> Rc<RelationOwner> {
+        Rc::clone(&self.owner)
+    }
+    fn publication(
+        &self,
+        place: crate::domain::operating::types::InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        self.inner.publication(place)
     }
     fn origin(
         &self,
@@ -285,46 +291,61 @@ impl ResourceFixture {
                 |_| true,
             );
         }
+        if !Rc::ptr_eq(&self.owner, &feed.relation_owner()) {
+            return Err(OperatingError::NotRead);
+        }
         let mut feed = OwnedFeed {
             inner: feed,
             inputs,
             logical: ryo_values::domain::plans::service::named(&contract.inputs).to_vec(),
             owner: Rc::clone(&self.owner),
         };
-        CommonOperatorEngine::fixture().stream(contract, &mut feed, context, room, emit)
+        let engine = CommonOperatorEngine::new(
+            crate::outbound::operators::factory::test_port(),
+            self.owner.derived.semantic_port(),
+        );
+        crate::application::file_dag::executor::ScopedExecutor::new(
+            &engine,
+            Rc::clone(&self.owner),
+        )?
+        .stream(contract, &mut feed, context, room, emit)
     }
 }
 
-/// Exercise residual production execution with an owner, without claiming DAG-owned cuts.
-pub(crate) fn residual_frame(
+/// Prepare the actual request graph and its required file execution owner.
+pub(crate) fn prepared_scope<'a>(
     plans: &[Plan],
+    request: &crate::domain::operator::contract::types::RequestOperators,
     prepared: &PreparedPool,
     wanted: &[Relation],
     partials: &[Partial],
-) -> crate::application::file_dag::types::FileDagExecution {
-    let graph = crate::domain::file_program::types::RequestGraph {
-        observations: None,
-        plans: plans
-            .iter()
-            .map(|plan| plan as *const Plan as usize)
-            .collect(),
-        nodes: vec![],
-        derived_sources: vec![],
-        cuts: plans
-            .iter()
-            .map(|plan| vec![None; plan.steps.len()])
-            .collect(),
-        consumers: plans.iter().map(|_| vec![]).collect(),
-        boundaries: plans.iter().map(|_| vec![]).collect(),
-        rule_liveness: plans.iter().map(|_| vec![]).collect(),
-    };
-    let mut frame = crate::application::file_dag::types::FileDagExecution::new(
+    executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
+) -> Result<crate::application::file_dag::testing::FileScope<'a>, OperatingError> {
+    let graph = crate::domain::file_program::service::compile_prepared(plans, request);
+    let scope = crate::application::file_dag::testing::FileScope::new(
         Arc::new(graph),
+        executor,
         |_| true,
         wanted,
+        partials,
+    )?;
+    scope.execution.borrow().prepare_resources(
+        true,
+        wanted,
+        partials,
+        wanted,
+        plans,
+        prepared,
+        |_| true,
     );
-    frame.prepare_resources(true, wanted, partials, wanted, plans, prepared, |_| true);
-    frame
+    Ok(scope)
 }
 
 use ryo_values::domain::rows::types::Table;
+
+/// Observe backing lifetime without retaining its lease or exposing mutable storage.
+pub(crate) fn weak_storage(
+    view: &super::super::view::AcquiredView,
+) -> Weak<super::super::storage::DerivedStorage> {
+    Arc::downgrade(&view.storage)
+}

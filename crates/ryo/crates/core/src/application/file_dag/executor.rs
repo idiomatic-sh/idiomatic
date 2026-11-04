@@ -80,32 +80,43 @@ pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
     fn keep_representation(
         &self,
         contract: &OperatorContract,
-        _physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
         feed: &mut GraphInputs<'_, '_>,
         owner: &Rc<RelationOwner>,
         context: &mut OperatorContext<'_>,
         room: &mut Room,
-    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
-        if feed.project_phase() {
-            return feed.collect_with(owner, context, |inputs, context, out| {
-                self.collect(owner, contract, inputs, context, out)
-            });
-        }
-        let mut table = Table::default();
-        crate::domain::table_model::service::reset(
-            &mut table,
-            contract.collected_kinds.as_ref().map_err(Clone::clone)?,
-        );
-        self.stream(
-            owner,
-            contract,
-            feed,
-            context,
-            room,
-            &mut crate::domain::replay::types::Collect(&mut table),
-        )?;
-        owner.computed(table)
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError>;
+}
+
+/// An explicit ordinary materialization choice, not an overridable default.
+/// Custom executors must name this choice or implement the declared physical region.
+pub(crate) fn keep_rows<E: PrimitiveExecutor + ?Sized>(
+    executor: &E,
+    contract: &OperatorContract,
+    feed: &mut GraphInputs<'_, '_>,
+    owner: &Rc<RelationOwner>,
+    context: &mut OperatorContext<'_>,
+    room: &mut Room,
+) -> Result<super::relations::PublishedInput, OperatingError> {
+    if feed.project_phase() {
+        return feed.collect_with(owner, context, |inputs, context, out| {
+            executor.collect(owner, contract, inputs, context, out)
+        });
     }
+    let mut table = Table::default();
+    crate::domain::table_model::service::reset(
+        &mut table,
+        contract.collected_kinds.as_ref().map_err(Clone::clone)?,
+    );
+    executor.stream(
+        owner,
+        contract,
+        feed,
+        context,
+        room,
+        &mut crate::domain::replay::types::Collect(&mut table),
+    )?;
+    owner.computed(table)
 }
 
 use ryo_values::domain::rows::types::Table;

@@ -1,5 +1,5 @@
 //! Real rule-order and zero-diagnostic producer controls through the public SDK route.
-use super::super::types::{ObservationBinding, ObservationProducer};
+use super::super::types::{Glob, ObservationBinding, ObservationProducer};
 use super::*;
 use crate::domain::observation::types::ObservationKind;
 use crate::domain::observation::types::{
@@ -77,6 +77,41 @@ fn later_original_rule_publishes_nonempty_observation_despite_zero_findings() {
             answer.unknowns.is_empty(),
             "a real complete publication satisfies the binding"
         );
+    }
+    // Diagnostic governance is independent of explicitly bound facts. Exercise
+    // both include and exclude while retaining cold/warm public entry behavior.
+    for include_only in [false, true] {
+        let mut configured = request.clone();
+        let producing = configured
+            .rules
+            .get_mut(&RuleId::try_from("z-producer").unwrap())
+            .unwrap();
+        producing.query = crate::resources::query::RyoQlQuery::try_from(
+            "let files = select path from \"filesystem.file\"; observe files as used; emit files subject path key(path);"
+        ).unwrap();
+        let pattern = Glob::try_from(if include_only {
+            "other.txt"
+        } else {
+            "case.txt"
+        })
+        .unwrap();
+        if include_only {
+            producing.include.push(pattern);
+        } else {
+            producing.exclude.push(pattern);
+        }
+        for _ in 0..2 {
+            let answer = super::super::entry::lint_with(&engine, configured.clone()).unwrap();
+            assert!(
+                answer.unknowns.is_empty(),
+                "diagnostic exclusion is not missing observation data"
+            );
+            assert_eq!(answer.findings.len(), 1);
+            assert_eq!(
+                answer.findings[0].rule, consumer,
+                "excluded producer Emit stays suppressed"
+            );
+        }
     }
     let mut undeclared = request.clone();
     undeclared

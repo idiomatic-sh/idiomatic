@@ -188,6 +188,10 @@ impl FileAnalysis {
         {
             return Cow::Borrowed(setting.wanted);
         }
+        let demanded = crate::domain::file_program::service::observations::demanded_rules(
+            &setting.graph,
+            |place| governs_rule(tables, RuleIndex(place)) == Governing::Governs,
+        );
         Cow::Owned(
             setting
                 .wanted
@@ -195,7 +199,7 @@ impl FileAnalysis {
                 .copied()
                 .filter(|relation| {
                     setting.plans.iter().enumerate().any(|(place, _)| {
-                        governs_rule(tables, RuleIndex(place)) == Governing::Governs
+                        demanded.get(place).copied().unwrap_or(false)
                             && match setting.applicability.get(place).copied() {
                                 Some(RuleApplicability::Always) => true,
                                 Some(RuleApplicability::AcceptedSyntax) => {
@@ -302,9 +306,13 @@ impl FileAnalysis {
         file: FileId,
         acceptance: SyntaxAcceptance,
     ) -> Vec<bool> {
+        let demanded = crate::domain::file_program::service::observations::demanded_rules(
+            &setting.graph,
+            |place| governs_rule(tables, RuleIndex(place)) == Governing::Governs,
+        );
         let mut skipped = vec![false; setting.plans.len()];
         for (place, blocked) in skipped.iter_mut().enumerate() {
-            if governs_rule(tables, RuleIndex(place)) != Governing::Governs {
+            if !demanded.get(place).copied().unwrap_or(false) {
                 continue;
             }
             let applicability = setting.applicability.get(place).copied();
@@ -463,11 +471,15 @@ impl FileAnalysis {
         )?;
         let owner = std::rc::Rc::clone(scope.owner());
         let executor = scope.executor();
+        let demanded =
+            crate::domain::file_program::service::observations::demanded_rules(graph, |place| {
+                governs_rule(tables, RuleIndex(place)) == Governing::Governs
+            });
         let file_dag = {
             let schedule = activation.activate(
                 graph,
                 |index| {
-                    governs_rule(tables, RuleIndex(index)) == Governing::Governs
+                    demanded.get(index).copied().unwrap_or(false)
                         && !skipped
                             .as_ref()
                             .and_then(|skipped| skipped.get(index))
@@ -637,11 +649,15 @@ impl FileAnalysis {
         classes: &crate::domain::shared_walk::types::SharedClasses,
         semantic: &super::semantic::SemanticState,
     ) -> Result<(), FileAnalysisError> {
+        let demanded = crate::domain::file_program::service::observations::demanded_rules(
+            &visit.setting.graph,
+            |place| governs_rule(tables, RuleIndex(place)) == Governing::Governs,
+        );
         for rule in crate::domain::file_program::service::observations::rule_order(
             visit.setting.observations,
             visit.setting.plans.len(),
         ) {
-            if governs_rule(tables, rule) == Governing::DoesNotGovern {
+            if !demanded.get(rule.0).copied().unwrap_or(false) {
                 {
                     let dag = file_dag;
                     dag.borrow_mut().skip_observation_rule(rule.0);
@@ -777,6 +793,19 @@ impl FileAnalysis {
                 .get(rule.0)
                 .map_or(0, |plan| plan.frontier.len());
             for place in 0..inputs {
+                if governs_rule(tables, rule) == Governing::DoesNotGovern
+                    && !visit
+                        .setting
+                        .graph
+                        .observations
+                        .as_ref()
+                        .and_then(|observations| observations.observation_frontiers.get(rule.0))
+                        .and_then(|frontiers| frontiers.get(place))
+                        .copied()
+                        .unwrap_or(false)
+                {
+                    continue;
+                }
                 let Some(bucket) = prepare_frontier(
                     tables,
                     &visit.setting,
@@ -788,6 +817,10 @@ impl FileAnalysis {
                     continue;
                 };
                 facts.keep(bucket, WordsToKeep(&tables.packed))?;
+                file_dag.borrow_mut().commit_frontier(
+                    rule.0,
+                    ryo_values::domain::plan_parts::types::InputNumber(place),
+                );
                 if visit.setting.keeping == Keeping::Keeps {
                     capture_frontier(tables, visit.setting.answering, bucket);
                 }

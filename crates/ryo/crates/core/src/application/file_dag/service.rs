@@ -96,6 +96,7 @@ impl FileDagExecution {
             .as_ref()
             .map(super::observations::FileObservations::new);
         Self {
+            failed: vec![None; count],
             counting: crate::domain::lowering::types::Counting::DoesNotCount,
             fed: vec![crate::domain::operator::types::RowsFed::default(); count],
             fed_rule: vec![crate::domain::operator::types::RowsFed::default(); count],
@@ -166,7 +167,7 @@ impl FileDagExecution {
                 crate::domain::step_classes::service::merge(walking.plans, walking.bindings);
             shared.made = crate::domain::shared_walk::types::Merging::Done;
         }
-        let outputs = shared
+        let outputs: Vec<NodeId> = shared
             .merge
             .classes
             .iter()
@@ -181,6 +182,15 @@ impl FileDagExecution {
                     .copied()
             })
             .collect();
+        // Batch admission is governed by its declared outputs, not unrelated failures.
+        {
+            let state = scope.borrow();
+            for id in &outputs {
+                if let Some(error) = state.failed.get(id.0).and_then(Option::as_ref) {
+                    return Err(error.clone());
+                }
+            }
+        }
         let declaration = super::executor::NativeClassBatch {
             graph: &graph,
             input: Relation::SyntaxTree,
@@ -263,6 +273,28 @@ impl FileDagExecution {
     }
 }
 impl FileDagExecution {
+    fn partial_node(
+        &mut self,
+        id: NodeId,
+    ) -> Result<Option<super::relations::PublishedInput>, OperatingError> {
+        let node = self.graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
+        match self.completion.admit(
+            node.needs.as_ref().map_err(Clone::clone)?,
+            &node.contract.collected_kinds,
+            &self.relations,
+        )? {
+            super::completion::NodeAdmission::Evaluate => Ok(None),
+            super::completion::NodeAdmission::Blocked { rows, coverage } => {
+                let publication = rows.into_payload();
+                let inputs = node.inputs.clone();
+                self.coverage[id.0] = Some(coverage);
+                self.completed_inputs(id, &inputs);
+                self.pin_required(id, publication.clone());
+                self.publish_observed_node(id, &publication);
+                Ok(Some(publication))
+            }
+        }
+    }
     fn completed_inputs(&mut self, id: NodeId, inputs: &[NodeInput]) -> bool {
         let first_global = self.executions[id.0] == 0;
         self.executions[id.0] += 1;
@@ -294,6 +326,9 @@ impl FileDagExecution {
             if !std::rc::Rc::ptr_eq(&state.relations, executor.owner()) {
                 return Err(OperatingError::NotRead);
             }
+            if let Some(error) = state.failed.get(id.0).and_then(Option::as_ref) {
+                return Err(error.clone());
+            }
             let cached = if let Some(provided) = state.provided.get(&id) {
                 Some(provided.clone()?)
             } else if let Some(table) = state.required.get(id.0).and_then(Option::as_ref) {
@@ -307,9 +342,19 @@ impl FileDagExecution {
             };
             if cached.is_none() {
                 let declared = state.graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
-                state
-                    .completion
-                    .before(declared.needs.as_ref().map_err(Clone::clone)?)?;
+                if declared.phase != state.phase {
+                    return Err(OperatingError::NotRun);
+                }
+                if crate::domain::features::service::kind_of(&declared.operation)
+                    != declared.contract.kind
+                {
+                    return Err(OperatingError::WrongOperation);
+                }
+                // A blocked streamed node emits no rows; it is a typed Partial,
+                // not an error that aborts independent branches.
+                if state.partial_node(id)?.is_some() {
+                    return Ok(());
+                }
                 if state.visiting.get(id.0).copied().unwrap_or(true) {
                     return Err(OperatingError::NotRun);
                 }
@@ -324,7 +369,10 @@ impl FileDagExecution {
         };
         if let Some(publication) = cached {
             let rows = relations.resolve(publication.as_ref(), read)?;
-            return scan(&rows, &mut Vec::new(), context, emit);
+            let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
+            let mut memo = Vec::new();
+            let mut output = super::execution::output::State::take(&mut scratch, &mut memo);
+            return output.run(emit, |emit| scan(&rows, &mut Vec::new(), context, emit));
         }
         let node = graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
         let request_source = scope.state().hosted.get(&id).cloned();
@@ -340,13 +388,35 @@ impl FileDagExecution {
         let held = (0..node.inputs.len())
             .map(|_| OnceCell::new())
             .collect::<Vec<_>>();
-        let result = (|| {
+        let room = match room.room() {
+            Ok(room) => room,
+            Err(error) => {
+                scope.state_mut().visiting[id.0] = false;
+                return Err(error);
+            }
+        };
+        let mut output = super::execution::output::State::take(&mut room.scratch, &mut room.memo);
+        let mut downstream = crate::domain::operator::contract::failure::FailureLatch::default();
+        let result = output.run(emit, |emit| {
+            let mut sticky = crate::domain::replay::types::Pipe(
+                |each: &mut OperatorContext<'_>, row: &[Value]| {
+                    downstream.run(|| emit.row(each, row)).map_err(|()| {
+                        downstream
+                            .error()
+                            .expect("latched downstream error")
+                            .clone()
+                    })
+                },
+            );
             let mut feed = GraphInputs {
                 execution: scope,
                 owner: std::rc::Rc::clone(&relations),
                 node: id,
                 phase: node.phase,
-                region: node.region.as_ref(),
+                region: node
+                    .regions
+                    .iter()
+                    .find(|region| Some(region.rule) == scope.state().current_rule),
                 request_source: request_source.as_ref(),
                 source_kinds: node
                     .contract
@@ -365,14 +435,25 @@ impl FileDagExecution {
                 &node.physical,
                 &mut feed,
                 context,
-                room.room()?,
-                emit,
+                room,
+                &mut sticky,
             )
-        })();
+        });
+        output.restore(&mut room.scratch, &mut room.memo);
+        let downstream_error = downstream.take();
+        let semantic_failure = downstream_error.is_none();
+        let result = downstream_error.map_or(result, Err);
+
         // No scheduler borrow was held during upstream or downstream callbacks.
         let mut state = scope.state_mut();
         state.visiting[id.0] = false;
-        result?;
+        if let Err(error) = result {
+            if semantic_failure {
+                state.failed[id.0] = Some(error.clone());
+                state.completed_inputs(id, &node.inputs);
+            }
+            return Err(error);
+        }
         state.completed_inputs(id, &node.inputs);
         Ok(())
     }
@@ -388,6 +469,9 @@ impl FileDagExecution {
             let mut state = scope.state_mut();
             if !std::rc::Rc::ptr_eq(&state.relations, executor.owner()) {
                 return Err(OperatingError::NotRead);
+            }
+            if let Some(error) = state.failed.get(id.0).and_then(Option::as_ref) {
+                return Err(error.clone());
             }
             if let Some(provided) = state.provided.get(&id) {
                 return provided.clone();
@@ -418,10 +502,9 @@ impl FileDagExecution {
                 state.publish_observed_node(id, &table);
                 return Ok(table);
             }
-            let declared = state.graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
-            state
-                .completion
-                .before(declared.needs.as_ref().map_err(Clone::clone)?)?;
+            if let Some(publication) = state.partial_node(id)? {
+                return Ok(publication);
+            }
             if state.visiting.get(id.0).copied().unwrap_or(true) {
                 return Err(OperatingError::NotRun);
             }
@@ -489,7 +572,10 @@ impl FileDagExecution {
                 owner: std::rc::Rc::clone(&relations),
                 node: id,
                 phase: node.phase,
-                region: node.region.as_ref(),
+                region: node
+                    .regions
+                    .iter()
+                    .find(|region| Some(region.rule) == scope.state().current_rule),
                 request_source: request_source.as_ref(),
                 source_kinds: node
                     .contract
@@ -537,11 +623,15 @@ impl FileDagExecution {
             super::completion::NodeCompletion::Available { rows, coverage } => {
                 (rows.into_payload(), coverage)
             }
-            super::completion::NodeCompletion::Failed(error) => return Err(error),
+            super::completion::NodeCompletion::Failed(error) => {
+                let mut state = scope.state_mut();
+                state.failed[id.0] = Some(error.clone());
+                state.completed_inputs(id, &node.inputs);
+                return Err(error);
+            }
             super::completion::NodeCompletion::Unavailable(reason) => {
-                return Err(OperatingError::SemanticIncomplete {
-                    reason: format!("{reason:?}"),
-                });
+                let super::completion::UnavailableReason::MissingFrontier { input } = reason.reason;
+                return Err(OperatingError::FrontierUnavailable { input });
             }
         };
         let mut state = scope.state_mut();
@@ -1042,6 +1132,18 @@ impl<'a, 'f> GraphInputs<'a, 'f> {
         collect(&inputs, context, &mut out)?;
         owner.computed(out)
     }
+    pub(super) fn region_allowed(&self, nodes: &[NodeId]) -> bool {
+        let state = self.execution.state();
+        nodes.iter().all(|id| {
+            state.graph.nodes.get(id.0).is_some_and(|node| {
+                state.failed.get(id.0).is_some_and(Option::is_none)
+                    && node
+                        .needs
+                        .as_ref()
+                        .is_ok_and(|needs| state.completion.allows_region(needs))
+            })
+        })
+    }
     pub(super) fn owner(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         std::rc::Rc::clone(&self.owner)
     }
@@ -1082,6 +1184,9 @@ impl<'a, 'f> GraphInputs<'a, 'f> {
         step: usize,
         context: &mut OperatorContext<'_>,
     ) -> Result<super::relations::PublishedInput, OperatingError> {
+        if self.execution.state().current_rule != Some(rule) {
+            return Err(OperatingError::WrongOperation);
+        }
         let node = self
             .execution
             .state()

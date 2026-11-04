@@ -26,6 +26,7 @@ fn binding(producer: usize) -> GraphObservationBinding {
 }
 fn graph() -> GraphObservations {
     GraphObservations {
+        observation_frontiers: vec![],
         layout: ObservationReadinessLayout(Digest([1; 16])),
         slots: Vec::new(),
         frontiers: Vec::new(),

@@ -69,31 +69,28 @@ impl<'f> PartitionedClosure<'f> {
         keys: &[ColumnIndex],
         source: ColumnIndex,
         destination: ColumnIndex,
+        owner: Rc<RelationOwner>,
     ) -> Result<Self, OperatingError> {
-        use crate::domain::derived_views::collections::views::registration::registered;
-        use ryo_derived::domain::contract::types::DerivedKind;
         input.validate()?;
         let schema = [crate::domain::operation_schema::types::InputSchema {
             kinds: input.kinds(),
             tree: None,
         }];
-        let partition_plan = Arc::new(registered(DerivedKind::PartitionOrder).prepare(
+        let partition_plan = Arc::new(super::derived::prepare::view(
+            owner.derived.semantic_port(),
             &ViewRequest::PartitionOrder {
                 keys: keys.to_vec(),
             },
             &schema,
         )?);
-        let closure_plan = Arc::new(registered(DerivedKind::ClosureAdjacency).prepare(
+        let closure_plan = Arc::new(super::derived::prepare::view(
+            owner.derived.semantic_port(),
             &ViewRequest::ClosureAdjacency {
                 source,
                 destination,
             },
             &schema,
         )?);
-        let owner = Rc::new(RelationOwner::new(
-            true,
-            crate::outbound::derived::factory::test_port(),
-        ));
         let proof = owner.admit_external(input)?;
         let (population, _) = proof.identity(owner.as_ref())?;
         let ordered = owner.derived.acquire_stored(

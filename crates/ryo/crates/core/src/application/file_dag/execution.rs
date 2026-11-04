@@ -630,20 +630,12 @@ impl CommonOperatorEngine<'_> {
         let mut table = Table::default();
         reset(
             &mut table,
-            &contract.collected_kinds.as_ref().map_err(Clone::clone)?,
+            contract.collected_kinds.as_ref().map_err(Clone::clone)?,
         );
-        if !super::optimized::stream_region(self, feed, context, room, &mut Collect(&mut table))? {
-            self.stream(
-                owner,
-                contract,
-                feed,
-                context,
-                room,
-                &mut Collect(&mut table),
-            )?;
+        if super::optimized::stream_region(self, feed, context, room, &mut Collect(&mut table))? {
+            return owner.computed(table);
         }
-
-        owner.computed(table)
+        super::executor::keep_rows(self, contract, feed, owner, context, room)
     }
 }
 

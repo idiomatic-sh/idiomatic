@@ -1,13 +1,14 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
 use super::*;
-use crate::application::file_dag::{derived::owner::ViewContext, relations::RelationOwner};
+use crate::application::file_dag::derived::owner::ViewContext;
 use crate::domain::{
-    derived_views::{collections::views::registration::registered, types::*},
+    derived_views::types::*,
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputSchema,
     operator::contract::views::BorrowedRows,
     table_model::types::{ParameterBinding, Rows},
 };
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
@@ -35,7 +36,16 @@ fn use_(
         .map(|kinds| InputSchema { kinds, tree: None })
         .collect::<Vec<_>>();
     PreparedViewUse {
-        plan: Arc::new(registered(kind).prepare(&request, &schemas).unwrap()),
+        plan: {
+            let plan = crate::application::file_dag::derived::prepare::view(
+                crate::outbound::derived::factory::test_port(),
+                &request,
+                &schemas,
+            )
+            .unwrap();
+            assert_eq!(plan.kind, kind);
+            Arc::new(plan)
+        },
         inputs: [0, 1],
         relations: [None, None],
         len,
@@ -61,16 +71,13 @@ fn context<'a>(
 }
 #[test]
 fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof() {
-    let owner = Rc::new(RelationOwner::new(
-        true,
-        crate::outbound::derived::factory::test_port(),
-    ));
+    let scope = file_scope();
+    let owner = Rc::clone(scope.scope.owner());
     let published = owner.computed(table(&[3, 1, 3], 1)).unwrap();
     let rows = owner
         .resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
-    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
-    workspace.relation_owner = Some(Rc::clone(&owner));
+    let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone())];
     let equality = use_(
         DerivedKind::Equality,
@@ -105,8 +112,10 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         let DerivedView::Equality(index) = index.view().unwrap() else {
             panic!("equality")
         };
-        assert_eq!(index.rows.len(), 3);
-        let DerivedView::Membership(MembershipData::Values(values)) = members.view().unwrap()
+        assert_eq!(index.rows().len(), 3);
+        let DerivedView::Membership(ryo_derived::domain::contract::types::MembershipView::Values(
+            values,
+        )) = members.view().unwrap()
         else {
             panic!("membership")
         };
@@ -131,16 +140,13 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
 }
 #[test]
 fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
-    let owner = Rc::new(RelationOwner::new(
-        true,
-        crate::outbound::derived::factory::test_port(),
-    ));
+    let scope = file_scope();
+    let owner = Rc::clone(scope.scope.owner());
     let published = owner.computed(table(&[1, 0], 2)).unwrap();
     let left = owner
         .resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
-    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
-    workspace.relation_owner = Some(Rc::clone(&owner));
+    let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone()), None];
     let use_ = use_(
         DerivedKind::OrderedKeys,
@@ -175,7 +181,7 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
             panic!("ordered")
         };
         assert!(
-            matches!(rows.right[0].keys[0],ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
+            matches!(rows.right()[0].keys()[0],ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
         );
         retained_views.push(view);
     }
@@ -190,11 +196,11 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
         "live old view cannot be reused by temporary slot identity"
     );
     assert!(matches!(
-        first.right[0].keys[0],
+        first.right()[0].keys()[0],
         ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(9)))
     ));
     assert!(matches!(
-        second.right[0].keys[0],
+        second.right()[0].keys()[0],
         ryo_derived::domain::contract::types::OwnedOrderedKey::Value(Value::Number(Integer(4)))
     ));
     assert_eq!(
@@ -221,10 +227,8 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
 }
 #[test]
 fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
-    let owner = Rc::new(RelationOwner::new(
-        true,
-        crate::outbound::derived::factory::test_port(),
-    ));
+    let scope = file_scope();
+    let owner = Rc::clone(scope.scope.owner());
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![3])];
     let raw = Rows::Stored(ColumnsView {
         kinds: &[CellKind::Number; 2],
@@ -232,8 +236,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     });
     let published = owner.source(Relation::LanguageTarget, &raw).unwrap();
     let normalized = owner.normalized(&published, raw).unwrap().unwrap();
-    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
-    workspace.relation_owner = Some(owner);
+    let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone())];
     let use_ = use_(
         DerivedKind::Equality,
@@ -261,7 +264,9 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
 }
 
 #[test]
-fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
+fn recapturing_delivery_replaces_temporary_population_without_replacing_owner() {
+    let scope = file_scope();
+    let owner = Rc::clone(scope.scope.owner());
     let use_ = use_(
         DerivedKind::Equality,
         ViewRequest::Equality {
@@ -270,9 +275,10 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
         &[&[CellKind::Number]],
         1,
     );
-    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
+    let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     let first = [table(&[9], 1)];
     let feed = crate::application::file_dag::testing::Held {
+        owner: Rc::clone(&owner),
         tables: &first,
         visits: vec![0],
     };
@@ -284,14 +290,15 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
         .unwrap();
     let second = [table(&[4], 1)];
     let feed = crate::application::file_dag::testing::Held {
+        owner: Rc::clone(&owner),
         tables: &second,
         visits: vec![0],
     };
     workspace.capture(&feed, 1).unwrap();
     assert_eq!(
         workspace.owner().derived.counts().0,
-        0,
-        "recapture starts a new invocation owner"
+        1,
+        "recapture preserves the required owner and its build accounting"
     );
     let fresh = workspace
         .acquire_rows(&use_, &[BorrowedRows::Computed(&second[0])], &mut context)
@@ -313,10 +320,8 @@ fn recapturing_delivery_ends_invocation_local_identity_before_slot_reuse() {
 
 #[test]
 fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication() {
-    let owner = Rc::new(RelationOwner::new(
-        true,
-        crate::outbound::derived::factory::test_port(),
-    ));
+    let scope = file_scope();
+    let owner = Rc::clone(scope.scope.owner());
     let values = table(&[7], 1);
     let rows = [BorrowedRows::Computed(&values)];
     let use_ = use_(
@@ -327,9 +332,8 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
         &[&[CellKind::Number]],
         1,
     );
-    let mut workspace = InvocationWorkspace::new(crate::outbound::derived::factory::test_port());
-    workspace.relation_owner = Some(Rc::clone(&owner));
-    workspace.origins = vec![crate::application::file_dag::feed::InputOrigin::Temporary];
+    let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
+    workspace.origins = vec![crate::application::file_dag::feed::InputOrigin::External];
     workspace.publications = vec![None];
     let (mut symbols, mut scratch, mut memo) = (Symbols::default(), Default::default(), vec![]);
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
@@ -345,7 +349,7 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
         builds,
         "missing producer never reaches construction"
     );
-    workspace.origins[0] = crate::application::file_dag::feed::InputOrigin::Temporary;
+    workspace.origins[0] = crate::application::file_dag::feed::InputOrigin::External;
     workspace.publications[0] = Some(owner.computed(table(&[9], 1)).unwrap());
     assert!(matches!(
         workspace.acquire_rows(&use_, &rows, &mut context),
@@ -361,3 +365,21 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
 use ryo_values::domain::rows::types::RowCount;
 
 use ryo_derived::domain::contract::types::DerivedKind;
+
+fn file_scope() -> crate::application::file_dag::testing::FileScope<'static> {
+    use crate::application::file_dag::executor::PrimitiveExecutor as _;
+    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+    let request = crate::domain::operator::contract::types::RequestOperators::prepare(
+        &[],
+        &[],
+        &[],
+        executor.derived_port(),
+    )
+    .unwrap();
+    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
+        &[],
+        &request,
+    ));
+    crate::application::file_dag::testing::FileScope::new(graph, executor, |_| true, &[], &[])
+        .unwrap()
+}

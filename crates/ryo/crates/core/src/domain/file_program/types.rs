@@ -23,11 +23,13 @@ pub(crate) struct PhysicalRegion {
     pub rule: usize,
     pub step: ryo_values::domain::plan_parts::types::StepId,
     pub column: Option<crate::domain::column_kernel::types::Chain>,
+    pub native_nodes: Vec<NodeId>,
+    pub column_nodes: Vec<NodeId>,
 }
 #[derive(Debug)]
 pub(crate) struct Node {
     pub publication_reads: Vec<crate::domain::trust::types::RelationRead>,
-    pub region: Option<PhysicalRegion>,
+    pub regions: Vec<PhysicalRegion>,
     pub needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,
@@ -151,6 +153,8 @@ pub(crate) struct GraphObservations {
     pub layout: ryo_values::domain::observations::types::ObservationReadinessLayout,
     /// Request-qualified bound slots; graph edges carry a compact ID rather than widening every ordinary edge.
     pub slots: Vec<ObservationSlot>,
+    /// Frontier buckets actually needed by authored observations, prepared once.
+    pub observation_frontiers: Vec<Vec<bool>>,
     /// Logical output status slots in stable rule/output order; aliases may share a physical bucket.
     pub frontiers: Vec<ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.
