@@ -148,6 +148,14 @@ impl Fixture {
         measured_profile: &Path,
     ) -> Result<crate::domain::suite::types::certificate::value::Certificate, DiagnosticsError>
     {
+        self.certify_profile_rules(measured_profile, &self.profile.join("rules"))
+    }
+    fn certify_profile_rules(
+        &self,
+        measured_profile: &Path,
+        selected_rules: &Path,
+    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, DiagnosticsError>
+    {
         let operation = CertifyUseCaseImpl::new(
             Arc::new(crate::outbound::suite::factory::local()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
@@ -160,7 +168,7 @@ impl Fixture {
             &self.profile,
             &self.reference_executable,
             &self.worker_executable,
-            &self.profile.join("rules"),
+            selected_rules,
             &self._root.path().join("scratch"),
             BenchmarkCoverage::Accounted,
             &CertificationCases::Registered {
@@ -175,6 +183,22 @@ impl Fixture {
             serde_json::to_vec(&self.document).unwrap(),
         )
         .unwrap();
+    }
+}
+fn copy_measured_profile(fixture: &Fixture, destination: &Path) {
+    for relative in [
+        "benchmark.toml",
+        "helper.ryoql",
+        "second.ryoql",
+        "rules/A/query.ryoql",
+        "rules/A/cases.toml",
+        "rules/B/query.ryoql",
+        "rules/B/cases.toml",
+    ] {
+        write(
+            &destination.join(relative),
+            &std::fs::read_to_string(fixture.profile.join(relative)).unwrap(),
+        );
     }
 }
 #[test]
@@ -375,20 +399,7 @@ fn identical_profile_toml_cannot_substitute_measured_query_or_helper_bytes() {
     for changed in ["rules/A/query.ryoql", "helper.ryoql"] {
         let f = Fixture::new();
         let foreign = f._root.path().join("measured-foreign");
-        for relative in [
-            "benchmark.toml",
-            "helper.ryoql",
-            "second.ryoql",
-            "rules/A/query.ryoql",
-            "rules/A/cases.toml",
-            "rules/B/query.ryoql",
-            "rules/B/cases.toml",
-        ] {
-            write(
-                &foreign.join(relative),
-                &std::fs::read_to_string(f.profile.join(relative)).unwrap(),
-            );
-        }
+        copy_measured_profile(&f, &foreign);
         assert_eq!(
             digest(&foreign.join("benchmark.toml")),
             digest(&f.profile.join("benchmark.toml"))
@@ -396,9 +407,7 @@ fn identical_profile_toml_cannot_substitute_measured_query_or_helper_bytes() {
         write(&foreign.join(changed), "substituted measured source bytes");
         let error = f.certify_profile(&foreign).unwrap_err().to_string();
         assert!(
-            error.contains(
-                "registered profile and selected rule roots differ from measured authority"
-            ),
+            error.contains("selected rule root differs from measured profile"),
             "{changed}: {error}"
         );
         assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{changed}");
@@ -420,13 +429,40 @@ fn identical_profile_toml_cannot_substitute_measured_query_or_helper_bytes() {
         .unwrap_err()
         .to_string();
         assert!(
-            error.contains(
-                "registered profile and selected rule roots differ from measured authority"
-            ),
+            error.contains("selected rule root differs from measured profile"),
             "{changed}: {error}"
         );
         assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{changed}");
+
+        let error = f
+            .certify_profile_rules(&foreign, &foreign.join("rules"))
+            .unwrap_err()
+            .to_string();
+        let expected = if changed.ends_with("query.ryoql") {
+            "measured query differs from registered context"
+        } else {
+            "measured helper differs from tested context"
+        };
+        assert!(error.contains(expected), "{changed}: {error}");
+        assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{changed}");
     }
+}
+
+#[test]
+fn byte_identical_staged_profile_keeps_registered_source_authority() {
+    let f = Fixture::new();
+    let staged = f._root.path().join("measured-staged");
+    copy_measured_profile(&f, &staged);
+    assert_eq!(
+        digest(&staged.join("benchmark.toml")),
+        digest(&f.profile.join("benchmark.toml"))
+    );
+    assert_ne!(staged, f.profile);
+    let certificate = f
+        .certify_profile_rules(&staged, &staged.join("rules"))
+        .unwrap();
+    assert_eq!(certificate.cases().0, 2);
+    assert_eq!(*f.execution.launches.lock().unwrap(), 2);
 }
 
 #[test]

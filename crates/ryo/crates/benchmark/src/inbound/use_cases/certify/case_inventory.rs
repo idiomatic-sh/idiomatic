@@ -60,9 +60,9 @@ pub(super) fn prepare(
             "registered authority differs from measured canonical profile".into(),
         ));
     }
-    if profile.as_path() != measured_profile || rules != measured_profile.join("rules").as_path() {
+    if rules != measured_profile.join("rules").as_path() {
         return Err(Error::Invalid(
-            "registered profile and selected rule roots differ from measured authority".into(),
+            "selected rule root differs from measured profile".into(),
         ));
     }
     if suite.digest(ArtifactPath(reference))?.0 != reference_pin.sha256
