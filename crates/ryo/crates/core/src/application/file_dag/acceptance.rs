@@ -1,5 +1,7 @@
 //! Production-route and engine-owned behavioral acceptance.
 pub(crate) mod column_kernel_service_test;
+#[cfg(test)]
+pub(crate) mod column_topology_test;
 pub(crate) mod comparing_service_test;
 pub(crate) mod crossing_service_test;
 pub(crate) mod file_program_service_test;
