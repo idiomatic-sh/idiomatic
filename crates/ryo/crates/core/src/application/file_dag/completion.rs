@@ -108,6 +108,14 @@ impl CompletionPolicy {
             )),
         }
     }
+    pub(super) fn blocked_coverage(&self) -> CoverageState {
+        match self.scope {
+            ScopeIdentity::File { file, .. } => CoverageState::Partial {
+                files: vec![Some(file)],
+            },
+            ScopeIdentity::Project { .. } => CoverageState::Partial { files: vec![None] },
+        }
+    }
     pub(super) fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
         let files = match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials)

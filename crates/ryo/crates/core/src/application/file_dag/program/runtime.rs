@@ -239,7 +239,7 @@ impl ProgramExecution {
                     )
                     .map_err(InvocationFailure::Semantic)?;
                 return Ok(InvocationOutcome::Published(
-                    input.with_coverage(completion.coverage(needs)),
+                    input.with_coverage(completion.blocked_coverage()),
                 ));
             }
             if matches!(delivery, Delivery::Retain) {

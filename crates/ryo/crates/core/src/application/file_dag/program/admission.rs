@@ -124,8 +124,18 @@ impl AdmittedInput {
         mut self,
         coverage: super::super::completion::CoverageState,
     ) -> Self {
-        if let super::super::completion::CoverageState::Partial { files } = coverage {
-            self.readiness = Readiness::Partial { files };
+        if let super::super::completion::CoverageState::Partial { mut files } = coverage {
+            match &mut self.readiness {
+                Readiness::Complete => self.readiness = Readiness::Partial { files },
+                Readiness::Partial { files: existing } => {
+                    for file in files.drain(..) {
+                        if !existing.contains(&file) {
+                            existing.push(file);
+                        }
+                    }
+                }
+                Readiness::Skipped(_) | Readiness::Unknown(_) => {}
+            }
         }
         self
     }
