@@ -39,6 +39,7 @@ A bounded review never closes wider architecture categories.
 - Missing evidence for a claimed guarantee blocks approval.
 ## Architectural enforcement
 - Invoke or reuse the [Tastemaker specialist](tm-specialist.md) when a recurring structural invariant can be enforced by TM; independently inspect its placed asset and bad/good validation.
+- Require `tm check` on each implementation pass and resolution of findings in scope; asset changes also require `tm validate`. Route recurring structural gaps to the specialist.
 - Audit callable execution, publication, cache-acquisition and permit-construction APIs. Require access controls and unforgeable engine-issued capabilities that prevent callers bypassing the owner; compliant current call sites are insufficient.
 - Require compile-fail bypass examples and passing authorized examples; runtime tests must prove admission, sharing, readiness and release. State the exact boundary proved.
 - For recurring findings, enumerate the class and all instances; require authors to reuse, strengthen, or create TM rules/specs/templates and scaffolds using [nu-hex](../../tastemaker/specs/nu-hex/0.2.0/spec.toml).
