@@ -22,7 +22,7 @@ use ryo_values::domain::{
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub(in crate::application) struct ValidatedFrontier {
+pub(crate) struct ValidatedFrontier {
     program: Arc<ExecutableProgram>,
     generation: Arc<()>,
     root: ProducerRoot,

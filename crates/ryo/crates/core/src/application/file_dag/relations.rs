@@ -60,6 +60,24 @@ struct SourceViews {
     views: HashMap<SourceDescriptor, PublishedInput>,
 }
 
+/// Read-only revocation witness. Only the population owner can invalidate it;
+/// semantic callbacks never receive a mutable atomic or a revival operation.
+pub(in crate::application::file_dag) struct GenerationLease {
+    live: std::sync::atomic::AtomicBool,
+}
+impl GenerationLease {
+    fn new() -> Self {
+        Self {
+            live: std::sync::atomic::AtomicBool::new(true),
+        }
+    }
+    fn invalidate(&self) {
+        self.live.store(false, std::sync::atomic::Ordering::Release);
+    }
+    pub(in crate::application::file_dag) fn is_live(&self) -> bool {
+        self.live.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
 pub(crate) struct RelationOwner {
     #[cfg(test)]
     pub(super) identity_checks: Cell<u64>,
@@ -67,7 +85,7 @@ pub(crate) struct RelationOwner {
     next_population: Cell<usize>,
     producer_populations: RefCell<HashMap<usize, (usize, PopulationId)>>,
     generation: RefCell<Arc<()>>,
-    generation_live: RefCell<Arc<std::sync::atomic::AtomicBool>>,
+    generation_live: RefCell<Arc<GenerationLease>>,
     stable: bool,
     sources: RefCell<HashMap<Relation, SourceViews>>,
     max_views: usize,
@@ -76,12 +94,25 @@ pub(crate) struct RelationOwner {
     pub reuses: Cell<u64>,
 }
 impl RelationOwner {
+    pub(in crate::application::file_dag) fn publication_kinds<'a>(
+        &self,
+        publication: &'a PublishedInput,
+    ) -> Result<&'a [CellKind], OperatingError> {
+        let record = publication.as_ref();
+        self.generation(record)?;
+        Ok(match &record.body {
+            RelationBody::Source(source) => &source.kinds,
+            RelationBody::Selected { selection, .. } => &selection.kinds,
+            RelationBody::Computed(table) => &table.kinds,
+            RelationBody::Compact(table) => {
+                crate::domain::table_words::service::compact_kinds(table)
+            }
+        })
+    }
     pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.generation.borrow())
     }
-    pub(in crate::application::file_dag) fn generation_liveness(
-        &self,
-    ) -> Arc<std::sync::atomic::AtomicBool> {
+    pub(in crate::application::file_dag) fn generation_liveness(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.generation_live.borrow())
     }
     pub(in crate::application::file_dag) fn matches_generation(
@@ -137,7 +168,7 @@ impl RelationOwner {
             next_population: Cell::new(0),
             producer_populations: RefCell::new(HashMap::new()),
             generation: RefCell::new(Arc::new(())),
-            generation_live: RefCell::new(Arc::new(std::sync::atomic::AtomicBool::new(true))),
+            generation_live: RefCell::new(Arc::new(GenerationLease::new())),
             stable,
             sources: RefCell::new(HashMap::new()),
             max_views,
@@ -275,10 +306,8 @@ impl RelationOwner {
         self.producer_populations.borrow_mut().clear();
         self.sources.borrow_mut().clear();
         self.views.set(0);
-        self.generation_live
-            .borrow()
-            .store(false, std::sync::atomic::Ordering::Release);
-        *self.generation_live.borrow_mut() = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        self.generation_live.borrow().invalidate();
+        *self.generation_live.borrow_mut() = Arc::new(GenerationLease::new());
         *self.generation.borrow_mut() = Arc::new(());
     }
     fn private<'a>(

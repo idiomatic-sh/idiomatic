@@ -102,7 +102,7 @@ pub(crate) struct ProgramExecution {
     pub(super) program: Arc<ExecutableProgram>,
     pub(super) owner: std::rc::Rc<super::super::relations::RelationOwner>,
     pub(super) generation: Arc<()>,
-    pub(super) generation_live: Arc<std::sync::atomic::AtomicBool>,
+    pub(super) generation_live: Arc<super::super::relations::GenerationLease>,
     partition: Partition,
     slots: RefCell<Vec<Slot>>,
     retirement: RefCell<RetirementWork>,

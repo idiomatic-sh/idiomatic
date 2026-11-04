@@ -221,7 +221,7 @@ pub(crate) struct KernelPermit<'scope> {
     region: RegionId,
     instruction: usize,
     generation: &'scope Arc<()>,
-    live: &'scope Arc<std::sync::atomic::AtomicBool>,
+    live: &'scope Arc<super::super::relations::GenerationLease>,
     ordered: bool,
 }
 impl<'scope> KernelPermit<'scope> {
@@ -311,7 +311,7 @@ impl<'scope> KernelPermit<'scope> {
         binding: &crate::domain::executable_program::physical::PhysicalBinding,
         meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
     ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
-        if !self.live.load(std::sync::atomic::Ordering::Acquire) {
+        if !self.live.is_live() {
             return Err(OperatingError::NotRead);
         }
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
@@ -466,7 +466,16 @@ pub(super) fn alias_member(
     if input.root != expected || !input.partition.supplies(required) {
         return Err(OperatingError::NotRead);
     }
-    input.publication(owner)?;
+    let publication = input.publication(owner)?;
+    let kinds = owner.publication_kinds(publication)?;
+    if kinds.len() != binding.schema.columns.len()
+        || kinds
+            .iter()
+            .zip(&binding.schema.columns)
+            .any(|(actual, declared)| *actual != declared.kind)
+    {
+        return Err(OperatingError::ShapeMismatch);
+    }
     let mut alias = input.clone();
     alias.root = ProducerRoot::Input(InputSource::ObservationMember { slot, member });
     Ok(alias)
@@ -522,7 +531,7 @@ impl PermittedPhysical<'_, '_, '_> {
         ryo_operators::domain::contract::types::OperatorAnswer,
         super::super::executor::KernelFault,
     > {
-        if !self.permit.live.load(std::sync::atomic::Ordering::Acquire) {
+        if !self.permit.live.is_live() {
             return Err(super::super::executor::KernelFault::Refused(
                 OperatingError::NotRead,
             ));

@@ -1,7 +1,8 @@
 //! Application request preparation and compact root metadata; original plans are transient.
 pub(crate) use super::admission::ApplicabilityReason;
 use super::partitions::SourcePartitions;
-pub(in crate::application) use super::restored::{ValidatedFrontier, validate_restored_frontier};
+pub(crate) use super::restored::ValidatedFrontier;
+pub(in crate::application) use super::restored::validate_restored_frontier;
 use crate::application::rule_compilation::types::{Compiled, ObservationIdentity};
 use crate::domain::{
     coverage::types::RuleIndex,
@@ -86,7 +87,7 @@ pub(crate) enum RootOutcome {
 /// Opaque application handover of the actual admitted population. Packed bytes
 /// may accompany it, but never substitute for its owner/generation evidence.
 #[derive(Clone)]
-pub(in crate::application) struct ObservedPublication {
+pub(crate) struct ObservedPublication {
     admitted: super::admission::AdmittedInput,
 }
 impl ObservedPublication {
