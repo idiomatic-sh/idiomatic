@@ -73,6 +73,13 @@ impl language::interface::LanguagePort for Counting {
         self.language.parse(file, table, symbols, out)
     }
 
+    fn project_entries(
+        &self,
+        input: &language::types::ProjectInput<'_>,
+    ) -> Vec<ryo_language::domain::files::types::FilePath> {
+        self.language.project_entries(input)
+    }
+
     fn project(
         &self,
         input: &language::types::ProjectInput<'_>,
