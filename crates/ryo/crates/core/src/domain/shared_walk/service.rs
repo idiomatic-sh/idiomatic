@@ -136,7 +136,7 @@ fn consider(
         }
         Ok(Verdict::Fails) => {}
         Err(error) => {
-            each.eligible = false;
+            each.eligible = Eligibility::Declined;
             batch.set(place, Err(error));
         }
     }
