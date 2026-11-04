@@ -446,6 +446,22 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     #[derive(Debug)]
     struct RefuseCount;
     impl PrimitiveExecutor for RefuseCount {
+        fn keep_representation(
+            &self,
+            contract: &OperatorContract,
+            physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+            feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+            context: &mut OperatorContext<'_>,
+            room: &mut Room,
+        ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError>
+        {
+            if contract.kind == OperationKind::GroupCount {
+                return Err(OperatingError::NotRun);
+            }
+            CommonOperatorEngine::fixture()
+                .keep_representation(contract, physical, feed, owner, context, room)
+        }
         fn derived_port(
             &self,
         ) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {

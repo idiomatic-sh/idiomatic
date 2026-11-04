@@ -37,6 +37,43 @@ impl Default for Counted {
     }
 }
 impl PrimitiveExecutor for Counted {
+    fn native_classes(
+        &self,
+        owner: &std::rc::Rc<RelationOwner>,
+        declaration: &crate::application::file_dag::executor::NativeClassBatch<'_>,
+        shared: &mut crate::domain::shared_walk::types::MergedWalk,
+        walking: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        self.engine
+            .native_classes(owner, declaration, shared, walking)
+    }
+    fn stream_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        owner: &std::rc::Rc<RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        self.engine
+            .stream_representation(contract, physical, feed, owner, context, room, emit)
+    }
+    fn keep_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        owner: &std::rc::Rc<RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        self.engine
+            .keep_representation(contract, physical, feed, owner, context, room)
+    }
     fn ordered_existence(
         &self,
         owner: &std::rc::Rc<RelationOwner>,

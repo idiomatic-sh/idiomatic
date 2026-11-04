@@ -65,6 +65,19 @@ struct CountingExecutor {
     emitted: Mutex<Vec<(OperationKind, usize)>>,
 }
 impl PrimitiveExecutor for CountingExecutor {
+    fn keep_representation(
+        &self,
+        contract: &OperatorContract,
+        _physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut GraphInputs<'_, '_>,
+        owner: &Rc<RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        crate::application::file_dag::executor::keep_rows(
+            self, contract, feed, owner, context, room,
+        )
+    }
     fn ordered_existence(
         &self,
         owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
@@ -598,6 +611,17 @@ fn partial_positive_rows_reach_common_engine_but_partial_absence_does_not() {
 #[derive(Debug)]
 struct RejectingExecutor;
 impl PrimitiveExecutor for RejectingExecutor {
+    fn keep_representation(
+        &self,
+        _: &OperatorContract,
+        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        _: &mut GraphInputs<'_, '_>,
+        _: &Rc<RelationOwner>,
+        _: &mut OperatorContext<'_>,
+        _: &mut Room,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        Err(OperatingError::WrongOperation)
+    }
     fn ordered_existence(
         &self,
         _owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
