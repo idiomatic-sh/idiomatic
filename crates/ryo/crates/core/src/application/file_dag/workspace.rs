@@ -149,7 +149,8 @@ impl InvocationWorkspace {
             let origin = feed.origin(which)?;
             // A stream may already have been held by an earlier input demand.
             // Preserve its publication so admission keeps its population and
-            // generation proof. Only an unheld internal stream is row scoped.
+            // generation proof. Only an unheld internal stream uses external
+            // physical admission for this invocation.
             let publication = feed.publication(which)?;
             let origin = match (origin, feed.streams(which), publication.is_some()) {
                 (

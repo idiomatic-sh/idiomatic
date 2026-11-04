@@ -89,6 +89,10 @@ fn streamed_capture_preserves_any_held_publication_and_unheld_rows_remain_scoped
 
     let held_row = table(&[9], 1);
     let publication = feed.owner.computed(held_row.clone()).unwrap();
+    let held_rows = feed
+        .owner
+        .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
+        .unwrap();
     let held = Streamed {
         owner: Rc::clone(&feed.owner),
         publication_calls: Cell::new(0),
@@ -104,15 +108,22 @@ fn streamed_capture_preserves_any_held_publication_and_unheld_rows_remain_scoped
             .unwrap()
             .same_record(&publication)
     );
-    assert!(
-        workspace
-            .admit(0, BorrowedRows::Computed(&held_row))
-            .is_ok()
-    );
+    assert!(workspace.admit(0, BorrowedRows::from(&held_rows)).is_ok());
     held.owner.release_population();
     assert!(matches!(
-        workspace.admit(0, BorrowedRows::Computed(&held_row)),
+        workspace.admit(0, BorrowedRows::from(&held_rows)),
         Err(OperatingError::NotRead)
+    ));
+    let unheld = Streamed {
+        owner: Rc::clone(&feed.owner),
+        publication_calls: Cell::new(0),
+        supply: Supply::AtHand,
+        publication: None,
+    };
+    workspace.capture(&unheld, 1).unwrap();
+    assert!(matches!(
+        workspace.admit(0, BorrowedRows::from(&held_rows)),
+        Err(OperatingError::NotRun)
     ));
 }
 fn table(values: &[i64], width: usize) -> Table {

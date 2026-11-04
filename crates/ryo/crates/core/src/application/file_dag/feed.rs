@@ -13,7 +13,8 @@ pub(crate) enum InputOrigin {
     Relation(ryo_relations::domain::relations::types::Relation),
     Internal,
     /// Rows arrive through a declared graph stream with no publication held
-    /// at capture time; admission is scoped to each delivered row.
+    /// at capture time; admission uses physical rows supplied by that
+    /// invocation without inventing a retained producer population.
     InternalStream,
 }
 pub(crate) trait Feed<'f> {
