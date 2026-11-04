@@ -824,12 +824,10 @@ impl FileAnalysis {
                     rule.0,
                     ryo_values::domain::plan_parts::types::InputNumber(place),
                 );
-                // An observation consumer may demand an excluded producer's
-                // frontier. Keep those words for the consumer, but only a
-                // governing rule contributes findings to the answer.
-                if visit.setting.keeping == Keeping::Keeps
-                    && governs_rule(tables, rule) == Governing::Governs
-                {
+                // These words are the warm-store handover, including hidden
+                // producer roots. Diagnostic visibility is decided only when
+                // Emit is rendered, independently of this frontier capture.
+                if visit.setting.keeping == Keeping::Keeps {
                     capture_frontier(tables, visit.setting.answering, bucket);
                 }
             }
