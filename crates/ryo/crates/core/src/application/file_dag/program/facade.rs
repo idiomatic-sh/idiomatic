@@ -190,6 +190,10 @@ impl PreparedProgram {
         &self,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<crate::domain::positions::types::ClassPlace> {
+        let region = self.program.logical_regions().get(instruction.logical.0)?;
+        if self.program.regions().get(region.0)?.instructions.len() != 1 {
+            return None;
+        }
         let ryo_values::domain::plans::types::Operation::Select {
             from: Input::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
             comparisons,
