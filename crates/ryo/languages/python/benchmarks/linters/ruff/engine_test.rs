@@ -182,6 +182,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -217,6 +219,8 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -609,6 +613,8 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.to_owned(),
@@ -638,12 +644,16 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
         ))
     };
     let first = run("nonlocal-at-module")?.run_prepared(WorkerRequest {
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
         ),
         ..request.clone()
     })?;
     let second = run("no-such-parser-code")?.run_prepared(WorkerRequest {
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
         ),
@@ -671,6 +681,8 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
@@ -705,6 +717,8 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
@@ -812,6 +826,8 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
             selected_rules: None,
             rule_observations: None,
             rule_context: None,
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -949,6 +965,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             selected_rules: None,
             rule_observations: None,
             rule_context: None,
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -966,6 +984,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             selected_rules: None,
             rule_observations: None,
             rule_context: None,
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -1048,6 +1068,8 @@ fn assert_single_rule_fragment_equivalence(
             selected_rules: None,
             rule_observations: None,
             rule_context: None,
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -1065,6 +1087,8 @@ fn assert_single_rule_fragment_equivalence(
             selected_rules: None,
             rule_observations: None,
             rule_context: None,
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
             project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
             ),
             context_manifest: None,
@@ -1106,6 +1130,8 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
@@ -1173,6 +1199,8 @@ fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries(
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),

@@ -8,8 +8,8 @@ use super::service::{
     positions, start_at, table_builder, text_at, token,
 };
 use super::types::{DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, Elements, TreeImpact};
-use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 use ryo_relations::domain::terms::types::NameText;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -129,11 +129,11 @@ fn implied_nodes_keep_properties_without_claiming_bytes() -> usize {
     use super::service::{enter_implied_node, node_property, origin_at, property_at, source_order};
     use super::types::SourceOrder;
     use crate::domain::completion::service::intern_decoded;
+    use crate::domain::symbols::service::text_of;
     use ryo_relations::domain::relations::{
         constants::NO_SPAN,
         types::{ElementOrigin, PropertyId},
     };
-    use crate::domain::symbols::service::text_of;
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let source = ByteSlice(b"<p>&amp;");
     let mut builder = table_builder(&mut elements, &mut symbols, source);
@@ -237,7 +237,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn a_write_past_the_table_crashes() -> usize {
     let message = crash_of(|| {
         let mut elements = Elements::default();
-        *number_mut(&mut elements.size, Position(3)) = ryo_relations::domain::relations::types::Extent(1);
+        *number_mut(&mut elements.size, Position(3)) =
+            ryo_relations::domain::relations::types::Extent(1);
     });
     usize::from(message == "a position this table gave")
 }

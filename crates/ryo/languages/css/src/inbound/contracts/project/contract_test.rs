@@ -22,6 +22,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let contract = ProjectContract::new();
     languages::contract::project(&contract);
     let resolved = contract.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Disk,
         root: languages::RootPath("".into()),
         manifests: Vec::new(),

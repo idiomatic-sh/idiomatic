@@ -410,6 +410,8 @@ fn subject(given: Input) -> Result<Value, Failure> {
     std::fs::write(root.path().join("notes.txt"), "text").expect("a file");
     let id = RuleId::try_from("rule").expect("a rule id");
     let request = LintRequest {
+        project_search_scope: Default::default(),
+        given_project_inventory: Default::default(),
         source_language: None,
         root: match given.root {
             Root::Directory => root.path().to_path_buf(),
@@ -551,6 +553,8 @@ fn shared_calls(root: &std::path::Path) -> [LintRequest; 2] {
         }])
     };
     let request = |query: &str, include: &str, file: &str, spec: &str| LintRequest {
+        project_search_scope: Default::default(),
+        given_project_inventory: Default::default(),
         source_language: None,
         root: root.to_path_buf(),
         rules: BTreeMap::from([(
@@ -910,6 +914,8 @@ fn capability_cache(query: &str) -> Value {
         )
     };
     let request = LintRequest {
+        project_search_scope: Default::default(),
+        given_project_inventory: Default::default(),
         source_language: None,
         root: root.path().to_path_buf(),
         rules: BTreeMap::from([(

@@ -19,4 +19,5 @@ pub(super) const UNDECODED: &str = "a section of the store does not read back";
 pub(super) const LENGTH: u64 = 8;
 
 /// Checked before positional postcard decoding; old stores become ordinary cache misses.
-pub(super) const FORMAT: &[u8] = b"ryo-lint-store\0permissions-v1\0observation-readiness-v2\0";
+pub(super) const FORMAT: &[u8] =
+    b"ryo-lint-store\0permissions-v1\0observation-readiness-v2\0project-entries-v2\0";

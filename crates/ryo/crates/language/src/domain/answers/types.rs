@@ -2,10 +2,10 @@
 // ignore: idiomatic.arch/public-fields - the answer of `Support` is private on purpose: only `absent` and `reads` make one, through `From<Answer>`, which no language can call because only this crate names an `Answer`, so a reader written beside its item is no answer (the ui case `fail_support_built_without_an_item`)
 
 use crate::domain::elements::types::Tree;
-use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::types::{KindBits, Position, Rows};
 use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::types::{KindBits, Position, Rows};
 
 /// Which elements of a file's tree a relation's reader looks at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

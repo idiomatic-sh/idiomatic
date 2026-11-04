@@ -414,6 +414,9 @@ fn request_of(
     relation: languages::Relation,
 ) -> languages::ProjectRequest {
     languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Disk,
         root: RootPath(".".into()),
         manifests: manifests.to_vec(),
@@ -640,6 +643,9 @@ fn consulted(around: Around) -> Result<&'static [&'static str], Failure> {
     let resolved = languages::contract::read_project(
         &contract,
         &languages::ProjectRequest {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
+            observed_entries: Vec::new(),
             repository: languages::Repository::Disk,
             root: RootPath(above.path().join("repository").to_string_lossy().into()),
             manifests: vec![manifest("Cargo.toml", workspace)],
@@ -685,6 +691,9 @@ fn members_at(contract: &ProjectContract, root: &std::path::Path, member: &str) 
     let resolved = languages::contract::read_project(
         contract,
         &languages::ProjectRequest {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
+            observed_entries: Vec::new(),
             repository: languages::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
             manifests: vec![manifest(

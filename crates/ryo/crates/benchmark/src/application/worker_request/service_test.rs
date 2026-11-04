@@ -62,6 +62,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: if matches!(scenario, Scenario::WrongMode) {
             ProjectContextMode::Isolated
         } else {
@@ -156,6 +158,8 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ProjectContextMode::ListedDisk,
         context_manifest: Some(manifest),
         root: boundary.join("project"),

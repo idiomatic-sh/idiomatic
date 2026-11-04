@@ -44,6 +44,9 @@ struct ToolSchema {
     parser_configuration: Option<String>,
     #[serde(default, rename = "source-language")]
     source_language: Option<String>,
+    /// Explicit ordered import roots; absent and empty have distinct meanings.
+    #[serde(default, rename = "project-search-roots")]
+    project_search_roots: Option<Vec<String>>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -86,6 +89,13 @@ struct CaseSchema {
     rule_observations: Option<BTreeMap<String, Vec<ObservationBindingSchema>>>,
     #[serde(default, rename = "rule-context")]
     rule_context: Option<RuleConfigurationSchema>,
+    /// Per-case ordered import roots override the profile declaration.
+    #[serde(default, rename = "project-search-roots")]
+    project_search_roots: Option<Vec<String>>,
+    /// Contextual entry kinds for the candidate's Given corpus.
+    #[serde(default, rename = "given-project-inventory")]
+    given_project_inventory:
+        Option<crate::outbound::context::adapters::local::schemas::ProjectInventorySchema>,
     /// Optional explicit primary inventory; absent paths require the shared context absence seal.
     #[serde(default, rename = "requested-files")]
     requested_files: Option<Vec<String>>,
@@ -137,6 +147,34 @@ enum ComparisonSchema {
     Rule,
     /// Compare all reported diagnostics.
     Full,
+}
+
+fn project_search_roots(
+    roots: Option<Vec<String>>,
+) -> Result<Option<Vec<ryo::linter::RelativePath>>, Error> {
+    roots
+        .map(|roots| {
+            roots
+                .into_iter()
+                .map(|root| {
+                    if !root.is_empty() {
+                        crate::domain::suite::service::relative_path(&root)?;
+                    }
+                    Ok(ryo::linter::RelativePath(root.into_boxed_str()))
+                })
+                .collect::<Result<Vec<_>, Error>>()
+        })
+        .transpose()
+}
+
+fn given_project_inventory(
+    inventory: crate::outbound::context::adapters::local::schemas::ProjectInventorySchema,
+) -> Result<ryo::linter::GivenProjectInventory, Error> {
+    let inventory: ryo::linter::GivenProjectInventory = inventory.into();
+    for entry in &inventory.entries {
+        crate::domain::suite::service::relative_path(entry.path.0.as_ref())?;
+    }
+    Ok(inventory)
 }
 
 /// Decode and validate a pinned reference profile.
@@ -230,6 +268,7 @@ impl TryFrom<ToolSchema> for types::Tool {
             rule_applicability: wire.rule_applicability,
             parser_configuration: wire.parser_configuration,
             source_language: wire.source_language,
+            project_search_roots: project_search_roots(wire.project_search_roots)?,
         })
     }
 }
@@ -339,6 +378,11 @@ impl TryFrom<CasesSchema> for types::Cases {
                             .map(observation_declarations)
                             .transpose()
                             .map_err(Error::Invalid)?,
+                        project_search_roots: project_search_roots(case.project_search_roots)?,
+                        given_project_inventory: case
+                            .given_project_inventory
+                            .map(given_project_inventory)
+                            .transpose()?,
                         requested_files: case.requested_files.map(|paths| {
                             paths
                                 .into_iter()

@@ -1,9 +1,9 @@
 //! Publish actual requested manifest identities and genuine parser locations.
+use super::constants;
 use crate::domain::{
     links::types::Linked,
     manifest_validation::types::{Location, ManifestValidations, Phase},
 };
-use super::constants;
 use ryo::languages;
 /// Independent metadata validator rows.
 pub(crate) struct ManifestDiagnosticItem;

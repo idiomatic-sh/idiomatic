@@ -24,18 +24,21 @@ type Value = usize;
 type Failure = CorpusError;
 
 fn adapter() -> CorpusMemoryAdapter {
-    CorpusMemoryAdapter::new(vec![
-        CorpusFile {
-            executable: Default::default(),
-            path: FilePath("a.rs".into()),
-            bytes: FileBytes(b"fn a() {}".to_vec()),
-        },
-        CorpusFile {
-            executable: Default::default(),
-            path: FilePath("sub/b.rs".into()),
-            bytes: FileBytes(b"fn b() {}\n".to_vec()),
-        },
-    ])
+    CorpusMemoryAdapter::new(
+        vec![
+            CorpusFile {
+                executable: Default::default(),
+                path: FilePath("a.rs".into()),
+                bytes: FileBytes(b"fn a() {}".to_vec()),
+            },
+            CorpusFile {
+                executable: Default::default(),
+                path: FilePath("sub/b.rs".into()),
+                bytes: FileBytes(b"fn b() {}\n".to_vec()),
+            },
+        ],
+        Default::default(),
+    )
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -85,4 +88,52 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn given_inventory_distinguishes_absence_uncertainty_and_conflict() {
+    use ryo_language::domain::project_context::types::{
+        EntryObservation, EntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+    };
+    let inventory = GivenProjectInventory {
+        entries: vec![
+            EntryObservation {
+                path: FilePath("pkg".into()),
+                state: EntryState::Directory,
+            },
+            EntryObservation {
+                path: FilePath("conflict.py".into()),
+                state: EntryState::Missing,
+            },
+            EntryObservation {
+                path: FilePath("conflict.py".into()),
+                state: EntryState::File,
+            },
+        ],
+        completeness: ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
+    };
+    let corpus = CorpusMemoryAdapter::new(
+        vec![CorpusFile {
+            executable: Default::default(),
+            path: FilePath("real.py".into()),
+            bytes: FileBytes(b"pass\n".to_vec()),
+        }],
+        inventory,
+    );
+    assert_eq!(
+        corpus.observe_entry(&FilePath("pkg".into())).state,
+        EntryState::Directory
+    );
+    assert_eq!(
+        corpus.observe_entry(&FilePath("real.py".into())).state,
+        EntryState::File
+    );
+    assert_eq!(
+        corpus.observe_entry(&FilePath("absent.py".into())).state,
+        EntryState::Missing
+    );
+    assert_eq!(
+        corpus.observe_entry(&FilePath("conflict.py".into())).state,
+        EntryState::Unknown
+    );
 }

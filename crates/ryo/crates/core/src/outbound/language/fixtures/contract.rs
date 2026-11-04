@@ -90,6 +90,9 @@ fn reading_no_manifest_refuses_none(language: &dyn LanguagePort) -> Result<Value
     let root = RootPath("contract".into());
     let notes = ProjectNotes::default();
     let input = ProjectInput {
+        search_scope: &Default::default(),
+        given_inventory: &Default::default(),
+        observed_entries: &[],
         repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
         root: &root,
         manifests: &[],

@@ -6,8 +6,8 @@
 use super::types::{Lossless, ReadableText};
 use crate::domain::elements::service::{decoded_token, enter_node, leave_node, token};
 use crate::domain::elements::types::TableBuilder;
-use ryo_relations::domain::relations::types::{KindBits, Offset};
 use crate::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::types::{KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 
 /// A tree written through `builder`, its tokens starting at `start`: zero for a file, or where the text the library reads starts.

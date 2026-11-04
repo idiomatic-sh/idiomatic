@@ -311,6 +311,7 @@ pub fn stored(tag: u8) -> Stored {
             modified: Nanoseconds(9),
         }],
         consulted_absent: vec![FilePath("../.cargo/config".into())],
+        project_observations: Vec::new(),
         handed: handed(tag),
     }
 }

@@ -54,6 +54,12 @@ struct RequestSchema {
     parser_configuration: Option<String>,
     #[serde(default)]
     source_language: Option<String>,
+    /// Absent means no search authority; an empty array is a declared empty scope.
+    #[serde(default)]
+    project_search_roots: Option<Vec<String>>,
+    #[serde(default)]
+    given_project_inventory:
+        crate::outbound::context::adapters::local::schemas::ProjectInventorySchema,
     /// Exact project-relative file set covered by this request or report.
     files: Vec<String>,
     /// Retained worker state directory, or no retained state for a fresh run.
@@ -86,6 +92,13 @@ impl TryFrom<RequestSchema> for WorkerRequest {
                 .map(observation_declarations)
                 .transpose()
                 .map_err(WorkerSchemaError::Observation)?,
+            project_search_roots: request.project_search_roots.map(|roots| {
+                roots
+                    .into_iter()
+                    .map(|root| ryo::linter::RelativePath(root.into_boxed_str()))
+                    .collect()
+            }),
+            given_project_inventory: request.given_project_inventory.into(),
             project_context_mode: request.project_context_mode.into(),
             context_manifest: request.context_manifest.map(Into::into),
             root: request.root,

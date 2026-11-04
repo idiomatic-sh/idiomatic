@@ -106,7 +106,9 @@ impl Emit for Guard<'_> {
 
 /// Observe the actual shared collection sink without allocating another table.
 #[inline]
-pub(in crate::application::file_dag) fn collect(out: &mut ryo_values::domain::rows::types::Table) -> impl Emit + '_ {
+pub(in crate::application::file_dag) fn collect(
+    out: &mut ryo_values::domain::rows::types::Table,
+) -> impl Emit + '_ {
     #[cfg(feature = "diagnostic-row-progress")]
     {
         ProgressCollect {

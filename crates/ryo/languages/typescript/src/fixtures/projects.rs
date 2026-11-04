@@ -107,6 +107,9 @@ pub(crate) fn request(
     let mut files = files.to_vec();
     files.sort_by_key(|(path, _)| *path);
     languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: files

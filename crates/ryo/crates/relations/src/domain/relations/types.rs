@@ -499,6 +499,8 @@ pub struct Expanded {
 pub enum OptionalCapability {
     /// Project-established importable module identity.
     ModuleIdentity,
+    /// Project membership of an imported root under declared search roots.
+    ProjectNamespaceMembership,
     /// Canonical language identifier spellings.
     Identifier,
     /// Static qualified import and builtin provenance.

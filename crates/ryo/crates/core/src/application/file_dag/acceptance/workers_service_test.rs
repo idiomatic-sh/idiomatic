@@ -182,7 +182,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
                 operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
                 domain: crate::domain::workers::types::VisitSetting {
-                    observations: crate::domain::file_program::types::ObservationRequest::Independent,
+                    observations:
+                        crate::domain::file_program::types::ObservationRequest::Independent,
                     unknown: &[],
                     plans: &[],
                     bindings: &[],

@@ -20,7 +20,8 @@ impl PrimitiveExecutor for Refuse {
         output_kinds: &[ryo_relations::domain::relations::types::CellKind],
         context: &mut OperatorContext<'_>,
         room: &mut Room,
-    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError> {
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
+    {
         Err(OperatingError::NotRead)
     }
 

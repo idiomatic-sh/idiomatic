@@ -5,11 +5,11 @@ use super::service::{
     name_count, name_made_across, name_of, place_of, query_intern_derived, text_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::symbols::types::ByteSlice;
+use crate::domain::symbols::types::{QuerySymbols, Symbols, SymbolsEngine};
 use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
 };
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{QuerySymbols, Symbols, SymbolsEngine};
 use ryo_relations::domain::terms::service::term_symbol;
 use ryo_relations::domain::terms::types::{DeclarationKind, NameText};
 

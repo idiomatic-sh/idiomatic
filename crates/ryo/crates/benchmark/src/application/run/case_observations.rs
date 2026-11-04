@@ -57,30 +57,44 @@ pub(super) fn write(
         crate::outbound::suite::types::ArtifactPath(&case.request.root),
         &case
             .request
-            .files
+            .staged_sources
+            .as_deref()
+            .unwrap_or(&case.request.files)
             .iter()
             .filter(|file| {
-                !case
-                    .request
-                    .context_manifest
-                    .as_ref()
-                    .is_some_and(|manifest| {
-                        crate::domain::suite::service::declares_missing(manifest, file)
-                    })
+                case.request.staged_sources.is_some()
+                    || !case
+                        .request
+                        .context_manifest
+                        .as_ref()
+                        .is_some_and(|manifest| {
+                            crate::domain::suite::service::declares_missing(manifest, file)
+                        })
             })
             .map(|file| std::path::PathBuf::from(file.0.as_ref()))
             .collect::<Vec<_>>(),
     );
     let metadata_identity =
         crate::domain::suite::input_metadata::digest(case.request.file_metadata.as_ref());
+    let project_identity = crate::domain::suite::project_inputs::digest(
+        case.request.project_search_roots.as_deref(),
+        &case.request.given_project_inventory,
+    );
     let metadata_error = metadata_identity.as_ref().err().map(ToString::to_string);
     let metadata_sha256 = metadata_identity.ok().flatten().map(|value| value.0);
+    let project_error = project_identity.as_ref().err().map(ToString::to_string);
+    let project_inputs_sha256 = project_identity.ok().flatten().map(|value| value.0);
     let source_error = source_identity
         .as_ref()
         .err()
         .map(ToString::to_string)
         .or_else(|| {
-            metadata_error.map(|reason| format!("file metadata identity unavailable: {reason}"))
+            metadata_error
+                .map(|reason| format!("file metadata identity unavailable: {reason}"))
+                .or_else(|| {
+                    project_error
+                        .map(|reason| format!("project input identity unavailable: {reason}"))
+                })
         });
     let source_sha256 = source_identity.ok();
     let recorded_error = match (error, source_error.as_deref()) {
@@ -127,6 +141,7 @@ pub(super) fn write(
         "raw_parity_matches_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
         "diagnostics_match_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
         "source_sha256": source_sha256,
+        "project_inputs_sha256": project_inputs_sha256,
         "error": recorded_error,
         "case_passed": passed && source_error.is_none(),
         "complete": true,

@@ -2,11 +2,11 @@
 //! The types of the `elements` concept: the element table of a file and what builds and reads it.
 
 use super::constants::SCRATCH;
+use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::Expanded;
 use ryo_relations::domain::relations::types::{
     Bytes, Count, Extent, FieldId, FileId, Flags, KindBits, Offset, Position, PropertyId,
 };
-use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 

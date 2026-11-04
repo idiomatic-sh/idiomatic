@@ -118,6 +118,8 @@ fn check_case(
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
         project_context_mode: ProjectContextMode::Isolated,
         context_manifest: None,
         root: source,

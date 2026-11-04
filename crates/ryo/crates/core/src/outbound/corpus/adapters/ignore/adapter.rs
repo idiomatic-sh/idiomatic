@@ -11,6 +11,7 @@ use super::constants::{exact_skip, file_root, git_directory};
 use super::types::{BytesRead, Stability, Stamp};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
+use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::files::service::{input_path, with_separator};
 use ryo_values::domain::files::types::{
@@ -27,6 +28,8 @@ pub(crate) struct CorpusIgnoreAdapter {
     listing: CorpusListing,
     /// Files given as text: listed beside the others, and read as given, also where the disk has a file of that path.
     beside: Vec<CorpusFile>,
+    /// Paths supplied as source text, indexed for demanded candidate observations.
+    beside_paths: std::collections::BTreeSet<ryo_language::domain::files::types::FilePath>,
     /// Directories a walk never goes into, at any depth.
     skipped: SkippedDirectories,
 }
@@ -34,16 +37,18 @@ pub(crate) struct CorpusIgnoreAdapter {
 impl CorpusIgnoreAdapter {
     /// An adapter over the repository at `root` that lists the files `listing` says, reads those of `beside` as given, and walks
     /// into no directory of `skipped`.
-    pub(crate) const fn new(
+    pub(crate) fn new(
         root: RootPath,
         listing: CorpusListing,
         beside: Vec<CorpusFile>,
         skipped: SkippedDirectories,
     ) -> Self {
+        let beside_paths = beside.iter().map(|file| file.path.clone()).collect();
         Self {
             root,
             listing,
             beside,
+            beside_paths,
             skipped,
         }
     }
@@ -321,6 +326,27 @@ impl CorpusPort for CorpusIgnoreAdapter {
             Ok(None) => Ok(PathStat::Missing),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(PathStat::Missing),
             Err(error) => Err(unreadable(&self.root, &error)),
+        }
+    }
+
+    fn observe_entry(
+        &self,
+        path: &ryo_language::domain::files::types::FilePath,
+    ) -> EntryObservation {
+        let state = if self.beside_paths.contains(path) {
+            EntryState::File
+        } else {
+            match std::fs::metadata(std::path::Path::new(&*self.root.0).join(&*path.0)) {
+                Ok(metadata) if metadata.is_file() => EntryState::File,
+                Ok(metadata) if metadata.is_dir() => EntryState::Directory,
+                Ok(_) => EntryState::Other,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => EntryState::Missing,
+                Err(_) => EntryState::Unknown,
+            }
+        };
+        EntryObservation {
+            path: path.clone(),
+            state,
         }
     }
 }

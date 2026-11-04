@@ -11,6 +11,7 @@ use crate::domain::runs::types::{ManifestRefused, RuleId, Skipped};
 use crate::domain::stored_facts::types::PackedWords;
 use crate::domain::stored_facts::types::{ArenaBytes, Bucket, Digest, FileNotes, StoredPartial};
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::project_context::types::EntryObservation;
 
 /// What a lint keeps for the next run: its rules, its files, what they showed and what could not be read or decided.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -39,6 +40,8 @@ pub struct Stored {
     /// The files the lookup asked for and found none of, in the order of their paths: a warm run makes the rules that read the
     /// project again when one of them is there now.
     pub consulted_absent: Vec<FilePath>,
+    /// Exact project-entry states used to answer imported-root membership.
+    pub project_observations: Vec<EntryObservation>,
     /// What each file handed the steps that read across files and the project: read only by a run that makes those steps again or
     /// keeps a store of its own.
     pub handed: StoredHanded,

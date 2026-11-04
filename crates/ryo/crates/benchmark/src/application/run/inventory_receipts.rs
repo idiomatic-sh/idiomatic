@@ -66,6 +66,46 @@ pub(super) fn metadata_digest(case: &Value) -> Result<Value, String> {
     ))
 }
 
+/// Recompute the project input identity from the registered explicit roots and entry inventory.
+fn project_inputs_digest(case: &Value) -> Result<Value, String> {
+    let roots = if case["project_search_roots"].is_null() {
+        None
+    } else {
+        Some(
+            case["project_search_roots"]
+                .as_array()
+                .ok_or("project search roots must be an ordered array")?
+                .iter()
+                .map(|value| {
+                    let root = value.as_str().ok_or("project search root is not text")?;
+                    if !root.is_empty() {
+                        crate::domain::suite::service::relative_path(root)
+                            .map_err(|error| error.to_string())?;
+                    }
+                    Ok(ryo::linter::RelativePath(root.to_owned().into_boxed_str()))
+                })
+                .collect::<Result<Vec<_>, String>>()?,
+        )
+    };
+    let inventory = if case["given_project_inventory"].is_null() {
+        ryo::linter::GivenProjectInventory::default()
+    } else {
+        let wire: crate::outbound::context::adapters::local::schemas::ProjectInventorySchema =
+            serde_json::from_value(case["given_project_inventory"].clone())
+                .map_err(|error| error.to_string())?;
+        wire.into()
+    };
+    for entry in &inventory.entries {
+        crate::domain::suite::service::relative_path(entry.path.0.as_ref())
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(serde_json::json!(
+        crate::domain::suite::project_inputs::digest(roots.as_deref(), &inventory)
+            .map_err(|error| error.to_string())?
+            .map(|digest| digest.0)
+    ))
+}
+
 /// Require exact registered case identities and two actual complete, passing observations.
 pub(super) fn validate(
     cases: &[Value],
@@ -119,8 +159,12 @@ pub(super) fn validate_with_artifacts(
     let mut contract_only = 0;
     for case in cases {
         let metadata = metadata_digest(case)?;
+        let project_inputs = project_inputs_digest(case)?;
         if case["file_metadata_sha256"] != metadata {
             return Err("registered file metadata digest differs".into());
+        }
+        if case["project_inputs_sha256"] != project_inputs {
+            return Err("registered project inputs digest differs".into());
         }
         let declared = if case["expectation_contract"].is_null() {
             crate::domain::diagnostics::types::ComparisonContract::Diagnostics
@@ -190,6 +234,7 @@ pub(super) fn validate_with_artifacts(
                 || row["case_passed"] != true
                 || row["source_sha256"] != case["source_sha256"]
                 || row["file_metadata_sha256"] != metadata
+                || row["project_inputs_sha256"] != project_inputs
                 || row["files"] != case["files"]
                 || normalized(&row["expected"])? != expected
                 || if process {

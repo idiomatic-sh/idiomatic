@@ -215,6 +215,9 @@ where
     sorted.sort_unstable();
     let paths: Vec<&str> = sorted.iter().map(|(path, _)| *path).collect();
     let request = languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Disk,
         root: languages::RootPath("".into()),
         manifests: files

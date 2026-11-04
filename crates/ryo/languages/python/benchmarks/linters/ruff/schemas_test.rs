@@ -114,6 +114,9 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
+        staged_sources: None,
         file_metadata: None,
         context_manifest: Some(ContextManifest {
             boundary: "/snapshot".into(),

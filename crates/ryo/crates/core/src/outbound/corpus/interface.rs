@@ -3,6 +3,7 @@
 use super::errors::CorpusError;
 use crate::outbound::corpus::types::{Inventory, PathStat};
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::project_context::types::EntryObservation;
 use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
 
 /// What every `corpus` adapter implements.
@@ -30,4 +31,7 @@ pub trait CorpusPort: Send + Sync {
     ///
     /// `Unreadable` when the system cannot say what the path is.
     fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError>;
+
+    /// Observe a candidate entry's kind without reading bytes; directory, absence and uncertainty stay distinct.
+    fn observe_entry(&self, path: &FilePath) -> EntryObservation;
 }

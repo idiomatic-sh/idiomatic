@@ -90,6 +90,8 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
                 rule_observations: None,
                 rule_context: None,
                 requested_files: None,
+                project_search_roots: None,
+                given_project_inventory: None,
                 file_metadata: None,
                 reference_discrepancy: None,
                 context: None,
@@ -104,6 +106,8 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
                 rule_observations: None,
                 rule_context: None,
                 requested_files: None,
+                project_search_roots: None,
+                given_project_inventory: None,
                 file_metadata: None,
                 reference_discrepancy: None,
                 context: None,
@@ -144,6 +148,8 @@ fn requested_missing_inputs_require_a_real_absence_contract_and_only_origin_span
         rule_observations: None,
         rule_context: None,
         requested_files: Some(vec![readable.clone(), missing.clone()]),
+        project_search_roots: None,
+        given_project_inventory: None,
         file_metadata: None,
         reference_discrepancy: None,
         context: Some(CaseContext {
@@ -193,5 +199,61 @@ fn requested_missing_inputs_require_a_real_absence_contract_and_only_origin_span
     assert!(
         validate(changed).is_err(),
         "readable source inventory cannot silently shrink"
+    );
+}
+
+#[test]
+fn given_project_inventory_can_stage_an_unselected_local_module() {
+    use crate::domain::suite::service::validate_case_sources;
+    use ryo::linter::{GivenProjectInventory, ProjectEntryObservation, ProjectEntryState};
+
+    let importer = ryo::linter::RelativePath("main.py".into());
+    let sibling = ryo::linter::RelativePath("localmod.py".into());
+    let mut case = SuiteCase {
+        requested_files: Some(vec![importer.clone()]),
+        project_search_roots: Some(vec![ryo::linter::RelativePath("".into())]),
+        given_project_inventory: Some(GivenProjectInventory {
+            entries: vec![ProjectEntryObservation {
+                path: sibling.clone(),
+                state: ProjectEntryState::File,
+            }],
+            completeness: Default::default(),
+        }),
+        file_metadata: None,
+        reference_discrepancy: None,
+        context: None,
+        comparison: CaseComparison::Full,
+        name: BenchmarkCaseName("unselected-sibling".into()),
+        files: [
+            (
+                importer.clone(),
+                ryo::linter::SourceText("import localmod\n".into()),
+            ),
+            (
+                sibling.clone(),
+                ryo::linter::SourceText("value = 1\n".into()),
+            ),
+        ]
+        .into(),
+        expected: Vec::new(),
+    };
+    let validate = |case| validate_case_sources(&Cases { cases: vec![case] });
+    assert!(validate(case.clone()).is_ok());
+
+    case.given_project_inventory = None;
+    assert!(
+        validate(case.clone()).is_err(),
+        "unselected bytes need an observation"
+    );
+    case.given_project_inventory = Some(GivenProjectInventory {
+        entries: vec![ProjectEntryObservation {
+            path: sibling,
+            state: ProjectEntryState::Missing,
+        }],
+        completeness: Default::default(),
+    });
+    assert!(
+        validate(case).is_err(),
+        "staged bytes cannot also be absent"
     );
 }

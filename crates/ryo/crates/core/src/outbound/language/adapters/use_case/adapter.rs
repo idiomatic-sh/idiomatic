@@ -29,6 +29,36 @@ use crate::outbound::language::types::{
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
 
+/// Give one language only the notes it wrote, with the same host scope and engine observations.
+fn project_request(input: &ProjectInput<'_>, number: usize) -> ProjectRequest {
+    ProjectRequest {
+        root: input.root.clone(),
+        repository: input.repository,
+        search_scope: input.search_scope.clone(),
+        given_inventory: input.given_inventory.clone(),
+        observed_entries: input.observed_entries.to_vec(),
+        manifests: input.manifests.to_vec(),
+        files: input
+            .files
+            .iter()
+            .map(|each| ryo_values::domain::files::service::input_path(each).clone())
+            .collect(),
+        notes: input
+            .notes
+            .0
+            .iter()
+            .map(|each| match each {
+                Some(FileNotes {
+                    language: written_by,
+                    notes,
+                }) if written_by.0 == number => Bytes(notes.0.clone()),
+                Some(_) | None => Bytes::default(),
+            })
+            .collect(),
+        wanted: input.wanted.to_vec(),
+    }
+}
+
 /// The `use_case` language adapter.
 #[derive(Debug)]
 pub(crate) struct LanguageUseCaseAdapter {
@@ -242,6 +272,20 @@ impl LanguagePort for LanguageUseCaseAdapter {
             .and_then(|handle| handle.parse.begin_semantics(&parse_request(file), tree))
     }
 
+    fn project_entries(&self, input: &ProjectInput<'_>) -> Vec<FilePath> {
+        let mut entries = Vec::new();
+        for (number, language) in self.languages.iter().enumerate() {
+            entries.extend(
+                language
+                    .project
+                    .project_entries(&project_request(input, number)),
+            );
+        }
+        entries.sort();
+        entries.dedup();
+        entries
+    }
+
     fn project(
         &self,
         input: &ProjectInput<'_>,
@@ -252,36 +296,19 @@ impl LanguagePort for LanguageUseCaseAdapter {
         let mut unlisted = Vec::new();
         let mut consulted = Vec::new();
         for (number, language) in self.languages.iter().enumerate() {
-            let request = ProjectRequest {
-                root: input.root.clone(),
-                repository: input.repository,
-                manifests: input.manifests.to_vec(),
-                files: input
-                    .files
-                    .iter()
-                    .map(|each| ryo_values::domain::files::service::input_path(each).clone())
-                    .collect(),
-                notes: input
-                    .notes
-                    .0
-                    .iter()
-                    .map(|each| match each {
-                        // A language reads only the notes it wrote.
-                        Some(FileNotes {
-                            language: written_by,
-                            notes,
-                        }) if written_by.0 == number => Bytes(notes.0.clone()),
-                        Some(_) | None => Bytes::default(),
-                    })
-                    .collect(),
-                wanted: input.wanted.to_vec(),
-            };
+            let request = project_request(input, number);
             let bytes = language
                 .project
                 .project(&request, symbols, out)
                 .map_err(|error| LanguageError::Manifest {
                     reason: error.to_string(),
                 })?;
+            if bytes.observed_entries != request.observed_entries {
+                return Err(LanguageError::Manifest {
+                    reason: "project observation receipt differs from the engine's batch"
+                        .to_owned(),
+                });
+            }
             consulted.extend(bytes.consulted);
             // The numbers after the files the run lists are one language's to give: two would number different manifests alike. Two
             // languages that read the same manifests name the same ones in the same order, which is one numbering.
@@ -308,6 +335,7 @@ impl LanguagePort for LanguageUseCaseAdapter {
             refused,
             unlisted,
             consulted,
+            observed_entries: input.observed_entries.to_vec(),
         })
     }
 }

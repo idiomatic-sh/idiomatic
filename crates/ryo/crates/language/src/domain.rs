@@ -9,6 +9,7 @@ pub mod expansions;
 pub mod files;
 pub mod kind_index;
 pub mod location;
+pub mod project_context;
 pub mod reasons;
 pub mod semantics;
 pub mod symbols;

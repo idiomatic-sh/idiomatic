@@ -59,6 +59,10 @@ pub use lint::types::Skipped;
 pub use lint::types::{DependencyFingerprint, ProjectDependency, ProjectDependencyState};
 
 pub use lint::types::LintRequest;
+pub use lint::types::{
+    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
+    ProjectInventoryCompleteness, ProjectSearchScope,
+};
 
 pub use crate::domain::capacity::types::MemoryBudget;
 
@@ -123,7 +127,6 @@ pub use lint::types::FindingColumn;
 
 pub use crate::domain::relation::types::ColumnName;
 
-pub use lint::types::{ExecutionOptions, NodeResultReuse};
 /// Local typed query input name.
 pub use crate::domain::observation::types::ObservationBindingName;
 /// Ordered semantic column required by a bound input.
@@ -136,5 +139,6 @@ pub use crate::domain::observation::types::ObservationName;
 pub use lint::types::ObservationBinding;
 /// A selected producer output or an explicitly unavailable query.
 pub use lint::types::ObservationProducer;
+pub use lint::types::{ExecutionOptions, NodeResultReuse};
 
 pub use crate::domain::observation::types::ObservationKind;

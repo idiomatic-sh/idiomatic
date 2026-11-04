@@ -46,11 +46,19 @@ impl ProjectUseCase for Missing {
         )
     }
 
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+    ) -> Vec<ryo_language::domain::files::types::FilePath> {
+        Vec::new()
+    }
+
     fn resolve(
         &self,
         _request: &ProjectRequest,
     ) -> Result<ryo_language::inbound::use_cases::project::types::Resolved, ProjectError> {
         Ok(ryo_language::inbound::use_cases::project::types::Resolved {
+            observed_entries: Vec::new(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),

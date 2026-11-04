@@ -79,6 +79,8 @@ impl TryFrom<RunArgumentsSchema> for LintRequest {
         Ok(Self {
             source_language: None,
             session: Session {
+                search_scope: Default::default(),
+                given_inventory: Default::default(),
                 repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
                 root: RootPath(schema.root.into()),
             },

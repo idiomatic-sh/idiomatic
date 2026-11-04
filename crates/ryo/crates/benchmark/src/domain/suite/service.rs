@@ -123,26 +123,46 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         }
         if let Some(requested) = &case.requested_files {
             let selected: std::collections::BTreeSet<_> = requested.iter().collect();
-            if requested.is_empty()
-                || selected.len() != requested.len()
-                || case.files.keys().any(|path| !selected.contains(path))
-            {
+            if requested.is_empty() || selected.len() != requested.len() {
                 return Err(Error::Invalid(
-                    "explicit source inventory must retain every readable source exactly once"
-                        .into(),
+                    "explicit source inventory must name each selected source exactly once".into(),
                 ));
             }
-            let context = case.context.as_ref().ok_or_else(|| {
-                Error::Invalid("explicit source inventory requires a sealed disk context".into())
-            })?;
-            for path in requested {
-                relative_path(path.0.as_ref())?;
-                if !case.files.contains_key(path)
-                    && !context_missing(&context.logical_root, &context.missing, path)
-                {
+            if let Some(context) = &case.context {
+                if case.files.keys().any(|path| !selected.contains(path)) {
                     return Err(Error::Invalid(
-                        "requested unavailable source lacks a context absence seal".into(),
+                        "sealed disk context must select every staged readable source".into(),
                     ));
+                }
+                for path in requested {
+                    relative_path(path.0.as_ref())?;
+                    if !case.files.contains_key(path)
+                        && !context_missing(&context.logical_root, &context.missing, path)
+                    {
+                        return Err(Error::Invalid(
+                            "requested unavailable source lacks a context absence seal".into(),
+                        ));
+                    }
+                }
+            } else {
+                if requested.iter().any(|path| !case.files.contains_key(path)) {
+                    return Err(Error::Invalid(
+                        "Given source selection lacks a staged file".into(),
+                    ));
+                }
+                for path in case.files.keys().filter(|path| !selected.contains(path)) {
+                    let inventory = case.given_project_inventory.as_ref().ok_or_else(|| {
+                        Error::Invalid(
+                            "unselected Given source requires an explicit project inventory".into(),
+                        )
+                    })?;
+                    if !inventory.entries.iter().any(|entry| {
+                        entry.path == *path && entry.state == ryo::linter::ProjectEntryState::File
+                    }) {
+                        return Err(Error::Invalid(
+                            "unselected Given source lacks a matching file observation".into(),
+                        ));
+                    }
                 }
             }
         }

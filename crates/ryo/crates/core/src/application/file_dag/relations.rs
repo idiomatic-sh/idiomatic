@@ -17,9 +17,9 @@ use std::{
     collections::HashMap,
     sync::{Arc, OnceLock},
 };
-mod external;
 mod accounting;
 mod admission;
+mod external;
 mod handle;
 pub(crate) use handle::{PublishedInput, RetainedPublication};
 mod identity;

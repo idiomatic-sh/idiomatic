@@ -11,6 +11,9 @@ pub(crate) enum FileAnalysisError {
     /// Required execution scope dependencies were inconsistent.
     #[error(transparent)]
     Execution(#[from] crate::domain::operating::errors::OperatingError),
+    /// A provider did not echo the exact project-entry observation batch it received.
+    #[error("project entry observation receipt did not match the engine batch")]
+    ProjectObservationMismatch,
     /// The request's selected provider is missing or ambiguous.
     #[error("explicit source provider `{name}` must name exactly one linked provider")]
     SourceLanguage {

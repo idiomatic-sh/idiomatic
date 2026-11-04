@@ -48,15 +48,19 @@ impl CrossFile {
                 "observation execution requires the prepared named graph".into(),
             ));
         };
-        let graph = run.graph
+        let graph = run
+            .graph
             .observations
             .as_ref()
             .ok_or_else(|| CrossError::Contract("named request graph is absent".into()))?;
         let publication_scope = crate::application::file_dag::scope::ExecutionScope::new(
-            std::sync::Arc::clone(&run.graph), crate::application::file_dag::scope::ScopePhase::Project,
-            true, run.executor,
+            std::sync::Arc::clone(&run.graph),
+            crate::application::file_dag::scope::ScopePhase::Project,
+            true,
+            run.executor,
         )?;
-        let mut publications = CrossPublications::new(graph, std::rc::Rc::clone(publication_scope.owner()), arenas);
+        let mut publications =
+            CrossPublications::new(graph, std::rc::Rc::clone(publication_scope.owner()), arenas);
         let mut selected = vec![false; run.domain.plans.len()];
         for todo in run.todo {
             *selected

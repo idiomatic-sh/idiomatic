@@ -108,6 +108,28 @@ def context_receipts_valid(case: dict[str, object], sides: dict[str, dict[str, o
             return False
     return True
 
+def project_inputs(case: dict[str, object], profile: dict[str, object]) -> dict[str, object] | None:
+    """Canonical explicit project authority, shared with the Rust case receipt digest."""
+    roots = case.get('project-search-roots', profile.get('project-search-roots'))
+    inventory = case.get('given-project-inventory', {'completeness': 'partial', 'entries': []})
+    if roots is not None and (not isinstance(roots, list) or any(not isinstance(root, str) or (root and (Path(root).is_absolute() or any(part in {'.', '..'} for part in Path(root).parts))) for root in roots)):
+        raise ValueError('project search roots must be ordered safe relative paths')
+    if not isinstance(inventory, dict) or set(inventory) != {'completeness', 'entries'} or inventory['completeness'] not in {'partial', 'complete-within-declared-scope'} or not isinstance(inventory['entries'], list):
+        raise ValueError('Given project inventory has an invalid shape')
+    for entry in inventory['entries']:
+        if not isinstance(entry, dict) or set(entry) != {'path', 'state'} or not isinstance(entry['path'], str) or not entry['path'] or Path(entry['path']).is_absolute() or any(part in {'.', '..'} for part in Path(entry['path']).parts) or entry['state'] not in {'file', 'directory', 'other', 'missing', 'unknown'}:
+            raise ValueError('Given project entry has an invalid path or kind')
+    if roots is None and inventory['completeness'] == 'complete-within-declared-scope':
+        raise ValueError('complete Given project inventory requires declared search roots')
+    if roots is None and inventory == {'completeness': 'partial', 'entries': []}:
+        return None
+    return {'project_search_roots': roots, 'given_project_inventory': inventory}
+
+def project_inputs_digest(inputs: dict[str, object] | None) -> str | None:
+    if inputs is None:
+        return None
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+
 def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
     """Derive canonical case identities after the staged profile is sealed."""
     inventory = []
@@ -155,6 +177,10 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
                 extra['rule_observations'] = declarations
             if selected is not None:
                 extra['selected_rules'] = selected
+            inputs = project_inputs(case, profile)
+            if inputs is not None:
+                extra.update(inputs)
+                extra['project_inputs_sha256'] = project_inputs_digest(inputs)
             inventory.append({**extra, **identity, 'project_context_mode': mode, 'context_identity': expected_context_identity(case, mode), 'case_sha256': hashlib.sha256(encoded.encode()).hexdigest(), 'source_sha256': source_digest.hexdigest(), 'files': sorted(case.get('requested-files', case['files'])), 'comparison': case.get('comparison', 'rule'), 'expected': expected, 'reference_discrepancy': reference_discrepancies.validate_reference_discrepancy(profile_root, case, rule_root.name)})
     inventory.sort(key=lambda case: (case['rule'], case['name']))
     ids = [(case['rule'], case['name']) for case in inventory]
@@ -290,6 +316,7 @@ def complete_case_ids(selected_cases: list[dict[str, object]], records: list[dic
         identities_match = all(
             row.get('complete') is True and row.get('error') is None
             and row.get('source_sha256') == expected_case['source_sha256']
+            and row.get('project_inputs_sha256') == expected_case.get('project_inputs_sha256')
             and row.get('file_metadata_sha256') == expected_case.get('file_metadata_sha256')
             and row.get('selected_rules') == expected_case.get('selected_rules')
             and row.get('rule_observations') == expected_case.get('rule_observations')
@@ -410,8 +437,11 @@ def ruff_location_to_byte(source: str, location: dict[str, object]) -> int:
 
 def check_run_ryo_settings(request: dict[str, object], expected: dict[str, object], *, expected_cache_path: Path | None=None) -> None:
     """Refuse wrong phase, target, context, selection or unreviewed request flags."""
-    if set(request) != {'root', 'rules', 'query_modules', 'rule_applicability', 'parser_configuration', 'files', 'cache'}:
+    required = {'root', 'rules', 'query_modules', 'rule_applicability', 'parser_configuration', 'files', 'cache'}
+    if set(request) != required | ({'project_search_roots'} if 'project_search_roots' in expected else set()):
         raise ValueError('direct worker request has unreviewed flags or context')
+    if request.get('project_search_roots') != expected.get('project_search_roots'):
+        raise ValueError('direct worker project search authority differs from the profile')
     if expected['project_context_mode'] != 'isolated' or expected['flags'] != {} or request['parser_configuration'] != expected['parser_configuration'] or (request['rule_applicability'] != expected['rule_applicability']) or (sorted(request['rule_applicability']) != expected['defaults']) or (request['cache'] != (str(expected_cache_path) if expected_cache_path is not None else None)):
         raise ValueError('direct worker request differs from canonical execution settings')
 

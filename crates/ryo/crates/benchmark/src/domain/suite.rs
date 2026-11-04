@@ -14,6 +14,8 @@ pub mod process;
 
 /// Canonical identity for optional declared input metadata.
 pub mod input_metadata;
+/// Canonical identity of explicit import roots and Given entry observations.
+pub mod project_inputs;
 
 #[cfg(test)]
 mod input_metadata_test;

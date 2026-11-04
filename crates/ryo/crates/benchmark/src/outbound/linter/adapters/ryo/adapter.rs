@@ -46,6 +46,8 @@ impl LinterPort for LinterRyoAdapter {
                     .clone()
                     .unwrap_or_else(|| self.defaults.clone()),
             ),
+            project_search_roots: request.project_search_roots.clone(),
+            given_project_inventory: request.given_project_inventory.clone(),
             project_context_mode: self.project_context_mode,
             context_manifest: request.context_manifest.clone(),
             root: request.root.clone(),

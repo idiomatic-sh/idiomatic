@@ -141,7 +141,9 @@ pub(crate) fn build(
                 Reading::Disk(listing, beside) => {
                     Arc::new(corpus::factory::ignore(root, listing, beside, skipped))
                 }
-                Reading::Memory(files) => Arc::new(corpus::factory::memory(files)),
+                Reading::Memory(files, inventory) => {
+                    Arc::new(corpus::factory::memory(files, inventory))
+                }
             };
             let analysis_corpus: Arc<dyn corpus::interface::CorpusPort> = files;
             let analysis_memory: Arc<dyn memory::interface::MemoryPort> =
@@ -235,7 +237,10 @@ pub(crate) fn build_reading(request: &LintRequest) -> Reading {
             let mut files = given(sources);
             files.retain(|file| beside.iter().all(|other| other.path != file.path));
             files.extend(beside);
-            Reading::Memory(files)
+            Reading::Memory(
+                files,
+                super::schemas::given_project_inventory(request.given_project_inventory.clone()),
+            )
         }
     }
 }

@@ -33,6 +33,110 @@ impl From<ProjectContextMode> for ModeSchema {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum ProjectInventoryCompletenessSchema {
+    #[default]
+    Partial,
+    CompleteWithinDeclaredScope,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum ProjectEntryStateSchema {
+    File,
+    Directory,
+    Other,
+    Missing,
+    Unknown,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ProjectEntrySchema {
+    path: String,
+    state: ProjectEntryStateSchema,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ProjectInventorySchema {
+    #[serde(default)]
+    completeness: ProjectInventoryCompletenessSchema,
+    #[serde(default)]
+    entries: Vec<ProjectEntrySchema>,
+}
+
+impl ProjectInventorySchema {
+    pub(crate) fn is_default(&self) -> bool {
+        matches!(
+            self.completeness,
+            ProjectInventoryCompletenessSchema::Partial
+        ) && self.entries.is_empty()
+    }
+}
+
+impl From<ProjectInventorySchema> for ryo::linter::GivenProjectInventory {
+    fn from(wire: ProjectInventorySchema) -> Self {
+        Self {
+            entries: wire
+                .entries
+                .into_iter()
+                .map(|entry| ryo::linter::ProjectEntryObservation {
+                    path: ryo::linter::RelativePath(entry.path.into_boxed_str()),
+                    state: match entry.state {
+                        ProjectEntryStateSchema::File => ryo::linter::ProjectEntryState::File,
+                        ProjectEntryStateSchema::Directory => {
+                            ryo::linter::ProjectEntryState::Directory
+                        }
+                        ProjectEntryStateSchema::Other => ryo::linter::ProjectEntryState::Other,
+                        ProjectEntryStateSchema::Missing => ryo::linter::ProjectEntryState::Missing,
+                        ProjectEntryStateSchema::Unknown => ryo::linter::ProjectEntryState::Unknown,
+                    },
+                })
+                .collect(),
+            completeness: match wire.completeness {
+                ProjectInventoryCompletenessSchema::Partial => {
+                    ryo::linter::ProjectInventoryCompleteness::Partial
+                }
+                ProjectInventoryCompletenessSchema::CompleteWithinDeclaredScope => {
+                    ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+                }
+            },
+        }
+    }
+}
+impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {
+    fn from(value: ryo::linter::GivenProjectInventory) -> Self {
+        Self {
+            entries: value
+                .entries
+                .into_iter()
+                .map(|entry| ProjectEntrySchema {
+                    path: entry.path.0.into_string(),
+                    state: match entry.state {
+                        ryo::linter::ProjectEntryState::File => ProjectEntryStateSchema::File,
+                        ryo::linter::ProjectEntryState::Directory => {
+                            ProjectEntryStateSchema::Directory
+                        }
+                        ryo::linter::ProjectEntryState::Other => ProjectEntryStateSchema::Other,
+                        ryo::linter::ProjectEntryState::Missing => ProjectEntryStateSchema::Missing,
+                        ryo::linter::ProjectEntryState::Unknown => ProjectEntryStateSchema::Unknown,
+                    },
+                })
+                .collect(),
+            completeness: match value.completeness {
+                ryo::linter::ProjectInventoryCompleteness::Partial => {
+                    ProjectInventoryCompletenessSchema::Partial
+                }
+                ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope => {
+                    ProjectInventoryCompletenessSchema::CompleteWithinDeclaredScope
+                }
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 /// Exact declared inventory used to validate context lookups.

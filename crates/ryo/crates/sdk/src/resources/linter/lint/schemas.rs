@@ -103,6 +103,27 @@ struct LintReportSchema {
     report: CoreReport,
 }
 
+pub(super) fn given_project_inventory(
+    inventory: super::types::GivenProjectInventory,
+) -> ryo_language::domain::project_context::types::GivenProjectInventory {
+    ryo_language::domain::project_context::types::GivenProjectInventory {
+            entries: inventory.entries.into_iter().map(|entry| ryo_language::domain::project_context::types::EntryObservation {
+                path: FilePath(entry.path.0),
+                state: match entry.state {
+                    super::types::ProjectEntryState::File => ryo_language::domain::project_context::types::EntryState::File,
+                    super::types::ProjectEntryState::Directory => ryo_language::domain::project_context::types::EntryState::Directory,
+                    super::types::ProjectEntryState::Other => ryo_language::domain::project_context::types::EntryState::Other,
+                    super::types::ProjectEntryState::Missing => ryo_language::domain::project_context::types::EntryState::Missing,
+                    super::types::ProjectEntryState::Unknown => ryo_language::domain::project_context::types::EntryState::Unknown,
+                },
+            }).collect(),
+            completeness: match inventory.completeness {
+                super::types::ProjectInventoryCompleteness::Partial => ryo_language::domain::project_context::types::ProjectInventoryCompleteness::Partial,
+                super::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope => ryo_language::domain::project_context::types::ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
+            },
+        }
+}
+
 impl From<ParameterValueSchema> for CoreValue {
     fn from(schema: ParameterValueSchema) -> Self {
         match schema.0 {
@@ -171,6 +192,17 @@ impl TryFrom<LintRequestSchema> for CoreRequest {
                     Corpus::Given(_) => Repository::Given,
                     Corpus::Walked | Corpus::Listed(_) => Repository::Disk,
                 },
+                search_scope: match request.project_search_scope {
+                    super::types::ProjectSearchScope::Undeclared => {
+                        ryo_language::domain::project_context::types::ProjectSearchScope::Undeclared
+                    }
+                    super::types::ProjectSearchScope::Declared(roots) => {
+                        ryo_language::domain::project_context::types::ProjectSearchScope::Declared(
+                            roots.into_iter().map(|root| FilePath(root.0)).collect(),
+                        )
+                    }
+                },
+                given_inventory: given_project_inventory(request.given_project_inventory),
             },
             files: request
                 .files

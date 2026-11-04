@@ -61,6 +61,9 @@ pub(crate) struct ToKeep<'a> {
     pub consulted: &'a [StoredFile],
     /// The files the lookup asked for and found none of, in the order of their paths.
     pub consulted_absent: &'a [FilePath],
+    /// Project-entry observations used by the demanded namespace fact.
+    pub project_observations:
+        &'a [ryo_language::domain::project_context::types::EntryObservation],
 }
 
 /// How much of what the last run kept a run uses again.

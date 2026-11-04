@@ -227,6 +227,7 @@ expected = []
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
         source_language: None,
+        project_search_roots: None,
     };
     let audited = SuiteLocalAdapter::new(None)
         .audit(ArtifactPath(&oracle), &tool)

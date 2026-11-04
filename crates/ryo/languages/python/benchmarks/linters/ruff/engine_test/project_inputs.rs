@@ -47,6 +47,8 @@ fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(
         }
         let _new = seen.insert(case.name.0.as_ref());
         let report = engine.run_prepared(WorkerRequest {
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
             project_context_mode: ProjectContextMode::ListedDisk,
             context_manifest: case.request.context_manifest.clone(),
             root: case.request.root.clone(),

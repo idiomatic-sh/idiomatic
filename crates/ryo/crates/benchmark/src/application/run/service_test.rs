@@ -96,6 +96,9 @@ fn subject(scenario: Scenario) -> Result<usize, &'static str> {
             selected_rules: None,
             rule_observations: None,
             rule_context: None,
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
+            staged_sources: None,
             file_metadata: None,
             context_manifest: None,
             root: ".".into(),
@@ -522,6 +525,9 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
                 selected_rules: None,
                 rule_observations: None,
                 rule_context: None,
+                project_search_roots: None,
+                given_project_inventory: Default::default(),
+                staged_sources: None,
                 file_metadata: None,
                 context_manifest: None,
                 root: ".".into(),
@@ -559,6 +565,7 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: None,
         source_language: None,
+        project_search_roots: None,
     });
     (suite, expected)
 }
@@ -644,6 +651,7 @@ fn discrepancy_suite() -> SuiteFake {
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: Some("python-target=3.10".into()),
         source_language: None,
+        project_search_roots: None,
     });
     let _previous_profile = suite
         .artifact_digests

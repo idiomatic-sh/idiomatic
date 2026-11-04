@@ -8,14 +8,14 @@ use std::hash::Hasher as _;
 use hashbrown::hash_table::OccupiedEntry;
 use rustc_hash::FxHasher;
 
+use crate::domain::symbols::types::ByteSlice;
+use crate::domain::symbols::types::SymbolsEngine;
+use crate::domain::symbols::types::{NameStart, Noted, QuerySymbols, Symbols};
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::{
     Bits, Bytes, CROSS_FILE, CROSS_PLACE, Count, FileId, KindBits, Name, NameNote, NamePlace,
     Offset, Origin, PlaceNumber, Span, TextHash, WorkerNumber,
 };
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::SymbolsEngine;
-use crate::domain::symbols::types::{NameStart, Noted, QuerySymbols, Symbols};
 use ryo_relations::domain::terms::service::{is_term, term_text};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;

@@ -4,21 +4,46 @@
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::{Inventory, PathStat};
+use ryo_language::domain::project_context::types::{
+    EntryObservation, EntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+};
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
 };
+use std::collections::{BTreeMap, BTreeSet};
 
 /// The memory corpus adapter: the files it was given.
 #[derive(Debug)]
 pub(crate) struct CorpusMemoryAdapter {
     /// The files it lists and reads.
     files: Vec<CorpusFile>,
+    /// Explicit host inventory of contextual entries outside the source texts.
+    project_entries: BTreeMap<ryo_language::domain::files::types::FilePath, EntryState>,
+    project_completeness: ProjectInventoryCompleteness,
+    source_paths: BTreeSet<ryo_language::domain::files::types::FilePath>,
 }
 
 impl CorpusMemoryAdapter {
     /// An adapter over `files`.
-    pub(crate) fn new(files: Vec<CorpusFile>) -> Self {
-        Self { files }
+    pub(crate) fn new(files: Vec<CorpusFile>, project_inventory: GivenProjectInventory) -> Self {
+        let mut project_entries = BTreeMap::new();
+        for entry in project_inventory.entries {
+            match project_entries.entry(entry.path) {
+                std::collections::btree_map::Entry::Vacant(slot) => {
+                    slot.insert(entry.state);
+                }
+                std::collections::btree_map::Entry::Occupied(mut slot) => {
+                    slot.insert(EntryState::Unknown);
+                }
+            }
+        }
+        let source_paths = files.iter().map(|file| file.path.clone()).collect();
+        Self {
+            files,
+            project_entries,
+            project_completeness: project_inventory.completeness,
+            source_paths,
+        }
     }
 }
 
@@ -74,5 +99,29 @@ impl CorpusPort for CorpusMemoryAdapter {
                 modified: written(&file.bytes),
             })
             .map_or(PathStat::Missing, PathStat::Found))
+    }
+
+    fn observe_entry(
+        &self,
+        path: &ryo_language::domain::files::types::FilePath,
+    ) -> EntryObservation {
+        let supplied = self.project_entries.get(path).copied();
+        let state = if supplied == Some(EntryState::Unknown) {
+            EntryState::Unknown
+        } else if self.source_paths.contains(path) {
+            EntryState::File
+        } else if let Some(state) = supplied {
+            state
+        } else if self.project_completeness
+            == ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+        {
+            EntryState::Missing
+        } else {
+            EntryState::Unknown
+        };
+        EntryObservation {
+            path: path.clone(),
+            state,
+        }
     }
 }

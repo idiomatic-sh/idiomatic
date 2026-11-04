@@ -166,6 +166,37 @@ fn explicit_context_mode_defaults_and_unknown_modes_are_checked() {
     );
 }
 
+#[test]
+fn project_scope_wire_keeps_undeclared_distinct_from_declared_empty() {
+    let base = "tool='fixture'\nversion='1'\nsha256=['pin']\ndefaults=['RULE']\n";
+    assert!(super::tool(base).unwrap().project_search_roots.is_none());
+    assert_eq!(
+        super::tool(&format!("{base}project-search-roots=[]\n"))
+            .unwrap()
+            .project_search_roots,
+        Some(Vec::new())
+    );
+    assert!(super::tool(&format!("{base}project-search-roots=['../outside']\n")).is_err());
+
+    let case = "[[cases]]\nname='sibling'\ncomparison='full'\nrequested-files=['main.py']\nproject-search-roots=['']\nfiles={'main.py'='import localmod', 'localmod.py'='value=1'}\ngiven-project-inventory={completeness='partial', entries=[{path='localmod.py', state='file'}]}\nexpected=[]\n";
+    let decoded = super::cases(case).expect("declared root and entry state");
+    crate::domain::suite::service::validate_case_sources(&decoded)
+        .expect("unselected sibling is staged under explicit Given authority");
+    let observed = decoded.cases[0]
+        .given_project_inventory
+        .as_ref()
+        .expect("inventory");
+    assert_eq!(observed.entries.len(), 1);
+    assert_eq!(
+        observed.entries[0].state,
+        ryo::linter::ProjectEntryState::File
+    );
+    assert!(
+        super::cases(&case.replace("localmod.py', state='file'", "../bad.py', state='file'"))
+            .is_err()
+    );
+}
+
 /// Corpus identity cannot disappear or collapse two workloads onto one output/cache name.
 #[test]
 fn corpus_requires_distinct_nonempty_project_identities() {

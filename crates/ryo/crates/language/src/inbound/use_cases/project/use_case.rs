@@ -26,8 +26,16 @@ impl ProjectUseCase for ProjectUseCaseImpl {
         )
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+    ) -> Vec<crate::domain::files::types::FilePath> {
+        Vec::new()
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.clone(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),

@@ -38,6 +38,8 @@ fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), E
                 selected_rules: None,
                 rule_observations: None,
                 rule_context: None,
+                project_search_roots: None,
+                given_project_inventory: Default::default(),
                 project_context_mode:
                     ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
                 context_manifest: None,

@@ -129,8 +129,7 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
         columns: &columns,
     };
     for relation in [Relation::Function, Relation::Identifier] {
-        let result =
-            acquire(&cache, relation, view, &[ColumnIndex(0)]).expect("local fallback");
+        let result = acquire(&cache, relation, view, &[ColumnIndex(0)]).expect("local fallback");
         assert!(result.was_built());
         assert_eq!(equality(&result).rows().len(), 1);
     }
@@ -168,8 +167,7 @@ fn cache_drop_releases_generation_and_new_file_id_reuse_starts_empty() {
     };
     let weak = {
         let cache = new(&[Relation::Function], &[], LIMIT);
-        let acquired =
-            acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("index");
+        let acquired = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)]).expect("index");
         Arc::downgrade(&acquired.storage)
     };
     assert!(

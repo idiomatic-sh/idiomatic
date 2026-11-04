@@ -3,6 +3,7 @@
 use super::super::errors::CorpusError;
 use super::super::interface::CorpusPort;
 use crate::outbound::corpus::types::{Inventory, PathStat};
+use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
 };
@@ -95,6 +96,26 @@ impl CorpusPort for CorpusFake {
                 modified: written(&file.bytes.0),
             })
             .map_or(PathStat::Missing, PathStat::Found))
+    }
+
+    fn observe_entry(
+        &self,
+        path: &ryo_language::domain::files::types::FilePath,
+    ) -> EntryObservation {
+        let state = if self
+            .files
+            .iter()
+            .chain(&self.outside)
+            .any(|file| file.path == *path)
+        {
+            EntryState::File
+        } else {
+            EntryState::Missing
+        };
+        EntryObservation {
+            path: path.clone(),
+            state,
+        }
     }
 }
 

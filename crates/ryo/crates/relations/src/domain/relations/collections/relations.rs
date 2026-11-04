@@ -90,6 +90,7 @@ pub mod implicit_symbol;
 /// Syntactic outcomes for original literal carriers.
 pub mod literal_expression_parse;
 pub mod module_identity;
+pub mod project_namespace_membership;
 
 /// File-wide compiler-language features with explicit known enabled/disabled values.
 pub mod compiler_feature;

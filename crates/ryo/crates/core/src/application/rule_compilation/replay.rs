@@ -1,10 +1,7 @@
 //! Expand existing warm request work before selecting persisted frontier buckets.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::{
-    file_program::{
-        service::observations::replay_closure,
-        types::ObservationRequest,
-    },
+    file_program::{service::observations::replay_closure, types::ObservationRequest},
     storing::types::{MadeAgain, Reuse},
 };
 use ryo_values::domain::{plans::types::Plan, records::types::PlacedRule};

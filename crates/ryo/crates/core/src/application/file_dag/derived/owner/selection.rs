@@ -116,9 +116,11 @@ impl SelectionSource<'_> {
         columns: &[ryo_values::domain::plan_parts::types::ColumnIndex],
     ) -> bool {
         let live_hint = self.owner.has_live_equality(source, columns);
-        let allowed = live_hint || super::super::indexes::can_retain(cache, relation, source, columns);
+        let allowed =
+            live_hint || super::super::indexes::can_retain(cache, relation, source, columns);
         if !allowed {
-            if tracing::enabled!(target: "ryo::diagnostic::selection_detail", tracing::Level::TRACE) {
+            if tracing::enabled!(target: "ryo::diagnostic::selection_detail", tracing::Level::TRACE)
+            {
                 self.owner.report_selector_occupancy(self.population);
             }
             tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_equality_admission_refused",

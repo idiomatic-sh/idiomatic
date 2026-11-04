@@ -76,6 +76,7 @@ def self_test() -> int:
     profile_proof_tests.output_directory_self_test()
     profile_proof_tests.authoring_profile_fixed_point_self_test()
     profile_case_tests.execution_metadata_self_test()
+    profile_case_tests.project_inputs_identity_self_test()
     profile_proof_tests.profile_accounting_projection_self_test()
     'Exercise fail-closed profile-selection and hash-mismatch guards without invoking Cargo.'
     profile_proof_tests.parser_target_configuration_self_test()

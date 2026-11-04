@@ -33,6 +33,13 @@ impl ProjectUseCase for Broken {
         )
     }
 
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+    ) -> Vec<ryo_language::domain::files::types::FilePath> {
+        Vec::new()
+    }
+
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {
         Err(ProjectError::Manifest {
             reason: ToolMessage("the tool could not run".into()),
@@ -78,6 +85,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let request = ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: crate::inbound::use_cases::project::types::Repository::Disk,
         root: RootPath(".".into()),
         manifests: Vec::new(),

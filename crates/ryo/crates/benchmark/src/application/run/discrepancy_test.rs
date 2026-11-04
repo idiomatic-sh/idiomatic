@@ -38,6 +38,9 @@ fn case() -> PreparedCase {
             selected_rules: None,
             rule_observations: None,
             rule_context: None,
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
+            staged_sources: None,
             file_metadata: None,
             root: ".".into(),
             state: "cache".into(),
@@ -119,6 +122,7 @@ fn approved_platform_digest_can_differ_from_observed_evidence_binary() {
         rule_applicability: std::collections::BTreeMap::default(),
         parser_configuration: Some("python3.10".into()),
         source_language: None,
+        project_search_roots: None,
     };
     assert!(
         validate_pins(

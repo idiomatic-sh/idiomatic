@@ -79,6 +79,7 @@ where
         refused: resolved.refused,
         unlisted: resolved.unlisted,
         consulted: resolved.consulted,
+        observed_entries: resolved.observed_entries,
         derived: (),
     })
 }
@@ -120,6 +121,13 @@ impl<P: ProjectUseCase> ProjectEngine for P {
         path: crate::domain::files::types::SourcePath<'_>,
     ) -> crate::domain::files::types::PrimaryFileRole {
         ProjectUseCase::primary_role(self, path)
+    }
+
+    fn project_entries(
+        &self,
+        request: &ProjectRequest,
+    ) -> Vec<crate::domain::files::types::FilePath> {
+        ProjectUseCase::project_entries(self, request)
     }
 
     fn manifest_names(&self) -> &'static [ManifestName] {

@@ -82,6 +82,7 @@ fn record_and_store_snapshots_follow_the_same_moved_payload_capacities() {
             skipped: &[],
             consulted: &[],
             consulted_absent: &[],
+            project_observations: &[],
         },
         &Stored::default(),
         &ReadHanded::default(),

@@ -270,6 +270,8 @@ fn request(given: &Given) -> LintRequest {
         answer: given.answer,
         hosted: given.hosted.clone(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(given.root.into()),
         },
@@ -1503,6 +1505,38 @@ fn consulted(between: Between) -> Result<Value, Failure> {
     };
     let (read_again, fed_again) = counted_lint(given(manifest, outside))?;
     Ok((read_again, usize::from(fed_again > 0)))
+}
+
+#[test]
+fn project_entry_observations_invalidate_persisted_absence_and_presence() {
+    let store = Arc::new(LintStoreFake::default());
+    let entry = ("../pkg.py", "package = 1");
+    let given = |outside: Vec<(&'static str, &'static str)>| Given {
+        files: vec![
+            SOURCES[0],
+            SOURCES[1],
+            ("project.manifest.fake", "members = 1"),
+        ],
+        outside,
+        store: Arc::clone(&store),
+        root: "root",
+        query: Arc::new(reading_the_project()),
+        language: LanguageFake {
+            project_entry_paths: vec![FilePath(entry.0.into())],
+            ..LanguageFake::default()
+        },
+        ..violations()
+    };
+    for (outside, expected_project_reads) in [
+        (Vec::new(), 1),
+        (Vec::new(), 0),
+        (vec![entry], 1),
+        (vec![entry], 0),
+        (Vec::new(), 1),
+    ] {
+        let (project_reads, _fed) = counted_lint(given(outside)).expect("lint");
+        assert_eq!(project_reads, expected_project_reads);
+    }
 }
 
 /// A file that cannot be read stays unread, for the same reason, on the warm run.

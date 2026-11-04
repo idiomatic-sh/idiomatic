@@ -18,6 +18,8 @@ pub(crate) enum PlanReads {
 /// read in part.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Projected {
+    /// Exact entry observations consumed by project readers in this run.
+    pub observed_entries: Vec<ryo_language::domain::project_context::types::EntryObservation>,
     /// The relations of the project read in part.
     pub partials: Vec<Partial>,
     /// The manifests the languages' tools refused.

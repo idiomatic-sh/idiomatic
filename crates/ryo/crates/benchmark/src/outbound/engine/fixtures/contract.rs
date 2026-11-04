@@ -41,6 +41,8 @@ pub fn check(adapter: &impl EnginePort) {
                     selected_rules: None,
                     rule_observations: None,
                     rule_context: None,
+                    project_search_roots: None,
+                    given_project_inventory: Default::default(),
                     project_context_mode: crate::domain::suite::types::ProjectContextMode::default(
                     ),
                     context_manifest: None,

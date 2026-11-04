@@ -14,6 +14,24 @@ from authoring import profile_sources
 from authoring import profile_worker
 from authoring import reference_discrepancies
 
+def project_inputs_identity_self_test() -> None:
+    """Rust and Python hash the same explicit project input envelope."""
+    inventory = {'completeness': 'complete-within-declared-scope', 'entries': [
+        {'path': 'src/pkg', 'state': 'directory'},
+        {'path': 'vendor/pkg.py', 'state': 'missing'},
+    ]}
+    assert case_records.project_inputs({}, {}) is None
+    assert case_records.project_inputs_digest(None) is None
+    inputs = case_records.project_inputs({'project-search-roots': ['src', 'vendor'], 'given-project-inventory': inventory}, {})
+    assert case_records.project_inputs_digest(inputs) == 'ff9b78535b775babaadae518c198876aa1c27ef21d0abb75e04588c25638df7d'
+    assert case_records.project_inputs({'project-search-roots': []}, {})['project_search_roots'] == []
+    for invalid in ({'project-search-roots': ['../outside']}, {'given-project-inventory': {**inventory, 'entries': [{'path': '../outside', 'state': 'file'}]}}):
+        try:
+            case_records.project_inputs(invalid, {})
+        except ValueError:
+            continue
+        raise AssertionError('unsafe project input authority was accepted')
+
 def execution_metadata_self_test() -> None:
     """Version boundaries retain old diagnostics without inventing known execution or waiving fresh candidate guards."""
     row = {'observation_schema': 'benchmark-case/v2', 'execution_metadata': {'availability': 'complete'}, 'files': ['case.py'], 'skipped': [], 'coverage': {'selected_rule_file_pairs': 1, 'evaluated_rule_file_pairs': 1, 'skipped_rule_file_pairs': 0, 'unknown_or_unread_rule_file_pairs': 0}}

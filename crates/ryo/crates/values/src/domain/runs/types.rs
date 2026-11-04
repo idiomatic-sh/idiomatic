@@ -29,6 +29,10 @@ pub struct Session {
     pub root: RootPath,
     /// Where its files are: on the disk below the root, or only those given.
     pub repository: ryo_language::inbound::use_cases::project::types::Repository,
+    /// Explicit ordered project import roots, or an undeclared scope whose absence is unknown.
+    pub search_scope: ryo_language::domain::project_context::types::ProjectSearchScope,
+    /// Host authority for candidate entries when repository files are Given.
+    pub given_inventory: ryo_language::domain::project_context::types::GivenProjectInventory,
 }
 
 /// The id of a rule, as the store keeps it.

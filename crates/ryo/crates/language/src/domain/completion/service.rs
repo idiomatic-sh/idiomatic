@@ -2,11 +2,11 @@
 
 use crate::domain::elements::service::{engine, engine_mut, positions};
 use crate::domain::elements::types::{Completion, CompletionEngine, Elements, KindSum, Tree};
-use ryo_relations::domain::relations::constants::{NO_FIELD, NO_SYMBOL};
-use ryo_relations::domain::relations::types::{Bytes, FieldId, FileId, KindBits, Position};
 use crate::domain::symbols::service::{hash_in, intern_derived, vocabulary_symbol};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::constants::{NO_FIELD, NO_SYMBOL};
+use ryo_relations::domain::relations::types::{Bytes, FieldId, FileId, KindBits, Position};
 use ryo_relations::domain::terms::types::NameText;
 
 /// What a kind's number and name are mixed with before they are added to the vocabulary.

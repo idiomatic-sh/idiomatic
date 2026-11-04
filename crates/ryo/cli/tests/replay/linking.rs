@@ -144,6 +144,8 @@ fn a_file_whose_words_cannot_move_is_read_again_and_keeps_its_findings() {
     ]);
     let run = || {
         let request = LintRequest {
+            project_search_scope: Default::default(),
+            given_project_inventory: Default::default(),
             source_language: None,
             root: root.path().to_path_buf(),
             rules: rules.clone(),

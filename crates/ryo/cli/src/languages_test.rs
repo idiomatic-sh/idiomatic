@@ -45,6 +45,8 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
     .lint(LintRequest {
         source_language: None,
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(directory.path().to_str().expect("a utf-8 path").into()),
         },

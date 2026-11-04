@@ -279,6 +279,7 @@ fn stored_round_trip() -> Value {
             skipped: &kept.skipped,
             consulted: &kept.consulted,
             consulted_absent: &kept.consulted_absent,
+            project_observations: &kept.project_observations,
         },
         &kept,
         &StoredHanded::default(),

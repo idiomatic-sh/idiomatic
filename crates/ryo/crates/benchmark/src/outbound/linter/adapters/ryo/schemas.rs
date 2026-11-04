@@ -40,6 +40,14 @@ struct RyoWorkerRequestSchema {
     parser_configuration: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     source_language: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    project_search_roots: Option<Vec<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "crate::outbound::context::adapters::local::schemas::ProjectInventorySchema::is_default"
+    )]
+    given_project_inventory:
+        crate::outbound::context::adapters::local::schemas::ProjectInventorySchema,
     /// Exact project-relative file set covered by this request or report.
     files: Vec<String>,
     /// Retained worker state directory, or no retained state for a fresh run.
@@ -124,6 +132,10 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
             rule_applicability: request.rule_applicability,
             parser_configuration: request.parser_configuration,
             source_language: request.source_language,
+            project_search_roots: request
+                .project_search_roots
+                .map(|roots| roots.into_iter().map(|root| root.0.into_string()).collect()),
+            given_project_inventory: request.given_project_inventory.into(),
             files: request
                 .files
                 .into_iter()

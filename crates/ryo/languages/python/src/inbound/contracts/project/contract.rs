@@ -17,6 +17,7 @@ use crate::domain::links::types::Linked;
 use crate::domain::manifests::collections::manifests::analyzed_source::item::AnalyzedSourceItem;
 use crate::domain::manifests::collections::manifests::file_package::item::FilePackageItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
+use crate::domain::manifests::collections::manifests::project_namespace_membership::item::ProjectNamespaceMembershipItem;
 use crate::domain::manifests::collections::manifests::source_dependency::item::SourceDependencyItem;
 use crate::domain::manifests::collections::manifests::workspace_member::item::WorkspaceMemberItem;
 use crate::domain::merging::service::merged;
@@ -180,6 +181,22 @@ impl Project for ProjectContract {
         crate::domain::language::service::primary_role(path, self.manifests())
     }
 
+    fn project_entries(&self, request: &ProjectRequest) -> Vec<languages::FilePath> {
+        if !request
+            .wanted
+            .contains(&languages::Relation::ProjectNamespaceMembership)
+        {
+            return Vec::new();
+        }
+        let notes: Vec<Option<Note>> = request
+            .notes
+            .iter()
+            .map(|bytes| self.notes.note_in(bytes).ok())
+            .collect();
+        let roots = crate::domain::project_namespace::service::imported_roots(&notes);
+        crate::domain::project_namespace::service::candidates(request.search_roots(), &roots)
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
         let (packages, validation) = self.packages(request);
         // Refusals describe only the dependency outputs that were actually demanded and read.
@@ -220,11 +237,46 @@ impl Project for ProjectContract {
             derived.module_context = self.module_context.resolve(request)?;
         }
         derived.manifest_validation = validation;
+        if request
+            .wanted
+            .contains(&languages::Relation::ProjectNamespaceMembership)
+        {
+            let mut incomplete_notes = Vec::new();
+            let notes: Vec<Option<Note>> = request
+                .notes
+                .iter()
+                .enumerate()
+                .map(|(number, bytes)| match self.notes.note_in(bytes) {
+                    Ok(note) => Some(note),
+                    Err(_) => {
+                        if !bytes.0.is_empty() {
+                            incomplete_notes
+                                .push(languages::FileId(u32::try_from(number).unwrap_or(u32::MAX)));
+                        }
+                        None
+                    }
+                })
+                .collect();
+            let roots = crate::domain::project_namespace::service::imported_roots(&notes);
+            derived.namespace_memberships = crate::domain::project_namespace::service::memberships(
+                request.search_roots(),
+                &roots,
+                incomplete_notes,
+                |path, file| {
+                    if file {
+                        request.candidate_file(path)
+                    } else {
+                        request.candidate_directory(path)
+                    }
+                },
+            );
+        }
         let consulted = derived.module_context.consulted.clone();
         Ok(Resolved {
             refused,
             unlisted: Vec::new(),
             consulted,
+            observed_entries: request.observed_entries.clone(),
             derived,
         })
     }
@@ -257,5 +309,11 @@ impl Project for ProjectContract {
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
         languages::reads_manifests::<crate::domain::manifests::collections::manifests::module_identity::item::ModuleIdentityItem>()
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, Linked>> {
+        languages::reads_manifests::<ProjectNamespaceMembershipItem>()
     }
 }

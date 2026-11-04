@@ -68,7 +68,7 @@ pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, Li
     let connections = super::connections::connect(&engine.cache, engine)?;
     let reading = super::composition::build_reading(&request);
     let budget = schemas::budget(engine.memory);
-    let core: CoreRequest = schemas::request(request)?;
+    let mut core: CoreRequest = schemas::request(request)?;
     let opened = super::composition::build_open(budget)
         .open(OpenRequest {
             root: core.session.root.clone(),
@@ -81,11 +81,13 @@ pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, Li
         root: opened.root.clone(),
         budget,
     };
+    // Opening establishes the root and repository. The caller's declared lookup
+    // scope and Given inventory remain the authority for this request.
+    let configured = std::mem::replace(&mut core.session, opened);
+    core.session.search_scope = configured.search_scope;
+    core.session.given_inventory = configured.given_inventory;
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
-        .lint(CoreRequest {
-            session: opened,
-            ..core
-        })
+        .lint(core)
         .map_err(schemas::error)?;
     schemas::report(rows, report)
 }

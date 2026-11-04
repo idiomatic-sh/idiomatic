@@ -1542,8 +1542,22 @@ impl FileAnalysis {
         symbols: &mut Symbols,
         facts: &mut dyn FactsWorker,
     ) -> Result<Projected, FileAnalysisError> {
+        let mut candidates = self.language.project_entries(input);
+        candidates.sort_unstable();
+        candidates.dedup();
+        let observed_entries: Vec<_> = candidates
+            .iter()
+            .map(|path| self.corpus.observe_entry(path))
+            .collect();
+        let input = ProjectInput {
+            observed_entries: &observed_entries,
+            ..*input
+        };
         let mut writer = facts.columns_mut()?;
-        let answer = self.language.project(input, symbols, &mut writer)?;
+        let answer = self.language.project(&input, symbols, &mut writer)?;
+        if answer.observed_entries != observed_entries {
+            return Err(FileAnalysisError::ProjectObservationMismatch);
+        }
         let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let mut projected = Projected {
             unknowns: Vec::new(),
@@ -1558,6 +1572,7 @@ impl FileAnalysis {
                 })
                 .collect(),
             unlisted: answer.unlisted,
+            observed_entries,
             ..Projected::default()
         };
         self.consulted(&answer.consulted, &mut projected)?;

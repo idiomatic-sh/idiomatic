@@ -214,7 +214,7 @@ def rule_phase(phases: dict[str, object], rule: str) -> dict[str, object]:
 
 def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], phases: dict[str, object]) -> dict[str, object]:
     """Normalize a selected profile without silently ignoring new execution flags."""
-    allowed = {'tool', 'version', 'sha256', 'defaults', 'parser-configuration', 'source-language', 'project-context-mode', 'file-observation', 'query-modules', 'rule-applicability', 'supporting-rules', 'rule-observations', 'rule-context', 'deferred'}
+    allowed = {'supporting-rules', 'project-search-roots', 'parser-configuration', 'deferred', 'file-observation', 'project-context-mode', 'sha256', 'tool', 'defaults', 'query-modules', 'rule-observations', 'version', 'source-language', 'rule-applicability', 'rule-context'}
     if set(profile) - allowed:
         raise ValueError('unreviewed execution settings in canonical profile')
     if profile.get('tool') != 'ruff' or profile.get('version') != profile_config.PINNED_RUFF_VERSION:
@@ -240,6 +240,11 @@ def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], pha
         extra['rule_context_declaration'] = profile['rule-context']
     if profile.get('rule-observations'):
         extra['rule_observations'] = profile['rule-observations']
+    roots = profile.get('project-search-roots')
+    if roots is not None:
+        if not isinstance(roots, list) or any((not isinstance(root, str) or (root and (Path(root).is_absolute() or any(part in {'.', '..'} for part in Path(root).parts)))) for root in roots):
+            raise ValueError('project search roots must be ordered safe relative paths')
+        extra['project_search_roots'] = roots
     observation = profile.get('file-observation')
     if observation is not None:
         if observation != 'posix-executable':

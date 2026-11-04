@@ -102,6 +102,7 @@ macro_rules! each_relation {
                 AnalyzedSource analyzed_source AnalyzedSourceRow AnalyzedSourceColumn;
                 FilePackage file_package FilePackageRow FilePackageColumn;
                 ModuleIdentity module_identity ModuleIdentityRow ModuleIdentityColumn;
+                ProjectNamespaceMembership project_namespace_membership ProjectNamespaceMembershipRow ProjectNamespaceMembershipColumn;
                 ManifestDiagnostic manifest_diagnostic ManifestDiagnosticRow ManifestDiagnosticColumn;
             }
             engine {
@@ -466,6 +467,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::RawFormatSegment => Relation::RawFormatSegment,
         OptionalCapability::RawFormatField => Relation::RawFormatField,
         OptionalCapability::ModuleIdentity => Relation::ModuleIdentity,
+        OptionalCapability::ProjectNamespaceMembership => Relation::ProjectNamespaceMembership,
         OptionalCapability::LiteralExpressionParse => Relation::LiteralExpressionParse,
     }
 }

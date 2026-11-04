@@ -56,6 +56,8 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
+        project_search_roots: case.request.project_search_roots.clone(),
+        given_project_inventory: case.request.given_project_inventory.clone(),
         project_context_mode: ProjectContextMode::ListedDisk,
         context_manifest: case.request.context_manifest.clone(),
         root: case.request.root.clone(),

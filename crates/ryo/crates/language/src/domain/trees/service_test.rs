@@ -10,8 +10,8 @@ use crate::domain::elements::service::{
     decoded_at, end_at, enter_node, kind_at, leave_node, positions, start_at, table_builder, token,
 };
 use crate::domain::elements::types::{Elements, TableBuilder};
-use ryo_relations::domain::relations::types::{KindBits, Offset};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
 
 /// The kind the cases' events write.

@@ -3,7 +3,9 @@
 
 use hashbrown::HashTable;
 
-use ryo_relations::domain::relations::types::{Bytes, Count, NameNote, NamePlace, Offset, TextHash, Words};
+use ryo_relations::domain::relations::types::{
+    Bytes, Count, NameNote, NamePlace, Offset, TextHash, Words,
+};
 use ryo_relations::domain::terms::types::Symbol;
 
 /// What readers keep between the visits of one file, so that a row which depends on elements

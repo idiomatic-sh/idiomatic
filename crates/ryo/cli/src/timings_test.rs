@@ -184,6 +184,8 @@ fn a_query_run_reports_rows_of_ryo_itself() {
     let request = LintRequest {
         source_language: None,
         session: ryo_values::domain::runs::types::Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: ryo_language::inbound::use_cases::project::types::RootPath(
                 "tests/fixtures/sample".into(),

@@ -97,6 +97,8 @@ pub struct Tool {
     pub parser_configuration: Option<String>,
     /// Explicit source provider selected by the request edge, if any.
     pub source_language: Option<String>,
+    /// Ordered project import roots; absence keeps namespace membership unknown.
+    pub project_search_roots: Option<Vec<RelativePath>>,
 }
 
 /// Generic input observation required by a profile's comparison contract.
@@ -143,6 +145,10 @@ pub struct Case {
     pub rule_observations: Option<RuleObservationDeclarations>,
     /// Explicit complete override of the profile rule configuration.
     pub rule_context: Option<RuleConfiguration>,
+    /// Optional case-specific ordered import roots; an empty declared list is meaningful.
+    pub project_search_roots: Option<Vec<RelativePath>>,
+    /// Explicit host entry observations for a Given source corpus.
+    pub given_project_inventory: Option<ryo::linter::GivenProjectInventory>,
     /// Explicit primary inventory, including selected paths sealed absent by the context.
     /// None preserves the legacy inventory of exactly the source-text map's keys.
     pub requested_files: Option<Vec<RelativePath>>,
@@ -335,6 +341,12 @@ pub struct RunRequest {
     pub rule_observations: Option<RuleObservationDeclarations>,
     /// Configuration resolved once by shared request preparation.
     pub rule_context: Option<PreparedRuleContext>,
+    /// Ordered import roots supplied identically to the candidate and case identity.
+    pub project_search_roots: Option<Vec<RelativePath>>,
+    /// Host entry observations supplied only for Given source corpora.
+    pub given_project_inventory: ryo::linter::GivenProjectInventory,
+    /// Every staged source byte map entry, including contextual files omitted from lint selection.
+    pub staged_sources: Option<Vec<RelativePath>>,
     /// Declared file observations, reverified before each contestant is prepared.
     pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Sealed disk context shared by both contestants, when explicitly selected.
@@ -366,6 +378,10 @@ pub struct WorkerRequest {
     pub rule_observations: Option<RuleObservationDeclarations>,
     /// Explicitly materialized rule configuration for this invocation.
     pub rule_context: Option<PreparedRuleContext>,
+    /// Ordered import roots; absence means the host did not declare search authority.
+    pub project_search_roots: Option<Vec<RelativePath>>,
+    /// Explicit Given corpus entry observations.
+    pub given_project_inventory: ryo::linter::GivenProjectInventory,
     /// Whether this invocation may consult the explicitly sealed disk context.
     pub project_context_mode: ProjectContextMode,
     /// Context dependencies sealed before this invocation.

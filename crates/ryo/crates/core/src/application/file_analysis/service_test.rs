@@ -388,6 +388,9 @@ fn subject(path: Input) -> Result<Value, Failure> {
         Arc::new(MemoryFake::default()),
     );
     let input = ProjectInput {
+        search_scope: &Default::default(),
+        given_inventory: &Default::default(),
+        observed_entries: &[],
         repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
         root: &RootPath(".".into()),
         manifests: &[ManifestFile {
@@ -726,6 +729,15 @@ fn required_dependency_stat_and_read_errors_cannot_disappear() {
         stat: bool,
     }
     impl CorpusPort for Refuses {
+        fn observe_entry(
+            &self,
+            path: &FilePath,
+        ) -> ryo_language::domain::project_context::types::EntryObservation {
+            ryo_language::domain::project_context::types::EntryObservation {
+                path: path.clone(),
+                state: ryo_language::domain::project_context::types::EntryState::Unknown,
+            }
+        }
         fn inventory(&self) -> Result<Inventory, CorpusError> {
             Ok(Inventory(vec![]))
         }
@@ -1548,6 +1560,15 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
         fail_at: usize,
     }
     impl CorpusPort for ChangingRead {
+        fn observe_entry(
+            &self,
+            path: &FilePath,
+        ) -> ryo_language::domain::project_context::types::EntryObservation {
+            ryo_language::domain::project_context::types::EntryObservation {
+                path: path.clone(),
+                state: ryo_language::domain::project_context::types::EntryState::Unknown,
+            }
+        }
         fn inventory(&self) -> Result<Inventory, CorpusError> {
             unreachable!("explicit test inventory")
         }
@@ -1854,4 +1875,82 @@ fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_sou
     assert!(!reason.0.is_empty());
     assert!(matches!(&inputs[1], CorpusInput::Available(observed) if observed == &companion));
     assert!(matches!(&inputs[2], CorpusInput::Unreadable { .. }));
+}
+
+#[test]
+fn project_entry_acquisition_deduplicates_provider_candidates_before_observing() {
+    use crate::outbound::corpus::{
+        errors::CorpusError,
+        interface::CorpusPort,
+        types::{Inventory, PathStat},
+    };
+    use ryo_language::domain::project_context::types::EntryObservation;
+    use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+    use std::sync::atomic::AtomicUsize;
+    struct CountingCorpus {
+        inner: CorpusFake,
+        observations: Arc<AtomicUsize>,
+    }
+    impl CorpusPort for CountingCorpus {
+        fn inventory(&self) -> Result<Inventory, CorpusError> {
+            self.inner.inventory()
+        }
+        fn read(&self, entry: &CorpusEntry, into: &mut FileBytes) -> Result<(), CorpusError> {
+            self.inner.read(entry, into)
+        }
+        fn stat(&self, path: &FilePath) -> Result<PathStat, CorpusError> {
+            self.inner.stat(path)
+        }
+        fn observe_entry(&self, path: &FilePath) -> EntryObservation {
+            self.observations.fetch_add(1, Ordering::Relaxed);
+            self.inner.observe_entry(path)
+        }
+    }
+    let observations = Arc::new(AtomicUsize::new(0));
+    let corpus = Arc::new(CountingCorpus {
+        inner: CorpusFake::default(),
+        observations: Arc::clone(&observations),
+    });
+    let language = Arc::new(LanguageFake {
+        project_entry_paths: vec![
+            FilePath("z.py".into()),
+            FilePath("a.py".into()),
+            FilePath("a.py".into()),
+        ],
+        ..LanguageFake::default()
+    });
+    let service = FileAnalysis::new(
+        corpus,
+        language,
+        Arc::new(DigestFake),
+        Arc::new(MemoryFake::default()),
+    );
+    let root = RootPath(".".into());
+    let scope = Default::default();
+    let inventory = Default::default();
+    let notes = ProjectNotes::default();
+    let input = ProjectInput {
+        root: &root,
+        repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
+        search_scope: &scope,
+        given_inventory: &inventory,
+        observed_entries: &[],
+        manifests: &[],
+        files: &[],
+        notes: &notes,
+        wanted: &[],
+    };
+    let mut facts = FactsFake::default().worker().expect("facts worker");
+    let result = service
+        .project_now(&input, &mut Symbols::default(), &mut *facts)
+        .expect("project");
+    assert_eq!(observations.load(Ordering::Relaxed), 2);
+    assert_eq!(
+        result
+            .observed_entries
+            .iter()
+            .map(|entry| entry.path.0.as_ref())
+            .collect::<Vec<_>>(),
+        vec!["a.py", "z.py"]
+    );
 }

@@ -53,7 +53,7 @@ use crate::domain::repository::service::{by_path, configuration, paths_of};
 use crate::domain::rules::service::{ids_of, owner_of, scopes_of};
 use crate::domain::rules::types::RuleSpec;
 use crate::domain::storing::service::{
-    as_kept, decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
+    decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
     unknowns_from, with_fresh,
 };
 use crate::domain::storing::types::{
@@ -72,7 +72,6 @@ use crate::domain::workers::types::{
     CrossReading, FileOrder, FileTotal, FreshNotes, ProjectHandle, Replaying, Visited, WorkersMet,
 };
 use crate::outbound::corpus::interface::CorpusPort;
-use crate::outbound::corpus::types::PathStat;
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestBytes;
 use crate::outbound::facts::interface::FactsPort;
@@ -99,7 +98,7 @@ use ryo_language::domain::symbols::types::Symbols;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
-use ryo_values::domain::files::types::{CorpusInput, FileBytes, Glob};
+use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{Heading, InputNumber};
 use ryo_values::domain::plans::types::Plan;
@@ -441,44 +440,14 @@ impl LintUseCaseImpl {
         if reads_any(plans) == PlanReads::DoesNotRead {
             return Ok(Digest([0; 16]));
         }
-        let absolute = std::path::absolute(std::path::Path::new(session.root.0.as_ref())).map_err(
-            |error| LintError::Corpus {
-                reason: error.to_string(),
-            },
-        )?;
-        let mut normalized = std::path::PathBuf::new();
-        for component in absolute.components() {
-            match component {
-                std::path::Component::CurDir => {}
-                std::path::Component::ParentDir => {
-                    let _removed = normalized.pop();
-                }
-                other @ (std::path::Component::Prefix(_)
-                | std::path::Component::RootDir
-                | std::path::Component::Normal(_)) => normalized.push(other.as_os_str()),
-            }
-        }
-        let repository = match session.repository {
-            ryo_language::inbound::use_cases::project::types::Repository::Disk => {
-                b"disk".as_slice()
-            }
-            ryo_language::inbound::use_cases::project::types::Repository::Given => {
-                b"given".as_slice()
-            }
-        };
-        let mut parts = vec![
-            self.digest.digest(DigestBytes(b"project-context-v1")),
-            self.digest
-                .digest(DigestBytes(normalized.as_os_str().as_encoded_bytes())),
-            self.digest.digest(DigestBytes(repository)),
-        ];
-        parts.extend(manifests.iter().flat_map(|manifest| {
-            [
-                self.digest.digest(DigestBytes(manifest.path.0.as_bytes())),
-                self.digest.digest(DigestBytes(manifest.text.0.as_bytes())),
-            ]
-        }));
-        Ok(self.digest.combine(&parts))
+        crate::application::project_context::service::identity(
+            manifests,
+            session,
+            self.digest.as_ref(),
+        )
+        .map_err(|error| LintError::Corpus {
+            reason: error.to_string(),
+        })
     }
 
     /// What the run uses again of what the last kept: whether the files as they were and the findings across files stand, the records
@@ -508,7 +477,13 @@ impl LintUseCaseImpl {
         // uses something again and a rule reads what the project writes.
         let consulted = match &decision {
             Decision::Again | Decision::Check(_) if !project.is_empty() => {
-                self.consulted_now(&listing.stored.consulted, &listing.stored.consulted_absent)
+                crate::application::project_context::service::as_it_was(
+                    self.corpus.as_ref(),
+                    self.digest.as_ref(),
+                    &listing.stored.consulted,
+                    &listing.stored.consulted_absent,
+                    &listing.stored.project_observations,
+                )
             }
             Decision::Again | Decision::Check(_) | Decision::Whole | Decision::Cross => {
                 Freshness::AsItWas
@@ -581,35 +556,6 @@ impl LintUseCaseImpl {
                 .collect(),
             read_again,
         })
-    }
-
-    /// Whether the files the project's lookup read beyond the manifests are as the store kept them: each is stat'ed, and read and
-    /// digested only when its size or the time it was last written changed. One that is gone, cannot be read or whose digest changed
-    /// is changed, and so is a file the lookup asked for and found none of that is there now.
-    fn consulted_now(&self, kept: &[StoredFile], absent: &[FilePath]) -> Freshness {
-        // A file the lookup found none of stays so; one there now is one the lookup would have found.
-        if absent
-            .iter()
-            .any(|path| !matches!(self.corpus.stat(path), Ok(PathStat::Missing)))
-        {
-            return Freshness::Changed;
-        }
-        let mut bytes = FileBytes::default();
-        for each in kept {
-            let Ok(PathStat::Found(entry)) = self.corpus.stat(&each.path) else {
-                return Freshness::Changed;
-            };
-            if as_kept(each, &entry) == Freshness::AsItWas {
-                continue;
-            }
-            if each.executable != entry.executable
-                || self.corpus.read(&entry, &mut bytes).is_err()
-                || self.digest.digest(DigestBytes(&bytes.0)) != each.digest
-            {
-                return Freshness::Changed;
-            }
-        }
-        Freshness::AsItWas
     }
 
     /// What the changed files show other files now, each read alone: the records the visit makes of them, which the findings of the
@@ -922,6 +868,9 @@ impl LintUseCaseImpl {
         let input = ProjectInput {
             root: &run.request.session.root,
             repository: run.request.session.repository,
+            search_scope: &run.request.session.search_scope,
+            given_inventory: &run.request.session.given_inventory,
+            observed_entries: &[],
             manifests: run.manifests,
             files: &listing.files,
             notes: &notes,
@@ -1240,6 +1189,7 @@ impl LintUseCaseImpl {
                 refused: run.listing.stored.refused.clone(),
                 consulted: run.listing.stored.consulted.clone(),
                 consulted_absent: run.listing.stored.consulted_absent.clone(),
+                observed_entries: run.listing.stored.project_observations.clone(),
                 ..Projected::default()
             }
         };
@@ -1329,6 +1279,7 @@ impl LintUseCaseImpl {
                 refused: run.listing.stored.refused.clone(),
                 consulted: run.listing.stored.consulted.clone(),
                 consulted_absent: run.listing.stored.consulted_absent.clone(),
+                observed_entries: run.listing.stored.project_observations.clone(),
                 ..Projected::default()
             }
         } else {
@@ -1372,6 +1323,7 @@ impl LintUseCaseImpl {
                 skipped: &skipped,
                 consulted: &now.consulted,
                 consulted_absent: &now.consulted_absent,
+                project_observations: &now.observed_entries,
             },
         )?;
         Ok(LintReport {

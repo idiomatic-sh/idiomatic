@@ -53,8 +53,8 @@ mod equality_join;
 
 pub(in crate::application) mod activation;
 
-mod ordered_existence;
 pub(in crate::application) mod observations;
+mod ordered_existence;
 
-pub(in crate::application) mod scope;
 pub(in crate::application) mod completion;
+pub(in crate::application) mod scope;

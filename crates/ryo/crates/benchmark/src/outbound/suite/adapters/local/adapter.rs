@@ -417,6 +417,29 @@ fn prepare_cases(
         }
         validate_cases(&rule, &cases)?;
         for (index, case) in cases.cases.into_iter().enumerate() {
+            let project_search_roots = case.project_search_roots.or_else(|| {
+                profile
+                    .as_ref()
+                    .and_then(|tool| tool.project_search_roots.clone())
+            });
+            let given_project_inventory = case.given_project_inventory.unwrap_or_default();
+            if given_project_inventory.completeness
+                == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+                && project_search_roots.is_none()
+            {
+                return Err(Error::Invalid(
+                    "complete Given project inventory requires declared search roots".into(),
+                ));
+            }
+            if context_mode == crate::domain::suite::types::ProjectContextMode::ListedDisk
+                && (!given_project_inventory.entries.is_empty()
+                    || given_project_inventory.completeness
+                        != ryo::linter::ProjectInventoryCompleteness::Partial)
+            {
+                return Err(Error::Invalid(
+                    "Given project inventory cannot override a sealed disk context".into(),
+                ));
+            }
             let boundary = scratch.join(rule.to_string()).join(index.to_string());
             let context_manifest = match (context_mode, &case.context) {
                 (crate::domain::suite::types::ProjectContextMode::Isolated, None) => None,
@@ -466,11 +489,46 @@ fn prepare_cases(
                     .as_ref()
                     .and_then(|_| profile.as_ref().map(|profile| profile.defaults.clone()))
             });
+            for entry in &given_project_inventory.entries {
+                let path = root.join(entry.path.0.as_ref());
+                match entry.state {
+                    ryo::linter::ProjectEntryState::File if !path.is_file() => {
+                        return Err(Error::Invalid(
+                            "Given project file entry lacks staged source bytes".into(),
+                        ));
+                    }
+                    ryo::linter::ProjectEntryState::Directory => {
+                        if path.is_file() {
+                            return Err(Error::Invalid(
+                                "Given project directory collides with a source file".into(),
+                            ));
+                        }
+                        std::fs::create_dir_all(&path)?;
+                    }
+                    ryo::linter::ProjectEntryState::Missing if path.exists() => {
+                        return Err(Error::Invalid(
+                            "Given project missing entry collides with staged context".into(),
+                        ));
+                    }
+                    ryo::linter::ProjectEntryState::Other => {
+                        return Err(Error::Invalid(
+                            "Given project non-file entry requires a materialization contract"
+                                .into(),
+                        ));
+                    }
+                    ryo::linter::ProjectEntryState::File
+                    | ryo::linter::ProjectEntryState::Missing
+                    | ryo::linter::ProjectEntryState::Unknown => {}
+                }
+            }
             let request = RunRequest {
                 performance: case.performance,
                 rule_context,
                 selected_rules,
                 rule_observations: case.rule_observations,
+                project_search_roots,
+                given_project_inventory,
+                staged_sources: Some(case.files.keys().cloned().collect()),
                 file_metadata: case.file_metadata,
                 context_manifest,
                 root,

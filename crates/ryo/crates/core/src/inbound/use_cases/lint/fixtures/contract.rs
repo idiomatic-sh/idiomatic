@@ -113,6 +113,8 @@ fn asking(ids: &[&str]) -> LintRequest {
         answer: AnswerShape::Findings,
         hosted: Vec::new(),
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(".".into()),
         },

@@ -90,6 +90,9 @@ fn request() -> languages::ProjectRequest {
         text: languages::ManifestText((*text).into()),
     }));
     languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         root: languages::RootPath(root.display().to_string().into()),
         repository: languages::Repository::Given,
         manifests,

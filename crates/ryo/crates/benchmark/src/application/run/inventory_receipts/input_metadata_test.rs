@@ -57,6 +57,34 @@ fn genuinely_unspecified_legacy_cases_keep_their_existing_receipt_contract() {
 }
 
 #[test]
+fn project_namespace_inputs_bind_registered_scope_and_both_raw_sides() {
+    let (mut case, mut rows) = pair(false);
+    case["project_search_roots"] = json!(["src"]);
+    case["given_project_inventory"] = json!({
+        "completeness": "partial",
+        "entries": [{"path": "src/localmod.py", "state": "file"}]
+    });
+    let digest = super::project_inputs_digest(&case).expect("typed project digest");
+    case["project_inputs_sha256"] = digest.clone();
+    for row in &mut rows {
+        row["project_inputs_sha256"] = digest.clone();
+    }
+    assert_eq!(validate(std::slice::from_ref(&case), &rows), Ok((1, 0, 0)));
+
+    let mut changed_scope = case.clone();
+    changed_scope["project_search_roots"] = json!(["vendor", "src"]);
+    assert!(validate(&[changed_scope], &rows).is_err());
+
+    let mut changed_entry = case.clone();
+    changed_entry["given_project_inventory"]["entries"][0]["state"] = json!("missing");
+    assert!(validate(&[changed_entry], &rows).is_err());
+
+    let mut stale_row = rows;
+    stale_row[0]["project_inputs_sha256"] = json!("0".repeat(64));
+    assert!(validate(&[case], &stale_row).is_err());
+}
+
+#[test]
 fn offline_entry_emits_a_recomputed_witness_and_never_echoes_a_stale_declared_digest() {
     use crate::outbound::inventory::types::{CapturedObservation, Registration};
     let (case, records) = pair(false);

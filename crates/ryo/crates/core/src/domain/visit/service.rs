@@ -236,6 +236,7 @@ pub(crate) fn wants(plans: &[Plan], catalog: &[Relation]) -> Result<Wants, Visit
     let walked = walked(&wanted);
     let noted = if wanted.contains(&Relation::SourceDependency)
         || wanted.contains(&Relation::AnalyzedSource)
+        || wanted.contains(&Relation::ProjectNamespaceMembership)
     {
         Noting::Wanted
     } else {

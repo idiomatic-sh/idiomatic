@@ -72,6 +72,18 @@ pub(super) fn normalized_invocation(
     if let Some(language) = &profile.source_language {
         settings["source_language"] = serde_json::json!(language);
     }
+    if let Some(roots) = &case.request.project_search_roots {
+        settings["project_search_roots"] =
+            serde_json::json!(roots.iter().map(|root| root.0.as_ref()).collect::<Vec<_>>());
+    }
+    let inventory =
+        crate::outbound::context::adapters::local::schemas::ProjectInventorySchema::from(
+            case.request.given_project_inventory.clone(),
+        );
+    if !inventory.is_default() {
+        settings["given_project_inventory"] =
+            serde_json::to_value(inventory).map_err(|error| Error::Json(Box::new(error)))?;
+    }
     Ok(settings)
 }
 

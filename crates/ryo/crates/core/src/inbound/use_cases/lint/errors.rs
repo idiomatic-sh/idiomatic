@@ -266,6 +266,10 @@ impl From<crate::application::file_analysis::errors::FileAnalysisError> for Lint
             FileAnalysisError::Execution(error) => Self::Execution {
                 reason: error.to_string(),
             },
+            FileAnalysisError::ProjectObservationMismatch => Self::Language {
+                reason: "project entry observation receipt did not match the engine batch"
+                    .to_owned(),
+            },
             FileAnalysisError::SourceLanguage { name } => Self::SourceLanguage { name },
             FileAnalysisError::Store(error) => error.into(),
             FileAnalysisError::Corpus(error) => error.into(),

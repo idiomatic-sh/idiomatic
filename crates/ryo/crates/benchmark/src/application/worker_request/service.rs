@@ -20,6 +20,33 @@ pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
         )?;
     }
 
+    if let Some(roots) = &request.project_search_roots {
+        for root in roots {
+            if !root.0.is_empty() {
+                crate::domain::suite::service::relative_path(root.0.as_ref())?;
+            }
+        }
+    }
+    for entry in &request.given_project_inventory.entries {
+        crate::domain::suite::service::relative_path(entry.path.0.as_ref())?;
+    }
+    if request.given_project_inventory.completeness
+        == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+        && request.project_search_roots.is_none()
+    {
+        return Err(Error::Invalid(
+            "complete Given project inventory requires declared search roots".into(),
+        ));
+    }
+    if request.project_context_mode == ProjectContextMode::ListedDisk
+        && (!request.given_project_inventory.entries.is_empty()
+            || request.given_project_inventory.completeness
+                != ryo::linter::ProjectInventoryCompleteness::Partial)
+    {
+        return Err(Error::Invalid(
+            "Given project inventory cannot override a sealed disk context".into(),
+        ));
+    }
     let selected_missing = match (request.project_context_mode, &request.context_manifest) {
         (ProjectContextMode::Isolated, None) => BTreeSet::new(),
         (ProjectContextMode::ListedDisk, Some(manifest)) => {

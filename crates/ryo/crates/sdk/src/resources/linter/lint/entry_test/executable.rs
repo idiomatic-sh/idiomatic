@@ -8,6 +8,8 @@ use crate::domain::capacity::types::WorkerPool;
 
 fn request(root: &std::path::Path, observation: ExecutablePermission, query: &str) -> LintRequest {
     LintRequest {
+        project_search_scope: Default::default(),
+        given_project_inventory: Default::default(),
         source_language: None,
         root: root.to_path_buf(),
         rules: BTreeMap::from([(

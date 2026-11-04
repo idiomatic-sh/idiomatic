@@ -50,6 +50,8 @@ pub struct LanguageFake {
     pub projects: AtomicUsize,
     /// The files it says it read beyond the manifests whenever it reads them, by path from the root.
     pub consulted: Vec<FilePath>,
+    /// Candidate entry paths requested by the fake, including duplicates for engine acquisition controls.
+    pub project_entry_paths: Vec<FilePath>,
     /// Paths for which this fake reports rejected syntax; other parsed files are accepted when this is nonempty.
     pub rejected_syntax: Vec<FilePath>,
 }
@@ -207,6 +209,10 @@ impl LanguagePort for LanguageFake {
         FileReading::Read(LanguageNumber(0))
     }
 
+    fn project_entries(&self, _input: &ProjectInput<'_>) -> Vec<FilePath> {
+        self.project_entry_paths.clone()
+    }
+
     fn project(
         &self,
         input: &ProjectInput<'_>,
@@ -217,6 +223,7 @@ impl LanguagePort for LanguageFake {
         refuse_broken(input)?;
         Ok(ProjectAnswer {
             consulted: self.consulted.clone(),
+            observed_entries: input.observed_entries.to_vec(),
             ..ProjectAnswer::default()
         })
     }

@@ -98,7 +98,10 @@ pub(crate) enum Reading {
     /// From the disk, walked or as listed, with the files given beside it.
     Disk(CorpusListing, Vec<CorpusFile>),
     /// Only the files given as text.
-    Memory(Vec<CorpusFile>),
+    Memory(
+        Vec<CorpusFile>,
+        ryo_language::domain::project_context::types::GivenProjectInventory,
+    ),
 }
 
 /// Where a run keeps what it leaves for the next. The repository is never written to unless the caller names it.
@@ -141,7 +144,8 @@ pub struct Rule {
     pub parameters: BTreeMap<ParameterName, ParameterValue>,
     /// The files the rule governs; none means every file.
     pub include: Vec<Glob>,
-    /// The files it does not govern.
+    /// Files excluded from diagnostic emission. Explicitly demanded observation roots
+    /// still compute independently; unavailable or incompatible inputs remain unknown.
     pub exclude: Vec<Glob>,
 }
 
@@ -216,6 +220,10 @@ pub struct LintRequest {
     pub source_language: Option<crate::domain::language::types::LanguageName>,
     /// The repository's root directory.
     pub root: PathBuf,
+    /// Explicit ordered import roots; undeclared scope keeps project membership unknown.
+    pub project_search_scope: ProjectSearchScope,
+    /// Separate host entry inventory for Given corpus requests.
+    pub given_project_inventory: GivenProjectInventory,
     /// The rules, by the id their findings carry.
     pub rules: BTreeMap<RuleId, Rule>,
     /// Only findings in these files are reported; none means every file.
@@ -238,6 +246,52 @@ pub enum Corpus {
     Listed(Vec<RelativePath>),
     /// Only these files, given as text: the files of a rule's case. The root names nothing then.
     Given(Vec<CaseSource>),
+}
+
+/// Explicit host authority for project import roots; an empty declared list is meaningful.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum ProjectSearchScope {
+    /// No roots were declared, so local membership cannot be proved absent.
+    #[default]
+    Undeclared,
+    /// Repository-relative search roots, in the order the host uses them.
+    Declared(Vec<RelativePath>),
+}
+
+/// How much of a Given project's search scope the host inventoried.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ProjectInventoryCompleteness {
+    /// An entry omitted from the inventory remains unknown.
+    #[default]
+    Partial,
+    /// Omitted entries within the declared scope are absent.
+    CompleteWithinDeclaredScope,
+}
+
+/// One host-observed candidate entry, separate from source text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectEntryObservation {
+    /// Repository-relative candidate path.
+    pub path: RelativePath,
+    /// Its observed kind.
+    pub state: ProjectEntryState,
+}
+
+/// Entry kinds available to a Given project's namespace lookup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectEntryState {
+    File,
+    Directory,
+    Other,
+    Missing,
+    Unknown,
+}
+
+/// Explicit Given inventory and its absence authority; no disk probing is implied.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GivenProjectInventory {
+    pub entries: Vec<ProjectEntryObservation>,
+    pub completeness: ProjectInventoryCompleteness,
 }
 
 /// The place of a row among the rows of a relation the host declares, from one.

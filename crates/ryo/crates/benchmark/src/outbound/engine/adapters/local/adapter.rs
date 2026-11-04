@@ -269,6 +269,11 @@ impl EnginePort for EngineLocalAdapter {
                     .clone()
                     .map(|name| ryo::languages::LanguageName(name.into())),
                 root: request.root.clone(),
+                project_search_scope: request.project_search_roots.clone().map_or(
+                    ryo::linter::ProjectSearchScope::Undeclared,
+                    ryo::linter::ProjectSearchScope::Declared,
+                ),
+                given_project_inventory: request.given_project_inventory.clone(),
                 rules,
                 files: vec![],
                 hosted: configured.hosted,

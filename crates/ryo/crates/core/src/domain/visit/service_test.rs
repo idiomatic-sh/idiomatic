@@ -215,6 +215,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("namespace_membership_alone_demands_import_notes"),
+        word: Word::Succeeds,
+        input: || {
+            Question::Wants(
+                Relation::ProjectNamespaceMembership,
+                vec![Relation::ProjectNamespaceMembership],
+                Aspect::Noted,
+            )
+        },
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("notes_are_not_wanted_when_no_plan_reads_what_they_are_for"),
         word: Word::Succeeds,
         input: || Question::Wants(Relation::Function, vec![Relation::Function], Aspect::Noted),

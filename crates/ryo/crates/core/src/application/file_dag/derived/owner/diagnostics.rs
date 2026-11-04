@@ -5,22 +5,40 @@ impl DerivedOwner {
     pub(super) fn report_selector_occupancy(&self, requesting: PopulationId) {
         let state = self.state.borrow();
         let ledger = self.ledger.borrow();
-        let mut retained = state.entries.iter().filter(|(_, entry)| entry.retained.is_some()).collect::<Vec<_>>();
-        let releasable = retained.iter().filter_map(|(_, entry)| {
-            let value = entry.retained.as_ref()?;
-            (entry.required.is_none() && ledger.optional_payload_only(&entry.backings)
-                && Arc::strong_count(&value.storage) == 1).then_some(&value._lease)
-        }).collect::<Vec<_>>();
+        let mut retained = state
+            .entries
+            .iter()
+            .filter(|(_, entry)| entry.retained.is_some())
+            .collect::<Vec<_>>();
+        let releasable = retained
+            .iter()
+            .filter_map(|(_, entry)| {
+                let value = entry.retained.as_ref()?;
+                (entry.required.is_none()
+                    && ledger.optional_payload_only(&entry.backings)
+                    && Arc::strong_count(&value.storage) == 1)
+                    .then_some(&value._lease)
+            })
+            .collect::<Vec<_>>();
         tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_occupancy_summary",
             requesting = ?requesting, retained_entries = retained.len(), reclaimable_entries = releasable.len(),
             reclaimable_physical_credit = ?ledger.optional_release_credit(&releasable));
-        retained.sort_unstable_by_key(|(_, entry)| (std::cmp::Reverse(entry.bytes), entry.admission));
+        retained
+            .sort_unstable_by_key(|(_, entry)| (std::cmp::Reverse(entry.bytes), entry.admission));
         for (key, entry) in retained.into_iter().take(16) {
             let value = entry.retained.as_ref().expect("filtered retained entry");
             let populations = &key.populations[..usize::from(key.len)];
-            let pins = populations.iter().map(|id| (*id, state.pins.get(id).copied().unwrap_or(0))).collect::<Vec<_>>();
+            let pins = populations
+                .iter()
+                .map(|id| (*id, state.pins.get(id).copied().unwrap_or(0)))
+                .collect::<Vec<_>>();
             let mut request = format!("{:?}", entry._plan.request);
-            request.truncate(request.char_indices().nth(1024).map_or(request.len(), |(at, _)| at));
+            request.truncate(
+                request
+                    .char_indices()
+                    .nth(1024)
+                    .map_or(request.len(), |(at, _)| at),
+            );
             tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_occupancy_entry",
                 requesting = ?requesting, kind = ?entry._plan.kind, admission = entry.admission,
                 populations = ?populations, population_pins = ?pins, logical_payload_bytes = entry.bytes,

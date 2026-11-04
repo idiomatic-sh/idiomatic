@@ -107,6 +107,12 @@ pub struct ProjectInput<'a> {
     pub root: &'a RootPath,
     /// Where its files are: on the disk below the root, or only those given.
     pub repository: ryo_language::inbound::use_cases::project::types::Repository,
+    /// Ordered host-declared project search roots.
+    pub search_scope: &'a ryo_language::domain::project_context::types::ProjectSearchScope,
+    /// Host inventory authority for Given requests.
+    pub given_inventory: &'a ryo_language::domain::project_context::types::GivenProjectInventory,
+    /// Entry states acquired once by the engine for the demanded candidates.
+    pub observed_entries: &'a [ryo_language::domain::project_context::types::EntryObservation],
     /// The manifests of the repository.
     pub manifests: &'a [ManifestFile],
     /// Every file the run lists, by path, in the order of their places.
@@ -139,6 +145,8 @@ pub struct ProjectAnswer {
     /// The files the languages read beyond the manifests the run handed them, and the manifests the rows are about that the run does
     /// not list, by path from the root (`../` climbs above it), in the order of their paths, each once.
     pub consulted: Vec<FilePath>,
+    /// The exact candidate observations the engine handed to the readers.
+    pub observed_entries: Vec<ryo_language::domain::project_context::types::EntryObservation>,
 }
 
 /// Whether a language gives the elements of a file their roles under their parents, for the queries that read them.

@@ -9,6 +9,7 @@ use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::project_context::types::{EntryObservation, EntryState};
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::descriptions::types::LanguageName;
@@ -37,6 +38,47 @@ use ryo_values::domain::stores::types::StoredWords;
 /// A text, by its place in the table of strings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(super) struct TextSchema(u32);
+
+/// One exact project-entry observation retained for warm context validation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct EntrySchema {
+    path: TextSchema,
+    state: EntryStateSchema,
+}
+
+/// Stable entry-kind tags in the checked store version.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum EntryStateSchema {
+    File,
+    Directory,
+    Other,
+    Missing,
+    Unknown,
+}
+
+impl From<EntryState> for EntryStateSchema {
+    fn from(state: EntryState) -> Self {
+        match state {
+            EntryState::File => Self::File,
+            EntryState::Directory => Self::Directory,
+            EntryState::Other => Self::Other,
+            EntryState::Missing => Self::Missing,
+            EntryState::Unknown => Self::Unknown,
+        }
+    }
+}
+
+impl From<EntryStateSchema> for EntryState {
+    fn from(state: EntryStateSchema) -> Self {
+        match state {
+            EntryStateSchema::File => Self::File,
+            EntryStateSchema::Directory => Self::Directory,
+            EntryStateSchema::Other => Self::Other,
+            EntryStateSchema::Missing => Self::Missing,
+            EntryStateSchema::Unknown => Self::Unknown,
+        }
+    }
+}
 
 /// A rule: one row for each.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -174,6 +216,8 @@ pub(super) struct TablesSchema<'a> {
     consulted: Vec<FileSchema>,
     /// The files the lookup asked for and found none of, as texts.
     consulted_absent: Vec<TextSchema>,
+    /// Candidate entries used for project membership, in request order.
+    project_observations: Vec<EntrySchema>,
     /// Rules explicitly skipped because their required syntax was rejected.
     #[serde(default)]
     skipped: Vec<TripleSchema>,
@@ -492,6 +536,14 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
             .iter()
             .map(|each| text(&mut strings, &each.0))
             .collect();
+        let project_observations = stored
+            .project_observations
+            .iter()
+            .map(|each| EntrySchema {
+                path: text(&mut strings, &each.path.0),
+                state: each.state.into(),
+            })
+            .collect();
         let (findings, finding_keys, finding_values) =
             findings_schema(&mut strings, &stored.findings);
         let unread = stored
@@ -558,6 +610,7 @@ impl<'a> From<&'a Stored> for TablesSchema<'a> {
             unknowns,
             consulted,
             consulted_absent,
+            project_observations,
             skipped,
         }
     }
@@ -659,6 +712,16 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             .iter()
             .map(|each| named(strings, *each).map(FilePath))
             .collect::<Result<_, postcard::Error>>()?;
+        let project_observations = tables
+            .project_observations
+            .iter()
+            .map(|each| {
+                Ok(EntryObservation {
+                    path: FilePath(named(strings, each.path)?),
+                    state: each.state.into(),
+                })
+            })
+            .collect::<Result<Vec<_>, postcard::Error>>()?;
         let file = |at: u32| file_number(files.len(), at);
         let frontiers = tables
             .frontiers
@@ -734,6 +797,7 @@ impl TryFrom<TablesSchema<'_>> for Stored {
             skipped,
             consulted,
             consulted_absent,
+            project_observations,
             handed: StoredHanded::default(),
         })
     }

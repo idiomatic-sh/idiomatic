@@ -38,6 +38,12 @@ pub trait ProjectUseCase: Send + Sync {
         path: crate::domain::files::types::SourcePath<'_>,
     ) -> crate::domain::files::types::PrimaryFileRole;
 
+    /// Candidate entry paths needed for the demanded project facts, without observing the filesystem.
+    fn project_entries(
+        &self,
+        request: &ProjectRequest,
+    ) -> Vec<crate::domain::files::types::FilePath>;
+
     /// Reads the manifests through the language's own tools and answers what the readers below read their
     /// rows from, and the manifests the tools refused; nothing of it is kept for another run. A manifest that does not
     /// parse is refused and the others are read: it is a finding of the run, as a syntax error is.

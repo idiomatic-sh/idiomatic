@@ -118,6 +118,7 @@ pub(crate) fn run(
             let parser_configuration = tool.parser_configuration.clone();
             let source_language = tool.source_language.clone();
             let project_context_mode = tool.project_context_mode;
+            let project_search_roots = tool.project_search_roots.clone();
             tool.defaults = audit.authored().to_vec();
             let candidate_defaults = tool.defaults.clone();
             let candidate_observations = tool.rule_observations.clone();
@@ -250,6 +251,9 @@ pub(crate) fn run(
                                 declared_rule_context.as_ref(),
                                 None,
                             )?,
+                            project_search_roots: project_search_roots.clone(),
+                            given_project_inventory: Default::default(),
+                            staged_sources: None,
                             file_metadata: None,
                             context_manifest: None,
                             root: workspace.root().to_owned(),
@@ -323,6 +327,9 @@ pub(crate) fn run(
                                 declared_rule_context.as_ref(),
                                 None,
                             )?,
+                            project_search_roots: project_search_roots.clone(),
+                            given_project_inventory: Default::default(),
+                            staged_sources: None,
                             file_metadata: None,
                             context_manifest: None,
                             root: workspace.root().to_owned(),

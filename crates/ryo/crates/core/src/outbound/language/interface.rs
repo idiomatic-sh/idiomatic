@@ -60,6 +60,12 @@ pub trait LanguagePort: Send + Sync {
         None
     }
 
+    /// Candidate project entries the linked languages need for the requested relations; no IO is performed.
+    fn project_entries(
+        &self,
+        input: &ProjectInput<'_>,
+    ) -> Vec<ryo_language::domain::files::types::FilePath>;
+
     /// Reads the manifests with every linked language, writing into `out`.
     ///
     /// # Errors

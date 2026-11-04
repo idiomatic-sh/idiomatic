@@ -117,6 +117,9 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
     );
     languages::contract::project(&contract);
     let resolved = contract.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Disk,
         root: languages::RootPath("".into()),
         manifests: files
@@ -170,6 +173,9 @@ fn primary_metadata_rejection_keeps_real_dependency_projection() {
     );
     let text = "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{email = 1}]\ndependencies = ['requests>=2']\n";
     let request = languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Given,
         root: languages::RootPath("".into()),
         files: vec![languages::FilePath("pyproject.toml".into())],
@@ -222,6 +228,9 @@ fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
         Arc::new(crate::outbound::module_context::factory::filesystem()),
     );
     let mut request = languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Given,
         root: languages::RootPath("".into()),
         files: vec![languages::FilePath("pyproject.toml".into())],
@@ -355,6 +364,9 @@ fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
         }),
     );
     let request = languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Vec::new(),
         repository: languages::Repository::Given,
         root: languages::RootPath("project".into()),
         files: vec![languages::FilePath("module.py".into())],

@@ -55,6 +55,7 @@ impl Fixture {
             rule_applicability: BTreeMap::new(),
             parser_configuration: Some("python3.10".into()),
             source_language: None,
+            project_search_roots: None,
         };
         let expected = RunReport {
             execution_metadata: ExecutionMetadata::Complete,
@@ -78,6 +79,9 @@ impl Fixture {
                 selected_rules: None,
                 rule_observations: None,
                 rule_context: None,
+                project_search_roots: None,
+                given_project_inventory: Default::default(),
+                staged_sources: None,
                 file_metadata: None,
                 root: source.clone(),
                 state: source.join("state"),

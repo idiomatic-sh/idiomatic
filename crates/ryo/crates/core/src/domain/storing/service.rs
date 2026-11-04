@@ -349,12 +349,14 @@ pub(crate) fn stored_of<W>(
         skipped,
         consulted,
         consulted_absent,
+        project_observations,
     } = keeping;
     let mut stored = Stored {
         rules,
         refused: refused.to_vec(),
         consulted: consulted.to_vec(),
         consulted_absent: consulted_absent.to_vec(),
+        project_observations: project_observations.to_vec(),
         unknowns: unknowns
             .iter()
             .map(|each| StoredUnknown {

@@ -322,6 +322,10 @@ impl Project for ProjectContract {
         )
     }
 
+    fn project_entries(&self, _request: &ProjectRequest) -> Vec<ryo::languages::FilePath> {
+        Vec::new()
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
         if !request
             .manifests
@@ -329,6 +333,7 @@ impl Project for ProjectContract {
             .any(|manifest| *name_of(&RepoPath(manifest.path.0.clone())).0 == *MANIFEST)
         {
             return Ok(Resolved {
+                observed_entries: request.observed_entries.clone(),
                 refused: Vec::new(),
                 unlisted: Vec::new(),
                 consulted: Vec::new(),
@@ -378,6 +383,7 @@ impl Project for ProjectContract {
             .collect();
         derived.packages = Some(packages);
         Ok(Resolved {
+            observed_entries: request.observed_entries.clone(),
             refused,
             unlisted,
             consulted,
@@ -404,6 +410,12 @@ impl Project for ProjectContract {
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, Linked>> {
         languages::absent(languages::AbsenceCause::NotYetRead)
     }
 

@@ -11,13 +11,13 @@ use crate::domain::elements::types::{
     ElementPlacement, Elements, ElementsEngine, KindSum, Numbers, OpenNode, Parent, SourceOrder,
     TableBuilder, TableWriting, TreeImpact,
 };
+use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
+use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SPAN, NO_SYMBOL, TOKEN};
 use ryo_relations::domain::relations::types::ReportText;
 use ryo_relations::domain::relations::types::{
     Bytes, Count, ElementOrigin, Extent, FieldId, Flags, KindBits, Offset, Position, PropertyId,
 };
-use crate::domain::symbols::service::{clear_symbols, intern, intern_derived};
-use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_relations::domain::terms::types::Symbol;
