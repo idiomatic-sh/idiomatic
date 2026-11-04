@@ -204,7 +204,7 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     executable: ExecutablePermission::Unknown,
                 });
                 let fresh_mixed = lint_with(&engine(Cache::None), mixed.clone()).unwrap();
-                let warm_mixed = lint_with(&cached, mixed).unwrap();
+                let warm_mixed = lint_with(&cached, mixed.clone()).unwrap();
                 assert_eq!(warm_mixed, fresh_mixed);
                 assert_eq!(
                     warm_mixed
@@ -224,6 +224,63 @@ fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknown_inventory
                     1,
                     "excluded case.py still publishes its named output"
                 );
+                assert_eq!(lint_with(&cached, mixed.clone()).unwrap(), fresh_mixed);
+
+                // Change an included file after both producers have been
+                // retained. Its diagnostic must change while the hidden
+                // observation from case.py remains available.
+                {
+                    let Corpus::Given(files) = &mut mixed.corpus else {
+                        unreachable!()
+                    };
+                    files[1].text = SourceText("import a\nimport b\n".into());
+                }
+                let fresh_other_edit = lint_with(&engine(Cache::None), mixed.clone()).unwrap();
+                let warm_other_edit = lint_with(&cached, mixed.clone()).unwrap();
+                assert_eq!(warm_other_edit, fresh_other_edit);
+                assert_eq!(
+                    warm_other_edit
+                        .findings
+                        .iter()
+                        .filter(|finding| finding.rule == i001)
+                        .count(),
+                    0,
+                    "the included file is now sorted"
+                );
+                assert_eq!(
+                    warm_other_edit
+                        .findings
+                        .iter()
+                        .filter(|finding| finding.rule == hidden)
+                        .count(),
+                    1,
+                    "the excluded producer still serves its named output"
+                );
+
+                // Move the directive off the first import. The hidden
+                // observation disappears, and the consumer reports it as
+                // unused. This must invalidate a retained producer frontier.
+                {
+                    let Corpus::Given(files) = &mut mixed.corpus else {
+                        unreachable!()
+                    };
+                    files[0].text = SourceText(
+                        "import local\nimport numpy  # noqa: I001\nimport unresolved\n".into(),
+                    );
+                }
+                let fresh_producer_edit = lint_with(&engine(Cache::None), mixed.clone()).unwrap();
+                let warm_producer_edit = lint_with(&cached, mixed).unwrap();
+                assert_eq!(warm_producer_edit, fresh_producer_edit);
+                let count = |rule: &RuleId| {
+                    warm_producer_edit
+                        .findings
+                        .iter()
+                        .filter(|finding| &finding.rule == rule)
+                        .count()
+                };
+                assert_eq!(count(&i001), 0);
+                assert_eq!(count(&hidden), 0);
+                assert_eq!(count(&ruf100), 1);
             }
         }
     }

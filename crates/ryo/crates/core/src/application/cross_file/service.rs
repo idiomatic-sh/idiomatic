@@ -207,10 +207,12 @@ impl CrossFile {
             found.retain(|each| {
                 let Some(path) = usize::try_from(each.file.0)
                     .ok()
+                    .filter(|index| *index < crossing.files.len())
                     .and_then(|index| crossing.paths.get(index))
                 else {
-                    // Unplaceable project rows keep their existing rendering
-                    // contract; they do not claim a source-file scope.
+                    // Unlisted manifests and unplaceable project rows were
+                    // never visited by per-file placement. Preserve their
+                    // separate project rendering contract.
                     return true;
                 };
                 *visible.entry(each.file.0).or_insert_with(|| {
