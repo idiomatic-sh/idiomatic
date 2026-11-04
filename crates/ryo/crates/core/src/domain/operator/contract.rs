@@ -1,5 +1,6 @@
 //! Mandatory per-operation metadata and the finite primitive capability boundary.
 pub(crate) mod axis;
+pub(crate) mod context;
 pub(crate) mod failure;
 
 pub(crate) mod graph;

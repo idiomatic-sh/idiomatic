@@ -7,7 +7,9 @@ use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext},
 };
-use crate::domain::operator::contract::{types::*, views::BorrowedRows};
+use crate::domain::operator::contract::{
+    context::with_primitive_context, types::*, views::BorrowedRows,
+};
 use crate::domain::table_model::{
     service::{cell, reset},
     types::Verdict,
@@ -25,25 +27,29 @@ use ryo_relations::domain::relations::types::Value;
 pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
     permit: &'call super::super::program::admission::KernelPermit<'scope>,
     context: &'call mut PrimitiveLease<'resources>,
+    operation: &'call ryo_values::domain::plans::types::Operation,
+    input: PreparedInputs<'call>,
 }
 impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
     fn new(
         permit: &'call super::super::program::admission::KernelPermit<'scope>,
         context: &'call mut PrimitiveLease<'resources>,
+        operation: &'call ryo_values::domain::plans::types::Operation,
+        input: PreparedInputs<'call>,
     ) -> Self {
-        Self { permit, context }
-    }
-
-    pub(super) fn dispatch(
-        self,
-        operation: &ryo_values::domain::plans::types::Operation,
-        input: PreparedInputs<'_>,
-        output: &mut dyn RowSink,
-    ) -> Result<(), OperatingError> {
-        self.permit.validate_registered(operation)?;
-        crate::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
+        Self {
+            permit,
+            context,
             operation,
             input,
+        }
+    }
+
+    pub(super) fn dispatch(self, output: &mut dyn RowSink) -> Result<(), OperatingError> {
+        self.permit.validate_registered(self.operation)?;
+        crate::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
+            self.operation,
+            self.input,
             self.context,
             output,
         )
@@ -198,11 +204,9 @@ pub(in crate::application::file_dag) fn evaluate(
         &semantics,
         &workspace.work,
         |context| {
-            let lease = ExecutableLease::new(permit, context);
+            let request = ExecutableLease::new(permit, context, operation, input);
             match operators.execute(KernelCall::Registered {
-                operation,
-                inputs: input,
-                lease,
+                request,
                 output: &mut output,
             }) {
                 Ok(KernelAnswer::Complete) => Ok(()),

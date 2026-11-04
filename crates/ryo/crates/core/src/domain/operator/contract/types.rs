@@ -415,7 +415,7 @@ impl<'a> PrimitiveLease<'a> {
         self.semantics
     }
 
-    fn new(
+    pub(super) fn new(
         views: PrimitiveViews<'a>,
         workspace: &'a mut PrimitiveWorkspace,
         derived: QuerySymbols<'a>,
@@ -517,21 +517,6 @@ impl<'a> PrimitiveLease<'a> {
     ) -> Result<crate::domain::table_model::types::Verdict, OperatingError> {
         self.predicate.holds(row, self.derived.as_ref())
     }
-}
-
-/// Build only borrowed semantic context for the duration of one caller action.
-/// It carries no publication, acquisition, or authority to issue a program call.
-pub(crate) fn with_primitive_context<'a, T>(
-    views: PrimitiveViews<'a>,
-    workspace: &'a mut PrimitiveWorkspace,
-    derived: QuerySymbols<'a>,
-    predicate: &'a mut dyn PredicateProgram,
-    semantics: &'a dyn PrimitiveSemantics,
-    work: &'a WorkCounters,
-    action: impl FnOnce(&mut PrimitiveLease<'a>) -> T,
-) -> T {
-    let mut context = PrimitiveLease::new(views, workspace, derived, predicate, semantics, work);
-    action(&mut context)
 }
 
 /// Exact semantic program bound once; a primitive cannot substitute comparisons.

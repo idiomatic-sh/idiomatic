@@ -1,17 +1,11 @@
 //! One required semantic invocation contract for ordinary and physical kernels.
 //! It has no owner, dependency resolver, publication or cache acquisition API.
-use crate::domain::{
-    operating::errors::OperatingError,
-    operator::contract::types::{PreparedInputs, RowSink},
-};
+use crate::domain::{operating::errors::OperatingError, operator::contract::types::RowSink};
 use ryo_operators::domain::contract::types::{OperatorAnswer, PortableOperatorFault};
-use ryo_values::domain::plans::types::Operation;
 
 pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
     Registered {
-        operation: &'call Operation,
-        inputs: PreparedInputs<'call>,
-        lease: super::execution::lease::ExecutableLease<'call, 'resources, 'invocation>,
+        request: super::execution::lease::ExecutableLease<'call, 'resources, 'invocation>,
         output: &'call mut dyn RowSink,
     },
     Walk {

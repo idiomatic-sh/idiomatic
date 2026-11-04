@@ -17,15 +17,8 @@ impl<'a> CommonOperatorEngine<'a> {
 impl PrimitiveExecutor for CommonOperatorEngine<'_> {
     fn execute(&self, call: KernelCall<'_, '_, '_>) -> Result<KernelAnswer, KernelFault> {
         match call {
-            KernelCall::Registered {
-                operation,
-                inputs,
-                lease,
-                output,
-            } => {
-                lease
-                    .dispatch(operation, inputs, output)
-                    .map_err(KernelFault::Refused)?;
+            KernelCall::Registered { request, output } => {
+                request.dispatch(output).map_err(KernelFault::Refused)?;
                 Ok(KernelAnswer::Complete)
             }
             KernelCall::Walk { request } => request

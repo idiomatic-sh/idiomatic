@@ -23,8 +23,12 @@ let local-kernel = select source as file, span, source-tail from kernel-targets 
 let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
 let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
 let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease.rs,application/file_dag/request.rs,application/file_dag/relations.rs,application/file_dag/testing.rs,application/file_dag/derived/owner/resource_fixture.rs}");
-let domain-violations = union(left=foreign-kernel, right=foreign-registry);
+let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease.rs}");
+let context-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/context.rs", captures=["target-root"]);
+let local-context = select source as file, span, source-tail from context-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-context = select file, span from local-context where source-tail != "application/file_dag/execution/lease.rs";
+let domain-entry-violations = union(left=foreign-kernel, right=foreign-registry);
+let domain-violations = union(left=domain-entry-violations, right=foreign-context);
 let violations = union(left=app-violations, right=domain-violations);
 emit violations subject file key(span);
 '''
@@ -67,9 +71,11 @@ files.'src/domain.rs' = 'pub mod semantic; pub mod executable_program; pub mod o
 files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
 files.'src/domain/executable_program.rs' = 'pub mod kernel;'
 files.'src/domain/executable_program/kernel.rs' = 'pub fn evaluate() {}'
-files.'src/domain/operator.rs' = 'pub mod contract;'
-files.'src/domain/operator/contract.rs' = 'pub mod registration;'
+files.'src/domain/operator.rs' = 'pub mod contract; pub mod service;'
+files.'src/domain/operator/contract.rs' = 'pub mod registration; pub mod context;'
 files.'src/domain/operator/contract/registration.rs' = 'pub fn registered() {}'
+files.'src/domain/operator/contract/context.rs' = 'pub fn with_primitive_context() {}'
+files.'src/domain/operator/service.rs' = 'pub fn registered() {}'
 
 [[scenarios]]
 id = "direct-internal-import"
@@ -123,6 +129,12 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 id = "peer-cannot-qualify-domain-registration"
 scenario = "A qualified registry call without an import is also forbidden."
 given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::registration::registered(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-mint-semantic-context"
+scenario = "A peer cannot call the pure borrowed context constructor outside the application invocation bridge."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::context::with_primitive_context(); }'
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
@@ -187,9 +199,14 @@ given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispa
 
 [[scenarios]]
 id = "declared-operator-preparation"
-scenario = "The request preparation owner may inspect the registered contract."
-given.files.'src/application/file_dag/request.rs' = 'pub fn prepare() { crate::domain::operator::contract::registration::registered(); }'
+scenario = "The request preparation owner uses the metadata-only service."
+given.files.'src/application/file_dag/request.rs' = 'pub fn prepare() { crate::domain::operator::service::registered(); }'
 given.files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod request;'
+
+[[scenarios]]
+id = "declared-context-bridge"
+scenario = "The application invocation bridge may construct a borrowed semantic context."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() { crate::domain::operator::contract::context::with_primitive_context(); }'
 
 [[scenarios]]
 id = "declared-operator-execution"
