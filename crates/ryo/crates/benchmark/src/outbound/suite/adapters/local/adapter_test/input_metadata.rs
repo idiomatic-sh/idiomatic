@@ -92,14 +92,14 @@ fn sealed_missing_request_needs_metadata_only_for_observed_sources() {
         "[[cases]]\nname='observed-plus-missing'\ncomparison='full'\nrequested-files=['case.txt','missing.txt']\nfiles={'case.txt'='data'}\nfile-metadata={'case.txt'=true}\ncontext={logical-root='repo',auxiliary-files={},missing=['repo/missing.txt']}\nexpected=[{rule='A001',file='case.txt',start=0,end=0}]\n[[cases]]\nname='negative-with-missing'\ncomparison='full'\nrequested-files=['case.txt','missing.txt']\nfiles={'case.txt'='data'}\nfile-metadata={'case.txt'=true}\ncontext={logical-root='repo',auxiliary-files={},missing=['repo/missing.txt']}\nexpected=[]\n",
     )
     .unwrap();
-    let cases = SuiteLocalAdapter
+    let cases = SuiteLocalAdapter::new(None)
         .cases(ArtifactPath(&rules), ArtifactPath(scratch.path()))
         .expect("the missing requested path has no fabricated metadata");
     assert_eq!(cases.len(), 2);
     for case in cases {
         assert_eq!(case.request.file_metadata.as_ref().unwrap().len(), 1);
         assert!(!case.request.root.join("missing.txt").exists());
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .validate_file_metadata(&case.request)
             .expect("only the readable source is observed");
     }
@@ -112,7 +112,7 @@ fn sealed_missing_request_needs_metadata_only_for_observed_sources() {
     assert_ne!(fabricated, observed);
     std::fs::write(path, fabricated).unwrap();
     assert!(
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .cases(ArtifactPath(&rules), ArtifactPath(scratch.path()))
             .is_err(),
         "a missing path cannot acquire fabricated file metadata"

@@ -139,6 +139,7 @@ fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
         rule: ryo::linter::RuleId::try_from("R1").unwrap(),
         name: "missing".into(),
         request: RunRequest {
+            performance: Default::default(),
             selected_rules: None,
             rule_observations: None,
             rule_context: None,

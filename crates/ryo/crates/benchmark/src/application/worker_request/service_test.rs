@@ -59,7 +59,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         ]
     };
     let request = WorkerRequest {
-        selected_rules: None,
+        performance: Default::default(),
+        selected_rules: Some(vec![ryo::linter::RuleId::try_from("R1").unwrap()]),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -155,7 +156,8 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     )
     .unwrap();
     let request = WorkerRequest {
-        selected_rules: None,
+        performance: Default::default(),
+        selected_rules: Some(vec![ryo::linter::RuleId::try_from("R1").unwrap()]),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,

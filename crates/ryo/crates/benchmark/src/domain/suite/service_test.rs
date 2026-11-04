@@ -144,6 +144,7 @@ fn requested_missing_inputs_require_a_real_absence_contract_and_only_origin_span
     let readable = ryo::linter::RelativePath("companion.py".into());
     let missing = ryo::linter::RelativePath("missing.py".into());
     let case = SuiteCase {
+        performance: Default::default(),
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
@@ -210,6 +211,10 @@ fn given_project_inventory_can_stage_an_unselected_local_module() {
     let importer = ryo::linter::RelativePath("main.py".into());
     let sibling = ryo::linter::RelativePath("localmod.py".into());
     let mut case = SuiteCase {
+        selected_rules: None,
+        rule_observations: None,
+        rule_context: None,
+        performance: Default::default(),
         requested_files: Some(vec![importer.clone()]),
         project_search_roots: Some(vec![ryo::linter::RelativePath("".into())]),
         given_project_inventory: Some(GivenProjectInventory {

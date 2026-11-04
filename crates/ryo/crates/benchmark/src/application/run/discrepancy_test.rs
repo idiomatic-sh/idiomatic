@@ -290,7 +290,7 @@ fn unselected_context_source_remains_bound_to_discrepancy_identity() {
             profile: root.path(),
             root: root.path(),
             files: &files,
-            source_sha256: &digest.0,
+            source_sha256: &digest,
             file_metadata_files: &[],
             file_metadata_sha256: None,
             evidence: &[],

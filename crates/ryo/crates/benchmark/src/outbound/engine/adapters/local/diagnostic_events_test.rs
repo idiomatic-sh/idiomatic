@@ -24,7 +24,14 @@ fn event_writer_flushes_complete_lines_for_live_diagnostics()
 fn diagnostic_subscriber_writes_readable_jsonl_events() -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("events.jsonl");
-    let dispatch = tracing::Dispatch::new(subscriber(&path)?);
+    let dispatch = tracing::Dispatch::new(subscriber(
+        &path,
+        crate::domain::suite::types::DiagnosticOptions {
+            execution: true,
+            steps: true,
+            ..Default::default()
+        },
+    )?);
     tracing::dispatcher::with_default(&dispatch, || {
         tracing::trace!(
             target: RULE_FILE_TARGET,
@@ -46,7 +53,14 @@ fn diagnostic_subscriber_records_step_events_with_nested_context()
 -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("events.jsonl");
-    let dispatch = tracing::Dispatch::new(subscriber(&path)?);
+    let dispatch = tracing::Dispatch::new(subscriber(
+        &path,
+        crate::domain::suite::types::DiagnosticOptions {
+            execution: true,
+            steps: true,
+            ..Default::default()
+        },
+    )?);
     tracing::dispatcher::with_default(&dispatch, || {
         let span = tracing::trace_span!(
             target: RULE_STEP_TARGET,
@@ -113,8 +127,12 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
         tracing_subscriber::filter::LevelFilter::TRACE,
     ] {
         let path = directory.path().join(format!("{level}.jsonl"));
-        let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(
-            &path, level, false, false,
+        let dispatch = tracing::Dispatch::new(super::subscriber(
+            &path,
+            crate::domain::suite::types::DiagnosticOptions {
+                execution: level == tracing_subscriber::filter::LevelFilter::TRACE,
+                ..Default::default()
+            },
         )?);
         tracing::dispatcher::with_default(&dispatch, || {
             tracing::trace!(target: super::EXECUTION_TARGET, phase = "provider_parse", elapsed_ns = 3_u64);
@@ -164,11 +182,13 @@ fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
 -> Result<(), Box<dyn std::error::Error>> {
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("lifecycle.jsonl");
-    let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(
+    let dispatch = tracing::Dispatch::new(super::subscriber(
         &path,
-        tracing_subscriber::filter::LevelFilter::TRACE,
-        true,
-        false,
+        crate::domain::suite::types::DiagnosticOptions {
+            execution: true,
+            lifecycle_memory: true,
+            ..Default::default()
+        },
     )?);
     tracing::dispatcher::with_default(&dispatch, || {
         tracing::trace!(target: RULE_FILE_TARGET, event = "rule_file_start");
@@ -194,11 +214,12 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
     for enabled in [false, true] {
         let directory = tempfile::tempdir()?;
         let path = directory.path().join("routes.jsonl");
-        let dispatch = tracing::Dispatch::new(super::subscriber_with_aggregates(
+        let dispatch = tracing::Dispatch::new(super::subscriber(
             &path,
-            tracing_subscriber::filter::LevelFilter::OFF,
-            false,
-            enabled,
+            crate::domain::suite::types::DiagnosticOptions {
+                resource_routes: enabled,
+                ..Default::default()
+            },
         )?);
         tracing::dispatcher::with_default(&dispatch, || {
             tracing::trace!(target: super::RESOURCE_ROUTES_TARGET, event="resource_routes", file=7, overflow=0, counts="[{\"rule\":2,\"node\":41,\"owner\":false,\"route\":\"scoped_build\",\"family\":\"Equality\",\"calls\":1,\"successes\":1,\"failures\":0}]");

@@ -45,6 +45,10 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     let state = root.path().join("state");
     let request = RunRequest {
         performance: Default::default(),
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
+        staged_sources: None,
+        performance: Default::default(),
         selected_rules: None,
         rule_observations: None,
         rule_context: None,
@@ -156,6 +160,10 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
     {
         let expected = explicit.clone().unwrap_or_else(|| original.clone());
         let request = RunRequest {
+            performance: Default::default(),
+            project_search_roots: None,
+            given_project_inventory: Default::default(),
+            staged_sources: None,
             selected_rules: None,
             rule_observations: explicit,
             rule_context: None,
