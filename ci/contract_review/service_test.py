@@ -138,3 +138,18 @@ def test_malformed_candidate_does_not_hide_valid_approval(repository):
     approved = commit(source, {**files, path: artifact, service.RECEIPTS + "/000.review.json": malformed})
     result = run(root, approved)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("protected_merge", [False, True])
+def test_pull_request_merge_tree_must_match_reviewed_source(repository, protected_merge):
+    root, commit, source, files, artifact, path = repository
+    approved = commit(source, {**files, path: artifact})
+    changed = "crates/ryo/crates/sdk/src/base_change.rs" if protected_merge else "crates/tastemaker/base-note.txt"
+    base = commit(service.ACTIVATION, {changed: b"base branch moved"})
+    composed = commit(approved, {changed: b"base branch moved"})
+    tree = service.git(root, "rev-parse", f"{composed}^{{tree}}").decode().strip()
+    env = dict(os.environ, GIT_AUTHOR_NAME="Control", GIT_AUTHOR_EMAIL="test@example.invalid",
+               GIT_COMMITTER_NAME="Control", GIT_COMMITTER_EMAIL="test@example.invalid")
+    merged = subprocess.check_output(["git", "-C", str(root), "commit-tree", tree, "-p", approved, "-p", base], input=b"synthetic PR merge ref\n", env=env).decode().strip()
+    result = run(root, merged)
+    assert result.returncode == int(protected_merge), result.stderr

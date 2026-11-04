@@ -41,5 +41,6 @@ Write a machine-readable artifact binding both reviewer/round identities, immuta
 source identity, raw invocation results, and finding/disposition evidence.
 The normal integration/CI gate must reject missing, stale, invalid, or unresolved
 blocking reviews; demonstrate those failures and an exact approved positive control.
-This instruction file does not enforce review. Name the executable gate and proof.
-Do not claim server-side merge protection unless it was independently verified.
+CI loads the validator from the trusted base, or pinned bootstrap 871be75a.
+This file is not enforcement; name `ci/contract_review/command.py` and proof.
+Workflow changes still require trusted governance; do not claim server protection.

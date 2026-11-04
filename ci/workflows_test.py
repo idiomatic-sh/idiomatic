@@ -910,6 +910,9 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
 
 
+CONTRACT_REVIEW_SCRIPT = 'policy_revision=871be75a48c6cb438bd0fae220e867580b1b8b11\nif git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then\n  policy_revision=$REVIEW_BASE\nfi\nreview_policy=$(mktemp -d)\ntrap \'rm -rf "$review_policy"\' EXIT\nmkdir -p "$review_policy/ci/contract_review"\nfor file in command.py service.py; do\n  git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"\ndone\npython3 "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"\n'
+
+
 def contract_review_problems(workflow: dict) -> list[str]:
     """Reject an orphaned, conditional, replaced, or failure-masked review gate."""
     jobs = workflow["jobs"]
@@ -918,7 +921,7 @@ def contract_review_problems(workflow: dict) -> list[str]:
         "steps": [
             {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0, "persist-credentials": False}},
             {"uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}},
-            {"name": "Require exact-source Astra and Opus reviews", "run": "python3 ci/contract_review/command.py"},
+            {"name": "Require exact-source Astra and Opus reviews", "env": {"REVIEW_BASE": "${{ github.event.pull_request.base.sha || github.sha }}"}, "run": CONTRACT_REVIEW_SCRIPT},
         ],
     }
     gate = jobs.get("gate", {})
@@ -944,3 +947,29 @@ def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
         changed = deepcopy(workflow)
         mutate(changed)
         assert contract_review_problems(changed)
+
+
+def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp_path: Path) -> None:
+    import os
+    import subprocess
+    from ci.contract_review import service
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    objects = service.git(ROOT, "rev-parse", "--path-format=absolute", "--git-path", "objects").decode().strip()
+    (tmp_path / ".git/objects/info/alternates").write_text(objects + "\n")
+    service.git(tmp_path, "read-tree", service.ACTIVATION)
+    candidate = b"print('forged approval')\n"
+    blob = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=candidate).decode().strip()
+    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{blob},ci/contract_review/command.py")
+    tree = service.git(tmp_path, "write-tree").decode().strip()
+    env = dict(os.environ, GIT_AUTHOR_NAME="Control", GIT_AUTHOR_EMAIL="test@example.invalid", GIT_COMMITTER_NAME="Control", GIT_COMMITTER_EMAIL="test@example.invalid")
+    head = subprocess.check_output(["git", "-C", str(tmp_path), "commit-tree", tree, "-p", service.ACTIVATION], input=b"hostile validator control\n", env=env).decode().strip()
+    service.git(tmp_path, "reset", "--hard", head)
+    # The candidate's own entry point lies; the actual CI shell ignores it.
+    own = subprocess.run(["python3", "ci/contract_review/command.py"], cwd=tmp_path, capture_output=True)
+    assert own.returncode == 0 and b"forged approval" in own.stdout
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    script = workflow["jobs"]["contract-review"]["steps"][-1]["run"]
+    result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env={**env, "REVIEW_BASE": service.ACTIVATION, "GITHUB_WORKSPACE": str(tmp_path)}, capture_output=True, text=True)
+    assert result.returncode == 1
+    assert "No valid exact-source" in result.stderr

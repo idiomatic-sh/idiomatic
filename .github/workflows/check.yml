@@ -41,7 +41,23 @@ jobs:
         with:
           python-version: "3.12"
       - name: Require exact-source Astra and Opus reviews
-        run: python3 ci/contract_review/command.py
+        env:
+          REVIEW_BASE: ${{ github.event.pull_request.base.sha || github.sha }}
+        # Bootstrap is immutable until the base branch contains the review policy.
+        # Workflow edits still depend on repository governance and required checks.
+        run: |
+          policy_revision=871be75a48c6cb438bd0fae220e867580b1b8b11
+          if git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then
+            policy_revision=$REVIEW_BASE
+          fi
+          review_policy=$(mktemp -d)
+          trap 'rm -rf "$review_policy"' EXIT
+          mkdir -p "$review_policy/ci/contract_review"
+          for file in command.py service.py; do
+            git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"
+          done
+          python3 "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"
+
   changes:
     runs-on: ubuntu-26.04
     permissions:
