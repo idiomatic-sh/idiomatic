@@ -416,9 +416,15 @@ impl FileAnalysis {
             },
             &demanded,
             visit.setting.services,
+            &tables.bytes.0,
+            &mut tables.symbols,
+            Some(semantic),
+            tables
+                .pool
+                .kind_vocabulary
+                .as_ref()
+                .map(std::sync::Arc::clone),
         )?;
-        let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
-        let mut memo = Vec::new();
         for rule in visit.setting.program.rule_order() {
             if !demanded
                 .get(rule.0)
@@ -456,18 +462,6 @@ impl FileAnalysis {
                             crate::domain::operating::errors::OperatingError::NotRead
                         })
                 };
-                let mut context = crate::domain::operating::types::OperatorContext {
-                    semantic: Some(semantic),
-                    prepared_kinds: tables.pool.kind_vocabulary.as_deref(),
-                    prepared_matchers: Some(tables.pool.matchers.as_ref()),
-                    bindings: visit.setting.program.bindings(rule)?,
-                    symbols: (&mut tables.symbols).into(),
-                    source: SourceView(&tables.bytes.0),
-                    paths: visit.setting.paths,
-                    arenas: &[],
-                    memo: &mut memo,
-                    scratch: &mut scratch,
-                };
                 run.rule(
                     rule,
                     RuleDemand {
@@ -479,7 +473,7 @@ impl FileAnalysis {
                         observations: ObservationDemand::Required,
                     },
                     &read,
-                    &mut context,
+                    &mut tables.symbols,
                 )
             };
             if let Some(error) = refused.take() {
@@ -593,18 +587,6 @@ impl FileAnalysis {
                             crate::domain::operating::errors::OperatingError::NotRead
                         })
                 };
-                let mut context = crate::domain::operating::types::OperatorContext {
-                    semantic: Some(semantic),
-                    prepared_kinds: tables.pool.kind_vocabulary.as_deref(),
-                    prepared_matchers: Some(tables.pool.matchers.as_ref()),
-                    bindings: visit.setting.program.bindings(rule)?,
-                    symbols: (&mut tables.symbols).into(),
-                    source: SourceView(&tables.bytes.0),
-                    paths: visit.setting.paths,
-                    arenas: &[],
-                    memo: &mut memo,
-                    scratch: &mut scratch,
-                };
                 run.capture_frontiers(
                     rule,
                     *visit
@@ -613,7 +595,7 @@ impl FileAnalysis {
                         .get(rule.0)
                         .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?,
                     &read,
-                    &mut context,
+                    &mut tables.symbols,
                     facade::CaptureContext {
                         file,
                         rule_digest: visit.setting.program.rule_digest(rule)?,

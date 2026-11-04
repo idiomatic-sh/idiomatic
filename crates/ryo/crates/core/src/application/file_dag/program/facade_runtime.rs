@@ -55,6 +55,9 @@ impl<'service> ProgramServices<'service> {
             request: Arc::new(super::request_identity::RequestIdentity::new(corpus)),
         }
     }
+    pub(super) fn request(&self) -> &Arc<super::request_identity::RequestIdentity> {
+        &self.request
+    }
     pub(super) fn kernels(&self) -> &'service dyn super::super::executor::PrimitiveExecutor {
         self.kernels
     }

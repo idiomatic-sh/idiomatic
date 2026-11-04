@@ -6,7 +6,7 @@ use super::program::facade::{
 use crate::domain::{
     coverage::types::RuleIndex,
     crossing::types::{ObservedRoot, PhaseRoots},
-    operating::{errors::OperatingError, types::OperatorContext},
+    operating::errors::OperatingError,
 };
 use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
 use std::sync::Arc;
@@ -29,31 +29,18 @@ pub(crate) fn evaluate_cross_roots(
     partials: facade::ScopePartials<'_>,
     frontiers: facade::ProjectFrontiers<'_>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
-    paths: &[ryo_language::domain::files::types::FilePath],
     arenas: &[ryo_values::domain::stored_facts::types::ArenaBytes],
 ) -> Result<ProgramEvaluated, OperatingError> {
-    let mut run = facade::open_project(program, required, partials, frontiers, symbols, services)?;
-    let mut memo = Vec::new();
-    let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: Some(program.matchers().as_ref()),
-        bindings: program.bindings(rule)?,
-        symbols: symbols.into(),
-        source: crate::domain::table_texts::types::SourceView(&[]),
-        paths,
-        arenas,
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
+    let mut run = facade::open_project(
+        program, required, partials, frontiers, symbols, arenas, services,
+    )?;
     let outcome = run.rule(
         rule,
         RuleDemand {
             emit: EmitDemand::Enabled,
             observations: ObservationDemand::Required,
         },
-        &mut context,
+        symbols,
     )?;
     let mut roots = PhaseRoots::default();
     match outcome.emit {

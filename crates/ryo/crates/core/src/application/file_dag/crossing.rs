@@ -88,7 +88,6 @@ pub(crate) fn cross_rule_with_inputs(
             publication,
         },
         cross,
-        crossing.paths,
         crossing.arenas,
     )
     .map_err(|error| refuse(&error))

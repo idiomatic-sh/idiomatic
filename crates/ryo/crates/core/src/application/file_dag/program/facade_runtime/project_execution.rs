@@ -17,6 +17,7 @@ pub(crate) struct ProjectRun<'a, 'service> {
         AdmittedInput,
     )>,
     transport: ryo_language::domain::symbols::types::TransportPermit,
+    context: super::super::context::RunContext<'a>,
     publication: &'a PublicationScope,
 }
 pub(crate) fn open_project<'a, 'service>(
@@ -25,6 +26,7 @@ pub(crate) fn open_project<'a, 'service>(
     partials: ScopePartials<'a>,
     frontiers: ProjectFrontiers<'a>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     services: &'a ProgramServices<'service>,
 ) -> Result<ProjectRun<'a, 'service>, OperatingError> {
     if !matches!(partials, ScopePartials::Project { .. }) {
@@ -62,6 +64,11 @@ pub(crate) fn open_project<'a, 'service>(
         refused: frontiers.ordinary.refused,
         bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
         cache: Vec::new(),
+        context: super::super::context::RunContext::project(
+            services,
+            ryo_language::domain::symbols::service::transport_permit(symbols),
+            arenas,
+        ),
         transport,
         publication: scope,
     })
@@ -71,14 +78,10 @@ impl ProjectRun<'_, '_> {
         &mut self,
         rule: RuleIndex,
         demand: RuleDemand,
-        context: &mut OperatorContext<'_>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<ProjectRuleOutcome, OperatingError> {
-        if !ryo_language::domain::symbols::service::query_has_transport_generation(
-            &context.symbols,
-            &self.transport,
-        ) {
-            return Err(OperatingError::NotRead);
-        }
+        let mut context = self.context.borrow(symbols, self.program, rule)?;
+        let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;
         let completion = match &self.partials {
             ScopePartials::Project {

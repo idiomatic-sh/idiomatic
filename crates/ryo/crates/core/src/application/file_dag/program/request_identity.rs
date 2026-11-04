@@ -5,14 +5,27 @@ use std::sync::Arc;
 
 pub(super) struct RequestIdentity {
     corpus: Box<[CorpusInput]>,
+    paths: Box<[ryo_language::domain::files::types::FilePath]>,
     generation: Arc<()>,
 }
 impl RequestIdentity {
     pub(super) fn new(corpus: &[CorpusInput]) -> Self {
         Self {
             corpus: corpus.to_vec().into_boxed_slice(),
+            paths: corpus
+                .iter()
+                .map(|input| match input {
+                    CorpusInput::Available(entry) | CorpusInput::ReadFailed { entry, .. } => {
+                        entry.path.clone()
+                    }
+                    CorpusInput::Unreadable { path, .. } => path.clone(),
+                })
+                .collect(),
             generation: Arc::new(()),
         }
+    }
+    pub(super) fn paths(&self) -> &[ryo_language::domain::files::types::FilePath] {
+        &self.paths
     }
     pub(super) fn matches_corpus(&self, corpus: &[CorpusInput]) -> bool {
         self.corpus.as_ref() == corpus

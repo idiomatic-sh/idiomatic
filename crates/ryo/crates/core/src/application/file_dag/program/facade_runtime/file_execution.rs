@@ -16,6 +16,7 @@ pub(crate) struct FileRun<'a, 'service> {
     partials: ScopePartials<'a>,
     roots: Vec<Vec<FileRoot>>,
     observed: HashMap<usize, AdmittedInput>,
+    context: super::super::context::RunContext<'a>,
 }
 pub(crate) fn open_file<'a, 'service>(
     program: &'a Arc<PreparedProgram>,
@@ -23,6 +24,10 @@ pub(crate) fn open_file<'a, 'service>(
     partials: ScopePartials<'a>,
     demanded: &[bool],
     services: &'a ProgramServices<'service>,
+    source: &[u8],
+    symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
+    kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
 ) -> Result<FileRun<'a, 'service>, OperatingError> {
     if !services.request.contains(file) {
         return Err(OperatingError::NotRead);
@@ -68,6 +73,9 @@ pub(crate) fn open_file<'a, 'service>(
         partials,
         roots,
         observed: HashMap::new(),
+        context: super::super::context::RunContext::file(
+            services, source, symbols, semantic, kinds,
+        ),
     })
 }
 impl FileRun<'_, '_> {
@@ -90,8 +98,10 @@ impl FileRun<'_, '_> {
         rule: RuleIndex,
         demand: RuleDemand,
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-        context: &mut OperatorContext<'_>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
+        let mut context = self.context.borrow(symbols, self.program, rule)?;
+        let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;
         let completion = match &self.partials {
             ScopePartials::File {
@@ -192,9 +202,11 @@ impl FileRun<'_, '_> {
         rule: RuleIndex,
         first: Bucket,
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-        context: &mut OperatorContext<'_>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
+        let mut context = self.context.borrow(symbols, self.program, rule)?;
+        let context = &mut context;
         let completion = match &self.partials {
             ScopePartials::File {
                 evaluation,
@@ -291,6 +303,8 @@ impl FileRun<'_, '_> {
         rule: RuleIndex,
         input: InputNumber,
     ) -> Result<(), OperatingError> {
+        let mut context = self.context.borrow(symbols, self.program, rule)?;
+        let context = &mut context;
         let metadata = self.program.observation_metadata();
         if let Some(metadata) = metadata {
             for root in metadata
