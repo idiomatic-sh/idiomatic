@@ -100,6 +100,30 @@ enum State {
     Retired,
     Failed(OperatingError),
 }
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum AttemptCheckpoint {
+    Dormant,
+    Running,
+    Published,
+    Terminal,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum DependencyCheckpoint {
+    Pending,
+    Consumed,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct ReaderCount(pub(super) usize);
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct RetryCheckpoint {
+    pub(super) attempt: AttemptCheckpoint,
+    pub(super) remaining: ReaderCount,
+    pub(super) dependencies: DependencyCheckpoint,
+}
 struct Slot {
     state: State,
     scratch: Vec<KernelScratch>,
@@ -199,6 +223,25 @@ impl ProgramExecution {
             }
         }
         Ok(())
+    }
+    #[cfg(test)]
+    pub(super) fn retry_checkpoint(&self, id: RegionId) -> Result<RetryCheckpoint, OperatingError> {
+        let slots = self.slots.borrow();
+        let slot = slots.get(id.0).ok_or(OperatingError::NotRun)?;
+        Ok(RetryCheckpoint {
+            attempt: match slot.state {
+                State::Dormant => AttemptCheckpoint::Dormant,
+                State::Running => AttemptCheckpoint::Running,
+                State::Published(_) => AttemptCheckpoint::Published,
+                State::Forwarded | State::Retired | State::Failed(_) => AttemptCheckpoint::Terminal,
+            },
+            remaining: ReaderCount(slot.remaining),
+            dependencies: if slot.dependencies_consumed {
+                DependencyCheckpoint::Consumed
+            } else {
+                DependencyCheckpoint::Pending
+            },
+        })
     }
     pub(super) fn logical_counts(
         &self,
