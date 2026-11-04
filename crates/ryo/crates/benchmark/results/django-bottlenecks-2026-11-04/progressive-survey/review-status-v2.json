@@ -1,9 +1,15 @@
 {
+  "status": "COMPLETED",
   "requested_model": "claude-fable-5-1",
   "effort": "high",
-  "runner_session": 69450,
-  "status": "LIVE",
-  "approved": false,
-  "fallback": "User explicitly permits Opus only if Fable unavailable",
-  "prior_quota_attempt_preserved": "fable-attempt.json"
+  "model_usage": [
+    "claude-fable-5-1",
+    "claude-opus-5-5"
+  ],
+  "verdict": "PASS for bounded POC with four required changes",
+  "category_acceptance": false,
+  "performance_gain_proven": false,
+  "raw_response": "fable-v2.json",
+  "full_review": "review-v2.md",
+  "response": "review-response.md"
 }
