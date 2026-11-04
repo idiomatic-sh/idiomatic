@@ -22,6 +22,11 @@ pub(crate) enum InputSource {
     Relation(Relation),
     Region(RegionId),
     Observation(usize),
+    /// One exact producer of a request-qualified named input.
+    ObservationMember {
+        slot: usize,
+        member: usize,
+    },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PartitionRequirement {
@@ -102,6 +107,7 @@ pub(crate) struct ExecutableProgram {
     pub regions: Box<[Region]>,
     pub rules: Box<[RuleProgram]>,
     pub logical_regions: Box<[RegionId]>,
+    pub observation_regions: Box<[Result<RegionId, OperatingError>]>,
     pub original_instruction_count: usize,
     pub fused_instruction_count: usize,
 }

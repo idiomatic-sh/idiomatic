@@ -301,10 +301,17 @@ pub(crate) fn compile(
         });
     }
     let fused_instruction_count = count - regions.len();
+    let observation_regions = super::observed::compile_unions(
+        &mut regions,
+        graph.observations.as_ref(),
+        partitions,
+        count,
+    )?;
     Ok(ExecutableProgram {
         regions: regions.into_boxed_slice(),
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),
+        observation_regions: observation_regions.into_boxed_slice(),
         original_instruction_count: count,
         fused_instruction_count,
     })

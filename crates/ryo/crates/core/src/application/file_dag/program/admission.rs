@@ -314,3 +314,32 @@ impl RequiredPartitions {
         self == other
     }
 }
+
+/// Preserve physical coverage of every admitted contributor. This is only the
+/// input side of publication validation; the caller must still hold the
+/// invocation's output/root authority.
+pub(super) fn contributor_readiness(
+    partition: &Partition,
+    inputs: &[AdmittedInput],
+    owner: &Rc<RelationOwner>,
+) -> Result<Readiness, OperatingError> {
+    let mut affected = Vec::new();
+    for input in inputs {
+        input.publication(owner)?;
+        if !input.partition.supplies(partition) {
+            return Err(OperatingError::NotRead);
+        }
+        if let Readiness::Partial { files } = &input.readiness {
+            for file in files {
+                if !affected.contains(file) {
+                    affected.push(*file);
+                }
+            }
+        }
+    }
+    if affected.is_empty() {
+        Ok(Readiness::Complete)
+    } else {
+        Ok(Readiness::Partial { files: affected })
+    }
+}
