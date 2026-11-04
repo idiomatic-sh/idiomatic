@@ -34,13 +34,6 @@ struct Driver<'a, 'c> {
     emit: &'a mut dyn crate::domain::operating::types::Emit,
     failure: FailureLatch,
 }
-impl Driver<'_, '_> {
-    fn cell(&self, row: usize, column: ColumnIndex) -> Result<Value, OperatingError> {
-        self.rows
-            .cell(RowIndex(row), column)
-            .ok_or(OperatingError::ShapeMismatch)
-    }
-}
 impl OrderedExistenceDriver for Driver<'_, '_> {
     fn len(&self) -> usize {
         self.rows.count()
@@ -109,6 +102,9 @@ pub(super) fn evaluate(
         ));
     };
     let _pin = admitted.publication();
+    if admitted.column != shape.shape.order {
+        return Err(OperatingError::WrongOperation);
+    }
     let mut table = Table::default();
     table.kinds.extend_from_slice(output_kinds);
     let mut output_state = super::execution::output::State::take(context.scratch, context.memo);

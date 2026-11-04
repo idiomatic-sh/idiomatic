@@ -292,6 +292,12 @@ pub(crate) fn compile_prepared(
             if nodes[join.0].inputs != [NodeInput::Node(source), NodeInput::Node(source)]
                 || nodes[select.0].inputs != [NodeInput::Node(join)] { continue; }
             let Operation::Join { output, .. } = &plan.steps[shape.replaced_join.0 as usize].operation else { continue; };
+            let Operation::Antijoin { right: Input::Step(project_input), .. } = &plan.steps[shape.retained_antijoin.0 as usize].operation else { continue; };
+            if *project_input != shape.retained_project { continue; }
+            let Operation::Project { columns, .. } = &plan.steps[shape.retained_project.0 as usize].operation else { continue; };
+            let projected_left = columns.iter().map(|column| output.get(column.0 as usize).map(|mapped| mapped.column)).collect::<Option<Vec<_>>>();
+            if projected_left.as_deref() != Some(shape.projected_left.as_slice()) { continue; }
+
             ordered_existence[select.0] = Some(crate::domain::ordered_existence::types::ResolvedShape {
                 shape: shape.clone(), source, join, select, output: output.clone(),
             });
