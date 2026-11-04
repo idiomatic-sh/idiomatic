@@ -910,7 +910,7 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
 
 
-CONTRACT_REVIEW_SCRIPT = 'policy_revision=871be75a48c6cb438bd0fae220e867580b1b8b11\nif git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then\n  policy_revision=$REVIEW_BASE\nfi\nreview_policy=$(mktemp -d)\ntrap \'rm -rf "$review_policy"\' EXIT\nmkdir -p "$review_policy/ci/contract_review"\nfor file in command.py service.py; do\n  git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"\ndone\npython3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"\n'
+CONTRACT_REVIEW_SCRIPT = 'policy_revision=763a846f1f17af7d6a503874524b7a33adf56e73\nif git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then\n  policy_revision=$REVIEW_BASE\nfi\nreview_policy=$(mktemp -d)\ntrap \'rm -rf "$review_policy"\' EXIT\nmkdir -p "$review_policy/ci/contract_review"\nfor file in command.py service.py; do\n  git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"\ndone\npython3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"\n'
 
 
 def contract_review_problems(workflow: dict) -> list[str]:
@@ -921,7 +921,7 @@ def contract_review_problems(workflow: dict) -> list[str]:
         "steps": [
             {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0, "persist-credentials": False}},
             {"uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}},
-            {"name": "Require exact-source Astra and Opus reviews", "env": {"REVIEW_BASE": "${{ github.event.pull_request.base.sha || github.sha }}"}, "run": CONTRACT_REVIEW_SCRIPT},
+            {"name": "Require exact-source Astra and Opus reviews", "env": {"REVIEW_BASE": "${{ github.event.pull_request.base.sha || format('refs/remotes/origin/{0}', github.event.repository.default_branch) }}"}, "run": CONTRACT_REVIEW_SCRIPT},
         ],
     }
     gate = jobs.get("gate", {})
@@ -949,7 +949,8 @@ def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
         assert contract_review_problems(changed)
 
 
-def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp_path: Path) -> None:
+@pytest.mark.parametrize("dispatch", [False, True])
+def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp_path: Path, dispatch: bool) -> None:
     import os
     import subprocess
     from ci.contract_review import service
@@ -961,6 +962,11 @@ def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp
     candidate = b"print('forged approval')\n"
     blob = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=candidate).decode().strip()
     service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{blob},ci/contract_review/command.py")
+    forged_service = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=b"def validate(*args): return 'forged approval'\n").decode().strip()
+    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{forged_service},ci/contract_review/service.py")
+    module = b"raise RuntimeError('candidate package must not run')\n"
+    module_blob = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=module).decode().strip()
+    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{module_blob},ci/__init__.py")
     tree = service.git(tmp_path, "write-tree").decode().strip()
     env = dict(os.environ, GIT_AUTHOR_NAME="Control", GIT_AUTHOR_EMAIL="test@example.invalid", GIT_COMMITTER_NAME="Control", GIT_COMMITTER_EMAIL="test@example.invalid")
     head = subprocess.check_output(["git", "-C", str(tmp_path), "commit-tree", tree, "-p", service.ACTIVATION], input=b"hostile validator control\n", env=env).decode().strip()
@@ -970,8 +976,9 @@ def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp
     assert own.returncode == 0 and b"forged approval" in own.stdout
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
     script = workflow["jobs"]["contract-review"]["steps"][-1]["run"]
-    (tmp_path / "ci/__init__.py").write_text("raise RuntimeError('candidate package must not run')\n")
-    result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env={**env, "PYTHONPATH": str(tmp_path), "REVIEW_BASE": service.ACTIVATION, "GITHUB_WORKSPACE": str(tmp_path)}, capture_output=True, text=True)
+    service.git(tmp_path, "update-ref", "refs/remotes/origin/main", service.ACTIVATION)
+    review_base = "refs/remotes/origin/main" if dispatch else service.ACTIVATION
+    result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env={**env, "PYTHONPATH": str(tmp_path), "REVIEW_BASE": review_base, "GITHUB_WORKSPACE": str(tmp_path)}, capture_output=True, text=True)
     assert result.returncode == 1
-    assert "protected working tree changes" in result.stderr or "No valid exact-source" in result.stderr
+    assert "No valid exact-source" in result.stderr
     assert "candidate package must not run" not in result.stderr

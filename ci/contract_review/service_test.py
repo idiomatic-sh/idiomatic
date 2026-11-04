@@ -191,3 +191,15 @@ def test_final_pass_accepts_resolved_historical_dispositions(repository):
     files[record["path"]] = json.dumps(raw).encode()
     record["sha256"] = service.digest(files[record["path"]])
     assert run(root, commit(source, {**files, path: artifact})).returncode == 0
+
+
+def test_actual_ci_entrypoint_accepts_exact_structured_pair(repository):
+    import yaml
+    root, commit, source, files, artifact, path = repository
+    approved = commit(source, {**files, path: artifact})
+    service.git(root, "reset", "--hard", approved)
+    workflow = yaml.safe_load((ROOT / ".github/workflows/check.yml").read_text())
+    script = workflow["jobs"]["contract-review"]["steps"][-1]["run"]
+    result = subprocess.run(["bash", "-e", "-c", script], cwd=root, env={**os.environ, "REVIEW_BASE": service.ACTIVATION, "GITHUB_WORKSPACE": str(root)}, text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    assert "Paired contract review passed" in result.stdout

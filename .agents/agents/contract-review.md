@@ -12,11 +12,11 @@ Record actual command, model, session, round UUID, exit, and raw result.
 Transport errors and `Unassessed` are missing reviews, never approvals.
 ## Inputs
 Require immutable commits, exact source/diff, approved claim, matrix,
-test/performance receipts, and explicit exclusions.
+test receipts and explicit exclusions. Performance requires matched full configured
+rule inventories, corpus, and settings; singleton runs are diagnostic only.
 Record HEAD/status before and after; discard source-mutating passes.
 Check source/evidence hashes; reuse only proven-identical executed postimages.
 A bounded review never closes wider architecture categories.
-
 ## Adversarial pass
 - Trace shared layers through real imports and dependency edges.
 - Enumerate all callers, bypasses, fallbacks, and alternate routes.
@@ -34,7 +34,7 @@ Retain both reviewers' findings and dispositions. Only final independent PASS
 verdicts approve exact source; author dispositions cannot overrule blockers.
 Bind both model/session/round identities, source, raw results, and proof in an artifact.
 Normal CI must reject missing/stale/invalid/unresolved reviews; prove failures and success.
-CI loads the trusted-base validator or immutable bootstrap 871be75a.
+CI loads the trusted-base validator or immutable bootstrap 763a846f.
 This file is not enforcement: name `ci/contract_review/command.py` and its proof.
 Workflow edits require trusted governance; this is not server protection.
 Activation binds this Git history; squash needs deliberate receipt migration.
