@@ -343,3 +343,72 @@ pub(super) fn contributor_readiness(
         Ok(Readiness::Partial { files: affected })
     }
 }
+
+/// Give a real producer publication its request-qualified member alias. The
+/// binding is resolved from prepared metadata; callers cannot choose a producer.
+pub(super) fn alias_member(
+    prepared: &super::facade::PreparedProgram,
+    slot: usize,
+    member: usize,
+    input: &AdmittedInput,
+    required: &Partition,
+    owner: &Rc<RelationOwner>,
+) -> Result<AdmittedInput, OperatingError> {
+    let named = prepared
+        .observation_metadata()
+        .ok_or(OperatingError::NotRun)?;
+    let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+    let binding = named
+        .bindings
+        .get(declaration.rule)
+        .and_then(|bindings| bindings.get(declaration.input.0 as usize))
+        .ok_or(OperatingError::NotRun)?;
+    let producer = binding
+        .producers
+        .get(member)
+        .ok_or(OperatingError::NotRun)?;
+    let crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } =
+        producer
+    else {
+        return Err(OperatingError::ObservationIncomplete {
+            reason: "named producer has no executable query".into(),
+        });
+    };
+    let root = prepared
+        .rule_metadata(*rule)?
+        .observations
+        .get(output.0 as usize)
+        .ok_or(OperatingError::NotRun)?;
+    let expected = match *root.source.as_ref().map_err(Clone::clone)? {
+        InputSource::Region(id) => ProducerRoot::Region(id),
+        other => ProducerRoot::Input(other),
+    };
+    if input.root != expected || !input.partition.supplies(required) {
+        return Err(OperatingError::NotRead);
+    }
+    input.publication(owner)?;
+    let mut alias = input.clone();
+    alias.root = ProducerRoot::Input(InputSource::ObservationMember { slot, member });
+    Ok(alias)
+}
+
+pub(super) fn alias_observation(
+    program: &crate::domain::executable_program::types::ExecutableProgram,
+    slot: usize,
+    input: &AdmittedInput,
+    owner: &Rc<RelationOwner>,
+) -> Result<AdmittedInput, OperatingError> {
+    let root = *program
+        .observation_regions
+        .get(slot)
+        .ok_or(OperatingError::NotRun)?
+        .as_ref()
+        .map_err(Clone::clone)?;
+    if input.root != ProducerRoot::Region(root) {
+        return Err(OperatingError::NotRead);
+    }
+    input.publication(owner)?;
+    let mut alias = input.clone();
+    alias.root = ProducerRoot::Input(InputSource::Observation(slot));
+    Ok(alias)
+}
