@@ -413,6 +413,10 @@ fn modules_for(scenario: EngineScenario) -> Result<BTreeMap<String, std::path::P
 fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
     BTreeMap::from([
         (
+            "python/ruff/suppress-matches".to_owned(),
+            "fragments/suppress-matches.ryoql".into(),
+        ),
+        (
             "python/ruff/noqa-line-map".to_owned(),
             std::path::PathBuf::from("fragments/noqa-line-map.ryoql"),
         ),
@@ -443,6 +447,10 @@ fn write_suppress_module(root: &std::path::Path) -> Result<(), Error> {
     let directory = root.join("fragments");
     std::fs::create_dir_all(&directory)?;
     for (name, source) in [
+        (
+            "suppress-matches",
+            include_str!("fragments/suppress-matches.ryoql"),
+        ),
         (
             "noqa-line-map",
             include_str!("fragments/noqa-line-map.ryoql"),

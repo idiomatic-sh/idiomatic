@@ -31,6 +31,7 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
         profile.join("rules/PLW0406/cases.toml"),
     )?;
     for name in [
+        "suppress-matches",
         "suppress",
         "suppress-directives",
         "text-units",
