@@ -8,7 +8,7 @@ use crate::domain::operator::contract::types::{
 use crate::domain::table_cells::service::element_of;
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_model::{service::cell, types::Verdict};
-use crate::domain::table_reach::borrowed::{follow, reach_breadth};
+use crate::domain::table_reach::borrowed::{follow, reach_breadth, reach_nearest};
 use crate::domain::tree_join::service::tree_value;
 use ryo_derived::domain::contract::types::MembershipView;
 use ryo_language::domain::elements::service::{
@@ -89,6 +89,13 @@ impl OperatorsItem for AxisItem {
                         &mut work.walk.key,
                         &mut work.walk.reached,
                     );
+                } else if *direction == Direction::NearestAncestor {
+                    reach_nearest(edges, *to, start, &mut work.walk, |entity| {
+                        let MembershipView::Values(members) = domain else {
+                            return Err(OperatingError::WrongBinding);
+                        };
+                        Ok(members.contains(&entity))
+                    })?;
                 } else {
                     reach_breadth(edges, *to, start, &mut work.walk);
                 }

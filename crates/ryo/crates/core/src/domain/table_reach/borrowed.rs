@@ -25,6 +25,33 @@ pub(crate) fn reach_breadth(
     start: Value,
     walk: &mut Walk,
 ) {
+    match breadth::<_, true>(edges, to, start, walk, |_| {
+        Ok::<_, std::convert::Infallible>(false)
+    }) {
+        Ok(()) => {}
+        Err(never) => match never {},
+    }
+}
+
+/// Keep only the first admitted vertex in the exact ordinary breadth-first order.
+/// The origin is not pre-visited: an edge cycle may reach it just as in `reach_breadth`.
+pub(crate) fn reach_nearest<E>(
+    edges: &IndexedRows<'_>,
+    to: ColumnIndex,
+    start: Value,
+    walk: &mut Walk,
+    admit: impl FnMut(Value) -> Result<bool, E>,
+) -> Result<(), E> {
+    breadth::<_, false>(edges, to, start, walk, admit)
+}
+
+fn breadth<E, const ALL: bool>(
+    edges: &IndexedRows<'_>,
+    to: ColumnIndex,
+    start: Value,
+    walk: &mut Walk,
+    mut admit: impl FnMut(Value) -> Result<bool, E>,
+) -> Result<(), E> {
     let Walk {
         key,
         frontier,
@@ -40,10 +67,20 @@ pub(crate) fn reach_breadth(
         next.clear();
         for entity in frontier.iter() {
             if visited.insert(*entity) {
+                if !ALL && admit(*entity)? {
+                    reached.push(*entity);
+                    return Ok(());
+                }
                 follow(edges, to, *entity, key, next);
-                reached.push(*entity);
+                if ALL {
+                    reached.push(*entity);
+                }
             }
         }
         std::mem::swap(frontier, next);
     }
+    Ok(())
 }
+
+#[cfg(test)]
+mod borrowed_test;
