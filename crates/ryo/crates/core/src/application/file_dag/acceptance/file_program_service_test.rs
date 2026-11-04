@@ -299,7 +299,9 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
     let mut deduplicated = plan();
     deduplicated.frontier.push(Input::Step(StepId(0)));
     let equivalent = graph(&[deduplicated.clone(), deduplicated]);
-    let equivalent_node = equivalent.cuts[0][0].expect("equivalent source cut");
+    let equivalent_node = *equivalent.program_nodes[0][0]
+        .as_ref()
+        .expect("equivalent source node");
     let equivalent_schedule =
         crate::application::file_dag::activation::types::ActivationCache::default().activate(
             &equivalent,

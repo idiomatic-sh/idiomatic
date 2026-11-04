@@ -661,6 +661,7 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         &scope.execution,
         scope.scope.executor(),
     );
+    let state = scope.execution.borrow();
     assert!(
         matches!(
             &result,
@@ -670,9 +671,20 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
                 }
             ))
         ),
-        "strategy={strategy:?}, right={right:?}, root={:?}, result={result:?}",
+        "strategy={strategy:?}, right={right:?}, root={:?}, result={result:?}, failed={:?}, visiting={:?}, executions={:?}, supplies={:?}",
         scope.scope.graph().program_nodes[0][root.0 as usize],
+        state.failed,
+        state.visiting,
+        state.executions,
+        scope
+            .scope
+            .graph()
+            .nodes
+            .iter()
+            .map(|node| &node.input_supply)
+            .collect::<Vec<_>>(),
     );
+    drop(state);
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     let reads = crate::domain::table_model::service::take_read_row_counts();
     match strategy {

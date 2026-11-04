@@ -337,6 +337,8 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
                 dag.borrow().provided.get(&root),
                 Some(ProvidedInput::Retired { .. })
             ));
+            dag.begin_rule(0)
+                .expect("a deliberate retry has a required rule scope");
             let after_retirement = dag.demand(root, &unread, scope.scope.executor(), &mut context);
             assert!(
                 matches!(
