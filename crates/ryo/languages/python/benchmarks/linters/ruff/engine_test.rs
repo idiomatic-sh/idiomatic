@@ -1272,11 +1272,11 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
     for (id, query) in [
         (
             "CONSUMER",
-            "let found = select path from published; emit found subject path key(path);",
+            "let found = select path, span from published; emit found subject path key(path);",
         ),
         (
             "PRODUCER",
-            "let files = select path from \"filesystem.file\"; observe files as used; emit files subject path key(path);",
+            "let files = select file as path, span from \"semantic-syntax\" where kind = \"module\"; observe files as used; emit files subject path key(path);",
         ),
     ] {
         std::fs::create_dir_all(rules.join(id))?;
@@ -1292,10 +1292,16 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
             consumer.clone(),
             vec![ObservationBinding {
                 name: ObservationBindingName("published".into()),
-                columns: vec![ObservationColumn {
-                    name: ObservationColumnName("path".into()),
-                    kind: ObservationKind::File,
-                }],
+                columns: vec![
+                    ObservationColumn {
+                        name: ObservationColumnName("path".into()),
+                        kind: ObservationKind::File,
+                    },
+                    ObservationColumn {
+                        name: ObservationColumnName("span".into()),
+                        kind: ObservationKind::Span,
+                    },
+                ],
                 producers: vec![ObservationProducer::Output {
                     rule: producer,
                     output: ObservationName("used".into()),
