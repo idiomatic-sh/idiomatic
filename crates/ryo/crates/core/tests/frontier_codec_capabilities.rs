@@ -218,6 +218,10 @@ fn compact_lease_pins_backing_until_metadata_is_retired() {
     let weak = Arc::downgrade(&input);
     let (meta, _) =
         service::admit_compact(Arc::clone(&input), &mut vec![], DecodeMode::Complete).unwrap();
+    assert!(Arc::ptr_eq(service::compact_backing(&meta), &input));
+    let storage = service::compact_storage(&meta);
+    assert_eq!(storage[0], (input.0.0.as_ptr() as usize, input.0.0.len()));
+    assert!(service::compact_metadata_bytes(&meta) >= size_of::<types::CompactTable>() + storage[1].1 * size_of::<usize>());
     drop(input);
     assert!(weak.upgrade().is_some());
     same(&service::materialize_compact(&meta).unwrap(), &table());
