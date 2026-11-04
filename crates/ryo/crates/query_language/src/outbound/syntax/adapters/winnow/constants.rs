@@ -70,6 +70,8 @@ pub(crate) enum Keyword {
     Snake,
     /// `kebab`.
     Kebab,
+    /// `lower`.
+    Lower,
     /// `natural_lt`.
     NaturalLt,
 }
@@ -123,6 +125,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Camel => "camel",
         Keyword::Snake => "snake",
         Keyword::Kebab => "kebab",
+        Keyword::Lower => "lower",
     }
 }
 

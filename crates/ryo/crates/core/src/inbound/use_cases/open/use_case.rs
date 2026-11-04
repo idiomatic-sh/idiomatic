@@ -48,8 +48,8 @@ impl OpenUseCase for OpenUseCaseImpl {
             session: Session {
                 root: request.root,
                 repository: request.repository,
-                search_scope: Default::default(),
-                given_inventory: Default::default(),
+                search_scope: request.search_scope,
+                given_inventory: request.given_inventory,
             },
         })
     }

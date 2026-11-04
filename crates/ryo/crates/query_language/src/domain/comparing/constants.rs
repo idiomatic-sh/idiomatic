@@ -33,6 +33,7 @@ pub(crate) fn function_name(function: WrittenFunction) -> &'static str {
         WrittenFunction::Camel => "camel",
         WrittenFunction::Snake => "snake",
         WrittenFunction::Kebab => "kebab",
+        WrittenFunction::Lower => "lower",
     }
 }
 
@@ -45,6 +46,7 @@ pub(crate) fn arity(function: WrittenFunction, count: usize) -> (&'static str, b
         | WrittenFunction::Camel
         | WrittenFunction::Snake
         | WrittenFunction::Kebab => ("one argument", count == 1),
+        WrittenFunction::Lower => ("one argument", count == 1),
     }
 }
 

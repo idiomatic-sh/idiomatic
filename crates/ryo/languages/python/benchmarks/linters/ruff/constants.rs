@@ -4,6 +4,11 @@
 pub(crate) const CHECK: &str = "check";
 /// Disable ambient project and user configuration.
 pub(crate) const ISOLATED: &str = "--isolated";
+/// Ordered import search roots used by the pinned isolated Ruff invocation.
+pub(crate) const ISOLATED_PROJECT_ROOTS: [&str; 2] = ["", "src"];
+/// Refusal when an explicit host project scope differs from Ruff's isolated scope.
+pub(crate) const UNSUPPORTED_PROJECT_ROOTS: &str =
+    "reference profile cannot match the declared project search roots";
 /// Select the diagnostic wire representation.
 pub(crate) const OUTPUT_FORMAT: &str = "--output-format";
 /// Machine-readable Ruff diagnostic format.

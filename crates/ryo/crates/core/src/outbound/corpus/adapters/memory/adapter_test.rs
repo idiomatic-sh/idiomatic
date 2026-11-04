@@ -137,3 +137,50 @@ fn given_inventory_distinguishes_absence_uncertainty_and_conflict() {
         EntryState::Unknown
     );
 }
+
+#[test]
+fn supplied_child_proves_parents_and_conflicting_inventory_stays_unknown() {
+    use ryo_language::domain::project_context::types::{
+        EntryObservation, EntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+    };
+    let corpus = CorpusMemoryAdapter::new(
+        vec![CorpusFile {
+            executable: Default::default(),
+            path: FilePath("src/pkg/mod.py".into()),
+            bytes: FileBytes(b"value = 1\n".to_vec()),
+        }],
+        GivenProjectInventory {
+            entries: vec![
+                EntryObservation {
+                    path: FilePath("src/pkg/mod.py".into()),
+                    state: EntryState::Directory,
+                },
+                EntryObservation {
+                    path: FilePath("src".into()),
+                    state: EntryState::Missing,
+                },
+            ],
+            completeness: ProjectInventoryCompleteness::CompleteWithinDeclaredScope,
+        },
+    );
+    assert_eq!(
+        corpus.observe_entry(&FilePath("src/pkg".into())).state,
+        EntryState::Directory
+    );
+    assert_eq!(
+        corpus.observe_entry(&FilePath("src".into())).state,
+        EntryState::Unknown
+    );
+    assert_eq!(
+        corpus
+            .observe_entry(&FilePath("src/pkg/mod.py".into()))
+            .state,
+        EntryState::Unknown
+    );
+    assert_eq!(
+        corpus
+            .observe_entry(&FilePath("src/absent.py".into()))
+            .state,
+        EntryState::Missing
+    );
+}

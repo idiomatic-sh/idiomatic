@@ -313,3 +313,43 @@ fn explicit_source_language_is_preserved_at_sdk_request_boundary() {
         ))
     );
 }
+
+#[test]
+fn project_paths_are_normalized_before_observation_or_rejected() {
+    use crate::resources::linter::lint::types::{
+        GivenProjectInventory, ProjectEntryObservation, ProjectEntryState, ProjectSearchScope,
+    };
+    let mut request = LintRequest {
+        project_search_scope: ProjectSearchScope::Declared(vec![RelativePath("src//".into())]),
+        given_project_inventory: GivenProjectInventory {
+            entries: vec![ProjectEntryObservation {
+                path: RelativePath("src/./pkg.py".into()),
+                state: ProjectEntryState::File,
+            }],
+            ..Default::default()
+        },
+        source_language: None,
+        root: std::path::PathBuf::from("."),
+        rules: std::collections::BTreeMap::new(),
+        files: vec![],
+        hosted: vec![],
+        corpus: Corpus::Given(vec![]),
+        beside: vec![],
+    };
+    super::project_context(&mut request).expect("repository-relative paths");
+    assert_eq!(
+        request.project_search_scope,
+        ProjectSearchScope::Declared(vec![RelativePath("src".into())])
+    );
+    assert_eq!(
+        request.given_project_inventory.entries[0].path,
+        RelativePath("src/pkg.py".into())
+    );
+    for invalid in ["/outside", "../outside", "src/../outside", "C:\\outside"] {
+        let mut path = RelativePath(invalid.into());
+        assert!(matches!(
+            super::project_path(&mut path, true),
+            Err(super::LintError::ProjectPath { .. })
+        ));
+    }
+}

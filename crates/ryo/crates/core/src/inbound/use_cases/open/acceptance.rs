@@ -38,6 +38,8 @@ fn runs(world: &mut Behavior) {
     world.answer = match use_case.open(OpenRequest {
         repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
         root: RootPath(".".into()),
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
     }) {
         Ok(report) => format!("opened {}", report.session.root.0),
         Err(error) => error.to_string(),

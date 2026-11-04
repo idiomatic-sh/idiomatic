@@ -210,6 +210,8 @@ pub enum Function {
     Snake,
     /// `kebab`: `TodoLists` as `todo-lists`.
     Kebab,
+    /// `lower`: Unicode lowercase text, retaining punctuation and whitespace.
+    Lower,
 }
 
 /// A function and the operands it is applied to.

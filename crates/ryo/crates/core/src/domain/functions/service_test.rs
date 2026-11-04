@@ -68,6 +68,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("lower_preserves_separators_and_folds_unicode_case"),
+        word: Word::Succeeds,
+        input: || (Function::Lower, &["Ä.B_C"], "ä.b_c"),
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("a_case_of_empty_text_is_empty"),
         word: Word::Succeeds,
         input: || (Function::Pascal, &[""], ""),

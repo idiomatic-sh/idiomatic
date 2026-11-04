@@ -23,6 +23,7 @@ pub(crate) fn apply(function: Function, arguments: &[MadeText], made: &mut MadeT
         Function::Camel => first.0.to_lower_camel_case(),
         Function::Snake => first.0.to_snake_case(),
         Function::Kebab => first.0.to_kebab_case(),
+        Function::Lower => first.0.to_lowercase(),
         Function::Concat => return,
     };
     made.0.push_str(&cased);

@@ -1,6 +1,7 @@
 //! The failures of `linter lint`.
 
 use super::types::{Port, ProviderName, RowNumber, RuleId};
+use crate::domain::file::types::RelativePath;
 use crate::domain::host::types::{HostColumnName, HostKind, HostRelationName};
 use crate::domain::query::errors::ValidateError;
 
@@ -112,6 +113,14 @@ pub enum LintError {
     PathNotText {
         /// The path.
         path: std::path::PathBuf,
+    },
+    /// A project search root or inventory entry does not name a repository-relative path.
+    #[error(
+        "invalid project path {path:?}: expected a repository-relative path without parent traversal"
+    )]
+    ProjectPath {
+        /// The caller's path before normalization.
+        path: RelativePath,
     },
     /// A part of the system failed.
     #[error("{what:?}: {reason}")]

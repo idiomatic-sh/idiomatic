@@ -482,6 +482,8 @@ pub enum WrittenFunction {
     Snake,
     /// `kebab(text)`.
     Kebab,
+    /// `lower(text)`: Unicode lowercase text without changing separators.
+    Lower,
 }
 
 /// `concat(pascal(pkg), "Service")`: a function and the operands it is applied to.

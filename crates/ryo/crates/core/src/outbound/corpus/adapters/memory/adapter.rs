@@ -21,13 +21,22 @@ pub(crate) struct CorpusMemoryAdapter {
     project_entries: BTreeMap<ryo_language::domain::files::types::FilePath, EntryState>,
     project_completeness: ProjectInventoryCompleteness,
     source_paths: BTreeSet<ryo_language::domain::files::types::FilePath>,
+    /// Parent directories proved by supplied source files or known present entries.
+    parent_directories: BTreeSet<ryo_language::domain::files::types::FilePath>,
 }
 
 impl CorpusMemoryAdapter {
     /// An adapter over `files`.
     pub(crate) fn new(files: Vec<CorpusFile>, project_inventory: GivenProjectInventory) -> Self {
         let mut project_entries = BTreeMap::new();
+        let mut parent_directories = BTreeSet::new();
         for entry in project_inventory.entries {
+            if matches!(
+                entry.state,
+                EntryState::File | EntryState::Directory | EntryState::Other
+            ) {
+                parents_of(&entry.path, &mut parent_directories);
+            }
             match project_entries.entry(entry.path) {
                 std::collections::btree_map::Entry::Vacant(slot) => {
                     slot.insert(entry.state);
@@ -38,12 +47,31 @@ impl CorpusMemoryAdapter {
             }
         }
         let source_paths = files.iter().map(|file| file.path.clone()).collect();
+        for file in &files {
+            parents_of(&file.path, &mut parent_directories);
+        }
         Self {
             files,
             project_entries,
             project_completeness: project_inventory.completeness,
             source_paths,
+            parent_directories,
         }
+    }
+}
+
+/// A known child proves each of its repository-relative parent directories exists.
+fn parents_of(
+    path: &ryo_language::domain::files::types::FilePath,
+    into: &mut BTreeSet<ryo_language::domain::files::types::FilePath>,
+) {
+    let mut parent = path.0.rsplit_once('/').map(|(parent, _)| parent);
+    while let Some(path) = parent {
+        if path.is_empty() {
+            break;
+        }
+        into.insert(ryo_language::domain::files::types::FilePath(path.into()));
+        parent = path.rsplit_once('/').map(|(next, _)| next);
     }
 }
 
@@ -106,10 +134,22 @@ impl CorpusPort for CorpusMemoryAdapter {
         path: &ryo_language::domain::files::types::FilePath,
     ) -> EntryObservation {
         let supplied = self.project_entries.get(path).copied();
-        let state = if supplied == Some(EntryState::Unknown) {
+        let source_file = self.source_paths.contains(path);
+        let parent_directory = self.parent_directories.contains(path);
+        let state = if supplied == Some(EntryState::Unknown) || (source_file && parent_directory) {
             EntryState::Unknown
-        } else if self.source_paths.contains(path) {
-            EntryState::File
+        } else if source_file {
+            if supplied.is_none_or(|state| state == EntryState::File) {
+                EntryState::File
+            } else {
+                EntryState::Unknown
+            }
+        } else if parent_directory {
+            if supplied.is_none_or(|state| state == EntryState::Directory) {
+                EntryState::Directory
+            } else {
+                EntryState::Unknown
+            }
         } else if let Some(state) = supplied {
             state
         } else if self.project_completeness

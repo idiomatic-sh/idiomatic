@@ -60,6 +60,41 @@ pub struct GlobSchemaError {
     pub reason: String,
 }
 
+/// Normalize only the project-context paths whose spelling becomes an observation key.
+/// The empty path is the repository root, and is valid only as a search root.
+fn project_path(path: &mut RelativePath, root: bool) -> Result<(), LintError> {
+    let mut parts = Vec::new();
+    let text = path.0.as_ref();
+    if text.starts_with('/') || text.chars().any(|part| matches!(part, '\\' | ':' | '\0')) {
+        return Err(LintError::ProjectPath { path: path.clone() });
+    }
+    for part in text.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => return Err(LintError::ProjectPath { path: path.clone() }),
+            other => parts.push(other),
+        }
+    }
+    if parts.is_empty() && !root {
+        return Err(LintError::ProjectPath { path: path.clone() });
+    }
+    path.0 = parts.join("/").into();
+    Ok(())
+}
+
+/// Validate and normalize project authority before either the Given adapter or core sees it.
+pub(super) fn project_context(request: &mut LintRequest) -> Result<(), LintError> {
+    if let super::types::ProjectSearchScope::Declared(roots) = &mut request.project_search_scope {
+        for root in roots {
+            project_path(root, true)?;
+        }
+    }
+    for entry in &mut request.given_project_inventory.entries {
+        project_path(&mut entry.path, false)?;
+    }
+    Ok(())
+}
+
 impl TryFrom<&str> for RuleId {
     type Error = RuleIdSchemaError;
 

@@ -303,6 +303,48 @@ fn fails() {
     run(CASES, Word::Fails, subject);
 }
 
+#[test]
+#[expect(clippy::expect_used, reason = "the literal fixture rule is valid")]
+fn reference_roots_must_match_the_declared_project_scope() {
+    use ryo::linter::RelativePath;
+    let adapter = LinterRuffAdapter::new(LinterRuffSettings {
+        executable: "/missing-ruff".into(),
+        defaults: [RuleId::try_from("I001").expect("valid rule")]
+            .into_iter()
+            .collect(),
+        target_version: "py310".into(),
+    });
+    let mut request = RunRequest {
+        project_search_roots: Some(vec![RelativePath("".into()), RelativePath("src".into())]),
+        given_project_inventory: Default::default(),
+        staged_sources: None,
+        file_metadata: None,
+        context_manifest: None,
+        root: "/tmp".into(),
+        files: vec![RelativePath("input.py".into())],
+        state: "/tmp/cache".into(),
+    };
+    assert!(adapter.prepare(&request).is_ok());
+    request.project_search_roots = Some(vec![RelativePath("".into())]);
+    assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
+    request.project_search_roots = Some(Vec::new());
+    assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
+    request.project_search_roots = None;
+    assert!(adapter.prepare(&request).is_ok());
+    let unrelated = LinterRuffAdapter::new(LinterRuffSettings {
+        executable: "/missing-ruff".into(),
+        defaults: [RuleId::try_from("F401").expect("valid rule")]
+            .into_iter()
+            .collect(),
+        target_version: "py310".into(),
+    });
+    request.project_search_roots = Some(vec![RelativePath("".into())]);
+    assert!(matches!(
+        unrelated.prepare(&request),
+        Err(Error::Invalid(_))
+    ));
+}
+
 fn invocation_matches(
     ruff: &LinterRuffAdapter,
     request: &RunRequest,

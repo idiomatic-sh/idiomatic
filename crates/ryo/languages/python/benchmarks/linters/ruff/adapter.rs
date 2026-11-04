@@ -28,6 +28,16 @@ impl LinterPort for LinterRuffAdapter {
         if request.files.is_empty() {
             return Err(Error::Invalid(constants::EMPTY_INPUT.into()));
         }
+        // The pinned isolated Ruff profile uses its ordinary repository and src roots.
+        // A different host declaration would compare different project categorization.
+        if request.project_search_roots.as_ref().is_some_and(|roots| {
+            !roots
+                .iter()
+                .map(|root| root.0.as_ref())
+                .eq(constants::ISOLATED_PROJECT_ROOTS)
+        }) {
+            return Err(Error::Invalid(constants::UNSUPPORTED_PROJECT_ROOTS.into()));
+        }
         let mut arguments = vec![
             constants::CHECK.into(),
             constants::ISOLATED.into(),

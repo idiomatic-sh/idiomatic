@@ -129,6 +129,7 @@ fn function_of(function: syntax::WrittenFunction) -> parts::Function {
         syntax::WrittenFunction::Camel => parts::Function::Camel,
         syntax::WrittenFunction::Snake => parts::Function::Snake,
         syntax::WrittenFunction::Kebab => parts::Function::Kebab,
+        syntax::WrittenFunction::Lower => parts::Function::Lower,
     }
 }
 

@@ -884,6 +884,7 @@ pub(super) fn function(input: &mut Input<'_>) -> ModalResult<WrittenApplied> {
                 keyword(Keyword::Camel).value(WrittenFunction::Camel),
                 keyword(Keyword::Snake).value(WrittenFunction::Snake),
                 keyword(Keyword::Kebab).value(WrittenFunction::Kebab),
+                keyword(Keyword::Lower).value(WrittenFunction::Lower),
             )),
             (multispace0, '(', multispace0),
         ),

@@ -479,6 +479,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         LintError::MissingParameter { .. } => Refusal::MissingParameter,
         LintError::TooLarge { .. } => Refusal::TooLarge,
         LintError::PathNotText { .. } => Refusal::PathNotText,
+        LintError::ProjectPath { .. } => Refusal::PathNotText,
         LintError::Io { .. } => Refusal::Io,
         LintError::Provider { .. } => Refusal::Provider,
         LintError::DuplicateHostRelation { .. }

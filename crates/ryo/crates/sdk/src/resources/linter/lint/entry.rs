@@ -73,6 +73,8 @@ pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, Li
         .open(OpenRequest {
             root: core.session.root.clone(),
             repository: core.session.repository,
+            search_scope: core.session.search_scope.clone(),
+            given_inventory: core.session.given_inventory.clone(),
         })
         .map_err(schemas::open_error)?
         .session;
@@ -81,11 +83,7 @@ pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, Li
         root: opened.root.clone(),
         budget,
     };
-    // Opening establishes the root and repository. The caller's declared lookup
-    // scope and Given inventory remain the authority for this request.
-    let configured = std::mem::replace(&mut core.session, opened);
-    core.session.search_scope = configured.search_scope;
-    core.session.given_inventory = configured.given_inventory;
+    core.session = opened;
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
         .lint(core)
         .map_err(schemas::error)?;
