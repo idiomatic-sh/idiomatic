@@ -103,7 +103,7 @@ impl ProgramExecution {
     }
     /// Consume one declared reader edge. Cascaded cancellation uses the same
     /// prepared region edges; no semantic callback runs under the state borrow.
-    pub(super) fn retire(&self, id: RegionId) -> Result<(), OperatingError> {
+    fn retire(&self, id: RegionId) -> Result<(), OperatingError> {
         let mut pending = vec![id];
         while let Some(id) = pending.pop() {
             let dependencies = {
@@ -112,12 +112,12 @@ impl ProgramExecution {
                 if slot.remaining == 0 {
                     continue;
                 }
+                if slot.remaining == 1 && matches!(slot.state, State::Running) {
+                    return Err(OperatingError::NotRun);
+                }
                 slot.remaining -= 1;
                 if slot.remaining != 0 {
                     continue;
-                }
-                if matches!(slot.state, State::Running) {
-                    return Err(OperatingError::NotRun);
                 }
                 let cancel = !slot.dependencies_consumed;
                 slot.dependencies_consumed = true;
