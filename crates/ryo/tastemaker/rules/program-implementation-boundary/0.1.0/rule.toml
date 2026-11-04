@@ -1,13 +1,13 @@
-description = "Only the executable-program owner and its physical-kernel bridges may depend on execution internals."
-why = "The application program owns admission, publication, restoration, and physical dispatch. A consumer that resolves an internal implementation module directly can bypass that owner. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. The facade and borrowed semantic interfaces remain available. Rust visibility and engine-issued permits separately enforce construction and invocation; unresolved or macro-generated dependencies are outside this source rule."
+description = "Only declared owners and bridges may depend on execution implementation modules."
+why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A consumer that resolves an implementation module directly can bypass that owner. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. The facade, descriptors, and borrowed semantic interfaces remain available. Rust visibility and engine-issued permits separately enforce construction and invocation. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
 
 query = '''
 let paths = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
-let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{implementation}.rs", captures=["target-root", "implementation"]);
-let local = select source as file, span, source-tail, implementation from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let protected = select * from local where glob_any(implementation, "{runtime,admission,kernel_session,restored,request_identity}");
+let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{*implementation-tail}", captures=["target-root", "implementation-tail"]);
+let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let protected = select * from local where implementation-tail != "facade.rs";
 let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
-let forbidden = select * from outsiders where implementation != "admission" or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
+let forbidden = select * from outsiders where implementation-tail != "admission.rs" or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
 let program-violations = select file, span from forbidden;
 let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
 let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
@@ -17,14 +17,22 @@ let local-cache = select source as file, span, source-tail, cache-part from cach
 let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
 let foreign-cache = select file, span from raw-cache where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/testing.rs}");
 let dispatch-violations = union(left=program-violations, right=foreign-leases);
-let violations = union(left=dispatch-violations, right=foreign-cache);
+let app-violations = union(left=dispatch-violations, right=foreign-cache);
+let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel.rs", captures=["target-root"]);
+let local-kernel = select source as file, span, source-tail from kernel-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
+let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
+let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,domain/executable_program/kernel.rs,application/file_dag/request.rs,application/file_dag/relations.rs,application/file_dag/testing.rs,application/file_dag/derived/owner/resource_fixture.rs,**/*_test.rs,**/tests.rs}");
+let domain-violations = union(left=foreign-kernel, right=foreign-registry);
+let violations = union(left=app-violations, right=domain-violations);
 emit violations subject file key(span);
 '''
 
 [diagnostic]
 primary = "span"
 message = "a caller reaches the executable-program implementation"
-help = "Call the application program facade with engine-issued inputs. Keep admission, publication, restoration, and physical dispatch in the program owner; the three physical-kernel bridges may borrow admission permits."
+help = "Call the application program facade with engine-issued inputs. Keep physical dispatch and registration in their declared owners and bridges; prepare operator contracts through their supported service."
 
 [given]
 include = ["src/**"]
@@ -37,7 +45,9 @@ edition = "2024"
 files.'src/lib.rs' = 'pub mod application; pub mod domain;'
 files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
 files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived;'
-files.'src/application/file_dag/program.rs' = 'pub mod facade; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity;'
+files.'src/application/file_dag/program.rs' = 'pub mod facade; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime;'
+files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission;'
+files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = 'pub fn raw_admit() {}'
 files.'src/application/file_dag/program/facade.rs' = 'pub fn invoke() {}'
 files.'src/application/file_dag/program/runtime.rs' = 'pub fn execute() {}'
 files.'src/application/file_dag/program/admission.rs' = 'pub struct Permit;'
@@ -53,13 +63,24 @@ files.'src/application/file_dag/derived/owner/acquisition.rs' = 'pub fn acquire(
 files.'src/application/file_dag/derived/owner/raw_scope.rs' = 'pub fn make_scope() {}'
 files.'src/application/file_dag/derived/owner/leases.rs' = 'pub fn make_lease() {}'
 files.'src/application/caller.rs' = 'pub fn invoke() {}'
-files.'src/domain.rs' = 'pub mod semantic;'
+files.'src/domain.rs' = 'pub mod semantic; pub mod executable_program; pub mod operator;'
 files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
+files.'src/domain/executable_program.rs' = 'pub mod kernel;'
+files.'src/domain/executable_program/kernel.rs' = 'pub fn evaluate() {}'
+files.'src/domain/operator.rs' = 'pub mod contract;'
+files.'src/domain/operator/contract.rs' = 'pub mod registration;'
+files.'src/domain/operator/contract/registration.rs' = 'pub fn registered() {}'
 
 [[scenarios]]
 id = "direct-internal-import"
 scenario = "An application peer cannot import the runtime implementation."
 given.files.'src/application/caller.rs' = 'use crate::application::file_dag::program::runtime::execute;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "new-nested-admission-implementation"
+scenario = "A newly added nested implementation is protected without listing its filename."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::facade_runtime::source_admission::raw_admit(); }'
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
@@ -85,6 +106,24 @@ id = "domain-cannot-reach-permit"
 scenario = "A semantic module cannot reach request identity or admission."
 given.files.'src/domain/semantic.rs' = 'use crate::application::file_dag::program::request_identity::RequestId;'
 then.findings = [{ path = "src/domain/semantic.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-call-domain-dispatcher"
+scenario = "An application peer cannot dispatch a semantic kernel directly."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::executable_program::kernel::evaluate(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-alias-domain-registration"
+scenario = "An alias of the operator registry still reaches its protected source."
+given.files.'src/application/caller.rs' = 'use crate::domain::operator::contract::registration::registered as install;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-qualify-domain-registration"
+scenario = "A qualified registry call without an import is also forbidden."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::registration::registered(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
 id = "peer-cannot-dispatch-physical-lease"
@@ -128,6 +167,22 @@ given.files.'src/application/file_dag/execution/lease.rs' = 'use super::super::p
 id = "program-dispatch-is-supported"
 scenario = "The program's kernel session may invoke the physical lease."
 given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::application::file_dag::execution::lease::bridge(); }'
+
+[[scenarios]]
+id = "declared-domain-dispatch-bridge"
+scenario = "The physical bridge may call the semantic dispatcher."
+given.files.'src/application/file_dag/execution.rs' = 'pub mod lease; pub fn evaluate() { crate::domain::executable_program::kernel::evaluate(); }'
+
+[[scenarios]]
+id = "declared-row-admission-bridge"
+scenario = "The program kernel session may call the semantic row dispatcher."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
+
+[[scenarios]]
+id = "declared-operator-preparation"
+scenario = "The request preparation owner may inspect the registered contract."
+given.files.'src/application/file_dag/request.rs' = 'pub fn prepare() { crate::domain::operator::contract::registration::registered(); }'
+given.files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod request;'
 
 [[scenarios]]
 id = "cache-owner-is-supported"
