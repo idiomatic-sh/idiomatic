@@ -1,0 +1,117 @@
+{
+  "scope": "Derived current context, not new process execution. Original raw captures remain immutable. stdout/stderr observations still reference their original archives.",
+  "records": [
+    {
+      "case": "escaped-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-1/invocation.json",
+        "sha256": "48fb8877147d08be249818001ebd62fd6fa73efa1dd9e0f98ad36567c3b4369c"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/escaped-annotation-modulo/aarch64/attempt-1/invocation.json",
+        "sha256": "8623227458b08fe98b48312fec53a17694daa9f87a5007d78aaea3dafebeac9f"
+      },
+      "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    },
+    {
+      "case": "escaped-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/aarch64/attempt-2/invocation.json",
+        "sha256": "6f0b357df029dc60c481f2fa500a109a99594e8b234f5391e0eeef1e8f6b78c6"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/escaped-annotation-modulo/aarch64/attempt-2/invocation.json",
+        "sha256": "817f45c2db3c936474bb74bec6ba04eb99130204f9923c95a6a3da22b6985017"
+      },
+      "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    },
+    {
+      "case": "escaped-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-1/invocation.json",
+        "sha256": "b50f42383ef31ec97380e4d2c46fb00d5f6547ffb738710c651a4190290c1a27"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/escaped-annotation-modulo/x86_64/attempt-1/invocation.json",
+        "sha256": "b1497c69ab1b48dece3b9d075de1790427e7b7f5a57d5bc73b6999a98ff1cc30"
+      },
+      "executable_sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    },
+    {
+      "case": "escaped-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/escaped-annotation-modulo/x86_64/attempt-2/invocation.json",
+        "sha256": "7d979834c07f8899b1dcd51da081c846e53a88c52f6c657c15c325f2e49c5e65"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/escaped-annotation-modulo/x86_64/attempt-2/invocation.json",
+        "sha256": "455adf14cdc9b1d146896a78ddc9789542a8d4ba74801650e5cfd82c55bf8664"
+      },
+      "executable_sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    },
+    {
+      "case": "backslash-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-1/invocation.json",
+        "sha256": "f72811f533574991e222fb43396f869b34424a197d580e095af5d7c7d3679f86"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/backslash-annotation-modulo/aarch64/attempt-1/invocation.json",
+        "sha256": "9072e88247293583b246c210a344a7f56cc277b1010a3638babecafa37b4b35c"
+      },
+      "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    },
+    {
+      "case": "backslash-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/aarch64/attempt-2/invocation.json",
+        "sha256": "b140ac83ebfc8b9c96a3acd882399e9c00f6fe269faf9bbdcb47987afb7624f5"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/backslash-annotation-modulo/aarch64/attempt-2/invocation.json",
+        "sha256": "b7d668f5bff0fda7cc9c1d29ff266845c9548604231df3661c42f9bee1cdc4d0"
+      },
+      "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    },
+    {
+      "case": "backslash-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-1/invocation.json",
+        "sha256": "5cff1a22499965562a6f7fc88d2c9c4beb80d5b2fad1968ec0ab3dbc4028222e"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/backslash-annotation-modulo/x86_64/attempt-1/invocation.json",
+        "sha256": "1e37bced7100018c1c230abd538899fccc69b102d7b533a464af86baa47e26af"
+      },
+      "executable_sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    },
+    {
+      "case": "backslash-annotation-modulo",
+      "original": {
+        "path": "results/up031-process-harness-2026-11-03/py310/backslash-annotation-modulo/x86_64/attempt-2/invocation.json",
+        "sha256": "42f7baa82cd424d37f3e2590c20bd6722dc573c715cf98abc6a37cb71e0f50ec"
+      },
+      "derived": {
+        "path": "results/up031-current-context-2026-11-04/py310/backslash-annotation-modulo/x86_64/attempt-2/invocation.json",
+        "sha256": "f519ac67e39a919cbcaba7c63aea85da84ca0595a4d4968a2d92595a4f3b36b9"
+      },
+      "executable_sha256": "024cdfbba8627539cc951908267077e3fd8e710add19f0b31d6cc606d19ddc32",
+      "original_settings_sha256": "1d3ede10051856056a1bdbfd471e2f2411a4266ed49586b2273dc81458f83f63",
+      "current_settings_sha256": "f8273f7a69b58a994557e81c0de5832b0a665a65fe569311d97779c3b6dc9689"
+    }
+  ]
+}
