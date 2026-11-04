@@ -444,3 +444,6 @@ pub(super) fn outcome_of<'facts>(
         Err(error) => classify(error),
     }
 }
+
+#[cfg(test)]
+mod distinct_integration_test;
