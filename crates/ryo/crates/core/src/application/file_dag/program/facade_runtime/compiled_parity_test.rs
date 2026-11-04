@@ -41,7 +41,7 @@ enum Scenario {
     Counted,
 }
 type Input = Scenario;
-type Value = &'static str;
+type Value = (usize, &'static str);
 type Failure = OperatingError;
 
 fn plan(scenario: Scenario) -> Plan {
@@ -162,42 +162,32 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let RootOutcome::Complete(table) = outcome.emit else {
         return Err(OperatingError::NotRun);
     };
-    let width = table.kinds.len().max(1);
-    Ok(Box::leak(
-        table
-            .cells
-            .chunks(width)
-            .map(|row| {
-                row.iter()
-                    .map(|cell| match cell {
-                        Cell::Node(node) => node.0.to_string(),
-                        Cell::Number(Integer(number)) => number.to_string(),
-                        Cell::Symbol(_)
-                        | Cell::Name(_)
-                        | Cell::File(_)
-                        | Cell::Span(_)
-                        | Cell::Flag(_) => "_".to_owned(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(",")
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-            .into_boxed_str(),
-    ))
+    let shown = table
+        .cells
+        .iter()
+        .map(|cell| match cell {
+            Cell::Node(node) => node.0.to_string(),
+            Cell::Number(Integer(number)) => number.to_string(),
+            Cell::Symbol(_) | Cell::Name(_) | Cell::File(_) | Cell::Span(_) | Cell::Flag(_) => {
+                "_".to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    Ok((table.count.0, Box::leak(shown.into_boxed_str())))
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_rows_of_a_lowered_select_are_passed_on_as_values"),
         word: Word::Succeeds,
         input: || Scenario::Words,
-        expect: Expect::Value("1 _ 3 _"),
+        expect: Expect::Value((2, "1 _ 3 _")),
     },
     Case {
         name: CaseName("a_count_of_lowered_rows_is_passed_on_with_the_keys"),
         word: Word::Succeeds,
         input: || Scenario::Counted,
-        expect: Expect::Value("_ 2"),
+        expect: Expect::Value((1, "_ 2")),
     },
 ];
 #[test]
