@@ -240,7 +240,7 @@ impl Inputs for SourceInputs<'_, '_> {
                 let producer = self
                     .execution
                     .program
-                    .regions
+                    .regions()
                     .get(id.0)
                     .ok_or(OperatingError::NotRun)?
                     .producer;
@@ -265,7 +265,7 @@ impl Inputs for SourceInputs<'_, '_> {
                 let union = *self
                     .program
                     .program()
-                    .observation_regions
+                    .observation_regions()
                     .get(slot)
                     .ok_or(OperatingError::NotRun)?
                     .as_ref()
@@ -273,7 +273,7 @@ impl Inputs for SourceInputs<'_, '_> {
                 let producer = self
                     .execution
                     .program
-                    .regions
+                    .regions()
                     .get(union.0)
                     .ok_or(OperatingError::NotRun)?
                     .producer;
