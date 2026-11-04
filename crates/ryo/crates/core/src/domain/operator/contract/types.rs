@@ -172,6 +172,20 @@ pub(crate) enum PreflightOrder {
     ResourcesFirst,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WorkspaceLifetime {
+    Invocation,
+    PrimaryRow,
+}
+#[derive(Clone, Debug)]
+pub(crate) enum WorkspaceProgram {
+    None,
+    FirstOccurrences {
+        lifetime: WorkspaceLifetime,
+        kinds: Result<Vec<CellKind>, OperatingError>,
+    },
+}
+
 /// Owned by one request and aligned with the compiled operation.
 #[derive(Clone, Debug)]
 pub(crate) struct OperatorContract {
@@ -187,6 +201,7 @@ pub(crate) struct OperatorContract {
     pub collected_kinds: Result<Vec<CellKind>, OperatingError>,
     /// Input-position bitset: absence-dependent outputs require these populations complete.
     pub absence_inputs: u8,
+    pub workspace: WorkspaceProgram,
     pub resources: super::resources::ResourceProgram,
     pub collected_resources: super::resources::ResourceProgram,
     pub collected_empty: Vec<EmptyResult>,
@@ -352,8 +367,8 @@ pub(crate) trait RowSink {
 }
 
 /// First-occurrence row semantics, bounded and released by the engine invocation.
-#[derive(Default)]
 pub(crate) struct DistinctWorkspace {
+    pub schema: Result<(), OperatingError>,
     pub rows: ryo_values::domain::rows::types::Table,
     pub seen: hashbrown::HashTable<ryo_values::domain::rows::types::RowIndex>,
 }
@@ -386,6 +401,16 @@ pub(crate) trait PredicateProgram {
     ) -> Result<crate::domain::table_model::types::Verdict, OperatingError>;
 }
 impl<'a> PrimitiveLease<'a> {
+    pub(crate) fn distinct(&mut self) -> Result<&mut DistinctWorkspace, OperatingError> {
+        let state = self
+            .workspace
+            .distinct
+            .as_mut()
+            .ok_or(OperatingError::WrongBinding)?;
+        state.schema.as_ref().map_err(Clone::clone)?;
+        Ok(state)
+    }
+
     #[cfg(feature = "diagnostic-row-progress")]
     pub(crate) fn progress(
         &self,

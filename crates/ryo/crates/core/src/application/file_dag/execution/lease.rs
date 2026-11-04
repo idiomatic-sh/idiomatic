@@ -176,6 +176,19 @@ pub(in crate::application::file_dag) fn evaluate(
         names: &mut workspace.predicate_names,
     };
     resources.inputs.validate_declared()?;
+    if matches!(
+        input,
+        PreparedInputs::Row {
+            input: crate::domain::operating::types::InputPlace(0),
+            ..
+        }
+    ) {
+        crate::domain::operator::contract::workspace::begin(
+            &contract.workspace,
+            WorkspaceLifetime::PrimaryRow,
+            &mut workspace.primitive,
+        );
+    }
     let views = PrimitiveViews {
         resources: &resources.inputs,
         semantic: context.semantic,

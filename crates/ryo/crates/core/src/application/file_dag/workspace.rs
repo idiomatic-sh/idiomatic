@@ -38,6 +38,18 @@ pub(crate) struct InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    pub(in crate::application::file_dag) fn for_contract(
+        owner: std::rc::Rc<super::relations::RelationOwner>,
+        contract: &crate::domain::operator::contract::types::OperatorContract,
+    ) -> Self {
+        let mut workspace = Self::new(owner);
+        crate::domain::operator::contract::workspace::begin(
+            &contract.workspace,
+            crate::domain::operator::contract::types::WorkspaceLifetime::Invocation,
+            &mut workspace.primitive,
+        );
+        workspace
+    }
     pub(crate) fn new(owner: std::rc::Rc<super::relations::RelationOwner>) -> Self {
         Self {
             work: Default::default(),

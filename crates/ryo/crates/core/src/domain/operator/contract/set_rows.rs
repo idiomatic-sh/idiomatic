@@ -48,12 +48,7 @@ impl SetRowDriver for EngineRows<'_, '_> {
     fn first_time(&mut self, row: &[Value]) -> Result<bool, SetInterrupted> {
         self.failure
             .run(|| {
-                let state = self
-                    .lease
-                    .workspace
-                    .distinct
-                    .as_mut()
-                    .ok_or(OperatingError::WrongBinding)?;
+                let state = self.lease.distinct()?;
                 Ok(first_time(&mut state.rows, &mut state.seen, row) == Addition::Added)
             })
             .map_err(|()| SetInterrupted)

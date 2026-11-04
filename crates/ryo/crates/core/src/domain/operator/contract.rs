@@ -15,3 +15,8 @@ pub(crate) mod types;
 pub(crate) mod views;
 
 pub(crate) mod derived;
+
+pub(crate) mod workspace;
+
+#[cfg(test)]
+mod workspace_test;

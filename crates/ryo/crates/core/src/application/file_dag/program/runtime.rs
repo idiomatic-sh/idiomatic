@@ -408,6 +408,15 @@ impl ProgramExecution {
                 slot.scratch
                     .resize_with(region.instructions.len(), KernelScratch::default);
             }
+            for (frame, instruction) in slot.scratch.iter_mut().zip(region.instructions.iter()) {
+                if let Some(workspace) = frame.workspace.as_mut() {
+                    crate::domain::operator::contract::workspace::begin(
+                        &instruction.contract.workspace,
+                        crate::domain::operator::contract::types::WorkspaceLifetime::Invocation,
+                        &mut workspace.primitive,
+                    );
+                }
+            }
             std::mem::take(&mut slot.scratch)
         };
         let mut cleanup = Invocation {

@@ -80,9 +80,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
         else {
             return Ok(super::runtime::StrategyOutcome::Declined);
         };
-        let workspace = scratch
-            .workspace
-            .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
+        let workspace = scratch.workspace.get_or_insert_with(|| {
+            InvocationWorkspace::for_contract(
+                Rc::clone(&self.owner),
+                permit.descriptor().contract.as_ref(),
+            )
+        });
         let failure = std::sync::OnceLock::new();
         let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
             port: self.kernels,
@@ -144,9 +147,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
             memo: &mut *context.memo,
             scratch: &mut *context.scratch,
         };
-        let workspace = scratch
-            .workspace
-            .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
+        let workspace = scratch.workspace.get_or_insert_with(|| {
+            InvocationWorkspace::for_contract(
+                Rc::clone(&self.owner),
+                permit.descriptor().contract.as_ref(),
+            )
+        });
         let failure = std::sync::OnceLock::new();
         let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
             port: self.kernels,
@@ -248,9 +254,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let rows = input
             .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
-        let workspace = scratch
-            .workspace
-            .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
+        let workspace = scratch.workspace.get_or_insert_with(|| {
+            InvocationWorkspace::for_contract(
+                Rc::clone(&self.owner),
+                permit.descriptor().contract.as_ref(),
+            )
+        });
         super::selection::acquire(
             self.prepared,
             permit,
@@ -382,10 +391,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
             scratch: &mut *context.scratch,
         };
         let context = &mut rebound;
-        let mut invocation_workspace = scratch
-            .workspace
-            .take()
-            .unwrap_or_else(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
+        let mut invocation_workspace = scratch.workspace.take().unwrap_or_else(|| {
+            InvocationWorkspace::for_contract(
+                Rc::clone(&self.owner),
+                permit.descriptor().contract.as_ref(),
+            )
+        });
         let workspace = &mut invocation_workspace;
         let contract = instruction.contract.as_ref();
         let result = (|| {

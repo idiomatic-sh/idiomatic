@@ -301,6 +301,7 @@ pub(crate) fn prepare_for(
         }
         _ => resources.clone(),
     };
+    let workspace = super::workspace::prepare(operation, inputs, &collected_kinds);
     Ok(OperatorContract {
         derived: Default::default(),
         kind: expected,
@@ -311,6 +312,7 @@ pub(crate) fn prepare_for(
         schema,
         collected_kinds,
         absence_inputs,
+        workspace,
         resources,
         collected_resources,
         collected_empty: super::preflight::empty_results(operation, inputs),

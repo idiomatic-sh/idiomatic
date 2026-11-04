@@ -45,11 +45,7 @@ impl OperatorsItem for ProjectItem {
             projected.clear();
             lease.project(row, columns, &mut projected)?;
             if *distinct == RepeatedRows::Dropped {
-                let state = lease
-                    .workspace
-                    .distinct
-                    .as_mut()
-                    .ok_or(OperatingError::WrongBinding)?;
+                let state = lease.distinct()?;
                 if first_time(&mut state.rows, &mut state.seen, &projected) != Addition::Added {
                     return Ok(());
                 }

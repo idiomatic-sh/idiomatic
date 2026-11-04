@@ -107,12 +107,12 @@ impl OperatorsItem for JoinItem {
                     {
                         continue;
                     }
-                    if let Some(distinct) = lease.workspace.distinct.as_mut()
-                        && crate::domain::table_dedup::service::first_time(
-                            &mut distinct.rows,
-                            &mut distinct.seen,
-                            &right,
-                        ) != Addition::Added
+                    let distinct = lease.distinct()?;
+                    if crate::domain::table_dedup::service::first_time(
+                        &mut distinct.rows,
+                        &mut distinct.seen,
+                        &right,
+                    ) != Addition::Added
                     {
                         continue;
                     }
@@ -181,12 +181,12 @@ impl OperatorsItem for JoinItem {
                                 }
                                 // Projection of a logical closure has set semantics. The engine resets
                                 // this bounded distinct workspace at the next left-row invocation.
-                                if let Some(distinct) = lease.workspace.distinct.as_mut()
-                                    && crate::domain::table_dedup::service::first_time(
-                                        &mut distinct.rows,
-                                        &mut distinct.seen,
-                                        &right,
-                                    ) != Addition::Added
+                                let distinct = lease.distinct()?;
+                                if crate::domain::table_dedup::service::first_time(
+                                    &mut distinct.rows,
+                                    &mut distinct.seen,
+                                    &right,
+                                ) != Addition::Added
                                 {
                                     continue;
                                 }
