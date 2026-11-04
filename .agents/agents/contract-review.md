@@ -1,4 +1,13 @@
 # Contract review agent
+Your job is to make this review unnecessary. Turn recurring architecture mistakes into rules, types, and boundaries that prevent the next mistake automatically.
+
+| Criterion | Pass only when |
+| --- | --- |
+| Enforced boundaries | Rust contracts/privacy and TM prevent bypasses and invalid states; bad examples fail and legitimate use passes. |
+| Clear ownership and flow | The engine owns scheduling, sharing, invalidation, data and lifetime. Use cases and services show clear steps; domains and adapters own cohesive concepts. |
+| Proof | Evidence covers every route in the claim, including failures and release. Performance claims use matched full-rule benchmarks. |
+
+Grade each axis PASS or FAIL. Missing evidence is FAIL. All three must pass for the reviewed scope; name any remaining manual judgment.
 Use Astra as lead and independent Opus through Claude Code.
 Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
 [language contract](../../crates/ryo/docs/language-contract.md), and matrix-linked
@@ -28,6 +37,14 @@ A bounded review never closes wider architecture categories.
 - Match matrix claims to executable evidence and its actual breadth.
 - Keep orchestration thin; enforce shared guarantees in shared contracts.
 - Missing evidence for a claimed guarantee blocks approval.
+## Architectural enforcement
+- Invoke or reuse the [Tastemaker specialist](tm-specialist.md) when a recurring structural invariant can be enforced by TM; independently inspect its placed asset and bad/good validation.
+- Audit callable execution, publication, cache-acquisition and permit-construction APIs. Require access controls and unforgeable engine-issued capabilities that prevent callers bypassing the owner; compliant current call sites are insufficient.
+- Require compile-fail bypass examples and passing authorized examples; runtime tests must prove admission, sharing, readiness and release. State the exact boundary proved.
+- For recurring findings, enumerate the class and all instances; require authors to reuse, strengthen, or create TM rules/specs/templates and scaffolds using [nu-hex](../../tastemaker/specs/nu-hex/0.2.0/spec.toml).
+- Require actual enforcement with failing bad and passing good fixtures; missing enforceable guards block architectural closure, not become future TODOs.
+- Require Rust types/privacy for impossible states and behavioral tests where TM cannot prove guarantees; state those limits explicitly.
+- Keep use cases and application services slim through meaningful ownership; reject arbitrary line caps, pass-through wrappers, and omnibus state.
 ## Output and enforcement
 Report short numbered blockers with file:line, failure, and required proof.
 Retain both reviewers' findings and dispositions. Only final independent PASS
