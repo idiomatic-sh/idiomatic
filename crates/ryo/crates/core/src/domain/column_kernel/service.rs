@@ -212,11 +212,9 @@ pub(crate) fn execute_with_index(
     source: ByteSlice<'_>,
     target: &mut Table,
     kinds: &[CellKind],
+    counts: &mut super::types::KernelCounts,
 ) -> Result<Option<(u64, u64, u64)>, OperatingError> {
-    let left_count = match left {
-        Rows::Selected(view) => view.selection.rows.len(),
-        _ => return Ok(None),
-    };
+    let left_count = crate::domain::table_model::service::count_of(left).0;
     reset(target, kinds);
     let mut key = Vec::with_capacity(chain.left_on.len());
     let mut projected = Vec::with_capacity(chain.projected.len());
@@ -230,47 +228,59 @@ pub(crate) fn execute_with_index(
         columns: &chain.right_on,
         index,
     };
-    for position in 0..left_count {
-        #[cfg(feature = "diagnostic-row-progress")]
-        (semantics.progress())(
-            crate::domain::operator::contract::views::ProgressCounter::InputRows,
-            1,
-        );
-        let left_row = RowIndex(position);
-        let reader = driver::Left {
-            rows: left,
-            row: left_row,
-            decoded: &decoded,
-        };
-        let mut driver = driver::Driver {
-            chain,
-            left,
-            left_row,
-            right,
-            index: indexed,
-            probe: None,
-            current: None,
-            symbols,
-            source,
-            target,
-            decoded: &decoded,
-            hits: &hits,
-            emitted: &emitted,
-            error: None,
-        };
-        let answer = semantics.operators(OperatorCall::EqualityJoin {
-            input: JoinInput::Values {
-                left: JoinRow::Columns(&reader),
-                left_on: &chain.left_on,
-                output: &chain.projected,
-                view: &[],
-                driver: &mut driver,
-                key: &mut key,
-                target: &mut projected,
-            },
-        });
-        join_result(answer, driver.error.take())?;
-    }
+    let covered = std::cell::Cell::new(0_u64);
+    let result: Result<(), OperatingError> = (|| {
+        for position in 0..left_count {
+            covered.set(covered.get().saturating_add(1));
+            #[cfg(feature = "diagnostic-row-progress")]
+            (semantics.progress())(
+                crate::domain::operator::contract::views::ProgressCounter::InputRows,
+                1,
+            );
+            let left_row = RowIndex(position);
+            let reader = driver::Left {
+                rows: left,
+                row: left_row,
+                decoded: &decoded,
+            };
+            let mut driver = driver::Driver {
+                chain,
+                left,
+                left_row,
+                right,
+                index: indexed,
+                probe: None,
+                current: None,
+                symbols,
+                source,
+                target,
+                decoded: &decoded,
+                hits: &hits,
+                emitted: &emitted,
+                error: None,
+            };
+            let answer = semantics.operators(OperatorCall::EqualityJoin {
+                input: JoinInput::Values {
+                    left: JoinRow::Columns(&reader),
+                    left_on: &chain.left_on,
+                    output: &chain.projected,
+                    view: &[],
+                    driver: &mut driver,
+                    key: &mut key,
+                    target: &mut projected,
+                },
+            });
+            join_result(answer, driver.error.take())?;
+        }
+        Ok(())
+    })();
+    counts.eligible_chains = counts.eligible_chains.saturating_add(1);
+    counts.covered_rows = counts.covered_rows.saturating_add(covered.get());
+    counts.decoded_cells = counts.decoded_cells.saturating_add(decoded.get());
+    counts.joined_hits = counts.joined_hits.saturating_add(hits.get());
+    counts.filtered_rows = counts.filtered_rows.saturating_add(emitted.get());
+    result?;
+    crate::domain::table_dedup::service::distinct(target, &mut hashbrown::HashTable::new());
     Ok(Some((emitted.get(), decoded.get(), hits.get())))
 }
 

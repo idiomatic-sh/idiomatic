@@ -38,6 +38,12 @@ pub(super) enum KernelInput<'a> {
     ),
     Continuation(&'a [Value]),
 }
+#[derive(Default)]
+pub(super) struct ColumnCounters {
+    pub join: crate::domain::operator::contract::types::WorkCounters,
+    pub filter: crate::domain::operator::contract::types::WorkCounters,
+    pub project: crate::domain::operator::contract::types::WorkCounters,
+}
 /// Application-owned preparation/acquisition supplies the borrowed semantic call.
 /// All implementations are required; no missing-capability or fallback path.
 pub(super) trait KernelInvocation {
@@ -49,6 +55,17 @@ pub(super) trait KernelInvocation {
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
+    ) -> Result<StrategyOutcome, InvocationFailure>;
+    fn column(
+        &self,
+        shape: &crate::domain::executable_program::column::ColumnAlternative,
+        permit: &super::admission::KernelPermit<'_>,
+        left: &AdmittedInput,
+        right: &AdmittedInput,
+        context: &mut OperatorContext<'_>,
+        scratch: &mut KernelScratch,
+        counts: &ColumnCounters,
+        rows: &mut ryo_values::domain::rows::types::Table,
     ) -> Result<StrategyOutcome, InvocationFailure>;
     fn evaluate(
         &self,
@@ -154,6 +171,25 @@ impl ProgramExecution {
             slots: RefCell::new(slots),
             cleanup_failure: RefCell::new(None),
         }
+    }
+    fn record_column(
+        &self,
+        shape: &crate::domain::executable_program::column::ColumnAlternative,
+        counts: &ColumnCounters,
+    ) -> Result<(), OperatingError> {
+        let mut slots = self.slots.borrow_mut();
+        for (id, values) in [
+            (shape.join(), counts.join.snapshot()),
+            (shape.filter(), counts.filter.snapshot()),
+            (shape.target(), counts.project.snapshot()),
+        ] {
+            let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+            let fed = slot.fed.first_mut().ok_or(OperatingError::NotRun)?;
+            for (total, found) in fed.0.iter_mut().zip(values) {
+                *total = total.saturating_add(found);
+            }
+        }
+        Ok(())
     }
     pub(super) fn logical_counts(
         &self,
@@ -472,6 +508,110 @@ impl ProgramExecution {
                             .replay(&publication, context, output)
                             .map_err(InvocationFailure::Delivery)?;
                     }
+                    return Ok(InvocationOutcome::Published(publication));
+                }
+            }
+            if let (Some(shape), Delivery::Retain) = (&region.column, &delivery) {
+                use crate::domain::executable_program::types::{HeldJoinOrder, InputSource};
+                let (left, right) = match shape.order() {
+                    HeldJoinOrder::RightBeforeLeft => {
+                        let right = inputs
+                            .admit(
+                                InputSource::Relation(shape.chain().right),
+                                &self.partition,
+                                context,
+                            )
+                            .map_err(InvocationFailure::Semantic)?;
+                        let left = inputs
+                            .admit(InputSource::Region(shape.left()), &self.partition, context)
+                            .map_err(InvocationFailure::Semantic)?;
+                        (left, Some(right))
+                    }
+                    HeldJoinOrder::LeftWithEmptyGate => {
+                        let left = inputs
+                            .admit(InputSource::Region(shape.left()), &self.partition, context)
+                            .map_err(InvocationFailure::Semantic)?;
+                        let right = if inputs
+                            .is_empty(&left)
+                            .map_err(InvocationFailure::Semantic)?
+                        {
+                            None
+                        } else {
+                            Some(
+                                inputs
+                                    .admit(
+                                        InputSource::Relation(shape.chain().right),
+                                        &self.partition,
+                                        context,
+                                    )
+                                    .map_err(InvocationFailure::Semantic)?,
+                            )
+                        };
+                        (left, right)
+                    }
+                };
+                let Some(right) = right else {
+                    let published = inputs
+                        .publish_empty(
+                            super::admission::ProducerRoot::Region(id),
+                            &self.partition,
+                            &[left],
+                            first.contract.collected_kinds.clone(),
+                        )
+                        .map_err(InvocationFailure::Semantic)?;
+                    return Ok(InvocationOutcome::Published(
+                        published.with_coverage(completion.coverage(needs)),
+                    ));
+                };
+                if inputs
+                    .is_empty(&left)
+                    .map_err(InvocationFailure::Semantic)?
+                {
+                    let published = inputs
+                        .publish_empty(
+                            super::admission::ProducerRoot::Region(id),
+                            &self.partition,
+                            &[left, right],
+                            first.contract.collected_kinds.clone(),
+                        )
+                        .map_err(InvocationFailure::Semantic)?;
+                    return Ok(InvocationOutcome::Published(
+                        published.with_coverage(completion.coverage(needs)),
+                    ));
+                }
+                let permit = super::admission::KernelPermit::column(self, id, &left, &right)
+                    .map_err(InvocationFailure::Semantic)?;
+                let frames = cleanup
+                    .scratch
+                    .as_mut()
+                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
+                let scratch = frames
+                    .first_mut()
+                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
+                let counters = ColumnCounters::default();
+                let mut rows = ryo_values::domain::rows::types::Table::default();
+                let outcome = kernels.column(
+                    shape, &permit, &left, &right, context, scratch, &counters, &mut rows,
+                );
+                self.record_column(shape, &counters)
+                    .map_err(InvocationFailure::Semantic)?;
+                if matches!(outcome?, StrategyOutcome::Executed) {
+                    completion.filter_rows(
+                        region
+                            .last_operation()
+                            .map_err(InvocationFailure::Semantic)?,
+                        needs,
+                        &mut rows,
+                    );
+                    let publication = inputs
+                        .publish(
+                            super::admission::ProducerRoot::Region(id),
+                            &self.partition,
+                            &[left, right],
+                            rows,
+                        )
+                        .map_err(InvocationFailure::Semantic)?
+                        .with_coverage(completion.coverage(needs));
                     return Ok(InvocationOutcome::Published(publication));
                 }
             }
@@ -811,7 +951,9 @@ impl Drop for Invocation<'_> {
             slot.scratch = self.scratch.take().unwrap_or_default();
             for (fed, scratch) in slot.fed.iter_mut().zip(&slot.scratch) {
                 if let Some(workspace) = &scratch.workspace {
-                    *fed = crate::domain::operator::types::RowsFed(workspace.work.snapshot());
+                    for (total, delta) in fed.0.iter_mut().zip(workspace.work.take()) {
+                        *total = total.saturating_add(delta);
+                    }
                 }
             }
             slot.state = match &self.terminal {

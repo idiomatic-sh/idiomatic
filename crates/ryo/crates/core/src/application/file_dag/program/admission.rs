@@ -231,13 +231,19 @@ impl AdmittedTree<'_> {
 }
 /// A borrowed semantic call can be made only under an admitted program invocation.
 /// Its fields/issuance are inaccessible to raw evaluator or provider callers.
+#[derive(Clone, Copy)]
+enum KernelStrategy {
+    Registered,
+    Ordered,
+    Column,
+}
 pub(crate) struct KernelPermit<'scope> {
     program: &'scope crate::domain::executable_program::types::ExecutableProgram,
     region: RegionId,
     instruction: usize,
     generation: &'scope Arc<()>,
     live: &'scope Arc<super::super::relations::GenerationLease>,
-    ordered: bool,
+    strategy: KernelStrategy,
 }
 impl<'scope> KernelPermit<'scope> {
     fn code(
@@ -279,7 +285,7 @@ impl<'scope> KernelPermit<'scope> {
             instruction: 0,
             generation: &execution.generation,
             live: &execution.generation_live,
-            ordered: false,
+            strategy: KernelStrategy::Registered,
         })
     }
     pub(super) fn ordered(
@@ -299,7 +305,29 @@ impl<'scope> KernelPermit<'scope> {
             instruction: 0,
             generation: &execution.generation,
             live: &execution.generation_live,
-            ordered: true,
+            strategy: KernelStrategy::Ordered,
+        })
+    }
+    pub(super) fn column(
+        execution: &'scope super::runtime::ProgramExecution,
+        region: RegionId,
+        left: &AdmittedInput,
+        right: &AdmittedInput,
+    ) -> Result<Self, OperatingError> {
+        let code = Self::code(execution, region)?;
+        let shape = code.column.as_ref().ok_or(OperatingError::WrongOperation)?;
+        left.validate_for(execution, ProducerRoot::Region(shape.left()))?;
+        right.validate_for(
+            execution,
+            ProducerRoot::Input(InputSource::Relation(shape.chain().right)),
+        )?;
+        Ok(Self {
+            program: &execution.program,
+            region,
+            instruction: 0,
+            generation: &execution.generation,
+            live: &execution.generation_live,
+            strategy: KernelStrategy::Column,
         })
     }
     /// A continuation borrows the already admitted invocation; no refcount,
@@ -318,7 +346,7 @@ impl<'scope> KernelPermit<'scope> {
             instruction: at,
             generation: self.generation,
             live: self.live,
-            ordered: self.ordered,
+            strategy: self.strategy,
         })
     }
     pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
@@ -330,15 +358,20 @@ impl<'scope> KernelPermit<'scope> {
             return Err(OperatingError::NotRead);
         }
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
-        let route = if self.ordered {
-            PhysicalRoute::Ordered(
+        let route = match self.strategy {
+            KernelStrategy::Registered => PhysicalRoute::Registered,
+            KernelStrategy::Ordered => PhysicalRoute::Ordered(
                 self.program.regions()[self.region.0]
                     .ordered_existence
                     .as_ref()
                     .ok_or(OperatingError::WrongOperation)?,
-            )
-        } else {
-            PhysicalRoute::Registered
+            ),
+            KernelStrategy::Column => PhysicalRoute::Column(
+                self.program.regions()[self.region.0]
+                    .column
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            ),
         };
         let authority = physical::authorize(self.operation(), route, binding, &meaning)?;
         Ok(PermittedPhysical {
@@ -407,6 +440,15 @@ impl<'scope> KernelPermit<'scope> {
             active,
             work,
         })
+    }
+    pub(super) fn collected_kinds(
+        &self,
+    ) -> Result<&[ryo_relations::domain::relations::types::CellKind], OperatingError> {
+        self.program.regions()[self.region.0].instructions[self.instruction]
+            .contract
+            .collected_kinds
+            .as_deref()
+            .map_err(Clone::clone)
     }
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
         self.program.regions()[self.region.0].instructions[self.instruction]
@@ -493,7 +535,11 @@ pub(super) fn contributor_readiness(
             }
         }
     }
-    if affected.is_empty() {
+    if affected.is_empty()
+        && !inputs
+            .iter()
+            .any(|input| matches!(input.readiness, Readiness::Partial { .. }))
+    {
         Ok(Readiness::Complete)
     } else {
         Ok(Readiness::Partial { files: affected })

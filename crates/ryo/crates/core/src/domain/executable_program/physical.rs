@@ -9,6 +9,7 @@ use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) enum PhysicalRoute<'a> {
     Registered,
     Ordered(&'a OrderedExistence),
+    Column(&'a super::column::ColumnAlternative),
 }
 pub(crate) struct PhysicalBinding {
     pub native_join: bool,
@@ -32,7 +33,13 @@ pub(crate) fn authorize(
     const JOIN: u8 = 32;
     const ORDERED: u8 = 64;
     let allowed = match crate::domain::features::service::kind_of(operation) {
-        OperationKind::Project => PROJECT,
+        OperationKind::Project => {
+            if matches!(route, PhysicalRoute::Column(_)) {
+                PROJECT | JOIN
+            } else {
+                PROJECT
+            }
+        }
         OperationKind::Extend | OperationKind::Replace => APPEND,
         OperationKind::SpanBounds => BOUNDS | APPEND,
         OperationKind::SpanBetween => BETWEEN | APPEND,
@@ -86,7 +93,7 @@ pub(crate) fn authorize(
                                 }
                             }
                 }
-                PhysicalRoute::Registered => false,
+                PhysicalRoute::Registered | PhysicalRoute::Column(_) => false,
             },
         ),
         OperatorCall::Project { columns, .. } => (
@@ -118,6 +125,23 @@ pub(crate) fn authorize(
         OperatorCall::EqualityJoin { input } => (
             JOIN,
             match (operation, input) {
+                (
+                    Operation::Project { .. },
+                    JoinInput::Values {
+                        left_on,
+                        output,
+                        view,
+                        ..
+                    },
+                ) if matches!(route, PhysicalRoute::Column(_)) => {
+                    let PhysicalRoute::Column(shape) = route else {
+                        return Err(OperatingError::WrongOperation);
+                    };
+                    *left_on == shape.chain().left_on.as_slice()
+                        && *output == shape.chain().projected.as_slice()
+                        && view.is_empty()
+                }
+
                 (
                     Operation::Join {
                         left_on,

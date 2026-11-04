@@ -86,6 +86,7 @@ pub(crate) fn compile(
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
 ) -> Result<ExecutableProgram, OperatingError> {
+    let column_candidates = super::column::ColumnCandidates::capture(&graph);
     let count = graph.nodes.len();
     let mut consumers = vec![0usize; count];
     let mut origins = vec![None; count];
@@ -95,6 +96,9 @@ pub(crate) fn compile(
         }
     }
     let mut boundary = graph.derived_sources.clone();
+    for node in column_candidates.fences() {
+        boundary[node.0] = true;
+    }
     let ordered_alternatives = graph.ordered_existence.clone();
     for alternative in ordered_alternatives.iter().flatten() {
         if let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(shape) =
@@ -271,8 +275,15 @@ pub(crate) fn compile(
             consumers: consumers[logical],
             dependencies: Box::new([]),
             ordered_existence: None,
+            column: None,
             publishes: boundary[logical] || consumers[logical] > 1,
         });
+    }
+    for column in column_candidates.lower(&logical_regions) {
+        let target = column.target();
+        let left = column.left();
+        regions[left.0].consumers += 1;
+        regions[target.0].column = Some(column);
     }
     for alternative in ordered_alternatives.into_iter().flatten() {
         let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(resolved) =
@@ -384,6 +395,9 @@ pub(crate) fn compile(
         }
         if let Some(ordered) = &region.ordered_existence {
             dependencies.push(ordered.source);
+        }
+        if let Some(column) = &region.column {
+            dependencies.push(column.left());
         }
         region.dependencies = dependencies.into_boxed_slice();
     }

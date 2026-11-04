@@ -330,9 +330,11 @@ impl Inputs for SourceInputs<'_, '_> {
         &mut self,
         root: ProducerRoot,
         partition: &Partition,
-        _inputs: &[AdmittedInput],
+        inputs: &[AdmittedInput],
         rows: Table,
     ) -> Result<AdmittedInput, OperatingError> {
+        let readiness =
+            super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
         let publication = self.owner.computed(rows)?;
         let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
@@ -345,7 +347,7 @@ impl Inputs for SourceInputs<'_, '_> {
             &checked,
             root,
             partition.clone(),
-            Readiness::Complete,
+            readiness,
         )
     }
     fn publish_empty(

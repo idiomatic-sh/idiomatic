@@ -44,4 +44,6 @@ pub(crate) struct KernelCounts {
     pub covered_rows: u64,
     pub decoded_cells: u64,
     pub joined_hits: u64,
+    /// Rows passing the total filter before terminal distinct projection.
+    pub filtered_rows: u64,
 }

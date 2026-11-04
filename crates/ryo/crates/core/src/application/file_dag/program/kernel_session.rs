@@ -111,6 +111,103 @@ impl KernelInvocation for KernelSession<'_, '_> {
             .map_err(InvocationFailure::Semantic)?;
         Ok(super::runtime::StrategyOutcome::Executed)
     }
+    fn column(
+        &self,
+        shape: &crate::domain::executable_program::column::ColumnAlternative,
+        permit: &KernelPermit<'_>,
+        left: &super::admission::AdmittedInput,
+        right: &super::admission::AdmittedInput,
+        context: &mut OperatorContext<'_>,
+        _scratch: &mut KernelScratch,
+        counts: &super::runtime::ColumnCounters,
+        rows: &mut ryo_values::domain::rows::types::Table,
+    ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+        let chain = shape.chain();
+        let Some(index_plan) = &chain.index else {
+            return Ok(super::runtime::StrategyOutcome::Declined);
+        };
+        let left_publication = left
+            .publication(&self.owner)
+            .map_err(InvocationFailure::Semantic)?;
+        let right_publication = right
+            .publication(&self.owner)
+            .map_err(InvocationFailure::Semantic)?;
+        let left_rows = self
+            .owner
+            .resolve(left_publication.as_ref(), self.read)
+            .map_err(InvocationFailure::Semantic)?;
+        let right_rows = self
+            .owner
+            .resolve(right_publication.as_ref(), self.read)
+            .map_err(InvocationFailure::Semantic)?;
+        let Rows::Stored(right_source) = &right_rows else {
+            return Ok(super::runtime::StrategyOutcome::Declined);
+        };
+        use crate::domain::table_model::collections::representations::types::PhysicalShape;
+        if self
+            .owner
+            .inspect(left_publication.as_ref(), BorrowedRows::from(&left_rows))
+            .map_err(InvocationFailure::Semantic)?
+            != PhysicalShape::Complete
+            || self
+                .owner
+                .inspect(right_publication.as_ref(), BorrowedRows::from(&right_rows))
+                .map_err(InvocationFailure::Semantic)?
+                != PhysicalShape::Complete
+            || index_plan
+                .schemas
+                .first()
+                .is_none_or(|schema| schema.as_slice() != right_source.kinds)
+        {
+            return Ok(super::runtime::StrategyOutcome::Declined);
+        }
+        let acquired = self
+            .owner
+            .stored_equality(index_plan, chain.right, *right_source)
+            .map_err(InvocationFailure::Semantic)?;
+        let ryo_derived::domain::contract::types::DerivedView::Equality(index) =
+            acquired.view().map_err(InvocationFailure::Semantic)?
+        else {
+            return Err(InvocationFailure::Semantic(OperatingError::WrongOperation));
+        };
+        counts.join.found(1, count_of(&right_rows).0 as u64);
+        let failure = std::sync::OnceLock::new();
+        let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            port: self.kernels,
+            permit,
+            binding: crate::domain::executable_program::physical::PhysicalBinding {
+                native_join: false,
+                source_len: context.source.0.len(),
+            },
+            failure: &failure,
+        };
+        let mut measured = crate::domain::column_kernel::types::KernelCounts::default();
+        let result = crate::domain::column_kernel::service::execute_with_index(
+            &semantics,
+            chain,
+            &left_rows,
+            &right_rows,
+            *right_source,
+            index,
+            context.symbols.as_ref(),
+            ryo_language::domain::symbols::types::ByteSlice(context.source.0),
+            rows,
+            &permit
+                .collected_kinds()
+                .map_err(InvocationFailure::Semantic)?,
+            &mut measured,
+        );
+        counts.join.found(0, measured.covered_rows);
+        counts.filter.found(0, measured.joined_hits);
+        counts.project.found(0, measured.filtered_rows);
+        if let Some(error) = failure.get() {
+            return Err(InvocationFailure::Semantic(error.clone()));
+        }
+        match result.map_err(InvocationFailure::Semantic)? {
+            Some(_) => Ok(super::runtime::StrategyOutcome::Executed),
+            None => Ok(super::runtime::StrategyOutcome::Declined),
+        }
+    }
     fn evaluate(
         &self,
         instruction: &Instruction,

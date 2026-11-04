@@ -313,6 +313,9 @@ impl WorkCounters {
             total.set(total.get().saturating_add(rows));
         }
     }
+    pub(crate) fn take(&self) -> [u64; 3] {
+        std::array::from_fn(|at| self.0[at].replace(0))
+    }
     pub(crate) fn snapshot(&self) -> [u64; 3] {
         std::array::from_fn(|at| self.0[at].get())
     }

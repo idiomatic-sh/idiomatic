@@ -139,6 +139,14 @@ impl ColumnCandidates {
                 ) else {
                     continue;
                 };
+                if [target, filter, join, left].iter().any(|node| {
+                    graph
+                        .nodes
+                        .get(node.0)
+                        .is_none_or(|node| !node.schema_valid)
+                }) {
+                    continue;
+                }
                 let Some(join_node) = graph.nodes.get(join.0) else {
                     continue;
                 };
