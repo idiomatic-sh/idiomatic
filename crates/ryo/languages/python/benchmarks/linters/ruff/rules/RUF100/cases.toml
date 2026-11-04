@@ -139,3 +139,13 @@ expected = [{ "end" = 116, "file" = "RUF100_0.py", "rule" = "RUF100", "start" = 
 "selected-rules" = ["RUF100", "F401", "F821"]
 "rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }, { "kind" = "output", "rule" = "F821", "output" = "noqa_matches" }] }] }
 "rule-context" = { "external-prefixes" = [], "disabled-rules" = { "case.py" = ["F401"] } }
+
+[[cases]]
+"name" = "unselected-bound-producer-does-not-enable-diagnostics"
+"comparison" = "full"
+"files" = { "case.py" = "import os  # noqa: F401\n" }
+"expected" = [{ "file" = "case.py", "rule" = "RUF100", "start" = 11, "end" = 23 }]
+"selected-rules" = ["RUF100"]
+"rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [{ "kind" = "output", "rule" = "F401", "output" = "noqa_matches" }] }] }
+"rule-context" = { "external-prefixes" = [], "disabled-rules" = { "case.py" = [] } }
+
