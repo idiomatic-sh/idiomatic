@@ -210,20 +210,17 @@ fn observation_partition(
                     .scope
             }
         };
-        if root.scope != phase || schema.scope != phase {
+        if root.scope != phase
+            || (schema.scope == StepScope::PerFile && phase != StepScope::PerFile)
+        {
             return Err(incomplete(
                 "observation phase disagrees with its actual producer root",
             ));
         }
-        let partition = match phase {
+        let partition = match schema.scope {
             StepScope::PerFile => PartitionRequirement::CurrentFile,
             StepScope::CrossFile => PartitionRequirement::Project,
         };
-        if required.is_some_and(|previous| previous != partition) {
-            return Err(incomplete(
-                "observation producers require different partitions",
-            ));
-        }
         required = Some(partition);
     }
     required.ok_or_else(|| incomplete("observation has no declared producer"))

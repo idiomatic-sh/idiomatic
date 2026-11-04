@@ -1,15 +1,12 @@
-//! Execute existing graph ready batches and transfer publications before their final consumer retires.
+//! Execute declared ready batches and transfer publications before their final consumer retires.
 use super::errors::CrossError;
 use super::{
     service::CrossFile,
     types::{ObservationRun, PublicationSlot},
 };
-use crate::application::{
-    file_dag::{
-        observations::cross::{CrossPublications, frontier_complete, frontier_readiness},
-        settings::CrossingInput,
-    },
-    job_execution,
+use crate::application::file_dag::{
+    observations::cross::{CrossPublications, frontier_complete, frontier_readiness},
+    settings::CrossingInput,
 };
 use crate::domain::{
     answering::{
@@ -23,9 +20,7 @@ use crate::domain::{
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
-    plan_parts::types::Input,
-    plans::types::StepScope,
-    stored_facts::types::ArenaBytes,
+    plan_parts::types::Input, plans::types::StepScope, stored_facts::types::ArenaBytes,
 };
 
 struct PreparedTask {
@@ -43,23 +38,19 @@ impl CrossFile {
     ) -> Result<(), CrossError> {
         let ObservationRequest::Bound { batches, .. } = run.observations else {
             return Err(CrossError::Contract(
-                "observation execution requires the prepared named graph".into(),
+                "observation execution requires the prepared named contract".into(),
             ));
         };
-        let graph = run
-            .graph
-            .observations
-            .as_ref()
-            .ok_or_else(|| CrossError::Contract("named request graph is absent".into()))?;
-        let publication_scope = crate::application::file_dag::scope::ExecutionScope::new(
-            std::sync::Arc::clone(&run.graph),
-            crate::application::file_dag::scope::ScopePhase::Project,
-            true,
-            run.executor,
+        let metadata = run
+            .program
+            .observation_metadata()
+            .ok_or_else(|| CrossError::Contract("named request metadata is absent".into()))?;
+        let owner = crate::application::file_dag::program::facade::publication_owner(
+            &run.program,
+            run.services,
         )?;
-        let mut publications =
-            CrossPublications::new(graph, std::rc::Rc::clone(publication_scope.owner()), arenas);
-        let mut selected = vec![false; run.domain.plans.len()];
+        let mut publications = CrossPublications::new(metadata, &owner, arenas);
+        let mut selected = vec![false; run.domain.metadata.len()];
         for todo in run.todo {
             *selected
                 .get_mut(todo.rule.0)
@@ -79,11 +70,11 @@ impl CrossFile {
             .collect::<Result<Vec<_>, _>>()?;
         // Missing/old/refused readiness leaves roots unavailable. It never changes
         // an independent Emit or fabricates an empty producer population.
-        if let Ok(readiness) = frontier_readiness(graph, &files, run.domain.observations) {
+        if let Ok(readiness) = frontier_readiness(metadata, &files, run.domain.observations) {
             // This preparation map drops before execution; logical roots retain the common lease.
             let mut physical = std::collections::BTreeMap::new();
-            for (slot, root) in graph.frontiers.iter().enumerate() {
-                let needed = graph.outputs[root.producer.0][root.output.0 as usize]
+            for (slot, root) in metadata.frontiers.iter().enumerate() {
+                let needed = metadata.outputs[root.producer.0][root.output.0 as usize]
                     .consumers
                     .iter()
                     .any(|consumer| selected[*consumer]);
@@ -113,10 +104,7 @@ impl CrossFile {
                     continue;
                 };
                 let readiness = publications.binding_readiness(*rule)?;
-                let plan = run.domain.plans.get(rule.0).ok_or(OperatingError::NotRun)?;
-                let dependencies =
-                    crate::domain::file_program::service::observations::frontier_dependencies(plan)
-                        .map_err(|error| CrossError::Contract(error.to_string()))?;
+                let dependencies = run.program.frontier_dependencies(*rule)?;
                 let frontier_ready = dependencies
                     .iter()
                     .map(|inputs| {
@@ -138,38 +126,61 @@ impl CrossFile {
             let results = {
                 let crossing = CrossingInput {
                     arenas: publications.arenas(),
-                    executor: run.executor,
-                    graph: std::sync::Arc::clone(&run.graph),
+                    services: run.services,
+                    program: std::sync::Arc::clone(&run.program),
                     domain: run.domain.clone(),
                 };
-                job_execution::service::drain(run.scheduler, run.workers, &tasks, |_, task| {
-                    let mut symbols = Symbols::default();
-                    let frontier =
-                        prepare_frontiers(&run, &task.todo, &task.frontier_ready, &mut symbols)?;
-                    self.evaluate_phase(
-                        &crossing,
-                        &task.todo,
-                        frontier,
-                        &mut symbols,
-                        &task.bindings,
-                        task.slot,
-                    )
-                })?
+                tasks
+                    .iter()
+                    .map(|task| {
+                        let mut symbols = Symbols::default();
+                        let frontier = prepare_frontiers(
+                            &run,
+                            &task.todo,
+                            &task.frontier_ready,
+                            &mut symbols,
+                        )?;
+                        self.evaluate_phase(
+                            &crossing,
+                            &task.todo,
+                            frontier,
+                            &mut symbols,
+                            &task.bindings,
+                            task.slot,
+                            &owner,
+                        )
+                    })
+                    .collect::<Vec<_>>()
             };
+            let mut first_error = None;
             for (mut task, result) in tasks.into_iter().zip(results) {
-                // Worker handles are gone before the common last-consumer lease retires.
                 task.bindings.clear();
-                let crossed = result?;
-                if let Some(transfer) = settle(
-                    &task.todo,
-                    crossed,
-                    &mut answered.later,
-                    &mut answered.fed,
-                    &mut answered.unknowns,
-                ) {
-                    publications.install(task.todo.rule, task.slot, transfer)?;
+                match result {
+                    Ok(crossed) => {
+                        if let Some(transfer) = settle(
+                            &task.todo,
+                            crossed,
+                            &mut answered.later,
+                            &mut answered.fed,
+                            &mut answered.unknowns,
+                        ) {
+                            if let Err(error) =
+                                publications.install(task.todo.rule, task.slot, transfer)
+                            {
+                                first_error.get_or_insert(CrossError::from(error));
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        first_error.get_or_insert(CrossError::from(error));
+                    }
                 }
-                publications.finish(task.todo.rule)?;
+                if let Err(error) = publications.finish(task.todo.rule) {
+                    first_error.get_or_insert(CrossError::from(error));
+                }
+            }
+            if let Some(error) = first_error {
+                return Err(error);
             }
         }
         Ok(())
@@ -183,17 +194,13 @@ fn prepare_frontiers(
 ) -> Result<super::types::PreparedFrontiers, crate::domain::rules::errors::RulesError> {
     let failed =
         |error: &dyn std::fmt::Display| crate::domain::rules::service::failed(&todo.id, error);
-    let plan = run
-        .domain
-        .plans
-        .get(todo.rule.0)
-        .ok_or_else(|| failed(&OperatingError::NotRun))?;
     let first = *run
         .first_bucket
         .get(todo.rule.0)
         .ok_or_else(|| failed(&OperatingError::NotRun))?;
     super::frontiers::prepare(
-        plan,
+        run.program.as_ref(),
+        todo.rule,
         first,
         run.facts,
         run.project,

@@ -7,15 +7,15 @@
 use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{
-    answered, handed_of, memory_enabled, memory_rule, observed_arenas,
-    observed_inputs, observed_notes, observed_records, observed_staged,
-    observed_stored, records_of,
+    answered, handed_of, memory_enabled, memory_rule, observed_arenas, observed_inputs,
+    observed_notes, observed_records, observed_staged, observed_stored, records_of,
 };
 use super::types::{
     Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
     StepFed, Streaming, TaskIndex, Wanting,
 };
 use crate::application::file_analysis::types::{FileVisit, Worker};
+use crate::application::file_dag::program::facade::{self, ProgramServices};
 use crate::application::rule_compilation::types::Compiled;
 
 use crate::domain::answering::service::{cross_steps, settle, todo_list};
@@ -436,7 +436,9 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         session: &ryo_values::domain::runs::types::Session,
     ) -> Result<Digest, LintError> {
-        if reads_any(plans) == PlanReads::DoesNotRead {
+        if reads_any(&crate::domain::run_metadata::service::from_plans(plans))
+            == PlanReads::DoesNotRead
+        {
             return Ok(Digest([0; 16]));
         }
         crate::application::project_context::service::identity(
@@ -471,7 +473,7 @@ impl LintUseCaseImpl {
                 .collect(),
             Decision::Whole | Decision::Again | Decision::Cross => Vec::new(),
         };
-        let project = project_rules(setting.plans);
+        let project = project_rules(setting.metadata);
         // What the project comes to may change with files no run lists: those its lookup read are looked at again only when the run
         // uses something again and a rule reads what the project writes.
         let consulted = match &decision {
@@ -582,7 +584,8 @@ impl LintUseCaseImpl {
             {
                 let mut tables = tables_for(
                     WorkerNumber(0),
-                    setting.plans,
+                    setting.metadata,
+                    Arc::clone(setting.program.matchers()),
                     self.unlowered,
                     self.counting,
                 );
@@ -777,7 +780,8 @@ impl LintUseCaseImpl {
                 {
                     let mut tables = tables_for(
                         WorkerNumber(number),
-                        run.plans,
+                        run.metadata,
+                        Arc::clone(run.program.matchers()),
                         self.unlowered,
                         self.counting,
                     );
@@ -826,7 +830,7 @@ impl LintUseCaseImpl {
         self.scheduler.run(&mut jobs, count)?;
         drop(jobs);
         // The workers meet: their tables, the text they made, what they could not read.
-        let mut met = gathering(run.plans);
+        let mut met = gathering(run.metadata);
         let mut workers = Vec::new();
         for state in states {
             if let Some(error) = state.failure {
@@ -923,8 +927,7 @@ impl LintUseCaseImpl {
         let domain = crate::domain::crossing::types::CrossingInput {
             placed: run.placed,
             observations: handed.observations,
-            plans: run.plans,
-            bindings: run.bindings,
+            metadata: run.metadata,
             ids: run.ids,
             needs: run.needs,
             paths: &across,
@@ -948,8 +951,8 @@ impl LintUseCaseImpl {
                 .observations(
                     crate::application::cross_file::types::ObservationRun {
                         domain,
-                        executor: run.executor,
-                        graph: std::sync::Arc::clone(&run.graph),
+                        services: run.services,
+                        program: std::sync::Arc::clone(&run.program),
                         scheduler: self.scheduler.as_ref(),
                         workers: self.workers,
                         observations: run.observations,
@@ -965,8 +968,8 @@ impl LintUseCaseImpl {
                 .map_err(Into::into);
         }
         let crossing = CrossingInput {
-            executor: run.executor,
-            graph: std::sync::Arc::clone(&run.graph),
+            services: run.services,
+            program: std::sync::Arc::clone(&run.program),
             arenas: &*handed.arenas,
             domain,
         };
@@ -983,9 +986,9 @@ impl LintUseCaseImpl {
                         clippy::indexing_slicing,
                         reason = "a rule to cross is one of the run's rules, and each has its plan and its first bucket; another is a bug that must crash, not a rule that crosses nothing"
                     )]
-                    let (first, plan) = (run.first_bucket[each.rule.0], &run.plans[each.rule.0]);
+                    let first = run.first_bucket[each.rule.0];
                     let inputs = crate::application::cross_file::frontiers::prepare(
-                        plan, first, kept_facts.as_ref(), handle.facts.as_ref(), &handle.symbols,
+                        run.program.as_ref(), each.rule, first, kept_facts.as_ref(), handle.facts.as_ref(), &handle.symbols,
                         &mut cross, crate::application::cross_file::frontiers::PreparationPolicy::Diagnostic,
                     ).map_err(|error| match error {
                         crate::application::cross_file::frontiers::PreparationError::Facts(error) => LintError::from(error),
@@ -1051,7 +1054,7 @@ impl LintUseCaseImpl {
         };
         let unchanged: Vec<Bucket> = match &rebuilt {
             BucketsWanted::All => Vec::new(),
-            BucketsWanted::These(rebuilt) => buckets_of(run.plans, run.first_bucket, None)
+            BucketsWanted::These(rebuilt) => buckets_of(run.metadata, run.first_bucket, None)
                 .into_iter()
                 .filter(|bucket| rebuilt.binary_search(bucket).is_err())
                 .collect(),
@@ -1076,7 +1079,7 @@ impl LintUseCaseImpl {
     /// What the report says each feature of the rules was fed, when the run counts the rows.
     fn features_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<FeatureFed> {
         match self.counting {
-            Counting::Counts => fed_over(run.plans, fed)
+            Counting::Counts => fed_over(run.metadata, fed)
                 .into_iter()
                 .map(FeatureFed::from)
                 .collect(),
@@ -1087,7 +1090,7 @@ impl LintUseCaseImpl {
     /// What the report says each step of each rule was fed, when the run counts the rows.
     fn work_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<RuleWork> {
         match self.counting {
-            Counting::Counts => work_over(run.plans, fed)
+            Counting::Counts => work_over(run.metadata, fed)
                 .into_iter()
                 .zip(run.rules)
                 .map(|(steps, rule)| RuleWork {
@@ -1162,7 +1165,7 @@ impl LintUseCaseImpl {
                     .cloned()
             })
             .collect();
-        let project_again = project_rules(run.plans)
+        let project_again = project_rules(run.metadata)
             .iter()
             .any(|rule| rules.binary_search_by_key(&rule.0, |each| each.0).is_ok());
         let now = if project_again {
@@ -1182,7 +1185,7 @@ impl LintUseCaseImpl {
                 &later_from(&run.listing.stored, run.ids, &made_again).unwrap_or_default(),
             ),
         );
-        let mut todo = todo_list(run.plans, run.ids);
+        let mut todo = todo_list(run.metadata, run.ids);
         todo.retain(|each| {
             rules
                 .binary_search_by_key(&each.rule.0, |rule| {
@@ -1266,13 +1269,13 @@ impl LintUseCaseImpl {
                 ..Projected::default()
             }
         } else {
-            let mut now = if reads_any(run.plans) == PlanReads::Reads {
+            let mut now = if reads_any(run.metadata) == PlanReads::Reads {
                 self.project_now(run, project, &mut notes)?
             } else {
                 Projected::default()
             };
             unknowns.append(&mut now.unknowns);
-            let todo = todo_list(run.plans, run.ids);
+            let todo = todo_list(run.metadata, run.ids);
             if !todo.is_empty() {
                 self.crossed(run, handed, &todo, project, &now, &mut answered)?;
             }
@@ -1326,12 +1329,13 @@ impl LintUseCase for LintUseCaseImpl {
             .validate_source_language(request.source_language.as_ref())?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
         let compiling = tracing::info_span!("compile").entered();
+        let compiled = self.checked_rules(&rules, &request.hosted)?;
         let Compiled {
             plans,
             bindings,
             schedule,
             observations,
-        } = self.checked_rules(&rules, &request.hosted)?;
+        } = &compiled;
         crate::application::rule_compilation::service::observed(
             &rules,
             &plans,
@@ -1355,7 +1359,7 @@ impl LintUseCase for LintUseCaseImpl {
             symbols: Symbols::default(),
             facts: self.facts.worker()?,
         };
-        let first_bucket = first_buckets(&plans);
+        let first_bucket = first_buckets(&crate::domain::run_metadata::service::from_plans(plans));
         let applicability: Vec<_> = rules.iter().map(|rule| rule.applicability).collect();
         let applicability_can_gate = applicability.len() != plans.len()
             || applicability.iter().any(|policy| {
@@ -1381,53 +1385,30 @@ impl LintUseCase for LintUseCaseImpl {
         let (nothing_handed, nothing_wanted) =
             (ReadHanded::default(), BucketsWanted::These(Vec::new()));
         let unknown = self.language.unknown_reasons();
-        let operators = std::sync::Arc::new(
-            crate::domain::operator::contract::types::RequestOperators::prepare(
-                &plans,
-                &bindings,
-                &request.hosted,
-                std::sync::Arc::clone(&self.derived),
-            )
-            .map_err(|error| {
-                crate::domain::rules::service::failed(
-                    &ryo_values::domain::runs::types::RuleId("<request>".into()),
-                    &error,
-                )
-            })?,
-        );
         let executor = crate::application::file_dag::execution::CommonOperatorEngine::new(
             self.operators.as_ref(),
             std::sync::Arc::clone(&self.derived),
         );
-        let observation_request = match identities.observations {
-            crate::application::rule_compilation::types::ObservationIdentity::Independent => {
-                crate::domain::file_program::types::ObservationRequest::Independent
-            }
-            crate::application::rule_compilation::types::ObservationIdentity::Named(layout) => {
-                crate::domain::file_program::service::observations::request(
-                    &schedule,
-                    &observations,
-                    layout,
-                )
-                .map_err(crate::application::rule_compilation::errors::RuleCompilationError::from)?
-            }
-        };
-        let mut graph = crate::domain::file_program::service::compile_prepared_observations(
-            &plans,
-            &operators,
-            observation_request,
-        );
-        crate::application::file_dag::optimized::prepare(&mut graph, executor.derived_port());
-        let graph = std::sync::Arc::new(graph);
+        let services = ProgramServices::new(&executor, Arc::clone(&self.derived));
+        let program = facade::prepare(
+            compiled,
+            &rules,
+            &request.hosted,
+            Arc::clone(&self.derived),
+            identities.observations,
+        )
+        .map_err(|error| {
+            crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+        })?;
+        let metadata = program.metadata();
+        let observation_request = program.observation_request();
         let mut setting = VisitSetting {
-            graph: std::sync::Arc::clone(&graph),
+            program: Arc::clone(&program),
             source_language: request.source_language.as_ref(),
-            executor: &executor,
-            operators: std::sync::Arc::clone(&operators),
+            services: &services,
             domain: crate::domain::workers::types::VisitSetting {
                 observations: observation_request,
-                plans: &plans,
-                bindings: &bindings,
+                metadata,
                 wanted: &wants.walked,
                 paths: &paths,
                 first_bucket: &first_bucket,
@@ -1462,11 +1443,12 @@ impl LintUseCase for LintUseCaseImpl {
         let (again, producer_buckets) =
             crate::application::rule_compilation::replay::observation_closure(
                 again,
-                &plans,
-                &graph,
-                observation_request,
+                program.as_ref(),
                 &first_bucket,
-            )?;
+            )
+            .map_err(|error| {
+                crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
+            })?;
         setting.replaying = match again {
             Reuse::Cross(_) => Replaying::FindingsAndHanded,
             Reuse::Whole | Reuse::Again => Replaying::Findings,
@@ -1474,7 +1456,7 @@ impl LintUseCase for LintUseCaseImpl {
         // A run that makes cross-file steps again reads what the files handed them: the buckets of those rules alone.
         let HandedAgain { wanted, handed } = handed_of(
             listing.read.as_ref(),
-            &plans,
+            metadata,
             &first_bucket,
             &again,
             &producer_buckets,
@@ -1485,13 +1467,12 @@ impl LintUseCase for LintUseCaseImpl {
         setting.records = &records;
         let run = LintRun {
             placed: &placed,
-            graph: std::sync::Arc::clone(&graph),
+            program: Arc::clone(&program),
             observations: setting.observations,
-            executor: &executor,
+            services: &services,
             request: &request,
             rules: &rules,
-            plans: &plans,
-            bindings: &bindings,
+            metadata,
             ids: &ids,
             wants: &wants,
             listing: &listing,
@@ -1561,5 +1542,3 @@ where
     records.sort();
     records.dedup();
 }
-
-use crate::application::file_dag::executor::PrimitiveExecutor;

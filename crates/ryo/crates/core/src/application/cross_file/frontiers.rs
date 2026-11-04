@@ -1,6 +1,6 @@
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
-//! row-cell allocation belongs to the shared graph invocation owner.
+//! row-cell allocation belongs to the shared executable invocation owner.
 use super::types::{FrontierInput, PreparedFrontiers};
 use crate::domain::{
     crossing::types::RefusedFrontier,
@@ -19,7 +19,6 @@ use crate::outbound::facts::{
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},
-    plans::types::{Plan, StepScope},
     stored_facts::types::Bucket,
 };
 
@@ -37,7 +36,8 @@ pub(crate) enum PreparationError {
 }
 
 pub(crate) fn prepare(
-    plan: &Plan,
+    program: &crate::application::file_dag::program::facade::PreparedProgram,
+    rule: crate::domain::coverage::types::RuleIndex,
     first: Bucket,
     facts: &dyn FactsFinish,
     project: &dyn FactsWorker,
@@ -51,7 +51,7 @@ pub(crate) fn prepare(
     };
     let memory =
         tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE);
-    for (place, input) in plan.frontier.iter().copied().enumerate() {
+    for (place, input) in program.frontiers(rule)?.iter().copied().enumerate() {
         let _input = memory.then(|| tracing::trace_span!(target:"ryo::diagnostic::lifecycle_memory", "cross_input_memory", input_index=place, input=?input).entered());
         if let PreparationPolicy::Observations { ready } = policy {
             if !ready.get(place).copied().ok_or(OperatingError::NotRun)? {
@@ -64,14 +64,14 @@ pub(crate) fn prepare(
                 continue;
             }
         }
-        if let Input::BoundObservation(id) = input {
-            if plan
-                .observation_inputs
-                .get(id.0 as usize)
-                .is_some_and(|schema| schema.scope == StepScope::CrossFile)
-            {
-                continue;
-            }
+        if !program
+            .metadata()
+            .get(rule.0)
+            .and_then(|rule| rule.frontier_capture.get(place))
+            .copied()
+            .ok_or(OperatingError::NotRun)?
+        {
+            continue;
         }
         if let Some(relation) = project_relation(input) {
             let rows = project.rows(relation)?;
@@ -90,7 +90,8 @@ pub(crate) fn prepare(
             InputNumber(place),
         ))?;
         if memory {
-            let bytes = crate::domain::recording::types::retention::value::RetainedBytes::packed(&words);
+            let bytes =
+                crate::domain::recording::types::retention::value::RetainedBytes::packed(&words);
             tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live, packed_capacity_bytes=bytes.packed_capacity);
         }
         let mode = match policy {

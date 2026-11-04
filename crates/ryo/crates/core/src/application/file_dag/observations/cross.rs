@@ -1,10 +1,9 @@
-//! Request-graph named publications across existing cross ready batches. No source IO or producer evaluation.
+//! Named publication leases across declared project ready batches. No source IO or producer evaluation.
 use crate::application::cross_file::types::PublicationSlot;
+use crate::application::file_dag::program::facade::{ObservationMetadata, OutputRoot};
 use crate::domain::{
-    coverage::types::RuleIndex,
-    crossing::types::CrossPublicationTransfer,
-    file_program::types::{GraphObservationRoot, GraphObservations, ObservationRetirement},
-    operating::errors::OperatingError,
+    coverage::types::RuleIndex, crossing::types::CrossPublicationTransfer,
+    file_program::types::ObservationRetirement, operating::errors::OperatingError,
 };
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
@@ -33,7 +32,7 @@ pub(crate) struct PreparedFrontier {
 }
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {
-    graph: &'a GraphObservations,
+    metadata: &'a ObservationMetadata,
     owner: Rc<crate::application::file_dag::relations::RelationOwner>,
     arenas: &'a mut Vec<ArenaBytes>,
     inherited: usize,
@@ -44,32 +43,31 @@ pub(crate) struct CrossPublications<'a> {
 }
 impl<'a> CrossPublications<'a> {
     pub(crate) fn new(
-        graph: &'a GraphObservations,
-        owner: Rc<crate::application::file_dag::relations::RelationOwner>,
+        metadata: &'a ObservationMetadata,
+        scope: &crate::application::file_dag::program::facade::PublicationScope,
         arenas: &'a mut Vec<ArenaBytes>,
     ) -> Self {
         let inherited = arenas.len();
         Self {
-            graph,
-            owner,
+            metadata,
+            owner: Rc::clone(scope.owner()),
             inherited,
             references: vec![0; inherited],
             arenas,
-            roots: graph
+            roots: metadata
                 .outputs
                 .iter()
                 .map(|outputs| {
                     outputs
                         .iter()
                         .map(|output| match output.root {
-                            GraphObservationRoot::CrossFile => CrossRoot::Pending,
-                            GraphObservationRoot::PerFile(_)
-                            | GraphObservationRoot::Unavailable => CrossRoot::Unavailable,
+                            OutputRoot::CrossFile => CrossRoot::Pending,
+                            OutputRoot::PerFile | OutputRoot::Unavailable => CrossRoot::Unavailable,
                         })
                         .collect()
                 })
                 .collect(),
-            remaining: graph
+            remaining: metadata
                 .outputs
                 .iter()
                 .map(|outputs| {
@@ -79,7 +77,7 @@ impl<'a> CrossPublications<'a> {
                         .collect()
                 })
                 .collect(),
-            finished: vec![false; graph.bindings.len()],
+            finished: vec![false; metadata.bindings.len()],
         }
     }
     pub(crate) fn arenas(&self) -> &[ArenaBytes] {
@@ -133,14 +131,14 @@ impl<'a> CrossPublications<'a> {
         if !frontier_complete(slot, readiness)? {
             return Err(incomplete());
         }
-        let entry = self.graph.frontiers.get(slot).ok_or_else(incomplete)?;
+        let entry = self.metadata.frontiers.get(slot).ok_or_else(incomplete)?;
         if !matches!(
-            self.graph
+            self.metadata
                 .outputs
                 .get(entry.producer.0)
                 .and_then(|outputs| outputs.get(entry.output.0 as usize))
                 .map(|output| &output.root),
-            Some(GraphObservationRoot::PerFile(_))
+            Some(OutputRoot::PerFile)
         ) {
             return Err(incomplete());
         }
@@ -176,8 +174,8 @@ impl<'a> CrossPublications<'a> {
         >,
         OperatingError,
     > {
-        let bindings = self.graph.bindings.get(rule.0).ok_or_else(incomplete)?;
-        Ok(bindings.iter().map(|binding| (binding.input.input, binding.input.producers.iter().all(|producer| match producer {
+        let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
+        Ok(bindings.iter().map(|binding| (binding.input, binding.producers.iter().all(|producer| match producer {
             crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => false,
             crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::Complete { .. })),
         }))).collect())
@@ -185,13 +183,13 @@ impl<'a> CrossPublications<'a> {
     /// Only phases with demanded cross roots reserve an ordinary arena slot.
     pub(crate) fn reserve(&mut self, rule: RuleIndex) -> Result<PublicationSlot, OperatingError> {
         let outputs = self
-            .graph
+            .metadata
             .outputs
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?;
         if !outputs
             .iter()
-            .any(|output| matches!(output.root, GraphObservationRoot::CrossFile))
+            .any(|output| matches!(output.root, OutputRoot::CrossFile))
         {
             return Ok(PublicationSlot::Unused);
         }
@@ -224,16 +222,16 @@ impl<'a> CrossPublications<'a> {
         &self,
         rule: RuleIndex,
     ) -> Result<Vec<crate::domain::crossing::types::BoundInputWords>, OperatingError> {
-        let bindings = self.graph.bindings.get(rule.0).ok_or_else(incomplete)?;
-        Ok(bindings.iter().filter(|binding| binding.input.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile).map(|binding| {
-            let words = binding.input.producers.iter().map(|producer| match producer {
+        let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
+        Ok(bindings.iter().enumerate().filter(|(_,binding)| binding.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile).map(|(ordinal,binding)| {
+            let words = binding.producers.iter().map(|producer| match producer {
                 crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.words(*rule, *output),
                 crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
             }).collect();
             crate::domain::crossing::types::BoundInputWords {
-                input: binding.input.input,
-                kinds: binding.input.schema.columns.iter().map(|column| column.kind).collect(),
-                union: binding.union.clone(), words,
+                input: binding.input,
+                kinds: binding.schema.columns.iter().map(|column| column.kind).collect(),
+                union: self.metadata.unions[rule.0][ordinal].clone(), words,
             }
         }).collect())
     }
@@ -259,7 +257,7 @@ impl<'a> CrossPublications<'a> {
             return Err(OperatingError::NotRun);
         }
         let outputs = self
-            .graph
+            .metadata
             .outputs
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?;
@@ -268,7 +266,7 @@ impl<'a> CrossPublications<'a> {
             let output = root.output.0 as usize;
             if outputs
                 .get(output)
-                .is_none_or(|output| !matches!(output.root, GraphObservationRoot::CrossFile))
+                .is_none_or(|output| !matches!(output.root, OutputRoot::CrossFile))
                 || seen.get(output).copied().unwrap_or(true)
             {
                 return Err(OperatingError::NotRun);
@@ -315,7 +313,7 @@ impl<'a> CrossPublications<'a> {
             }
         }
         for (output, declared) in outputs.iter().enumerate() {
-            if matches!(declared.root, GraphObservationRoot::CrossFile) && !seen[output] {
+            if matches!(declared.root, OutputRoot::CrossFile) && !seen[output] {
                 self.roots[rule.0][output] = CrossRoot::Unavailable;
             }
         }
@@ -331,10 +329,10 @@ impl<'a> CrossPublications<'a> {
             return Err(OperatingError::NotRun);
         }
         *finished = true;
-        for edge in &self.graph.retire[consumer.0] {
+        for edge in &self.metadata.retire[consumer.0] {
             if !matches!(
-                self.graph.outputs[edge.producer.0][edge.output.0 as usize].root,
-                GraphObservationRoot::CrossFile
+                self.metadata.outputs[edge.producer.0][edge.output.0 as usize].root,
+                OutputRoot::CrossFile
             ) {
                 continue;
             }
@@ -401,15 +399,16 @@ fn incomplete() -> OperatingError {
 /// Validate the file-to-frame join once per invocation, before any producer bits are read.
 /// This does not infer completion from row count or from an absent file frame.
 pub(crate) fn frontier_readiness<'a>(
-    graph: &GraphObservations,
+    metadata: &ObservationMetadata,
     files: &[ryo_relations::domain::relations::types::FileId],
     frames: &'a [crate::domain::coverage::types::FileObservationReadiness],
 ) -> Result<FrontierPopulation<'a>, OperatingError> {
     use ryo_values::domain::observations::{
         service::validate_frontiers, types::ObservationReadinessCount,
     };
-    let count =
-        ObservationReadinessCount(u32::try_from(graph.frontiers.len()).map_err(|_| incomplete())?);
+    let count = ObservationReadinessCount(
+        u32::try_from(metadata.frontiers.len()).map_err(|_| incomplete())?,
+    );
     let mut indexed = std::collections::BTreeMap::new();
     for frame in frames {
         if indexed.insert(frame.file.0, &frame.root).is_some() {
@@ -420,7 +419,7 @@ pub(crate) fn frontier_readiness<'a>(
         .iter()
         .map(|file| {
             let frame = indexed.get(&file.0).ok_or_else(incomplete)?;
-            validate_frontiers(frame, graph.layout, count).map_err(|_| incomplete())
+            validate_frontiers(frame, metadata.layout, count).map_err(|_| incomplete())
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(FrontierPopulation { frames })

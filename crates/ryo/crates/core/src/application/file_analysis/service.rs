@@ -1,5 +1,7 @@
 //! Bounded read, parse and per-file evaluation using injected ports.
-use crate::application::file_dag::rule_execution::evaluate_rule_with_dag;
+use crate::application::file_dag::program::facade::{
+    self, EmitDemand, ObservationDemand, RootOutcome, RuleDemand,
+};
 // ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
 use super::types::{FileVisit, Worker};
@@ -18,8 +20,8 @@ use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, failure_partials, prepare, prepare_frontier,
-    read_failure_demanded, settle as settle_file, start_partials,
+    begin, capture_frontier, engine_asked, failure_partials, prepare, read_failure_demanded,
+    settle as settle_file, start_partials,
 };
 use crate::domain::reading::types::{EngineAsked, EngineRows, PrimaryFailureKind};
 use crate::domain::recording::service::{
@@ -28,7 +30,6 @@ use crate::domain::recording::service::{
 };
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use crate::domain::shared_walk::types::Walking;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::pack_onto;
 use crate::domain::table_words::types::WordSlice;
@@ -42,7 +43,6 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
 use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::StoredFileNumber;
 
-use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::governing;
 
 use crate::domain::visit::service::lines_in;
@@ -180,28 +180,27 @@ impl FileAnalysis {
         setting: &'a VisitSetting<'_>,
         acceptance: SyntaxAcceptance,
     ) -> Cow<'a, [Relation]> {
-        if setting.plans.is_empty() {
+        if setting.metadata.is_empty() {
             return Cow::Borrowed(setting.wanted);
         }
         // All rules are active for legacy plans, and complete metadata plus accepted syntax
         // activates every policy. Keep the caller's relation slice in both cases.
         if !setting.applicability_can_gate
             || acceptance == SyntaxAcceptance::Accepted
-                && setting.applicability.len() == setting.plans.len()
+                && setting.applicability.len() == setting.metadata.len()
         {
             return Cow::Borrowed(setting.wanted);
         }
-        let demanded = crate::domain::file_program::service::observations::demanded_rules(
-            &setting.graph,
-            |place| governs_rule(tables, RuleIndex(place)) == Governing::Governs,
-        );
+        let demanded = setting
+            .program
+            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
         Cow::Owned(
             setting
                 .wanted
                 .iter()
                 .copied()
                 .filter(|relation| {
-                    setting.plans.iter().enumerate().any(|(place, _)| {
+                    setting.metadata.iter().enumerate().any(|(place, _)| {
                         demanded.get(place).copied().unwrap_or(false)
                             && match setting.applicability.get(place).copied() {
                                 Some(RuleApplicability::Always) => true,
@@ -223,7 +222,7 @@ impl FileAnalysis {
     pub(super) fn may_gate_rules(setting: &VisitSetting<'_>, acceptance: SyntaxAcceptance) -> bool {
         setting.applicability_can_gate
             && !(acceptance == SyntaxAcceptance::Accepted
-                && setting.applicability.len() == setting.plans.len())
+                && setting.applicability.len() == setting.metadata.len())
     }
 
     /// Bind the resources used by every analysis invocation.
@@ -309,11 +308,10 @@ impl FileAnalysis {
         file: FileId,
         acceptance: SyntaxAcceptance,
     ) -> Vec<bool> {
-        let demanded = crate::domain::file_program::service::observations::demanded_rules(
-            &setting.graph,
-            |place| governs_rule(tables, RuleIndex(place)) == Governing::Governs,
-        );
-        let mut skipped = vec![false; setting.plans.len()];
+        let demanded = setting
+            .program
+            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+        let mut skipped = vec![false; setting.metadata.len()];
         for (place, blocked) in skipped.iter_mut().enumerate() {
             if !demanded.get(place).copied().unwrap_or(false) {
                 continue;
@@ -392,450 +390,290 @@ impl FileAnalysis {
         if let Some(path) = visit.setting.paths.get(file.0 as usize) {
             crate::application::file_dag::route_counts::file_name(path.0.as_ref());
         }
-        let (tables, facts, activation) = (
-            &mut worker.tables,
-            &mut worker.facts,
-            &mut worker.activation,
-        );
-        crate::application::file_dag::derived::selection::prepare_request(
-            &mut tables.pool,
-            &visit.setting.operators,
-        );
-        let graph = &visit.setting.graph;
-        // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
+        let tables = &mut worker.tables;
         let acceptance = syntax_acceptance(&tables.elements);
-        let scoped_mask =
-            Self::may_gate_rules(&visit.setting, acceptance).then(|| tables.mask.clone());
-        let skipped = scoped_mask
-            .as_ref()
-            .map(|_| Self::gate_rules(tables, &visit.setting, file, acceptance));
-        let active_wanted = Self::active_wanted(tables, &visit.setting, acceptance);
-        // Keep physical reader partiality before any rule's Rows output can relax evaluation coverage.
-        let physical_partials = tables.partials.clone();
-        // Stored indexes keep their existing rectangular admission. The graph's
-        // completeness proof also considers the actual native tree reader below.
-        let mut selectable = Vec::new();
-        let mut complete = Vec::new();
-        for relation in active_wanted.iter() {
-            let view = facts.rows(*relation)?;
-            if crate::domain::table_model::service::rectangular(view)
-                && view.kinds == ryo_relations::domain::relations::service::kinds(*relation)
-                && view
-                    .columns
-                    .first()
-                    .is_none_or(|column| column.0.len() <= u32::MAX as usize)
-            {
-                selectable.push(*relation);
-                if crate::domain::table_cells::service::native_form(*relation).is_none()
-                    && crate::domain::table_model::service::complete_for_reuse(
-                        *relation,
-                        &crate::domain::table_model::types::Rows::Stored(view),
-                        &physical_partials,
-                        facts.resident_stability() == ResidentStability::Stable,
-                    )
-                {
-                    complete.push(*relation);
-                }
-            }
-        }
-        if tables.language.is_some() && facts.resident_stability() == ResidentStability::Stable {
-            for &(relation, form) in crate::domain::table_cells::service::native_relations() {
-                let admitted = crate::domain::table_model::service::complete_for_reuse(
-                    relation,
-                    &crate::domain::table_model::types::Rows::Tree(
-                        crate::domain::table_cells::types::TreeRows {
-                            elements: &tables.elements,
-                            file,
-                            form,
-                        },
-                    ),
-                    &physical_partials,
-                    true,
-                );
-                tracing::trace!(target: "ryo::diagnostic::file_program", event = "native_relation_admission",
-                    file = file.0, relation = ?relation, admitted,
-                    acceptance = ?acceptance, incomplete_syntax = has_incomplete_syntax(&tables.elements),
-                    physically_partial = physical_partials.iter().any(|partial| partial.relation == relation));
-                if admitted && !complete.contains(&relation) {
-                    complete.push(relation);
-                }
-            }
-            tracing::trace!(target: "ryo::diagnostic::file_program", event = "complete_relations",
-                complete = ?complete);
-        }
-        // The generation owner is unconditional. The benchmark switch changes
-        // retention only; every class keeps the same executor and semantics.
-        let stable = facts.resident_stability() == ResidentStability::Stable;
-        let scope = crate::application::file_dag::scope::ExecutionScope::new(
-            std::sync::Arc::clone(graph),
-            crate::application::file_dag::scope::ScopePhase::File(file),
-            stable,
-            visit.setting.executor,
-        )?;
-        let owner = std::rc::Rc::clone(scope.owner());
-        let executor = scope.executor();
-        let demanded =
-            crate::domain::file_program::service::observations::demanded_rules(graph, |place| {
-                governs_rule(tables, RuleIndex(place)) == Governing::Governs
-            });
-        let file_dag = {
-            let schedule = activation.activate(
-                graph,
-                |index| {
-                    demanded.get(index).copied().unwrap_or(false)
-                        && !skipped
-                            .as_ref()
-                            .and_then(|skipped| skipped.get(index))
-                            .copied()
-                            .unwrap_or(false)
-                },
-                &complete,
-            );
-            let mut execution =
-                crate::application::file_dag::types::FileDagExecution::new_for_schedule(
-                    &schedule,
-                    std::rc::Rc::clone(&owner),
-                    scope.completion(
-                        RuleIndex(0),
-                        crate::application::file_dag::scope::ScopePartials::File {
-                            evaluation: if matches!(
-                                visit.setting.answering,
-                                crate::domain::render::types::Answering::Rows(_)
-                            ) {
-                                &[]
-                            } else {
-                                &physical_partials
-                            },
-                            publication: &physical_partials,
-                        },
-                    )?,
-                );
-            if self.execution.node_result_reuse
-                == ryo_values::domain::runs::types::NodeResultReuse::Disabled
-            {
-                execution.limit = 0;
-            }
-            std::cell::RefCell::new(execution)
+        let original_mask = tables.mask.clone();
+        let skipped = Self::gate_rules(tables, &visit.setting, file, acceptance);
+        tables.mask = original_mask;
+        // Publication always sees physical partiality, even when Rows output relaxes evaluation.
+        let physical = tables.partials.clone();
+        let evaluation = if matches!(visit.setting.answering, Answering::Rows(_)) {
+            &[][..]
+        } else {
+            physical.as_slice()
         };
-        file_dag.borrow().prepare_generation_resources(
-            Self::resource_generation_enabled(tables, facts.as_ref()),
-            active_wanted.as_ref(),
-            &physical_partials,
-            &selectable,
-            visit.setting.plans,
-            &tables.pool,
-        );
-
-        // The steps of the rules that select from the elements are decided in one pass over them.
-        let execution_diagnostics =
-            tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE);
-        let shared_started = execution_diagnostics.then(Instant::now);
-        let mut classes = crate::domain::shared_walk::types::SharedClasses {
-            matchers: Some(Arc::clone(&tables.pool.matchers)),
-            kind_vocabulary: crate::domain::kind_sets::service::prepare_vocabulary(
-                &mut tables.pool.kind_vocabulary,
-                &tables.elements,
-                &tables.symbols,
-                SourceView(&tables.bytes.0),
-            ),
-            ..crate::domain::shared_walk::types::SharedClasses::default()
-        };
-        let classes = {
-            let mut native_scratch =
-                crate::domain::table_scratch::types::OperatorScratch::default();
-            let Tables {
-                mask,
-                elements,
-                symbols,
-                bytes,
-                shared,
-                pool,
-                ..
-            } = &mut *tables;
-            crate::application::file_dag::types::FileDagExecution::prepare_native(
-                &file_dag,
-                shared,
-                Walking {
-                    plans: visit.setting.plans,
-                    bindings: visit.setting.bindings,
-                    paths: visit.setting.paths,
-                    mask,
-                    file,
-                    elements,
-                    symbols,
-                    source: SourceView(&bytes.0),
-                    scratch: &mut native_scratch,
-                    room: &mut classes,
-                    steps: pool.unlowered,
-                },
-                pool.kernel_strategy,
-                pool.counting,
-                executor,
-            )?
-        };
-        if let Some(scoped_mask) = scoped_mask {
-            tables.mask = scoped_mask;
-        }
-        if let Some(started) = shared_started {
-            tracing::trace!(target: "ryo::diagnostic::execution", phase = "native_shared_walk", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64);
-        }
-        let rules_started = execution_diagnostics.then(Instant::now);
-        let evaluated = Self::evaluate_file_rules(
-            tables,
-            facts.as_mut(),
-            visit,
+        let mut run = facade::open_file(
+            &visit.setting.program,
             file,
-            skipped.as_deref(),
-            &file_dag,
-            &executor,
-            &classes,
-            semantic,
-        );
-        {
-            let dag = &file_dag;
-            tables.current_observations = dag.borrow().observation_snapshot();
-            if let Some(root) = &tables.current_observations {
-                tables.observations.push(
-                    crate::domain::coverage::types::FileObservationReadiness {
-                        file,
-                        root: std::sync::Arc::clone(root),
-                    },
-                );
-            }
-        }
-        if let Some(started) = rules_started {
-            tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
-        }
-        {
-            let dag = &file_dag;
-            let dag = dag.borrow();
-            tracing::trace!(target: "ryo::diagnostic::file_program", event = "dag_file",
-                file = file.0, demands = dag.demands, hits = dag.hits,
-                executions = dag.executions.iter().sum::<u64>(),
-                releases = dag.releases, retained_bytes = dag.retained_bytes,
-                peak_bytes = dag.peak_bytes, unretained = dag.unretained,
-                required_bytes=dag.required_bytes, peak_required_bytes=dag.peak_required_bytes,
-                overlap_bytes=dag.overlap_bytes, peak_owned_bytes=dag.peak_owned_bytes,
-                required_releases=dag.required_releases,
-                required_metadata_bytes=dag.required_metadata_bytes());
-        }
-        {
-            let dag = &file_dag;
-            dag.borrow().report_resources(file);
-        }
-
-        // No index handle or allocation survives release or the next visit, even for the same FileId.
-        let settle_started = execution_diagnostics.then(Instant::now);
-        evaluated?;
-        settle_file(tables, visit.setting.answering);
-        {
-            let dag = &file_dag;
-            dag.borrow_mut().release_population();
-        }
-        facts.release()?;
-        if let Some(started) = settle_started {
-            tracing::trace!(target: "ryo::diagnostic::execution", phase = "settle_and_release", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64);
-        }
-        Ok(())
-    }
-
-    /// Evaluate active rules against the same immutable physical file generation.
-    fn evaluate_file_rules(
-        tables: &mut Tables,
-        facts: &mut dyn FactsWorker,
-        visit: &FileVisit<'_>,
-        file: FileId,
-        skipped: Option<&[bool]>,
-
-        file_dag: &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
-        executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
-        classes: &crate::domain::shared_walk::types::SharedClasses,
-        semantic: &super::semantic::SemanticState,
-    ) -> Result<(), FileAnalysisError> {
-        let demanded = crate::domain::file_program::service::observations::demanded_rules(
-            &visit.setting.graph,
-            |place| governs_rule(tables, RuleIndex(place)) == Governing::Governs,
-        );
-        for rule in crate::domain::file_program::service::observations::rule_order(
-            visit.setting.observations,
-            visit.setting.plans.len(),
-        ) {
-            if !demanded.get(rule.0).copied().unwrap_or(false) {
-                {
-                    let dag = file_dag;
-                    dag.borrow_mut().skip_observation_rule(rule.0);
-                }
+            facade::ScopePartials::File {
+                evaluation,
+                publication: &physical,
+            },
+            visit.setting.services,
+        )?;
+        let demanded = visit
+            .setting
+            .program
+            .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+        let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
+        let mut memo = Vec::new();
+        for rule in visit.setting.program.rule_order() {
+            if !demanded
+                .get(rule.0)
+                .copied()
+                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
+            {
                 continue;
             }
             if skipped
-                .and_then(|skipped| skipped.get(rule.0))
+                .get(rule.0)
                 .copied()
-                .unwrap_or(false)
+                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
             {
-                {
-                    let dag = file_dag;
-                    dag.borrow_mut().skip_observation_rule(rule.0);
-                }
+                run.skip_rule(rule, crate::application::file_dag::program::admission::ApplicabilityReason::SyntaxRejected)?;
                 continue;
             }
-            // The worker already owns these columns. This callback only borrows resident views;
-            // source reads and retained-word writes stay in this application operation.
-            let rows = &*facts;
-            // A view the store refuses stops the file: the step that asked for it is not read as given no rows.
+            let emit = governs_rule(tables, rule) == Governing::Governs;
             let refused = std::cell::RefCell::new(None);
-            let diagnostic = tracing::enabled!(
-                target: "ryo::diagnostic::rule_file",
-                tracing::Level::TRACE
-            );
-            let identity = diagnostic.then(|| {
-                let rule_id = visit
-                    .setting
-                    .ids
-                    .get(rule.0)
-                    .map_or("<unknown>", |id| id.0.as_ref());
-                let file_path = usize::try_from(file.0)
-                    .ok()
-                    .and_then(|index| visit.setting.paths.get(index))
-                    .map_or("<unknown>", |path| path.0.as_ref());
-                (rule_id, file_path)
-            });
-            let started = diagnostic.then(Instant::now);
-            if let Some((rule_id, file_path)) = identity {
-                tracing::trace!(
-                    target: "ryo::diagnostic::rule_file",
-                    event = "rule_file_start",
-                    rule = rule_id,
-                    file = file_path,
-                );
-            }
-            let evaluated = evaluate_rule_with_dag(
-                tables,
-                &visit.setting,
-                rule,
-                file,
-                &|relation| match rows.rows(relation) {
-                    Ok(view) => Some(view),
-                    Err(error) => {
-                        *refused.borrow_mut() = Some(error);
-                        None
-                    }
-                },
-                classes,
-                file_dag,
-                executor,
-                Some(semantic),
-            );
-            let outcome = match refused.take() {
-                Some(error) => Err(FileAnalysisError::from(error)),
-                None => evaluated.map_err(FileAnalysisError::from),
-            };
-            if let (Some(started), Some((rule_id, file_path))) = (started, identity) {
-                tracing::trace!(
-                    target: "ryo::diagnostic::rule_file",
-                    event = "rule_file_end",
-                    rule = rule_id,
-                    file = file_path,
-                    elapsed_ns = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX),
-                    outcome = if outcome.is_ok() { "ok" } else { "error" },
-                );
-            }
-            let mut frontier = match outcome {
-                Ok(frontier) => frontier,
-                Err(FileAnalysisError::Rules(RulesError::ObservationIncomplete { id, reason })) => {
-                    let path = visit
-                        .setting
-                        .paths
-                        .get(usize::try_from(file.0).unwrap_or(usize::MAX))
-                        .ok_or(FileAnalysisError::Rules(
-                            RulesError::ObservationIncomplete {
-                                id: id.clone(),
-                                reason: reason.clone(),
+            let outcome = {
+                let rows = &*worker.facts;
+                let read = |relation| {
+                    if let Some(form) = crate::domain::table_cells::service::native_form(relation) {
+                        return Ok(crate::domain::table_model::types::Rows::Tree(
+                            crate::domain::table_cells::types::TreeRows {
+                                elements: &tables.elements,
+                                file,
+                                form,
                             },
-                        ))?;
-                    tables
-                        .unknowns
-                        .push(crate::domain::coverage::types::Unknown {
-                            rule: id,
-                            path: path.clone(),
-                            message: crate::domain::coverage::types::Message(reason.into()),
-                        });
-                    {
-                        let dag = file_dag;
-                        dag.borrow_mut().finish_rule(rule.0);
+                        ));
                     }
-                    continue;
-                }
-                Err(FileAnalysisError::Rules(RulesError::SemanticIncomplete { id, reason })) => {
-                    let path = visit
-                        .setting
-                        .paths
-                        .get(usize::try_from(file.0).unwrap_or(usize::MAX))
-                        .ok_or(FileAnalysisError::Rules(RulesError::SemanticIncomplete {
-                            id: id.clone(),
-                            reason: reason.clone(),
-                        }))?;
-                    tables
-                        .unknowns
-                        .push(crate::domain::coverage::types::Unknown {
-                            rule: id,
-                            path: path.clone(),
-                            message: crate::domain::coverage::types::Message(reason.into()),
-                        });
-                    semantic.mark_incomplete();
-                    {
-                        let dag = file_dag;
-                        dag.borrow_mut().finish_rule(rule.0);
-                    }
-                    continue;
-                }
-                Err(error) => return Err(error),
+                    rows.rows(relation)
+                        .map(crate::domain::table_model::types::Rows::Stored)
+                        .map_err(|error| {
+                            *refused.borrow_mut() = Some(error);
+                            crate::domain::operating::errors::OperatingError::NotRead
+                        })
+                };
+                let mut context = crate::domain::operating::types::OperatorContext {
+                    semantic: Some(semantic),
+                    prepared_kinds: tables.pool.kind_vocabulary.as_deref(),
+                    prepared_matchers: Some(tables.pool.matchers.as_ref()),
+                    bindings: visit.setting.program.bindings(rule)?,
+                    symbols: (&mut tables.symbols).into(),
+                    source: SourceView(&tables.bytes.0),
+                    paths: visit.setting.paths,
+                    arenas: &[],
+                    memo: &mut memo,
+                    scratch: &mut scratch,
+                };
+                run.rule(
+                    rule,
+                    RuleDemand {
+                        emit: if emit {
+                            EmitDemand::Enabled
+                        } else {
+                            EmitDemand::Disabled
+                        },
+                        observations: ObservationDemand::Required,
+                    },
+                    &read,
+                    &mut context,
+                )
             };
-            let inputs = visit
-                .setting
-                .plans
-                .get(rule.0)
-                .map_or(0, |plan| plan.frontier.len());
-            for place in 0..inputs {
-                if governs_rule(tables, rule) == Governing::DoesNotGovern
+            if let Some(error) = refused.take() {
+                return Err(error.into());
+            }
+            let outcome = outcome?;
+            // Named roots have already been published independently of diagnostic delivery.
+            if emit {
+                match outcome.emit {
+                    RootOutcome::Complete(table) => {
+                        let number = RuleNumber(u32::try_from(rule.0).map_err(|_| {
+                            crate::domain::operating::errors::OperatingError::NotRun
+                        })?);
+                        let id = crate::domain::render::types::FindingRule(
+                            visit
+                                .setting
+                                .ids
+                                .get(rule.0)
+                                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
+                                .0
+                                .as_ref(),
+                        );
+                        let scene = crate::domain::value_cells::types::Scene {
+                            file,
+                            symbols: &tables.symbols,
+                            elements: &tables.elements,
+                            source: SourceView(&tables.bytes.0),
+                            paths: visit.setting.paths,
+                            unknown: visit.setting.unknown,
+                        };
+                        crate::domain::render::service::render_rows(
+                            crate::domain::render::types::RenderInput {
+                                rule: number,
+                                table: &table,
+                                emit: visit.setting.program.emit(rule)?,
+                                layout: crate::domain::render::service::shown_by(
+                                    visit.setting.answering,
+                                    number,
+                                    id,
+                                ),
+                                scene,
+                                limit: crate::domain::render::service::rendered_limit(
+                                    visit.setting.answering,
+                                ),
+                            },
+                            &mut tables.starts,
+                            &mut tables.rendered,
+                        )
+                        .map_err(|error| {
+                            crate::domain::rules::service::failed(
+                                &visit.setting.ids[rule.0],
+                                &error,
+                            )
+                        })?;
+                    }
+                    RootOutcome::Unknown(error) => {
+                        tables
+                            .unknowns
+                            .push(crate::domain::coverage::types::Unknown {
+                                rule: visit.setting.ids[rule.0].clone(),
+                                path: visit.setting.paths[file.0 as usize].clone(),
+                                message: crate::domain::coverage::types::Message(
+                                    error.to_string().into(),
+                                ),
+                            });
+                        if matches!(
+                            error,
+                            crate::domain::operating::errors::OperatingError::SemanticIncomplete { .. }
+                        ) {
+                            semantic.mark_incomplete();
+                        }
+                    }
+                    RootOutcome::Failed(error) => {
+                        return Err(crate::domain::rules::service::failed(
+                            &visit.setting.ids[rule.0],
+                            &error,
+                        )
+                        .into());
+                    }
+                    RootOutcome::Skipped(_) | RootOutcome::NoQuery => {}
+                }
+            }
+            let captures = {
+                let rows = &*worker.facts;
+                let read = |relation| {
+                    if let Some(form) = crate::domain::table_cells::service::native_form(relation) {
+                        return Ok(crate::domain::table_model::types::Rows::Tree(
+                            crate::domain::table_cells::types::TreeRows {
+                                elements: &tables.elements,
+                                file,
+                                form,
+                            },
+                        ));
+                    }
+                    rows.rows(relation)
+                        .map(crate::domain::table_model::types::Rows::Stored)
+                        .map_err(|error| {
+                            *refused.borrow_mut() = Some(error);
+                            crate::domain::operating::errors::OperatingError::NotRead
+                        })
+                };
+                let mut context = crate::domain::operating::types::OperatorContext {
+                    semantic: Some(semantic),
+                    prepared_kinds: tables.pool.kind_vocabulary.as_deref(),
+                    prepared_matchers: Some(tables.pool.matchers.as_ref()),
+                    bindings: visit.setting.program.bindings(rule)?,
+                    symbols: (&mut tables.symbols).into(),
+                    source: SourceView(&tables.bytes.0),
+                    paths: visit.setting.paths,
+                    arenas: &[],
+                    memo: &mut memo,
+                    scratch: &mut scratch,
+                };
+                run.capture_frontiers(
+                    rule,
+                    *visit
+                        .setting
+                        .first_bucket
+                        .get(rule.0)
+                        .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?,
+                    &read,
+                    &mut context,
+                    facade::CaptureContext {
+                        file,
+                        worker: tables.number,
+                        retained: crate::domain::finish::types::Retained {
+                            arena: crate::domain::finish::types::Arena(&mut tables.arena.0),
+                            places: &mut tables.places,
+                        },
+                        words: &mut tables.words,
+                    },
+                )
+            };
+            if let Some(error) = refused.take() {
+                return Err(error.into());
+            }
+            for captured in captures? {
+                let capture = match captured.outcome {
+                    Ok(capture) => capture,
+                    Err(error) => {
+                        tables
+                            .unknowns
+                            .push(crate::domain::coverage::types::Unknown {
+                                rule: visit.setting.ids[rule.0].clone(),
+                                path: visit.setting.paths[file.0 as usize].clone(),
+                                message: crate::domain::coverage::types::Message(
+                                    error.to_string().into(),
+                                ),
+                            });
+                        continue;
+                    }
+                };
+                if !emit
                     && !visit
                         .setting
-                        .graph
-                        .observations
-                        .as_ref()
-                        .and_then(|observations| observations.observation_frontiers.get(rule.0))
-                        .and_then(|frontiers| frontiers.get(place))
-                        .copied()
-                        .unwrap_or(false)
+                        .program
+                        .captures_observation(rule, capture.input.0)?
                 {
                     continue;
                 }
-                let Some(bucket) = prepare_frontier(
-                    tables,
-                    &visit.setting,
-                    rule,
-                    file,
-                    ryo_values::domain::plan_parts::types::InputNumber(place),
-                    &mut frontier,
-                ) else {
-                    continue;
-                };
-                facts.keep(bucket, WordsToKeep(&tables.packed))?;
-                file_dag.borrow_mut().commit_frontier(
-                    rule.0,
-                    ryo_values::domain::plan_parts::types::InputNumber(place),
-                );
-                // These words are the warm-store handover, including hidden
-                // producer roots. Diagnostic visibility is decided only when
-                // Emit is rendered, independently of this frontier capture.
+                worker
+                    .facts
+                    .keep(capture.bucket, WordsToKeep(&capture.words))?;
+                run.commit_frontier(rule, capture.input)?;
                 if visit.setting.keeping == Keeping::Keeps {
-                    capture_frontier(tables, visit.setting.answering, bucket);
+                    tables.packed = capture.words;
+                    capture_frontier(tables, visit.setting.answering, capture.bucket);
                 }
             }
-            {
-                let dag = file_dag;
-                dag.borrow_mut().finish_rule(rule.0);
+            let counts = run.counts(rule)?;
+            let counted = tables
+                .pool
+                .fed
+                .get_mut(rule.0)
+                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?;
+            if counted.len() != counts.fed.len() {
+                return Err(crate::domain::operating::errors::OperatingError::ShapeMismatch.into());
+            }
+            for (total, current) in counted.iter_mut().zip(counts.fed.iter()) {
+                for (total, current) in total.0.iter_mut().zip(current.0) {
+                    *total += current;
+                }
             }
         }
+        tables.current_observations = run.observation_snapshot();
+        if let Some(root) = &tables.current_observations {
+            tables
+                .observations
+                .push(crate::domain::coverage::types::FileObservationReadiness {
+                    file,
+                    root: Arc::clone(root),
+                });
+        }
+        drop(run);
+        settle_file(tables, visit.setting.answering);
+        worker.facts.release()?;
         Ok(())
     }
 
@@ -1323,14 +1161,7 @@ impl FileAnalysis {
             everything,
             active_wanted.as_ref(),
         );
-        let semantic_needed = setting.plans.iter().any(|plan| {
-            plan.steps.iter().any(|step| {
-                matches!(
-                    step.operation,
-                    ryo_values::domain::plans::types::Operation::RenderSyntax { .. }
-                )
-            })
-        });
+        let semantic_needed = setting.program.semantic_needed();
         let session = if semantic_needed {
             worker.tables.language.and_then(|language| {
                 let source = FileToRead {
@@ -1483,26 +1314,24 @@ impl FileAnalysis {
             });
         }
         let moved = moved_words(tables, number, base)?;
-        let graph = setting.graph.observations.as_ref();
-        let (observations, slots) = match (tables.current_observations.as_deref(), graph) {
-            (Some(map), Some(graph)) => {
+        let layout = setting.program.observation_layout();
+        let (observations, slots) = match (tables.current_observations.as_deref(), layout) {
+            (Some(map), Some((layout, slots))) => {
                 let count = ryo_values::domain::observations::types::ObservationReadinessCount(
-                    u32::try_from(graph.frontiers.len()).ok()?,
+                    u32::try_from(slots.len()).ok()?,
                 );
                 let checked = ryo_values::domain::observations::service::validate_frontiers(
-                    map,
-                    graph.layout,
-                    count,
+                    map, layout, count,
                 )
                 .ok()?;
-                (Some(checked), graph.frontiers.as_slice())
+                (Some(checked), slots)
             }
-            (None, Some(graph)) if !graph.frontiers.is_empty() => return None,
+            (None, Some((_, slots))) if !slots.is_empty() => return None,
             (Some(_), None) => return None,
             _ => (None, &[][..]),
         };
         let mut flat = Flat::default();
-        let frontier: Vec<Digest> = (0..setting.plans.len())
+        let frontier: Vec<Digest> = (0..setting.metadata.len())
             .map(|rule| {
                 frontier_flat(
                     &moved,

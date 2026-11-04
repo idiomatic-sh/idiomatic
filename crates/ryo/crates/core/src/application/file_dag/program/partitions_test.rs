@@ -265,3 +265,21 @@ fn malformed_alignment_and_observation_ordinals_are_rejected() {
         Err(OperatingError::ObservationIncomplete { .. })
     ));
 }
+
+#[test]
+fn captured_file_producer_in_project_binding_requires_aggregate() {
+    let (consumer, plan, binding) = observed(StepScope::CrossFile);
+    let producer = producer(StepScope::PerFile);
+    let sources = SourcePartitions::new(
+        &[consumer, rule()],
+        &[Ok(&plan), Ok(&producer)],
+        &[vec![], vec![]],
+        &[host()],
+        &[vec![binding], vec![]],
+    )
+    .unwrap();
+    assert_eq!(
+        sources.observation(RuleIndex(0), ObservationBindingId(0)),
+        Ok(PartitionRequirement::Project)
+    );
+}
