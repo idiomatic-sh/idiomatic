@@ -63,7 +63,8 @@ impl Linter {
 /// # Errors
 ///
 /// As `lint`.
-pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, LintError> {
+pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport, LintError> {
+    schemas::project_context(&mut request)?;
     let engine = linter.engine();
     let connections = super::connections::connect(&engine.cache, engine)?;
     let reading = super::composition::build_reading(&request);
