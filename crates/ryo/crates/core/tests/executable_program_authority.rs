@@ -138,6 +138,15 @@ fn permit_source(client: &str) -> String {
     .unwrap();
     let permit = declaration(&source, "pub(crate) struct KernelPermit");
     let physical = declaration(&source, "pub(crate) struct PermittedPhysical");
+    let owner = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/application/file_dag/relations.rs"),
+    )
+    .unwrap();
+    let lease = declaration(
+        &owner,
+        "pub(in crate::application::file_dag) struct GenerationLease",
+    );
+    let lease_methods = declaration(&owner, "impl GenerationLease");
     r#"
 #![allow(dead_code, unused_imports)]
 extern crate self as ryo_operators;
@@ -154,15 +163,25 @@ pub mod domain {
   }}
 }
 pub mod application { pub mod file_dag {
+  pub mod relations {
+    __LEASE__
+    __LEASE_METHODS__
+    pub fn owner_revocation() -> bool {
+      let lease = GenerationLease::new();
+      let before = lease.is_live();
+      lease.invalidate();
+      before && !lease.is_live()
+    }
+  }
   pub mod program {
     pub mod admission {
-      use std::sync::{Arc, atomic::AtomicBool};
+      use std::sync::Arc;
       use crate::domain::executable_program::types::{ExecutableProgram, RegionId};
       __PERMIT__
       __PHYSICAL__
       pub fn issue<'a>(
         program: &'a ExecutableProgram, generation: &'a Arc<()>,
-        live: &'a Arc<AtomicBool>,
+        live: &'a Arc<super::super::relations::GenerationLease>,
       ) -> KernelPermit<'a> {
         KernelPermit { program, region: RegionId(0), instruction: 0,
                        generation, live, ordered: false }
@@ -178,14 +197,17 @@ pub mod application { pub mod file_dag {
       }
     }
     pub mod rogue {
-      use std::sync::{Arc, atomic::AtomicBool};
+      use std::sync::Arc;
       use crate::domain::executable_program::types::{ExecutableProgram, RegionId};
+      use super::super::relations::GenerationLease;
       use super::admission::{KernelPermit, PermittedPhysical};
       __CLIENT__
     }
   }
 }}
 "#
+    .replace("__LEASE__", &lease)
+    .replace("__LEASE_METHODS__", &lease_methods)
     .replace("__PERMIT__", &permit)
     .replace("__PHYSICAL__", &physical)
     .replace("__CLIENT__", client)
@@ -205,7 +227,7 @@ fn physical_permits_are_minted_only_by_admission() {
         &permit_source(
             "pub fn forge<'a>(
               program: &'a ExecutableProgram, generation: &'a Arc<()>,
-              live: &'a Arc<AtomicBool>,
+              live: &'a Arc<GenerationLease>,
             ) -> KernelPermit<'a> {
               KernelPermit { program, region: RegionId(0), instruction: 0,
                              generation, live, ordered: false }
@@ -228,5 +250,41 @@ fn physical_permits_are_minted_only_by_admission() {
             }",
         ),
         "E0451",
+    );
+}
+
+#[test]
+fn generation_lease_revocation_is_owner_only() {
+    let directory = tempfile::tempdir().unwrap();
+    passes(
+        directory.path(),
+        "owner_revokes_generation",
+        &permit_source(""),
+    );
+    refuses(
+        directory.path(),
+        "sibling_constructs_generation",
+        &permit_source(
+            "pub fn forge() -> GenerationLease {
+              GenerationLease { live: std::sync::atomic::AtomicBool::new(true) }
+            }",
+        ),
+        "E0451",
+    );
+    refuses(
+        directory.path(),
+        "sibling_revives_generation",
+        &permit_source(
+            "pub fn revive(lease: &GenerationLease) {
+              lease.live.store(true, std::sync::atomic::Ordering::Release);
+            }",
+        ),
+        "E0616",
+    );
+    refuses(
+        directory.path(),
+        "sibling_invalidates_generation",
+        &permit_source("pub fn revoke(lease: &GenerationLease) { lease.invalidate(); }"),
+        "E0624",
     );
 }
