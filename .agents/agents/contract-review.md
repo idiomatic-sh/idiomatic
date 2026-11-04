@@ -1,46 +1,40 @@
 # Contract review agent
-
-Use Astra as lead reviewer and invoke independent Opus through Claude Code.
+Use Astra as lead and independent Opus through Claude Code.
 Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
-[language contract](../../crates/ryo/docs/language-contract.md), and the matrix-linked
+[language contract](../../crates/ryo/docs/language-contract.md), and matrix-linked
 relation, operator, derived, and full-route audits; check their source dates.
-Review read-only: never edit source, build, or run tests during a reviewer pass.
-Keep Astra and Opus sessions alive across rounds; resume the same Opus session.
-Pin fresh base/head/tree/evidence each round; source changes invalidate approval.
+Keep both sessions alive; resume the same Opus session across rounds.
+Pin fresh base/head/tree/evidence; source changes invalidate approval.
 Print `Source: base=<sha> head=<sha> tree=<sha>` in each raw verdict.
-Record each CLI command, actual model/session, exit status, and raw result.
+Review read-only: never edit, build, or run tests during a reviewer pass.
+Record actual command, model, session, round UUID, exit, and raw result.
 Transport errors and `Unassessed` are missing reviews, never approvals.
 
 ## Inputs
-
-Require immutable base/head commits, exact source tree, diff, approved claim,
-architecture matrix, test/performance receipts, and explicit exclusions.
-Record HEAD and worktree status before/after; discard a pass if either changes.
-Check receipt hashes and source identity; do not reuse stale receipts.
-A bounded batch review never closes wider architecture categories.
+Require immutable commits, exact source/diff, approved claim, matrix,
+test/performance receipts, and explicit exclusions.
+Record HEAD/status before and after; discard source-mutating passes.
+Check source/evidence hashes; reuse only proven-identical executed postimages.
+A bounded review never closes wider architecture categories.
 
 ## Adversarial pass
-
-- Trace shared layer placement through real imports and dependency edges.
-- Enumerate every relevant caller, bypass, fallback, and alternate execution path.
+- Trace shared layers through real imports and dependency edges.
+- Enumerate all callers, bypasses, fallbacks, and alternate routes.
 - Prove mandatory scheduling, cache identity/invalidation, ownership, and lifetime.
-- Trace each guarantee from configured input through engine to observable output.
-- Look for stale populations, foreign owners, errors, early exits, and retirement.
-- Identify independent negative controls that reject weaker implementations.
+- Trace guarantees from configured input through engine to observable output.
+- Check stale populations, foreign owners, errors, early exits, and retirement.
+- Require independent negative controls that reject weaker implementations.
 - Reject self-derived inventories, string markers, and checkbox-only proof.
-- Check matrix boxes against actual executable evidence and its stated breadth.
-- Keep orchestration thin; shared guarantees belong in enforced shared contracts.
+- Match matrix claims to executable evidence and its actual breadth.
+- Keep orchestration thin; enforce shared guarantees in shared contracts.
 - Missing evidence for a claimed guarantee blocks approval.
 
 ## Output and enforcement
-
-Report short numbered blocking findings with file:line, concrete failure, and
-required proof. Reconcile both reviewers; retain findings and explicit dispositions.
-Only final independent PASS verdicts approve source; author dispositions cannot.
-Write a machine-readable artifact binding both reviewer/round identities, immutable
-source identity, raw invocation results, and finding/disposition evidence.
-The normal integration/CI gate must reject missing, stale, invalid, or unresolved
-blocking reviews; demonstrate those failures and an exact approved positive control.
-CI loads the validator from the trusted base, or pinned bootstrap 871be75a.
-This file is not enforcement; name `ci/contract_review/command.py` and proof.
-Workflow changes still require trusted governance; do not claim server protection.
+Report short numbered blockers with file:line, failure, and required proof.
+Retain both reviewers' findings and dispositions. Only final independent PASS
+verdicts approve exact source; author dispositions cannot overrule blockers.
+Bind both model/session/round identities, source, raw results, and proof in an artifact.
+Normal CI must reject missing/stale/invalid/unresolved reviews; prove failures and success.
+CI loads the trusted-base validator or immutable bootstrap 871be75a.
+This file is not enforcement: name `ci/contract_review/command.py` and its proof.
+Workflow edits still require trusted governance; do not claim server protection.

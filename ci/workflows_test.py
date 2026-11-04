@@ -910,7 +910,7 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
 
 
-CONTRACT_REVIEW_SCRIPT = 'policy_revision=871be75a48c6cb438bd0fae220e867580b1b8b11\nif git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then\n  policy_revision=$REVIEW_BASE\nfi\nreview_policy=$(mktemp -d)\ntrap \'rm -rf "$review_policy"\' EXIT\nmkdir -p "$review_policy/ci/contract_review"\nfor file in command.py service.py; do\n  git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"\ndone\npython3 "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"\n'
+CONTRACT_REVIEW_SCRIPT = 'policy_revision=871be75a48c6cb438bd0fae220e867580b1b8b11\nif git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then\n  policy_revision=$REVIEW_BASE\nfi\nreview_policy=$(mktemp -d)\ntrap \'rm -rf "$review_policy"\' EXIT\nmkdir -p "$review_policy/ci/contract_review"\nfor file in command.py service.py; do\n  git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"\ndone\npython3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"\n'
 
 
 def contract_review_problems(workflow: dict) -> list[str]:
@@ -970,6 +970,8 @@ def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp
     assert own.returncode == 0 and b"forged approval" in own.stdout
     workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
     script = workflow["jobs"]["contract-review"]["steps"][-1]["run"]
-    result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env={**env, "REVIEW_BASE": service.ACTIVATION, "GITHUB_WORKSPACE": str(tmp_path)}, capture_output=True, text=True)
+    (tmp_path / "ci/__init__.py").write_text("raise RuntimeError('candidate package must not run')\n")
+    result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env={**env, "PYTHONPATH": str(tmp_path), "REVIEW_BASE": service.ACTIVATION, "GITHUB_WORKSPACE": str(tmp_path)}, capture_output=True, text=True)
     assert result.returncode == 1
-    assert "No valid exact-source" in result.stderr
+    assert "protected working tree changes" in result.stderr or "No valid exact-source" in result.stderr
+    assert "candidate package must not run" not in result.stderr
