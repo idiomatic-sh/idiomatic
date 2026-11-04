@@ -27,6 +27,7 @@ defaults = ["PYI035"]
 parser-configuration = "python-target=3.10"
 
 [query-modules]
+"python/ruff/suppress-matches" = "fragments/suppress-matches.ryoql"
 "python/ruff/noqa-line-map" = "fragments/noqa-line-map.ryoql"
 "python/ruff/noqa-locations" = "fragments/noqa-locations.ryoql"
 "python/ruff/noqa-additional-locations" = "fragments/noqa-additional-locations.ryoql"
