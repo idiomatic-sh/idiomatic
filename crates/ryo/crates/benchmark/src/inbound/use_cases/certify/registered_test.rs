@@ -69,7 +69,8 @@ fn write(path: &Path, text: &str) {
 struct Fixture {
     _root: tempfile::TempDir,
     profile: PathBuf,
-    executable: PathBuf,
+    reference_executable: PathBuf,
+    worker_executable: PathBuf,
     registration: PathBuf,
     document: Value,
     execution: Arc<Native>,
@@ -78,12 +79,21 @@ impl Fixture {
     fn new() -> Self {
         let root = tempfile::tempdir().unwrap();
         let profile = root.path().join("measured");
-        let executable = root.path().join(super::constants::FIXTURE_TOOL_FILE);
-        write(&executable, super::constants::FIXTURE_TOOL_SCRIPT);
+        let reference_executable = root.path().join(super::constants::FIXTURE_TOOL_FILE);
+        let worker_executable = root.path().join("independent-worker");
+        write(&reference_executable, super::constants::FIXTURE_TOOL_SCRIPT);
+        write(
+            &worker_executable,
+            "#!/bin/sh\nprintf 'independent worker\\n'\n",
+        );
+        assert_ne!(digest(&reference_executable), digest(&worker_executable));
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+            for executable in [&reference_executable, &worker_executable] {
+                std::fs::set_permissions(executable, std::fs::Permissions::from_mode(0o755))
+                    .unwrap();
+            }
         }
         write(&profile.join("helper.ryoql"), "shared tested helper");
         write(&profile.join("second.ryoql"), "second tested helper");
@@ -91,7 +101,7 @@ impl Fixture {
             &profile.join("benchmark.toml"),
             &format!(
                 "tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['A','B']\nquery-modules={{'test/helper'='helper.ryoql','test/second'='second.ryoql'}}\n",
-                digest(&executable)
+                digest(&reference_executable)
             ),
         );
         let entries = ["A","B"].map(|rule| {
@@ -104,25 +114,26 @@ impl Fixture {
             write(&second,"second tested helper");
             let evidence = context.join("evidence/oracle.json");
             write(&definition,&format!("query {rule}")); write(&helper,"shared tested helper"); write(&evidence,&format!("independent {rule} evidence"));
-            write(&context.join("benchmark.toml"), &format!("tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['{rule}']\nquery-modules={{'test/helper'='helper.ryoql','test/second'='second.ryoql'}}\n",digest(&executable)));
+            write(&context.join("benchmark.toml"), &format!("tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['{rule}']\nquery-modules={{'test/helper'='helper.ryoql','test/second'='second.ryoql'}}\n",digest(&reference_executable)));
             let artifacts = [definition.clone(),helper.clone(),second.clone(),evidence,context.join("benchmark.toml")].into_iter().map(|p|(p.display().to_string(),json!(digest(&p)))).collect::<serde_json::Map<_,_>>();
             json!({"rule_id":rule,"reason":null,"instance":null,"definition":{"path":definition,"sha256":digest(&definition)},"modules":{"test/helper":{"path":helper,"sha256":digest(&helper)},"test/second":{"path":second,"sha256":digest(&second)}},"artifacts":artifacts,
                 "command":{"kind":"case-verification","context":context},
                 "cases":[{"rule":rule,"name":"independent","source_sha256":"source","files":["input.txt"],"expected":[],"project_context_mode":"isolated","reference_discrepancy":null}]})
         });
-        let document = json!({"authority":{"kind":"execution","profile":profile,"profile_sha256":digest(&profile.join("benchmark.toml")),"reference":{"path":executable,"sha256":digest(&executable)},"worker":{"path":executable,"sha256":digest(&executable)}},"provider":"neutral","defaults":["A","B"],"rules":entries,"identity":{}});
+        let document = json!({"authority":{"kind":"execution","profile":profile,"profile_sha256":digest(&profile.join("benchmark.toml")),"reference":{"path":reference_executable,"sha256":digest(&reference_executable)},"worker":{"path":worker_executable,"sha256":digest(&worker_executable)}},"provider":"neutral","defaults":["A","B"],"rules":entries,"identity":{}});
         let registration = root.path().join("registration.json");
         std::fs::write(&registration, serde_json::to_vec(&document).unwrap()).unwrap();
         Self {
             _root: root,
             profile,
-            executable: executable.clone(),
+            reference_executable: reference_executable.clone(),
+            worker_executable: worker_executable.clone(),
             registration,
             document,
             execution: Arc::new(Native {
                 launches: Mutex::new(0),
-                worker: executable.clone(),
-                reference: executable.clone(),
+                worker: worker_executable,
+                reference: reference_executable,
             }),
         }
     }
@@ -147,8 +158,8 @@ impl Fixture {
         operation.certify(
             measured_profile,
             &self.profile,
-            &self.executable,
-            &self.executable,
+            &self.reference_executable,
+            &self.worker_executable,
             &self.profile.join("rules"),
             &self._root.path().join("scratch"),
             BenchmarkCoverage::Accounted,
@@ -169,6 +180,11 @@ impl Fixture {
 #[test]
 fn registered_contexts_execute_and_keep_colliding_relative_evidence_names_separate() {
     let f = Fixture::new();
+    assert_ne!(f.reference_executable, f.worker_executable);
+    assert_ne!(
+        digest(&f.reference_executable),
+        digest(&f.worker_executable)
+    );
     let certificate = f.certify().unwrap();
     assert_eq!(*f.execution.launches.lock().unwrap(), 2);
     assert!(matches!(
@@ -183,6 +199,32 @@ fn registered_contexts_execute_and_keep_colliding_relative_evidence_names_separa
                 .is_file()
         );
     }
+}
+#[test]
+fn swapping_distinct_measured_contestants_refuses_before_native_launch() {
+    use crate::outbound::suite::interface::SuitePort as _;
+    let f = Fixture::new();
+    let suite = crate::outbound::suite::factory::local();
+    let tool = suite
+        .profile(crate::outbound::suite::types::ArtifactPath(&f.profile))
+        .unwrap();
+    let error = super::case_inventory::prepare(
+        &crate::outbound::inventory::factory::local(),
+        &suite,
+        &f.registration,
+        &f.profile,
+        &tool,
+        &f.profile.join("rules"),
+        &f.worker_executable,
+        &f.reference_executable,
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(
+        error.contains("case inventory executable identities differ from measured contestants"),
+        "{error}"
+    );
+    assert_eq!(*f.execution.launches.lock().unwrap(), 0);
 }
 #[test]
 fn registered_context_drift_and_untrusted_authority_refuse_before_native_launch() {
@@ -325,6 +367,66 @@ fn measured_profile_identity_cannot_be_substituted_via_the_query_directory() {
         "{error}"
     );
     assert_eq!(*f.execution.launches.lock().unwrap(), 0);
+}
+
+#[test]
+fn identical_profile_toml_cannot_substitute_measured_query_or_helper_bytes() {
+    use crate::outbound::suite::interface::SuitePort as _;
+    for changed in ["rules/A/query.ryoql", "helper.ryoql"] {
+        let f = Fixture::new();
+        let foreign = f._root.path().join("measured-foreign");
+        for relative in [
+            "benchmark.toml",
+            "helper.ryoql",
+            "second.ryoql",
+            "rules/A/query.ryoql",
+            "rules/A/cases.toml",
+            "rules/B/query.ryoql",
+            "rules/B/cases.toml",
+        ] {
+            write(
+                &foreign.join(relative),
+                &std::fs::read_to_string(f.profile.join(relative)).unwrap(),
+            );
+        }
+        assert_eq!(
+            digest(&foreign.join("benchmark.toml")),
+            digest(&f.profile.join("benchmark.toml"))
+        );
+        write(&foreign.join(changed), "substituted measured source bytes");
+        let error = f.certify_profile(&foreign).unwrap_err().to_string();
+        assert!(
+            error.contains(
+                "registered profile and selected rule roots differ from measured authority"
+            ),
+            "{changed}: {error}"
+        );
+        assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{changed}");
+
+        let suite = crate::outbound::suite::factory::local();
+        let tool = suite
+            .profile(crate::outbound::suite::types::ArtifactPath(&f.profile))
+            .unwrap();
+        let error = super::case_inventory::prepare(
+            &crate::outbound::inventory::factory::local(),
+            &suite,
+            &f.registration,
+            &f.profile,
+            &tool,
+            &foreign.join("rules"),
+            &f.reference_executable,
+            &f.worker_executable,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains(
+                "registered profile and selected rule roots differ from measured authority"
+            ),
+            "{changed}: {error}"
+        );
+        assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{changed}");
+    }
 }
 
 #[test]

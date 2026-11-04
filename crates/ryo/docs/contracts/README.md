@@ -57,6 +57,8 @@
 | 33. Shared benchmark harness | `ryo-benchmark` | — | — | — | — | — | Verify final 413-rule inventory and workload with source-bound receipts. |
 | 34. Provider internals | ten provider crates | — | — | — | — | — | Parser sessions and source meaning stay local; audit each declared relation route. |
 
+Open input-route review: collected cross-file `capture_inputs` currently labels non-relation inputs `External`, so producer identity preservation is unproved under rows 18 and 22. The native forced-held Join route also needs a `Feed::found` accounting comparison against its earlier streamed route. Feed interface hardening alone closes neither route.
+
 The public relation catalog has 68 members; the isolated I001 namespace source would add the 69th. The [relation catalog](../../crates/relations/src/domain/relations/service.rs), [26 operation kinds and 25 public query operators](../../crates/values/src/domain/plans/types.rs), and [12 current derived kinds](../../crates/core/src/domain/derived_views/types.rs) define the source inventories. `RawKeyOrder` is a distinct required 13th derived kind currently implemented outside that registry. The [relation owner](../../crates/core/src/application/file_dag/relations.rs) and [candidate common node invocation](../../crates/core/src/application/file_dag/service.rs) (source a747, not public/current413 acceptance) anchor the engine side. These inventories identify work to prove; they do not certify every route.
 
 ### Full category completion inventory

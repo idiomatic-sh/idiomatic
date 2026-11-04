@@ -7,17 +7,40 @@ use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
 };
 use serde_json::json;
-use std::{sync::Mutex, time::Duration};
+use std::{path::PathBuf, sync::Mutex, time::Duration};
 
 struct ToyExecution {
     calls: Mutex<Vec<String>>,
+    worker: PathBuf,
+    reference: PathBuf,
+}
+impl ToyExecution {
+    fn for_registration(registration: &Registration) -> Self {
+        let RegistrationAuthority::Execution {
+            reference, worker, ..
+        } = &registration.authority
+        else {
+            panic!("fixture has execution authority");
+        };
+        assert_ne!(reference.path, worker.path);
+        assert_ne!(reference.sha256, worker.sha256);
+        Self {
+            calls: Mutex::new(Vec::new()),
+            worker: worker.path.clone(),
+            reference: reference.path.clone(),
+        }
+    }
 }
 impl ExecutionPort for ToyExecution {
     fn profile(&self) -> ExecutionProfile {
         ExecutionProfile::Wall
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
+        assert_eq!(invocation.executable, self.worker);
         assert_eq!(invocation.arguments[0], "verify-cases");
+        assert_eq!(invocation.arguments[1], self.reference.as_os_str());
+        assert_eq!(invocation.directory.as_os_str(), invocation.arguments[2]);
+        assert!(invocation.environment.is_empty());
         let rule = std::path::Path::new(&invocation.arguments[2])
             .file_name()
             .unwrap()
@@ -59,17 +82,21 @@ impl ExecutionPort for ToyExecution {
 fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
     use sha2::Digest as _;
     let context = tempfile::tempdir().unwrap();
-    let executable = context.path().join("native-verifier");
-    std::fs::write(&executable, b"pinned fixture executable").unwrap();
+    let reference = context.path().join("native-reference");
+    let worker = context.path().join("native-worker");
+    std::fs::write(&reference, b"pinned reference executable").unwrap();
+    std::fs::write(&worker, b"distinct pinned worker executable").unwrap();
     let digest = |path: &std::path::Path| {
         format!("{:x}", sha2::Sha256::digest(std::fs::read(path).unwrap()))
     };
-    let executable_sha = digest(&executable);
+    let reference_sha = digest(&reference);
+    let worker_sha = digest(&worker);
+    assert_ne!(reference_sha, worker_sha);
     let defaults = ["missing", middle, "good"]
         .map(|rule| format!("{name}-{rule}"))
         .to_vec();
     let profile = context.path().join("benchmark.toml");
-    std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{executable_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
+    std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
     let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())].into_iter().map(|(mode, rule)| {
         let directory = context.path().join(&rule);
         std::fs::create_dir_all(directory.join("evidence")).unwrap();
@@ -78,7 +105,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
         let evidence = directory.join("evidence/oracle.json");
         std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
         let context_profile = directory.join("benchmark.toml");
-        std::fs::write(&context_profile, format!("tool='fixture'\nversion='1'\nsha256=['{executable_sha}']\ndefaults=['{rule}']\n")).unwrap();
+        std::fs::write(&context_profile, format!("tool='fixture'\nversion='1'\nsha256=['{reference_sha}']\ndefaults=['{rule}']\n")).unwrap();
         let pin = FilePin { sha256: digest(&definition), path: definition.clone() };
         RegisteredRule {
         definition: Some(pin), modules: BTreeMap::new(),
@@ -94,12 +121,12 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
                 profile: context.path().to_owned(),
                 profile_sha256: digest(&profile),
                 reference: ExecutablePin {
-                    path: executable.clone(),
-                    sha256: executable_sha.clone(),
+                    path: reference,
+                    sha256: reference_sha,
                 },
                 worker: ExecutablePin {
-                    path: executable,
-                    sha256: executable_sha,
+                    path: worker,
+                    sha256: worker_sha,
                 },
             },
             provider: name.into(),
@@ -114,10 +141,8 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
 fn independent_providers_keep_missing_and_failed_rules_and_continue() {
     for (name, middle) in [("toy-syntax", "bad"), ("toy-style", "empty")] {
         let root = tempfile::tempdir().unwrap();
-        let execution = ToyExecution {
-            calls: Mutex::new(Vec::new()),
-        };
         let (registration, _context) = provider(name, middle);
+        let execution = ToyExecution::for_registration(&registration);
         assert!(
             !verify(
                 &registration,
@@ -146,9 +171,7 @@ fn duplicate_and_unknown_registration_never_changes_inventory_cardinality() {
     let root = tempfile::tempdir().unwrap();
     let (mut registration, _context) = provider("third-provider", "bad");
     registration.rules[0].rule_id = "not-a-pinned-rule".into();
-    let execution = ToyExecution {
-        calls: Mutex::new(Vec::new()),
-    };
+    let execution = ToyExecution::for_registration(&registration);
     assert!(
         verify(
             &registration,
@@ -183,9 +206,7 @@ fn inventory_rejects_undeclared_module_pins_before_each_native_invocation() {
         assert!(entry.modules.is_empty()); // The omission under test; all actual bytes stay pinned.
     }
     let output = tempfile::tempdir().unwrap();
-    let execution = ToyExecution {
-        calls: Mutex::new(Vec::new()),
-    };
+    let execution = ToyExecution::for_registration(&registration);
     assert!(
         !verify(
             &registration,

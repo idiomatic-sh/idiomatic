@@ -60,6 +60,11 @@ pub(super) fn prepare(
             "registered authority differs from measured canonical profile".into(),
         ));
     }
+    if profile.as_path() != measured_profile || rules != measured_profile.join("rules").as_path() {
+        return Err(Error::Invalid(
+            "registered profile and selected rule roots differ from measured authority".into(),
+        ));
+    }
     if suite.digest(ArtifactPath(reference))?.0 != reference_pin.sha256
         || suite.digest(ArtifactPath(candidate))?.0 != worker.sha256
     {
@@ -112,11 +117,11 @@ pub(super) fn prepare(
             let relative = tool.query_modules.get(name).ok_or_else(|| {
                 Error::Invalid(format!("measured profile lacks tested module: {name}"))
             })?;
-            let root = rules
-                .parent()
-                .ok_or_else(|| Error::Invalid("measured rule root has no profile".into()))?;
             if entry.artifacts.get(&pin.path) != Some(&pin.sha256)
-                || suite.digest(ArtifactPath(&root.join(relative)))?.0 != pin.sha256
+                || suite
+                    .digest(ArtifactPath(&measured_profile.join(relative)))?
+                    .0
+                    != pin.sha256
             {
                 return Err(Error::Invalid(format!(
                     "measured helper differs from tested context: {name}"
