@@ -273,6 +273,12 @@ fn generation_lease_revocation_is_owner_only() {
     );
     refuses(
         directory.path(),
+        "sibling_calls_generation_factory",
+        &permit_source("pub fn forge() -> GenerationLease { GenerationLease::new() }"),
+        "E0624",
+    );
+    refuses(
+        directory.path(),
         "sibling_revives_generation",
         &permit_source(
             "pub fn revive(lease: &GenerationLease) {
