@@ -424,19 +424,17 @@ impl<'scope> KernelPermit<'scope> {
         }
     }
     pub(super) fn admit_tree<'call>(
-        &self,
-        source: &'call AdmittedInput,
+        &'call self,
         tree: crate::domain::table_cells::types::TreeRows<'call>,
     ) -> Result<AdmittedTree<'call>, OperatingError> {
         self.validate_live()?;
+        let source = self.bound_input(0)?;
         if source.root
             != ProducerRoot::Input(InputSource::Relation(
                 ryo_relations::domain::relations::types::Relation::SyntaxTree,
             ))
-            || !Arc::ptr_eq(&source.proof.generation, self.generation)
-            || !matches!(&source.partition, Partition::File(file) if file.file == tree.file)
         {
-            return Err(OperatingError::NotRead);
+            return Err(OperatingError::WrongOperation);
         }
         let publication = source.publication(&source.proof.owner)?;
         source.proof.owner.admit(
@@ -461,7 +459,7 @@ impl<'scope> KernelPermit<'scope> {
         if self.evaluation != crate::domain::operator::contract::types::EvaluationMode::Collected {
             return Err(OperatingError::WrongOperation);
         }
-        if !Arc::ptr_eq(&source.source.proof.generation, self.generation) {
+        if !std::ptr::eq(source.source, self.bound_input(0)?) {
             return Err(OperatingError::NotRead);
         }
         if !std::ptr::eq(self.program, prepared.program().as_ref()) {
@@ -480,11 +478,10 @@ impl<'scope> KernelPermit<'scope> {
             work,
         })
     }
-    pub(super) fn validate_selection(
-        &self,
+    pub(super) fn selection_input<'a>(
+        &'a self,
         shape: &crate::domain::executable_program::selection::SelectionAlternative,
-        source: &AdmittedInput,
-    ) -> Result<(), OperatingError> {
+    ) -> Result<&'a AdmittedInput, OperatingError> {
         self.validate_live()?;
         if self.evaluation != crate::domain::operator::contract::types::EvaluationMode::Collected {
             return Err(OperatingError::WrongOperation);
@@ -497,13 +494,12 @@ impl<'scope> KernelPermit<'scope> {
         if shape.target() != self.region
             || shape.logical() != region.instructions[self.instruction].logical
             || !Arc::ptr_eq(shape.selector(), declared.selector())
-            || !Arc::ptr_eq(&source.proof.generation, self.generation)
-            || source.root != ProducerRoot::Input(InputSource::Relation(shape.selector().relation))
         {
             return Err(OperatingError::NotRead);
         }
+        let source = self.bound_input(0)?;
         source.publication(&source.proof.owner)?;
-        Ok(())
+        Ok(source)
     }
     pub(super) fn collected_kinds(
         &self,

@@ -1,8 +1,5 @@
 //! A compact selected publication can be minted only by its admitted producer.
-use super::{
-    admission::{AdmittedInput, KernelPermit},
-    facade::PreparedProgram,
-};
+use super::{admission::KernelPermit, facade::PreparedProgram};
 use crate::application::file_dag::{
     derived::view::AcquiredView,
     relations::{PublishedInput, RelationOwner},
@@ -37,13 +34,14 @@ pub(super) fn acquire(
     prepared: &PreparedProgram,
     permit: &KernelPermit<'_>,
     shape: &SelectionAlternative,
-    input: &AdmittedInput,
     rows: &Rows<'_>,
     owner: &Rc<RelationOwner>,
     context: &mut OperatorContext<'_>,
     work: &WorkCounters,
 ) -> Result<Option<ProducedSelection>, OperatingError> {
-    permit.validate_selection(shape, input)?;
+    let input = permit.selection_input(shape)?;
+    let publication = input.publication(owner)?;
+    let proof = owner.admit(publication.as_ref(), BorrowedRows::from(rows))?;
     if !owner.stable() {
         return Ok(None);
     }
@@ -68,8 +66,6 @@ pub(super) fn acquire(
     {
         return Ok(None);
     }
-    let publication = input.publication(owner)?;
-    let proof = owner.admit(publication.as_ref(), BorrowedRows::Stored(*columns))?;
     let (population, _) = proof.identity(owner)?;
     let mut rebound = OperatorContext {
         semantic: context.semantic,

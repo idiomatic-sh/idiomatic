@@ -114,10 +114,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
         &self,
         shape: &crate::domain::executable_program::selection::SelectionAlternative,
         permit: &KernelPermit<'_>,
-        input: &super::admission::AdmittedInput,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<Option<super::selection::ProducedSelection>, InvocationFailure> {
+        let input = permit
+            .selection_input(shape)
+            .map_err(InvocationFailure::Semantic)?;
         let rows = input
             .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
@@ -128,7 +130,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
             self.prepared,
             permit,
             shape,
-            input,
             &rows,
             &self.owner,
             context,
@@ -300,15 +301,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         if let (Some(walk), [Rows::Tree(tree)]) = (self.walk, originals.as_slice())
                         {
                             if let Some(class) = walk.class(self.prepared, instruction) {
-                                walk.prepare(
-                                    self.prepared,
-                                    permit,
-                                    &admitted[0],
-                                    *tree,
-                                    context,
-                                    self.kernels,
-                                )
-                                .map_err(InvocationFailure::Semantic)?;
+                                walk.prepare(self.prepared, permit, *tree, context, self.kernels)
+                                    .map_err(InvocationFailure::Semantic)?;
                                 let batch = walk.batch();
                                 let batch = batch
                                     .as_ref()

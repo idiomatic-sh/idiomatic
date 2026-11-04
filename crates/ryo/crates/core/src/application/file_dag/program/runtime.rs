@@ -57,7 +57,6 @@ pub(super) trait KernelInvocation {
         &self,
         shape: &crate::domain::executable_program::selection::SelectionAlternative,
         permit: &super::admission::KernelPermit<'_>,
-        input: &AdmittedInput,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<Option<super::selection::ProducedSelection>, InvocationFailure>;
@@ -709,13 +708,10 @@ impl ProgramExecution {
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             if let (Some(shape), Delivery::Retain) = (&region.selection, &delivery) {
-                let input = admitted.first().ok_or(InvocationFailure::Semantic(
-                    OperatingError::MissingInput { position: 1 },
-                ))?;
                 let frame = frames
                     .first_mut()
                     .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
-                if let Some(produced) = kernels.selected(shape, &permit, input, context, frame)? {
+                if let Some(produced) = kernels.selected(shape, &permit, context, frame)? {
                     let publication = inputs
                         .publish_selected(
                             super::admission::ProducerRoot::Region(id),

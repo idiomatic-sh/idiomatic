@@ -49,7 +49,6 @@ impl FileWalk {
         &self,
         prepared: &PreparedProgram,
         permit: &KernelPermit<'_>,
-        source: &super::admission::AdmittedInput,
         tree: TreeRows<'_>,
         context: &mut OperatorContext<'_>,
         kernels: &dyn super::super::executor::PrimitiveExecutor,
@@ -59,7 +58,7 @@ impl FileWalk {
         {
             return Err(OperatingError::NotRead);
         }
-        let admitted = permit.admit_tree(source, tree)?;
+        let admitted = permit.admit_tree(tree)?;
         if self
             .population
             .get()
