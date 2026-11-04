@@ -303,8 +303,6 @@ impl FileRun<'_, '_> {
         rule: RuleIndex,
         input: InputNumber,
     ) -> Result<(), OperatingError> {
-        let mut context = self.context.borrow(symbols, self.program, rule)?;
-        let context = &mut context;
         let metadata = self.program.observation_metadata();
         if let Some(metadata) = metadata {
             for root in metadata
