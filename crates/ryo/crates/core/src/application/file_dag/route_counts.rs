@@ -246,13 +246,6 @@ pub(crate) fn node(node: usize) -> OriginScope {
         }
     })
 }
-#[cfg(feature = "diagnostic-row-progress")]
-pub(crate) fn step(node: usize) -> OriginScope {
-    scope(|origin| {
-        origin.node = Some(node);
-        origin.namespace = "rule-step";
-    })
-}
 pub(crate) fn consumer(consumer: &'static str) -> OriginScope {
     scope(|origin| origin.consumer = Some(consumer))
 }
