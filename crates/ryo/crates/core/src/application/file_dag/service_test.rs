@@ -273,7 +273,7 @@ fn incomplete_or_invalid_population_stays_entirely_on_the_residual_executor() {
     let graph = Arc::new(compile(&plans));
     let dag = FileDagExecution::new((graph).clone(), |_| true, &[]);
     assert!(!dag.active[0]);
-    assert!(dag.owned(0, 0).is_none());
+    assert!(dag.ready.iter().all(Option::is_none));
     let mut invalid = query(3, false);
     if let Operation::Project { columns, .. } = &mut invalid.steps[1].operation {
         columns[0] = ColumnIndex(999);
