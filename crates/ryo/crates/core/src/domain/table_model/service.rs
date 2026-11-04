@@ -191,6 +191,7 @@ pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<V
         }
     }
     tracing::trace!(target: "ryo::diagnostic::selection", event = "materialized",
+        compact_source = matches!(rows, Rows::Compact(_)),
         rows = into.count.0, columns = into.kinds.len(),
         cell_bytes = into.cells.len().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()),
         capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()));

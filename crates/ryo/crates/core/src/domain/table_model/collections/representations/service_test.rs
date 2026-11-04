@@ -24,6 +24,26 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
+fn compact(table: &Table) -> crate::domain::table_words::types::CompactTable {
+    use crate::domain::table_words::{
+        service,
+        types::{DecodeMode, WordSlice},
+    };
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::domain::stored_facts::types::KeptWords;
+    let mut words = Words::default();
+    service::encode_table(table, &[], &mut words);
+    let (compact, names) = service::admit_compact(
+        Arc::new(KeptWords(service::pack(WordSlice(&words.0)))),
+        &mut Vec::new(),
+        DecodeMode::Complete,
+    )
+    .unwrap();
+    assert!(names.is_empty());
+    assert!(service::compact_rectangular(&compact));
+    compact
+}
+
 fn number(value: i64) -> Value {
     Value::Number(Integer(value))
 }
@@ -101,7 +121,7 @@ fn check_rows(input: &Rows<'_>, expected: &[Vec<Value>]) {
 }
 
 #[test]
-fn all_four_registered_representations_preserve_bulk_cells_rows_and_bags() {
+fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
     let columns = [column(&[2, 1])];
     let source = ColumnsView {
         kinds: &[CellKind::Number],
@@ -120,6 +140,7 @@ fn all_four_registered_representations_preserve_bulk_cells_rows_and_bags() {
         cells: vec![number(8), number(7)],
         count: RowCount(2),
     };
+    let compact = compact(&table);
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"ab"));
     enter_node(&mut builder, KindBits(0), Offset(0));
@@ -142,6 +163,10 @@ fn all_four_registered_representations_preserve_bulk_cells_rows_and_bags() {
             ),
             RepresentationKind::Computed => (
                 Rows::Computed(&table),
+                vec![vec![number(8)], vec![number(7)]],
+            ),
+            RepresentationKind::Compact => (
+                Rows::Compact(&compact),
                 vec![vec![number(8)], vec![number(7)]],
             ),
             RepresentationKind::Tree => (
@@ -180,6 +205,7 @@ fn all_four_registered_representations_preserve_bulk_cells_rows_and_bags() {
             }
             BulkAccess::Tree(view) => assert!(std::ptr::eq(view.elements, &elements)),
             BulkAccess::Computed(view) => assert!(std::ptr::eq(view, &table)),
+            BulkAccess::Compact(view) => assert!(std::ptr::eq(view, &compact)),
         }
     }
 }

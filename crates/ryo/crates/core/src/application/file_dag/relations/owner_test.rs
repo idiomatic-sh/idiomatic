@@ -19,6 +19,101 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::{plan_parts::types::ColumnIndex, stored_facts::types::PartialCause};
 use std::{cell::Cell, sync::Arc};
+
+#[test]
+fn compact_publications_share_backing_accounting_and_expire_with_generation() {
+    use crate::domain::table_words::{
+        service,
+        types::{DecodeMode, WordSlice},
+    };
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::{
+        domain::rows::types::{RowCount, Table},
+        domain::stored_facts::types::KeptWords,
+    };
+    use std::collections::HashMap;
+
+    let table = Table {
+        kinds: vec![CellKind::Number],
+        cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
+        count: RowCount(2),
+    };
+    let mut encoded = Words::default();
+    service::encode_table(&table, &[], &mut encoded);
+    let words = Arc::new(KeptWords(service::pack(WordSlice(&encoded.0))));
+    let words_weak = Arc::downgrade(&words);
+    let (compact, names) =
+        service::admit_compact(Arc::clone(&words), &mut Vec::new(), DecodeMode::Complete).unwrap();
+    assert!(names.is_empty());
+    assert!(service::compact_rectangular(&compact));
+    let compact = Arc::new(compact);
+    let compact_weak = Arc::downgrade(&compact);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
+    let first = owner.compact(Arc::clone(&compact)).unwrap();
+    let second = owner.compact(Arc::clone(&compact)).unwrap();
+    assert!(!first.same_record(&second));
+    let left = owner.backings(first.record());
+    let right = owner.backings(second.record());
+    let mut unique = HashMap::new();
+    for backing in left.iter().chain(&right) {
+        if let Some(previous) = unique.insert(backing.key, backing.bytes) {
+            assert_eq!(previous, backing.bytes);
+        }
+    }
+    assert_eq!(left.iter().filter(|backing| backing.key.0 == 22).count(), 1);
+    assert_eq!(left.iter().filter(|backing| backing.key.0 == 24).count(), 1);
+    assert_eq!(
+        right.iter().filter(|backing| backing.key.0 == 22).count(),
+        1
+    );
+    assert_eq!(
+        right.iter().filter(|backing| backing.key.0 == 24).count(),
+        1
+    );
+    assert_eq!(
+        owner.derived.publication_ownership_bytes().2,
+        unique.values().sum()
+    );
+    assert_eq!(
+        super::bytes(first.record().as_ref()),
+        service::compact_metadata_bytes(&compact) + words.0.0.capacity(),
+    );
+    let unread = |_| Err(OperatingError::NotRead);
+    let resolved = owner.resolve(first.as_ref(), &unread).unwrap();
+    assert_eq!(
+        read(&resolved),
+        [
+            vec![Value::Number(Integer(4))],
+            vec![Value::Number(Integer(5))]
+        ]
+    );
+    drop(resolved);
+    let retained = owner
+        .retain_publication(&first, usize::MAX)
+        .unwrap()
+        .unwrap();
+    assert!(owner.derived.publication_ownership_bytes().1 > 0);
+    drop(compact);
+    drop(words);
+    assert!(compact_weak.upgrade().is_some());
+    assert!(words_weak.upgrade().is_some());
+    owner.release_population();
+    assert!(matches!(
+        owner.resolve(first.as_ref(), &unread),
+        Err(OperatingError::NotRead)
+    ));
+    assert!(matches!(
+        owner.resolve(second.as_ref(), &unread),
+        Err(OperatingError::NotRead)
+    ));
+    drop(first);
+    drop(second);
+    assert!(compact_weak.upgrade().is_some());
+    drop(retained);
+    assert!(compact_weak.upgrade().is_none());
+    assert!(words_weak.upgrade().is_none());
+    assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
+}
 mod fixtures;
 mod producer;
 use fixtures::{columns, group, read, row, selected};

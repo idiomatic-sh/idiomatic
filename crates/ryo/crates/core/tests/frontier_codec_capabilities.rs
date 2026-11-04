@@ -102,7 +102,13 @@ fn differential(input: Arc<KeptWords>, mode: DecodeMode) {
         assert_eq!(service::compact_cells(&meta), old.cells.len());
         let actual = service::materialize_compact(&meta).unwrap();
         same(&actual, &old);
-        if service::compact_rectangular(&meta) {
+        let expected_rectangular = old
+            .count
+            .0
+            .checked_mul(old.kinds.len())
+            .is_some_and(|cells| cells == old.cells.len());
+        assert_eq!(service::compact_rectangular(&meta), expected_rectangular);
+        if expected_rectangular {
             let mut scratch = vec![Value::Number(Integer(0)); old.kinds.len()];
             for row in 0..old.count.0 {
                 let expected = &old.cells[row * old.kinds.len()..(row + 1) * old.kinds.len()];
@@ -137,6 +143,7 @@ fn multiple_frames_repeated_columns_and_name_rebase_match_production_decoder() {
         service::admit_compact(packed(&frames), &mut places, DecodeMode::Complete).unwrap();
     assert_eq!(service::compact_rows(&meta), 4);
     assert_eq!(service::compact_cells(&meta), 12);
+    assert!(service::compact_rectangular(&meta));
     assert_eq!(names.len(), 4);
     assert_eq!(places.len(), 4);
     let actual = service::materialize_compact(&meta).unwrap();
@@ -221,7 +228,10 @@ fn compact_lease_pins_backing_until_metadata_is_retired() {
     assert!(Arc::ptr_eq(service::compact_backing(&meta), &input));
     let storage = service::compact_storage(&meta);
     assert_eq!(storage[0], (input.0.0.as_ptr() as usize, input.0.0.len()));
-    assert!(service::compact_metadata_bytes(&meta) >= size_of::<types::CompactTable>() + storage[1].1 * size_of::<usize>());
+    assert!(
+        service::compact_metadata_bytes(&meta)
+            >= size_of::<types::CompactTable>() + storage[1].1 * size_of::<usize>()
+    );
     drop(input);
     assert!(weak.upgrade().is_some());
     same(&service::materialize_compact(&meta).unwrap(), &table());

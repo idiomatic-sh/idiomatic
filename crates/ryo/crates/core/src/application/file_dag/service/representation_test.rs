@@ -61,7 +61,7 @@ fn plan(relation: Relation) -> Plan {
 }
 
 #[test]
-fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
+fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
     let numbers = [1, 2, 3];
     let columns =
         numbers.map(|number| FactColumn(vec![to_bits(Value::Number(Integer(number))).0; 2]));
@@ -84,6 +84,22 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
         cells: vec![Value::Number(Integer(7)); 6],
         count: RowCount(2),
     };
+    let mut words = ryo_relations::domain::relations::types::Words::default();
+    crate::domain::table_words::service::encode_table(&computed, &[], &mut words);
+    let (compact, names) = crate::domain::table_words::service::admit_compact(
+        Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
+            crate::domain::table_words::service::pack(
+                crate::domain::table_words::types::WordSlice(&words.0),
+            ),
+        )),
+        &mut Vec::new(),
+        crate::domain::table_words::types::DecodeMode::Complete,
+    )
+    .unwrap();
+    assert!(names.is_empty());
+    assert!(crate::domain::table_words::service::compact_rectangular(
+        &compact
+    ));
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"ab"));
     enter_node(&mut builder, KindBits(0), Offset(0));
@@ -101,6 +117,7 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
             RepresentationKind::Computed => {
                 (Relation::LanguageTarget, Rows::Computed(&computed), 2)
             }
+            RepresentationKind::Compact => (Relation::LanguageTarget, Rows::Compact(&compact), 2),
             RepresentationKind::Tree => (
                 Relation::SyntaxChild,
                 Rows::Tree(TreeRows {
@@ -180,6 +197,140 @@ fn dag_preserves_all_four_bulk_routes_with_and_without_optional_retention() {
             assert!(matches!(
                 scope.scope.owner().resolve(result.as_ref(), &read),
                 Err(OperatingError::NotRead)
+            ));
+        }
+    }
+}
+
+#[test]
+fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
+    use crate::application::file_dag::types::ProvidedInput;
+    use crate::domain::table_words::{
+        service as codec,
+        types::{DecodeMode, WordSlice},
+    };
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::domain::stored_facts::types::KeptWords;
+
+    let relation = Relation::LanguageTarget;
+    let input = Input::Relation(relation);
+    let mut plan = plan(relation);
+    plan.steps.truncate(1);
+    plan.emit.step = StepId(0);
+    let operators =
+        crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+            &[plan.clone()],
+            &[vec![]],
+            &[],
+            &ryo_relations::domain::relations::service::kinds,
+            crate::outbound::derived::factory::test_port(),
+        )
+        .unwrap();
+    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
+        &[plan],
+        &operators,
+    ));
+    let root = graph.boundaries[0][0].1;
+    let complete = Table {
+        kinds: ryo_relations::domain::relations::service::kinds(relation).to_vec(),
+        cells: vec![
+            Value::File(FileId(1)),
+            Value::Number(Integer(7)),
+            Value::Number(Integer(9)),
+            Value::File(FileId(2)),
+            Value::Number(Integer(8)),
+            Value::Number(Integer(10)),
+        ],
+        count: RowCount(2),
+    };
+    let short = Table {
+        kinds: vec![CellKind::File, CellKind::Number],
+        cells: vec![Value::File(FileId(3)), Value::Number(Integer(7))],
+        count: RowCount(1),
+    };
+    for refused in [false, true] {
+        let mut words = Words::default();
+        codec::encode_table(&complete, &[], &mut words);
+        if refused {
+            codec::encode_table(&short, &[], &mut words);
+        }
+        let (compact, names) = codec::admit_compact(
+            Arc::new(KeptWords(codec::pack(WordSlice(&words.0)))),
+            &mut Vec::new(),
+            if refused {
+                DecodeMode::Permissive
+            } else {
+                DecodeMode::Complete
+            },
+        )
+        .unwrap();
+        assert!(names.is_empty());
+        assert_eq!(codec::compact_rectangular(&compact), !refused);
+        let scope = crate::application::file_dag::testing::FileScope::new(
+            Arc::clone(&graph),
+            crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
+            |_| true,
+            &[relation],
+            &[],
+        )
+        .unwrap();
+        let dag = &scope.execution;
+        dag.borrow_mut().provided.insert(
+            root,
+            ProvidedInput::Compact {
+                input,
+                table: Arc::new(compact),
+            },
+        );
+        let (mut symbols, mut scratch, mut memo) =
+            (Symbols::default(), OperatorScratch::default(), vec![]);
+        let mut context = OperatorContext {
+            semantic: None,
+            prepared_matchers: None,
+            prepared_kinds: None,
+            bindings: &[],
+            symbols: (&mut symbols).into(),
+            source: SourceView(b""),
+            paths: &[],
+            arenas: &[],
+            memo: &mut memo,
+            scratch: &mut scratch,
+        };
+        let unread = |_| Err(OperatingError::NotRead);
+        dag.begin_rule(0).unwrap();
+        if refused {
+            for _ in 0..2 {
+                assert!(matches!(
+                    dag.demand(root, &unread, scope.scope.executor(), &mut context),
+                    Err(OperatingError::ShapeMismatch)
+                ));
+            }
+            assert!(matches!(
+                dag.borrow().provided.get(&root),
+                Some(ProvidedInput::Refused { .. })
+            ));
+        } else {
+            let first = dag
+                .demand(root, &unread, scope.scope.executor(), &mut context)
+                .unwrap();
+            assert_eq!(first.kind(), RepresentationKind::Compact);
+            let second = dag
+                .demand(root, &unread, scope.scope.executor(), &mut context)
+                .unwrap();
+            assert!(first.same_record(&second));
+            assert!(matches!(
+                dag.borrow().provided.get(&root),
+                Some(ProvidedInput::Live { .. })
+            ));
+            assert_eq!(dag.borrow().executions[root.0], 1);
+            dag.borrow_mut().finish_rule(0);
+            assert!(matches!(
+                dag.borrow().provided.get(&root),
+                Some(ProvidedInput::Retired { .. })
+            ));
+            assert!(matches!(
+                dag.demand(root, &unread, scope.scope.executor(), &mut context),
+                Err(OperatingError::RetiredFrontier { .. })
             ));
         }
     }

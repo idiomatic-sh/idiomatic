@@ -549,7 +549,9 @@ impl FileDagExecution {
             .map(|(_, cells)| *cells)
             .sum::<usize>();
         self.provided_peak_payload = self.provided_peak_payload.max(live);
-        tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner="provided_source_leases", source_payload_live_bytes=live, source_payload_peak_live_bytes=self.provided_peak_payload, decoded_live_bytes=0usize, decoded_peak_live_bytes=0usize, decodes=0u64, publications=self.provided_allocations.len(), releases=self.provided_releases);
+        // This counter owns compact source leases only. Decoded table memory is
+        // measured at the actual materialization call, not guessed here.
+        tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner="provided_source_leases", source_payload_live_bytes=live, source_payload_peak_live_bytes=self.provided_peak_payload, publications=self.provided_allocations.len(), releases=self.provided_releases);
     }
     /// Sole node lifecycle: owner validation, admission, strategy, first error,
     /// dependency release and publication are independent of output delivery.
