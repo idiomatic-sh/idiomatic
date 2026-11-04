@@ -140,6 +140,22 @@ impl AdmittedInput {
         self
     }
 
+    fn validate_for(
+        &self,
+        execution: &super::runtime::ProgramExecution,
+        expected: ProducerRoot,
+    ) -> Result<(), OperatingError> {
+        if !execution.owner.matches_generation(&execution.generation)
+            || !Rc::ptr_eq(&execution.owner, &self.proof.owner)
+            || !Arc::ptr_eq(&self.proof.generation, &execution.generation)
+            || self.root != expected
+            || !self.partition.supplies(execution.partition())
+        {
+            return Err(OperatingError::NotRead);
+        }
+        self.publication(&execution.owner)?;
+        Ok(())
+    }
     /// Only a real generation-checked admission can issue this required input.
     pub(in crate::application::file_dag::program) fn from_publication(
         owner: Rc<RelationOwner>,
@@ -206,36 +222,38 @@ pub(crate) struct KernelPermit<'scope> {
     generation: &'scope Arc<()>,
 }
 impl<'scope> KernelPermit<'scope> {
-    pub(in crate::application::file_dag::program) fn admitted(
-        execution: &'scope super::runtime::ProgramExecution,
+    fn code(
+        execution: &super::runtime::ProgramExecution,
         region: RegionId,
-        inputs: &[AdmittedInput],
-    ) -> Result<Self, OperatingError> {
+    ) -> Result<&crate::domain::executable_program::types::Region, OperatingError> {
+        if !execution.owner.matches_generation(&execution.generation) {
+            return Err(OperatingError::NotRead);
+        }
         let code = execution
             .program
             .regions
             .get(region.0)
             .ok_or(OperatingError::NotRun)?;
+        if code.instructions.is_empty() {
+            return Err(OperatingError::NotRun);
+        }
+        Ok(code)
+    }
+    pub(in crate::application::file_dag::program) fn admitted(
+        execution: &'scope super::runtime::ProgramExecution,
+        region: RegionId,
+        inputs: &[AdmittedInput],
+    ) -> Result<Self, OperatingError> {
+        let code = Self::code(execution, region)?;
         if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
             return Err(OperatingError::WrongOperation);
-        }
-        if !execution.owner.matches_generation(&execution.generation) {
-            return Err(OperatingError::NotRead);
         }
         for (source, input) in code.inputs.iter().zip(inputs) {
             let expected = match source {
                 InputSource::Region(id) => ProducerRoot::Region(*id),
                 other => ProducerRoot::Input(*other),
             };
-            if input.root != expected || !input.partition.supplies(execution.partition()) {
-                return Err(OperatingError::NotRead);
-            }
-            input.publication(&execution.owner)?;
-            if !Rc::ptr_eq(&execution.owner, &input.proof.owner)
-                || !Arc::ptr_eq(&input.proof.generation, &execution.generation)
-            {
-                return Err(OperatingError::NotRead);
-            }
+            input.validate_for(execution, expected)?;
         }
         Ok(Self {
             program: &execution.program,
@@ -249,21 +267,12 @@ impl<'scope> KernelPermit<'scope> {
         region: RegionId,
         input: &AdmittedInput,
     ) -> Result<Self, OperatingError> {
-        let code = execution
-            .program
-            .regions
-            .get(region.0)
-            .ok_or(OperatingError::NotRun)?;
+        let code = Self::code(execution, region)?;
         let shape = code
             .ordered_existence
             .as_ref()
             .ok_or(OperatingError::WrongOperation)?;
-        if input.root != ProducerRoot::Region(shape.source)
-            || !input.partition.supplies(execution.partition())
-        {
-            return Err(OperatingError::NotRead);
-        }
-        input.publication(&execution.owner)?;
+        input.validate_for(execution, ProducerRoot::Region(shape.source))?;
         Ok(Self {
             program: &execution.program,
             region,
