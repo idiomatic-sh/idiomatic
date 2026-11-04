@@ -95,6 +95,16 @@ pub(crate) fn compile(
         }
     }
     let mut boundary = graph.derived_sources.clone();
+    let ordered_alternatives = graph.ordered_existence.clone();
+    for alternative in ordered_alternatives.iter().flatten() {
+        if let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(shape) =
+            alternative
+        {
+            boundary[shape.join.0] = true;
+            boundary[shape.select.0] = true;
+        }
+    }
+
     for node in &graph.nodes {
         for input in &node.inputs {
             if let NodeInput::Node(child) = input {
@@ -260,8 +270,32 @@ pub(crate) fn compile(
             inputs: inputs.into_boxed_slice(),
             consumers: consumers[logical],
             dependencies: Box::new([]),
+            ordered_existence: None,
             publishes: boundary[logical] || consumers[logical] > 1,
         });
+    }
+    for alternative in ordered_alternatives.into_iter().flatten() {
+        let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(resolved) =
+            alternative
+        else {
+            continue;
+        };
+        let select = logical_regions[resolved.select.0];
+        let source = logical_regions[resolved.source.0];
+        let join = logical_regions[resolved.join.0];
+        if select == join || select == source || regions[select.0].instructions.len() != 1 {
+            return Err(OperatingError::WrongOperation);
+        }
+        regions[select.0].ordered_existence = Some(OrderedExistence {
+            source,
+            join,
+            number: resolved.shape.number,
+            partition: resolved.shape.partition.into_boxed_slice(),
+            order: resolved.shape.order,
+            extremum: resolved.shape.extremum,
+            output: resolved.output.into_boxed_slice(),
+        });
+        regions[source.0].consumers += 1;
     }
     let mut rules = Vec::with_capacity(plans.len());
     for (rule, (plan, nodes)) in plans.iter().zip(graph.program_nodes).enumerate() {
@@ -347,6 +381,9 @@ pub(crate) fn compile(
                 | InputSource::Hosted { .. }
                 | InputSource::ObservationMember { .. } => {}
             }
+        }
+        if let Some(ordered) = &region.ordered_existence {
+            dependencies.push(ordered.source);
         }
         region.dependencies = dependencies.into_boxed_slice();
     }

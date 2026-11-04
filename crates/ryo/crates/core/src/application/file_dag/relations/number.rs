@@ -6,7 +6,7 @@ use crate::domain::ordered_existence::types::NumberRequirement;
 /// Construction is private: a schema or a caller assertion cannot mint this witness.
 pub(in crate::application::file_dag) struct AdmittedNumber<'a> {
     pub(super) publication: &'a PublishedInput,
-    _producer: NodeId,
+    _producer: RegionId,
     _population: PopulationId,
     pub(in crate::application::file_dag) column: ryo_values::domain::plan_parts::types::ColumnIndex,
 }
@@ -14,7 +14,7 @@ impl RelationOwner {
     pub(in crate::application::file_dag) fn admit_number<'a>(
         &self,
         publication: &'a PublishedInput,
-        producer: NodeId,
+        producer: RegionId,
         required: &NumberRequirement,
         rows: BorrowedRows<'_>,
     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
@@ -113,32 +113,32 @@ mod tests {
             RelationOwner::for_request(true, 64, crate::outbound::derived::factory::test_port());
         let publication = owner.source_borrowed(relation, rows).unwrap();
         owner
-            .bind_producer(NodeId(7), publication.as_ref())
+            .bind_producer(RegionId(7), publication.as_ref())
             .unwrap();
         assert!(
             owner
-                .admit_number(&publication, NodeId(7), &required, rows)
+                .admit_number(&publication, RegionId(7), &required, rows)
                 .unwrap()
                 .is_some()
         );
         assert!(
             owner
-                .admit_number(&publication, NodeId(8), &required, rows)
+                .admit_number(&publication, RegionId(8), &required, rows)
                 .unwrap()
                 .is_none()
         );
         owner.release_population();
         let next = owner.source_borrowed(relation, rows).unwrap();
-        owner.bind_producer(NodeId(7), next.as_ref()).unwrap();
+        owner.bind_producer(RegionId(7), next.as_ref()).unwrap();
         assert!(
             owner
-                .admit_number(&next, NodeId(7), &required, rows)
+                .admit_number(&next, RegionId(7), &required, rows)
                 .unwrap()
                 .is_some()
         );
         assert!(
             owner
-                .admit_number(&publication, NodeId(7), &required, rows)
+                .admit_number(&publication, RegionId(7), &required, rows)
                 .unwrap()
                 .is_none()
         );

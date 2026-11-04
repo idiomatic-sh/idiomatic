@@ -82,6 +82,16 @@ pub(crate) struct Instruction {
     pub collected_demand: DemandProgram,
     pub partition: PartitionRequirement,
 }
+#[derive(Clone, Debug)]
+pub(crate) struct OrderedExistence {
+    pub source: RegionId,
+    pub join: RegionId,
+    pub number: crate::domain::ordered_existence::types::NumberRequirement,
+    pub partition: Box<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
+    pub order: ryo_values::domain::plan_parts::types::ColumnIndex,
+    pub extremum: crate::domain::ordered_existence::types::Extremum,
+    pub output: Box<[ryo_values::domain::plan_parts::types::JoinColumn]>,
+}
 #[derive(Debug)]
 pub(crate) struct Region {
     pub id: RegionId,
@@ -92,6 +102,7 @@ pub(crate) struct Region {
     pub inputs: Box<[InputSource]>,
     pub consumers: usize,
     pub dependencies: Box<[RegionId]>,
+    pub ordered_existence: Option<OrderedExistence>,
     pub publishes: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

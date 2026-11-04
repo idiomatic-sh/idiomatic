@@ -50,6 +50,60 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
     }
 }
 impl KernelInvocation for KernelSession<'_, '_> {
+    fn ordered(
+        &self,
+        shape: &crate::domain::executable_program::types::OrderedExistence,
+        permit: &KernelPermit<'_>,
+        input: &super::admission::AdmittedInput,
+        context: &mut OperatorContext<'_>,
+        scratch: &mut KernelScratch,
+        output: &mut dyn Emit,
+    ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+        let publication = input
+            .publication(&self.owner)
+            .map_err(InvocationFailure::Semantic)?;
+        let rows = self
+            .owner
+            .resolve(publication.as_ref(), self.read)
+            .map_err(InvocationFailure::Semantic)?;
+        let Some(number) = self
+            .owner
+            .admit_number(
+                publication,
+                shape.source,
+                &shape.number,
+                BorrowedRows::from(&rows),
+            )
+            .map_err(InvocationFailure::Semantic)?
+        else {
+            return Ok(super::runtime::StrategyOutcome::Declined);
+        };
+        let workspace = scratch
+            .workspace
+            .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
+        let failure = std::sync::OnceLock::new();
+        let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            port: self.kernels,
+            permit,
+            failure: &failure,
+        };
+        let result = crate::application::file_dag::ordered_existence::evaluate(
+            &semantics,
+            shape,
+            &number,
+            BorrowedRows::from(&rows),
+            context,
+            &mut scratch.ordered_row,
+            &mut scratch.ordered,
+            &workspace.work,
+            output,
+        );
+        failure
+            .into_inner()
+            .map_or(result, Err)
+            .map_err(InvocationFailure::Semantic)?;
+        Ok(super::runtime::StrategyOutcome::Executed)
+    }
     fn evaluate(
         &self,
         instruction: &Instruction,

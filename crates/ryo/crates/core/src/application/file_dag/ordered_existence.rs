@@ -1,12 +1,8 @@
 //! One invocation uses the existing owner and injected meaning; no retained strategy state.
-use super::relations::{PublishedInput, RelationOwner};
 use crate::domain::operator::contract::{
     failure::FailureLatch, types::portable_fault, views::BorrowedRows,
 };
-use crate::domain::{
-    operating::errors::OperatingError,
-    ordered_existence::types::{Extremum, ResolvedShape},
-};
+use crate::domain::{operating::errors::OperatingError, ordered_existence::types::Extremum};
 use ryo_operators::domain::contract::types::{
     JoinInterrupted, OperatorCall, OrderedExistenceDriver, OrderedExistenceScratch,
     PartitionExtremum,
@@ -14,18 +10,8 @@ use ryo_operators::domain::contract::types::{
 use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Side},
-    rows::types::{RowIndex, Table},
+    rows::types::RowIndex,
 };
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AdmissionDecline {
-    NoEligiblePlan,
-    UnprovenPopulation,
-}
-pub(crate) enum StrategyOutcome {
-    Executed(PublishedInput),
-    Declined(AdmissionDecline),
-}
 
 struct Driver<'a, 'c> {
     rows: BorrowedRows<'a>,
@@ -34,6 +20,7 @@ struct Driver<'a, 'c> {
     context: &'a mut crate::domain::operating::types::OperatorContext<'c>,
     emit: &'a mut dyn crate::domain::operating::types::Emit,
     failure: FailureLatch,
+    work: &'a crate::domain::operator::contract::types::WorkCounters,
 }
 impl OrderedExistenceDriver for Driver<'_, '_> {
     fn len(&self) -> usize {
@@ -58,6 +45,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
             .map_err(|_| JoinInterrupted)
     }
     fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), JoinInterrupted> {
+        self.work.found(0, 1);
         let rows = self.rows;
         let logical = &mut self.row;
         let output = self.output;
@@ -85,55 +73,48 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
     }
 }
 
-/// Eligibility decline happens BEFORE semantic output. Faults never fall back.
+/// The owner has already bound the exact numeric source. This function only
+/// drives the borrowed semantic algorithm and never publishes or schedules.
 pub(super) fn evaluate(
-    owner: &RelationOwner,
-    port: &dyn crate::outbound::operators::interface::OperatorsPort,
-    shape: &ResolvedShape,
-    source: &PublishedInput,
+    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
+    shape: &crate::domain::executable_program::types::OrderedExistence,
+    admitted: &super::relations::AdmittedNumber<'_>,
     rows: BorrowedRows<'_>,
-    output_kinds: &[ryo_relations::domain::relations::types::CellKind],
     context: &mut crate::domain::operating::types::OperatorContext<'_>,
-    room: &mut crate::domain::operating::types::Room,
-) -> Result<StrategyOutcome, OperatingError> {
-    let Some(admitted) = owner.admit_number(source, shape.source, &shape.shape.number, rows)?
-    else {
-        return Ok(StrategyOutcome::Declined(
-            AdmissionDecline::UnprovenPopulation,
-        ));
-    };
+    row: &mut Vec<Value>,
+    scratch: &mut OrderedExistenceScratch,
+    work: &crate::domain::operator::contract::types::WorkCounters,
+    emit: &mut dyn crate::domain::operating::types::Emit,
+) -> Result<(), OperatingError> {
     let _pin = admitted.publication();
-    if admitted.column != shape.shape.order {
+    if admitted.column != shape.order {
         return Err(OperatingError::WrongOperation);
     }
-    let mut table = Table::default();
-    table.kinds.extend_from_slice(output_kinds);
-    let mut output_state = super::execution::output::State::take(context.scratch, context.memo);
-    let result = output_state.run(&mut super::execution::output::collect(&mut table), |emit| {
-        let mut driver = Driver {
-            rows,
-            output: &shape.output,
-            row: &mut room.scratch.row,
-            context,
-            emit,
-            failure: FailureLatch::default(),
-        };
-        let result = port.operators(OperatorCall::OrderedExistence {
-            partition: &shape.shape.partition,
-            order: admitted.column,
-            extremum: match shape.shape.extremum {
-                Extremum::Maximum => PartitionExtremum::Maximum,
-                Extremum::Minimum => PartitionExtremum::Minimum,
-            },
-            driver: &mut driver,
-            scratch: &mut OrderedExistenceScratch::default(),
-        });
-        if let Some(error) = driver.failure.take() {
-            return Err(error);
-        }
-        result.map_err(portable_fault).map(|_| ())
+    let mut driver = Driver {
+        rows,
+        output: &shape.output,
+        row,
+        context,
+        emit,
+        failure: FailureLatch::default(),
+        work,
+    };
+    let result = semantics.operators(OperatorCall::OrderedExistence {
+        partition: &shape.partition,
+        order: admitted.column,
+        extremum: match shape.extremum {
+            Extremum::Maximum => PartitionExtremum::Maximum,
+            Extremum::Minimum => PartitionExtremum::Minimum,
+        },
+        driver: &mut driver,
+        scratch,
     });
-    output_state.restore(context.scratch, context.memo);
-    result?;
-    owner.computed(table).map(StrategyOutcome::Executed)
+    if let Some(error) = driver.failure.take() {
+        return Err(error);
+    }
+    match result {
+        Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
+        Ok(_) => Err(OperatingError::WrongOperation),
+        Err(error) => Err(portable_fault(error)),
+    }
 }

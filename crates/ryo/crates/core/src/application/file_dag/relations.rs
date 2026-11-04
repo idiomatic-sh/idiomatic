@@ -10,7 +10,7 @@ use crate::domain::table_model::{
     service::materialize,
     types::{Rows, SelectedRows, StoredSelection},
 };
-use crate::domain::{file_program::types::NodeId, operating::errors::OperatingError};
+use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::{
     cell::{Cell, RefCell},
@@ -50,6 +50,7 @@ enum RelationBody {
 mod packed;
 pub(crate) use packed::PackedPublication;
 mod number;
+pub(in crate::application::file_dag) use number::AdmittedNumber;
 mod record;
 pub(crate) use record::RelationResult;
 
@@ -454,7 +455,7 @@ impl RelationOwner {
     /// One canonical DAG producer has one population identity across rules and safe recomputation.
     pub(super) fn bind_producer(
         &self,
-        node: NodeId,
+        node: RegionId,
         result: &RelationResult,
     ) -> Result<(), OperatingError> {
         self.generation(result)?;
@@ -509,7 +510,7 @@ impl RelationOwner {
     /// A generation clear has already released all pins and removed this map.
     pub(super) fn release_derived_producer(
         &self,
-        node: crate::domain::file_program::types::NodeId,
+        node: crate::domain::executable_program::types::RegionId,
     ) {
         if let Some((population, backing)) =
             self.producer_populations.borrow().get(&node.0).copied()

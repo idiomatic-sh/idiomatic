@@ -63,6 +63,7 @@ pub(super) fn compile_unions(
                         inputs: pair.to_vec().into_boxed_slice(),
                         consumers: 0,
                         dependencies: Box::new([]),
+                        ordered_existence: None,
                         publishes: true,
                         instructions: vec![Instruction {
                             logical,

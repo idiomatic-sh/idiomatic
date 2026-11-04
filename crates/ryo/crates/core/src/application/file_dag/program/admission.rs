@@ -151,6 +151,10 @@ impl AdmittedInput {
     ) -> Result<Self, OperatingError> {
         let (population, _) = admitted.identity(&owner)?;
         let generation = admitted.generation_guard();
+        if let ProducerRoot::Region(region) = root {
+            owner.bind_producer(region, publication.as_ref())?;
+        }
+
         Ok(Self {
             proof: PopulationProof {
                 owner,
@@ -233,6 +237,33 @@ impl<'scope> KernelPermit<'scope> {
                 return Err(OperatingError::NotRead);
             }
         }
+        Ok(Self {
+            program: &execution.program,
+            region,
+            instruction: 0,
+            generation: &execution.generation,
+        })
+    }
+    pub(super) fn ordered(
+        execution: &'scope super::runtime::ProgramExecution,
+        region: RegionId,
+        input: &AdmittedInput,
+    ) -> Result<Self, OperatingError> {
+        let code = execution
+            .program
+            .regions
+            .get(region.0)
+            .ok_or(OperatingError::NotRun)?;
+        let shape = code
+            .ordered_existence
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)?;
+        if input.root != ProducerRoot::Region(shape.source)
+            || !input.partition.supplies(execution.partition())
+        {
+            return Err(OperatingError::NotRead);
+        }
+        input.publication(&execution.owner)?;
         Ok(Self {
             program: &execution.program,
             region,

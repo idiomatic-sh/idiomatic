@@ -28,6 +28,8 @@ pub(super) struct KernelScratch {
     pub scratch: OperatorScratch,
     pub memo: Vec<crate::domain::operating::types::Memo>,
     pub workspace: Option<super::super::workspace::InvocationWorkspace>,
+    pub ordered_row: Vec<Value>,
+    pub ordered: ryo_operators::domain::contract::types::OrderedExistenceScratch,
 }
 pub(super) enum KernelInput<'a> {
     Admitted(
@@ -39,6 +41,15 @@ pub(super) enum KernelInput<'a> {
 /// Application-owned preparation/acquisition supplies the borrowed semantic call.
 /// All implementations are required; no missing-capability or fallback path.
 pub(super) trait KernelInvocation {
+    fn ordered(
+        &self,
+        shape: &crate::domain::executable_program::types::OrderedExistence,
+        permit: &super::admission::KernelPermit<'_>,
+        input: &AdmittedInput,
+        context: &mut OperatorContext<'_>,
+        scratch: &mut KernelScratch,
+        output: &mut dyn Emit,
+    ) -> Result<StrategyOutcome, InvocationFailure>;
     fn evaluate(
         &self,
         instruction: &Instruction,
@@ -48,6 +59,10 @@ pub(super) trait KernelInvocation {
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
     ) -> Result<(), InvocationFailure>;
+}
+pub(super) enum StrategyOutcome {
+    Executed,
+    Declined,
 }
 enum State {
     Dormant,
@@ -291,6 +306,70 @@ impl ProgramExecution {
                             .as_ref()
                             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     }
+                }
+            }
+            if let Some(shape) = &region.ordered_existence {
+                let source = inputs
+                    .admit(
+                        crate::domain::executable_program::types::InputSource::Region(shape.source),
+                        &self.partition,
+                        context,
+                    )
+                    .map_err(InvocationFailure::Semantic)?;
+                let permit = super::admission::KernelPermit::ordered(self, id, &source)
+                    .map_err(InvocationFailure::Semantic)?;
+                let last = region
+                    .instructions
+                    .last()
+                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+                let mut rows = ryo_values::domain::rows::types::Table::default();
+                crate::domain::table_model::service::reset(
+                    &mut rows,
+                    last.contract
+                        .collected_kinds
+                        .as_ref()
+                        .map_err(|error| InvocationFailure::Semantic(error.clone()))?,
+                );
+                let frames = cleanup
+                    .scratch
+                    .as_mut()
+                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+                let frame = frames
+                    .first_mut()
+                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+                let outcome = kernels.ordered(
+                    shape,
+                    &permit,
+                    &source,
+                    context,
+                    frame,
+                    &mut crate::domain::replay::types::Collect(&mut rows),
+                )?;
+                if matches!(outcome, StrategyOutcome::Executed) {
+                    completion.filter_rows(
+                        region
+                            .last_operation()
+                            .map_err(InvocationFailure::Semantic)?,
+                        needs,
+                        &mut rows,
+                    );
+                    let coverage = source.coverage().map_err(InvocationFailure::Semantic)?;
+                    let publication = inputs
+                        .publish(
+                            super::admission::ProducerRoot::Region(id),
+                            &self.partition,
+                            &[source],
+                            rows,
+                        )
+                        .map_err(InvocationFailure::Semantic)?
+                        .with_coverage(coverage)
+                        .with_coverage(completion.coverage(needs));
+                    if let Delivery::Forward(output) = delivery {
+                        inputs
+                            .replay(&publication, context, output)
+                            .map_err(InvocationFailure::Delivery)?;
+                    }
+                    return Ok(InvocationOutcome::Published(publication));
                 }
             }
             for action in program.actions() {
