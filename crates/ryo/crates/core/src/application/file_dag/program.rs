@@ -5,3 +5,5 @@ pub(super) mod kernel_session;
 mod partitions;
 pub(in crate::application) mod facade_runtime;
 pub(crate) mod facade;
+
+mod restored;

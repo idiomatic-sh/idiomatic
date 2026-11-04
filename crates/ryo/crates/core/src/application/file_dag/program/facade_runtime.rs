@@ -58,13 +58,31 @@ impl<'service> ProgramServices<'service> {
 
 /// A named project phase and its bound inputs must use the very same owner.
 pub(crate) struct PublicationScope {
+    program: Arc<crate::domain::executable_program::types::ExecutableProgram>,
     owner: Rc<RelationOwner>,
     execution: std::cell::OnceCell<ProgramExecution>,
     symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,
 }
 impl PublicationScope {
+    pub(super) fn program(
+        &self,
+    ) -> &Arc<crate::domain::executable_program::types::ExecutableProgram> {
+        &self.program
+    }
     pub(in crate::application::file_dag) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
+    }
+    pub(super) fn validate_query(
+        &self,
+        symbols: &ryo_language::domain::symbols::types::QuerySymbols<'_>,
+    ) -> Result<(), OperatingError> {
+        let expected = self.symbols.get().ok_or(OperatingError::NotRead)?;
+        if ryo_language::domain::symbols::service::query_has_transport_generation(symbols, expected)
+        {
+            Ok(())
+        } else {
+            Err(OperatingError::NotRead)
+        }
     }
     fn claim_symbols(
         &self,
@@ -89,6 +107,7 @@ pub(crate) fn publication_owner(
     services: &ProgramServices<'_>,
 ) -> Result<PublicationScope, OperatingError> {
     Ok(PublicationScope {
+        program: Arc::clone(program.program()),
         owner: open_program_owner(program.program(), Arc::clone(services.derived())),
         execution: std::cell::OnceCell::new(),
         symbols: std::cell::OnceCell::new(),
