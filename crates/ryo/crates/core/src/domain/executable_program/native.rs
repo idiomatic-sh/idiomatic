@@ -42,6 +42,12 @@ pub(super) fn install(program: &mut ExecutableProgram, shapes: Vec<Option<Arc<Lo
         ) {
             continue;
         }
+        // Legacy native lowering interprets an empty projection as identity;
+        // the registered Project contract instead produces zero-column rows.
+        if matches!(&instruction.operation, ryo_values::domain::plans::types::Operation::Project { columns, .. } if columns.is_empty())
+        {
+            continue;
+        }
         let LogicalInstruction(logical) = instruction.logical;
         region.native_positions = shapes.get(logical).and_then(Clone::clone);
     }

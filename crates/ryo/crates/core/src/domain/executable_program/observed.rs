@@ -66,6 +66,7 @@ pub(super) fn compile_unions(
                         ordered_existence: None,
                         column: None,
                         selection: None,
+            native_positions: None,
                         publishes: true,
                         instructions: vec![Instruction {
                             logical,

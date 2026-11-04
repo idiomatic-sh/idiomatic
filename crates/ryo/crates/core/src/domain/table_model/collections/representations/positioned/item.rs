@@ -2,14 +2,17 @@
 use super::super::{interface::RepresentationsItem, types::*};
 use crate::domain::{operating::errors::OperatingError, table_model::types::PositionedRows};
 use ryo_relations::domain::relations::types::{Position, Value};
-use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
+use ryo_values::domain::{
+    plan_parts::types::ColumnIndex,
+    rows::types::{RowCount, RowIndex},
+};
 pub(crate) struct PositionedItem;
-fn count(view: PositionedRows<'_>) -> Result<usize, OperatingError> {
+fn count(view: PositionedRows<'_>) -> Result<RowCount, OperatingError> {
     let width = view.positions.width.0;
     if width == 0 || width != view.shape.width.0 || view.positions.slots.0.len() % width != 0 {
         return Err(OperatingError::ShapeMismatch);
     }
-    Ok(view.positions.slots.0.len() / width)
+    Ok(RowCount(view.positions.slots.0.len() / width))
 }
 impl RepresentationsItem for PositionedItem {
     fn prepare<'f>(
@@ -23,7 +26,7 @@ impl RepresentationsItem for PositionedItem {
             input,
             kind: RepresentationKind::Positioned,
             kinds: view.kinds,
-            rows: count(view)?,
+            rows: count(view)?.0,
             metadata: Ok(()),
         })
     }
@@ -52,8 +55,8 @@ impl RepresentationsItem for PositionedItem {
             return Err(OperatingError::ShapeMismatch);
         }
         let tree = RepresentationInput::Tree(view.tree);
-        let source = super::super::service::registered(RepresentationKind::Tree).prepare(tree)?;
-        super::super::service::registered(RepresentationKind::Tree).inspect(&source)?;
+        let source = super::super::tree::item::TreeItem.prepare(tree)?;
+        super::super::tree::item::TreeItem.inspect(&source)?;
         Ok(PhysicalShape::Complete)
     }
     fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
@@ -75,7 +78,7 @@ impl RepresentationsItem for PositionedItem {
         let Some(column) = view.shape.columns.get(column.0 as usize) else {
             return Ok(CellRead::MissingPhysical);
         };
-        if row.0 >= count(view)? || column.slot.0 >= view.positions.width.0 {
+        if row.0 >= count(view)?.0 || column.slot.0 >= view.positions.width.0 {
             return Ok(CellRead::MissingPhysical);
         }
         let offset = row
@@ -117,7 +120,7 @@ impl RepresentationsItem for PositionedItem {
         let RepresentationInput::Positioned(view) = input else {
             return Err(OperatingError::WrongOperation);
         };
-        if row.0 >= count(view)? {
+        if row.0 >= count(view)?.0 {
             return Ok(RowRead::MissingPhysical);
         }
         if decode.len() < view.kinds.len() || view.shape.columns.len() != view.kinds.len() {
