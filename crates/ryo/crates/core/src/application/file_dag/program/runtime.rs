@@ -96,7 +96,7 @@ impl ProgramExecution {
         owner: std::rc::Rc<super::super::relations::RelationOwner>,
     ) -> Self {
         let slots = program
-            .regions
+            .regions()
             .iter()
             .map(|region| Slot {
                 state: State::Dormant,
@@ -128,7 +128,7 @@ impl ProgramExecution {
     ) -> Result<super::facade::LogicalCounts, OperatingError> {
         let rule = self
             .program
-            .rules
+            .rules()
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?;
         let slots = self.slots.borrow();
@@ -137,12 +137,12 @@ impl ProgramExecution {
             let origin = origin.as_ref().map_err(Clone::clone)?;
             let region_id = *self
                 .program
-                .logical_regions
+                .logical_regions()
                 .get(origin.logical.0)
                 .ok_or(OperatingError::NotRun)?;
             let code = self
                 .program
-                .regions
+                .regions()
                 .get(region_id.0)
                 .ok_or(OperatingError::NotRun)?;
             let at = code
@@ -188,7 +188,7 @@ impl ProgramExecution {
                 cancel
             };
             if dependencies {
-                pending.extend(self.program.regions[id.0].dependencies.iter().copied());
+                pending.extend(self.program.regions()[id.0].dependencies.iter().copied());
             }
         }
         Ok(())
@@ -202,7 +202,7 @@ impl ProgramExecution {
             }
             slot.dependencies_consumed = true;
         }
-        for producer in self.program.regions[id.0].dependencies.iter() {
+        for producer in self.program.regions()[id.0].dependencies.iter() {
             self.retire(*producer)?;
         }
         Ok(())
@@ -224,7 +224,7 @@ impl ProgramExecution {
     ) -> Result<InvocationOutcome, OperatingError> {
         let region = self
             .program
-            .regions
+            .regions()
             .get(id.0)
             .ok_or(OperatingError::NotRun)?;
         let producer_policy = completion.for_rule(region.producer);

@@ -231,7 +231,7 @@ impl<'scope> KernelPermit<'scope> {
         }
         let code = execution
             .program
-            .regions
+            .regions()
             .get(region.0)
             .ok_or(OperatingError::NotRun)?;
         if code.instructions.is_empty() {
@@ -286,7 +286,7 @@ impl<'scope> KernelPermit<'scope> {
         &self,
         at: usize,
     ) -> Result<Self, OperatingError> {
-        self.program.regions[self.region.0]
+        self.program.regions()[self.region.0]
             .instructions
             .get(at)
             .ok_or(OperatingError::NotRun)?;
@@ -298,12 +298,12 @@ impl<'scope> KernelPermit<'scope> {
         })
     }
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
-        self.program.regions[self.region.0].instructions[self.instruction]
+        self.program.regions()[self.region.0].instructions[self.instruction]
             .contract
             .kind
     }
     pub(crate) fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
-        &self.program.regions[self.region.0].instructions[self.instruction].operation
+        &self.program.regions()[self.region.0].instructions[self.instruction].operation
     }
 }
 
@@ -439,7 +439,7 @@ pub(super) fn alias_observation(
     owner: &Rc<RelationOwner>,
 ) -> Result<AdmittedInput, OperatingError> {
     let root = *program
-        .observation_regions
+        .observation_regions()
         .get(slot)
         .ok_or(OperatingError::NotRun)?
         .as_ref()

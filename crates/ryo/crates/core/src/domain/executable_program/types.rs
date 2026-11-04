@@ -120,12 +120,26 @@ pub(crate) struct RuleProgram {
 /// There is no retained RequestGraph, PhysicalRegion, PlanLayout or per-plan evaluator here.
 #[derive(Debug)]
 pub(crate) struct ExecutableProgram {
-    pub regions: Box<[Region]>,
-    pub rules: Box<[RuleProgram]>,
-    pub logical_regions: Box<[RegionId]>,
-    pub observation_regions: Box<[Result<RegionId, OperatingError>]>,
-    pub original_instruction_count: usize,
-    pub fused_instruction_count: usize,
+    pub(super) regions: Box<[Region]>,
+    pub(super) rules: Box<[RuleProgram]>,
+    pub(super) logical_regions: Box<[RegionId]>,
+    pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
+    pub(super) original_instruction_count: usize,
+    pub(super) fused_instruction_count: usize,
+}
+impl ExecutableProgram {
+    pub(crate) fn regions(&self) -> &[Region] {
+        &self.regions
+    }
+    pub(crate) fn rules(&self) -> &[RuleProgram] {
+        &self.rules
+    }
+    pub(crate) fn logical_regions(&self) -> &[RegionId] {
+        &self.logical_regions
+    }
+    pub(crate) fn observation_regions(&self) -> &[Result<RegionId, OperatingError>] {
+        &self.observation_regions
+    }
 }
 impl DemandProgram {
     pub(crate) fn actions(&self) -> &[DemandAction] {

@@ -25,14 +25,14 @@ impl PreparedDerived {
         program: &ExecutableProgram,
         prepared: &RequestOperators,
     ) -> Result<Self, OperatingError> {
-        if prepared.selection_plans.len() != program.rules.len() {
+        if prepared.selection_plans.len() != program.rules().len() {
             return Err(OperatingError::NotRun);
         }
         let mut selectors = Vec::new();
-        let mut relations = Vec::with_capacity(program.rules.len());
-        let mut graph_rules = Vec::with_capacity(program.rules.len());
+        let mut relations = Vec::with_capacity(program.rules().len());
+        let mut graph_rules = Vec::with_capacity(program.rules().len());
         for (rule, (mapping, selected)) in program
-            .rules
+            .rules()
             .iter()
             .zip(prepared.selection_plans.iter())
             .enumerate()
@@ -47,11 +47,11 @@ impl PreparedDerived {
                     continue;
                 };
                 let region_id = *program
-                    .logical_regions
+                    .logical_regions()
                     .get(origin.logical.0)
                     .ok_or(OperatingError::NotRun)?;
                 let region = program
-                    .regions
+                    .regions()
                     .get(region_id.0)
                     .ok_or(OperatingError::NotRun)?;
                 if region.phase != ryo_values::domain::plans::types::StepScope::PerFile {

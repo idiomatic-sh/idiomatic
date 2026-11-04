@@ -1,17 +1,8 @@
 //! Explicit outer scope creation over one required request schedule. Inner
 //! operators/observation adapters receive its executor; they cannot mint owners.
 use super::relations::RelationOwner;
-use crate::domain::{
-    executable_program::types::ExecutableProgram, operating::errors::OperatingError,
-};
-use ryo_relations::domain::relations::types::FileId;
 use std::{rc::Rc, sync::Arc};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ScopePhase {
-    File(FileId),
-    Project,
-}
 /// A permit's private field prevents unrelated application code from creating a
 /// RelationOwner directly. Only this cohesive outer scope constructor mints it.
 pub(super) struct ScopePermit {
@@ -21,42 +12,6 @@ pub(super) struct ScopePermit {
 impl ScopePermit {
     pub(super) fn fixture() -> Self {
         Self { _private: () }
-    }
-}
-
-pub(crate) struct ExecutionScope {
-    program: Arc<ExecutableProgram>,
-    phase: ScopePhase,
-    owner: Rc<RelationOwner>,
-}
-impl ExecutionScope {
-    pub(crate) fn new(
-        program: Arc<ExecutableProgram>,
-        phase: ScopePhase,
-        stable_population: bool,
-        derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
-    ) -> Result<Self, OperatingError> {
-        let owner = Rc::new(RelationOwner::for_scope(
-            ScopePermit { _private: () },
-            stable_population,
-            program
-                .regions
-                .len()
-                .saturating_add(ryo_relations::domain::relations::service::all().len())
-                .saturating_add(1),
-            derived,
-        ));
-        Ok(Self {
-            program,
-            phase,
-            owner,
-        })
-    }
-    pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
-        &self.owner
-    }
-    pub(crate) fn program(&self) -> &Arc<ExecutableProgram> {
-        &self.program
     }
 }
 
@@ -70,41 +25,6 @@ pub(crate) enum ScopePartials<'a> {
         publication: &'a crate::domain::coverage::types::Partials,
     },
 }
-impl ExecutionScope {
-    pub(crate) fn completion<'a>(
-        &self,
-        rule: crate::domain::coverage::types::RuleIndex,
-        partials: ScopePartials<'a>,
-    ) -> Result<super::completion::CompletionPolicy, OperatingError> {
-        match (self.phase, partials) {
-            (
-                ScopePhase::File(file),
-                ScopePartials::File {
-                    evaluation,
-                    publication,
-                },
-            ) => Ok(super::completion::CompletionPolicy::file_inputs(
-                rule,
-                file,
-                evaluation,
-                publication,
-            )),
-            (
-                ScopePhase::Project,
-                ScopePartials::Project {
-                    evaluation,
-                    publication,
-                },
-            ) => Ok(super::completion::CompletionPolicy::project_inputs(
-                rule,
-                evaluation,
-                publication,
-            )),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-}
-
 /// The one outer owner factory. Kernels have no way to acquire this permit.
 pub(in crate::application::file_dag) fn open_program_owner(
     program: &Arc<crate::domain::executable_program::types::ExecutableProgram>,
@@ -114,7 +34,7 @@ pub(in crate::application::file_dag) fn open_program_owner(
         ScopePermit { _private: () },
         true,
         program
-            .regions
+            .regions()
             .len()
             .saturating_add(ryo_relations::domain::relations::service::all().len())
             .saturating_add(1),

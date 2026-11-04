@@ -491,7 +491,7 @@ pub(crate) fn prepare(
                 .map(Vec::into_boxed_slice)
                 .ok_or(OperatingError::NotRun),
             emit_root: program
-                .rules
+                .rules()
                 .get(rule)
                 .ok_or(OperatingError::NotRun)?
                 .emit
@@ -520,7 +520,7 @@ pub(crate) fn prepare(
     }
     let matchers = Arc::new(
         crate::domain::matching::types::prepared::value::PreparedMatchers::from_operations(
-            program.regions.iter().flat_map(|region| {
+            program.regions().iter().flat_map(|region| {
                 region
                     .instructions
                     .iter()
@@ -551,14 +551,14 @@ fn source(
         Input::Relation(relation) => Ok(InputSource::Relation(relation)),
         Input::Step(StepId(step)) => {
             let origin = program
-                .rules
+                .rules()
                 .get(rule)
                 .and_then(|rule| rule.original_steps.get(step as usize))
                 .ok_or(OperatingError::NotRun)?
                 .as_ref()
                 .map_err(Clone::clone)?;
             program
-                .logical_regions
+                .logical_regions()
                 .get(origin.logical.0)
                 .copied()
                 .map(InputSource::Region)
