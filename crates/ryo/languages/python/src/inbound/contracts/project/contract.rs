@@ -276,7 +276,7 @@ impl Project for ProjectContract {
             refused,
             unlisted: Vec::new(),
             consulted,
-            observed_entries: request.observed_entries.clone(),
+            observed_entries: request.observed_entries.receipt(),
             derived,
         })
     }

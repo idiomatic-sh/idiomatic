@@ -870,7 +870,7 @@ impl LintUseCaseImpl {
             repository: run.request.session.repository,
             search_scope: &run.request.session.search_scope,
             given_inventory: &run.request.session.given_inventory,
-            observed_entries: &[],
+            observed_entries: &Default::default(),
             manifests: run.manifests,
             files: &listing.files,
             notes: &notes,

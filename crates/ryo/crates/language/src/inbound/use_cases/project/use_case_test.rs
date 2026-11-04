@@ -36,7 +36,7 @@ impl ProjectUseCase for Broken {
     fn project_entries(
         &self,
         _request: &ProjectRequest,
-    ) -> Vec<ryo_language::domain::files::types::FilePath> {
+    ) -> Vec<crate::domain::files::types::FilePath> {
         Vec::new()
     }
 
@@ -87,7 +87,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let request = ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         repository: crate::inbound::use_cases::project::types::Repository::Disk,
         root: RootPath(".".into()),
         manifests: Vec::new(),

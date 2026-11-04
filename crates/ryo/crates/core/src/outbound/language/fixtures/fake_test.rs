@@ -72,7 +72,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let input = ProjectInput {
                 search_scope: &Default::default(),
                 given_inventory: &Default::default(),
-                observed_entries: &[],
+                observed_entries: &Default::default(),
                 repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
                 root: &root,
                 manifests: &manifests,

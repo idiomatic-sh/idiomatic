@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -186,4 +187,8 @@ let supp_block_or_file_hidden = union(left=supp_block_hidden, right=supp_file_hi
 let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_hidden);
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
 let violations = select id, file, span from supp_after_ranges;
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:UP005|U005)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP005)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "UP005"});
+observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

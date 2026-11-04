@@ -47,7 +47,7 @@
 | 23b. Source and derived symbols | `ryo-language` + `ryo-core` | — | — | ☑ | ☑ | ☑ | Engine owns symbol storage; providers supply source-name meaning. |
 | 24. Keyed semantic rendering | `ryo-language` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Current SIM source has typed requests; close answer admission, per-rule incompleteness and lifetime. |
 | 25. Source identity and read outcomes | `ryo-values` + `ryo-core` | ☐ | ☐ | ☐ | ☐ | ☐ | Unify generation, digest, re-read and stored snapshot decisions. |
-| 26. Persistent lint store | `ryo-core` + SDK adapter | ☑ | ☑ | ☑ | ☐ | ☐ | Adapter still owns framing and file handles; preserve partial and unread records. |
+| 26. Persistent lint store | `ryo-core` + SDK adapter | ☑ | ☑ | ☐ | ☐ | ☐ | Build/explicit-format changes reject old stores. N2 adds a safe combined-trailer version bump; automatic catalog-schema invalidation remains open. Adapter framing, file handles, partial and unread records still need closure. |
 | 27. Typed facts spill | `ryo-core` + facts adapter | ☐ | ☐ | ☐ | ☐ | ☐ | Engine owns spill admission and release; adapter owns external handles. |
 | 28. Memory budget and admission | `ryo-core` + memory adapter | ☐ | ☐ | ☐ | ☐ | ☐ | Prove one budget and refusal authority across all resource families. |
 | 29. Reporting and rows out | `ryo-core` + rows adapter | ☐ | — | ☐ | ☐ | ☐ | Preserve heading, row and summary order; prove output-handle release separately. |

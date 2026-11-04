@@ -6,7 +6,7 @@ fn request(repository: Repository, files: &[&str]) -> ProjectRequest {
     ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         root: RootPath("invalid\0disk-root".into()),
         repository,
         manifests: vec![],

@@ -109,7 +109,7 @@ pub(crate) fn request(
     languages::ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath(Box::default()),
         manifests: files

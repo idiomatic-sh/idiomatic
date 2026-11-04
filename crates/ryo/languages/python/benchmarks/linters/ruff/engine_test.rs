@@ -1261,6 +1261,8 @@ mod future_directives;
 
 mod project_inputs;
 
+mod i001_observation;
+
 #[test]
 fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Result<(), Error> {
     use ryo::linter::{
@@ -1341,45 +1343,70 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
 }
 
 #[test]
-fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay()
--> Result<(), Error> {
+fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay() {
     use ryo::linter::{
-        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
-        ObservationKind, ObservationName, ObservationProducer, RuleId,
+        Cache, CaseSource, Corpus, ExecutablePermission, GivenProjectInventory, Glob, LintRequest,
+        Linter, MemoryBudget, ObservationBinding, ObservationBindingName, ObservationColumn,
+        ObservationColumnName, ObservationKind, ObservationName, ObservationProducer,
+        ProjectEntryObservation, ProjectEntryState, ProjectInventoryCompleteness,
+        ProjectSearchScope, RelativePath, Rule, RuleApplicability, RuleId, SourceText, WorkerPool,
+        Workers, lint_with,
     };
-    let root = tempfile::tempdir()?;
-    let rules = root.path().join("rules");
+    let root = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
     let authored = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("benchmarks/linters/ruff/rules/I001/query.ryoql"),
-    )?;
-    let producer_query = authored.replace(
-        "emit problems9 subject file key(span);",
-        "observe import_nodes as used; emit problems9 subject file key(span);",
+    )
+    .unwrap();
+    let emission = authored.rfind("emit ").expect("actual I001 emission");
+    let producer_query = format!(
+        "{}let known_imports = select r.id as id, r.file as file, r.span as span from first_party_aliases as l join import_nodes as r on l.file = r.file; observe import_nodes as independent_imports; observe known_imports as namespace_imports; {}",
+        &authored[..emission],
+        &authored[emission..]
     );
-    for (id, query) in [
-        (
-            "CONSUMER",
-            "let found = select id, file, span from published; emit found subject file key(id);",
-        ),
-        ("I001", producer_query.as_str()),
-    ] {
-        std::fs::create_dir_all(rules.join(id))?;
-        std::fs::write(rules.join(id).join("query.ryoql"), query)?;
-    }
-    std::fs::write(
-        root.path().join("case.py"),
-        "import local\nimport unresolved\n",
-    )?;
-    let consumer = RuleId::try_from("CONSUMER").unwrap();
+    let profile: toml::Value = toml::from_str(
+        &std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("benchmarks/linters/ruff/benchmark.toml"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let modules = profile["query-modules"]
+        .as_table()
+        .unwrap()
+        .iter()
+        .map(|(name, path)| {
+            ryo::query::QueryModuleSource::try_new(
+                name,
+                &std::fs::read_to_string(
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("benchmarks/linters/ruff")
+                        .join(path.as_str().unwrap()),
+                )
+                .unwrap(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
     let producer = RuleId::try_from("I001").unwrap();
-    let request = WorkerRequest {
-        performance: Default::default(),
-        selected_rules: Some(vec![consumer.clone()]),
-        rule_observations: Some(BTreeMap::from([(
-            consumer.clone(),
+    let independent = RuleId::try_from("INDEPENDENT").unwrap();
+    let dependent = RuleId::try_from("DEPENDENT").unwrap();
+    let rule = |query: &str, observations| Rule {
+        query: ryo::query::RyoQlQuery::with_modules("test/readiness", query, modules.clone())
+            .unwrap(),
+        observations,
+        applicability: RuleApplicability::Always,
+        parameters: BTreeMap::new(),
+        include: Vec::new(),
+        exclude: Vec::new(),
+    };
+    let consumer = |output: &str| {
+        rule(
+            "let found = select id, file, span from incoming; emit found subject file key(id);",
             vec![ObservationBinding {
-                name: ObservationBindingName("published".into()),
+                name: ObservationBindingName("incoming".into()),
                 columns: vec![
                     ObservationColumn {
                         name: ObservationColumnName("id".into()),
@@ -1395,63 +1422,97 @@ fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay
                     },
                 ],
                 producers: vec![ObservationProducer::Output {
-                    rule: producer,
-                    output: ObservationName("used".into()),
+                    rule: producer.clone(),
+                    output: ObservationName(output.into()),
                 }],
             }],
-        )])),
-        rule_context: None,
-        project_search_roots: None,
-        given_project_inventory: Default::default(),
-        project_context_mode: Default::default(),
-        context_manifest: None,
-        root: root.path().into(),
-        rules,
-        query_modules: BTreeMap::new(),
-        rule_applicability: BTreeMap::new(),
-        parser_configuration: Some("python-target=3.10".into()),
-        source_language: None,
-        files: vec![ryo::linter::RelativePath("case.py".into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
-            root.path().join("cache"),
-        ),
+        )
     };
-    let engine = factory::local(python_310(), None);
-    let mut request = request;
-    request.project_search_roots = Some(vec![ryo::linter::RelativePath("".into())]);
-    request.given_project_inventory.entries = vec![ryo::linter::ProjectEntryObservation {
-        path: ryo::linter::RelativePath("local.py".into()),
-        state: ryo::linter::ProjectEntryState::File,
-    }];
+    let mut producing = rule(&producer_query, Vec::new());
+    producing.exclude.push(Glob::try_from("**").unwrap());
+    let mut request = LintRequest {
+        source_language: None,
+        root: root.path().into(),
+        project_search_scope: ProjectSearchScope::Declared(vec![RelativePath("".into())]),
+        given_project_inventory: GivenProjectInventory {
+            entries: vec![ProjectEntryObservation {
+                path: RelativePath("local.py".into()),
+                state: ProjectEntryState::File,
+            }],
+            completeness: ProjectInventoryCompleteness::Partial,
+        },
+        corpus: Corpus::Given(vec![CaseSource {
+            path: RelativePath("case.py".into()),
+            text: SourceText("import local\nimport unresolved\n".into()),
+            executable: ExecutablePermission::Unknown,
+        }]),
+        rules: BTreeMap::from([
+            (independent.clone(), consumer("independent_imports")),
+            (dependent.clone(), consumer("namespace_imports")),
+            (producer.clone(), producing),
+        ]),
+        files: Vec::new(),
+        beside: Vec::new(),
+        hosted: Vec::new(),
+    };
+    let engine = |cache| {
+        Linter::new(
+            python_310(),
+            WorkerPool::from(Workers(std::num::NonZeroUsize::MIN)),
+            MemoryBudget::Machine,
+            cache,
+        )
+    };
+    let cached = engine(Cache::At(store.path().into()));
     for complete in [true, true, false, false, true] {
         request.given_project_inventory.completeness = if complete {
-            ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+            ProjectInventoryCompleteness::CompleteWithinDeclaredScope
         } else {
-            ryo::linter::ProjectInventoryCompleteness::Partial
+            ProjectInventoryCompleteness::Partial
         };
-        let answer = engine.run_prepared(request.clone());
-        if complete {
-            let report = answer?;
-            assert_eq!(report.diagnostics.len(), 2);
-            assert!(
-                report
-                    .diagnostics
-                    .iter()
-                    .all(|finding| finding.rule == consumer)
-            );
-        } else {
-            match answer {
-                Err(Error::Invalid(message)) => assert!(
-                    message.contains("incomplete candidate")
-                        && message.contains("CONSUMER")
-                        && !message.contains("unknown_count=0;"),
-                    "expected actual consumer Unknown, got {message}"
-                ),
-                other => panic!(
-                    "mixed known/Unknown project input cannot certify publication: {other:?}"
-                ),
-            }
-        }
+        let fresh = lint_with(&engine(Cache::None), request.clone()).unwrap();
+        let actual = lint_with(&cached, request.clone()).unwrap();
+        assert_eq!(
+            actual, fresh,
+            "persisted readiness must agree with a fresh evaluation"
+        );
+        assert_eq!(
+            actual
+                .findings
+                .iter()
+                .filter(|finding| finding.rule == independent)
+                .count(),
+            2,
+            "independent import root remains known"
+        );
+        assert!(
+            !actual
+                .unknowns
+                .iter()
+                .any(|unknown| unknown.rule == independent)
+        );
+        assert_eq!(
+            actual
+                .findings
+                .iter()
+                .filter(|finding| finding.rule == dependent)
+                .count(),
+            if complete { 2 } else { 0 }
+        );
+        assert_eq!(
+            actual
+                .unknowns
+                .iter()
+                .any(|unknown| unknown.rule == dependent),
+            !complete,
+            "filtered positive namespace rows do not erase the missing physical population"
+        );
+        assert!(
+            !actual
+                .findings
+                .iter()
+                .any(|finding| finding.rule == producer),
+            "excluded Emit does not suppress demanded roots"
+        );
     }
-    Ok(())
 }

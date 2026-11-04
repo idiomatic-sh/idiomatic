@@ -333,7 +333,7 @@ impl Project for ProjectContract {
             .any(|manifest| *name_of(&RepoPath(manifest.path.0.clone())).0 == *MANIFEST)
         {
             return Ok(Resolved {
-                observed_entries: request.observed_entries.clone(),
+                observed_entries: request.observed_entries.receipt(),
                 refused: Vec::new(),
                 unlisted: Vec::new(),
                 consulted: Vec::new(),
@@ -383,7 +383,7 @@ impl Project for ProjectContract {
             .collect();
         derived.packages = Some(packages);
         Ok(Resolved {
-            observed_entries: request.observed_entries.clone(),
+            observed_entries: request.observed_entries.receipt(),
             refused,
             unlisted,
             consulted,

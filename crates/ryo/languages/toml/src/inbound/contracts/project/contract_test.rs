@@ -24,7 +24,7 @@ fn subject((): Input) -> Result<Value, Failure> {
     let resolved = contract.resolve(&languages::ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath("".into()),
         manifests: Vec::new(),

@@ -35,7 +35,9 @@ impl ProjectUseCase for ProjectUseCaseImpl {
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved, ProjectError> {
         Ok(Resolved {
-            observed_entries: request.observed_entries.clone(),
+            observed_entries: crate::domain::project_context::service::receipt(
+                &request.observed_entries,
+            ),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),

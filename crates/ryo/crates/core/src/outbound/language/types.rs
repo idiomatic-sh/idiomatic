@@ -112,7 +112,7 @@ pub struct ProjectInput<'a> {
     /// Host inventory authority for Given requests.
     pub given_inventory: &'a ryo_language::domain::project_context::types::GivenProjectInventory,
     /// Entry states acquired once by the engine for the demanded candidates.
-    pub observed_entries: &'a [ryo_language::domain::project_context::types::EntryObservation],
+    pub observed_entries: &'a ryo_language::domain::project_context::types::ObservedEntries,
     /// The manifests of the repository.
     pub manifests: &'a [ManifestFile],
     /// Every file the run lists, by path, in the order of their places.

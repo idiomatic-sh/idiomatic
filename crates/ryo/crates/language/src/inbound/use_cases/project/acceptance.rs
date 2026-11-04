@@ -28,7 +28,7 @@ fn runs(world: &mut Behavior) {
         &ProjectRequest {
             search_scope: Default::default(),
             given_inventory: Default::default(),
-            observed_entries: Vec::new(),
+            observed_entries: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(Box::default()),
             manifests: Vec::new(),

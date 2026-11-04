@@ -142,7 +142,7 @@ impl Project for ProjectContract {
             Linked::default()
         };
         Ok(Resolved {
-            observed_entries: request.observed_entries.clone(),
+            observed_entries: request.observed_entries.receipt(),
             refused,
             unlisted: Vec::new(),
             consulted: Vec::new(),

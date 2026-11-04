@@ -2,7 +2,7 @@
 use crate::domain::links::types::Linked;
 use crate::domain::project_namespace::{
     constants,
-    types::{MembershipState, NamespaceMemberships},
+    types::{EntryKind, MembershipState, NamespaceMemberships},
 };
 use ryo::languages;
 
@@ -21,10 +21,18 @@ ryo::reads! {
             row {
                 file: value(membership.file),
                 root: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&membership.root))),
+                path: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(&membership.path))),
                 membership: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(match membership.state {
                     MembershipState::Present => constants::PRESENT,
                     MembershipState::Absent => constants::ABSENT,
                     MembershipState::Unknown => constants::UNKNOWN,
+                }))),
+                kind: value(languages::intern_derived(symbols, languages::ByteSlice(&[]), languages::NameText(match membership.kind {
+                    EntryKind::Module => "module",
+                    EntryKind::Package => "package",
+                    EntryKind::Namespace => "namespace",
+                    EntryKind::Absent => "absent",
+                    EntryKind::Unknown => "unknown",
                 }))),
             }
         }

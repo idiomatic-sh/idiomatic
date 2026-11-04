@@ -1,3 +1,4 @@
+import observation_matches from "python/ruff/suppress-matches";
 let statements = select id from "semantic-syntax" where glob_any(kind, "{function-def,async-function-def,class-def,return,delete,assign,type-alias,aug-assign,ann-assign,for,async-for,while,if,with,async-with,match,raise,try,assert,import,import-from,global,nonlocal,expr,pass,break,continue}");
 let statement_ancestors = axis(from=statements, relation="semantic-child", direction=nearest-ancestor, domain=statements);
 let statement_edges = select related as parent, id as child from statement_ancestors;
@@ -195,4 +196,8 @@ let supp_range_hidden = union(left=supp_block_or_file_hidden, right=supp_ignore_
 let supp_after_ranges = antijoin(left=unsuppressed_files, right=supp_range_hidden, left-on=["id"], right-on=["id"]);
 let violations = select id, file, span from supp_after_ranges;
 let attributed = select l.id as id, r.handler as handler, l.file as file, l.span as span from violations as l join contributions as r on l.id = r.id;
+let ruf100_matches = observation_matches(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*TRY201(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:TRY201)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "TRY201"});
+observe ruf100_used as noqa_matches;
 emit attributed subject file key(id, handler);

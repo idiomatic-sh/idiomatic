@@ -1,4 +1,4 @@
-//! Whether an imported root belongs to the host-declared project search scope.
+//! Observed project entry kinds for the dotted prefixes of an absolute import.
 use super::super::interface::RelationsItem;
 use crate::domain::{relations::types::FileId, terms::types::Symbol};
 
@@ -13,7 +13,7 @@ macro_rules! project_namespace_membership {
     ($callback:path) => {
         $callback! {
             item ProjectNamespaceMembership,
-            row { /// One imported root's project membership.
+            row { /// One observed dotted prefix of an imported project path.
                 ProjectNamespaceMembershipRow },
             column { /// Namespace membership columns.
                 ProjectNamespaceMembershipColumn },
@@ -25,8 +25,12 @@ macro_rules! project_namespace_membership {
                 file File: FileId => File;
                 /// The first component of an absolute import.
                 root Root: Symbol => Symbol;
+                /// The dotted import path prefix observed beneath the declared search roots.
+                path Path: Symbol => Symbol;
                 /// Present, absent, or unknown within the declared project scope.
                 membership Membership: Symbol => Symbol;
+                /// Module, package, namespace, absent, or unknown observed at that prefix.
+                kind Kind: Symbol => Symbol;
             }
         }
     };

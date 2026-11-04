@@ -223,7 +223,9 @@ impl LanguagePort for LanguageFake {
         refuse_broken(input)?;
         Ok(ProjectAnswer {
             consulted: self.consulted.clone(),
-            observed_entries: input.observed_entries.to_vec(),
+            observed_entries: ryo_language::domain::project_context::service::receipt(
+                input.observed_entries,
+            ),
             ..ProjectAnswer::default()
         })
     }

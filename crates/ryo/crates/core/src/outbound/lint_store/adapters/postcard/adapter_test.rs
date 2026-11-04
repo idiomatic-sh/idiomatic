@@ -19,6 +19,8 @@ use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored};
 /// A question specific to this adapter.
 #[derive(Clone, Copy, Debug)]
 enum Question {
+    /// Old relation-layout stores are misses even when the caller build string is unchanged.
+    PriorSchemaStoreIsEmpty,
     /// What another build kept reads as nothing kept.
     AnotherBuildsStoreIsEmpty,
     /// Bytes that are not a store read as nothing kept.
@@ -56,6 +58,12 @@ type Failure = LintStoreError;
 
 /// The rows of what is specific to this adapter.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_prior_project_schema_store_is_a_safe_cache_miss"),
+        word: Word::Succeeds,
+        input: || Question::PriorSchemaStoreIsEmpty,
+        expect: Expect::Value(true),
+    },
     Case {
         name: CaseName("another_builds_store_reads_as_nothing_kept"),
         word: Word::Succeeds,
@@ -332,6 +340,23 @@ fn subject(question: Input) -> Result<Value, Failure> {
     let directory = root.path().join("cache");
     let store = store_in(&directory, "build-1");
     Ok(match question {
+        Question::PriorSchemaStoreIsEmpty => {
+            store.stored()?.keep(stored(1), &KeptRows::default())?;
+            let current = store.stored()?.tables() == tables(stored(1));
+            let file = directory.join(super::constants::FILE);
+            let bytes = std::fs::read(&file).expect("current store");
+            let body = bytes
+                .strip_suffix(super::constants::FORMAT)
+                .expect("checked current trailer");
+            let mut prior = body.to_vec();
+            prior.extend_from_slice(
+                b"ryo-lint-store\0permissions-v1\0observation-readiness-v2\0project-entries-v2\0",
+            );
+            std::fs::write(&file, prior).expect("prior schema store");
+            let missed = store.stored()?.tables() == Stored::default();
+            store.stored()?.keep(stored(1), &KeptRows::default())?;
+            current && missed && store.stored()?.tables() == tables(stored(1))
+        }
         Question::AnotherBuildsStoreIsEmpty => {
             store.stored()?.keep(stored(1), &KeptRows::default())?;
             store_in(&directory, "build-2").stored()?.tables() == Stored::default()

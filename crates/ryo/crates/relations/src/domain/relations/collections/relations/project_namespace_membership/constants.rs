@@ -8,7 +8,7 @@ pub fn name() -> &'static str {
 
 #[must_use]
 pub fn summary() -> &'static str {
-    "Whether an imported root is present under the host-declared ordered project search roots; an unknown row also makes the relation incomplete."
+    "Observed module, package, and namespace entry kinds for each imported dotted prefix under host-declared ordered project search roots; unknown rows make the relation incomplete."
 }
 
 #[must_use]
@@ -16,6 +16,8 @@ pub fn column_name(column: ProjectNamespaceMembershipColumn) -> &'static str {
     match column {
         ProjectNamespaceMembershipColumn::File => "file",
         ProjectNamespaceMembershipColumn::Root => "root",
+        ProjectNamespaceMembershipColumn::Path => "path",
         ProjectNamespaceMembershipColumn::Membership => "membership",
+        ProjectNamespaceMembershipColumn::Kind => "kind",
     }
 }

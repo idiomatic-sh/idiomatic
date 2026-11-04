@@ -390,7 +390,7 @@ fn subject(path: Input) -> Result<Value, Failure> {
     let input = ProjectInput {
         search_scope: &Default::default(),
         given_inventory: &Default::default(),
-        observed_entries: &[],
+        observed_entries: &Default::default(),
         repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
         root: &RootPath(".".into()),
         manifests: &[ManifestFile {
@@ -1934,7 +1934,7 @@ fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
         repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
         search_scope: &scope,
         given_inventory: &inventory,
-        observed_entries: &[],
+        observed_entries: &Default::default(),
         manifests: &[],
         files: &[],
         notes: &notes,

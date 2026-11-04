@@ -218,21 +218,22 @@ def projected_profile_observations(profile: dict[str, object], rules: list[str])
     policy = profile.get('rule-observation-selection', 'declared')
     if policy not in {'declared', 'selected'}:
         raise ValueError('unknown profile observation-selection policy')
-    declarations = copy.deepcopy(profile.get('rule-observations', {}))
+    declarations = profile.get('rule-observations', {})
     selected = set(rules)
-    if policy == 'selected':
-        for bindings in declarations.values():
-            for binding in bindings:
-                binding['producers'] = [producer for producer in binding['producers'] if producer['rule'] in selected]
-    found, pending = set(), list(rules)
+    pending = [rule for rule in rules if rule in declarations]
+    resolved = {}
     while pending:
         rule = pending.pop()
-        if rule in found:
+        if rule in resolved or rule not in declarations:
             continue
-        found.add(rule)
-        for binding in declarations.get(rule, []):
-            pending.extend(producer['rule'] for producer in binding['producers'] if producer['kind'] == 'output')
-    return {rule: bindings for rule, bindings in declarations.items() if rule in found}
+        bindings = copy.deepcopy(declarations[rule])
+        if policy == 'selected':
+            for binding in bindings:
+                binding['producers'] = [producer for producer in binding['producers'] if producer['rule'] in selected]
+        pending.extend(producer['rule'] for binding in bindings for producer in binding['producers'] if producer['kind'] == 'output' and producer['rule'] in declarations)
+        resolved[rule] = bindings
+    return resolved
+
 
 def canonical_run_ryo_settings(profile: dict[str, object], rules: list[str], phases: dict[str, object]) -> dict[str, object]:
     """Normalize a selected profile without silently ignoring new execution flags."""

@@ -1,5 +1,6 @@
 //! Plain project search authority and candidate observation data.
 use crate::domain::files::types::FilePath;
+use std::sync::Arc;
 
 /// The host's authority for resolving names within a project. An empty declared list proves no local root.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -38,6 +39,11 @@ pub struct EntryObservation {
     /// The observed kind or uncertainty.
     pub state: EntryState,
 }
+
+/// One immutable engine-owned batch of entry observations, sorted by exact path.
+/// Duplicate paths remain visible so a malformed batch cannot certify absence.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ObservedEntries(pub(crate) Arc<[EntryObservation]>);
 
 /// The distinct outcomes of an entry observation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

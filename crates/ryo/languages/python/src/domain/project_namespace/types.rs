@@ -5,6 +5,7 @@ use ryo::languages::FileId;
 pub(crate) struct ImportedRoot {
     pub file: FileId,
     pub root: Box<str>,
+    pub path: Box<str>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,11 +15,23 @@ pub(crate) enum MembershipState {
     Unknown,
 }
 
+/// The observed Python entry at an imported dotted path, independent of sort policy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EntryKind {
+    Module,
+    Package,
+    Namespace,
+    Absent,
+    Unknown,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Membership {
     pub file: FileId,
     pub root: Box<str>,
+    pub path: Box<str>,
     pub state: MembershipState,
+    pub kind: EntryKind,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

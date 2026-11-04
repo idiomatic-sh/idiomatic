@@ -133,7 +133,7 @@ pub(super) fn manifest_rows(
         let request = ProjectRequest {
             search_scope: Default::default(),
             given_inventory: Default::default(),
-            observed_entries: Vec::new(),
+            observed_entries: Default::default(),
             repository: crate::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(root.to_string_lossy().into()),
             manifests,

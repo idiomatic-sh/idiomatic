@@ -119,7 +119,7 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
     let resolved = contract.resolve(&languages::ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath("".into()),
         manifests: files
@@ -175,7 +175,7 @@ fn primary_metadata_rejection_keeps_real_dependency_projection() {
     let request = languages::ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Given,
         root: languages::RootPath("".into()),
         files: vec![languages::FilePath("pyproject.toml".into())],
@@ -230,7 +230,7 @@ fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
     let mut request = languages::ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Given,
         root: languages::RootPath("".into()),
         files: vec![languages::FilePath("pyproject.toml".into())],
@@ -366,7 +366,7 @@ fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
     let request = languages::ProjectRequest {
         search_scope: Default::default(),
         given_inventory: Default::default(),
-        observed_entries: Vec::new(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Given,
         root: languages::RootPath("project".into()),
         files: vec![languages::FilePath("module.py".into())],

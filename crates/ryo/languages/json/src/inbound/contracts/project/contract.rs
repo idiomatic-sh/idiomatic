@@ -38,7 +38,7 @@ impl Project for ProjectContract {
 
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
-            observed_entries: request.observed_entries.clone(),
+            observed_entries: request.observed_entries.receipt(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),

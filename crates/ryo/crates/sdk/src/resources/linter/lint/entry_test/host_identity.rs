@@ -25,6 +25,11 @@ fn changed_hosted_text_invalidates_retained_cross_file_findings() {
     };
     let request = |first: &str, second: &str| {
         LintRequest {
+            project_search_scope: super::super::types::ProjectSearchScope::Undeclared,
+            given_project_inventory: super::super::types::GivenProjectInventory {
+                entries: Vec::new(),
+                completeness: super::super::types::ProjectInventoryCompleteness::Partial,
+            },
         source_language: None, root: root.path().to_owned(), files: vec![], beside: vec![],
         corpus: Corpus::Listed(vec![RelativePath("case.txt".into())]),
         rules: BTreeMap::from([(RuleId::try_from("host-check").unwrap(), Rule {

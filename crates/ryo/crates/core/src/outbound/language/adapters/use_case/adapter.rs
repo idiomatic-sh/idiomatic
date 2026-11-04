@@ -36,7 +36,7 @@ fn project_request(input: &ProjectInput<'_>, number: usize) -> ProjectRequest {
         repository: input.repository,
         search_scope: input.search_scope.clone(),
         given_inventory: input.given_inventory.clone(),
-        observed_entries: input.observed_entries.to_vec(),
+        observed_entries: input.observed_entries.clone(),
         manifests: input.manifests.to_vec(),
         files: input
             .files
@@ -303,7 +303,11 @@ impl LanguagePort for LanguageUseCaseAdapter {
                 .map_err(|error| LanguageError::Manifest {
                     reason: error.to_string(),
                 })?;
-            if bytes.observed_entries != request.observed_entries {
+            if bytes.observed_entries.as_slice()
+                != ryo_language::domain::project_context::service::entries(
+                    &request.observed_entries,
+                )
+            {
                 return Err(LanguageError::Manifest {
                     reason: "project observation receipt differs from the engine's batch"
                         .to_owned(),
@@ -335,7 +339,9 @@ impl LanguagePort for LanguageUseCaseAdapter {
             refused,
             unlisted,
             consulted,
-            observed_entries: input.observed_entries.to_vec(),
+            observed_entries: ryo_language::domain::project_context::service::receipt(
+                input.observed_entries,
+            ),
         })
     }
 }

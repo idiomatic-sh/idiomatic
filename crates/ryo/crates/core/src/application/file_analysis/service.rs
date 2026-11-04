@@ -1545,17 +1545,21 @@ impl FileAnalysis {
         let mut candidates = self.language.project_entries(input);
         candidates.sort_unstable();
         candidates.dedup();
-        let observed_entries: Vec<_> = candidates
-            .iter()
-            .map(|path| self.corpus.observe_entry(path))
-            .collect();
+        let observed_entries = ryo_language::domain::project_context::service::observed(
+            candidates
+                .iter()
+                .map(|path| self.corpus.observe_entry(path))
+                .collect(),
+        );
         let input = ProjectInput {
             observed_entries: &observed_entries,
             ..*input
         };
         let mut writer = facts.columns_mut()?;
         let answer = self.language.project(&input, symbols, &mut writer)?;
-        if answer.observed_entries != observed_entries {
+        if answer.observed_entries.as_slice()
+            != ryo_language::domain::project_context::service::entries(&observed_entries)
+        {
             return Err(FileAnalysisError::ProjectObservationMismatch);
         }
         let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
@@ -1572,7 +1576,9 @@ impl FileAnalysis {
                 })
                 .collect(),
             unlisted: answer.unlisted,
-            observed_entries,
+            observed_entries: ryo_language::domain::project_context::service::receipt(
+                &observed_entries,
+            ),
             ..Projected::default()
         };
         self.consulted(&answer.consulted, &mut projected)?;

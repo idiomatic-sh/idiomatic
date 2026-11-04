@@ -4,7 +4,7 @@
 use super::errors::ProjectError;
 use crate::domain::files::types::FilePath;
 use crate::domain::project_context::types::{
-    EntryObservation, GivenProjectInventory, ProjectSearchScope,
+    EntryObservation, GivenProjectInventory, ObservedEntries, ProjectSearchScope,
 };
 use crate::domain::reasons::types::ToolMessage;
 use crate::domain::symbols::types::Symbols;
@@ -26,7 +26,7 @@ pub struct ProjectRequest {
     /// Entries explicitly supplied for a Given project, separate from source texts.
     pub given_inventory: GivenProjectInventory,
     /// One engine observation of each demanded candidate entry, reused as the project's receipt.
-    pub observed_entries: Vec<EntryObservation>,
+    pub observed_entries: ObservedEntries,
     /// The manifests, each with its path and its text: both came from disk.
     pub manifests: Vec<ManifestFile>,
     /// Every file of the repository the run lists, by path, in the order of their places: a file's place is the number it has in the rows.
@@ -70,18 +70,8 @@ impl ProjectRequest {
         path: &FilePath,
         expected: crate::domain::project_context::types::EntryState,
     ) -> Option<bool> {
-        let mut matches = self
-            .observed_entries
-            .iter()
-            .filter(|entry| entry.path == *path);
-        let first = matches.next()?;
-        if matches.next().is_some()
-            || first.state == crate::domain::project_context::types::EntryState::Unknown
-        {
-            None
-        } else {
-            Some(first.state == expected)
-        }
+        crate::domain::project_context::service::state(&self.observed_entries, path)
+            .map(|state| state == expected)
     }
 }
 

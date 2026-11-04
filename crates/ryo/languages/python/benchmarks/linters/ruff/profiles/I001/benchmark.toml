@@ -4,4 +4,5 @@ sha256 = ["52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "0
 defaults = ["I001"]
 parser-configuration = "python-target=3.10"
 project-search-roots = ["", "src"]
-rule-applicability = { I001 = "accepted-syntax" }
+query-modules = { "python/ruff/suppress-unmapped-matches" = "fragments/suppress-unmapped-matches.ryoql", "python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql" }
+rule-applicability = { "I001" = "accepted-syntax" }
