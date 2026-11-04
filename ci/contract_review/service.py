@@ -9,12 +9,8 @@ from pathlib import Path
 
 # Earlier work is NOT certified by introducing this gate.
 ACTIVATION = "a402537b63a0a96ffd4ff973be610642edf8c26a"
-ENGINE = tuple(f"crates/ryo/crates/{name}/" for name in (
-    "core", "operators", "derived", "relations", "values", "query_language", "language",
-))
-CONTROL = ("ci/contract_review/", ".agents/agents/", ".github/workflows/")
-EXACT = {"ci/workflows_test.py", "crates/ryo/Cargo.toml", "crates/ryo/Cargo.lock",
-         "crates/ryo/docs/contracts/README.md", "crates/ryo/docs/language-contract.md"}
+PROTECTED = ("crates/ryo/", "ci/", "tools/", ".github/", ".cargo/", ".agents/agents/")
+EXACT = {"rust-toolchain.toml", "Cargo.toml", "Cargo.lock", "asymptote.toml"}
 RECEIPTS = "crates/ryo/docs/contracts/evidence/paired-reviews"
 
 
@@ -23,9 +19,7 @@ def git(root: Path, *args: str) -> bytes:
 
 
 def protected(path: str) -> bool:
-    return (path in EXACT or path.startswith(ENGINE + CONTROL)
-            or (path.startswith("crates/ryo/languages/") and "/src/" in path)
-            or (path.startswith("crates/ryo/docs/contracts/") and not path.startswith(RECEIPTS + "/")))
+    return not path.startswith(RECEIPTS + "/") and (path in EXACT or path.startswith(PROTECTED))
 
 
 def inventory(root: Path, revision: str) -> dict[str, str]:
@@ -79,31 +73,31 @@ def review(root: Path, head: str, source: dict, item: dict, identity: tuple[str,
     invocation = json.loads(evidence(root, head, item["invocation"]))
     if any(invocation.get(key) != item[key] for key in ("cli", "model", "session_id", "exit", "before", "after")):
         raise ValueError("invocation identity does not match review")
-    if not invocation.get("command"):
-        raise ValueError("missing actual invocation")
+    command = invocation.get("command")
+    if not isinstance(command, list) or not all(isinstance(arg, str) for arg in command):
+        raise ValueError("missing actual invocation command")
+    if any(source[key] not in " ".join(command) for key in ("base", "head", "tree")):
+        raise ValueError("invocation did not name the exact reviewed source")
     raw = json.loads(evidence(root, head, item["result"]))
     if raw.get("subtype") != "success" or raw.get("is_error") is True or raw.get("session_id") != item["session_id"]:
         raise ValueError("failed or unrelated reviewer result")
+    if not item["round_id"] or raw.get("uuid") != item["round_id"]:
+        raise ValueError("review round identity mismatch")
     if cli == "claude" and model not in raw.get("modelUsage", {}):
         raise ValueError("Opus actual model is not in CLI result")
     if cli == "codex" and raw.get("model") != model:
         raise ValueError("Astra actual model is not in session result")
     result = raw.get("result", "")
-    verdict = re.search(r"^Verdict: (pass|blocking)\s*$", result, re.M)
-    if not verdict:
-        raise ValueError("missing assessed verdict")
-    # Every numbered finding in the actual reviewer table needs a disposition.
-    ids = re.findall(r"^\|\s*([A-Za-z]*\d+)\s*\|\s*blocking\s*\|", result, re.M | re.I)
-    dispositions = item["findings"]
-    if len(ids) != len(set(ids)) or set(dispositions) != set(ids):
-        raise ValueError("review findings omitted, duplicated or invented")
-    if (verdict[1] == "blocking") != bool(ids):
-        raise ValueError("verdict and blocking findings disagree")
-    for finding in dispositions.values():
-        if finding["state"] not in ("fixed", "rejected") or not finding["reason"].strip():
-            raise ValueError("unresolved blocking finding")
-        if not evidence(root, head, finding["proof"]).strip():
-            raise ValueError("missing finding disposition proof")
+    identity_line = f'Source: base={source["base"]} head={source["head"]} tree={source["tree"]}'
+    if result.splitlines().count(identity_line) != 1:
+        raise ValueError("raw reviewer result does not bind exact source")
+    verdicts = re.findall(r"^Verdict: (.*)$", result, re.M)
+    # Only a final independent pass resolves a prior blocking review. An author's
+    # disposition can never convert the original blocking result into approval.
+    if verdicts != ["pass"] or item["findings"] != {}:
+        raise ValueError("both reviewers must pass this exact source without unresolved findings")
+    if re.search(r"^\|.*\b(blocking|high|medium)\b.*\|", result, re.M | re.I):
+        raise ValueError("pass result contains a blocking finding")
 
 
 def validate(root: Path, head: str = "HEAD") -> str:
@@ -123,6 +117,8 @@ def validate(root: Path, head: str = "HEAD") -> str:
             source = artifact["source"]
             if not re.fullmatch(r"[0-9a-f]{40}", source["head"]) or not re.fullmatch(r"[0-9a-f]{40}", source["base"]):
                 raise ValueError("source must use full commit identities")
+            if source["base"] != ACTIVATION:
+                raise ValueError("review must cover every change since activation")
             git(root, "merge-base", "--is-ancestor", source["base"], source["head"])
             if source["tree"] != git(root, "rev-parse", f'{source["head"]}^{{tree}}').decode().strip():
                 raise ValueError("wrong reviewed tree")
@@ -133,12 +129,15 @@ def validate(root: Path, head: str = "HEAD") -> str:
             for key in ("claim", "matrix", "receipts"):
                 if not evidence(root, head, artifact[key]).strip():
                     raise ValueError(f"missing {key}")
+            for finding in artifact["dispositions"].values():
+                if finding["state"] not in ("fixed", "rejected") or not finding["reason"].strip() or not evidence(root, head, finding["proof"]).strip():
+                    raise ValueError("unresolved or unproved historical finding")
             items = artifact["reviews"]
             if len(items) != 2:
                 raise ValueError("both Astra and Opus reviews are required")
             review(root, head, source, items[0], ("codex", "gpt-6-astra"))
             review(root, head, source, items[1], ("claude", "opus"))
             return f"Paired contract review passed: {path}; protected source {expected}"
-        except (KeyError, TypeError, ValueError, subprocess.CalledProcessError) as error:
+        except (AttributeError, KeyError, TypeError, ValueError, subprocess.CalledProcessError) as error:
             errors.append(f"{path}: {error}")
     raise ValueError("No valid exact-source Astra/Opus review. " + "; ".join(errors))

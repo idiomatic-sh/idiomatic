@@ -6,7 +6,8 @@ Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
 relation, operator, derived, and full-route audits; check their source dates.
 Review read-only: never edit source, build, or run tests during a reviewer pass.
 Keep Astra and Opus sessions alive across rounds; resume the same Opus session.
-Pin fresh base/head/evidence each round; any source change invalidates approval.
+Pin fresh base/head/tree/evidence each round; source changes invalidate approval.
+Print `Source: base=<sha> head=<sha> tree=<sha>` in each raw verdict.
 Record each CLI command, actual model/session, exit status, and raw result.
 Transport errors and `Unassessed` are missing reviews, never approvals.
 
@@ -35,7 +36,8 @@ A bounded batch review never closes wider architecture categories.
 
 Report short numbered blocking findings with file:line, concrete failure, and
 required proof. Reconcile both reviewers; retain findings and explicit dispositions.
-Write a machine-readable artifact binding both reviewer identities, immutable
+Only final independent PASS verdicts approve source; author dispositions cannot.
+Write a machine-readable artifact binding both reviewer/round identities, immutable
 source identity, raw invocation results, and finding/disposition evidence.
 The normal integration/CI gate must reject missing, stale, invalid, or unresolved
 blocking reviews; demonstrate those failures and an exact approved positive control.
