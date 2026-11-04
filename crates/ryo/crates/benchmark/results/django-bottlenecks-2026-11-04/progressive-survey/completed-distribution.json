@@ -1,0 +1,26 @@
+{
+  "source": "db1f035022c4b758362a7f010226d7a853088b6d",
+  "completed_only": 408,
+  "excluded": "ISC004 censored;E902/RUF200 separate source cohort;I001/RUF100 missing",
+  "wall_seconds": {
+    "minimum": 1.112320251,
+    "median": 4.37525945,
+    "p90_order_statistic": 7.585677665,
+    "p90_index_zero_based": 366,
+    "maximum": 21.042587056
+  },
+  "bands": {
+    "below1": 0,
+    "1_to_below3": 54,
+    "3_to_below10": 339,
+    "at_least10": 15
+  },
+  "peak_over_1GiB": {
+    "N999": 1577119744,
+    "PLW0406": 2072666112,
+    "PT020": 1652142080,
+    "PT025": 1642053632,
+    "PT026": 1597153280
+  },
+  "not_setup_or_query_attribution": true
+}

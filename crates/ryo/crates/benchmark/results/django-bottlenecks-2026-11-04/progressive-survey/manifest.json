@@ -30,7 +30,8 @@
     "current411-resource-receipts.json": "ad08bfd69ef36ca7e0d16df4bd78e5bd2b443682f47d491a203af3b7a398fc26",
     "hypothesis-plan-v2.md": "1cff2ec6307c68ebb0778959bf82167d4af11afb03e9b7b8dfb298ce86109b3e",
     "namespace-compiled-worker.json": "1f51658aed3f135ea5e0b6660f3dcdbb4a4ff9fa784635ecbe5b954b10507941",
-    "review-status-v2.json": "0117ae998df080f2ff72ca6223747fd4aaa1e6714db696d861e8d4576dd8c853"
+    "review-status-v2.json": "0117ae998df080f2ff72ca6223747fd4aaa1e6714db696d861e8d4576dd8c853",
+    "completed-distribution.json": "921a3d7c3146da3d3559eaab7b35d332d3976ee3596ed0a63f43f8f30756c9b0"
   },
   "visible_table_rows": 413,
   "public_parity_source_sha256": "804a167c698ab7c56d26fc67c158078fa65afdf736ba8ea527330b93d77b1cbc",

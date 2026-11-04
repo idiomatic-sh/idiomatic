@@ -4,6 +4,8 @@
 
 All measurements use the same pinned2,875 Django files and one worker. **db1** means sealed db1/68156078, frozen409 queries; **current411+namespace** means separate7a097013/d025a7b0 source for E902/RUF200. Do not pool sources or add/subtract isolated timings to predict combined time. Complete diagnostics are uncertified; they do not earn parity PASS or whole-category ownership credit. Peak for an incomplete run is only the observed prefix peak.
 
+The 408 completed same-source rules have median **4.375s** and p90 **7.586s**:54 take1–3s,339 take3–10s and15 take at least10s; none finishes below1s. This is broad baseline cost as well as an exceptional ISC004 outlier, but does not attribute setup/parsing versus query work. Five peaks exceed1GiB: N9991.469, PLW04061.930, PT0201.539, PT0251.529 and PT0261.487GiB. [Distribution method and bytes](../results/django-bottlenecks-2026-11-04/progressive-survey/completed-distribution.json).
+
 | Rule | Public parity | Django wall s | Peak MiB | Measurement status | Cohort / evidence |
 |---|---|---:|---:|---|---|
 | ASYNC100 | PASS | 5.153 | 97.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
