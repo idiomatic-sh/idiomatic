@@ -63,12 +63,26 @@ impl<'f> Feed<'f> for Held<'f> {
     ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
         std::rc::Rc::clone(&self.1)
     }
-    fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
+    fn origin(
+        &self,
+        which: InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 1)
+    }
+    fn publication(
+        &self,
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 1)
+    }
+    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)?;
         Ok(&self.0.kinds)
     }
     fn found(&mut self, _: InputPlace, _: RowCount) {}
-    fn streams(&self, _: InputPlace) -> Supply {
-        Supply::AtHand
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)
     }
     fn stream(
         &mut self,

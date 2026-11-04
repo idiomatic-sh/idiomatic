@@ -197,8 +197,8 @@ fn stream_scoped(
             Ok(())
         }
         DemandOrder::JoinTransport => {
-            if feed.streams(InputPlace(0)) == Supply::AtHand
-                || feed.streams(InputPlace(1)) == Supply::Streamed
+            if feed.streams(InputPlace(0))? == Supply::AtHand
+                || feed.streams(InputPlace(1))? == Supply::Streamed
             {
                 let views = if feed.native_join_right_first() {
                     hold_join_right_first(feed, context, &mut room.held)?
@@ -273,9 +273,9 @@ fn stream_scoped(
             }
         }
         DemandOrder::AxisTransport => {
-            let streaming = feed.streams(InputPlace(0)) == Supply::Streamed
-                && feed.streams(InputPlace(1)) == Supply::AtHand
-                && feed.streams(InputPlace(2)) == Supply::AtHand;
+            let streaming = feed.streams(InputPlace(0))? == Supply::Streamed
+                && feed.streams(InputPlace(1))? == Supply::AtHand
+                && feed.streams(InputPlace(2))? == Supply::AtHand;
             if !streaming {
                 let views = hold(feed, context, &mut room.held, 3, true)?;
                 workspace.capture(feed, views.len())?;

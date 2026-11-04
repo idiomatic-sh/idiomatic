@@ -313,6 +313,19 @@ impl<'f> Feed<'f> for ControlledFeed<'f> {
     ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
         std::rc::Rc::clone(&self.owner)
     }
+    fn origin(
+        &self,
+        which: InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 2)
+    }
+    fn publication(
+        &self,
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 2)
+    }
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
         match which {
             InputPlace(0) => Ok(&self.left.kinds),
@@ -323,10 +336,13 @@ impl<'f> Feed<'f> for ControlledFeed<'f> {
         }
     }
 
-    fn streams(&self, which: InputPlace) -> Supply {
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
         match which {
-            InputPlace(0) => Supply::Streamed,
-            _ => Supply::AtHand,
+            InputPlace(0) => Ok(Supply::Streamed),
+            InputPlace(1) => Ok(Supply::AtHand),
+            _ => Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            }),
         }
     }
 

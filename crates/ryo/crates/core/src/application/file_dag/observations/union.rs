@@ -79,14 +79,21 @@ impl<'a, 'f: 'a> Feed<'a> for PublicationUnion<'a, 'f> {
     }
     fn origin(&self, which: InputPlace) -> Result<InputOrigin, OperatingError> {
         self.sources(which)?;
-        Ok(InputOrigin::External)
+        // The union streams already-owned producer publications. A multi-source
+        // input has no single publication identity to lend to a derived view.
+        Ok(InputOrigin::Internal)
+    }
+    fn publication(&self, which: InputPlace) -> Result<Option<PublishedInput>, OperatingError> {
+        let sources = self.sources(which)?;
+        Ok((sources.len() == 1).then(|| sources[0].clone()))
     }
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
         self.sources(which)?;
         Ok(self.kinds)
     }
-    fn streams(&self, _: InputPlace) -> Supply {
-        Supply::Streamed
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+        self.sources(which)?;
+        Ok(Supply::Streamed)
     }
     fn found(&mut self, _: InputPlace, _: RowCount) {}
     fn stream(
@@ -123,3 +130,80 @@ impl<'a, 'f: 'a> Feed<'a> for PublicationUnion<'a, 'f> {
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+
+#[cfg(test)]
+mod feed_contract_test {
+    use super::*;
+    use ryo_relations::domain::relations::types::{Integer, Value};
+
+    #[test]
+    fn published_inputs_keep_exact_identity_and_invalid_positions_refuse() {
+        let owner = Rc::new(RelationOwner::new(
+            true,
+            crate::outbound::derived::factory::test_port(),
+        ));
+        let publications = [1, 2, 3]
+            .into_iter()
+            .map(|number| {
+                owner
+                    .computed(Table {
+                        kinds: vec![CellKind::Number],
+                        cells: vec![Value::Number(Integer(number))],
+                        count: RowCount(1),
+                    })
+                    .expect("valid producer publication")
+            })
+            .collect::<Vec<_>>();
+        let read = |_| Err(OperatingError::NotRead);
+        let feed = PublicationUnion {
+            owner,
+            sources: &publications[..2],
+            kinds: &[CellKind::Number],
+            read: &read,
+        };
+        assert!(matches!(
+            feed.origin(InputPlace(0)),
+            Ok(InputOrigin::Internal)
+        ));
+        assert!(matches!(
+            feed.origin(InputPlace(1)),
+            Ok(InputOrigin::Internal)
+        ));
+        assert!(matches!(feed.streams(InputPlace(0)), Ok(Supply::Streamed)));
+        assert!(matches!(feed.streams(InputPlace(1)), Ok(Supply::Streamed)));
+        assert!(
+            feed.publication(InputPlace(0))
+                .unwrap()
+                .unwrap()
+                .same_record(&publications[0])
+        );
+        assert!(
+            feed.publication(InputPlace(1))
+                .unwrap()
+                .unwrap()
+                .same_record(&publications[1])
+        );
+        assert!(matches!(
+            feed.publication(InputPlace(2)),
+            Err(OperatingError::MissingInput { position: 3 })
+        ));
+        assert!(matches!(
+            feed.streams(InputPlace(2)),
+            Err(OperatingError::MissingInput { position: 3 })
+        ));
+
+        let many = PublicationUnion {
+            owner: Rc::clone(&feed.owner),
+            sources: &publications[..],
+            kinds: &[CellKind::Number],
+            read: &read,
+        };
+        assert!(many.publication(InputPlace(0)).unwrap().is_some());
+        assert!(many.publication(InputPlace(1)).unwrap().is_none());
+        assert!(matches!(
+            many.origin(InputPlace(1)),
+            Ok(InputOrigin::Internal)
+        ));
+        assert!(matches!(many.streams(InputPlace(1)), Ok(Supply::Streamed)));
+    }
+}

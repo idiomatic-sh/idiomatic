@@ -185,7 +185,7 @@ impl<'f> crate::application::file_dag::feed::Feed<'f> for OwnedFeed<'_, 'f> {
                 Some(ryo_values::domain::plan_parts::types::Input::Relation(relation)),
                 Rows::Stored(_) | Rows::Selected(_) | Rows::Tree(_),
             ) => InputOrigin::Relation(*relation),
-            _ => InputOrigin::External,
+            _ => return self.inner.origin(place),
         })
     }
     fn kinds(
@@ -197,8 +197,11 @@ impl<'f> crate::application::file_dag::feed::Feed<'f> for OwnedFeed<'_, 'f> {
     fn streams(
         &self,
         place: crate::domain::operating::types::InputPlace,
-    ) -> crate::domain::operating::types::Supply {
+    ) -> Result<crate::domain::operating::types::Supply, OperatingError> {
         self.inner.streams(place)
+    }
+    fn native_join_right_first(&self) -> bool {
+        self.inner.native_join_right_first()
     }
     fn found(
         &mut self,

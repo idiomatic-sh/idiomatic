@@ -124,6 +124,37 @@ pub(crate) struct Held<'a> {
     pub(crate) tables: &'a [Table],
     pub(crate) visits: Vec<usize>,
 }
+/// Test tables are explicitly injected from outside the graph, with no
+/// generation-scoped publication. Every fixture still checks its input arity.
+pub(crate) fn external_origin(
+    place: InputPlace,
+    count: usize,
+) -> Result<super::feed::InputOrigin, OperatingError> {
+    checked(place, count)?;
+    Ok(super::feed::InputOrigin::External)
+}
+pub(crate) fn no_publication(
+    place: InputPlace,
+    count: usize,
+) -> Result<Option<super::relations::PublishedInput>, OperatingError> {
+    checked(place, count)?;
+    Ok(None)
+}
+pub(crate) fn supplied(
+    place: InputPlace,
+    count: usize,
+    supply: Supply,
+) -> Result<Supply, OperatingError> {
+    checked(place, count)?;
+    Ok(supply)
+}
+fn checked(place: InputPlace, count: usize) -> Result<(), OperatingError> {
+    (place.0 < count)
+        .then_some(())
+        .ok_or(OperatingError::MissingInput {
+            position: place.0 + 1,
+        })
+}
 impl<'f> Feed<'f> for Held<'f> {
     fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         std::rc::Rc::clone(&self.owner)
@@ -136,8 +167,17 @@ impl<'f> Feed<'f> for Held<'f> {
                 position: place.0 + 1,
             })
     }
-    fn streams(&self, _: InputPlace) -> Supply {
-        Supply::AtHand
+    fn origin(&self, place: InputPlace) -> Result<super::feed::InputOrigin, OperatingError> {
+        external_origin(place, self.tables.len())
+    }
+    fn publication(
+        &self,
+        place: InputPlace,
+    ) -> Result<Option<super::relations::PublishedInput>, OperatingError> {
+        no_publication(place, self.tables.len())
+    }
+    fn streams(&self, place: InputPlace) -> Result<Supply, OperatingError> {
+        supplied(place, self.tables.len(), Supply::AtHand)
     }
     fn found(&mut self, _: InputPlace, _: RowCount) {}
     fn stream(

@@ -914,8 +914,18 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
                 position: which.0 + 1,
             })
     }
-    fn streams(&self, which: InputPlace) -> Supply {
-        self.supply.get(which.0).copied().unwrap_or(Supply::AtHand)
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+        self.inputs
+            .get(which.0)
+            .ok_or(OperatingError::MissingInput {
+                position: which.0 + 1,
+            })?;
+        self.supply
+            .get(which.0)
+            .copied()
+            .ok_or(OperatingError::MissingInput {
+                position: which.0 + 1,
+            })
     }
     fn native_join_right_first(&self) -> bool {
         self.native_join_right_first
@@ -1234,7 +1244,7 @@ impl<'a, 'f> GraphInputs<'a, 'f> {
                 )
             }
             NodeInput::Node(node) => {
-                if self.streams(which) == Supply::Streamed {
+                if self.streams(which)? == Supply::Streamed {
                     return FileDagExecution::stream_scoped(
                         self.execution,
                         node,

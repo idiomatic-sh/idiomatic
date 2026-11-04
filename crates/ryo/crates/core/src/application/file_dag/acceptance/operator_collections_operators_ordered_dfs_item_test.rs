@@ -707,17 +707,39 @@ impl<'f> crate::application::file_dag::feed::Feed<'f> for Held<'f> {
     ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
         std::rc::Rc::clone(&self.owner)
     }
+    fn origin(
+        &self,
+        which: crate::domain::operating::types::InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 2)
+    }
+    fn publication(
+        &self,
+        which: crate::domain::operating::types::InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 2)
+    }
     fn kinds(
         &self,
         which: crate::domain::operating::types::InputPlace,
     ) -> Result<&[CellKind], OperatingError> {
-        Ok(&self.tables[which.0].kinds)
+        self.tables
+            .get(which.0)
+            .map(|table| table.kinds.as_slice())
+            .ok_or(OperatingError::MissingInput {
+                position: which.0 + 1,
+            })
     }
     fn streams(
         &self,
-        _which: crate::domain::operating::types::InputPlace,
-    ) -> crate::domain::operating::types::Supply {
-        crate::domain::operating::types::Supply::AtHand
+        which: crate::domain::operating::types::InputPlace,
+    ) -> Result<crate::domain::operating::types::Supply, OperatingError> {
+        crate::application::file_dag::testing::supplied(
+            which,
+            2,
+            crate::domain::operating::types::Supply::AtHand,
+        )
     }
     fn found(
         &mut self,

@@ -741,6 +741,19 @@ impl<'f> Feed<'f> for NativeOrderedFeed<'f> {
     ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
         std::rc::Rc::clone(&self.owner)
     }
+    fn origin(
+        &self,
+        which: InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 2)
+    }
+    fn publication(
+        &self,
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 2)
+    }
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
         match which.0 {
             0 => Ok(&self.left.kinds),
@@ -750,8 +763,8 @@ impl<'f> Feed<'f> for NativeOrderedFeed<'f> {
             }),
         }
     }
-    fn streams(&self, _: InputPlace) -> Supply {
-        Supply::AtHand
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 2, Supply::AtHand)
     }
     fn native_join_right_first(&self) -> bool {
         true

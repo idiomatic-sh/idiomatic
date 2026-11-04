@@ -350,8 +350,9 @@ impl InvocationWorkspace {
             .origins
             .get(place)
             .copied()
-            .unwrap_or(super::feed::InputOrigin::External)
-        {
+            .ok_or(OperatingError::MissingInput {
+                position: place + 1,
+            })? {
             super::feed::InputOrigin::Relation(relation) => owner.admit_relation(relation, rows),
             super::feed::InputOrigin::External => owner.admit_external(rows),
             super::feed::InputOrigin::Internal => Err(OperatingError::NotRun),
