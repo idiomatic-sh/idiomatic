@@ -25,8 +25,25 @@ fn span(start: u32, end: u32) -> Span {
     }
 }
 
-struct Held<'f>(&'f Table);
+struct Held<'f>(
+    &'f Table,
+    std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+);
+fn held(table: &Table) -> Held<'_> {
+    Held(
+        table,
+        std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+            true,
+            crate::outbound::derived::factory::test_port(),
+        )),
+    )
+}
 impl<'f> Feed<'f> for Held<'f> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.1)
+    }
     fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
         Ok(&self.0.kinds)
     }
@@ -95,7 +112,7 @@ fn evaluate(spans: &[Span]) -> Result<Vec<Value>, OperatingError> {
     let mut streamed = Vec::new();
     let streaming = SpanBoundsItem.stream(
         &operation,
-        &mut Held(&input),
+        &mut held(&input),
         &mut context,
         &mut Room::default(),
         &mut Pipe(|_: &mut OperatorContext<'_>, row: &[Value]| {

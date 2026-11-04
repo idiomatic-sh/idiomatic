@@ -653,9 +653,15 @@ fn file_keys_keep_reused_nodes_separate() -> Result<usize, OperatingError> {
 }
 
 struct Held<'f> {
+    owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
     tables: [&'f Table; 2],
 }
 impl<'f> crate::application::file_dag::feed::Feed<'f> for Held<'f> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.owner)
+    }
     fn kinds(
         &self,
         which: crate::domain::operating::types::InputPlace,
@@ -724,6 +730,10 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
     OrderedDfsItem.stream(
         &op,
         &mut Held {
+            owner: std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+                true,
+                crate::outbound::derived::factory::test_port(),
+            )),
             tables: [&roots, &edges],
         },
         &mut context,

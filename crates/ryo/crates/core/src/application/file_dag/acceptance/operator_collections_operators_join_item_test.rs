@@ -299,6 +299,7 @@ fn joins_without_the_right_input() -> Result<Value, OperatingError> {
 }
 
 struct ControlledFeed<'a> {
+    owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
     left: &'a Table,
     right: Rows<'a>,
     right_holds: usize,
@@ -307,6 +308,11 @@ struct ControlledFeed<'a> {
 }
 
 impl<'f> Feed<'f> for ControlledFeed<'f> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.owner)
+    }
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
         match which {
             InputPlace(0) => Ok(&self.left.kinds),
@@ -461,7 +467,17 @@ fn stream_with_prepared_indexes(
     prepared: Option<&OperatorContract>,
 ) -> Result<(Vec<Vec<Cell>>, usize), OperatingError> {
     let (left_fails, right_fails, emit_fails) = failures;
+    let owner = fixture.map_or_else(
+        || {
+            std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+                true,
+                crate::outbound::derived::factory::test_port(),
+            ))
+        },
+        |fixture| std::rc::Rc::clone(fixture.owner()),
+    );
     let mut feed = ControlledFeed {
+        owner,
         left,
         right: right.clone(),
         right_holds: 0,
@@ -1668,6 +1684,7 @@ fn shared_index_handle_releases_mutable_cache_borrow_before_nested_emission() {
         scratch: &mut scratch,
     };
     let mut feed = ControlledFeed {
+        owner: std::rc::Rc::clone(fixture.owner()),
         left: &left,
         right: right.clone(),
         right_holds: 0,
