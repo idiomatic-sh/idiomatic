@@ -37,6 +37,9 @@ pub(crate) struct Node {
     pub phase: ryo_values::domain::plans::types::StepScope,
     /// Declared transport preserves lazy refusal order independently of cache hits.
     pub input_supply: Vec<crate::domain::operating::types::Supply>,
+    /// A native right relation forced a formerly streamed left publication;
+    /// preserve the Join's original right-before-left refusal order.
+    pub native_join_right_first: bool,
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
     pub physical:
         crate::domain::table_model::collections::representations::publication::PreparedPhysical,

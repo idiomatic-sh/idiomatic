@@ -725,6 +725,130 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
     }
 }
 
+struct NativeOrderedFeed<'a> {
+    owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+    left: &'a Table,
+    right: &'a Table,
+    left_fails: bool,
+    right_fails: bool,
+    left_holds: usize,
+    right_holds: usize,
+}
+
+impl<'f> Feed<'f> for NativeOrderedFeed<'f> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.owner)
+    }
+    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
+        match which.0 {
+            0 => Ok(&self.left.kinds),
+            1 => Ok(&self.right.kinds),
+            _ => Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            }),
+        }
+    }
+    fn streams(&self, _: InputPlace) -> Supply {
+        Supply::AtHand
+    }
+    fn native_join_right_first(&self) -> bool {
+        true
+    }
+    fn stream(
+        &mut self,
+        _: InputPlace,
+        _: &mut OperatorContext<'_>,
+        _: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::WrongOperation)
+    }
+    fn found(&mut self, _: InputPlace, _: RowCount) {}
+    fn hold<'t>(
+        &mut self,
+        which: InputPlace,
+        _: &mut OperatorContext<'_>,
+        _: &'t mut Table,
+    ) -> Result<Rows<'t>, OperatingError>
+    where
+        'f: 't,
+    {
+        match which.0 {
+            0 => {
+                self.left_holds += 1;
+                if self.left_fails {
+                    Err(OperatingError::NotRun)
+                } else {
+                    Ok(Rows::Computed(self.left))
+                }
+            }
+            1 => {
+                self.right_holds += 1;
+                if self.right_fails {
+                    Err(OperatingError::NotRead)
+                } else {
+                    Ok(Rows::Computed(self.right))
+                }
+            }
+            _ => Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            }),
+        }
+    }
+}
+
+#[test]
+fn native_provenance_join_keeps_right_first_refusal_and_empty_left_order() {
+    let empty = table_of(&[CellKind::Number], &[]);
+    let nonempty = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
+    let operation = plan(&[0], &[0], &[(Side::Left, 0)], vec![], &[]);
+    let contract = prepared(
+        &operation,
+        &[Rows::Computed(&empty), Rows::Computed(&nonempty)],
+    );
+    let port = crate::outbound::operators::factory::test_port();
+    let mut symbols = Symbols::default();
+    let mut scratch = OperatorScratch::default();
+    let mut memo = vec![];
+    let mut context = context(&mut symbols, &mut scratch, &mut memo);
+    for (left_fails, right_fails, expected, expected_left_holds) in [
+        (false, true, Err(OperatingError::NotRead), 0),
+        (true, true, Err(OperatingError::NotRead), 0),
+        (true, false, Err(OperatingError::NotRun), 1),
+        (false, false, Ok(()), 1),
+    ] {
+        let owner = feed_owner();
+        let engine = CommonOperatorEngine::new(&port, owner.derived.semantic_port());
+        let mut feed = NativeOrderedFeed {
+            owner: std::rc::Rc::clone(&owner),
+            left: &empty,
+            right: &nonempty,
+            left_fails,
+            right_fails,
+            left_holds: 0,
+            right_holds: 0,
+        };
+        let mut room = Room::default();
+        let mut output = CollectedRows::default();
+        let result = engine.stream(
+            &owner,
+            &contract,
+            &mut feed,
+            &mut context,
+            &mut room,
+            &mut output,
+        );
+        assert_eq!(result, expected);
+        assert_eq!(
+            feed.right_holds, 1,
+            "the formerly streamed Join held the right first"
+        );
+        assert_eq!(feed.left_holds, expected_left_holds);
+        assert!(output.rows.is_empty(), "empty left cannot emit a Join row");
+    }
+}
+
 struct NestedOutput {
     rows: Vec<Vec<Cell>>,
     fail_at: Option<usize>,

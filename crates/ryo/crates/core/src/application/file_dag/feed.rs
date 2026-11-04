@@ -36,6 +36,13 @@ pub(crate) trait Feed<'f> {
     /// Whether the rows of the input are made as they are asked for (`Streamed`), so that they are not at hand to read in place.
     fn streams(&self, which: InputPlace) -> Supply;
 
+    /// Whether graph preparation held a formerly streamed Join left input
+    /// solely for a native right lookup. That Join still acquires its right
+    /// input first, including when either input refuses or the left is empty.
+    fn native_join_right_first(&self) -> bool {
+        false
+    }
+
     /// Passes the rows of the input to `emit`, one by one, as they are made.
     ///
     /// # Errors

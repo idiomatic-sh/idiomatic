@@ -349,6 +349,58 @@ fn provenance_admission_keeps_unrelated_internal_streams_lazy() {
 }
 
 #[test]
+fn ordinary_join_and_group_count_keep_single_reader_streams() {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    let mut query = plan();
+    query.steps.truncate(1);
+    query.steps.push(PlanStep {
+        operation: Operation::Join {
+            left: Input::Step(StepId(0)),
+            right: Input::Relation(Relation::Function),
+            left_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(0)],
+            output: vec![JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(1),
+            }],
+            filter: vec![],
+            view: vec![],
+            reach: None,
+        },
+        scope: StepScope::PerFile,
+    });
+    query.emit.step = StepId(1);
+    let joined = graph(&[query]);
+    let id = *joined.program_nodes[0][1].as_ref().expect("compiled join");
+    assert_eq!(
+        joined.nodes[id.0].input_supply[0],
+        crate::domain::operating::types::Supply::Streamed,
+    );
+    assert!(!joined.nodes[id.0].native_join_right_first);
+
+    let mut query = plan();
+    query.steps.truncate(1);
+    query.steps.push(PlanStep {
+        operation: Operation::GroupCount {
+            from: Input::Step(StepId(0)),
+            keys: vec![ColumnIndex(0)],
+            distinct: None,
+        },
+        scope: StepScope::PerFile,
+    });
+    query.emit.step = StepId(1);
+    let grouped = graph(&[query]);
+    let id = *grouped.program_nodes[0][1]
+        .as_ref()
+        .expect("compiled GroupCount");
+    assert_eq!(
+        grouped.nodes[id.0].input_supply[0],
+        crate::domain::operating::types::Supply::Streamed,
+    );
+    assert!(!grouped.nodes[id.0].native_join_right_first);
+}
+
+#[test]
 fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());

@@ -26,6 +26,7 @@ struct CanonicalNode {
     scope: Option<usize>,
     phase: StepScope,
     input_supply: Vec<crate::domain::operating::types::Supply>,
+    native_join_right_first: bool,
     operation: Operation,
     inputs: Vec<NodeInput>,
     relations: Vec<Relation>,
@@ -196,29 +197,19 @@ fn fingerprint(
     hash.finish()
 }
 
-/// A prepared derived view needs the producer's publication identity. An
-/// internal stream has rows but no held publication to admit at that boundary.
-fn provenance_inputs(
-    contract: &crate::domain::operator::contract::types::OperatorContract,
-    count: usize,
-) -> Vec<bool> {
-    let mut held = vec![false; count];
-    for group in contract
-        .derived
-        .streaming
-        .iter()
-        .chain(&contract.derived.collected)
-        .flatten()
-    {
-        for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
-            for place in &use_.inputs[..usize::from(use_.len)] {
-                if let Some(required) = held.get_mut(*place) {
-                    *required = true;
-                }
-            }
-        }
-    }
-    held
+/// The streaming Join can acquire a prepared native lookup only when its
+/// right input is a native relation. That lookup needs the left publication;
+/// ordinary equality and unary derived candidates do not acquire it here.
+fn native_join_left_publication(node: &CanonicalNode) -> bool {
+    matches!(
+        &node.contract.resources,
+        crate::domain::operator::contract::resources::ResourceProgram::Join(join)
+            if join.reach.is_none()
+    ) && matches!(
+        node.inputs.get(1),
+        Some(NodeInput::Relation(relation))
+            if crate::domain::table_cells::service::native_form(*relation).is_some()
+    )
 }
 
 /// Compile one DAG for the entire ordered request. Unsupported descendants
@@ -377,6 +368,7 @@ pub(crate) fn compile_prepared_observations(
                         scope,
                         phase: step.scope,
                         input_supply,
+                        native_join_right_first: false,
                         operation,
                         inputs,
                         relations,
@@ -506,7 +498,11 @@ pub(crate) fn compile_prepared_observations(
         }
     }
     for node in &mut nodes {
-        let needs_publication = provenance_inputs(&node.contract, node.inputs.len());
+        let native_left = native_join_left_publication(node);
+        let original_left_stream = node.phase == StepScope::PerFile
+            && matches!(node.inputs.first(), Some(NodeInput::Node(child)) if
+                resolved_readers[child.0] == 1 && !canonical_roots[child.0]);
+        node.native_join_right_first = native_left && original_left_stream;
         node.input_supply = node
             .inputs
             .iter()
@@ -515,7 +511,7 @@ pub(crate) fn compile_prepared_observations(
                 NodeInput::Node(child)
                     if node.phase == StepScope::PerFile
                         && resolved_readers[child.0] == 1
-                        && !needs_publication[at]
+                        && !(at == 0 && native_left)
                         && !canonical_roots[child.0] =>
                 {
                     crate::domain::operating::types::Supply::Streamed
@@ -625,6 +621,7 @@ pub(crate) fn compile_prepared_observations(
                 needs: node.needs,
                 phase: node.phase,
                 input_supply: node.input_supply,
+                native_join_right_first: node.native_join_right_first,
                 contract: node.contract,
                 physical: node.physical,
                 operation: node.operation,

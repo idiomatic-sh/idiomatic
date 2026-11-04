@@ -714,6 +714,7 @@ impl FileDagExecution {
                 inputs: &node.inputs,
                 schemas: &node.contract.input_kinds,
                 supply: &node.input_supply,
+                native_join_right_first: node.native_join_right_first,
                 held: &held,
                 read,
                 executor,
@@ -864,6 +865,7 @@ pub(crate) struct GraphInputs<'a, 'f> {
     inputs: &'a [NodeInput],
     schemas: &'a [Vec<CellKind>],
     supply: &'a [Supply],
+    native_join_right_first: bool,
     held: &'a [OnceCell<crate::application::file_dag::relations::PublishedInput>],
     read: &'a dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
     executor: &'a ScopedExecutor<'a>,
@@ -914,6 +916,9 @@ impl<'a> Feed<'a> for GraphInputs<'a, '_> {
     }
     fn streams(&self, which: InputPlace) -> Supply {
         self.supply.get(which.0).copied().unwrap_or(Supply::AtHand)
+    }
+    fn native_join_right_first(&self) -> bool {
+        self.native_join_right_first
     }
     fn found(&mut self, which: InputPlace, rows: RowCount) {
         self.count_input(which, rows);

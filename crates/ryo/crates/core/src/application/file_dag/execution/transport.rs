@@ -200,7 +200,11 @@ fn stream_scoped(
             if feed.streams(InputPlace(0)) == Supply::AtHand
                 || feed.streams(InputPlace(1)) == Supply::Streamed
             {
-                let views = hold(feed, context, &mut room.held, 2, true)?;
+                let views = if feed.native_join_right_first() {
+                    hold_join_right_first(feed, context, &mut room.held)?
+                } else {
+                    hold(feed, context, &mut room.held, 2, true)?
+                };
                 workspace.capture(feed, views.len())?;
                 if views.len() == 1 {
                     return Ok(());
@@ -338,6 +342,23 @@ fn stream_scoped(
         DemandOrder::None => Err(OperatingError::WrongOperation),
     }
 }
+fn hold_join_right_first<'a, 'f>(
+    feed: &mut dyn Feed<'f>,
+    context: &mut OperatorContext<'_>,
+    tables: &'a mut [Table; 3],
+) -> Result<Vec<Rows<'a>>, OperatingError>
+where
+    'f: 'a,
+{
+    let [left_table, right_table, _] = tables;
+    let right = feed.hold(InputPlace(1), context, right_table)?;
+    let left = feed.hold(InputPlace(0), context, left_table)?;
+    if count_of(&left).0 == 0 {
+        return Ok(vec![left]);
+    }
+    Ok(vec![left, right])
+}
+
 fn hold<'a, 'f>(
     feed: &mut dyn Feed<'f>,
     context: &mut OperatorContext<'_>,
