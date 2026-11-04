@@ -80,6 +80,23 @@ struct Slot {
     dependencies_consumed: bool,
     completion: Option<crate::application::file_dag::completion::CompletionPolicy>,
 }
+/// Reused scope-local planning buffers. No per-row allocation or mutation of
+/// reader counts occurs until the entire cancellation cascade validates.
+struct RetirementWork {
+    simulated: Vec<usize>,
+    touched: Vec<RegionId>,
+    pending: Vec<RegionId>,
+    deferred: Vec<RegionId>,
+    retired: Vec<(State, Vec<KernelScratch>)>,
+}
+impl RetirementWork {
+    fn reset(&mut self) {
+        for id in self.touched.drain(..) {
+            self.simulated[id.0] = usize::MAX;
+        }
+        self.pending.clear();
+    }
+}
 pub(crate) struct ProgramExecution {
     pub(super) program: Arc<ExecutableProgram>,
     pub(super) owner: std::rc::Rc<super::super::relations::RelationOwner>,
@@ -87,6 +104,8 @@ pub(crate) struct ProgramExecution {
     pub(super) generation_live: Arc<std::sync::atomic::AtomicBool>,
     partition: Partition,
     slots: RefCell<Vec<Slot>>,
+    retirement: RefCell<RetirementWork>,
+    cleanup_failure: RefCell<Option<OperatingError>>,
 }
 /// Constructors are private to the outer execution owner; no primitive can open
 /// another scope or choose a scheduler.
@@ -114,6 +133,7 @@ impl ProgramExecution {
                 completion: None,
             })
             .collect();
+        let region_count = program.regions().len();
         let generation = owner.generation_guard();
         let generation_live = owner.generation_liveness();
         Self {
@@ -122,7 +142,15 @@ impl ProgramExecution {
             generation,
             generation_live,
             partition,
+            retirement: RefCell::new(RetirementWork {
+                simulated: vec![usize::MAX; region_count],
+                touched: Vec::new(),
+                pending: Vec::new(),
+                deferred: Vec::new(),
+                retired: Vec::new(),
+            }),
             slots: RefCell::new(slots),
+            cleanup_failure: RefCell::new(None),
         }
     }
     pub(super) fn logical_counts(
@@ -166,47 +194,104 @@ impl ProgramExecution {
     pub(super) fn partition(&self) -> &Partition {
         &self.partition
     }
-    /// Consume one declared reader edge. Cascaded cancellation uses the same
-    /// prepared region edges; no semantic callback runs under the state borrow.
-    fn retire(&self, id: RegionId) -> Result<(), OperatingError> {
-        let mut pending = vec![id];
-        while let Some(id) = pending.pop() {
-            let dependencies = {
-                let mut slots = self.slots.borrow_mut();
-                let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
-                if slot.remaining == 0 {
-                    continue;
-                }
-                if slot.remaining == 1 && matches!(slot.state, State::Running) {
+    /// A prepared consumer obligation can finish once. The whole transitive
+    /// cancellation is preflighted before any slot, count or lease changes.
+    fn release_inputs(&self, consumer: RegionId) -> Result<(), OperatingError> {
+        let result = self.release_inputs_checked(consumer);
+        if let Err(error) = &result {
+            self.cleanup_failure
+                .borrow_mut()
+                .get_or_insert(error.clone());
+        }
+        result
+    }
+    fn release_inputs_checked(&self, consumer: RegionId) -> Result<(), OperatingError> {
+        let mut work = self.retirement.borrow_mut();
+        work.reset();
+        let mut slots = self.slots.borrow_mut();
+        let consumer_slot = slots.get(consumer.0).ok_or(OperatingError::NotRun)?;
+        if consumer_slot.dependencies_consumed {
+            return Err(OperatingError::NotRun);
+        }
+        work.pending.extend(
+            self.program.regions()[consumer.0]
+                .dependencies
+                .iter()
+                .copied(),
+        );
+        let planned = (|| {
+            while let Some(id) = work.pending.pop() {
+                let slot = slots.get(id.0).ok_or(OperatingError::NotRun)?;
+                let current = if work.simulated[id.0] == usize::MAX {
+                    work.touched.push(id);
+                    slot.remaining
+                } else {
+                    work.simulated[id.0]
+                };
+                if current == 0 {
                     return Err(OperatingError::NotRun);
                 }
-                slot.remaining -= 1;
-                if slot.remaining != 0 {
-                    continue;
+                if current == 1 && matches!(slot.state, State::Running) {
+                    return Ok(false);
                 }
-                let cancel = !slot.dependencies_consumed;
-                slot.dependencies_consumed = true;
-                slot.state = State::Retired;
-                slot.scratch.clear();
-                cancel
-            };
-            if dependencies {
-                pending.extend(self.program.regions()[id.0].dependencies.iter().copied());
+                let remaining = current - 1;
+                work.simulated[id.0] = remaining;
+                if remaining == 0 && !slot.dependencies_consumed {
+                    work.pending
+                        .extend(self.program.regions()[id.0].dependencies.iter().copied());
+                }
             }
-        }
-        Ok(())
-    }
-    fn release_inputs(&self, id: RegionId) -> Result<(), OperatingError> {
-        {
-            let mut slots = self.slots.borrow_mut();
-            let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
-            if slot.dependencies_consumed {
+            Ok(true)
+        })();
+        match planned {
+            Err(error) => {
+                work.reset();
+                return Err(error);
+            }
+            Ok(false) => {
+                work.reset();
+                if !work.deferred.contains(&consumer) {
+                    work.deferred.push(consumer);
+                }
                 return Ok(());
             }
-            slot.dependencies_consumed = true;
+            Ok(true) => {}
         }
-        for producer in self.program.regions()[id.0].dependencies.iter() {
-            self.retire(*producer)?;
+        slots[consumer.0].dependencies_consumed = true;
+        for at in 0..work.touched.len() {
+            let id = work.touched[at];
+            let slot = &mut slots[id.0];
+            slot.remaining = work.simulated[id.0];
+            if slot.remaining == 0 {
+                slot.dependencies_consumed = true;
+                let old = std::mem::replace(&mut slot.state, State::Retired);
+                work.retired.push((old, std::mem::take(&mut slot.scratch)));
+            }
+        }
+        work.reset();
+        let mut retired = std::mem::take(&mut work.retired);
+        drop(slots);
+        drop(work);
+        // Lease destructors run outside all scheduler-state borrows.
+        retired.clear();
+        self.retirement.borrow_mut().retired = retired;
+        Ok(())
+    }
+    fn flush_retirements(&self) {
+        let pending = self.retirement.borrow().deferred.len();
+        for _ in 0..pending {
+            let consumer = self.retirement.borrow_mut().deferred.pop();
+            let Some(consumer) = consumer else {
+                break;
+            };
+            if let Err(error) = self.release_inputs(consumer) {
+                self.cleanup_failure.borrow_mut().get_or_insert(error);
+            }
+        }
+    }
+    fn cleanup_status(&self) -> Result<(), OperatingError> {
+        if let Some(error) = self.cleanup_failure.borrow().as_ref() {
+            return Err(error.clone());
         }
         Ok(())
     }
@@ -225,6 +310,7 @@ impl ProgramExecution {
         context: &mut OperatorContext<'_>,
         delivery: Delivery<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
+        self.cleanup_status()?;
         let region = self
             .program
             .regions()
@@ -579,7 +665,7 @@ impl ProgramExecution {
                 }
             }
         })();
-        match result {
+        let outcome = match result {
             Ok(InvocationOutcome::Published(input)) => {
                 cleanup.terminal = Terminal::Published(input.clone());
                 self.release_inputs(id)?;
@@ -592,10 +678,18 @@ impl ProgramExecution {
             }
             Err(InvocationFailure::Semantic(error)) => {
                 cleanup.terminal = Terminal::Failed(error.clone());
-                self.release_inputs(id)?;
+                let _cleanup = self.release_inputs(id);
                 Err(error)
             }
             Err(InvocationFailure::Delivery(error)) => Err(error),
+        };
+        drop(cleanup);
+        match outcome {
+            Err(error) => Err(error),
+            Ok(outcome) => {
+                self.cleanup_status()?;
+                Ok(outcome)
+            }
         }
     }
 }
@@ -713,6 +807,8 @@ impl Drop for Invocation<'_> {
                 Terminal::Failed(error) => State::Failed(error.clone()),
             };
         }
+        drop(slots);
+        self.execution.flush_retirements();
     }
 }
 
