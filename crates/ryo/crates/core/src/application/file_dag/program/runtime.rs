@@ -268,6 +268,7 @@ impl ProgramExecution {
             slot.remaining = work.simulated[id.0];
             if slot.remaining == 0 {
                 slot.dependencies_consumed = true;
+                slot.release_pending = false;
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 work.retired.push((old, std::mem::take(&mut slot.scratch)));
             }
@@ -288,7 +289,16 @@ impl ProgramExecution {
             let Some(consumer) = consumer else {
                 break;
             };
-            self.slots.borrow_mut()[consumer.0].release_pending = false;
+            {
+                let mut slots = self.slots.borrow_mut();
+                let slot = &mut slots[consumer.0];
+                // Another prepared cascade may already have discharged this
+                // queued obligation. That is a tombstone, not a second caller.
+                if !slot.release_pending {
+                    continue;
+                }
+                slot.release_pending = false;
+            }
             if let Err(error) = self.release_inputs(consumer) {
                 self.cleanup_failure.borrow_mut().get_or_insert(error);
             }
