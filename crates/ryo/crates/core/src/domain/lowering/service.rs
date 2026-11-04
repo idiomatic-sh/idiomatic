@@ -278,7 +278,11 @@ fn shape_of(operation: &Operation, shapes: &[Option<LoweredShape>]) -> Option<Lo
             let input = earlier(shapes, *from)?;
             Some(LoweredShape {
                 width: input.width,
-                columns: picked(columns, &input.columns)?,
+                columns: if columns.is_empty() {
+                    Vec::new()
+                } else {
+                    picked(columns, &input.columns)?
+                },
             })
         }
         Operation::Join { .. } => join_shape(operation, shapes),

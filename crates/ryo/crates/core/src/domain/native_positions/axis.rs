@@ -3,7 +3,10 @@
 use super::types::{PositionInput, PositionWork};
 use crate::domain::{
     lowering::types::LoweredShape,
-    operating::{errors::OperatingError, types::OperatorContext},
+    operating::{
+        errors::OperatingError,
+        types::{InputPlace, OperatorContext},
+    },
     operator::contract::types::WorkCounters,
     positions::{
         service::{count, followed, in_tree, row},
@@ -24,6 +27,9 @@ use ryo_values::domain::{
     plan_parts::types::{Direction, Input},
     plans::types::Operation,
 };
+
+/// Canonical Axis operands are start, edges, then domain.
+const AXIS_DOMAIN: InputPlace = InputPlace(2);
 
 pub(super) fn axis(
     operation: &Operation,
@@ -62,10 +68,13 @@ pub(super) fn axis(
             Admit::Filter(take_filter(tree, domain_filter, context), domain_filter)
         }
         Input::Step(_) => {
-            let source = inputs
-                .get(1)
-                .copied()
-                .ok_or(OperatingError::MissingInput { position: 2 })?;
+            let source =
+                inputs
+                    .get(AXIS_DOMAIN.0)
+                    .copied()
+                    .ok_or(OperatingError::MissingInput {
+                        position: AXIS_DOMAIN.0 + 1,
+                    })?;
             let column = source
                 .shape
                 .columns
@@ -74,7 +83,7 @@ pub(super) fn axis(
                 .ok_or(OperatingError::NotRun)?;
             let mut marks = vec![false; tree.elements.kind.len()];
             for at in positions(count(source.rows)) {
-                counts.found(1, 1);
+                counts.found(AXIS_DOMAIN.0, 1);
                 if let Some(hit) = followed(tree, column, row(source.rows, at)) {
                     if let Some(mark) = marks.get_mut(usize::try_from(hit.0).unwrap_or(usize::MAX))
                     {

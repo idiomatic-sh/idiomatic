@@ -15,7 +15,7 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScop
 /// The plan a row lowers.
 type Input = Plan;
 /// How many steps are lowered, and how many count the rows of a lowered step.
-type Value = (usize, usize);
+type Value = (usize, usize, Option<usize>);
 type Failure = ();
 
 /// A plan of these steps, all per file, emitting the last.
@@ -53,6 +53,17 @@ fn select_of(relation: Relation) -> Operation {
 
 fn the_tree() -> Plan {
     plan_of(vec![select_of(Relation::SyntaxTree)])
+}
+
+fn empty_project() -> Plan {
+    plan_of(vec![
+        select_of(Relation::SyntaxTree),
+        Operation::Project {
+            from: PlanInput::Step(StepId(0)),
+            columns: Vec::new(),
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+        },
+    ])
 }
 
 fn a_stored_relation() -> Plan {
@@ -116,13 +127,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_select_of_the_tree_is_lowered"),
         word: Word::Succeeds,
         input: the_tree,
-        expect: Expect::Value((1, 0)),
+        expect: Expect::Value((1, 0, Some(5))),
     },
     Case {
         name: CaseName("a_select_of_a_stored_relation_runs_as_an_operator"),
         word: Word::Succeeds,
         input: a_stored_relation,
-        expect: Expect::Value((0, 0)),
+        expect: Expect::Value((0, 0, None)),
     },
     Case {
         name: CaseName(
@@ -130,13 +141,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: the_tree_joined_to_a_stored_relation,
-        expect: Expect::Value((1, 0)),
+        expect: Expect::Value((1, 0, None)),
     },
     Case {
         name: CaseName("a_count_of_lowered_rows_is_counted_from_them"),
         word: Word::Succeeds,
         input: the_tree_with_its_children_counted,
-        expect: Expect::Value((2, 1)),
+        expect: Expect::Value((2, 1, None)),
+    },
+    Case {
+        name: CaseName("empty_project_has_no_visible_columns"),
+        word: Word::Succeeds,
+        input: empty_project,
+        expect: Expect::Value((2, 0, Some(0))),
     },
 ];
 
@@ -153,6 +170,11 @@ fn subject(plan: &Input) -> Value {
             .iter()
             .filter(|each| **each == Counting::Counts)
             .count(),
+        lowering
+            .shapes
+            .last()
+            .and_then(|shape| shape.as_ref())
+            .map(|shape| shape.columns.len()),
     )
 }
 

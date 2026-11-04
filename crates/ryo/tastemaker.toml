@@ -84,6 +84,7 @@ templates = [
   { template = "idiomatic.ryo/native-position-operation", file = "crates/core/src/domain/native_positions/selection.rs", description = "One exact pure borrowed native-position operator family." },
   { template = "idiomatic.ryo/native-position-operation", file = "crates/core/src/domain/native_positions/sets.rs", description = "One exact pure borrowed native-position operator family." },
   { template = "idiomatic.ryo/selection-evaluation", file = "crates/core/src/domain/selections/evaluation.rs", description = "One exact shared tree-selection evaluator." },
+  { template = "idiomatic.arch/domain-test", file = "crates/core/src/domain/native_positions/axis_test.rs", params = { concept = "native_positions", domain = "core" }, description = "Proves one domain concept's rules, beside them in domain/<concept>/." },
 
 ]
 specs = [

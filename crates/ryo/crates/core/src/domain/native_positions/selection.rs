@@ -93,6 +93,10 @@ pub(super) fn project(
     else {
         return Err(OperatingError::WrongOperation);
     };
+    // The compiler declines this valid zero-column operation before native work.
+    if columns.is_empty() {
+        return Err(OperatingError::WrongOperation);
+    }
     let source = inputs
         .first()
         .copied()

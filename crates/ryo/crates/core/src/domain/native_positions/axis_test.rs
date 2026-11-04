@@ -1,0 +1,150 @@
+//! Proves the core domain's `native_positions` rules.
+
+use super::{
+    axis::axis,
+    types::{PositionInput, PositionWork},
+};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::{
+    lowering::types::{ElementPart, LoweredColumn, LoweredShape, RowPosition, RowWidth},
+    operating::errors::OperatingError,
+    operating::types::OperatorContext,
+    operator::contract::types::WorkCounters,
+    positions::{
+        service_test::{SMALL_SOURCE, rows_over, small_tree},
+        types::{Positions, Slots},
+    },
+    table_scratch::types::OperatorScratch,
+    table_texts::types::SourceView,
+};
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Direction, Input, StepId},
+    plans::types::Operation,
+};
+
+fn shape(columns: usize) -> LoweredShape {
+    LoweredShape {
+        width: RowWidth(1),
+        columns: (0..columns)
+            .map(|_| LoweredColumn {
+                slot: RowPosition(0),
+                field: ElementPart::Node,
+            })
+            .collect(),
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Scenario {
+    Subset,
+    Empty,
+}
+type Input = Scenario;
+type Value = (Option<(u32, u32)>, [u64; 3]);
+type Failure = OperatingError;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("step_domain_is_third_operand_and_supports_wide_domain_id"),
+        word: Word::Succeeds,
+        input: || Scenario::Subset,
+        expect: Expect::Value((Some((0, 2)), [1, 3, 1])),
+    },
+    Case {
+        name: CaseName("empty_step_domain_rejects_every_reached_child"),
+        word: Word::Succeeds,
+        input: || Scenario::Empty,
+        expect: Expect::Value((None, [1, 3, 0])),
+    },
+];
+
+fn subject(scenario: Scenario) -> Result<Value, Failure> {
+    let fixture = small_tree();
+    let mut symbols = fixture.symbols;
+    let tree = rows_over(&fixture.elements);
+    let source_shape = shape(1);
+    let edge_shape = shape(1);
+    let domain_shape = shape(2);
+    let answer_shape = LoweredShape {
+        width: RowWidth(2),
+        columns: vec![],
+    };
+    let from = Positions {
+        width: RowWidth(1),
+        slots: Slots(vec![0]),
+    };
+    let edges = Positions {
+        width: RowWidth(1),
+        slots: Slots(vec![1, 2, 3]),
+    };
+    let domain = Positions {
+        width: RowWidth(1),
+        slots: Slots(match scenario {
+            Scenario::Subset => vec![2],
+            Scenario::Empty => vec![],
+        }),
+    };
+    let operation = Operation::Axis {
+        from: Input::Step(StepId(0)),
+        edges: Input::Relation(Relation::SyntaxChild),
+        domain: Input::Step(StepId(2)),
+        direction: Direction::Child,
+        id: ColumnIndex(0),
+        parent: ColumnIndex(0),
+        child: ColumnIndex(1),
+        domain_id: ColumnIndex(1),
+        domain_filter: vec![],
+        domain_view: vec![],
+        output: vec![],
+    };
+    let mut scratch = OperatorScratch::default();
+    let mut memo = Vec::new();
+    let mut context = OperatorContext {
+        semantic: None,
+        prepared_kinds: None,
+        prepared_matchers: None,
+        bindings: &[],
+        symbols: (&mut symbols).into(),
+        source: SourceView(SMALL_SOURCE),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let counts = WorkCounters::default();
+    let inputs = [
+        PositionInput {
+            shape: &source_shape,
+            rows: &from,
+        },
+        PositionInput {
+            shape: &edge_shape,
+            rows: &edges,
+        },
+        PositionInput {
+            shape: &domain_shape,
+            rows: &domain,
+        },
+    ];
+    let selected = axis(
+        &operation,
+        &tree,
+        &inputs,
+        &answer_shape,
+        &mut context,
+        &mut PositionWork::default(),
+        &counts,
+    )?;
+    let pair = match selected.slots.0.as_slice() {
+        [from, reached] => Some((*from, *reached)),
+        [] => None,
+        _ => return Err(OperatingError::ShapeMismatch),
+    };
+    Ok((pair, counts.snapshot()))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

@@ -106,21 +106,36 @@ pub(super) fn union(
         for at in positions(count(source.rows)) {
             counts.found(source_at, 1);
             let each = row(source.rows, at);
-            slots.0.extend(
-                source
-                    .shape
-                    .columns
-                    .iter()
-                    .map(|column| slot_of(each, *column).0),
-            );
+            if output.columns.is_empty() {
+                slots.0.push(
+                    each.0
+                        .first()
+                        .copied()
+                        .ok_or(OperatingError::ShapeMismatch)?,
+                );
+            } else {
+                slots.0.extend(
+                    source
+                        .shape
+                        .columns
+                        .iter()
+                        .map(|column| slot_of(each, *column).0),
+                );
+            }
         }
     }
     let PositionWork { keys, kept, .. } = work;
     keys.0.clear();
-    for each in slots.0.chunks(stride) {
-        for (position, column) in each.iter().zip(&output.columns) {
-            keys.0
-                .push(to_bits(value(tree, column.field, Position(*position))).0);
+    if output.columns.is_empty() {
+        // Every visible key is empty; one physical marker per row preserves cardinality
+        // while the portable SetRow meaning chooses the first distinct empty row.
+        keys.0.resize(slots.0.len(), 0);
+    } else {
+        for each in slots.0.chunks(stride) {
+            for (position, column) in each.iter().zip(&output.columns) {
+                keys.0
+                    .push(to_bits(value(tree, column.field, Position(*position))).0);
+            }
         }
     }
     derived.with_raw_order(&keys.0, stride, &mut |order: &RawOrder| {
