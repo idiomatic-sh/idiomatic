@@ -113,7 +113,7 @@ pub(in crate::application::file_dag::derived) fn candidate_columns(cache: &mut C
 }
 
 /// A lower bound avoids building a second, unretainable index when the budget clearly cannot fit it.
-fn minimum_bytes(rows: usize, columns: usize) -> Option<usize> {
+pub(in crate::application::file_dag::derived) fn minimum_bytes(rows: usize, columns: usize) -> Option<usize> {
     let buckets = rows.checked_next_power_of_two()?.max(1);
     ARC_BYTES
         .checked_add(rows.checked_mul(

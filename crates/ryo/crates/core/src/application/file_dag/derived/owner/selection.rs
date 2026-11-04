@@ -115,8 +115,17 @@ impl SelectionSource<'_> {
         source: ColumnsView<'_>,
         columns: &[ryo_values::domain::plan_parts::types::ColumnIndex],
     ) -> bool {
-        self.owner.has_live_equality(source, columns)
-            || super::super::indexes::can_retain(cache, relation, source, columns)
+        let live_hint = self.owner.has_live_equality(source, columns);
+        let allowed = live_hint || super::super::indexes::can_retain(cache, relation, source, columns);
+        if !allowed {
+            tracing::trace!(target: "ryo::diagnostic::selection_detail", event = "selector_equality_admission_refused",
+                population = ?self.population, relation = ?relation, columns = ?columns,
+                rows = source.columns.first().map_or(0, |column| column.0.len()),
+                cache_bytes = cache.bytes, cache_limit = cache.limit,
+                minimum_index_bytes = super::super::indexes::minimum_bytes(source.columns.first().map_or(0, |column| column.0.len()), columns.len()),
+                live_hint, ledger = ?self.owner.ledger.borrow().snapshot());
+        }
+        allowed
     }
 
     pub(in crate::application::file_dag::derived) fn acquire_predicate(
