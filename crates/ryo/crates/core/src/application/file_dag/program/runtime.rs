@@ -284,10 +284,11 @@ impl ProgramExecution {
     fn flush_retirements(&self) {
         let pending = self.retirement.borrow().deferred.len();
         for _ in 0..pending {
-            let consumer = self.retirement.borrow_mut().deferred.pop();
+            let consumer = self.retirement.borrow_mut().deferred.pop_front();
             let Some(consumer) = consumer else {
                 break;
             };
+            self.slots.borrow_mut()[consumer.0].release_pending = false;
             if let Err(error) = self.release_inputs(consumer) {
                 self.cleanup_failure.borrow_mut().get_or_insert(error);
             }
