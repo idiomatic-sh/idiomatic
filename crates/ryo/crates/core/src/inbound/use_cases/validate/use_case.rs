@@ -57,7 +57,7 @@ impl ValidateUseCase for ValidateUseCaseImpl {
         }
         let plan = self
             .query_language
-            .compile(&request.text, &request.hosted, &[])
+            .compile(&request.text, &request.hosted, &request.observations)
             .map_err(|error| match error {
                 QueryLanguageError::Refused { error } => ValidateError::Uncompilable { error },
             })?;
