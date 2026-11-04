@@ -88,13 +88,21 @@ impl CrossFile {
                 let bucket = frontier_bucket(first, root.frontier);
                 if let std::collections::btree_map::Entry::Vacant(entry) = physical.entry(bucket) {
                     let payload = run.facts.kept(bucket)?;
+                    let required =
+                        crate::application::file_dag::program::facade::required_partitions(
+                            &run.program,
+                            root.producer,
+                            run.domain.files,
+                            run.domain.covered,
+                            run.domain.skipped,
+                        )?;
                     let verified = super::frontiers::validate_bucket(
                         &run.program,
                         root.producer,
                         root.frontier.0,
                         first,
                         bucket,
-                        run.domain.files.len(),
+                        &required,
                         &payload,
                     );
                     let prepared = match verified {
@@ -221,6 +229,14 @@ fn prepare_frontiers(
         .first_bucket
         .get(todo.rule.0)
         .ok_or_else(|| failed(&OperatingError::NotRun))?;
+    let required = crate::application::file_dag::program::facade::required_partitions(
+        &run.program,
+        todo.rule,
+        run.domain.files,
+        run.domain.covered,
+        run.domain.skipped,
+    )
+    .map_err(|error| failed(&error))?;
     super::frontiers::prepare(
         run.program.as_ref(),
         todo.rule,
@@ -229,7 +245,7 @@ fn prepare_frontiers(
         run.project,
         run.project_symbols,
         symbols,
-        run.domain.files.len(),
+        &required,
         super::frontiers::PreparationPolicy::Observations { ready },
     )
     .map_err(|error| failed(&error))

@@ -43,7 +43,7 @@ pub(crate) fn prepare(
     project: &dyn FactsWorker,
     project_symbols: &Symbols,
     symbols: &mut Symbols,
-    file_count: usize,
+    required: &crate::application::file_dag::program::facade::RequiredPartitions,
     policy: PreparationPolicy<'_>,
 ) -> Result<PreparedFrontiers, PreparationError> {
     let mut prepared = PreparedFrontiers {
@@ -86,7 +86,7 @@ pub(crate) fn prepare(
         // before any query root. This POC changes cell lifetime, not I/O errors.
         let bucket = crate::domain::reading::service::frontier_bucket(first, InputNumber(place));
         let words = facts.kept(bucket)?;
-        let coverage = validate_bucket(program, rule, place, first, bucket, file_count, &words)?;
+        let coverage = validate_bucket(program, rule, place, first, bucket, required, &words)?;
         if memory {
             let bytes = crate::domain::recording::types::retention::value::RetainedBytes::packed(
                 &words.words,
@@ -175,7 +175,7 @@ pub(crate) fn validate_bucket(
     input: usize,
     first: Bucket,
     bucket: Bucket,
-    file_count: usize,
+    required: &crate::application::file_dag::program::facade::RequiredPartitions,
     payload: &crate::outbound::facts::types::KeptBucket,
 ) -> Result<crate::application::file_dag::completion::CoverageState, OperatingError> {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
@@ -192,7 +192,7 @@ pub(crate) fn validate_bucket(
     for source in &payload.sources {
         if source.start != at
             || source.length == 0
-            || usize::try_from(source.file.0).map_err(|_| refuse())? >= file_count
+            || !required.files().contains(&source.file)
             || !seen_files.insert(source.file.0)
             || source.proof.version != 1
             || source.proof.rule != u32::try_from(rule.0).map_err(|_| refuse())?
@@ -202,7 +202,12 @@ pub(crate) fn validate_bucket(
         {
             return Err(refuse());
         }
-        at = at.checked_add(source.length).ok_or_else(refuse)?;
+        let end = at.checked_add(source.length).ok_or_else(refuse)?;
+        let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
+        if !crate::domain::table_words::service::single_table_frame(frame) {
+            return Err(refuse());
+        }
+        at = end;
         match &source.proof.coverage {
             FrontierCoverage::Complete => {}
             FrontierCoverage::Partial(scopes) => {
@@ -216,7 +221,7 @@ pub(crate) fn validate_bucket(
             }
         }
     }
-    if at != payload.words.0.0.len() || (file_count > 0 && payload.sources.is_empty()) {
+    if at != payload.words.0.0.len() || !exact_required_files(required.files(), &seen_files) {
         return Err(refuse());
     }
     affected.sort_unstable();
@@ -226,4 +231,25 @@ pub(crate) fn validate_bucket(
     } else {
         crate::application::file_dag::completion::CoverageState::Partial { files: affected }
     })
+}
+
+fn exact_required_files(
+    required: &[ryo_relations::domain::relations::types::FileId],
+    seen: &std::collections::BTreeSet<u32>,
+) -> bool {
+    seen.len() == required.len() && required.iter().all(|file| seen.contains(&file.0))
+}
+
+#[cfg(test)]
+mod source_proof_test {
+    use super::exact_required_files;
+    use ryo_relations::domain::relations::types::FileId;
+
+    #[test]
+    fn a_complete_bucket_requires_every_declared_project_file() {
+        let required = [FileId(0), FileId(1)];
+        assert!(!exact_required_files(&required, &[0].into()));
+        assert!(exact_required_files(&required, &[0, 1].into()));
+        assert!(!exact_required_files(&required, &[0, 1, 2].into()));
+    }
 }

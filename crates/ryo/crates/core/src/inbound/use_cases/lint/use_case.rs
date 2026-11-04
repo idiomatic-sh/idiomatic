@@ -987,9 +987,12 @@ impl LintUseCaseImpl {
                         reason = "a rule to cross is one of the run's rules, and each has its plan and its first bucket; another is a bug that must crash, not a rule that crosses nothing"
                     )]
                     let first = run.first_bucket[each.rule.0];
+                    let required = crate::application::file_dag::program::facade::required_partitions(
+                        &run.program, each.rule, domain.files, domain.covered, domain.skipped,
+                    ).map_err(|error| LintError::from(crate::domain::rules::service::failed(&each.id, &error)))?;
                     let inputs = crate::application::cross_file::frontiers::prepare(
                         run.program.as_ref(), each.rule, first, kept_facts.as_ref(), handle.facts.as_ref(), &handle.symbols,
-                        &mut cross, domain.files.len(), crate::application::cross_file::frontiers::PreparationPolicy::Diagnostic,
+                        &mut cross, &required, crate::application::cross_file::frontiers::PreparationPolicy::Diagnostic,
                     ).map_err(|error| match error {
                         crate::application::cross_file::frontiers::PreparationError::Facts(error) => LintError::from(error),
                         crate::application::cross_file::frontiers::PreparationError::Metadata(error) => LintError::from(crate::domain::rules::service::failed(&each.id, &error)),

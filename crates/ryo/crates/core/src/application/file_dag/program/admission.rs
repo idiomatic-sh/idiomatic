@@ -331,7 +331,7 @@ impl RequiredPartitions {
             skipped: skipped.to_vec().into_boxed_slice(),
         })
     }
-    pub(in crate::application::file_dag::program) fn files(&self) -> &[FileId] {
+    pub(in crate::application) fn files(&self) -> &[FileId] {
         &self.files
     }
 }

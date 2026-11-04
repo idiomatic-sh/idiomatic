@@ -214,8 +214,12 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 /// Existing pack() emits minimal u64 varints. A required frame refuses a cut word,
 /// overflow or alternate spelling rather than letting unpacked() silently shorten it.
 fn canonical_words(packed: &PackedWords) -> bool {
+    canonical_bytes(&packed.0)
+}
+
+fn canonical_bytes(bytes: &[u8]) -> bool {
     let mut shift = 0_u32;
-    for &byte in &packed.0 {
+    for &byte in bytes {
         let payload = byte & 0x7f;
         if shift > 63 || (shift == 63 && payload > 1) {
             return false;
@@ -233,6 +237,37 @@ fn canonical_words(packed: &PackedWords) -> bool {
         }
     }
     shift == 0
+}
+
+/// A worker's source range must contain one whole table frame. This walks the
+/// same value codec without retaining decoded cells or row offsets, so moving
+/// a byte across adjacent source ranges cannot reassign another file's rows.
+pub(crate) fn single_table_frame(bytes: &[u8]) -> bool {
+    if !canonical_bytes(bytes) {
+        return false;
+    }
+    let mut cursor = CompactCursor { bytes, offset: 0 };
+    let (Some(Bits(columns)), Some(Bits(rows))) = (cursor.next(), cursor.next()) else {
+        return false;
+    };
+    for _ in 0..columns {
+        if decode_kind(&mut cursor).is_none() {
+            return false;
+        }
+    }
+    let mut places = Vec::new();
+    if decode_places(&mut cursor, &mut places).is_none() {
+        return false;
+    }
+    let Some(cells) = columns.checked_mul(rows) else {
+        return false;
+    };
+    for _ in 0..cells {
+        if decode_value(&mut cursor).is_none() {
+            return false;
+        }
+    }
+    cursor.offset == bytes.len() && cursor.next().is_none()
 }
 
 /// Admit frame boundaries, kinds and names without retaining decoded row cells.
@@ -504,4 +539,23 @@ pub(crate) fn compact_storage(input: &CompactTable) -> [(usize, usize); 2] {
         (input.words.0.0.as_ptr() as usize, input.words.0.0.len()),
         (input.row_offsets.as_ptr() as usize, input.row_offsets.len()),
     ]
+}
+
+#[cfg(test)]
+mod frame_boundary_test {
+    use super::*;
+
+    #[test]
+    fn a_source_range_is_one_complete_frame_even_when_adjacent_ranges_still_decode() {
+        let mut words = Words::default();
+        encode_table(&Table::default(), &[], &mut words);
+        let frame = pack(WordSlice(&words.0));
+        assert!(single_table_frame(&frame.0));
+        let mut joined = frame.0.clone();
+        joined.extend_from_slice(&frame.0);
+        let shifted = frame.0.len() - 1;
+        assert!(!single_table_frame(&joined[..shifted]));
+        assert!(!single_table_frame(&joined[shifted..]));
+        assert!(!single_table_frame(&joined));
+    }
 }
