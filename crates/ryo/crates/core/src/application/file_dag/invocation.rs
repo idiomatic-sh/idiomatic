@@ -478,7 +478,6 @@ impl crate::domain::operator::contract::views::ClosureParts
     }
 }
 
-pub(super) mod rooms;
 
 impl InvocationResources<'_> {
     pub(in crate::application::file_dag) fn native_join_lease(
