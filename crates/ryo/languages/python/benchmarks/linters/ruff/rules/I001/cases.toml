@@ -1135,3 +1135,19 @@ control-query-sha256 = "afaff29b7c6530f1d9d3a398491637ed2db634ad0925438d62b6a55f
 control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
 witness-case = "titlecase-class-first"
 rationale = "Sealed Ryo worker recorded a complete candidate finding on the class-first Unicode witness while Ruff returned no finding."
+
+[[cases]]
+name = "review5-comment-gap-leading-def-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\n# c\ndef f(): pass\n" }
+expected = []
+
+[[cases]]
+name = "review5-comment-gap-leading-stub-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.pyi", state = "file" }] }
+files = { "input.pyi" = "import os\n\n# c\ndef f(): ...\n" }
+expected = []
