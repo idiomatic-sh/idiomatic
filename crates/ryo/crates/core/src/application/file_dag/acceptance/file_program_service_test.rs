@@ -282,19 +282,19 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
     query.steps.insert(1, query.steps[0].clone());
     query.emit.step = StepId(2);
     query.frontier.push(Input::Step(StepId(1)));
-    let graph = graph(&[query.clone(), query]);
-    let node = graph.cuts[0][0].expect("first internal cut");
+    let duplicated = graph(&[query.clone(), query]);
+    let node = duplicated.cuts[0][0].expect("first internal cut");
     assert_eq!(
-        graph.cuts[0][1],
+        duplicated.cuts[0][1],
         Some(node),
         "duplicate occurrence retains one node identity"
     );
     let complete = crate::application::file_dag::activation::types::ActivationCache::default()
-        .activate(&graph, |_| true, &[Relation::Function]);
+        .activate(&duplicated, |_| true, &[Relation::Function]);
     let inactive = crate::application::file_dag::activation::types::ActivationCache::default()
-        .activate(&graph, |rule| rule == 1, &[Relation::Function]);
+        .activate(&duplicated, |rule| rule == 1, &[Relation::Function]);
     let partial = crate::application::file_dag::activation::types::ActivationCache::default()
-        .activate(&graph, |_| true, &[]);
+        .activate(&duplicated, |_| true, &[]);
     assert!(complete.remaining[node.0] > inactive.remaining[node.0]);
     let mut deduplicated = plan();
     deduplicated.frontier.push(Input::Step(StepId(0)));
