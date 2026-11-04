@@ -3,7 +3,9 @@
 use super::super::errors::CorpusError;
 use super::super::interface::CorpusPort;
 use crate::outbound::corpus::types::{Inventory, PathStat};
-use ryo_values::domain::files::types::{CorpusEntry, CorpusFile, FileBytes, FileSize, Nanoseconds};
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
+};
 
 /// What the core's tests stand in for `corpus` with: it lists the files it was given, fails when told to, and cannot read a file
 /// whose path contains `unstable` twice alike. The files it holds outside the listing are read and stat'ed by their paths alone.
@@ -51,6 +53,7 @@ impl CorpusPort for CorpusFake {
                     size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                     modified: written(&file.bytes.0),
                 })
+                .map(CorpusInput::Available)
                 .collect(),
         ))
     }

@@ -1,0 +1,151 @@
+[[cases]]
+name = "upstream-bleach"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = \"hello-world\"\nversion = \"0.1.0\"\n# There's a comma missing here\ndependencies = [\n  \"tinycss2>=1.1.0<1.2\",\n]\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "RUF200", file = "pyproject.toml", start = 95, end = 123 }]
+
+[[cases]]
+name = "upstream-invalid_author"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = \"hello-world\"\nversion = \"0.1.0\"\n# Ensure that the spans from toml handle utf-8 correctly\nauthors = [\n    { name = \"Z͑ͫ̓ͪ̂ͫ̽͏̴̙̤̞͉͚̯̞̠͍A̴̵̜̰͔ͫ͗͢L̠ͨͧͩ͘G̴̻͈͍͔̹̑͗̎̅͛́Ǫ̵̹̻̝̳͂̌̌͘\", email = 1 }\n]\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "RUF200", file = "pyproject.toml", start = 116, end = 259 }]
+
+[[cases]]
+name = "upstream-maturin"
+comparison = "full"
+files = { "pyproject.toml" = "# This is a valid pyproject.toml\n# https://github.com/PyO3/maturin/blob/87ac3d9f74dd79ef2df9a20880b9f1fa23f9a437/pyproject.toml\n[build-system]\nrequires = [\"setuptools\", \"wheel>=0.36.2\", \"tomli>=1.1.0 ; python_version<'3.11'\", \"setuptools-rust>=1.4.0\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"maturin\"\nrequires-python = \">=3.7\"\nclassifiers = [\n    \"Topic :: Software Development :: Build Tools\",\n    \"Programming Language :: Rust\",\n    \"Programming Language :: Python :: Implementation :: CPython\",\n    \"Programming Language :: Python :: Implementation :: PyPy\",\n]\ndependencies = [\"tomli>=1.1.0 ; python_version<'3.11'\"]\ndynamic = [\n    \"authors\",\n    \"description\",\n    \"license\",\n    \"readme\",\n    \"version\"\n]\n\n[project.optional-dependencies]\nzig = [\n    \"ziglang~=0.10.0\",\n]\npatchelf = [\n    \"patchelf\",\n]\n\n[project.urls]\n\"Source Code\" = \"https://github.com/PyO3/maturin\"\nIssues = \"https://github.com/PyO3/maturin/issues\"\nDocumentation = \"https://maturin.rs\"\nChangelog = \"https://maturin.rs/changelog.html\"\n\n[tool.maturin]\nbindings = \"bin\"\n\n[tool.black]\ntarget_version = ['py37']\nextend-exclude = '''\n# Ignore cargo-generate templates\n^/src/templates\n'''\n\n[tool.ruff]\nline-length = 120\ntarget-version = \"py37\"\n\n[tool.mypy]\ndisallow_untyped_defs = true\ndisallow_incomplete_defs = true\nwarn_no_return = true\nignore_missing_imports = true\n" }
+context = { logical-root = "project" }
+expected = []
+
+[[cases]]
+name = "upstream-various_invalid"
+comparison = "full"
+files = { "pyproject.toml" = "[build-system]\nrequires = [ \"maturin>=0.14\", \"numpy\", \"wheel\", \"patchelf\",]\nbuild-backend = \"maturin\"\n\n[project]\nname = \"...\"\nlicense-files = [ \"license.txt\",]\nrequires-python = \">=3.8\"\nrequires-dist = [ \"maturin>=0.14\", \"...\",]\ndependencies = [ \"packaging\", \"...\",]\nzip-safe = false\nversion = \"...\"\nreadme = \"...\"\ndescription = \"...\"\nclassifiers = [ \"...\",]\n[[project.authors]]\nname = \"...\"\nemail = \"...\"\n\n[project.urls]\nhomepage = \"...\"\ndocumentation = \"...\"\nrepository = \"...\"\n\n[project.optional-dependencies]\ntest = [ \"coverage\", \"...\",]\ndocs = [ \"sphinx\", \"sphinx-rtd-theme\",]\ndevel = []\n\n[tool.maturin]\ninclude = [ \"...\",]\nbindings = \"pyo3\"\ncompatibility = \"manylinux2014\"\n\n[tool.pytest.ini_options]\ntestpaths = [ \"...\",]\naddopts = \"--color=yes --tb=native --cov-report term --cov-report html:docs/dist_coverage --cov=aisdb --doctest-modules --envfile .env\"\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "RUF200", file = "pyproject.toml", start = 244, end = 266 }]
+
+[[cases]]
+name = "upstream-pep639"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = \"hello-world\"\nversion = \"0.1.0\"\n# PEP 639 - passing\nlicense = \"MIT OR GPL-2.0-or-later OR (FSFUL AND BSD-2-Clause)\"\nlicense-files = [\"LICEN[CS]E*\", \"AUTHORS*\", \"licenses/LICENSE.MIT\"]\n" }
+context = { logical-root = "project" }
+expected = []
+
+[[cases]]
+name = "valid-minimal"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = 'example'\nversion = '1.0'\n" }
+context = { logical-root = "project" }
+expected = []
+
+[[cases]]
+name = "valid-author-dependencies"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{name = 'é author', email = 'author@example.org'}]\ndependencies = ['requests>=2; python_version > \"3.8\"']\n" }
+context = { logical-root = "project" }
+expected = []
+
+[[cases]]
+name = "invalid-author-valid-dependencies"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = 'example'\nversion = '1.0'\nauthors = [{name = 'é author', email = 1}]\ndependencies = ['requests>=2']\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "RUF200", file = "pyproject.toml", start = 53, end = 86 }]
+
+[[cases]]
+name = "invalid-requirement"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = 'example'\nversion = '1.0'\ndependencies = ['...']\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "RUF200", file = "pyproject.toml", start = 58, end = 65 }]
+
+[[cases]]
+name = "invalid-dependency-shape"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = 'example'\nversion = '1.0'\ndependencies = [1]\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "RUF200", file = "pyproject.toml", start = 59, end = 60 }]
+
+[[cases]]
+name = "invalid-toml"
+comparison = "full"
+files = { "pyproject.toml" = "[project\nname = \"example\"\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "RUF200", file = "pyproject.toml", start = 8, end = 8 }]
+
+[[cases]]
+name = "other-toml-invalid-not-pyproject"
+comparison = "full"
+files = { "other.toml" = "[project\nname = \"example\"\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "invalid-syntax", file = "other.toml", start = 9, end = 13 }, { rule = "invalid-syntax", file = "other.toml", start = 14, end = 15 }, { rule = "invalid-syntax", file = "other.toml", start = 26, end = 26 }]
+
+[cases.tool-contract-difference]
+reason = "Explicit Python selection follows the published SDK contract; Ruff excludes unrelated TOML input."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "cec1bbdec0040a001ad51344dd51b0d787d4e5e7863f02b988478ddcb989cc05"
+settings-sha256 = "bd605b4b20270bba27fb602edc5981b403ec001e4b2fb2549a85dd995a3c5404"
+source-sha256 = "8d416202474b69321a8f38ade7dd58a63c7d490d3fb403043ee720196c6f2a0b"
+reference-output-sha256 = "4728b62b41813f64bf943f1d7de625dee4d896d627a92fff8f58247b47d3e10c"
+intended-output-sha256 = "1e2f3a9746046f08d256aa935d5d3d8e1cbf76d3f0efba17d212a27a34f59f52"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/public-sdk-explicit-provider-contract.json"
+sha256 = "dae21dfebd171038096bdb99dc3ec8ea5892aa1d2f989cf1430c476b0769edaf"
+source-revision = "8a7a563fd1cfad986f21f73903a53fd2481e0c22"
+source-path = "crates/ryo/crates/sdk/src/resources/linter/lint/types.rs"
+rationale = "The prior public SDK defines explicit provider selection for unrelated filenames."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/prior-explicit-python-other-toml-control.json"
+sha256 = "f5b03ed8a61a3c8631ff0823ab114e389ed2bcc64e38e925148e99bc3050da42"
+worker-sha256 = "d01f1bcf5bbc97d06b0ebb20b2077eabe1c72641c3e52c781963cd38a63f580f"
+control-source-sha256 = "666302223d2ccce66e693bb2c5060bfe9287c884a1415a962eac5bbefbd998f7"
+control-query-sha256 = "95e695b5fc70e9fd6a5c48cc7cf0c197ebc0f73edd3e49bf91899092dceb3325"
+control-profile-sha256 = "cec1bbdec0040a001ad51344dd51b0d787d4e5e7863f02b988478ddcb989cc05"
+witness-case = "forced-python-other-toml-import"
+rationale = "A separate syntax-dependent control proves forced Python selection on an unrelated TOML filename; it is not the full RUF200 query."
+
+[[cases]]
+name = "other-toml-python-source-without-manifest-diagnostic"
+comparison = "full"
+files = { "other.toml" = "import os\n" }
+context = { logical-root = "project" }
+expected = []
+
+[[cases]]
+name = "valid-toml-and-invalid-python"
+comparison = "full"
+files = { "pyproject.toml" = "[project]\nname = 'example'\nversion = '1.0'\n", "invalid.py" = "def broken(\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "invalid-syntax", file = "invalid.py", start = 12, end = 12 }]
+
+[[cases]]
+name = "invalid-toml-and-invalid-python"
+comparison = "full"
+files = { "pyproject.toml" = "[project\n", "invalid.py" = "def broken(\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "invalid-syntax", file = "invalid.py", start = 12, end = 12 }, { rule = "RUF200", file = "pyproject.toml", start = 8, end = 8 }]
+
+[[cases]]
+name = "python-only-invalid-source"
+comparison = "full"
+files = { "invalid.py" = "def broken(\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "invalid-syntax", file = "invalid.py", start = 12, end = 12 }]
+
+[[cases]]
+name = "unknown-extension-still-python"
+comparison = "full"
+files = { "input.txt" = "def broken(\n" }
+context = { logical-root = "project" }
+expected = [{ rule = "invalid-syntax", file = "input.txt", start = 12, end = 12 }]

@@ -60,6 +60,13 @@ impl Project for ProjectContract {
         self.names
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
         let mut packages = Packages::default();
         let candidates = request
@@ -148,6 +155,12 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, Linked>> {
         languages::reads_manifests::<SourceDependencyItem>()
+    }
+
+    fn manifest_diagnostic(
+        &self,
+    ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
     }
 
     fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {

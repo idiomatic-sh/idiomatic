@@ -71,8 +71,8 @@ fn empty_cases_are_refused() {
             .expect("query");
             std::fs::write(directory.join("cases.toml"), "cases = []").expect("cases");
         }
-        let result =
-            SuiteLocalAdapter::new(None).cases(ArtifactPath(rules.path()), ArtifactPath(scratch.path()));
+        let result = SuiteLocalAdapter::new(None)
+            .cases(ArtifactPath(rules.path()), ArtifactPath(scratch.path()));
         let actual = result
             .expect_err("no cases cannot certify correctness")
             .to_string();
@@ -293,47 +293,69 @@ patch = "patches/project.patch"
 
 #[test]
 fn discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits() {
-    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../languages/python/benchmarks/linters/ruff/fixtures/reference-discrepancy");
-    let parent = tempfile::tempdir().expect("fixture staging parent");
-    let staged = parent.path().join("profile");
+    use sha2::{Digest as _, Sha256};
+    let parent = tempfile::tempdir().expect("neutral fixture parent");
+    let source = parent.path().join("source");
+    std::fs::create_dir_all(source.join("rules/T001")).unwrap();
+    std::fs::create_dir_all(source.join("evidence")).unwrap();
+    let sha = |bytes: &[u8]| format!("{:x}", Sha256::digest(bytes));
+    let source_text = b"x\n";
+    let source_sha = sha([b"case.txt\0".as_slice(), source_text].concat().as_slice());
+    let authority = b"neutral independent meaning\n";
+    let evidence_sha = sha(authority);
+    std::fs::write(source.join("evidence/authority.txt"), authority).unwrap();
+    std::fs::write(source.join("benchmark.toml"), format!(
+        "tool = 'toy'\nversion = '1'\nsha256 = ['{}']\ndefaults = ['T001']\nparser-configuration = 'toy-v1'\n",
+        "a".repeat(64)
+    )).unwrap();
+    std::fs::write(
+        source.join("rules/T001/query.ryoql"),
+        "emit source subject file key(span);\n",
+    )
+    .unwrap();
+    let pin = "a".repeat(64);
+    let cases = format!(
+        r#"[[cases]]
+name = "source-identity"
+comparison = "full"
+files = {{ "case.txt" = "x\n" }}
+expected = []
+reference-discrepancy = {{ expected = [], identity = {{ tool = "toy", version = "1", observed-executable-sha256 = "{pin}", profile-sha256 = "{pin}", settings-sha256 = "{pin}", source-sha256 = "{source_sha}", reference-output-sha256 = "{pin}", intended-output-sha256 = "{pin}" }}, evidence = [{{ path = "evidence/authority.txt", sha256 = "{evidence_sha}", kind = "language-spec", language-version = "1", target-configuration = "toy-v1", version-rationale = "neutral control" }}], reason = "neutral source identity" }}
+
+[[cases]]
+name = "positive"
+comparison = "full"
+files = {{ "positive.txt" = "y\n" }}
+expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
+"#
+    );
+    std::fs::write(source.join("rules/T001/cases.toml"), cases).unwrap();
+    let staged = parent.path().join("staged");
     let adapter = SuiteLocalAdapter::new(None);
     let tool = adapter
         .profile(ArtifactPath(&source))
-        .expect("pinned profile");
+        .expect("neutral profile");
     let audit = adapter
         .audit(ArtifactPath(&source), &tool)
-        .expect("independent positive and negative cases");
+        .expect("neutral case audit");
     adapter
         .stage(ArtifactPath(&source), ArtifactPath(&staged), &audit)
-        .expect("evidence included in staged profile");
-    let scratch = parent.path().join("cases");
-    let cases = adapter
-        .cases(ArtifactPath(&staged.join("rules")), ArtifactPath(&scratch))
-        .expect("typed discrepancy cases");
+        .expect("evidence staged");
+    let materialized = adapter
+        .cases(
+            ArtifactPath(&staged.join("rules")),
+            ArtifactPath(&parent.path().join("cases")),
+        )
+        .expect("typed case");
     let wires = adapter
         .case_reference_wires(ArtifactPath(&staged))
-        .expect("raw boundary-owned expectations");
-    assert_eq!(wires.len(), 2, "two independent language disagreements");
-    for wire in &wires {
-        let case = cases
-            .iter()
-            .find(|case| case.name.to_string() == wire.name)
-            .expect("materialized source case");
-        verify_discrepancy_fixture(
-            &adapter,
-            &staged,
-            &case.request.root,
-            &case.request.files,
-            wire,
-        )
-        .expect("source and evidence seal");
-    }
+        .expect("authored evidence");
+    assert_eq!(wires.len(), 1);
     let wire = &wires[0];
-    let case = cases
+    let case = materialized
         .iter()
         .find(|case| case.name.to_string() == wire.name)
-        .expect("materialized source case");
+        .expect("materialized discrepancy case");
     let verify_selected = || {
         verify_discrepancy_fixture(
             &adapter,
@@ -343,23 +365,13 @@ fn discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits() {
             wire,
         )
     };
-    let path = case.request.root.join(case.request.files[0].0.as_ref());
-    let original = std::fs::read(&path).expect("source bytes");
-    std::fs::write(&path, b"changed source").expect("source mutation");
-    assert!(
-        verify_selected().is_err(),
-        "source changes invalidate evidence"
-    );
-    std::fs::write(&path, original).expect("restore source");
-    std::fs::write(
-        staged.join("evidence/cpython313.json"),
-        b"changed observation",
-    )
-    .expect("evidence mutation");
-    assert!(
-        verify_selected().is_err(),
-        "changed independent evidence invalidates admission"
-    );
+    verify_selected().expect("neutral source and evidence seal");
+    let file = case.request.root.join("case.txt");
+    std::fs::write(&file, b"changed source").unwrap();
+    assert!(verify_selected().is_err(), "source mutation");
+    std::fs::write(&file, source_text).unwrap();
+    std::fs::write(staged.join("evidence/authority.txt"), b"changed authority").unwrap();
+    assert!(verify_selected().is_err(), "evidence mutation");
 }
 
 /// Construct one explicit IO-boundary request from the staged fixture's external file identities.
@@ -380,8 +392,9 @@ fn verify_discrepancy_fixture(
         .iter()
         .map(
             |item| crate::outbound::suite::types::discrepancy::EvidenceArtifact {
-                path: item.path.clone(),
-                sha256: item.sha256.clone(),
+                path: item.artifact().0.to_path_buf(),
+                sha256: item.artifact().1.to_owned(),
+                requirement: item.requirement(),
             },
         )
         .collect::<Vec<_>>();

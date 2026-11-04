@@ -26,6 +26,7 @@ use crate::domain::relations::collections::relations::reference::item::Reference
 use crate::domain::relations::collections::relations::scope::item::ScopeItem;
 use crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
 use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
+use crate::domain::relations::collections::relations::standard_library_import::item::StandardLibraryImportItem;
 use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
 use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
 use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
@@ -125,6 +126,7 @@ impl Parse for ParseContract {
             languages::OptionalCapability::BraceFormatParse,
             languages::OptionalCapability::BraceFormatField,
             languages::OptionalCapability::LanguageTarget,
+            languages::OptionalCapability::StandardLibraryImport,
             languages::OptionalCapability::CompilerFeature,
             languages::OptionalCapability::FunctionTerminal,
             languages::OptionalCapability::ExpressionType,
@@ -456,6 +458,12 @@ impl Parse for ParseContract {
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, Declarations>> {
         languages::reads::<StaticImportItem>()
+    }
+
+    fn standard_library_import(
+        &self,
+    ) -> Support<Reader<languages::StandardLibraryImport, Declarations>> {
+        languages::reads::<StandardLibraryImportItem>()
     }
 
     fn string_literal(&self) -> Support<Reader<languages::StringLiteral, Declarations>> {

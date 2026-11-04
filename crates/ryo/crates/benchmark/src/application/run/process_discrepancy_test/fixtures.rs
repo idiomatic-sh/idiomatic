@@ -164,6 +164,7 @@ impl Fixture {
             "reference_expectation_kind":"process-failure","process_observation_group_sha256":process_discrepancy::group_digest(&process,&"a".repeat(64)).unwrap().0,
         });
         prepared.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
+            basis: crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
             expected: ReferenceExpectation::ProcessFailure(process),
             identity: identity.clone(),
             evidence: vec![],

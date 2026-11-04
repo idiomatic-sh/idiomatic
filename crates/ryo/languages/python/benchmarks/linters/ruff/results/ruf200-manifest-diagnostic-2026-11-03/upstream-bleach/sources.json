@@ -1,0 +1,3 @@
+{
+  "pyproject.toml": "[project]\nname = \"hello-world\"\nversion = \"0.1.0\"\n# There's a comma missing here\ndependencies = [\n  \"tinycss2>=1.1.0<1.2\",\n]\n"
+}

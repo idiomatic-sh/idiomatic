@@ -1,0 +1,12 @@
+{
+  "model": "claude-fable-5-1",
+  "effort": "high",
+  "exit": 1,
+  "review_performed": false,
+  "error": "You've hit your weekly limit \u00b7 resets Nov 5, 8am (UTC)",
+  "api_session": "1c0296de-1d7a-4169-8405-cf25ef97751f",
+  "submitted_packet_sha256": "29f58e2c7bc71e6b4a8377c07a21b86203f7aa8c30b485b03ec021722dcf00f9",
+  "current_packet_sha256": "c4352ca9dec48b3d7ea37bd81cf766f3298b545d4cdbc966b484a1c2b3fa6829",
+  "post_attempt_change": "Domain owns pure recognition/equivalence; application owns policy/state/lifetime",
+  "no_substitute_review": true
+}

@@ -9,7 +9,7 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
 use ryo_language::inbound::use_cases::project::types::{ManifestFile, RootPath};
 use ryo_values::domain::descriptions::types::LanguageName;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
+use ryo_values::domain::files::types::{CorpusInput, FileBytes};
 use ryo_values::domain::stored_facts::types::{FileNotes, LanguageNumber, ReadFailure};
 
 /// A linked language as a listing names it: its name, then its build.
@@ -71,7 +71,7 @@ pub struct FileToRead<'a> {
 pub enum FileReading {
     /// The language at this place among the ones linked read it and wrote its rows.
     Read(LanguageNumber),
-    /// No linked language parses this file, and a linked language reads it as a manifest: it has no tree, and it is not left unread.
+    /// A provider classifies this input as project/configuration data: its project reader owns semantics, it has no source tree, and it is not left unread.
     Manifest,
     /// No linked language reads this file.
     Unsupported,
@@ -110,7 +110,7 @@ pub struct ProjectInput<'a> {
     /// The manifests of the repository.
     pub manifests: &'a [ManifestFile],
     /// Every file the run lists, by path, in the order of their places.
-    pub files: &'a [CorpusEntry],
+    pub files: &'a [CorpusInput],
     /// What the language that read each file wrote of it, in the order of `files`.
     pub notes: &'a ProjectNotes,
     /// The relations the run asks for.

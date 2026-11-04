@@ -455,14 +455,8 @@ fn visited_as_with_facts(
     digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
     facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
-    use super::types::{FileVisit, Worker};
-    use crate::domain::visit::types::{Noting, RoleRead};
     use crate::outbound::corpus::interface::CorpusPort as _;
-    use crate::outbound::matching::fixtures::fake::MatchingFake;
-    use crate::outbound::matching::interface::MatchingPort as _;
-    use crate::outbound::scheduler::types::JobNumber;
     use ryo_values::domain::files::types::{CorpusFile, FileBytes};
-    use ryo_values::domain::runs::types::MemoryBytes;
     let corpus = Arc::new(CorpusFake {
         files: paths
             .iter()
@@ -475,6 +469,70 @@ fn visited_as_with_facts(
         ..CorpusFake::default()
     });
     let files = corpus.inventory().expect("fake corpus inventory");
+    visited_inputs(
+        corpus,
+        &files.0,
+        &[Relation::Function],
+        language,
+        answering,
+        keeping,
+        digest,
+        facts,
+        None,
+        1,
+    )
+}
+
+/// Runs real file admission against injected input observations, retaining the worker for semantic assertions.
+fn visited_inputs(
+    corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort>,
+    files: &[ryo_values::domain::files::types::CorpusInput],
+    wanted: &[Relation],
+    language: LanguageFake,
+    answering: &crate::domain::render::types::Answering,
+    keeping: crate::domain::visit::types::Keeping,
+    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+    kept: Option<&ryo_values::domain::records::types::Record>,
+    repetitions: usize,
+) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
+    visited_inputs_with_rule_demands(
+        corpus,
+        files,
+        wanted,
+        language,
+        answering,
+        keeping,
+        digest,
+        facts,
+        kept,
+        repetitions,
+        &[],
+        &[],
+        Mask(vec![1]),
+    )
+}
+
+fn visited_inputs_with_rule_demands(
+    corpus: Arc<dyn crate::outbound::corpus::interface::CorpusPort>,
+    files: &[ryo_values::domain::files::types::CorpusInput],
+    wanted: &[Relation],
+    language: LanguageFake,
+    answering: &crate::domain::render::types::Answering,
+    keeping: crate::domain::visit::types::Keeping,
+    digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
+    facts: Box<dyn crate::outbound::facts::interface::FactsWorker>,
+    kept: Option<&ryo_values::domain::records::types::Record>,
+    repetitions: usize,
+    ids: &[ryo_values::domain::runs::types::RuleId],
+    needs: &[crate::domain::trust::types::Needs],
+    always: Mask,
+) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
+    use super::types::{FileVisit, Worker};
+    use crate::domain::visit::types::{Noting, RoleRead};
+    use crate::outbound::matching::fixtures::fake::MatchingFake;
+    use crate::outbound::scheduler::types::JobNumber;
+    use ryo_values::domain::runs::types::MemoryBytes;
     let language = Arc::new(language);
     let service = FileAnalysis::new(
         corpus,
@@ -484,11 +542,12 @@ fn visited_as_with_facts(
     );
     let placed = PlacedScopes {
         placement: ScopePlacement {
-            always: Mask(vec![1]),
+            always,
             ..ScopePlacement::default()
         },
         matcher: MatchingFake.compile(&[]).expect("empty glob set"),
     };
+    let records: Vec<_> = files.iter().map(|_| kept).collect();
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
@@ -500,14 +559,14 @@ fn visited_as_with_facts(
                 unknown: &[],
                 plans: &[],
                 bindings: &[],
-                wanted: &[Relation::Function],
+                wanted,
                 paths: &[],
                 first_bucket: &[],
-                ids: &[],
+                ids,
                 applicability: &[],
                 applicability_can_gate: true,
                 placed: &placed,
-                records: &[],
+                records: &records,
                 replaying: crate::domain::workers::types::Replaying::Findings,
                 stored: &NOTHING_STORED,
                 handed: &NOTHING_HANDED,
@@ -515,7 +574,7 @@ fn visited_as_with_facts(
                 budget: MemoryBytes(u64::MAX),
                 noted: Noting::Unwanted,
                 roled: RoleRead::Skips,
-                needs: &[],
+                needs,
                 answering,
                 keeping,
             },
@@ -533,8 +592,10 @@ fn visited_as_with_facts(
         activation: Default::default(),
         failure: None,
     };
-    for index in 0..u32::try_from(files.0.len()).unwrap_or(u32::MAX) {
-        service.visit_file(&mut worker, &visit, &files.0, JobNumber(index));
+    for _ in 0..repetitions {
+        for index in 0..u32::try_from(files.len()).unwrap_or(u32::MAX) {
+            service.visit_file(&mut worker, &visit, files, JobNumber(index));
+        }
     }
     Ok((worker, language))
 }
@@ -1467,3 +1528,330 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+#[test]
+fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes() {
+    use crate::domain::render::types::Answering;
+    use crate::domain::visit::types::Keeping;
+    use crate::outbound::corpus::{
+        errors::CorpusError,
+        interface::CorpusPort,
+        types::{Inventory, PathStat},
+    };
+    use ryo_values::domain::files::types::{
+        CorpusEntry, CorpusInput, FileBytes, FileNumber, FileSize, Nanoseconds,
+    };
+    use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
+    use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
+    use std::sync::atomic::AtomicUsize;
+    struct ChangingRead {
+        reads: AtomicUsize,
+        fail_at: usize,
+    }
+    impl CorpusPort for ChangingRead {
+        fn inventory(&self) -> Result<Inventory, CorpusError> {
+            unreachable!("explicit test inventory")
+        }
+        fn stat(&self, _: &FilePath) -> Result<PathStat, CorpusError> {
+            unreachable!("no dependency lookup")
+        }
+        fn read(&self, entry: &CorpusEntry, bytes: &mut FileBytes) -> Result<(), CorpusError> {
+            assert!(
+                bytes.0.is_empty(),
+                "each real attempt starts without earlier source or partial error bytes"
+            );
+            let at = self.reads.fetch_add(1, Ordering::Relaxed);
+            if at == self.fail_at {
+                bytes.0.extend_from_slice(b"partial failed bytes");
+                Err(CorpusError::Unreadable {
+                    path: entry.path.0.to_string(),
+                    reason: "read denied".into(),
+                })
+            } else {
+                bytes.0.extend_from_slice(b"fn main() {}");
+                Ok(())
+            }
+        }
+    }
+    for fail_at in [0, 1, 2] {
+        let corpus = Arc::new(ChangingRead {
+            reads: AtomicUsize::new(0),
+            fail_at,
+        });
+        let entry = CorpusEntry {
+            executable: Default::default(),
+            path: FilePath("same.rs".into()),
+            size: FileSize(12),
+            modified: Nanoseconds(42),
+        };
+        let kept = Record {
+            executable: entry.executable,
+            path: entry.path.clone(),
+            size: entry.size,
+            modified: entry.modified,
+            digest: Digest([7; 16]),
+            number: FileNumber(0),
+            outcome: FileOutcome::Unread {
+                reason: Unreadable::Failed(ReadFailure("previous refusal".into())),
+                ran: None,
+            },
+        };
+        let (worker, language) = visited_inputs(
+            corpus.clone(),
+            &[CorpusInput::Available(entry.clone())],
+            &[
+                Relation::FilesystemReadFailure,
+                Relation::FilesystemLineCount,
+                Relation::Function,
+            ],
+            LanguageFake::default(),
+            &Answering::Findings,
+            Keeping::Keeps,
+            Arc::new(DigestFake),
+            FactsFake::default().worker().unwrap(),
+            Some(&kept),
+            3,
+        )
+        .unwrap();
+        assert!(worker.failure.is_none());
+        assert_eq!(
+            corpus.reads.load(Ordering::Relaxed),
+            3,
+            "metadata equality cannot certify current readability"
+        );
+        assert_eq!(
+            language.parses.load(Ordering::Relaxed),
+            2,
+            "a failed disk attempt never reaches the parser"
+        );
+        if fail_at == 2 {
+            assert!(worker.tables.bytes.0.is_empty());
+            assert!(
+                worker
+                    .tables
+                    .partials
+                    .iter()
+                    .any(|partial| partial.relation == Relation::FilesystemLineCount)
+            );
+            assert!(
+                worker
+                    .tables
+                    .partials
+                    .iter()
+                    .any(|partial| partial.relation == Relation::Function)
+            );
+            assert!(
+                !worker
+                    .tables
+                    .partials
+                    .iter()
+                    .any(|partial| partial.relation == Relation::FilesystemReadFailure)
+            );
+        } else {
+            assert_eq!(worker.tables.bytes.0, b"fn main() {}");
+        }
+        assert_eq!(worker.tables.unread.len(), 1);
+        assert_eq!(
+            worker.tables.unrecorded,
+            [FilePath("same.rs".into())],
+            "the failed visit is retried rather than persisted"
+        );
+        assert_eq!(
+            worker.tables.fresh.len(),
+            2,
+            "only successfully admitted visits have reusable records"
+        );
+        if fail_at == 0 {
+            use crate::domain::trust::types::{Needs, RelationRead};
+            use ryo_values::domain::runs::types::RuleId;
+            let excluded = Arc::new(ChangingRead {
+                reads: AtomicUsize::new(0),
+                fail_at: usize::MAX,
+            });
+            let needs = [
+                Needs::default(),
+                Needs {
+                    reads: vec![RelationRead {
+                        relation: Relation::FilesystemReadFailure,
+                        kinds: vec![],
+                    }],
+                    ..Needs::default()
+                },
+            ];
+            let ids = [RuleId("ordinary".into()), RuleId("read-failure".into())];
+            let (replayed, _) = visited_inputs_with_rule_demands(
+                excluded.clone(),
+                &[CorpusInput::Available(entry.clone())],
+                &[Relation::FilesystemReadFailure],
+                LanguageFake::default(),
+                &Answering::Findings,
+                Keeping::Keeps,
+                Arc::new(DigestFake),
+                FactsFake::default().worker().unwrap(),
+                Some(&kept),
+                1,
+                &ids,
+                &needs,
+                Mask(vec![1]),
+            )
+            .unwrap();
+            assert!(replayed.failure.is_none());
+            assert_eq!(excluded.reads.load(Ordering::Relaxed), 0);
+
+            let included = Arc::new(ChangingRead {
+                reads: AtomicUsize::new(0),
+                fail_at: usize::MAX,
+            });
+            let (fresh, _) = visited_inputs_with_rule_demands(
+                included.clone(),
+                &[CorpusInput::Available(entry.clone())],
+                &[Relation::FilesystemReadFailure],
+                LanguageFake::default(),
+                &Answering::Findings,
+                Keeping::Keeps,
+                Arc::new(DigestFake),
+                FactsFake::default().worker().unwrap(),
+                Some(&kept),
+                1,
+                &ids,
+                &needs,
+                Mask(vec![2]),
+            )
+            .unwrap();
+            assert!(fresh.failure.is_none());
+            assert_eq!(included.reads.load(Ordering::Relaxed), 1);
+        }
+    }
+}
+
+#[test]
+fn read_failure_demand_is_limited_to_governing_rules() {
+    use crate::domain::reading::service::read_failure_demanded;
+    use crate::domain::trust::types::{Needs, RelationRead};
+    let wanted = [Relation::FilesystemReadFailure];
+    let needs = [
+        Needs::default(),
+        Needs {
+            reads: vec![RelationRead {
+                relation: Relation::FilesystemReadFailure,
+                kinds: vec![],
+            }],
+            ..Needs::default()
+        },
+    ];
+    assert!(!read_failure_demanded(&wanted, &Mask(vec![1]), &needs, 2));
+    assert!(read_failure_demanded(&wanted, &Mask(vec![2]), &needs, 2));
+    assert!(read_failure_demanded(&wanted, &Mask(vec![1]), &[], 2));
+}
+
+#[test]
+fn discovery_failure_runs_without_parser_bytes_or_permission_invention() {
+    use crate::domain::{render::types::Answering, visit::types::Keeping};
+    use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};
+    let corpus = Arc::new(CorpusFake::default());
+    let input = CorpusInput::Unreadable {
+        path: FilePath("missing.py".into()),
+        reason: InputReadFailure("not found".into()),
+    };
+    let (worker, language) = visited_inputs(
+        corpus.clone(),
+        &[input],
+        &[
+            Relation::FilesystemFile,
+            Relation::FilesystemReadFailure,
+            Relation::FilesystemExecutable,
+            Relation::FilesystemLineCount,
+            Relation::Function,
+        ],
+        LanguageFake::default(),
+        &Answering::Findings,
+        Keeping::Keeps,
+        Arc::new(DigestFake),
+        FactsFake::default().worker().unwrap(),
+        None,
+        1,
+    )
+    .unwrap();
+    assert!(worker.failure.is_none());
+    assert_eq!(
+        corpus.reads.load(Ordering::Relaxed),
+        0,
+        "there is no fabricated entry to read"
+    );
+    assert_eq!(language.parses.load(Ordering::Relaxed), 0);
+    assert!(worker.tables.bytes.0.is_empty());
+    for relation in [
+        Relation::FilesystemFile,
+        Relation::FilesystemExecutable,
+        Relation::FilesystemLineCount,
+        Relation::Function,
+    ] {
+        assert!(
+            worker
+                .tables
+                .partials
+                .iter()
+                .any(|partial| partial.relation == relation)
+        );
+    }
+    assert!(
+        !worker
+            .tables
+            .partials
+            .iter()
+            .any(|partial| partial.relation == Relation::FilesystemReadFailure)
+    );
+    assert!(worker.tables.fresh.is_empty());
+    assert_eq!(worker.tables.unrecorded, [FilePath("missing.py".into())]);
+}
+
+#[test]
+fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_source() {
+    use ryo_values::domain::files::types::{
+        CorpusEntry, CorpusInput, FileSize, InputReadFailure, Nanoseconds,
+    };
+    let corpus = Arc::new(CorpusFake::default());
+    let service = FileAnalysis::new(
+        corpus.clone(),
+        Arc::new(LanguageFake::default()),
+        Arc::new(DigestFake),
+        Arc::new(MemoryFake::default()),
+    );
+    let entry = CorpusEntry {
+        executable: Default::default(),
+        path: FilePath("pkg/project.manifest.fake".into()),
+        size: FileSize(42),
+        modified: Nanoseconds(19),
+    };
+    let companion = CorpusEntry {
+        path: FilePath("input.rs".into()),
+        ..entry.clone()
+    };
+    let mut inputs = [
+        CorpusInput::Available(entry.clone()),
+        CorpusInput::Available(companion.clone()),
+        CorpusInput::Unreadable {
+            path: FilePath("missing.manifest.fake".into()),
+            reason: InputReadFailure("not found".into()),
+        },
+    ];
+    assert!(
+        service.read_manifests(&mut inputs).unwrap().is_empty(),
+        "a failed read never becomes empty manifest text"
+    );
+    assert_eq!(
+        corpus.reads.load(Ordering::Relaxed),
+        1,
+        "only the available primary manifest is read; no consulted/source path is substituted"
+    );
+    let CorpusInput::ReadFailed {
+        entry: observed,
+        reason,
+    } = &inputs[0]
+    else {
+        panic!("retain primary read outcome");
+    };
+    assert_eq!(observed, &entry);
+    assert!(!reason.0.is_empty());
+    assert!(matches!(&inputs[1], CorpusInput::Available(observed) if observed == &companion));
+    assert!(matches!(&inputs[2], CorpusInput::Unreadable { .. }));
+}

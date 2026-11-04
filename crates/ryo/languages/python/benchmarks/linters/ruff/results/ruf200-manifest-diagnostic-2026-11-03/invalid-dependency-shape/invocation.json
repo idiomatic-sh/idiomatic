@@ -1,0 +1,35 @@
+{
+  "name": "invalid-dependency-shape",
+  "files": {
+    "pyproject.toml": "[project]\nname = 'example'\nversion = '1.0'\ndependencies = [1]\n"
+  },
+  "argv": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "/tmp/ruf200-reference-20261103/invalid-dependency-shape/.ruff_cache",
+    "--select",
+    "RUF200",
+    "--target-version",
+    "py310",
+    "--",
+    "pyproject.toml"
+  ],
+  "root": "/tmp/ruf200-reference-20261103/invalid-dependency-shape",
+  "exit": 1,
+  "executable": "/home/vscode/.local/bin/ruff",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "expected": [
+    {
+      "rule": "RUF200",
+      "file": "pyproject.toml",
+      "start": 59,
+      "end": 60
+    }
+  ],
+  "stdout_sha256": "7e1c7eb530ec5c0b9096bf4a7afa1293f4393106078a44798ad64cd8fe76ecdf",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

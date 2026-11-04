@@ -1,0 +1,43 @@
+{
+  "name": "invalid-toml-and-invalid-python",
+  "files": {
+    "pyproject.toml": "[project\n",
+    "invalid.py": "def broken(\n"
+  },
+  "argv": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "/tmp/ruf200-reference-20261103/invalid-toml-and-invalid-python/.ruff_cache",
+    "--select",
+    "RUF200",
+    "--target-version",
+    "py310",
+    "--",
+    "pyproject.toml",
+    "invalid.py"
+  ],
+  "root": "/tmp/ruf200-reference-20261103/invalid-toml-and-invalid-python",
+  "exit": 1,
+  "executable": "/home/vscode/.local/bin/ruff",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "expected": [
+    {
+      "rule": "invalid-syntax",
+      "file": "invalid.py",
+      "start": 12,
+      "end": 12
+    },
+    {
+      "rule": "RUF200",
+      "file": "pyproject.toml",
+      "start": 8,
+      "end": 8
+    }
+  ],
+  "stdout_sha256": "580eb57b37ec83192a098adce03b624dab056c0b8ab204e41362cae5b8898b32",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

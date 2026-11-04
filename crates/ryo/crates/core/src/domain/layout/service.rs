@@ -212,6 +212,7 @@ pub(crate) fn shaped(
                 | Relation::TokenLink
                 | Relation::LiteralExpressionParse
                 | Relation::StaticImport
+                | Relation::StandardLibraryImport
                 | Relation::StringLiteral
                 | Relation::BytesLiteral
                 | Relation::FormatSpecification
@@ -230,10 +231,12 @@ pub(crate) fn shaped(
                 | Relation::SourceDependency
                 | Relation::AnalyzedSource
                 | Relation::FilePackage
+                | Relation::ManifestDiagnostic
                 | Relation::ModuleIdentity
                 | Relation::FilesystemFile
                 | Relation::FilesystemLineCount
-                | Relation::FilesystemExecutable => None,
+                | Relation::FilesystemExecutable
+                | Relation::FilesystemReadFailure => None,
             },
         })
     };

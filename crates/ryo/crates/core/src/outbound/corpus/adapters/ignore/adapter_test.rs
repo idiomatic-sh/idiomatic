@@ -148,7 +148,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             );
             let entries = adapter.inventory()?.0;
             let mut bytes = FileBytes::default();
-            adapter.read(&entries[0], &mut bytes)?;
+            adapter.read(known_entry(&entries[0]), &mut bytes)?;
             Ok(usize::from(
                 entries.len() == 1 && bytes.0 == b"fn given() {}",
             ))
@@ -198,13 +198,18 @@ fn inventory() -> Result<Value, Failure> {
     let mut entries = walking(RootPath(root.path().to_str().expect("a utf-8 path").into()))
         .inventory()?
         .0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    entries.sort_by(|left, right| {
+        ryo_values::domain::files::service::input_path(left)
+            .cmp(ryo_values::domain::files::service::input_path(right))
+    });
     let found: Vec<(&str, u64)> = entries
         .iter()
-        .map(|entry| (&*entry.path.0, entry.size.0))
+        .map(|entry| (&*known_entry(entry).path.0, known_entry(entry).size.0))
         .collect();
     // A file the system dates carries the date, so an edit shows without a read.
-    let dated = entries.iter().all(|entry| entry.modified.0 > 0);
+    let dated = entries
+        .iter()
+        .all(|entry| known_entry(entry).modified.0 > 0);
     Ok(usize::from(
         found == [("a.rs", 9), ("b.rs", 9), ("sub/c.txt", 1)] && dated,
     ))
@@ -243,8 +248,14 @@ fn skipping(skipped: &[&str], expected: &[&str]) -> Result<Value, Failure> {
         SkippedDirectories(skipped.iter().map(|name| (*name).into()).collect()),
     );
     let mut entries = adapter.inventory()?.0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
-    let found: Vec<&str> = entries.iter().map(|entry| &*entry.path.0).collect();
+    entries.sort_by(|left, right| {
+        ryo_values::domain::files::service::input_path(left)
+            .cmp(ryo_values::domain::files::service::input_path(right))
+    });
+    let found: Vec<&str> = entries
+        .iter()
+        .map(|entry| &*ryo_values::domain::files::service::input_path(entry).0)
+        .collect();
     Ok(usize::from(found == expected))
 }
 
@@ -259,9 +270,9 @@ const WALKED: &str = "global-excludes-repository";
 fn global_excludes() -> Result<Value, Failure> {
     if let Some(repository) = std::env::args().find(|argument| argument.ends_with(WALKED)) {
         let entries = walking(RootPath(repository.into())).inventory()?.0;
-        return Ok(usize::from(
-            entries.iter().any(|entry| &*entry.path.0 == "kept.rs"),
-        ));
+        return Ok(usize::from(entries.iter().any(|entry| {
+            &*ryo_values::domain::files::service::input_path(entry).0 == "kept.rs"
+        })));
     }
     let scratch = tempfile::tempdir().expect("a temporary directory");
     let repository = scratch.path().join(WALKED);
@@ -307,12 +318,30 @@ fn listed() -> Result<Value, Failure> {
         SkippedDirectories::default(),
     );
     let mut entries = adapter.inventory()?.0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    entries.sort_by(|left, right| {
+        ryo_values::domain::files::service::input_path(left)
+            .cmp(ryo_values::domain::files::service::input_path(right))
+    });
     let found: Vec<(&str, u64)> = entries
         .iter()
-        .map(|entry| (&*entry.path.0, entry.size.0))
+        .filter_map(|input| match input {
+            ryo_values::domain::files::types::CorpusInput::Available(entry) => {
+                Some((&*entry.path.0, entry.size.0))
+            }
+            _ => None,
+        })
         .collect();
-    Ok(usize::from(found == [("a.rs", 9), ("given/b.rs", 9)]))
+    let missing = entries
+        .iter()
+        .filter(|input| {
+            matches!(input,
+        ryo_values::domain::files::types::CorpusInput::Unreadable { path, reason }
+            if path.0.as_ref() == "gone.rs" && !reason.0.is_empty())
+        })
+        .count();
+    Ok(usize::from(
+        found == [("a.rs", 9), ("given/b.rs", 9)] && missing == 1 && entries.len() == 3,
+    ))
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -464,9 +493,19 @@ fn inventory_and_stat_observe_each_posix_execute_bit_without_changing_bytes_or_m
         assert_eq!(observed.size, original.size);
         assert_eq!(observed.modified, original.modified);
         assert_eq!(
-            adapter.inventory().unwrap().0[0].executable,
+            known_entry(&adapter.inventory().unwrap().0[0]).executable,
             observed.executable
         );
         assert_eq!(std::fs::read(&path).unwrap(), b"print(1)\n");
     }
+}
+
+/// Tests that require physical metadata explicitly reject unavailable input fixtures.
+fn known_entry(
+    input: &ryo_values::domain::files::types::CorpusInput,
+) -> &ryo_values::domain::files::types::CorpusEntry {
+    let ryo_values::domain::files::types::CorpusInput::Available(entry) = input else {
+        panic!("this fixture requires observed file metadata");
+    };
+    entry
 }

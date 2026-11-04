@@ -10,6 +10,8 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::{emitted, pool_for};
 use crate::domain::operator::types::RuleWorkspace;
 use crate::domain::ordering::service::sort_findings;
+use crate::domain::placement::service::governs;
+use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, RenderInput};
 use crate::domain::rules::errors::RulesError;
@@ -20,6 +22,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::{encode_table, pack_onto};
 use crate::domain::table_words::types::WordSlice;
+use crate::domain::trust::types::Needs;
 use crate::domain::value_cells::types::Scene;
 use crate::domain::workers::types::{Tables, VisitSetting};
 use ryo_language::domain::elements::service::clear_elements;
@@ -44,6 +47,11 @@ pub(crate) fn frontier_bucket(first: Bucket, input: InputNumber) -> Bucket {
 /// last file left.
 pub(crate) fn begin(tables: &mut Tables) -> ArenaBase {
     tables.reads.0 += 1;
+    prepare(tables)
+}
+
+/// Resets per-file language state before execution without claiming a successful source read.
+pub(crate) fn prepare(tables: &mut Tables) -> ArenaBase {
     let base = ArenaBase(u32::try_from(tables.arena.0.len()).unwrap_or(u32::MAX));
     tables.captured.clear();
     tables.current_observations = None;
@@ -64,9 +72,11 @@ pub(crate) fn engine_asked(wanted: &[Relation]) -> EngineAsked {
     let file = asked(Relation::FilesystemFile);
     let lines = asked(Relation::FilesystemLineCount);
     let executable = asked(Relation::FilesystemExecutable);
+    let read_failure = asked(Relation::FilesystemReadFailure);
     let any = if file == EngineRows::Asked
         || lines == EngineRows::Asked
         || executable == EngineRows::Asked
+        || read_failure == EngineRows::Asked
     {
         EngineRows::Asked
     } else {
@@ -76,8 +86,61 @@ pub(crate) fn engine_asked(wanted: &[Relation]) -> EngineAsked {
         file,
         lines,
         executable,
+        read_failure,
         any,
     }
+}
+
+/// Whether a rule governing this file reads the primary disk-failure observation. Incomplete
+/// legacy rule metadata keeps the conservative run-wide demand.
+#[must_use]
+pub(crate) fn read_failure_demanded(
+    wanted: &[Relation],
+    mask: &Mask,
+    needs: &[Needs],
+    rule_count: usize,
+) -> bool {
+    if !wanted.contains(&Relation::FilesystemReadFailure) {
+        return false;
+    }
+    if rule_count == 0 || needs.len() != rule_count {
+        return true;
+    }
+    needs.iter().enumerate().any(|(place, rule)| {
+        governs(mask, RuleNumber(u32::try_from(place).unwrap_or(u32::MAX))) == Governing::Governs
+            && rule
+                .reads
+                .iter()
+                .any(|read| read.relation == Relation::FilesystemReadFailure)
+    })
+}
+
+/// Readiness after a primary input could not be admitted: source-derived facts are unknown,
+/// while independently observed engine metadata and the typed failure event remain decidable.
+pub(crate) fn failure_partials(
+    wanted: &[Relation],
+    file: FileId,
+    detail: &str,
+    observed_file: bool,
+) -> Vec<ryo_values::domain::stored_facts::types::ReadInPart> {
+    use ryo_values::domain::stored_facts::types::{
+        PartialAt, PartialCause, PartialScope, ReadInPart,
+    };
+    wanted
+        .iter()
+        .filter(|relation| {
+            !matches!(
+                relation,
+                Relation::FilesystemReadFailure | Relation::FilesystemExecutable
+            ) && (!observed_file || **relation != Relation::FilesystemFile)
+        })
+        .map(|relation| ReadInPart {
+            relation: *relation,
+            cause: PartialCause(detail.into()),
+            lacking: ryo_relations::domain::relations::types::Missing::Any,
+            at: PartialScope::OneFile(PartialAt(file.0)),
+        })
+        .collect()
 }
 
 /// Notes the relations the file is read in part: those a reader said so of, and all of code if what was read is a recovery.

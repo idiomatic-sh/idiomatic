@@ -1,0 +1,40 @@
+[
+  {
+    "cell": null,
+    "code": "invalid-syntax",
+    "end_location": {
+      "column": 1,
+      "row": 2
+    },
+    "filename": "/tmp/e902-readable-frontend-reference-20261103/sources/invalid.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 2
+    },
+    "message": "unexpected EOF while parsing",
+    "name": "invalid-syntax",
+    "noqa_row": null,
+    "severity": "error",
+    "url": null
+  },
+  {
+    "cell": null,
+    "code": "E902",
+    "end_location": {
+      "column": 1,
+      "row": 1
+    },
+    "filename": "/tmp/e902-readable-frontend-reference-20261103/sources/missing.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "No such file or directory (os error 2)",
+    "name": "io-error",
+    "noqa_row": null,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/io-error"
+  }
+]

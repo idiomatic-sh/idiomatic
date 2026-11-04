@@ -1,0 +1,46 @@
+[
+  {
+    "model_requested": "claude-fable-5-1",
+    "effort": "high",
+    "exit": 0,
+    "packet_sha256": "1cff2ec6307c68ebb0778959bf82167d4af11afb03e9b7b8dfb298ce86109b3e",
+    "response": "fable-v2.json",
+    "is_error": false,
+    "terminal_reason": "completed",
+    "modelUsage": {
+      "claude-fable-5-1": {
+        "inputTokens": 388,
+        "outputTokens": 38113,
+        "cacheReadInputTokens": 1056027,
+        "cacheCreationInputTokens": 102478,
+        "webSearchRequests": 0,
+        "costUSD": 4.22309675,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 15400,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 102478,
+        "canonicalModel": "claude-fable-5-1",
+        "provider": "firstParty",
+        "costBasis": "list"
+      },
+      "claude-opus-5-5": {
+        "inputTokens": 104,
+        "outputTokens": 23261,
+        "cacheReadInputTokens": 4805492,
+        "cacheCreationInputTokens": 154107,
+        "webSearchRequests": 0,
+        "costUSD": 2.1972694,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 5457,
+        "cacheCreationEphemeral5mInputTokens": 154107,
+        "cacheCreationEphemeral1hInputTokens": 0,
+        "canonicalModel": "claude-opus-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "result_preview": "Review complete. The full write-up is at `/home/vscode/.claude/plans/review-this-evidence-backed-performance-tidy-panda.md`. Summary:\n\n**Verdict: PASS for a bounded POC, with the mechanism re-stated and four required changes. Not a BLOCK.**\n\n**Causal evidence holds, and is stronger than stated.** From the ISC004 events, node 35 on tests/admin_views/tests.py walks a mean bucket of 49,516 rows per probe, so `preceding` has two partitions of ~49.5k tokens each. That is ~4.9 billion pair visits for "
+  }
+]

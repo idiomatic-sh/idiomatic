@@ -467,7 +467,8 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
         path: FilePath("source".into()),
         size: FileSize(3),
         modified: Nanoseconds(0),
-    }];
+    }]
+    .map(ryo_values::domain::files::types::CorpusInput::Available);
     let mut symbols = Symbols::default();
     places_mut(&mut symbols).push(NamePlace {
         origin: Origin::Source,

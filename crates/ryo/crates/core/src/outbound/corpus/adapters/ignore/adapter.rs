@@ -12,10 +12,10 @@ use super::types::{BytesRead, Stability, Stamp};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use ryo_language::inbound::use_cases::project::types::RootPath;
-use ryo_values::domain::files::service::with_separator;
+use ryo_values::domain::files::service::{input_path, with_separator};
 use ryo_values::domain::files::types::{
-    CorpusEntry, CorpusFile, CorpusListing, FileBytes, FileSize, Nanoseconds, NativeSeparator,
-    PlatformPath,
+    CorpusEntry, CorpusFile, CorpusInput, CorpusListing, FileBytes, FileSize, InputReadFailure,
+    Nanoseconds, NativeSeparator, PlatformPath,
 };
 
 /// The ignore corpus adapter: which files it lists, and the files given as text it reads in place of the disk's.
@@ -136,32 +136,36 @@ fn walked(root: &RootPath, skipped: &SkippedDirectories) -> Result<Vec<CorpusEnt
         .map_err(|reason| unreadable(root, &reason))
 }
 
-/// The files the caller listed that are files below `root`, each with what the system says of it; a listed path that is not
-/// there, or is not a file, is not listed.
-///
-/// # Errors
-///
-/// `Unreadable` when the system cannot say what a listed path is.
+/// Observe real metadata once; directory/non-file paths are not source-file entries.
+fn observed(
+    root: &RootPath,
+    path: &ryo_language::domain::files::types::FilePath,
+) -> std::io::Result<Option<CorpusEntry>> {
+    let metadata = std::fs::metadata(std::path::Path::new(&*root.0).join(&*path.0))?;
+    Ok(metadata.is_file().then(|| CorpusEntry {
+        executable: executable(&metadata),
+        path: path.clone(),
+        size: FileSize(metadata.len()),
+        modified: modified(&metadata),
+    }))
+}
+
+/// Keep each explicitly requested unreadable path without inventing metadata or source text.
 fn listed(
     root: &RootPath,
     paths: &[ryo_language::domain::files::types::FilePath],
-) -> Result<Vec<CorpusEntry>, CorpusError> {
+) -> Vec<CorpusInput> {
     use rayon::prelude::*;
-    let base = std::path::Path::new(&*root.0);
-    let found = paths
+    paths
         .par_iter()
-        .map(|path| match std::fs::metadata(base.join(&*path.0)) {
-            Ok(meta) => Ok(meta.is_file().then(|| CorpusEntry {
-                executable: executable(&meta),
+        .filter_map(|path| match observed(root, path) {
+            Ok(entry) => entry.map(CorpusInput::Available),
+            Err(error) => Some(CorpusInput::Unreadable {
                 path: path.clone(),
-                size: FileSize(meta.len()),
-                modified: modified(&meta),
-            })),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(unreadable(root, &error)),
+                reason: InputReadFailure(error.to_string().into()),
+            }),
         })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(found.into_iter().flatten().collect())
+        .collect()
 }
 
 /// The refusal of a file below `root` that could not be read, saying why.
@@ -233,16 +237,25 @@ impl CorpusPort for CorpusIgnoreAdapter {
     fn inventory(&self) -> Result<Inventory, CorpusError> {
         let root = &self.root;
         let mut entries = match &self.listing {
-            CorpusListing::Walked => walked(root, &self.skipped)?,
-            CorpusListing::Listed(paths) => listed(root, paths)?,
+            CorpusListing::Walked => walked(root, &self.skipped)?
+                .into_iter()
+                .map(CorpusInput::Available)
+                .collect(),
+            CorpusListing::Listed(paths) => listed(root, paths),
         };
         if !self.beside.is_empty() {
-            entries.retain(|entry| self.beside.iter().all(|given| given.path != entry.path));
-            entries.extend(self.beside.iter().map(|given| CorpusEntry {
-                executable: given.executable,
-                path: given.path.clone(),
-                size: FileSize(u64::try_from(given.bytes.0.len()).unwrap_or(u64::MAX)),
-                modified: given_date(&given.bytes),
+            entries.retain(|entry| {
+                self.beside
+                    .iter()
+                    .all(|given| given.path != *input_path(entry))
+            });
+            entries.extend(self.beside.iter().map(|given| {
+                CorpusInput::Available(CorpusEntry {
+                    executable: given.executable,
+                    path: given.path.clone(),
+                    size: FileSize(u64::try_from(given.bytes.0.len()).unwrap_or(u64::MAX)),
+                    modified: given_date(&given.bytes),
+                })
             }));
         }
         Ok(Inventory(entries))
@@ -303,9 +316,12 @@ impl CorpusPort for CorpusIgnoreAdapter {
                 modified: given_date(&given.bytes),
             }));
         }
-        Ok(listed(&self.root, std::slice::from_ref(path))?
-            .pop()
-            .map_or(PathStat::Missing, PathStat::Found))
+        match observed(&self.root, path) {
+            Ok(Some(entry)) => Ok(PathStat::Found(entry)),
+            Ok(None) => Ok(PathStat::Missing),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(PathStat::Missing),
+            Err(error) => Err(unreadable(&self.root, &error)),
+        }
     }
 }
 

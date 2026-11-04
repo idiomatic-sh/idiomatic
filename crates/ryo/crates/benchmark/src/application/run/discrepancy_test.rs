@@ -43,6 +43,7 @@ fn case() -> PreparedCase {
         },
         expected: report,
         reference_discrepancy: Some(PreparedReferenceDiscrepancy {
+            basis: crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
             expected: crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(
                 reference,
             ),

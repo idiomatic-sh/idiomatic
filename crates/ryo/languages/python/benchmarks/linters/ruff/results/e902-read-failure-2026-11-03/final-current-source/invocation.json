@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/tmp/e902-final-worker-build-20261103/ruff-d01f1bcf5bbc97d06b0ebb20b2077eabe1c72641c3e52c781963cd38a63f580f",
+    "verify-cases",
+    "/home/vscode/.local/bin/ruff",
+    "/tmp/e902-current-stage-v2-20261103/repro"
+  ],
+  "offline_command": [
+    "/tmp/e902-final-worker-build-20261103/ryo-benchmark-collector-871aaef24bef187923ef90dece33f31a31a92d1662bccdbbd0328071a377ebaa",
+    "validate-case-receipts",
+    "/tmp/e902-final-strict8-20261103/registration.json",
+    "/tmp/e902-final-strict8-20261103/cases.jsonl"
+  ],
+  "status": 0,
+  "offline_status": 0,
+  "start": "2026-11-03T21:09:16.133861+00:00",
+  "end": "2026-11-03T21:09:16.330167+00:00",
+  "source_head": "e8db84405b63a9426cd908991dc3baabc65ce718",
+  "source_tree": "a595bd71ac8c76bb7297a86c0140b569991d444f",
+  "worker_sha256": "d01f1bcf5bbc97d06b0ebb20b2077eabe1c72641c3e52c781963cd38a63f580f",
+  "collector_sha256": "871aaef24bef187923ef90dece33f31a31a92d1662bccdbbd0328071a377ebaa",
+  "build_summary": "/tmp/e902-final-worker-build-20261103/summary.json",
+  "build_summary_sha256": "43e61a62e6f75a081050b158c3ea84d0e416868049ea3789d2ed0b242c18ecbf",
+  "case_receipt_sha256": "e86f2de928f6176ce19e7a51ba75743904a32917d79f11145967a475d06eee65"
+}

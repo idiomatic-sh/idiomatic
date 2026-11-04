@@ -85,6 +85,7 @@ pub fn validate(
                         crate::domain::suite::types::ArtifactDigest(digest.to_owned()),
                     ));
                 }
+                if documented > 0 && case["reference_discrepancy"]["basis"] == "tool-contract-difference" { audit.tool_contract_differences.push(key.clone()); }
                 audit.verified.push(key);
                 audit.raw_exact += raw;
                 audit.documented_discrepancies += documented;

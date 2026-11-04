@@ -379,4 +379,9 @@ impl Parse for ParseContract {
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::reads::<StaticImportItem>()
     }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        // Go imports packages, but this provider has no versioned standard-library membership reader.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
 }

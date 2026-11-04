@@ -32,7 +32,7 @@ fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), E
                 None,
                 frontend_projection(EngineScenario::Finding)?,
             )
-            .run(WorkerRequest {
+            .run_prepared(WorkerRequest {
                 performance: Default::default(),
                 project_context_mode:
                     ryo_benchmark::domain::suite::types::ProjectContextMode::default(),

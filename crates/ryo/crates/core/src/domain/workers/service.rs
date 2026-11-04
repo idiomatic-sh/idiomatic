@@ -17,7 +17,7 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileSize, Hits};
+use ryo_values::domain::files::types::{CorpusInput, FileBytes, FileSize, Hits};
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
@@ -74,14 +74,17 @@ pub(crate) fn tables_for(
 
 /// The file at `place` among the files.
 #[must_use]
-pub(crate) fn file_at(files: &[CorpusEntry], place: FileOrder) -> Option<&CorpusEntry> {
+pub(crate) fn file_at(files: &[CorpusInput], place: FileOrder) -> Option<&CorpusInput> {
     files.get(place.0)
 }
 
 /// The bytes of the file at `place`; none for a place there is no file at.
 #[must_use]
-pub(crate) fn size_at(files: &[CorpusEntry], place: FileOrder) -> FileSize {
-    files.get(place.0).map_or(FileSize(0), |entry| entry.size)
+pub(crate) fn size_at(files: &[CorpusInput], place: FileOrder) -> FileSize {
+    files.get(place.0).map_or(FileSize(0), |input| match input {
+        CorpusInput::Available(entry) => entry.size,
+        CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => FileSize(0),
+    })
 }
 
 /// Decides which rules govern the file, once for it; a file no rule governs is neither read nor parsed.

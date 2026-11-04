@@ -129,6 +129,8 @@ pub(super) fn validate_with_artifacts(
         };
         let expected = normalized(&case["expected"])?;
         let certificate = &case["reference_discrepancy"];
+        let basis = if certificate.is_null() { "none" } else { certificate["basis"].as_str().unwrap_or("language-defect") };
+        if !matches!(basis, "none" | "language-defect" | "tool-contract-difference") { return Err("unknown discrepancy authority".into()); }
         let process = !certificate["process"].is_null();
         if process && declared != crate::domain::diagnostics::types::ComparisonContract::Diagnostics
         {
@@ -180,6 +182,7 @@ pub(super) fn validate_with_artifacts(
             {
                 return Err("failed, incomplete, or stale native observation".into());
             }
+            if row["documented_reference_discrepancy"].as_bool().unwrap_or(false) != (basis == "language-defect") || row["documented_tool_contract_difference"].as_bool().unwrap_or(false) != (basis == "tool-contract-difference") { return Err("native discrepancy authority differs from registration".into()); }
             if process && side == "reference" {
                 super::process_receipts::validate(case, row, artifacts)?;
             } else {
@@ -238,6 +241,7 @@ pub(super) fn validate_with_artifacts(
             if proof.is_null() || proof != &sides[1]["discrepancy_validation"] {
                 return Err("missing independent discrepancy validation".into());
             }
+            if proof["discrepancy_basis"].as_str().unwrap_or("language-defect") != basis { return Err("discrepancy authority was not verified".into()); }
             for (actual, expected) in [
                 ("settings_sha256", "settings-sha256"),
                 ("profile_sha256", "profile-sha256"),

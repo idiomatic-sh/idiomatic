@@ -18,9 +18,10 @@ use crate::domain::placement::service::unplace;
 use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, prepare_frontier, settle as settle_file, start_partials,
+    begin, capture_frontier, engine_asked, failure_partials, prepare, prepare_frontier,
+    read_failure_demanded, settle as settle_file, start_partials,
 };
-use crate::domain::reading::types::{EngineAsked, EngineRows};
+use crate::domain::reading::types::{EngineAsked, EngineRows, PrimaryFailureKind};
 use crate::domain::recording::service::{
     cover, finish_file, frontier_flat, hand_rest_again, interface_bytes, made_ran, moved_words,
     remap_to, replay,
@@ -51,6 +52,7 @@ use crate::domain::finish::types::RuleNumber;
 use crate::domain::workers::service::{checking, file_at, govern, governs_rule};
 
 use crate::domain::workers::types::{Checking, FileOrder};
+use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::PathStat;
 use crate::outbound::digest::interface::DigestPort;
@@ -59,6 +61,7 @@ use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::collections::relations::filesystem_executable::item::FilesystemExecutableRow;
+use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::stored_facts::types::{PartialAt, PartialCause, PartialScope, ReadInPart};
@@ -82,7 +85,7 @@ use ryo_relations::domain::relations::types::Rows as _;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes, FileNumber};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileBytes, FileNumber};
 use ryo_values::domain::stores::types::StoredFile;
 
 use ryo_values::domain::records::service::is_as_it_was;
@@ -833,13 +836,56 @@ impl FileAnalysis {
         Ok(())
     }
 
+    /// Reads primary inventoried manifests once before project preparation, retaining genuine read failures.
+    /// Consulted project dependencies use their separate lookup route and never become primary failure events.
+    pub(crate) fn read_manifests(
+        &self,
+        files: &mut [CorpusInput],
+    ) -> Result<
+        Vec<ryo_language::inbound::use_cases::project::types::ManifestFile>,
+        FileAnalysisError,
+    > {
+        use crate::outbound::language::types::ManifestReading;
+        use ryo_language::inbound::use_cases::project::types::{ManifestFile, ManifestText};
+        use ryo_values::domain::files::types::InputReadFailure;
+        let mut manifests = Vec::new();
+        let mut text = FileBytes::default();
+        for input in files {
+            if self.language.reads_manifest(input_path(input)) != ManifestReading::Read {
+                continue;
+            }
+            let CorpusInput::Available(file) = input else {
+                continue;
+            };
+            text.0.clear();
+            match self.corpus.read(file, &mut text) {
+                Ok(()) => manifests.push(ManifestFile {
+                    path: file.path.clone(),
+                    text: ManifestText(String::from_utf8_lossy(&text.0).into()),
+                }),
+                Err(CorpusError::Unreadable { reason, .. }) => {
+                    text.0.clear();
+                    *input = CorpusInput::ReadFailed {
+                        entry: file.clone(),
+                        reason: InputReadFailure(reason.into()),
+                    };
+                }
+                Err(error) => {
+                    text.0.clear();
+                    return Err(error.into());
+                }
+            }
+        }
+        Ok(manifests)
+    }
+
     /// The visit of one file, in the worker that took its job: read it, decide which rules govern it, parse it, and run their
     /// per-file steps on its rows. What it could not read is noted in the worker; what stops the run is its failure.
     pub(crate) fn visit_file(
         &self,
         worker: &mut Worker,
         visit: &FileVisit<'_>,
-        files: &[CorpusEntry],
+        files: &[CorpusInput],
         job: JobNumber,
     ) {
         if let Err(error) = self.visit(worker, visit, files, job) {
@@ -855,7 +901,7 @@ impl FileAnalysis {
         &self,
         worker: &mut Worker,
         visit: &FileVisit<'_>,
-        files: &[CorpusEntry],
+        files: &[CorpusInput],
         job: JobNumber,
     ) -> Result<(), FileAnalysisError> {
         let setting = &visit.setting;
@@ -864,7 +910,7 @@ impl FileAnalysis {
             return Ok(());
         };
         let number = FileId(job.0);
-        if govern(setting, &mut worker.tables, &file.path) == Governing::DoesNotGovern {
+        if govern(setting, &mut worker.tables, input_path(file)) == Governing::DoesNotGovern {
             return Ok(());
         }
         if checking(at) == Checking::Now {
@@ -873,19 +919,64 @@ impl FileAnalysis {
                 governing(mask, setting.ids)
             })?;
         }
+        let file = match file {
+            CorpusInput::Available(entry) => entry,
+            CorpusInput::ReadFailed { entry, reason } => {
+                return self.read_failed(
+                    worker,
+                    visit,
+                    number,
+                    &entry.path,
+                    entry.executable,
+                    &reason.0,
+                    PrimaryFailureKind::Disk,
+                    true,
+                );
+            }
+            CorpusInput::Unreadable { path, reason } => {
+                return self.read_failed(
+                    worker,
+                    visit,
+                    number,
+                    path,
+                    ExecutablePermission::Unknown,
+                    &reason.0,
+                    PrimaryFailureKind::Disk,
+                    false,
+                );
+            }
+        };
         let kept = setting.records.get(at.0).copied().flatten();
         // A file the system says is as it was is not read: what came of it is used again.
-        if let Some(record) = kept.filter(|record| is_as_it_was(record, file) == Freshness::AsItWas)
-        {
+        if let Some(record) = kept.filter(|record| {
+            !read_failure_demanded(
+                setting.wanted,
+                &worker.tables.mask,
+                setting.needs,
+                setting.ids.len(),
+            ) && is_as_it_was(record, file) == Freshness::AsItWas
+        }) {
             replay(&mut worker.tables, number, at, record, file, record.digest);
             return Self::hand_again(worker, visit, at, number, record);
         }
+        worker.tables.bytes.0.clear();
         if let Err(error) = self.corpus.read(file, &mut worker.tables.bytes) {
-            worker.tables.unread.push(Unread {
-                path: file.path.clone(),
-                reason: Unreadable::Failed(ReadFailure(error.to_string().into())),
-            });
-            return Ok(());
+            worker.tables.bytes.0.clear();
+            let kind = if matches!(error, CorpusError::Unreadable { .. }) {
+                PrimaryFailureKind::Disk
+            } else {
+                PrimaryFailureKind::Other
+            };
+            return self.read_failed(
+                worker,
+                visit,
+                number,
+                &file.path,
+                file.executable,
+                &error.to_string(),
+                kind,
+                true,
+            );
         }
         // Only a store reads the digest of a file's bytes.
         let digest =
@@ -914,6 +1005,86 @@ impl FileAnalysis {
             FileNumber(number.0),
             outcome,
         );
+        Ok(())
+    }
+
+    /// Executes demanded engine facts for a primary input failure without constructing source or syntax.
+    fn read_failed(
+        &self,
+        worker: &mut Worker,
+        visit: &FileVisit<'_>,
+        number: FileId,
+        path: &FilePath,
+        executable: ExecutablePermission,
+        detail: &str,
+        kind: PrimaryFailureKind,
+        observed_file: bool,
+    ) -> Result<(), FileAnalysisError> {
+        use ryo_language::domain::symbols::service::intern_derived;
+        use ryo_language::domain::symbols::types::ByteSlice;
+        use ryo_relations::domain::relations::collections::relations::filesystem_read_failure::item::FilesystemReadFailureRow;
+        use ryo_relations::domain::relations::types::{Offset, Span};
+        use ryo_relations::domain::terms::types::NameText;
+
+        let setting = &visit.setting;
+        worker.tables.bytes.0.clear();
+        prepare(&mut worker.tables);
+        clear_symbols(&mut worker.tables.symbols);
+        worker.tables.language = None;
+        worker.facts.release()?;
+        let asked = engine_asked(setting.wanted);
+        let mut said = failure_partials(setting.wanted, number, detail, observed_file);
+        Self::write_engine_rows(
+            worker,
+            EngineAsked {
+                file: if observed_file {
+                    asked.file
+                } else {
+                    EngineRows::NotAsked
+                },
+                lines: EngineRows::NotAsked,
+                ..asked
+            },
+            number,
+            executable,
+            &mut said,
+        )?;
+        if asked.read_failure == EngineRows::Asked && kind == PrimaryFailureKind::Disk {
+            let detail =
+                intern_derived(&mut worker.tables.symbols, ByteSlice(&[]), NameText(detail));
+            worker.facts.columns_mut()?.write(FilesystemReadFailureRow {
+                path: number,
+                detail,
+                span: Span {
+                    start: Offset(0),
+                    end: Offset(0),
+                },
+            });
+        }
+        start_partials(&mut worker.tables, &said, Recovery::Whole, setting.wanted);
+        worker.tables.unread.push(Unread {
+            path: path.clone(),
+            reason: Unreadable::Failed(ReadFailure(detail.into())),
+        });
+        let acceptance = syntax_acceptance(&worker.tables.elements);
+        if asked.any == EngineRows::Asked {
+            index_kinds(&mut worker.tables.elements);
+            let semantic =
+                super::semantic::SemanticState::new(number, &worker.tables.elements, None);
+            Self::read_file(worker, visit, number, &semantic)?;
+        } else if Self::may_gate_rules(setting, acceptance) {
+            drop(Self::gate_rules(
+                &mut worker.tables,
+                setting,
+                number,
+                acceptance,
+            ));
+        }
+        cover(&mut worker.tables, setting, number, path, acceptance);
+        // Failure facts are invocation-local: retry the real input next time even if metadata is unchanged.
+        if matches!(setting.answering, Answering::Findings) {
+            worker.tables.unrecorded.push(path.clone());
+        }
         Ok(())
     }
 

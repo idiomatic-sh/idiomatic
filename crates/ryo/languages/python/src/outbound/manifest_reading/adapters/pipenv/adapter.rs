@@ -5,11 +5,12 @@ use ryo::languages::{FilePath, ManifestFile, ManifestName};
 
 use super::constants::PIPFILE;
 use super::schemas::declared;
-use crate::domain::packages::types::{Declared, ManifestPath};
+use crate::domain::manifest_validation::types::MetadataDemand;
+use crate::domain::packages::types::ManifestPath;
 use crate::domain::patterns::constants::SEPARATOR;
-use crate::outbound::manifest_reading::errors::ManifestReadingError;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::Claim;
+use crate::outbound::manifest_reading::types::Reading;
 
 /// The `pipenv` manifest reading adapter.
 #[derive(Debug)]
@@ -28,7 +29,19 @@ impl ManifestReadingPort for ManifestReadingPipenvAdapter {
         }
     }
 
-    fn declared(&self, manifest: &ManifestFile) -> Result<Declared, ManifestReadingError> {
-        declared(&ManifestPath(manifest.path.0.clone()), &manifest.text)
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> Reading {
+        if demand == MetadataDemand::Diagnostics {
+            return Reading {
+                declaration: None,
+                validation: None,
+            };
+        }
+        Reading {
+            declaration: Some(declared(
+                &ManifestPath(manifest.path.0.clone()),
+                &manifest.text,
+            )),
+            validation: None,
+        }
     }
 }

@@ -124,3 +124,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
 }
+
+#[test]
+fn primary_manifest_failure_marks_only_project_facts_unknown_and_keeps_its_context() {
+    let partials = super::service::unread_manifest_partials(
+        &[
+            Relation::PackageDependency,
+            Relation::Function,
+            Relation::FilesystemReadFailure,
+        ],
+        &ryo_language::domain::files::types::FilePath("pkg/Cargo.toml".into()),
+        "read denied",
+    );
+    assert_eq!(partials.len(), 1);
+    assert_eq!(partials[0].relation, Relation::PackageDependency);
+    assert_eq!(
+        partials[0].at, None,
+        "project incompleteness is not an error on an unrelated primary source"
+    );
+    assert!(partials[0].cause.0.contains("pkg/Cargo.toml"));
+    assert!(partials[0].cause.0.contains("read denied"));
+}

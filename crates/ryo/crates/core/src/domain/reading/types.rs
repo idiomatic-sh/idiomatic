@@ -18,6 +18,17 @@ pub(crate) struct EngineAsked {
     pub lines: EngineRows,
     /// Known executable-permission rows supplied by the input edge.
     pub executable: EngineRows,
+    /// Primary discovery or disk-read failure observations.
+    pub read_failure: EngineRows,
     /// Any engine relation.
     pub any: EngineRows,
+}
+
+/// Why a primary source could not be admitted, independently of diagnostic policy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PrimaryFailureKind {
+    /// Input-edge discovery or a typed disk-read refusal.
+    Disk,
+    /// The source was unstable or exceeded a representable size; not a disk-read refusal.
+    Other,
 }

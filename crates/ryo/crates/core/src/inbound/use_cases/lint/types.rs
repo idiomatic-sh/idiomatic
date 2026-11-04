@@ -16,7 +16,7 @@ use crate::domain::visit::types::Wants;
 use crate::outbound::lint_store::interface::ReadStore;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
-use ryo_values::domain::files::types::{CorpusEntry, Glob};
+use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
 use ryo_values::domain::plans::types::Plan;
@@ -215,7 +215,7 @@ pub(crate) struct Wanting {
 /// The repository as this run finds it, and what the last run kept of it.
 pub(crate) struct RepositoryListing {
     /// The files, in the order of their paths.
-    pub files: Vec<CorpusEntry>,
+    pub files: Vec<CorpusInput>,
     /// What the last run of this build kept; empty when it kept nothing.
     pub stored: Stored,
     /// The store those tables were read from, none when the run reads none: what this run reads of it later, and keeps against, is of
@@ -251,7 +251,7 @@ pub enum ProviderFault {
 #[derive(Debug)]
 pub(crate) enum Listed<E> {
     /// The files under the root.
-    Files(Result<Vec<CorpusEntry>, E>),
+    Files(Result<Vec<CorpusInput>, E>),
     /// What the last run of this build kept, boxed: it is far larger than a list of files.
     Stored(Result<Option<Arc<dyn ReadStore>>, E>),
 }
@@ -260,7 +260,7 @@ pub(crate) enum Listed<E> {
 /// turn and how many were written.
 pub(crate) struct Course<'a> {
     /// The files, in the order of their paths.
-    pub files: &'a [CorpusEntry],
+    pub files: &'a [CorpusInput],
     /// What every visit reads.
     pub visit: &'a FileVisit<'a>,
     /// Where the findings wait for their turn.

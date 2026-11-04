@@ -64,6 +64,15 @@ impl Language {
         &self.name
     }
 
+    /// The provider's pure source-versus-project ownership decision for a primary path.
+    #[must_use]
+    pub fn primary_role(
+        &self,
+        path: SourcePath<'_>,
+    ) -> ryo_language::domain::files::types::PrimaryFileRole {
+        self.project.primary_role(path)
+    }
+
     /// Which build of the language this is: what a run kept of its files is used only for the same build.
     #[must_use]
     pub fn build(&self) -> &LanguageBuild {

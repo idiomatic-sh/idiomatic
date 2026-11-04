@@ -25,9 +25,14 @@ def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], 
     Runtime verification must additionally bind the actual invocation and approved tool.
     """
     annotation = case.get('reference-discrepancy')
+    tool_contract = case.get('tool-contract-difference')
+    if annotation is not None and tool_contract is not None:
+        raise ValueError('a case cannot declare two discrepancy authorities')
+    basis = 'tool-contract-difference' if tool_contract is not None else 'language-defect'
+    annotation = tool_contract if tool_contract is not None else annotation
     if annotation is None:
         return None
-    if isinstance(annotation, dict) and 'process' in annotation:
+    if basis == 'language-defect' and isinstance(annotation, dict) and 'process' in annotation:
         return serialize_process_discrepancy(profile_root, case, annotation)
     if not isinstance(annotation, dict) or set(annotation) != {'expected', 'identity', 'evidence', 'reason'}:
         raise ValueError('invalid reference-discrepancy schema')
@@ -79,17 +84,35 @@ def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], 
     evidence = annotation['evidence']
     if not isinstance(evidence, list) or not evidence:
         raise ValueError('reference discrepancy requires independent evidence')
+    seen_kinds = []
     for item in evidence:
-        fields = {'path', 'sha256', 'kind', 'language-version', 'target-configuration', 'version-rationale'}
-        if not isinstance(item, dict) or set(item) != fields:
+        language_fields = {'path', 'sha256', 'kind', 'language-version', 'target-configuration', 'version-rationale'}
+        contract_fields = {'path', 'sha256', 'kind', 'source-revision', 'source-path', 'rationale'}
+        prior_fields = {'path', 'sha256', 'kind', 'worker-sha256', 'control-source-sha256', 'control-query-sha256', 'control-profile-sha256', 'witness-case', 'rationale'}
+        if not isinstance(item, dict):
             raise ValueError('incomplete discrepancy evidence')
+        kind = item.get('kind')
+        seen_kinds.append(kind)
+        if basis == 'language-defect':
+            if set(item) != language_fields or kind not in {'language-spec', 'independent-language-run'} or not str(item['language-version']).strip() or not str(item['version-rationale']).strip() or item['target-configuration'] != profile.get('parser-configuration'):
+                raise ValueError('evidence does not support configured language contract')
+        elif kind == 'public-tool-contract':
+            if set(item) != contract_fields or not re.fullmatch('[a-f0-9]{40}', item['source-revision']) or not str(item['source-path']).strip() or not str(item['rationale']).strip():
+                raise ValueError('incomplete public tool contract evidence')
+        elif kind == 'prior-worker-run':
+            if set(item) != prior_fields or any(not re.fullmatch('[a-f0-9]{64}', item[field]) for field in ('worker-sha256','control-source-sha256','control-query-sha256','control-profile-sha256')) or not str(item['witness-case']).strip() or not str(item['rationale']).strip():
+                raise ValueError('incomplete prior worker evidence')
+        else:
+            raise ValueError('unsupported tool contract evidence kind')
         path = Path(item['path'])
         if path.is_absolute() or not path.parts or any((part in {'.', '..'} for part in path.parts)):
             raise ValueError('unsafe discrepancy evidence path')
         resolved = (profile_root / path).resolve(strict=True)
-        if not resolved.is_relative_to(profile_root.resolve()) or not resolved.is_file() or profile_config.sha256(resolved) != item['sha256'] or (item['kind'] not in {'language-spec', 'independent-language-run'}) or (not str(item['language-version']).strip()) or (not str(item['version-rationale']).strip()) or (item['target-configuration'] != profile.get('parser-configuration')):
+        if not resolved.is_relative_to(profile_root.resolve()) or not resolved.is_file() or profile_config.sha256(resolved) != item['sha256']:
             raise ValueError('stale/external evidence or unsupported language contract')
-    return {'identity': identity, 'approved_executable_sha256': profile['sha256'], 'reference_expected': reference['diagnostics'], 'intended_expected': intended['diagnostics'], 'reason': annotation['reason']}
+    if basis == 'tool-contract-difference' and sorted(seen_kinds) != ['prior-worker-run', 'public-tool-contract']:
+        raise ValueError('tool contract difference needs public contract and prior worker evidence')
+    return {'basis': basis, 'identity': identity, 'approved_executable_sha256': profile['sha256'], 'reference_expected': reference['diagnostics'], 'intended_expected': intended['diagnostics'], 'reason': annotation['reason']}
 
 def classify_reference_discrepancy(profile_root: Path, case: dict[str, object], parent_rule: str, reference: dict[str, object], candidate: dict[str, object], *, actual_executable_sha256: str, actual_settings_sha256: str) -> dict[str, object]:
     """Retain raw parity mismatch while separately asserting the intended language behavior."""
@@ -115,14 +138,20 @@ def classify_reference_discrepancy(profile_root: Path, case: dict[str, object], 
     raw_exact = case_records.diagnostic_multiset(reference['diagnostics']) == case_records.diagnostic_multiset(candidate['diagnostics'])
     if not ref_exact or not intended_exact:
         raise ValueError('reference or candidate violated its separate exact expectation')
-    return {'raw_parity_match': raw_exact, 'documented_reference_discrepancy': True, 'intended_behavior_pass': intended_exact, 'reference_expectation_pass': ref_exact, 'reason': certificate['reason']}
+    return {'raw_parity_match': raw_exact,
+            'documented_reference_discrepancy': certificate['basis'] == 'language-defect',
+            'documented_tool_contract_difference': certificate['basis'] == 'tool-contract-difference',
+            'intended_behavior_pass': intended_exact, 'reference_expectation_pass': ref_exact,
+            'reason': certificate['reason']}
 
 def declared_discrepancy_artifacts(profile: Path, cases: list[dict[str, object]], *, source_root: Path | None = None) -> dict[str, tuple[Path, str]]:
     """Resolve only explicitly declared, pinned artifacts within the admitted root."""
     source_root = (source_root or profile.parent).resolve(strict=True)
     artifacts: dict[str, tuple[Path, str]] = {}
     for case in cases:
-        annotation = case.get('reference-discrepancy')
+        if case.get('reference-discrepancy') is not None and case.get('tool-contract-difference') is not None:
+            raise ValueError('a case cannot declare two discrepancy authorities')
+        annotation = case.get('reference-discrepancy') or case.get('tool-contract-difference')
         if annotation is None:
             continue
         if not isinstance(annotation, dict) or not isinstance(annotation.get('evidence'), list):

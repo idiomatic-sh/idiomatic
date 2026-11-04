@@ -25,6 +25,8 @@ struct FindingSchema {
     end_location: LocationSchema,
     /// Notebook cell index, refused without an explicit source mapping.
     cell: Option<usize>,
+    /// Fixes require real source coordinates and cannot target an unavailable input.
+    fix: Option<serde_json::Value>,
 }
 #[derive(Debug, Deserialize)]
 /// One-based physical line and Unicode scalar column from Ruff JSON.
@@ -88,8 +90,16 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             sources,
         } = schema;
         check_status(output)?;
-        if request.files.len() != sources.len()
-            || request.files.iter().any(|file| !sources.contains_key(file))
+        let declared_missing = |file: &RelativePath| {
+            request.context_manifest.as_ref().is_some_and(|manifest| {
+                ryo_benchmark::domain::suite::service::declares_missing(manifest, file)
+            })
+        };
+        if sources.keys().any(|file| !request.files.contains(file))
+            || request
+                .files
+                .iter()
+                .any(|file| !sources.contains_key(file) && !declared_missing(file))
         {
             return Err(Error::Invalid("requested source set is incomplete".into()));
         }
@@ -120,15 +130,34 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             let file = relative
                 .to_str()
                 .ok_or_else(|| Error::Invalid("non-UTF8 Ruff filename".into()))?;
-            let source = sources
-                .get(&RelativePath(file.into()))
-                .ok_or_else(|| Error::Invalid("Ruff returned an unrequested file".into()))?;
-            let start = offset(&source.0, finding.location.row, finding.location.column)?;
-            let end = offset(
-                &source.0,
-                finding.end_location.row,
-                finding.end_location.column,
-            )?;
+            let requested_file = RelativePath(file.into());
+            if !request.files.contains(&requested_file) {
+                return Err(Error::Invalid("Ruff returned an unrequested file".into()));
+            }
+            let (start, end) = match sources.get(&requested_file) {
+                Some(source) => (
+                    offset(&source.0, finding.location.row, finding.location.column)?,
+                    offset(
+                        &source.0,
+                        finding.end_location.row,
+                        finding.end_location.column,
+                    )?,
+                ),
+                None if declared_missing(&requested_file)
+                    && finding.location.row == 1
+                    && finding.location.column == 1
+                    && finding.end_location.row == 1
+                    && finding.end_location.column == 1
+                    && finding.fix.is_none() =>
+                {
+                    (0, 0)
+                }
+                None => {
+                    return Err(Error::Invalid(
+                        "unavailable source requires a file-origin finding without a fix".into(),
+                    ));
+                }
+            };
             if end < start {
                 return Err(Error::Invalid("Ruff span is reversed".into()));
             }

@@ -1,6 +1,6 @@
 # Ruff benchmark
 
-**408 PASS / 5 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [complete exact-head replay](results/ci-5b267-full-inventory-2026-11-03/README.md) ran every pinned rule on source `5b26737babfd9ef9440992179fb7b856b38e0f4a`. The remaining failures are B031, E902, I001, RUF100, and RUF200. The generated [per-rule inventory](RULES.md) records each status and its evidence. Full Ruff parity and performance acceptance remain open.
+**410 PASS / 3 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [complete exact-head replay](results/ci-8a7-full-inventory-2026-11-03/README.md) ran every pinned rule on source `8a7a563fd1cfad986f21f73903a53fd2481e0c22`. E902 passed; I001, RUF100, and RUF200 still lack implementations. The generated [per-rule inventory](RULES.md) records each status and its evidence. Full Ruff parity and performance acceptance remain open.
 
 Run the current inventory from this directory with the shared runner:
 

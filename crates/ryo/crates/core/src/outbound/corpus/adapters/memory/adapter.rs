@@ -4,7 +4,9 @@
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::{Inventory, PathStat};
-use ryo_values::domain::files::types::{CorpusEntry, CorpusFile, FileBytes, FileSize, Nanoseconds};
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
+};
 
 /// The memory corpus adapter: the files it was given.
 #[derive(Debug)]
@@ -38,6 +40,7 @@ impl CorpusPort for CorpusMemoryAdapter {
                     size: FileSize(u64::try_from(file.bytes.0.len()).unwrap_or(u64::MAX)),
                     modified: written(&file.bytes),
                 })
+                .map(CorpusInput::Available)
                 .collect(),
         ))
     }

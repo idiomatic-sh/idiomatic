@@ -174,6 +174,7 @@ pub const OPTIONAL_CAPABILITIES: &[super::types::OptionalCapability] = &[
     super::types::OptionalCapability::BytesLiteral,
     super::types::OptionalCapability::FormatSpecification,
     super::types::OptionalCapability::LanguageTarget,
+    super::types::OptionalCapability::StandardLibraryImport,
     super::types::OptionalCapability::CompilerFeature,
     super::types::OptionalCapability::ConstantKey,
     super::types::OptionalCapability::FormatParse,

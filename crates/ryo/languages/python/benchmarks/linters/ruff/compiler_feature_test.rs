@@ -1,9 +1,10 @@
 //! Actual local-adapter checks of canonical module features and annotation evaluation positions.
+use super::PreparedEngine as _;
 use ryo_benchmark::domain::{
     diagnostics::errors::DiagnosticsError as Error,
     suite::types::{ProjectContextMode, WorkerRequest, WorkerState},
 };
-use ryo_benchmark::outbound::engine::{factory, interface::EnginePort as _};
+use ryo_benchmark::outbound::engine::factory;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -112,7 +113,7 @@ fn check_case(
         )]),
         None,
     )
-    .run(WorkerRequest {
+    .run_prepared(WorkerRequest {
         performance: Default::default(),
         project_context_mode: ProjectContextMode::Isolated,
         context_manifest: None,

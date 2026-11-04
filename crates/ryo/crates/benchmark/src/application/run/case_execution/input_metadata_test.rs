@@ -99,3 +99,82 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
         assert!(execution.history.lock().unwrap().is_empty());
     }
 }
+
+#[test]
+fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
+    use crate::domain::suite::types::CaseContext;
+    let scratch = tempfile::tempdir().unwrap();
+    let boundary = scratch.path().join("snapshot");
+    let sources = [(
+        ryo::linter::RelativePath("companion.py".into()),
+        ryo::linter::SourceText("x = 1\n".into()),
+    )]
+    .into();
+    let manifest = crate::outbound::context::adapters::local::adapter::materialize(
+        &boundary,
+        &CaseContext {
+            logical_root: "project".into(),
+            auxiliary_files: Default::default(),
+            missing: vec!["project/gone.py".into()],
+        },
+        &sources,
+    )
+    .unwrap();
+    let root = boundary.join("project");
+    let files = vec![
+        ryo::linter::RelativePath("companion.py".into()),
+        ryo::linter::RelativePath("gone.py".into()),
+    ];
+    let case = PreparedCase {
+        comparison: CaseComparison::Full,
+        rule: ryo::linter::RuleId::try_from("R1").unwrap(),
+        name: "missing".into(),
+        request: RunRequest {
+            file_metadata: None,
+            context_manifest: Some(manifest),
+            root: root.clone(),
+            files: files.clone(),
+            state: scratch.path().join("cache"),
+        },
+        expected: RunReport {
+            execution_metadata: ExecutionMetadata::Complete,
+            project_context: None,
+            diagnostics: Vec::new(),
+            skipped: Vec::new(),
+            coverage: None,
+            files,
+        },
+        reference_discrepancy: None,
+    };
+    let execution = ExecutionFake::default();
+    let observed = ObservedPrepare(Cell::new(0));
+    for appeared in [false, true, false] {
+        let path = root.join("gone.py");
+        if appeared {
+            std::fs::write(&path, "now present\n").unwrap();
+        } else if path.exists() {
+            std::fs::remove_file(&path).unwrap();
+        }
+        let before = observed.0.get();
+        let candidate = super::candidate(
+            &crate::outbound::suite::factory::local(),
+            &observed,
+            &execution,
+            &case.request,
+        );
+        let reference = run(
+            &crate::outbound::suite::factory::local(),
+            &observed,
+            &execution,
+            &case,
+            scratch.path(),
+        )
+        .result;
+        for result in [candidate, reference] {
+            let message = result.unwrap_err().to_string();
+            assert_eq!(message.contains("preparation reached"), !appeared);
+        }
+        assert_eq!(observed.0.get() - before, if appeared { 0 } else { 2 });
+    }
+    assert!(execution.history.lock().unwrap().is_empty());
+}

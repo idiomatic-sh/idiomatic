@@ -9,8 +9,18 @@ pub struct CaseReferenceWire {
     pub rule: String,
     /// Authored case name.
     pub name: String,
+    /// The asserted authority for this exact two-sided difference.
+    pub basis: DiscrepancyBasisWire,
     /// Raw independently evidenced reference expectation.
     pub discrepancy: ReferenceDiscrepancyWire,
+}
+/// A language correction and a documented tool policy difference are distinct claims.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiscrepancyBasisWire {
+    /// Independent language meaning contradicts the reference output.
+    LanguageDefect,
+    /// A prior public tool contract intentionally differs from the reference tool's selection.
+    ToolContract,
 }
 /// Serialized reference contract; semantic conversion belongs to the application.
 #[derive(Clone, Debug, Deserialize)]
@@ -68,29 +78,114 @@ pub struct ReferenceIdentityWire {
 }
 /// Independent artifact observation.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-pub struct EvidenceWire {
-    /// Profile-relative artifact path.
-    pub path: PathBuf,
-    /// Exact artifact bytes.
-    pub sha256: String,
-    /// Independent authority category.
-    pub kind: EvidenceKindWire,
-    /// Observed language version.
-    pub language_version: String,
-    /// Explicit parser contract.
-    pub target_configuration: String,
-    /// Explanation connecting the observation to the target.
-    pub version_rationale: String,
-}
-/// Competitor output alone is not an independent authority.
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum EvidenceKindWire {
+#[serde(
+    tag = "kind",
+    rename_all = "kebab-case",
+    rename_all_fields = "kebab-case",
+    deny_unknown_fields
+)]
+pub enum EvidenceWire {
     /// Versioned language specification.
-    LanguageSpec,
+    LanguageSpec {
+        /// Profile-relative artifact path.
+        path: PathBuf,
+        /// Exact artifact bytes.
+        sha256: String,
+        /// Observed language version.
+        language_version: String,
+        /// Explicit parser contract.
+        target_configuration: String,
+        /// Explanation connecting the observation to the target.
+        version_rationale: String,
+    },
     /// Independently executed language implementation.
-    IndependentLanguageRun,
+    IndependentLanguageRun {
+        /// Profile-relative artifact path.
+        path: PathBuf,
+        /// Exact artifact bytes.
+        sha256: String,
+        /// Observed language version.
+        language_version: String,
+        /// Explicit parser contract.
+        target_configuration: String,
+        /// Explanation connecting the observation to the target.
+        version_rationale: String,
+    },
+    /// The exact prior public API contract whose policy is asserted.
+    PublicToolContract {
+        /// Profile-relative snapshot path.
+        path: PathBuf,
+        /// Exact snapshot bytes.
+        sha256: String,
+        /// Published source revision.
+        source_revision: String,
+        /// Public source path within that revision.
+        source_path: String,
+        /// What the pinned text requires for this case.
+        rationale: String,
+    },
+    /// An actual prior accepted worker exercising the same selection boundary.
+    PriorWorkerRun {
+        /// Profile-relative complete observation path.
+        path: PathBuf,
+        /// Exact observation bytes.
+        sha256: String,
+        /// Sealed prior worker identity.
+        worker_sha256: String,
+        /// Exact input bytes of the separate control.
+        control_source_sha256: String,
+        /// Exact control query identity.
+        control_query_sha256: String,
+        /// Exact control profile identity.
+        control_profile_sha256: String,
+        /// Named completed control that must exhibit the prior policy.
+        witness_case: String,
+        /// How this control proves the same policy boundary without claiming identical rule input.
+        rationale: String,
+    },
+}
+impl EvidenceWire {
+    /// The exact profile-contained artifact shared by all evidence kinds.
+    #[must_use]
+    pub fn artifact(&self) -> (&Path, &str) {
+        match self {
+            Self::LanguageSpec { path, sha256, .. }
+            | Self::IndependentLanguageRun { path, sha256, .. }
+            | Self::PublicToolContract { path, sha256, .. }
+            | Self::PriorWorkerRun { path, sha256, .. } => (path, sha256),
+        }
+    }
+    /// The content contract to check after the artifact hash is verified.
+    #[must_use]
+    pub fn requirement(&self) -> EvidenceRequirement {
+        match self {
+            Self::LanguageSpec { .. } | Self::IndependentLanguageRun { .. } => {
+                EvidenceRequirement::Language
+            }
+            Self::PublicToolContract {
+                source_revision,
+                source_path,
+                ..
+            } => EvidenceRequirement::PublicToolContract {
+                source_revision: source_revision.clone(),
+                source_path: source_path.clone(),
+            },
+            Self::PriorWorkerRun {
+                worker_sha256,
+                control_source_sha256,
+                control_query_sha256,
+                control_profile_sha256,
+                witness_case,
+                ..
+            } => EvidenceRequirement::PriorWorkerRun {
+                worker_sha256: worker_sha256.clone(),
+                control_source_sha256: control_source_sha256.clone(),
+                control_query_sha256: control_query_sha256.clone(),
+                control_profile_sha256: control_profile_sha256.clone(),
+                witness_case: witness_case.clone(),
+            },
+        }
+    }
 }
 /// Explicit artifact content to verify inside a physical profile boundary.
 #[derive(Clone, Debug)]
@@ -99,6 +194,27 @@ pub struct EvidenceArtifact {
     pub path: PathBuf,
     /// Exact expected SHA256.
     pub sha256: String,
+    /// Exact authority-specific content the artifact must establish.
+    pub requirement: EvidenceRequirement,
+}
+/// Evidence bytes are checked at the outbound boundary, not trusted from authored metadata.
+#[derive(Clone, Debug)]
+pub enum EvidenceRequirement {
+    /// Existing independent language artifact.
+    Language,
+    /// Complete published contract snapshot and its asserted source identity.
+    PublicToolContract {
+        source_revision: String,
+        source_path: String,
+    },
+    /// Complete prior worker observation and the selected positive witness.
+    PriorWorkerRun {
+        worker_sha256: String,
+        control_source_sha256: String,
+        control_query_sha256: String,
+        control_profile_sha256: String,
+        witness_case: String,
+    },
 }
 /// IO request containing no semantic case or language-policy types.
 #[derive(Clone, Copy, Debug)]

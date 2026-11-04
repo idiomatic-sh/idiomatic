@@ -46,7 +46,7 @@ pub use ryo_language::inbound::use_cases::project::types::ManifestText;
 
 pub use ryo_language::inbound::use_cases::parse::types::SkippedDirectory;
 
-pub use ryo_language::domain::files::types::SourcePath;
+pub use ryo_language::domain::files::types::{PrimaryFileRole, SourcePath};
 
 pub use ryo_language::inbound::use_cases::parse::types::SampleText;
 
@@ -320,3 +320,5 @@ pub use ryo_language::domain::expansions::service::append_embedded;
 
 /// Semantic preparation requirement declared by syntax completion.
 pub use ryo_language::domain::elements::types::CompletionRequirement;
+
+pub use ryo_language::domain::files::service::primary_role_from_manifests;

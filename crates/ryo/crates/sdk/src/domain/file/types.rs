@@ -4,7 +4,7 @@
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RelativePath(pub Box<str>);
 
-/// Why a language could not read a file, as it said.
+/// Why the input edge or a language could not read a file, as it reported.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReadFailure(pub Box<str>);
 
@@ -14,7 +14,7 @@ pub struct ReadFailure(pub Box<str>);
 pub enum Unreadable {
     /// No linked language reads files like it.
     NoLanguage,
-    /// A language that reads files like it failed on it.
+    /// The input edge or a language that reads files like it failed on it.
     Failed(ReadFailure),
 }
 

@@ -40,7 +40,7 @@ pub(super) fn attach(
                 "duplicate canonical reference expectation".into(),
             ));
         }
-        case.reference_discrepancy = Some(convert(wire.discrepancy, case)?);
+        case.reference_discrepancy = Some(convert(wire.discrepancy, wire.basis, case)?);
     }
     Ok(())
 }
@@ -62,13 +62,18 @@ pub(super) fn digest(value: String) -> Result<ArtifactDigest, Error> {
 /// Construct only complete domain expectations, without any filesystem reads.
 fn convert(
     wire: crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire,
+    authority: crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire,
     case: &PreparedCase,
 ) -> Result<crate::domain::suite::types::PreparedReferenceDiscrepancy, Error> {
     use crate::domain::suite::types::{
-        DiscrepancyEvidence, DiscrepancyEvidenceKind, PreparedReferenceDiscrepancy,
-        ReferenceDiscrepancyIdentity,
+        DiscrepancyBasis, DiscrepancyEvidence, DiscrepancyEvidenceKind,
+        PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity,
     };
-    use crate::outbound::suite::types::discrepancy::EvidenceKindWire;
+    use crate::outbound::suite::types::discrepancy::{DiscrepancyBasisWire, EvidenceWire};
+    let basis = match authority {
+        DiscrepancyBasisWire::LanguageDefect => DiscrepancyBasis::LanguageDefect,
+        DiscrepancyBasisWire::ToolContract => DiscrepancyBasis::ToolContract,
+    };
     let identity = wire.identity;
     let process = wire.process;
     if process.is_some() && !wire.expected.is_empty() {
@@ -97,16 +102,54 @@ fn convert(
         })
         .collect::<Result<_, Error>>()?;
     expected.diagnostics.sort();
+    if basis == DiscrepancyBasis::ToolContract && process.is_some() {
+        return Err(Error::Invalid(
+            "tool-contract differences require complete diagnostic outputs".into(),
+        ));
+    }
     let evidence = wire.evidence.into_iter().map(|item| {
-        crate::domain::suite::service::relative_path(&item.path)?;
-        if item.language_version.trim().is_empty() || item.target_configuration.trim().is_empty() || item.version_rationale.trim().is_empty() {
-            return Err(Error::Invalid("independent evidence requires explicit language contract and version rationale".into()));
+        crate::domain::suite::service::relative_path(item.artifact().0)?;
+        let language_spec = matches!(&item, EvidenceWire::LanguageSpec { .. });
+        match (basis, item) {
+            (DiscrepancyBasis::LanguageDefect, EvidenceWire::LanguageSpec { path, sha256, language_version, target_configuration, version_rationale })
+            | (DiscrepancyBasis::LanguageDefect, EvidenceWire::IndependentLanguageRun { path, sha256, language_version, target_configuration, version_rationale }) => {
+                if language_version.trim().is_empty() || target_configuration.trim().is_empty() || version_rationale.trim().is_empty() {
+                    return Err(Error::Invalid("independent evidence requires explicit language contract and version rationale".into()));
+                }
+                let kind = if language_spec { DiscrepancyEvidenceKind::LanguageSpec } else { DiscrepancyEvidenceKind::IndependentLanguageRun };
+                Ok(DiscrepancyEvidence::Language { path, sha256: digest(sha256)?, kind, language_version, target_configuration, version_rationale })
+            }
+            (DiscrepancyBasis::ToolContract, EvidenceWire::PublicToolContract { path, sha256, source_revision, source_path, rationale }) => {
+                crate::domain::suite::service::relative_path(std::path::Path::new(&source_path))?;
+                if source_revision.len() != 40 || !source_revision.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) || rationale.trim().is_empty() {
+                    return Err(Error::Invalid("tool contract evidence needs a pinned public source revision and policy reason".into()));
+                }
+                Ok(DiscrepancyEvidence::PublicToolContract { path, sha256: digest(sha256)?, source_revision, source_path, rationale })
+            }
+            (DiscrepancyBasis::ToolContract, EvidenceWire::PriorWorkerRun { path, sha256, worker_sha256, control_source_sha256, control_query_sha256, control_profile_sha256, witness_case, rationale }) => {
+                if rationale.trim().is_empty() || witness_case.trim().is_empty() { return Err(Error::Invalid("prior worker evidence needs a named control and policy reason".into())); }
+                Ok(DiscrepancyEvidence::PriorWorkerRun { path, sha256: digest(sha256)?, worker_sha256: digest(worker_sha256)?, control_source_sha256: digest(control_source_sha256)?, control_query_sha256: digest(control_query_sha256)?, control_profile_sha256: digest(control_profile_sha256)?, witness_case, rationale })
+            }
+            _ => Err(Error::Invalid("discrepancy evidence does not match its declared authority".into())),
         }
-        Ok(DiscrepancyEvidence { path: item.path, sha256: digest(item.sha256)?, language_version: item.language_version,
-            target_configuration: item.target_configuration, version_rationale: item.version_rationale,
-            kind: match item.kind { EvidenceKindWire::LanguageSpec => DiscrepancyEvidenceKind::LanguageSpec, EvidenceKindWire::IndependentLanguageRun => DiscrepancyEvidenceKind::IndependentLanguageRun } })
-    }).collect::<Result<_, Error>>()?;
+    }).collect::<Result<Vec<_>, Error>>()?;
+    if basis == DiscrepancyBasis::ToolContract
+        && (evidence.len() != 2
+            || evidence
+                .iter()
+                .filter(|item| matches!(item, DiscrepancyEvidence::PublicToolContract { .. }))
+                .count()
+                != 1
+            || evidence
+                .iter()
+                .filter(|item| matches!(item, DiscrepancyEvidence::PriorWorkerRun { .. }))
+                .count()
+                != 1)
+    {
+        return Err(Error::Invalid("tool-contract difference requires one public contract and one prior worker observation".into()));
+    }
     Ok(PreparedReferenceDiscrepancy {
+        basis,
         expected: match process {
             Some(process) => {
                 crate::domain::suite::process::types::ReferenceExpectation::ProcessFailure(
@@ -265,21 +308,75 @@ pub(super) fn validate(
     let evidence = item
         .evidence
         .iter()
-        .map(
-            |row| crate::outbound::suite::types::discrepancy::EvidenceArtifact {
-                path: row.path.clone(),
-                sha256: row.sha256.0.clone(),
-            },
-        )
+        .map(|row| {
+            use crate::outbound::suite::types::discrepancy::{
+                EvidenceArtifact, EvidenceRequirement,
+            };
+            let requirement = match row {
+                crate::domain::suite::types::DiscrepancyEvidence::Language { .. } => {
+                    EvidenceRequirement::Language
+                }
+                crate::domain::suite::types::DiscrepancyEvidence::PublicToolContract {
+                    source_revision,
+                    source_path,
+                    ..
+                } => EvidenceRequirement::PublicToolContract {
+                    source_revision: source_revision.clone(),
+                    source_path: source_path.clone(),
+                },
+                crate::domain::suite::types::DiscrepancyEvidence::PriorWorkerRun {
+                    worker_sha256,
+                    control_source_sha256,
+                    control_query_sha256,
+                    control_profile_sha256,
+                    witness_case,
+                    ..
+                } => EvidenceRequirement::PriorWorkerRun {
+                    worker_sha256: worker_sha256.0.clone(),
+                    control_source_sha256: control_source_sha256.0.clone(),
+                    control_query_sha256: control_query_sha256.0.clone(),
+                    control_profile_sha256: control_profile_sha256.0.clone(),
+                    witness_case: witness_case.clone(),
+                },
+            };
+            EvidenceArtifact {
+                path: row.artifact().0.clone(),
+                sha256: row.artifact().1.0.clone(),
+                requirement,
+            }
+        })
         .collect::<Vec<_>>();
     for row in &item.evidence {
-        if row.language_version.trim().is_empty()
-            || row.version_rationale.trim().is_empty()
-            || profile.parser_configuration.as_deref() != Some(row.target_configuration.as_str())
-        {
-            return Err(Error::Invalid(
-                "independent evidence does not support configured language contract".into(),
-            ));
+        match (item.basis, row) {
+            (
+                crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
+                crate::domain::suite::types::DiscrepancyEvidence::Language {
+                    language_version,
+                    target_configuration,
+                    version_rationale,
+                    ..
+                },
+            ) => {
+                if language_version.trim().is_empty()
+                    || version_rationale.trim().is_empty()
+                    || profile.parser_configuration.as_deref()
+                        != Some(target_configuration.as_str())
+                {
+                    return Err(Error::Invalid(
+                        "independent evidence does not support configured language contract".into(),
+                    ));
+                }
+            }
+            (
+                crate::domain::suite::types::DiscrepancyBasis::ToolContract,
+                crate::domain::suite::types::DiscrepancyEvidence::PublicToolContract { .. }
+                | crate::domain::suite::types::DiscrepancyEvidence::PriorWorkerRun { .. },
+            ) => {}
+            _ => {
+                return Err(Error::Invalid(
+                    "discrepancy authority and evidence differ".into(),
+                ));
+            }
         }
     }
     let metadata_files = case
@@ -328,6 +425,7 @@ pub(super) fn validate(
         )?;
     }
     let mut validation = serde_json::json!({
+        "discrepancy_basis": match item.basis { crate::domain::suite::types::DiscrepancyBasis::LanguageDefect => "language-defect", crate::domain::suite::types::DiscrepancyBasis::ToolContract => "tool-contract-difference" },
         "process_observation_group_sha256": super::process_discrepancy::expected(case).map(|process|super::process_discrepancy::group_digest(process,&actual_executable.0)).transpose()?.map(|value|value.0),
         "reference_expectation_kind": if super::process_discrepancy::expected(case).is_some() { "process-failure" } else { "diagnostics" },
         "settings_sha256": settings.0,

@@ -3,7 +3,7 @@
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::{
-    CorpusEntry, FileNumber, FileSize, Glob, Hits, Nanoseconds,
+    CorpusEntry, CorpusInput, FileNumber, FileSize, Glob, Hits, Nanoseconds,
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
@@ -147,7 +147,7 @@ fn tables(plans: &[Plan]) -> Tables {
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let files = [entry("a.rs", 10), entry("b.rs", 20)];
+    let files = [entry("a.rs", 10), entry("b.rs", 20)].map(CorpusInput::Available);
     Ok(match scenario {
         Scenario::TablesFor => {
             let worker = tables(&[plan(2), plan(3)]);
@@ -160,9 +160,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     && worker.partials.is_empty(),
             )
         }
-        Scenario::FileAt => {
-            count(file_at(&files, FileOrder(1)).map_or(0, |each| each.path.0.len()))
-        }
+        Scenario::FileAt => count(file_at(&files, FileOrder(1)).map_or(0, |each| {
+            ryo_values::domain::files::service::input_path(each).0.len()
+        })),
         Scenario::NoFileAt => u64::from(file_at(&files, FileOrder(5)).is_none()),
         Scenario::SizeAt => size_at(&files, FileOrder(1)).0,
         Scenario::NoSizeAt => size_at(&files, FileOrder(5)).0,

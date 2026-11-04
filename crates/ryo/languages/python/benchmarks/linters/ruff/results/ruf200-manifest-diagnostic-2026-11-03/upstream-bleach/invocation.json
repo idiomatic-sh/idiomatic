@@ -1,0 +1,35 @@
+{
+  "name": "upstream-bleach",
+  "files": {
+    "pyproject.toml": "[project]\nname = \"hello-world\"\nversion = \"0.1.0\"\n# There's a comma missing here\ndependencies = [\n  \"tinycss2>=1.1.0<1.2\",\n]\n"
+  },
+  "argv": [
+    "/home/vscode/.local/bin/ruff",
+    "check",
+    "--isolated",
+    "--output-format",
+    "json",
+    "--cache-dir",
+    "/tmp/ruf200-reference-20261103/upstream-bleach/.ruff_cache",
+    "--select",
+    "RUF200",
+    "--target-version",
+    "py310",
+    "--",
+    "pyproject.toml"
+  ],
+  "root": "/tmp/ruf200-reference-20261103/upstream-bleach",
+  "exit": 1,
+  "executable": "/home/vscode/.local/bin/ruff",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "expected": [
+    {
+      "rule": "RUF200",
+      "file": "pyproject.toml",
+      "start": 95,
+      "end": 123
+    }
+  ],
+  "stdout_sha256": "2b7e6fe1e83354735f3b9e6b301af210b89b3a8374818f66ec2771e876e644d3",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

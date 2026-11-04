@@ -21,6 +21,8 @@ strum.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, optional = true }
 toml.workspace = true
+pyproject-toml = "=0.13.7"
+pep508_rs = "=0.9.1"
 thiserror.workspace = true
 postcard.workspace = true
 # The parser ruff and ty run, with its tree and its text ranges: internal crates of ruff that break their API from one weekly release

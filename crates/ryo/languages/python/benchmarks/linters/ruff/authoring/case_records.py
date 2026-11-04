@@ -135,7 +135,7 @@ def profile_case_inventory(profile_root: Path) -> list[dict[str, object]]:
                 extra.update(file_metadata=metadata, file_metadata_sha256=metadata_sha)
             if profile.get('file-observation') is not None:
                 extra['file_observation'] = profile['file-observation']
-            inventory.append({**extra, **identity, 'project_context_mode': mode, 'context_identity': expected_context_identity(case, mode), 'case_sha256': hashlib.sha256(encoded.encode()).hexdigest(), 'source_sha256': source_digest.hexdigest(), 'files': sorted(case['files']), 'comparison': case.get('comparison', 'rule'), 'expected': expected, 'reference_discrepancy': reference_discrepancies.validate_reference_discrepancy(profile_root, case, rule_root.name)})
+            inventory.append({**extra, **identity, 'project_context_mode': mode, 'context_identity': expected_context_identity(case, mode), 'case_sha256': hashlib.sha256(encoded.encode()).hexdigest(), 'source_sha256': source_digest.hexdigest(), 'files': sorted(case.get('requested-files', case['files'])), 'comparison': case.get('comparison', 'rule'), 'expected': expected, 'reference_discrepancy': reference_discrepancies.validate_reference_discrepancy(profile_root, case, rule_root.name)})
     inventory.sort(key=lambda case: (case['rule'], case['name']))
     ids = [(case['rule'], case['name']) for case in inventory]
     if not ids or len(ids) != len(set(ids)):
@@ -150,11 +150,14 @@ def discrepancy_record_pair_valid(case: dict[str, object], sides: dict[str, dict
     if certificate.get('process') is not None:
         return f"{case['rule']}/{case['name']}" in _shared_verified
     identity = certificate['identity']
+    basis = certificate.get('basis', 'language-defect')
     if identity.get('file-metadata-sha256') != case.get('file_metadata_sha256'):
         return False
     for side, row in sides.items():
         proof = row.get('discrepancy_validation')
         if not isinstance(proof, dict) or proof != sides['reference'].get('discrepancy_validation'):
+            return False
+        if proof.get('discrepancy_basis', 'language-defect') != basis or row.get('documented_reference_discrepancy') is not (basis == 'language-defect') or row.get('documented_tool_contract_difference', False) is not (basis == 'tool-contract-difference'):
             return False
         checks = {'settings_sha256': 'settings-sha256', 'profile_sha256': 'profile-sha256', 'source_sha256': 'source-sha256', 'reference_output_sha256': 'reference-output-sha256', 'intended_output_sha256': 'intended-output-sha256'}
         if proof.get('file_metadata_sha256') != case.get('file_metadata_sha256') or any((proof.get(key) != identity[value] for key, value in checks.items())):
@@ -288,7 +291,7 @@ def case_expectation_summary(inventory: list[dict[str, object]], records: list[d
         case_id = f"{row.get('rule')}/{row.get('name')}"
         if case_id in completed:
             grouped.setdefault(case_id, {})[row['side']] = row
-    counts = {'complete_case_pairs': len(completed), 'incomplete_cases': len(inventory) - len(completed), 'raw_parity_matches': 0, 'raw_parity_mismatches': 0, 'documented_reference_discrepancies': 0, 'unexplained_mismatches': 0, 'intended_behavior_passes': 0, 'intended_behavior_failures': 0, 'diagnostic_parity_matches': 0, 'diagnostic_parity_mismatches': 0, 'execution_metadata_exact': 0, 'execution_metadata_different': 0, 'execution_metadata_incomparable': 0, 'typed_candidate_execution_complete': 0, 'legacy_or_unknown_candidate_execution': 0}
+    counts = {'complete_case_pairs': len(completed), 'incomplete_cases': len(inventory) - len(completed), 'raw_parity_matches': 0, 'raw_parity_mismatches': 0, 'documented_reference_discrepancies': 0, 'documented_tool_contract_differences': 0, 'unexplained_mismatches': 0, 'intended_behavior_passes': 0, 'intended_behavior_failures': 0, 'diagnostic_parity_matches': 0, 'diagnostic_parity_mismatches': 0, 'execution_metadata_exact': 0, 'execution_metadata_different': 0, 'execution_metadata_incomparable': 0, 'typed_candidate_execution_complete': 0, 'legacy_or_unknown_candidate_execution': 0}
     for case in inventory:
         sides = grouped.get(f"{case['rule']}/{case['name']}")
         if sides is None:
@@ -308,7 +311,8 @@ def case_expectation_summary(inventory: list[dict[str, object]], records: list[d
         counts['intended_behavior_passes' if intended_pass else 'intended_behavior_failures'] += 1
         documented = not raw_match and case.get('reference_discrepancy') is not None and (reference.get('case_passed') is True) and intended_pass
         if documented:
-            counts['documented_reference_discrepancies'] += 1
+            label = 'documented_tool_contract_differences' if case['reference_discrepancy'].get('basis') == 'tool-contract-difference' else 'documented_reference_discrepancies'
+            counts[label] += 1
             if process:
                 counts['reference_process_discrepancies'] = counts.get('reference_process_discrepancies', 0) + 1
         elif not raw_match:

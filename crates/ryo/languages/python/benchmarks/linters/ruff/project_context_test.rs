@@ -1,10 +1,11 @@
 //! Real local-adapter project context and retained-cache lifecycle checks.
+use super::PreparedEngine as _;
 use ryo_benchmark::domain::{
     diagnostics::errors::DiagnosticsError as Error,
     suite::types::{ContextManifest, PreparedCase, ProjectContextMode, WorkerRequest, WorkerState},
 };
 use ryo_benchmark::outbound::{
-    engine::{factory, interface::EnginePort as _},
+    engine::factory,
     suite::{interface::SuitePort as _, types::ArtifactPath},
 };
 use std::{
@@ -85,7 +86,7 @@ fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), 
     assert_eq!(cases.len(), 21);
     let engine = factory::local(super::python_310(), None);
     for case in &cases {
-        let result = engine.run(request(
+        let result = engine.run_prepared(request(
             &profile,
             case,
             &scratch.path().join(format!("cache-{}", case.name.0)),
@@ -118,8 +119,8 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     let other = find("root-package-name-differs");
     let cache = scratch.path().join("shared-cache");
     let engine = factory::local(super::python_310(), None);
-    let cold = engine.run(request(&profile, pkg, &cache))?;
-    let warm = engine.run(request(&profile, pkg, &cache))?;
+    let cold = engine.run_prepared(request(&profile, pkg, &cache))?;
+    let warm = engine.run_prepared(request(&profile, pkg, &cache))?;
     assert_eq!(
         cold, warm,
         "warm reuse retains the complete dependency receipt"
@@ -127,7 +128,7 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     assert_eq!(cold.diagnostics.len(), 1);
     assert!(
         engine
-            .run(request(&profile, other, &cache))?
+            .run_prepared(request(&profile, other, &cache))?
             .diagnostics
             .is_empty(),
         "identical files under another root have another module identity"
@@ -135,7 +136,7 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     let mut isolated = request(&profile, pkg, &cache);
     isolated.project_context_mode = ProjectContextMode::Isolated;
     isolated.context_manifest = None;
-    let result = engine.run(isolated.clone())?;
+    let result = engine.run_prepared(isolated.clone())?;
     assert!(
         result.diagnostics.is_empty(),
         "Given mode cannot reuse Disk package rows"
@@ -145,7 +146,7 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
         .files
         .push(ryo::linter::RelativePath("__init__.py".into()));
     assert!(
-        engine.run(isolated).is_err(),
+        engine.run_prepared(isolated).is_err(),
         "Given root package is unknown rather than an empty success"
     );
     let mut edited = request(&profile, pkg, &cache);
@@ -156,8 +157,11 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
         Path::new("pkg/mod.py"),
         bytes,
     );
-    assert!(engine.run(edited.clone())?.diagnostics.is_empty());
-    assert_eq!(engine.run(edited.clone())?, engine.run(edited)?);
+    assert!(engine.run_prepared(edited.clone())?.diagnostics.is_empty());
+    assert_eq!(
+        engine.run_prepared(edited.clone())?,
+        engine.run_prepared(edited)?
+    );
     Ok(())
 }
 #[test]
@@ -178,7 +182,7 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
         .missing
         .clear();
     assert!(
-        engine.run(undeclared).is_err(),
+        engine.run_prepared(undeclared).is_err(),
         "the first missing ancestor must have been declared"
     );
     let mut escape = request(&profile, case, &cache);
@@ -188,24 +192,30 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
         .expect("seal")
         .missing
         .push("../outside".into());
-    let _verified_1 = engine.run(escape).expect_err("expected refusal");
+    let _verified_1 = engine.run_prepared(escape).expect_err("expected refusal");
     std::fs::write(case.request.root.join("__init__.py"), "changed")?;
     assert!(
-        engine.run(request(&profile, case, &cache)).is_err(),
+        engine
+            .run_prepared(request(&profile, case, &cache))
+            .is_err(),
         "auxiliary bytes cannot change after sealing"
     );
     std::fs::write(case.request.root.join("__init__.py"), "")?;
     let manifest = case.request.context_manifest.as_ref().expect("seal");
     std::fs::write(manifest.boundary.join("__init__.py"), "")?;
     assert!(
-        engine.run(request(&profile, case, &cache)).is_err(),
+        engine
+            .run_prepared(request(&profile, case, &cache))
+            .is_err(),
         "a sealed missing marker cannot appear"
     );
     std::fs::remove_file(manifest.boundary.join("__init__.py"))?;
     std::fs::remove_file(case.request.root.join("__init__.py"))?;
     std::fs::create_dir_all(case.request.root.join("__init__.py"))?;
     assert!(
-        engine.run(request(&profile, case, &cache)).is_err(),
+        engine
+            .run_prepared(request(&profile, case, &cache))
+            .is_err(),
         "unreadable file content is never a missing dependency"
     );
     Ok(())
@@ -223,7 +233,7 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     let engine = factory::local(super::python_310(), None);
     let cache = scratch.path().join("cache");
     let mut asked = request(&profile, case, &cache);
-    let absent = engine.run(asked.clone())?;
+    let absent = engine.run_prepared(asked.clone())?;
     assert!(absent.diagnostics.is_empty());
     let marker = PathBuf::from("pkg2/__init__.py");
     let added_seal = asked.context_manifest.as_mut().expect("seal");
@@ -232,13 +242,13 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     let _previous = added_seal
         .auxiliary_files
         .insert(marker.clone(), content_hash(b""));
-    let added = engine.run(asked.clone())?;
+    let added = engine.run_prepared(asked.clone())?;
     assert_eq!(added.diagnostics.len(), 1);
-    assert_eq!(added, engine.run(asked.clone())?);
+    assert_eq!(added, engine.run_prepared(asked.clone())?);
     let edited_seal = asked.context_manifest.as_mut().expect("seal");
     std::fs::write(edited_seal.boundary.join(&marker), b"# edited\n")?;
     changed_manifest(edited_seal, &marker, b"# edited\n");
-    let edited = engine.run(asked.clone())?;
+    let edited = engine.run_prepared(asked.clone())?;
     assert_eq!(edited.diagnostics, added.diagnostics);
     assert_ne!(
         edited.project_context, added.project_context,
@@ -248,8 +258,8 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     std::fs::remove_file(removed_seal.boundary.join(&marker))?;
     let _removed = removed_seal.auxiliary_files.remove(&marker);
     removed_seal.missing.push(marker);
-    let removed = engine.run(asked.clone())?;
+    let removed = engine.run_prepared(asked.clone())?;
     assert!(removed.diagnostics.is_empty());
-    assert_eq!(removed, engine.run(asked)?);
+    assert_eq!(removed, engine.run_prepared(asked)?);
     Ok(())
 }

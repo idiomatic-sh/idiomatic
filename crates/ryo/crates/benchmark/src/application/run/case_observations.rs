@@ -59,6 +59,15 @@ pub(super) fn write(
             .request
             .files
             .iter()
+            .filter(|file| {
+                !case
+                    .request
+                    .context_manifest
+                    .as_ref()
+                    .is_some_and(|manifest| {
+                        crate::domain::suite::service::declares_missing(manifest, file)
+                    })
+            })
             .map(|file| std::path::PathBuf::from(file.0.as_ref()))
             .collect::<Vec<_>>(),
     );
@@ -112,7 +121,8 @@ pub(super) fn write(
         "project_context": report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
         "expected": expected,
         "reference_expected": super::discrepancy::reference_expected(case).ok().map(|report| finding_values(&report.diagnostics)),
-        "documented_reference_discrepancy": case.reference_discrepancy.is_some(),
+        "documented_reference_discrepancy": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == crate::domain::suite::types::DiscrepancyBasis::LanguageDefect),
+        "documented_tool_contract_difference": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == crate::domain::suite::types::DiscrepancyBasis::ToolContract),
         "discrepancy_validation": validation,
         "raw_parity_matches_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
         "diagnostics_match_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),

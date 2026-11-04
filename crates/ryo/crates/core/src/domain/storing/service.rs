@@ -7,7 +7,7 @@ use crate::domain::handing::service::{hand_into, handed_in, rows_of_file};
 use crate::domain::keeping::service::{findings_of, rows_from};
 use crate::domain::workers::types::FileOrder;
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileNumber, Nanoseconds};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileNumber, Nanoseconds};
 use ryo_values::domain::records::types::{
     Cell, FileOutcome, FindingRows, Freshness, Handing, PlacedRule, Ran, Record, RuleFrontier,
 };
@@ -47,25 +47,35 @@ pub(crate) fn as_kept(kept: &StoredFile, file: &CorpusEntry) -> Freshness {
 /// other rules, or for other files while a rule reads across files; the files as they were again when nothing changed that a rule
 /// reading across files could see; a check of what the changed files show otherwise.
 #[must_use]
-pub(crate) fn decide(stored: &Stored, rules: &[StoredRule], files: &[CorpusEntry]) -> Decision {
+pub(crate) fn decide(stored: &Stored, rules: &[StoredRule], files: &[CorpusInput]) -> Decision {
     if *stored == Stored::default() || stored.rules != rules {
         return Decision::Whole;
     }
     let across = rules.iter().any(|rule| rule.crossing == Crossing::Across);
+    // A failed primary input has no reusable fresh record to compare with its old interface.
+    // Recompute current cross-file rows/coverage rather than infer an unchanged empty delta.
+    if across
+        && files
+            .iter()
+            .any(|input| !matches!(input, CorpusInput::Available(_)))
+    {
+        return Decision::Whole;
+    }
     let same_files = files.len() == stored.files.len()
         && files
             .iter()
             .zip(&stored.files)
-            .all(|(file, kept)| file.path == kept.path);
+            .all(|(file, kept)| ryo_values::domain::files::service::input_path(file) == &kept.path);
     if across && !same_files {
         return Decision::Cross;
     }
     let changed: Vec<FileOrder> = files
         .iter()
         .enumerate()
-        .filter(|(_, file)| {
-            stored_at(stored, &file.path)
-                .is_none_or(|kept| as_kept(kept, file) == Freshness::Changed)
+        .filter(|(_, input)| match input {
+            CorpusInput::Available(file) => stored_at(stored, &file.path)
+                .is_none_or(|kept| as_kept(kept, file) == Freshness::Changed),
+            CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => true,
         })
         .map(|(place, _)| FileOrder(place))
         .collect();

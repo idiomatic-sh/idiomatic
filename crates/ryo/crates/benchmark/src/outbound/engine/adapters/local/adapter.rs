@@ -7,6 +7,7 @@ use crate::domain::diagnostics::{
 use crate::domain::suite::service::relative_path;
 use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::factory::FrontendDiagnosticProjection;
+use crate::outbound::engine::types::PreparedMissingInputs;
 use ryo::linter::{
     self, Cache, CaseSource, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule,
     RuleApplicability, RuleId, Slot, SourceText, WorkerPool, Workers,
@@ -180,7 +181,12 @@ impl EngineLocalAdapter {
     }
 }
 impl EnginePort for EngineLocalAdapter {
-    fn run(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+    fn run(
+        &self,
+        request: WorkerRequest,
+        prepared: PreparedMissingInputs,
+    ) -> Result<RunReport, Error> {
+        let selected_missing = prepared.selected_missing;
         validate_context(&request)?;
         let _trace = if let Some(path) = &self.trace {
             let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
@@ -201,18 +207,27 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let rules = Self::load_rules(
+        let mut rules = Self::load_rules(
             &request.rules,
             &request.query_modules,
             &request.rule_applicability,
             self.frontend_diagnostic.clone(),
         )?;
+        if let Some(projection) = &self.frontend_diagnostic {
+            let frontend = rules
+                .get_mut(&projection.rule)
+                .ok_or_else(|| Error::Invalid("frontend projection was not registered".into()))?;
+            frontend.exclude = frontend_exclusions(&selected_missing)?;
+            frontend
+                .exclude
+                .extend(project_input_exclusions(&request, &self.languages)?);
+        }
         let selected_rules = rules.keys().cloned().collect();
         let selected_rule_count = rules
             .len()
             .saturating_sub(usize::from(self.frontend_diagnostic.is_some()));
         let selected_pairs = selected_rule_count.saturating_mul(request.files.len());
-        let (sources, accepted) = source_inputs(&request)?;
+        let (sources, accepted) = source_inputs(&request, &selected_missing)?;
         let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
         let cache = match request.state {
             crate::domain::suite::types::WorkerState::Fresh => Cache::None,
@@ -245,7 +260,11 @@ impl EnginePort for EngineLocalAdapter {
             },
         )
         .map_err(|error| Error::Invalid(error.to_string()))?;
-        if !report.unknowns.is_empty() || !report.unread.is_empty() {
+        let unexpected_unread = report.unread.iter().any(|unread| {
+            !matches!(&unread.reason, linter::Unreadable::Failed(_))
+                || !selected_missing.contains(&unread.path)
+        });
+        if !report.unknowns.is_empty() || unexpected_unread {
             return Err(Error::Invalid(format!(
                 "incomplete candidate: selected_rule_file_pairs={selected_pairs}; unknown_count={}; unread_count={}; unknowns={:?}; unread={:?}",
                 report.unknowns.len(),
@@ -338,16 +357,6 @@ fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
         (crate::domain::suite::types::ProjectContextMode::Isolated, None) => {}
         (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(manifest)) => {
             crate::outbound::context::adapters::local::adapter::validate(manifest, &request.root)?;
-            let requested: std::collections::BTreeSet<_> = request
-                .files
-                .iter()
-                .map(|file| manifest.logical_root.join(file.0.as_ref()))
-                .collect();
-            if requested != manifest.source_files.keys().cloned().collect() {
-                return Err(Error::Invalid(
-                    "context source seal differs from requested inventory".into(),
-                ));
-            }
         }
         _ => {
             return Err(Error::Invalid(
@@ -361,6 +370,7 @@ fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
 /// Read each explicitly requested source once, retaining its exact ordered inventory.
 fn source_inputs(
     request: &WorkerRequest,
+    selected_missing: &std::collections::BTreeSet<linter::RelativePath>,
 ) -> Result<
     (
         Vec<CaseSource>,
@@ -377,6 +387,11 @@ fn source_inputs(
                 crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
             ));
         }
+        if selected_missing.contains(file) {
+            // Context validation already observed this absence. Keep the requested path,
+            // but supply neither bytes nor metadata overlays to the engine.
+            continue;
+        }
         let source = std::fs::read_to_string(request.root.join(file.0.as_ref()))?;
         sources.push(CaseSource {
             executable: executable(&request.root.join(file.0.as_ref()))?,
@@ -384,7 +399,7 @@ fn source_inputs(
             text: SourceText(source.into_boxed_str()),
         });
     }
-    if sources.is_empty() {
+    if accepted.is_empty() {
         return Err(Error::Invalid(constants::EMPTY_CORPUS.into()));
     }
     Ok((sources, accepted))
@@ -445,4 +460,62 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
         let _metadata = metadata;
         Ok(ryo::linter::ExecutablePermission::Unsupported)
     }
+}
+
+/// The auto frontend projection governs only declared readable inputs. Authored rules still
+/// govern the complete primary inventory; an absence seal is not a statement about syntax.
+pub(super) fn frontend_exclusions(
+    selected_missing: &std::collections::BTreeSet<linter::RelativePath>,
+) -> Result<Vec<linter::Glob>, Error> {
+    selected_missing
+        .iter()
+        .map(|file| {
+            #[cfg(unix)]
+            let literal = file.0.replace('\\', "\\\\");
+            #[cfg(not(unix))]
+            let literal = file.0.to_string();
+            let pattern = globset::escape(&literal);
+            linter::Glob::try_from(pattern.as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))
+        })
+        .collect()
+}
+
+/// Syntax diagnostics apply to source inputs; provider-declared project inputs have their own reader.
+fn project_input_exclusions(
+    request: &WorkerRequest,
+    languages: &Languages,
+) -> Result<Vec<linter::Glob>, Error> {
+    let matching: Vec<_> = match request.source_language.as_deref() {
+        Some(selected) => languages
+            .0
+            .iter()
+            .filter(|language| language.name().0.as_ref() == selected)
+            .collect(),
+        None if languages.0.len() == 1 => languages.0.iter().collect(),
+        // Automatic multi-provider parsing chooses the actual accepting source provider. Without an
+        // explicit unique owner, do not infer a configuration exclusion from one provider alone.
+        None => return Ok(Vec::new()),
+    };
+    let [language] = matching.as_slice() else {
+        return Err(Error::Invalid(
+            "explicit primary-role provider is missing or ambiguous".into(),
+        ));
+    };
+    request
+        .files
+        .iter()
+        .filter(|file| {
+            language.primary_role(ryo::languages::SourcePath(&file.0))
+                == ryo::languages::PrimaryFileRole::Configuration
+        })
+        .map(|file| {
+            #[cfg(unix)]
+            let literal = file.0.replace('\\', "\\\\");
+            #[cfg(not(unix))]
+            let literal = file.0.to_string();
+            linter::Glob::try_from(globset::escape(&literal).as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))
+        })
+        .collect()
 }

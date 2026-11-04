@@ -1,0 +1,4 @@
+{
+  "pyproject.toml": "[project\n",
+  "invalid.py": "def broken(\n"
+}

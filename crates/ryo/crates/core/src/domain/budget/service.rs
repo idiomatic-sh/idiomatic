@@ -1,14 +1,22 @@
 //! The `budget` service: free functions named by verb over the memory a run may use, with no IO and no ports.
 
 use super::errors::BudgetError;
-use ryo_values::domain::files::types::CorpusEntry;
+use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::MemoryBytes;
 use ryo_values::domain::runs::types::RuleId;
 
 /// The bytes of the files together.
 #[must_use]
-pub(crate) fn repository_size(files: &[CorpusEntry]) -> MemoryBytes {
-    MemoryBytes(files.iter().map(|file| file.size.0).sum())
+pub(crate) fn repository_size(files: &[CorpusInput]) -> MemoryBytes {
+    MemoryBytes(
+        files
+            .iter()
+            .map(|file| match file {
+                CorpusInput::Available(entry) => entry.size.0,
+                CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => 0,
+            })
+            .sum(),
+    )
 }
 
 /// Refuses a repository larger than the budget.

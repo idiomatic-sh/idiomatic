@@ -13,6 +13,7 @@ pub(crate) mod reference;
 pub(crate) mod scope;
 pub(crate) mod static_call;
 pub(crate) mod static_import;
+pub(crate) mod standard_library_import;
 pub(crate) mod string_literal;
 pub(crate) mod syntax_child;
 pub(crate) mod syntax_error;

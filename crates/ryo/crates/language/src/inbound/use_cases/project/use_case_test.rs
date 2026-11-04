@@ -9,9 +9,9 @@ use super::types::{ManifestName, ProjectRequest, Resolved, RootPath};
 use super::use_case::ProjectUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::reasons::types::ToolMessage;
-use ryo_relations::domain::relations::types::Count;
 use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::fixtures::contract::Discard;
+use ryo_relations::domain::relations::types::Count;
 
 /// A language without manifest relations whose tools cannot run at all.
 struct Broken;
@@ -21,6 +21,16 @@ impl ProjectUseCase for Broken {
 
     fn manifests(&self) -> &'static [ManifestName] {
         &[]
+    }
+
+    fn primary_role(
+        &self,
+        _path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole {
+        crate::domain::files::service::primary_role_from_manifests(
+            _path,
+            self.manifests().iter().map(|manifest| manifest.0),
+        )
     }
 
     fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved, ProjectError> {

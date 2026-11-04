@@ -35,6 +35,7 @@ pub mod scope;
 pub mod sequence_element;
 pub mod source_dependency;
 pub mod source_location;
+pub mod standard_library_import;
 pub mod static_call;
 pub mod static_import;
 pub mod string_literal;
@@ -95,3 +96,9 @@ pub mod compiler_feature;
 
 /// Optional physical token successor and matching-delimiter metadata.
 pub mod token_link;
+
+/// Primary disk read failure observations.
+pub mod filesystem_read_failure;
+
+/// Diagnostics from project metadata validators.
+pub mod manifest_diagnostic;

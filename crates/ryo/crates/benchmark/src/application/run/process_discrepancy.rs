@@ -210,6 +210,7 @@ pub(super) fn validate_archives(
             artifacts.push(EvidenceArtifact {
                 path: artifact.path.clone(),
                 sha256: artifact.sha256.0.clone(),
+                requirement: crate::outbound::suite::types::discrepancy::EvidenceRequirement::Language,
             });
         }
     }

@@ -5,7 +5,7 @@ use super::errors::LintError;
 use crate::domain::reading::service::buckets_of;
 use crate::domain::storing::types::{HandedAgain, MadeAgain, Reuse};
 use crate::outbound::lint_store::interface::ReadStore;
-use ryo_values::domain::files::types::CorpusEntry;
+use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::Record;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -27,11 +27,14 @@ pub(super) fn answered<T>(slot: Option<T>) -> T {
 }
 
 /// The record kept of each of `files`, in their order; none for a file with no record.
-pub(super) fn records_of<'a>(files: &[CorpusEntry], kept: &'a [Record]) -> Vec<Option<&'a Record>> {
+pub(super) fn records_of<'a>(files: &[CorpusInput], kept: &'a [Record]) -> Vec<Option<&'a Record>> {
     files
         .iter()
         .map(|file| {
-            match kept.binary_search_by(|record| record.path.cmp(&file.path)) {
+            let CorpusInput::Available(entry) = file else {
+                return None;
+            };
+            match kept.binary_search_by(|record| record.path.cmp(&entry.path)) {
                 Ok(at) => kept.get(at),
                 // The search answers where the path would go: the file has no record.
                 Err(_) => None,

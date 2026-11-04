@@ -93,6 +93,9 @@ pub enum ExpectedRule {
 pub struct Case {
     /// Explicit execution and diagnostic policy for this case.
     pub performance: PerformanceOptions,
+    /// Explicit primary inventory, including selected paths sealed absent by the context.
+    /// None preserves the legacy inventory of exactly the source-text map's keys.
+    pub requested_files: Option<Vec<RelativePath>>,
     /// Explicit per-file POSIX executable bits; None preserves legacy byte-only identity.
     pub file_metadata: Option<BTreeMap<RelativePath, bool>>,
     /// Explicit logical root and auxiliary context, excluded from the lint file inventory.
@@ -154,26 +157,83 @@ pub enum DiscrepancyEvidenceKind {
     IndependentLanguageRun,
 }
 
-/// One independent evidence artifact within the explicit profile boundary.
+/// The authority asserted by a documented two-sided difference.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiscrepancyBasis {
+    /// Independent language meaning contradicts the reference output.
+    LanguageDefect,
+    /// A documented public tool policy differs from the pinned reference tool.
+    ToolContract,
+}
+
+/// One exact artifact within the profile boundary, with evidence fields specific to its authority.
 #[derive(Clone, Debug)]
-pub struct DiscrepancyEvidence {
-    /// Safe profile-relative artifact path; no implicit external evidence reads.
-    pub path: PathBuf,
-    /// Exact independent artifact content digest.
-    pub sha256: ArtifactDigest,
-    /// `language-spec` or `independent-language-run`, never competitor output alone.
-    pub kind: DiscrepancyEvidenceKind,
-    /// Language target/contract version supported by this evidence.
-    pub language_version: String,
-    /// Exact parser contract this evidence supports.
-    pub target_configuration: String,
-    /// Explicit justification connecting the observed language version to that target.
-    pub version_rationale: String,
+pub enum DiscrepancyEvidence {
+    /// Independent language meaning.
+    Language {
+        /// Safe profile-relative artifact path.
+        path: PathBuf,
+        /// Exact artifact content digest.
+        sha256: ArtifactDigest,
+        /// Language specification or execution.
+        kind: DiscrepancyEvidenceKind,
+        /// Observed language version.
+        language_version: String,
+        /// Parser target supported by this evidence.
+        target_configuration: String,
+        /// Connection between observation and target.
+        version_rationale: String,
+    },
+    /// A pinned previously published public tool contract.
+    PublicToolContract {
+        /// Safe profile-relative contract snapshot.
+        path: PathBuf,
+        /// Exact snapshot digest.
+        sha256: ArtifactDigest,
+        /// Published source revision.
+        source_revision: String,
+        /// Public source path.
+        source_path: String,
+        /// Case-specific policy explanation.
+        rationale: String,
+    },
+    /// Actual prior worker execution of the same policy boundary.
+    PriorWorkerRun {
+        /// Safe profile-relative complete observation.
+        path: PathBuf,
+        /// Exact observation digest.
+        sha256: ArtifactDigest,
+        /// Sealed worker identity.
+        worker_sha256: ArtifactDigest,
+        /// Exact control input, query and profile identities; these need not equal the rule case.
+        control_source_sha256: ArtifactDigest,
+        /// Exact control query identity.
+        control_query_sha256: ArtifactDigest,
+        /// Exact control profile identity.
+        control_profile_sha256: ArtifactDigest,
+        /// Named completed control that must exhibit the prior policy.
+        witness_case: String,
+        /// Why the separate control proves this selection boundary.
+        rationale: String,
+    },
+}
+impl DiscrepancyEvidence {
+    /// The profile-contained artifact identity common to every authority.
+    #[must_use]
+    pub fn artifact(&self) -> (&PathBuf, &ArtifactDigest) {
+        match self {
+            Self::Language { path, sha256, .. }
+            | Self::PublicToolContract { path, sha256, .. }
+            | Self::PriorWorkerRun { path, sha256, .. } => (path, sha256),
+        }
+    }
 }
 
 /// Materialized reference expectation with independently validated evidence.
 #[derive(Clone, Debug)]
 pub struct PreparedReferenceDiscrepancy {
+    /// Language defect or deliberately different public tool policy.
+    pub basis: DiscrepancyBasis,
     /// Exact reference report; distinct from the candidate's intended expected report.
     pub expected: super::process::types::ReferenceExpectation,
     /// Immutable execution and output identities.

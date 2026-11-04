@@ -1,0 +1,79 @@
+{
+  "source_head": "7a0970131a93f6619c0000fa9b4e13bb3776fde4",
+  "tree": "8a498fd17d742a04322f3d36b6aa2ff46bfdfb87",
+  "command": [
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "-j6",
+    "-p",
+    "idiomatic-sh-ryo-python",
+    "--bench",
+    "ruff",
+    "--message-format=json"
+  ],
+  "exit": 0,
+  "seconds": 74.66154889699828,
+  "source_unchanged": true,
+  "touched_source_count": 614,
+  "workspace_artifacts": [
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/relations/Cargo.toml",
+      "target": "ryo_relations",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/operators/Cargo.toml",
+      "target": "ryo_operators",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/values/Cargo.toml",
+      "target": "ryo_values",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/language/Cargo.toml",
+      "target": "ryo_language",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/query_language/Cargo.toml",
+      "target": "ryo_query_language",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/sdk/Cargo.toml",
+      "target": "ryo",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/languages/python/Cargo.toml",
+      "target": "ryo_python",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/core/Cargo.toml",
+      "target": "ryo_core",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/crates/benchmark/Cargo.toml",
+      "target": "ryo_benchmark",
+      "fresh": false
+    },
+    {
+      "manifest": "/tmp/ryo-i001-namespace-20261104/crates/ryo/languages/python/Cargo.toml",
+      "target": "ruff",
+      "fresh": false
+    }
+  ],
+  "query_sha256": "c24265df715d5fc147d7937222aeb0a06b2b77190e118d07390c9a0cf6607169",
+  "cases_sha256": "248c6aa4e261cfc55730d127a68a21ec999e052366fa6cd74a98e8584e3d503b",
+  "profile_sha256": "ae9619861646c0d487cc99e9e87f01a8632f03c2a9f69774fc14fc184235fb18",
+  "artifact": "/workspaces/idiomatic-benchmark-guards/target/release/deps/ruff-3e581c46b5cc2488",
+  "artifact_fresh": false,
+  "worker_sha256": "d025a7b0a13443fb36b9d70647744ddc6ccbd2526a8b71b9e542f42086656166"
+}

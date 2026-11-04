@@ -20,7 +20,8 @@ impl RunRyoUseCaseImpl {
 impl RunRyoUseCase for RunRyoUseCaseImpl {
     fn run_ryo(&self) -> Result<(), Error> {
         let request = self.worker.receive()?;
-        let report = self.engine.run(request)?;
+        let prepared = crate::application::worker_request::service::prepare(request)?;
+        let report = self.engine.run(prepared.request, prepared.missing)?;
         self.worker.respond(&report)
     }
 }

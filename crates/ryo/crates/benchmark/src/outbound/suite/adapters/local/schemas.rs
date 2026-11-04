@@ -74,6 +74,9 @@ struct CasesSchema {
 struct CaseSchema {
     #[serde(default)]
     performance: crate::outbound::worker::schemas::OptionsSchema,
+    /// Optional explicit primary inventory; absent paths require the shared context absence seal.
+    #[serde(default, rename = "requested-files")]
+    requested_files: Option<Vec<String>>,
     /// Explicit POSIX executable observations for declared source files.
     #[serde(default, rename = "file-metadata")]
     file_metadata: Option<BTreeMap<String, bool>>,
@@ -92,6 +95,10 @@ struct CaseSchema {
     /// Optional separately pinned reference behavior and independent evidence.
     #[serde(default, rename = "reference-discrepancy")]
     reference_discrepancy:
+        Option<crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire>,
+    /// A documented difference from an already public tool selection contract.
+    #[serde(default, rename = "tool-contract-difference")]
+    tool_contract_difference:
         Option<crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire>,
 }
 #[derive(Deserialize)]
@@ -289,8 +296,21 @@ impl TryFrom<CasesSchema> for types::Cases {
                 .cases
                 .into_iter()
                 .map(|case| {
+                    if case.reference_discrepancy.is_some()
+                        && case.tool_contract_difference.is_some()
+                    {
+                        return Err(Error::Invalid(
+                            "a case cannot declare both discrepancy authorities".into(),
+                        ));
+                    }
                     Ok(types::Case {
                         performance: case.performance.into(),
+                        requested_files: case.requested_files.map(|paths| {
+                            paths
+                                .into_iter()
+                                .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
+                                .collect()
+                        }),
                         file_metadata: case.file_metadata.map(|values| {
                             values
                                 .into_iter()
@@ -397,12 +417,31 @@ pub(super) fn case_reference_wires(
     Vec<(
         String,
         crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire,
+        crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire,
     )>,
     toml::de::Error,
 > {
-    Ok(toml::from_str::<CasesSchema>(text)?
-        .cases
-        .into_iter()
-        .filter_map(|case| case.reference_discrepancy.map(|wire| (case.name, wire)))
-        .collect())
+    use serde::de::Error as _;
+    let mut wires = Vec::new();
+    for case in toml::from_str::<CasesSchema>(text)?.cases {
+        match (case.reference_discrepancy, case.tool_contract_difference) {
+            (Some(wire), None) => wires.push((
+                case.name,
+                wire,
+                crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire::LanguageDefect,
+            )),
+            (None, Some(wire)) => wires.push((
+                case.name,
+                wire,
+                crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire::ToolContract,
+            )),
+            (None, None) => {}
+            (Some(_), Some(_)) => {
+                return Err(toml::de::Error::custom(
+                    "one discrepancy authority per case",
+                ));
+            }
+        }
+    }
+    Ok(wires)
 }

@@ -76,6 +76,7 @@ macro_rules! each_relation {
                 RawFormatField raw_format_field RawFormatFieldRow RawFormatFieldColumn;
                 LiteralExpressionParse literal_expression_parse LiteralExpressionParseRow LiteralExpressionParseColumn;
                 StaticImport static_import StaticImportRow StaticImportColumn;
+                StandardLibraryImport standard_library_import StandardLibraryImportRow StandardLibraryImportColumn;
                 StringLiteral string_literal StringLiteralRow StringLiteralColumn;
                 BytesLiteral bytes_literal BytesLiteralRow BytesLiteralColumn;
                 FormatSpecification format_specification FormatSpecificationRow FormatSpecificationColumn;
@@ -101,11 +102,13 @@ macro_rules! each_relation {
                 AnalyzedSource analyzed_source AnalyzedSourceRow AnalyzedSourceColumn;
                 FilePackage file_package FilePackageRow FilePackageColumn;
                 ModuleIdentity module_identity ModuleIdentityRow ModuleIdentityColumn;
+                ManifestDiagnostic manifest_diagnostic ManifestDiagnosticRow ManifestDiagnosticColumn;
             }
             engine {
                 FilesystemFile filesystem_file FilesystemFileRow FilesystemFileColumn;
                 FilesystemLineCount filesystem_line_count FilesystemLineCountRow FilesystemLineCountColumn;
                 FilesystemExecutable filesystem_executable FilesystemExecutableRow FilesystemExecutableColumn;
+                FilesystemReadFailure filesystem_read_failure FilesystemReadFailureRow FilesystemReadFailureColumn;
             }
         }
     };
@@ -451,6 +454,7 @@ pub const fn capability_relation(capability: super::types::OptionalCapability) -
         OptionalCapability::BytesLiteral => Relation::BytesLiteral,
         OptionalCapability::FormatSpecification => Relation::FormatSpecification,
         OptionalCapability::LanguageTarget => Relation::LanguageTarget,
+        OptionalCapability::StandardLibraryImport => Relation::StandardLibraryImport,
         OptionalCapability::CompilerFeature => Relation::CompilerFeature,
         OptionalCapability::ConstantKey => Relation::ConstantKey,
         OptionalCapability::FormatParse => Relation::FormatParse,
