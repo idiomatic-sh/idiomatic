@@ -1,0 +1,32 @@
+{
+  "snapshot_utc": "2026-11-04T01:53:45.226121+00:00",
+  "inventory_sha256": "c570a301716b0806db46c4e019244d536570f5348a5928bf797d93482cc96620",
+  "counts": {
+    "COMPLETED_UNCERTIFIED": 410,
+    "FAIL_MISSING_IMPLEMENTATION": 2,
+    "FAIL_TIMEOUT": 1
+  },
+  "raw_observations_preserved_not_rewritten": true,
+  "public_bundle_scope": "Resource receipt snapshots, report-comparison summaries and source identities; not self-contained reference parity certification",
+  "files": {
+    "inventory-state.json": "c75f8b372eb0f580eff4df5bdc748600846f90981da03758f89c1fe8b4d390fb",
+    "db1-survey-manifest.json": "aa4d1f8c1f3c70d984d7c8e88ef85cacb0f9133bec40e1d4c8e040bb55f3e220",
+    "combined12.json": "c4fbe1f594f262fc3fc0091f8385cd08d2d9ab08e24f4a4f653dd115dbce02d7",
+    "binding-source4.json": "469e1aa7fed04d0165dea9365c48016714d373cc143231903c5bf6a37ba7eafa",
+    "mixed-relations4.json": "b7eb04e8329b86b0c866ca1b018166aa3176f019aee7f7ce8a2ae767e3954a90",
+    "current411-extra2.json": "3ecd933b9f164243bbeba8bf4f483d99b2343fca8915f3c3111ef880eba84ad5",
+    "current411-extra2-manifest.json": "f35babefb8b34826f3f9b7ed9ed139b1b1bf026fc1a9bbe9ae77b8d1d4b628a5",
+    "ISC004-operation-summary.json": "3415b4f2e83fb5cf50d8e318b315c0669108fd26d9619243f515dd47d8b5bf26",
+    "typed-selector-controls.json": "5281cd60fbc5ae2b7ddf72eedfef894fea8b9a9846b82ae2345897f6a6f28cab",
+    "typed-selector-default.json": "adbe6cdf669236d99a482f4166dfb8076e36f7e1d1ad5c681f8217f6c750b742",
+    "hypothesis-plan.md": "c4352ca9dec48b3d7ea37bd81cf766f3298b545d4cdbc966b484a1c2b3fa6829",
+    "fable-attempt.json": "8e865171167635f75c47c724d6e432774e4795fcc68d84c80d75be7e59abcb67",
+    "fable-response.json": "743a9f7f4058bab01dba70f05360ee6648bf7194e9550af0f595250a14fa1746",
+    "survey-driver.py": "7a5444cdac6474ce5eba964980fa810bc0e9b08192875a4a3288ef59e0546a0c",
+    "cohort-driver.py": "029dd497fcc37e0a4804488a1652ed014280dc1b2b48333b9dd6cc09fe513aed",
+    "reporting-renderer.py": "e06c461f64f8f5fcf2b35638e267430653f5dd25daeeeb42267ed415a87c0bd4",
+    "owner-first-refusal.json": "a1f07427a232768cc3789712adfdb3fac9244003ecc03abea6f98114337b966c",
+    "db1-resource-receipts.json": "3e21e69688c2e10395ea10d7d553f63fce9f5d6ec292d01b4f52ac5bc51f4da4",
+    "current411-resource-receipts.json": "ad08bfd69ef36ca7e0d16df4bd78e5bd2b443682f47d491a203af3b7a398fc26"
+  }
+}
