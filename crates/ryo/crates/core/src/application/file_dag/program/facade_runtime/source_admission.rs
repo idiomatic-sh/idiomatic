@@ -353,11 +353,10 @@ impl Inputs for SourceInputs<'_, '_> {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        produced: super::super::positions::ProducedPositions,
+        publication: PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
         let readiness =
             super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
-        let publication = self.owner.publish_positions(produced)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),
@@ -377,11 +376,10 @@ impl Inputs for SourceInputs<'_, '_> {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        produced: super::super::selection::ProducedSelection,
+        publication: PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
         let readiness =
             super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
-        let publication = self.owner.publish_selection(produced)?;
         let rows = self.owner.resolve(publication.as_ref(), self.read)?;
         let checked = self.owner.admit(
             publication.as_ref(),

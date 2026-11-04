@@ -61,14 +61,14 @@ pub(super) trait KernelInvocation {
         permit: &super::admission::KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<super::positions::ProducedPositions>, InvocationFailure>;
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>;
     fn selected(
         &self,
         shape: &crate::domain::executable_program::selection::SelectionAlternative,
         permit: &super::admission::KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<super::selection::ProducedSelection>, InvocationFailure>;
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>;
     fn column(
         &self,
         shape: &crate::domain::executable_program::column::ColumnAlternative,

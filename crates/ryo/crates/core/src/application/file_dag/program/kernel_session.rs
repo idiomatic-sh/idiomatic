@@ -117,7 +117,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<super::positions::ProducedPositions>, InvocationFailure> {
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
+    {
         let instruction = &self.prepared.program().regions()[region.0].instructions[0];
         if self
             .walk
@@ -143,19 +144,43 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let workspace = scratch
             .workspace
             .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
-        super::positions::evaluate(
-            self.prepared,
+        let failure = std::sync::OnceLock::new();
+        let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            port: self.kernels,
+            permit: permit
+                .position_semantics(shape)
+                .map_err(InvocationFailure::Semantic)?,
+            binding: crate::domain::executable_program::physical::PhysicalBinding {
+                native_join: false,
+                source_len: rebound.source.0.len(),
+            },
+            failure: &failure,
+        };
+        let mut derived = self
+            .owner
+            .derived
+            .finite_raw(
+                Rc::clone(&self.owner),
+                self.prepared
+                    .native_order(region)
+                    .map_err(InvocationFailure::Semantic)?,
+            )
+            .map_err(InvocationFailure::Semantic)?;
+        let result = super::positions::evaluate(
             permit,
-            region,
             shape,
             &self.owner,
             self.read,
-            self.kernels,
+            &semantics,
+            &mut derived,
             &mut rebound,
             &mut scratch.positions,
             &workspace.work,
-        )
-        .map_err(InvocationFailure::Semantic)
+        );
+        failure
+            .into_inner()
+            .map_or(result, Err)
+            .map_err(InvocationFailure::Semantic)
     }
     fn selected(
         &self,
@@ -163,7 +188,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
-    ) -> Result<Option<super::selection::ProducedSelection>, InvocationFailure> {
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
+    {
         let input = permit
             .selection_input(shape)
             .map_err(InvocationFailure::Semantic)?;

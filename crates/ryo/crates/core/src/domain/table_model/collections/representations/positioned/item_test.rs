@@ -32,8 +32,7 @@ fn input<'a>(
         kinds: &[CellKind::File],
     })
 }
-#[test]
-fn tuple_geometry_preserves_bags_and_refuses_invalid_coordinates() {
+fn tuple_geometry_preserves_bags_and_refuses_invalid_coordinates() -> Result<(), OperatingError> {
     let mut elements = Elements::default();
     let mut symbols = Symbols::default();
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b""));
@@ -91,4 +90,23 @@ fn tuple_geometry_preserves_bags_and_refuses_invalid_coordinates() {
         PositionedItem.prepare(input(tree, &positions, &shape)),
         Err(OperatingError::ShapeMismatch)
     ));
+    Ok(())
+}
+
+use crate::cases::{Case, CaseName, Expect, Word, run};
+type Input = fn() -> Result<(), OperatingError>;
+type Value = ();
+type Failure = OperatingError;
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("tuple_geometry_preserves_bags_and_refuses_invalid_coordinates"),
+    word: Word::Succeeds,
+    input: || tuple_geometry_preserves_bags_and_refuses_invalid_coordinates,
+    expect: Expect::Value(()),
+}];
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario()
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

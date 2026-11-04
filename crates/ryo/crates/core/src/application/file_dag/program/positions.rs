@@ -1,9 +1,6 @@
 //! One admitted native tuple instruction. Dependencies remain in ProgramExecution.
-use super::{admission::KernelPermit, facade::PreparedProgram};
-use crate::application::file_dag::{
-    executor::PrimitiveExecutor,
-    relations::{PublishedInput, RelationOwner, RelationResult},
-};
+use super::admission::KernelPermit;
+use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
 use crate::domain::{
     lowering::types::{LoweredColumn, LoweredShape, RowPosition, RowWidth},
     native_positions::types::{PositionInput, PositionWork},
@@ -13,41 +10,22 @@ use crate::domain::{
     table_cells::types::TreeForm,
     table_model::types::Rows,
 };
-use ryo_relations::domain::relations::types::CellKind;
-use std::{
-    rc::Rc,
-    sync::{Arc, OnceLock},
-};
-pub(in crate::application::file_dag) struct ProducedPositions {
-    parts: PositionParts,
-}
-pub(in crate::application::file_dag) struct PositionParts {
-    pub source: Arc<RelationResult>,
-    pub positions: Arc<Positions>,
-    pub shape: Arc<LoweredShape>,
-    pub kinds: Arc<[CellKind]>,
-}
-impl ProducedPositions {
-    pub(in crate::application::file_dag) fn into_parts(self) -> PositionParts {
-        self.parts
-    }
-}
+use std::{rc::Rc, sync::Arc};
 pub(super) fn evaluate<'facts>(
-    prepared: &PreparedProgram,
     permit: &KernelPermit<'_>,
-    region: crate::domain::executable_program::types::RegionId,
     shape: &Arc<LoweredShape>,
     owner: &Rc<RelationOwner>,
     read: &dyn Fn(
         ryo_relations::domain::relations::types::Relation,
     ) -> Result<Rows<'facts>, OperatingError>,
-    kernels: &dyn PrimitiveExecutor,
+    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
+    derived: &mut dyn crate::domain::operator::contract::derived::ScopedDerived,
     context: &mut OperatorContext<'_>,
     work: &mut PositionWork,
     counts: &WorkCounters,
-) -> Result<Option<ProducedPositions>, OperatingError> {
-    let semantic_permit = permit.position_semantics(shape)?;
-    let code = &prepared.program().regions()[region.0].instructions[0];
+) -> Result<Option<PublishedInput>, OperatingError> {
+    permit.position_semantics(shape)?;
+    let code = permit.instruction();
     let mut sources: Vec<PublishedInput> = Vec::new();
     let mut rows = Vec::new();
     for at in 0..code.inputs.len() {
@@ -127,24 +105,9 @@ pub(super) fn evaluate<'facts>(
             _ => Err(OperatingError::WrongOperation),
         })
         .collect::<Result<_, _>>()?;
-    let failure = OnceLock::new();
-    let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
-        port: kernels,
-        permit: semantic_permit,
-        binding: crate::domain::executable_program::physical::PhysicalBinding {
-            native_join: false,
-            source_len: context.source.0.len(),
-        },
-        failure: &failure,
-    };
-    let mut derived =
-        crate::application::file_dag::derived::owner::raw_scope::RawScope::for_program(
-            Rc::clone(owner),
-            prepared.native_order(region)?,
-        );
     let result = crate::domain::native_positions::service::evaluate(
-        &semantics,
-        &mut derived,
+        semantics,
+        derived,
         permit.operation(),
         &tree,
         &inputs,
@@ -153,17 +116,20 @@ pub(super) fn evaluate<'facts>(
         work,
         counts,
     );
-    if let Some(error) = failure.into_inner() {
-        return Err(error);
-    }
     let positions = result?;
     let kinds = code.contract.collected_kinds.clone()?;
-    Ok(Some(ProducedPositions {
-        parts: PositionParts {
-            source: owner.position_source(sources.first().ok_or(OperatingError::NotRun)?)?,
-            positions: Arc::new(positions),
-            shape: Arc::clone(shape),
-            kinds: Arc::from(kinds),
-        },
-    }))
+    let source = sources.first().ok_or(OperatingError::NotRun)?;
+    let admitted = owner.admit(
+        source.as_ref(),
+        BorrowedRows::from(rows.first().ok_or(OperatingError::NotRun)?),
+    )?;
+    crate::application::file_dag::relations::positioned::publish(
+        owner,
+        source,
+        &admitted,
+        positions,
+        Arc::clone(shape),
+        Arc::from(kinds),
+    )
+    .map(Some)
 }

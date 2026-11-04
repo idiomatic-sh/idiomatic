@@ -89,14 +89,14 @@ pub(super) trait Inputs {
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        produced: super::positions::ProducedPositions,
+        produced: super::super::relations::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError>;
     fn publish_selected(
         &mut self,
         root: ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        produced: super::selection::ProducedSelection,
+        produced: super::super::relations::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError>;
     fn publish_empty(
         &mut self,
@@ -402,6 +402,9 @@ impl<'scope> KernelPermit<'scope> {
             strategy: self.strategy,
             evaluation: self.evaluation,
         })
+    }
+    pub(super) fn instruction(&self) -> &crate::domain::executable_program::types::Instruction {
+        &self.program.regions()[self.region.0].instructions[self.instruction]
     }
     pub(super) fn position_semantics(
         &self,

@@ -17,7 +17,10 @@ let local-cache = select source as file, span, source-tail, cache-part from cach
 let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
 let foreign-cache = select file, span from raw-cache where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/testing.rs}");
 let dispatch-violations = union(left=program-violations, right=foreign-leases);
-let app-violations = union(left=dispatch-violations, right=foreign-cache);
+let owner-violations = union(left=dispatch-violations, right=foreign-cache);
+let positioned-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/relations/{issuer}.rs", captures=["target-root", "issuer"]);
+let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and source-tail != "application/file_dag/program/positions.rs") or (issuer = "selection" and source-tail != "application/file_dag/program/selection.rs"));
+let app-violations = union(left=owner-violations, right=foreign-positioned);
 let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel.rs", captures=["target-root"]);
 let local-kernel = select source as file, span, source-tail from kernel-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
@@ -48,8 +51,8 @@ edition = "2024"
 '''
 files.'src/lib.rs' = 'pub mod application; pub mod domain;'
 files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
-files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived;'
-files.'src/application/file_dag/program.rs' = 'pub mod facade; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime;'
+files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod relations;'
+files.'src/application/file_dag/program.rs' = 'pub mod facade; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission;'
 files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = 'pub fn raw_admit() {}'
 files.'src/application/file_dag/program/facade.rs' = 'pub fn invoke() {}'
@@ -66,6 +69,11 @@ files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mo
 files.'src/application/file_dag/derived/owner/acquisition.rs' = 'pub fn acquire() {}'
 files.'src/application/file_dag/derived/owner/raw_scope.rs' = 'pub fn make_scope() {}'
 files.'src/application/file_dag/derived/owner/leases.rs' = 'pub fn make_lease() {}'
+files.'src/application/file_dag/relations.rs' = 'pub mod positioned; pub mod selection;'
+files.'src/application/file_dag/relations/positioned.rs' = 'pub fn publish() {}'
+files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() {}'
+files.'src/application/file_dag/program/positions.rs' = 'pub fn evaluate() {}'
+files.'src/application/file_dag/relations/selection.rs' = 'pub fn publish() {}'
 files.'src/application/caller.rs' = 'pub fn invoke() {}'
 files.'src/domain.rs' = 'pub mod semantic; pub mod executable_program; pub mod operator;'
 files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
@@ -217,3 +225,31 @@ given.files.'src/application/file_dag/execution/lease.rs' = 'pub fn dispatch() {
 id = "cache-owner-is-supported"
 scenario = "The cache owner may invoke its own acquisition implementation."
 given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases; pub fn acquire() { acquisition::acquire(); }'
+
+[[scenarios]]
+id = "foreign-positioned-population"
+scenario = "A sibling caller cannot invoke the native relation population issuer."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::relations::positioned::publish(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "foreign-positioned-alias"
+scenario = "An alias does not grant native relation publication authority."
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::relations::positioned::publish as create;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "declared-positioned-bridge"
+scenario = "The admitted native instruction may finish a relation population through its owner."
+given.files.'src/application/file_dag/program/positions.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
+
+[[scenarios]]
+id = "foreign-selected-population"
+scenario = "A sibling caller cannot invoke the selected relation population issuer."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::relations::selection::publish(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "declared-selected-bridge"
+scenario = "The admitted selector finishes its population through the same relation owner."
+given.files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::selection::publish(); }'

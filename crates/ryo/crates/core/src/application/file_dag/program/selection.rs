@@ -1,33 +1,14 @@
 //! A compact selected publication can be minted only by its admitted producer.
 use super::{admission::KernelPermit, facade::PreparedProgram};
-use crate::application::file_dag::{
-    derived::view::AcquiredView,
-    relations::{PublishedInput, RelationOwner},
-};
+use crate::application::file_dag::relations::{PublishedInput, RelationOwner};
 use crate::domain::{
     executable_program::selection::SelectionAlternative,
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::{types::WorkCounters, views::BorrowedRows},
-    table_model::{
-        service::rectangular,
-        types::{Rows, StoredSelection},
-    },
+    table_model::{service::rectangular, types::Rows},
 };
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
-pub(in crate::application::file_dag) struct ProducedSelection {
-    parts: SelectionParts,
-}
-pub(in crate::application::file_dag) struct SelectionParts {
-    pub source: PublishedInput,
-    pub selection: Arc<StoredSelection>,
-    pub resources: [Option<AcquiredView>; 2],
-}
-impl ProducedSelection {
-    pub(in crate::application::file_dag) fn into_parts(self) -> SelectionParts {
-        self.parts
-    }
-}
 /// No provider callbacks or dependency requests enter this stage. The source is
 /// the borrowed representation of the exact input already admitted by runtime.
 pub(super) fn acquire(
@@ -38,7 +19,7 @@ pub(super) fn acquire(
     owner: &Rc<RelationOwner>,
     context: &mut OperatorContext<'_>,
     work: &WorkCounters,
-) -> Result<Option<ProducedSelection>, OperatingError> {
+) -> Result<Option<PublishedInput>, OperatingError> {
     let input = permit.selection_input(shape)?;
     let publication = input.publication(owner)?;
     let proof = owner.admit(publication.as_ref(), BorrowedRows::from(rows))?;
@@ -88,11 +69,12 @@ pub(super) fn acquire(
     let Some(selected) = result? else {
         return Ok(None);
     };
-    Ok(Some(ProducedSelection {
-        parts: SelectionParts {
-            source: publication.clone(),
-            selection: selected.rows.selection,
-            resources: selected.resources,
-        },
-    }))
+    crate::application::file_dag::relations::selection::publish(
+        owner,
+        publication,
+        &proof,
+        selected.rows.selection,
+        selected.resources,
+    )
+    .map(Some)
 }

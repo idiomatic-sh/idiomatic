@@ -42,7 +42,7 @@ impl RawScope {
             finite: false,
         }
     }
-    pub(in crate::application::file_dag) fn for_program(
+    pub(super) fn for_program(
         owner: Rc<RelationOwner>,
         prepared: Option<Arc<PreparedDerived>>,
     ) -> Self {

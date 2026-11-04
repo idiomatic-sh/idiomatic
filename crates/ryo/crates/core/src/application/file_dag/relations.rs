@@ -23,8 +23,9 @@ mod external;
 mod handle;
 pub(crate) use handle::{PublishedInput, RetainedPublication};
 mod identity;
+pub(super) mod positioned;
 mod selected_access;
-use super::program::selection::{ProducedSelection, SelectionParts};
+pub(super) mod selection;
 pub(super) use admission::AdmittedInput;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -269,34 +270,7 @@ impl RelationOwner {
             normalized: OnceLock::new(),
         }))
     }
-    pub(super) fn publish_selection(
-        &self,
-        produced: ProducedSelection,
-    ) -> Result<PublishedInput, OperatingError> {
-        let SelectionParts {
-            source,
-            selection,
-            resources,
-            ..
-        } = produced.into_parts();
-        self.generation(&source)?;
-        self.publication_with_resources(
-            Arc::new(RelationResult {
-                population: self.allocate_population()?,
-                producer: OnceLock::new(),
-                generation: Arc::clone(&self.generation.borrow()),
-                kind: RepresentationKind::Selected,
-                body: RelationBody::Selected {
-                    source: Arc::clone(source.record()),
-                    selection,
-                },
-                inspected: OnceLock::from(Ok(PhysicalShape::Complete)),
-                normalized: OnceLock::new(),
-            }),
-            resources,
-        )
-    }
-    pub(in crate::application::file_dag) fn position_source(
+    fn position_source(
         &self,
         publication: &PublishedInput,
     ) -> Result<Arc<RelationResult>, OperatingError> {
@@ -308,32 +282,6 @@ impl RelationOwner {
             }
             _ => Err(OperatingError::WrongOperation),
         }
-    }
-    pub(super) fn publish_positions(
-        &self,
-        produced: super::program::positions::ProducedPositions,
-    ) -> Result<PublishedInput, OperatingError> {
-        let super::program::positions::PositionParts {
-            source,
-            positions,
-            shape,
-            kinds,
-        } = produced.into_parts();
-        self.generation(&source)?;
-        self.publication(Arc::new(RelationResult {
-            population: self.allocate_population()?,
-            producer: OnceLock::new(),
-            generation: Arc::clone(&self.generation.borrow()),
-            kind: RepresentationKind::Positioned,
-            body: RelationBody::Positioned {
-                source,
-                positions,
-                shape,
-                kinds,
-            },
-            inspected: OnceLock::new(),
-            normalized: OnceLock::new(),
-        }))
     }
     pub(super) fn stable(&self) -> bool {
         self.stable
