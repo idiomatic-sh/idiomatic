@@ -105,6 +105,19 @@ pub(crate) struct RuleOutcome {
     pub observations: Vec<(ObservationIndex, RootOutcome)>,
     pub counts: LogicalCounts,
 }
+/// A project named root can be Complete only with the admitted owner proof.
+pub(crate) enum ProjectObservation {
+    Complete {
+        table: Table,
+        publication: ObservedPublication,
+    },
+    Other(RootOutcome),
+}
+pub(crate) struct ProjectRuleOutcome {
+    pub emit: RootOutcome,
+    pub observations: Vec<(ObservationIndex, ProjectObservation)>,
+    pub counts: LogicalCounts,
+}
 pub(super) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,

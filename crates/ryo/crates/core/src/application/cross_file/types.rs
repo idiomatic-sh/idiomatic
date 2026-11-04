@@ -7,6 +7,15 @@ pub(crate) enum PublicationSlot {
     Reserved(ryo_relations::domain::relations::types::WorkerNumber),
 }
 
+/// Diagnostic result plus the actual admitted identities of its complete named roots.
+pub(crate) struct CrossedWithPublications {
+    pub crossed: crate::domain::answering::types::Crossed,
+    pub publications: Vec<(
+        ryo_values::domain::observations::types::ObservationIndex,
+        crate::application::file_dag::program::facade::ObservedPublication,
+    )>,
+}
+
 /// Required resources for the existing cross ready batches; no optional owner/fallback executor.
 pub(crate) struct ObservationRun<'a> {
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,

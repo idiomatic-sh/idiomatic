@@ -1,13 +1,14 @@
 //! Project source checks and invocation context; execution belongs to the common program.
-use super::{cross_execution::evaluate_cross_roots, program::facade, settings::CrossingInput};
+use super::{
+    cross_execution::{ProgramEvaluated, evaluate_cross_roots},
+    program::facade,
+    settings::CrossingInput,
+};
 use crate::application::cross_file::types::{FrontierInput, PreparedFrontiers};
 use crate::domain::{
     answering::types::Todo,
     coverage::types::Partials,
-    crossing::{
-        service::{partials_for, partials_for_reads},
-        types::Evaluated,
-    },
+    crossing::service::{partials_for, partials_for_reads},
     finish::types::{Arenas, Resolving},
     rules::{errors::RulesError, service::failed},
     spelling::service::check_name_spellings,
@@ -22,7 +23,7 @@ pub(crate) fn cross_rule_with_inputs(
     bound_inputs: &[crate::domain::crossing::types::BoundInputWords],
     cross: &mut Symbols,
     publication: &facade::PublicationScope,
-) -> Result<Evaluated, RulesError> {
+) -> Result<ProgramEvaluated, RulesError> {
     let refuse = |error: &dyn std::fmt::Display| failed(&todo.id, error);
     check_name_spellings(
         frontiers

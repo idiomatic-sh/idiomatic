@@ -70,7 +70,7 @@ impl ProjectRun<'_, '_> {
         rule: RuleIndex,
         demand: RuleDemand,
         context: &mut OperatorContext<'_>,
-    ) -> Result<RuleOutcome, OperatingError> {
+    ) -> Result<ProjectRuleOutcome, OperatingError> {
         if !ryo_language::domain::symbols::service::query_has_transport_generation(
             &context.symbols,
             &self.transport,
@@ -153,15 +153,18 @@ impl ProjectRun<'_, '_> {
                     ),
                     match result {
                         Ok(input) => match observation_table(&self.owner, &input, &unavailable) {
-                            Ok(table) => RootOutcome::Complete(table),
-                            Err(error) => classify(error),
+                            Ok(table) => ProjectObservation::Complete {
+                                table,
+                                publication: ObservedPublication::from_admitted(input),
+                            },
+                            Err(error) => ProjectObservation::Other(classify(error)),
                         },
-                        Err(error) => classify(error),
+                        Err(error) => ProjectObservation::Other(classify(error)),
                     },
                 ));
             }
         }
-        Ok(RuleOutcome {
+        Ok(ProjectRuleOutcome {
             emit,
             observations,
             counts: self.execution.logical_counts(rule)?,

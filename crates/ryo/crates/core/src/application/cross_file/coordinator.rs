@@ -187,17 +187,20 @@ impl CrossFile {
             for (mut task, result) in tasks.into_iter().zip(results) {
                 task.bindings.clear();
                 match result {
-                    Ok(crossed) => {
+                    Ok(result) => {
                         if let Some(transfer) = settle(
                             &task.todo,
-                            crossed,
+                            result.crossed,
                             &mut answered.later,
                             &mut answered.fed,
                             &mut answered.unknowns,
                         ) {
-                            if let Err(error) =
-                                publications.install(task.todo.rule, task.slot, transfer)
-                            {
+                            if let Err(error) = publications.install(
+                                task.todo.rule,
+                                task.slot,
+                                transfer,
+                                result.publications,
+                            ) {
                                 first_error.get_or_insert(CrossError::from(error));
                             }
                         }

@@ -1,14 +1,25 @@
 //! Project root delivery through the same prepared executable invocation.
 use super::program::facade::{
-    self, EmitDemand, ObservationDemand, PreparedProgram, ProgramServices, RootOutcome, RuleDemand,
+    self, EmitDemand, ObservationDemand, PreparedProgram, ProgramServices, ProjectObservation,
+    RootOutcome, RuleDemand,
 };
 use crate::domain::{
     coverage::types::RuleIndex,
-    crossing::types::{Evaluated, ObservedRoot, PhaseRoots},
+    crossing::types::{ObservedRoot, PhaseRoots},
     operating::{errors::OperatingError, types::OperatorContext},
 };
 use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
 use std::sync::Arc;
+
+/// Pure phase rows plus the actual admitted owner proof of each Complete named root.
+pub(crate) struct ProgramEvaluated {
+    pub roots: PhaseRoots,
+    pub fed: Vec<crate::domain::operator::types::RowsFed>,
+    pub publications: Vec<(
+        ryo_values::domain::observations::types::ObservationIndex,
+        facade::ObservedPublication,
+    )>,
+}
 
 pub(crate) fn evaluate_cross_roots(
     program: &Arc<PreparedProgram>,
@@ -20,7 +31,7 @@ pub(crate) fn evaluate_cross_roots(
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     paths: &[ryo_language::domain::files::types::FilePath],
     arenas: &[ryo_values::domain::stored_facts::types::ArenaBytes],
-) -> Result<Evaluated, OperatingError> {
+) -> Result<ProgramEvaluated, OperatingError> {
     let mut run = facade::open_project(program, required, partials, frontiers, symbols, services)?;
     let mut memo = Vec::new();
     let mut scratch = crate::domain::table_scratch::types::OperatorScratch::default();
@@ -54,21 +65,32 @@ pub(crate) fn evaluate_cross_roots(
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => roots.emit_error = Some(error),
         RootOutcome::Skipped(_) | RootOutcome::NoQuery => {}
     }
+    let mut publications = Vec::new();
     for (output, outcome) in outcome.observations {
         let (table, readiness) = match outcome {
-            RootOutcome::Complete(table) => (Some(table), ProducerReadiness::Complete),
-            RootOutcome::Partial { .. } => (
+            ProjectObservation::Complete { table, publication } => {
+                publications.push((output, publication));
+                (Some(table), ProducerReadiness::Complete)
+            }
+            ProjectObservation::Other(RootOutcome::Partial { .. }) => (
                 None,
                 ProducerReadiness::Unknown(ObservationReason(
                     "physical source facts are incomplete".into(),
                 )),
             ),
-            RootOutcome::Unknown(error) | RootOutcome::Failed(error) => (
-                None,
-                ProducerReadiness::Unknown(ObservationReason(error.to_string().into())),
-            ),
-            RootOutcome::Skipped(_) => (None, ProducerReadiness::Skipped),
-            RootOutcome::NoQuery => (None, ProducerReadiness::NoQuery),
+            ProjectObservation::Other(RootOutcome::Unknown(error) | RootOutcome::Failed(error)) => {
+                (
+                    None,
+                    ProducerReadiness::Unknown(ObservationReason(error.to_string().into())),
+                )
+            }
+            ProjectObservation::Other(RootOutcome::Skipped(_)) => {
+                (None, ProducerReadiness::Skipped)
+            }
+            ProjectObservation::Other(RootOutcome::NoQuery) => (None, ProducerReadiness::NoQuery),
+            ProjectObservation::Other(RootOutcome::Complete(_)) => {
+                return Err(OperatingError::WrongOperation);
+            }
         };
         roots.observations.push(ObservedRoot {
             output,
@@ -76,8 +98,9 @@ pub(crate) fn evaluate_cross_roots(
             readiness,
         });
     }
-    Ok(Evaluated {
+    Ok(ProgramEvaluated {
         roots,
         fed: outcome.counts.fed.into_vec(),
+        publications,
     })
 }

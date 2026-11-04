@@ -7,7 +7,8 @@ use super::{
     },
     facade::{
         CaptureContext, CapturedFrontier, EmitDemand, FrontierCapture, LogicalCounts,
-        ObservationDemand, PreparedProgram, ProjectFrontiers, RootOutcome, RuleDemand, RuleOutcome,
+        ObservationDemand, ObservedPublication, PreparedProgram, ProjectFrontiers,
+        ProjectObservation, ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
     },
     runtime::{Delivery, InvocationOutcome, KernelInvocation, ProgramExecution},
 };

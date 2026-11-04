@@ -73,6 +73,7 @@ impl CrossFile {
             super::types::PublicationSlot::Unused,
             &scope,
         )
+        .map(|result| result.crossed)
     }
     pub(crate) fn evaluate_phase(
         &self,
@@ -83,7 +84,7 @@ impl CrossFile {
         bound_inputs: &[crate::domain::crossing::types::BoundInputWords],
         publication: super::types::PublicationSlot,
         scope: &facade::PublicationScope,
-    ) -> Result<Crossed, RulesError> {
+    ) -> Result<super::types::CrossedWithPublications, RulesError> {
         #[cfg(feature = "diagnostic-row-progress")]
         let _project_progress =
             crate::application::file_dag::route_counts::FileScope::begin(usize::MAX);
@@ -176,11 +177,26 @@ impl CrossFile {
                 worker,
             ))
         };
-        Ok(Crossed {
-            unknowns,
-            rendered,
-            observations,
-            fed: evaluated.fed,
+        let mut publications = evaluated.publications;
+        if let Some(packed) = &observations {
+            publications.retain(|(output, _)| {
+                packed.roots.iter().any(|root| {
+                    root.output == *output
+                        && root.readiness
+                            == ryo_values::domain::observations::types::ProducerReadiness::Complete
+                })
+            });
+        } else {
+            publications.clear();
+        }
+        Ok(super::types::CrossedWithPublications {
+            crossed: Crossed {
+                unknowns,
+                rendered,
+                observations,
+                fed: evaluated.fed,
+            },
+            publications,
         })
     }
     /// Place and render the actual diagnostic root; named-root production is independent.

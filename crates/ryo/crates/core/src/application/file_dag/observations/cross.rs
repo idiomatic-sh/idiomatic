@@ -15,8 +15,13 @@ use std::sync::Arc;
 
 enum CrossRoot {
     Pending,
-    Complete {
+    FileFrontier {
         publication: crate::application::file_dag::relations::PackedPublication,
+        arenas: Vec<WorkerNumber>,
+    },
+    Named {
+        publication: crate::application::file_dag::relations::PackedPublication,
+        admitted: crate::application::file_dag::program::facade::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
     Unavailable,
@@ -157,7 +162,7 @@ impl<'a> CrossPublications<'a> {
                 .ok_or_else(incomplete)?;
             *count = count.checked_add(1).ok_or_else(incomplete)?;
         }
-        *root = CrossRoot::Complete {
+        *root = CrossRoot::FileFrontier {
             publication: prepared.publication.clone(),
             arenas: prepared.arenas.clone(),
         };
@@ -177,7 +182,7 @@ impl<'a> CrossPublications<'a> {
         let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
         Ok(bindings.iter().map(|binding| (binding.input, binding.producers.iter().all(|producer| match producer {
             crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => false,
-            crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::Complete { .. })),
+            crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::FileFrontier { .. } | CrossRoot::Named { .. })),
         }))).collect())
     }
     /// Only phases with demanded cross roots reserve an ordinary arena slot.
@@ -212,7 +217,9 @@ impl<'a> CrossPublications<'a> {
             .get(rule.0)
             .and_then(|outputs| outputs.get(output.0 as usize))
         {
-            Some(CrossRoot::Complete { publication, .. }) => Ok(publication.words()),
+            Some(
+                CrossRoot::FileFrontier { publication, .. } | CrossRoot::Named { publication, .. },
+            ) => Ok(publication.words()),
             Some(CrossRoot::Pending | CrossRoot::Unavailable) | None => Err(incomplete()),
         }
     }
@@ -242,7 +249,28 @@ impl<'a> CrossPublications<'a> {
         rule: RuleIndex,
         slot: PublicationSlot,
         transfer: CrossPublicationTransfer,
+        admitted: Vec<(
+            ObservationIndex,
+            crate::application::file_dag::program::facade::ObservedPublication,
+        )>,
     ) -> Result<(), OperatingError> {
+        let count = admitted.len();
+        let mut admitted = admitted
+            .into_iter()
+            .map(|(output, publication)| (output.0, publication))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        if admitted.len() != count {
+            return Err(incomplete());
+        }
+        if admitted.len()
+            != transfer
+                .roots
+                .iter()
+                .filter(|root| root.words.is_some())
+                .count()
+        {
+            return Err(incomplete());
+        }
         let PublicationSlot::Reserved(expected) = slot else {
             return Err(OperatingError::NotRun);
         };
@@ -275,6 +303,9 @@ impl<'a> CrossPublications<'a> {
             if (root.readiness == ProducerReadiness::Complete) != root.words.is_some() {
                 return Err(incomplete());
             }
+            if root.words.is_some() != admitted.contains_key(&root.output.0) {
+                return Err(incomplete());
+            }
             for arena in &root.arenas {
                 if *arena == CROSS_FILE || arena.0 as usize >= self.arenas.len() {
                     return Err(incomplete());
@@ -304,8 +335,11 @@ impl<'a> CrossPublications<'a> {
                     .map(|worker| self.arenas.get(worker.0 as usize).ok_or_else(incomplete))
                     .collect::<Result<Vec<_>, _>>()?;
                 let publication = self.owner.packed_publication(words, &backings)?;
-                self.roots[rule.0][output] = CrossRoot::Complete {
+                self.roots[rule.0][output] = CrossRoot::Named {
                     publication,
+                    admitted: admitted
+                        .remove(&u32::try_from(output).map_err(|_| incomplete())?)
+                        .ok_or_else(incomplete)?,
                     arenas: referenced,
                 };
             } else {
@@ -355,11 +389,19 @@ impl<'a> CrossPublications<'a> {
             .and_then(|outputs| outputs.get_mut(edge.output.0 as usize))
             .ok_or(OperatingError::NotRun)?;
         let released = std::mem::replace(root, CrossRoot::Unavailable);
-        if let CrossRoot::Complete {
-            publication,
-            arenas,
-        } = released
-        {
+        let released = match released {
+            CrossRoot::FileFrontier {
+                publication,
+                arenas,
+            }
+            | CrossRoot::Named {
+                publication,
+                arenas,
+                ..
+            } => Some((publication, arenas)),
+            CrossRoot::Pending | CrossRoot::Unavailable => None,
+        };
+        if let Some((publication, arenas)) = released {
             drop(publication);
             for arena in arenas {
                 let count = self
