@@ -1,11 +1,12 @@
 //! Fixed position inputs and predicate admission, with no row-value materialization.
+use crate::application::file_dag::acceptance::fragment_oracle::types::CandidatePlaces;
 use crate::domain::comparing::service::holds_all;
 use crate::domain::lowering::constants::EDGE;
 use crate::domain::lowering::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{NameCount, OperatorContext};
 use crate::domain::positions::service::{row, value};
-use crate::domain::positions::types::Positions;
+use crate::domain::positions::types::{Positions, Slots};
 use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::walks::service::allows;
@@ -37,27 +38,31 @@ fn edge_admitted(
     holds_all(comparisons, cells, &kinds, names, context)
 }
 
-pub(super) struct Tree<'a, 'f, 'c, 'p> {
+pub(super) enum TreeHitState {
+    Pending,
+    Ready,
+    Consumed,
+}
+pub(super) struct OracleTreeDriver<'a, 'f, 'c, 'p> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) tree: &'a TreeRows<'f>,
     pub(super) admit: &'a mut Admit<'p>,
     pub(super) context: &'a mut OperatorContext<'c>,
-    pub(super) hit: [u32; 1],
-    pub(super) pending: bool,
-    pub(super) ready: bool,
+    pub(super) hit: Slots,
+    pub(super) state: TreeHitState,
     pub(super) error: Option<OperatingError>,
 }
-impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
+impl PositionJoinDriver for OracleTreeDriver<'_, '_, '_, '_> {
     fn next(&mut self) -> Result<bool, JoinInterrupted> {
         if self.error.is_some() {
             return Err(JoinInterrupted);
         }
-        self.ready = false;
-        if !self.pending {
+        let pending = matches!(self.state, TreeHitState::Pending);
+        self.state = TreeHitState::Consumed;
+        if !pending {
             return Ok(false);
         }
-        self.pending = false;
         #[cfg(feature = "diagnostic-row-progress")]
         (self.progress)(
             crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
@@ -70,10 +75,14 @@ impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
                 1,
             );
         }
-        match allows(self.admit, self.tree, Position(self.hit[0]), self.context) {
+        match allows(self.admit, self.tree, Position(self.hit.0[0]), self.context) {
             Ok(verdict) => {
-                self.ready = verdict == Verdict::Holds;
-                Ok(self.ready)
+                if verdict == Verdict::Holds {
+                    self.state = TreeHitState::Ready;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
             }
             Err(error) => {
                 self.error = Some(error);
@@ -82,13 +91,13 @@ impl PositionJoinDriver for Tree<'_, '_, '_, '_> {
         }
     }
     fn right_positions(&self) -> &[u32] {
-        if self.ready && self.error.is_none() {
+        if matches!(self.state, TreeHitState::Ready) && self.error.is_none() {
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::PositionRowsYielded,
                 1,
             );
-            &self.hit
+            &self.hit.0
         } else {
             &[]
         }
@@ -99,19 +108,19 @@ pub(super) struct Steps<'a> {
     pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) right: &'a Positions,
     pub(super) order: &'a RawOrder,
-    pub(super) places: std::ops::Range<usize>,
-    pub(super) current: Option<usize>,
+    pub(super) places: CandidatePlaces,
+    pub(super) current: Option<RowIndex>,
 }
 impl PositionJoinDriver for Steps<'_> {
     fn next(&mut self) -> Result<bool, JoinInterrupted> {
-        for place in self.places.by_ref() {
+        for place in self.places.0.by_ref() {
             if let Some(right) = self.order.rows().get(place) {
                 #[cfg(feature = "diagnostic-row-progress")]
                 (self.progress)(
                     crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
                     1,
                 );
-                self.current = Some(*right);
+                self.current = Some(RowIndex(*right));
                 return Ok(true);
             }
         }
@@ -126,31 +135,30 @@ impl PositionJoinDriver for Steps<'_> {
                 1,
             );
         }
-        self.current
-            .map_or(&[], |at| row(self.right, RowIndex(at)).0)
+        self.current.map_or(&[], |at| row(self.right, at).0)
     }
 }
-pub(super) struct Edges<'a, 'f, 'c> {
+pub(super) struct OracleEdgeDriver<'a, 'f, 'c> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) tree: &'a TreeRows<'f>,
     pub(super) filter: &'a [Comparison],
     pub(super) cells: &'a mut Vec<Value>,
     pub(super) context: &'a mut OperatorContext<'c>,
-    pub(super) found: &'a [u32],
-    pub(super) at: usize,
-    pub(super) current: Option<usize>,
+    pub(super) found: &'a Slots,
+    pub(super) at: RowIndex,
+    pub(super) current: Option<RowIndex>,
     pub(super) error: Option<OperatingError>,
 }
-impl PositionJoinDriver for Edges<'_, '_, '_> {
+impl PositionJoinDriver for OracleEdgeDriver<'_, '_, '_> {
     fn next(&mut self) -> Result<bool, JoinInterrupted> {
         if self.error.is_some() {
             return Err(JoinInterrupted);
         }
         self.current = None;
-        while let Some(child) = self.found.get(self.at).copied() {
+        while let Some(child) = self.found.0.get(self.at.0).copied() {
             let at = self.at;
-            self.at += 1;
+            self.at.0 += 1;
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,
@@ -195,7 +203,7 @@ impl PositionJoinDriver for Edges<'_, '_, '_> {
             );
         }
         self.current
-            .and_then(|at| self.found.get(at..at.saturating_add(1)))
+            .and_then(|at| self.found.0.get(at.0..at.0.saturating_add(1)))
             .unwrap_or(&[])
     }
 }

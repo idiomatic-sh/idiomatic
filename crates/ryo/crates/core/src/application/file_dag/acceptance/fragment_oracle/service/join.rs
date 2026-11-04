@@ -58,15 +58,14 @@ fn join_tree(
             continue;
         };
         let hit = in_tree(tree, hit);
-        let mut driver = drivers::Tree {
+        let mut driver = drivers::OracleTreeDriver {
             #[cfg(feature = "diagnostic-row-progress")]
             progress: semantics.progress(),
             tree,
             admit: &mut admit,
             context,
-            hit: [hit.0],
-            pending: true,
-            ready: false,
+            hit: Slots(vec![hit.0]),
+            state: drivers::TreeHitState::Pending,
             error: None,
         };
         let answer = semantics.operators(OperatorCall::EqualityJoin {
@@ -133,7 +132,7 @@ fn join_steps(
                 progress: semantics.progress(),
                 right: right_rows,
                 order,
-                places: order.hits(&probe.0),
+                places: crate::application::file_dag::acceptance::fragment_oracle::types::CandidatePlaces(order.hits(&probe.0)),
                 current: None,
             };
             join_result(
@@ -236,15 +235,15 @@ pub(super) fn run(
                 } else {
                     // The root by itself: no row.
                 }
-                let mut driver = drivers::Edges {
+                let mut driver = drivers::OracleEdgeDriver {
                     #[cfg(feature = "diagnostic-row-progress")]
                     progress: semantics.progress(),
                     tree,
                     filter,
                     cells,
                     context,
-                    found: &found.0,
-                    at: 0,
+                    found: &*found,
+                    at: ryo_values::domain::rows::types::RowIndex(0),
                     current: None,
                     error: None,
                 };

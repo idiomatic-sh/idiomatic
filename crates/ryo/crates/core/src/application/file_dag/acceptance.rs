@@ -51,21 +51,8 @@ pub(crate) mod tree_join_collections_strategies_span_index_item_test;
 pub(crate) mod tree_join_service_test;
 pub(crate) mod workers_service_test;
 
-#[path = "../../../../tests/fixtures/fragment_oracle.rs"]
 pub(crate) mod fragment_oracle;
+#[cfg(test)]
 pub(crate) mod lowered_fragment_service_test;
+#[cfg(test)]
 pub(crate) mod lowered_joins_service_test;
-
-/// Portable semantic port for historical fragment oracle controls.
-pub(crate) struct OracleSemantics;
-impl crate::domain::operator::contract::types::PrimitiveSemantics for OracleSemantics {
-    fn operators(
-        &self,
-        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        crate::outbound::operators::factory::test_port().operators(call)
-    }
-}

@@ -21,7 +21,7 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
 
 struct UnionRows<'a> {
-    slots: &'a mut Vec<u32>,
+    slots: &'a mut Slots,
     keep: &'a Keeps,
     stride: Stride,
     next: RowIndex,
@@ -63,7 +63,7 @@ impl SetPositionsDriver for UnionRows<'_> {
         self.failure
             .run(|| {
                 let at = self.current.ok_or(OperatingError::WrongOperation)?;
-                self.slots.copy_within(
+                self.slots.0.copy_within(
                     at.0 * self.stride.0..(at.0 + 1) * self.stride.0,
                     self.written.0 * self.stride.0,
                 );
@@ -114,7 +114,7 @@ pub(crate) fn union(
     let result = derived.with_raw_order(&keys.0, stride.0, &mut |order: &RawOrder| {
         order.firsts(&mut marks.0);
         let mut driver = UnionRows {
-            slots: &mut out.0,
+            slots: out,
             keep: &marks,
             stride,
             next: RowIndex(0),

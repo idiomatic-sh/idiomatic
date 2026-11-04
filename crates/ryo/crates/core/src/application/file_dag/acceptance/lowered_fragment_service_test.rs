@@ -30,6 +30,19 @@ use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
 
 /// What a row of the cases does.
+struct FragmentPortable;
+impl crate::domain::operator::contract::types::PrimitiveSemantics for FragmentPortable {
+    fn operators(
+        &self,
+        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        crate::outbound::operators::factory::test_port().operators(call)
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Scenario {
     /// Passes on the rows of a select of the tree.
@@ -124,7 +137,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let semantics = crate::application::file_dag::acceptance::OracleSemantics;
+    let semantics = FragmentPortable;
     let mut table = Table::default();
     let last = StepId(u32::try_from(plan.steps.len() - 1).unwrap_or(0));
     if counts(&running, last) == Counting::Counts {

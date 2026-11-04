@@ -22,3 +22,6 @@ pub(crate) struct FragmentRun<'a, 'f> {
     /// Immutable native selections owned by this physical file.
     pub classes: &'a [crate::domain::positions::types::Slots],
 }
+
+/// Candidate positions in one historical raw-order lookup.
+pub(crate) struct CandidatePlaces(pub std::ops::Range<usize>);

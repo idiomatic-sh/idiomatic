@@ -22,6 +22,19 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
 
 /// What a row of the cases does.
+struct JoinPortable;
+impl crate::domain::operator::contract::types::PrimitiveSemantics for JoinPortable {
+    fn operators(
+        &self,
+        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    > {
+        crate::outbound::operators::factory::test_port().operators(call)
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Scenario {
     /// The words and the other, minus the rows of the kind the right step has.
@@ -69,7 +82,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let rows = rows_over(&elements);
     let mut out = Slots::default();
     let columns = [ColumnIndex(0)];
-    let semantics = crate::application::file_dag::acceptance::OracleSemantics;
+    let semantics = JoinPortable;
     let mut derived = crate::application::file_dag::testing::raw_scope()?;
     match scenario {
         Scenario::Antijoin => antijoin(
@@ -204,7 +217,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     room: &mut room,
                     classes: &[],
                 };
-            let semantics = crate::application::file_dag::acceptance::OracleSemantics;
+            let semantics = JoinPortable;
             crate::application::file_dag::acceptance::fragment_oracle::service::make(
                 &semantics,
                 &mut run,

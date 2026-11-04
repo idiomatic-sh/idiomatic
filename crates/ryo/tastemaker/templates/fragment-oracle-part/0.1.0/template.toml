@@ -1,0 +1,15 @@
+description = "One exact part of the temporary historical fragment test oracle."
+why = "The obsolete fragment executor has no production callers. Its original assertions remain executable under cfg(test) while compiled program parity runs. This exact placement admits no production execution route; delete the oracle after actual parity."
+content = ''
+
+[[scenarios]]
+id = "placed"
+scenario = "The exact oracle file is present."
+given.file = "example.rs"
+given.files."example.rs" = ""
+
+[[scenarios]]
+id = "missing"
+scenario = "An exact oracle file cannot silently disappear."
+given.file = "example.rs"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]
