@@ -89,7 +89,7 @@ fn offline_entry_emits_a_recomputed_witness_and_never_echoes_a_stale_declared_di
     use crate::outbound::inventory::types::{CapturedObservation, Registration};
     let (case, records) = pair(false);
     let registration = |case: Value| -> Registration {
-        serde_json::from_value(json!({"provider":"fixture","defaults":["A001"],"identity":{},"rules":[{"rule_id":"A001","command":null,"reason":null,"instance":null,"cases":[case]}]})).unwrap()
+        serde_json::from_value(json!({"authority":{"kind":"receipt-only"},"provider":"fixture","defaults":["A001"],"identity":{},"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"instance":null,"cases":[case]}]})).unwrap()
     };
     let captured = CapturedObservation {
         artifacts: Default::default(),

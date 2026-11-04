@@ -244,7 +244,7 @@ impl Fixture {
             .unwrap()
     }
     pub fn registration(&self) -> Registration {
-        serde_json::from_value(json!({"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","command":null,"reason":null,"cases":[self.case],"instance":null}]})).unwrap()
+        serde_json::from_value(json!({"authority":{"kind":"receipt-only"},"provider":"toy","defaults":["A001"],"rules":[{"rule_id":"A001","definition":null,"modules":{},"artifacts":{},"command":null,"reason":null,"cases":[self.case],"instance":null}]})).unwrap()
     }
 }
 

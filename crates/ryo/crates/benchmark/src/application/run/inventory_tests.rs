@@ -3,7 +3,9 @@ use super::*;
 use crate::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, ProcessExitCode, ProcessOutput, ResourceObservation,
 };
-use crate::outbound::inventory::types::{Command, RegisteredRule};
+use crate::outbound::inventory::types::{
+    Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
+};
 use serde_json::json;
 use std::{sync::Mutex, time::Duration};
 
@@ -48,22 +50,57 @@ impl ExecutionPort for ToyExecution {
         })
     }
 }
-fn provider(name: &str, middle: &str) -> Registration {
+fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
+    use sha2::Digest as _;
+    let context = tempfile::tempdir().unwrap();
+    let executable = context.path().join("native-verifier");
+    std::fs::write(&executable, b"pinned fixture executable").unwrap();
+    let digest = |path: &std::path::Path| {
+        format!("{:x}", sha2::Sha256::digest(std::fs::read(path).unwrap()))
+    };
+    let executable_sha = digest(&executable);
     let defaults = ["missing", middle, "good"]
         .map(|rule| format!("{name}-{rule}"))
         .to_vec();
-    let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())].into_iter().map(|(mode, rule)| RegisteredRule {
+    let profile = context.path().join("benchmark.toml");
+    std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{executable_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
+    let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())].into_iter().map(|(mode, rule)| {
+        let directory = context.path().join(&rule);
+        std::fs::create_dir_all(directory.join("evidence")).unwrap();
+        let definition = directory.join("query.ryoql");
+        std::fs::write(&definition, format!("definition for {rule}")).unwrap();
+        let evidence = directory.join("evidence/oracle.json");
+        std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
+        let pin = FilePin { sha256: digest(&definition), path: definition.clone() };
+        RegisteredRule {
+        definition: Some(pin), modules: BTreeMap::new(),
+        artifacts: BTreeMap::from([(definition.clone(), digest(&definition)), (evidence.clone(), digest(&evidence))]),
         rule_id: rule.clone(), reason: None,
-        command: Some(Command { executable: "existing-native-verifier".into(), arguments: vec![mode.into(), rule.clone()], directory: ".".into(), environment: BTreeMap::new() }),
+        command: Some(Command { executable: executable.clone(), arguments: vec![mode.into(), rule.clone()], directory: ".".into(), environment: BTreeMap::new() }),
         cases: vec![json!({"rule": rule, "name": "independent-case", "source_sha256": "source-pin", "files": ["input.txt"], "expected": [], "project_context_mode": "isolated", "reference_discrepancy": null})],
         instance: Some(json!({"input-pin": "immutable-provider-bytes"})),
-    }).collect();
-    Registration {
-        provider: name.into(),
-        defaults,
-        rules,
-        identity: BTreeMap::new(),
-    }
+    }}).collect();
+    (
+        Registration {
+            authority: RegistrationAuthority::Execution {
+                profile: context.path().to_owned(),
+                profile_sha256: digest(&profile),
+                reference: ExecutablePin {
+                    path: executable.clone(),
+                    sha256: executable_sha.clone(),
+                },
+                worker: ExecutablePin {
+                    path: executable,
+                    sha256: executable_sha,
+                },
+            },
+            provider: name.into(),
+            defaults,
+            rules,
+            identity: BTreeMap::new(),
+        },
+        context,
+    )
 }
 #[test]
 fn independent_providers_keep_missing_and_failed_rules_and_continue() {
@@ -72,9 +109,10 @@ fn independent_providers_keep_missing_and_failed_rules_and_continue() {
         let execution = ToyExecution {
             calls: Mutex::new(Vec::new()),
         };
+        let (registration, _context) = provider(name, middle);
         assert!(
             !verify(
-                &provider(name, middle),
+                &registration,
                 root.path(),
                 &execution,
                 &crate::outbound::inventory::factory::local()
@@ -98,7 +136,7 @@ fn independent_providers_keep_missing_and_failed_rules_and_continue() {
 #[test]
 fn duplicate_and_unknown_registration_never_changes_inventory_cardinality() {
     let root = tempfile::tempdir().unwrap();
-    let mut registration = provider("third-provider", "bad");
+    let (mut registration, _context) = provider("third-provider", "bad");
     registration.rules[0].rule_id = "not-a-pinned-rule".into();
     let execution = ToyExecution {
         calls: Mutex::new(Vec::new()),
