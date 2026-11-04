@@ -486,8 +486,9 @@ impl FileAnalysis {
             let outcome = outcome?;
             // Named roots have already been published independently of diagnostic delivery.
             if emit {
+                let partial = matches!(&outcome.emit, RootOutcome::Partial(_));
                 match outcome.emit {
-                    RootOutcome::Complete(table) => {
+                    RootOutcome::Complete(table) | RootOutcome::Partial(table) => {
                         let number = RuleNumber(u32::try_from(rule.0).map_err(|_| {
                             crate::domain::operating::errors::OperatingError::NotRun
                         })?);
@@ -532,6 +533,17 @@ impl FileAnalysis {
                                 &error,
                             )
                         })?;
+                        if partial {
+                            tables
+                                .unknowns
+                                .push(crate::domain::coverage::types::Unknown {
+                                    rule: visit.setting.ids[rule.0].clone(),
+                                    path: visit.setting.paths[file.0 as usize].clone(),
+                                    message: crate::domain::coverage::types::Message(
+                                        "physical source facts are incomplete".into(),
+                                    ),
+                                });
+                        }
                     }
                     RootOutcome::Unknown(error) => {
                         tables

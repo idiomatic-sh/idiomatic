@@ -68,6 +68,8 @@ pub(crate) struct RuleDemand {
 }
 pub(crate) enum RootOutcome {
     Complete(Table),
+    /// Usable diagnostic rows with incomplete physical source coverage.
+    Partial(Table),
     Skipped(super::admission::ApplicabilityProof),
     Unknown(OperatingError),
     Failed(OperatingError),

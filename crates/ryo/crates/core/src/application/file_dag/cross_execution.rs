@@ -47,12 +47,24 @@ pub(crate) fn evaluate_cross_roots(
     let mut roots = PhaseRoots::default();
     match outcome.emit {
         RootOutcome::Complete(table) => roots.emit = Some(table),
+        RootOutcome::Partial(table) => {
+            roots.emit = Some(table);
+            roots.emit_error = Some(OperatingError::ObservationIncomplete {
+                reason: "physical source facts are incomplete".into(),
+            });
+        }
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => roots.emit_error = Some(error),
         RootOutcome::Skipped(_) | RootOutcome::NoQuery => {}
     }
     for (output, outcome) in outcome.observations {
         let (table, readiness) = match outcome {
             RootOutcome::Complete(table) => (Some(table), ProducerReadiness::Complete),
+            RootOutcome::Partial(_) => (
+                None,
+                ProducerReadiness::Unknown(ObservationReason(
+                    "physical source facts are incomplete".into(),
+                )),
+            ),
             RootOutcome::Unknown(error) | RootOutcome::Failed(error) => (
                 None,
                 ProducerReadiness::Unknown(ObservationReason(error.to_string().into())),

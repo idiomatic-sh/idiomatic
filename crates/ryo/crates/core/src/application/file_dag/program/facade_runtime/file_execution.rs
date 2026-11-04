@@ -331,6 +331,9 @@ fn readiness_of(
     use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
     Some(match outcome {
         RootOutcome::Complete(_) => ProducerReadiness::Complete,
+        RootOutcome::Partial(_) => ProducerReadiness::Unknown(ObservationReason(
+            "physical source facts are incomplete".into(),
+        )),
         RootOutcome::Skipped(_) => ProducerReadiness::Skipped,
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => {
             ProducerReadiness::Unknown(ObservationReason(error.to_string().into()))
@@ -353,8 +356,12 @@ pub(super) fn outcome_of<'facts>(
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> RootOutcome {
     match result {
-        Ok(InvocationOutcome::Published(input)) => match table_of(owner, &input, read) {
-            Ok(table) => RootOutcome::Complete(table),
+        Ok(InvocationOutcome::Published(input)) => match input.observation_ready() {
+            Ok(ready) => match table_of(owner, &input, read) {
+                Ok(table) if ready => RootOutcome::Complete(table),
+                Ok(table) => RootOutcome::Partial(table),
+                Err(error) => classify(error),
+            },
             Err(error) => classify(error),
         },
         Ok(InvocationOutcome::Forwarded) => RootOutcome::Failed(OperatingError::NotRun),
