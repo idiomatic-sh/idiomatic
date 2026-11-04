@@ -83,7 +83,7 @@ impl Fixture {
         );
         let entries = ["A","B"].map(|rule| {
             write(&profile.join(format!("rules/{rule}/query.ryoql")), &format!("query {rule}"));
-            write(&profile.join(format!("rules/{rule}/cases.toml")), "[[case]]\nname='positive'\nfiles={'input.txt'='x'}\nexpected=[{file='input.txt',start=0,end=1}]\n[[case]]\nname='negative'\nfiles={'input.txt'=''}\nexpected=[]\n");
+            write(&profile.join(format!("rules/{rule}/cases.toml")), "[[cases]]\nname='positive'\nfiles={'input.txt'='x'}\nexpected=[{file='input.txt',start=0,end=1}]\n[[cases]]\nname='negative'\nfiles={'input.txt'='y'}\nexpected=[]\n");
             let context = root.path().join(format!("registered/{rule}"));
             let definition = context.join("query.ryoql");
             let helper = context.join("helper.ryoql");
@@ -184,7 +184,15 @@ fn registered_context_drift_and_untrusted_authority_refuse_before_native_launch(
             }
             _ => unreachable!(),
         }
-        assert!(f.certify().is_err(), "{change}");
+        let error = f.certify().unwrap_err().to_string();
+        let expected = match change {
+            "artifact" => "registered case artifact changed",
+            "query" => "measured query differs",
+            "module" => "measured helper differs",
+            "receipt-only" => "receipt-only inventory cannot authorize execution",
+            _ => unreachable!(),
+        };
+        assert!(error.contains(expected), "{change}: {error}");
         assert_eq!(*f.execution.0.lock().unwrap(), 0, "{change}");
     }
 }
