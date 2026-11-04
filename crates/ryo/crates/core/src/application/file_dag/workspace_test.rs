@@ -368,6 +368,7 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
         builds,
         "a supplied publication cannot silently become temporary"
     );
+    workspace.publications[0] = None;
     workspace.origins.clear();
     assert!(matches!(
         workspace.acquire_rows(&use_, &rows, &mut context),
