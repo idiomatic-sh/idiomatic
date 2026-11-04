@@ -19,6 +19,38 @@ use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plans::types::Operation;
+/// Complete computed fixture rows for portable derived semantics controls.
+pub(crate) struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);
+impl ryo_derived::domain::contract::types::RowCells for CompleteTableRows<'_> {
+    fn bulk(&self) -> Option<ryo_derived::domain::contract::types::BulkRows<'_>> {
+        Some(ryo_derived::domain::contract::types::BulkRows::Computed(
+            self.0,
+        ))
+    }
+    fn validate(&self) -> Result<(), ryo_derived::domain::contract::types::DerivedFault> {
+        (self.0.count.0.checked_mul(self.0.kinds.len()) == Some(self.0.cells.len()))
+            .then_some(())
+            .ok_or(ryo_derived::domain::contract::types::DerivedFault::ShapeMismatch)
+    }
+    fn kinds(&self) -> &[CellKind] {
+        &self.0.kinds
+    }
+    fn count(&self) -> usize {
+        self.0.count.0
+    }
+    fn cell(
+        &self,
+        row: usize,
+        column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    ) -> Option<Value> {
+        crate::domain::table_model::service::row_in(
+            self.0,
+            ryo_values::domain::rows::types::RowIndex(row),
+        )?
+        .get(column.0 as usize)
+        .copied()
+    }
+}
 
 /// Explicit outer fixture scope. All dependency tests use the actual scheduler,
 /// required executor/owner and generation constructor; no fallback owner is minted.
@@ -92,6 +124,37 @@ pub(crate) struct Held<'a> {
     pub(crate) tables: &'a [Table],
     pub(crate) visits: Vec<usize>,
 }
+/// Test tables are explicitly injected from outside the graph, with no
+/// generation-scoped publication. Every fixture still checks its input arity.
+pub(crate) fn external_origin(
+    place: InputPlace,
+    count: usize,
+) -> Result<super::feed::InputOrigin, OperatingError> {
+    checked(place, count)?;
+    Ok(super::feed::InputOrigin::External)
+}
+pub(crate) fn no_publication(
+    place: InputPlace,
+    count: usize,
+) -> Result<Option<super::relations::PublishedInput>, OperatingError> {
+    checked(place, count)?;
+    Ok(None)
+}
+pub(crate) fn supplied(
+    place: InputPlace,
+    count: usize,
+    supply: Supply,
+) -> Result<Supply, OperatingError> {
+    checked(place, count)?;
+    Ok(supply)
+}
+fn checked(place: InputPlace, count: usize) -> Result<(), OperatingError> {
+    (place.0 < count)
+        .then_some(())
+        .ok_or(OperatingError::MissingInput {
+            position: place.0 + 1,
+        })
+}
 impl<'f> Feed<'f> for Held<'f> {
     fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         std::rc::Rc::clone(&self.owner)
@@ -104,8 +167,17 @@ impl<'f> Feed<'f> for Held<'f> {
                 position: place.0 + 1,
             })
     }
-    fn streams(&self, _: InputPlace) -> Supply {
-        Supply::AtHand
+    fn origin(&self, place: InputPlace) -> Result<super::feed::InputOrigin, OperatingError> {
+        external_origin(place, self.tables.len())
+    }
+    fn publication(
+        &self,
+        place: InputPlace,
+    ) -> Result<Option<super::relations::PublishedInput>, OperatingError> {
+        no_publication(place, self.tables.len())
+    }
+    fn streams(&self, place: InputPlace) -> Result<Supply, OperatingError> {
+        supplied(place, self.tables.len(), Supply::AtHand)
     }
     fn found(&mut self, _: InputPlace, _: RowCount) {}
     fn stream(
@@ -329,14 +401,12 @@ pub(crate) trait TestOperator:
             .collect::<Vec<_>>();
         let contract =
             super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
-        CommonOperatorEngine::fixture().stream(
-            &feed.relation_owner(),
-            &contract,
-            feed,
-            context,
-            room,
-            emit,
-        )
+        let owner = feed.relation_owner();
+        let engine = CommonOperatorEngine::new(
+            crate::outbound::operators::factory::test_port(),
+            owner.derived.semantic_port(),
+        );
+        engine.stream(&owner, &contract, feed, context, room, emit)
     }
 }
 impl<T: crate::domain::operator::collections::operators::interface::OperatorsItem + ?Sized>
@@ -365,14 +435,12 @@ pub(crate) fn stream_with_inputs(
         })
         .collect::<Vec<_>>();
     let contract = super::derived::prepare::operator(item, operation, &schemas, context.bindings)?;
-    CommonOperatorEngine::fixture().stream(
-        &feed.relation_owner(),
-        &contract,
-        feed,
-        context,
-        room,
-        emit,
-    )
+    let owner = feed.relation_owner();
+    let engine = CommonOperatorEngine::new(
+        crate::outbound::operators::factory::test_port(),
+        owner.derived.semantic_port(),
+    );
+    engine.stream(&owner, &contract, feed, context, room, emit)
 }
 
 /// Existing borrowed test worlds keep request metadata for their fixture lifetime.
@@ -388,6 +456,24 @@ pub(crate) fn request_fixture(
             bindings,
             hosted,
             crate::outbound::derived::factory::test_port(),
+        )
+        .expect("fixture metadata"),
+    )
+}
+
+/// Test request metadata bound to the same semantic port as its required executor.
+pub(crate) fn request_for_executor(
+    executor: &dyn super::executor::PrimitiveExecutor,
+    plans: &[ryo_values::domain::plans::types::Plan],
+    bindings: &[Vec<ParameterBinding>],
+    hosted: &[ryo_values::domain::hosted::types::HostRelation],
+) -> std::sync::Arc<crate::domain::operator::contract::types::RequestOperators> {
+    std::sync::Arc::new(
+        crate::domain::operator::contract::types::RequestOperators::prepare(
+            plans,
+            bindings,
+            hosted,
+            executor.derived_port(),
         )
         .expect("fixture metadata"),
     )

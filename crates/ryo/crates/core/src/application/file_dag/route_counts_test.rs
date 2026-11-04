@@ -1,4 +1,5 @@
 use super::*;
+use ryo_derived::domain::contract::types::DerivedView;
 fn capture(run: impl FnOnce()) -> State {
     STATE.with_borrow_mut(|state| {
         assert!(state.is_none());
@@ -117,10 +118,8 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
 fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::derived::owner::{DerivedOwner, PopulationId, ViewContext};
     use crate::domain::{
-        derived_views::{collections::views::registration::registered, types::*},
-        operation_schema::types::InputSchema,
-        operator::contract::views::BorrowedRows,
-        operator::types::PreparedPool,
+        derived_views::types::*, operation_schema::types::InputSchema,
+        operator::contract::views::BorrowedRows, operator::types::PreparedPool,
     };
     use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -132,17 +131,17 @@ fn owner_routes_count_each_physical_equality_build_once() {
     };
     let on = [ColumnIndex(0)];
     let plan = Arc::new(
-        registered(DerivedKind::Equality)
-            .prepare(
-                &ViewRequest::Equality {
-                    columns: on.to_vec(),
-                },
-                &[InputSchema {
-                    kinds: rows.kinds,
-                    tree: None,
-                }],
-            )
-            .unwrap(),
+        crate::application::file_dag::derived::prepare::view(
+            crate::outbound::derived::factory::test_port(),
+            &ViewRequest::Equality {
+                columns: on.to_vec(),
+            },
+            &[InputSchema {
+                kinds: rows.kinds,
+                tree: None,
+            }],
+        )
+        .unwrap(),
     );
     let state = capture(|| {
         let _rule = rule(2, "query-two");

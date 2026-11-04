@@ -10,12 +10,18 @@ fn prepared_dag(
         plans,
         &setting.operators,
     ));
+    let owner = std::rc::Rc::new(
+        crate::application::file_dag::relations::RelationOwner::for_request(
+            true,
+            graph.nodes.len() + 2,
+            setting.executor.derived_port(),
+        ),
+    );
     let mut dag = crate::application::file_dag::types::FileDagExecution::new_for_population(
         graph,
         |_| true,
         &[Relation::Function],
-        true,
-        crate::outbound::derived::factory::test_port(),
+        owner,
     );
     // Keep physical index reuse while declining optional whole-node retention.
     dag.limit = 0;
@@ -29,6 +35,15 @@ fn prepared_dag(
         |_| true,
     );
     std::cell::RefCell::new(dag)
+}
+
+fn scoped<'a>(
+    setting: &'a VisitSetting<'_>,
+    dag: &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
+) -> crate::application::file_dag::executor::ScopedExecutor<'a> {
+    let owner = crate::application::file_dag::interface::DagExecution::relation_owner(dag);
+    crate::application::file_dag::executor::ScopedExecutor::new(setting.executor, owner)
+        .expect("the test scope and prepared DAG share a semantic port")
 }
 
 use crate::domain::table_words::service::pack;
@@ -196,26 +211,32 @@ fn setting<'a>(
     ids: &'a [RuleId],
     bindings: &'a [Vec<ParameterBinding>],
 ) -> VisitSetting<'a> {
+    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+    let derived = crate::application::file_dag::executor::PrimitiveExecutor::derived_port(executor);
+    let operators = std::sync::Arc::new(
+        crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+            plans,
+            bindings,
+            &[],
+            &|relation| {
+                if relation == Relation::Function {
+                    KINDS
+                } else {
+                    ryo_relations::domain::relations::service::kinds(relation)
+                }
+            },
+            derived,
+        )
+        .expect("custom fixture relation metadata"),
+    );
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        plans, &operators,
+    ));
     VisitSetting {
-        observations: crate::domain::file_program::types::ObservationRequest::Independent,
         source_language: None,
-        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        operators: std::sync::Arc::new(
-            crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
-                plans,
-                bindings,
-                &[],
-                &|relation| {
-                    if relation == Relation::Function {
-                        KINDS
-                    } else {
-                        ryo_relations::domain::relations::service::kinds(relation)
-                    }
-                },
-                crate::outbound::derived::factory::test_port(),
-            )
-            .expect("custom fixture relation metadata"),
-        ),
+        executor,
+        operators,
+        graph,
         domain: crate::domain::workers::types::VisitSetting {
             observations: crate::domain::file_program::types::ObservationRequest::Independent,
             unknown: &[],
@@ -519,6 +540,7 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
     let bindings = [Vec::new(), Vec::new()];
     let setting = setting(&placed, &plans, &[], &ids, &bindings);
     let dag = prepared_dag(&plans, &setting, &tables.pool);
+    let executor = scoped(&setting, &dag);
     let first_frontier = evaluate_rule_with_dag(
         &mut tables,
         &setting,
@@ -532,8 +554,8 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
             })
         },
         &Default::default(),
-        None,
-        Some(&dag),
+        &dag,
+        &executor,
         None,
     )
     .expect("first rule");
@@ -566,8 +588,8 @@ fn two_real_rule_evaluations_share_only_the_index_and_keep_ordered_duplicate_row
             })
         },
         &Default::default(),
-        None,
-        Some(&dag),
+        &dag,
+        &executor,
         None,
     )
     .expect("second rule");
@@ -673,7 +695,7 @@ fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
         );
         assert_eq!(frontier[0].count.0, rows);
         assert_eq!(
-            tables.pool.layouts.len(),
+            setting.operators.rules.len(),
             1,
             "only immutable plan metadata survives generations"
         );
@@ -850,6 +872,7 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
     .0;
     let columns = [FactColumn(vec![main; 2]), FactColumn(vec![10, 11])];
     let dag = prepared_dag(&plans, &setting, &tables.pool);
+    let executor = scoped(&setting, &dag);
     assert!(
         evaluate_rule_with_dag(
             &mut tables,
@@ -863,8 +886,8 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
                 })
             },
             &Default::default(),
-            None,
-            Some(&dag),
+            &dag,
+            &executor,
             None,
         )
         .is_err()
@@ -886,8 +909,8 @@ fn render_failure_releases_live_index_handles_before_a_fresh_rule_invocation() {
             })
         },
         &Default::default(),
-        None,
-        Some(&dag),
+        &dag,
+        &executor,
         None,
     )
     .expect("fresh invocation");

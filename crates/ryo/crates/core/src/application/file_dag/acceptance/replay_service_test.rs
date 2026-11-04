@@ -44,14 +44,45 @@ fn files(count: u32) -> Table {
     }
     table
 }
-struct Held<'f>(&'f Table);
+struct Held<'f>(
+    &'f Table,
+    std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+);
+fn held(table: &Table) -> Held<'_> {
+    Held(
+        table,
+        std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+            true,
+            crate::outbound::derived::factory::test_port(),
+        )),
+    )
+}
 impl<'f> Feed<'f> for Held<'f> {
-    fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.1)
+    }
+    fn origin(
+        &self,
+        which: InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 1)
+    }
+    fn publication(
+        &self,
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 1)
+    }
+    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)?;
         Ok(&self.0.kinds)
     }
     fn found(&mut self, _: InputPlace, _: RowCount) {}
-    fn streams(&self, _: InputPlace) -> Supply {
-        Supply::AtHand
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)
     }
     fn stream(
         &mut self,
@@ -128,7 +159,7 @@ fn the_engine_sink_reads_the_original_source_context() {
         ProjectItem
             .stream(
                 &project(0),
-                &mut Held(&from),
+                &mut held(&from),
                 context,
                 &mut Room::default(),
                 &mut sink,
@@ -145,7 +176,7 @@ fn a_real_step_passes_on_the_rows_it_computes() {
         ProjectItem
             .stream(
                 &project(0),
-                &mut Held(&from),
+                &mut held(&from),
                 context,
                 &mut Room::default(),
                 &mut Collect(&mut into),
@@ -165,7 +196,7 @@ fn rows_the_real_computation_refuses_are_not_passed_on() {
         });
         let result = ProjectItem.stream(
             &project(99),
-            &mut Held(&from),
+            &mut held(&from),
             context,
             &mut Room::default(),
             &mut sink,

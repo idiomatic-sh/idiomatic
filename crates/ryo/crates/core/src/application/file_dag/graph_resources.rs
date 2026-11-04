@@ -41,8 +41,17 @@ fn prepare_closure(
     source: ColumnIndex,
     destination: ColumnIndex,
 ) -> Result<Vec<super::derived::view::AcquiredView>, OperatingError> {
-    let mut cursor =
-        super::closure_partitions::PartitionedClosure::prepare(input, keys, source, destination)?;
+    let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    ));
+    let mut cursor = super::closure_partitions::PartitionedClosure::prepare(
+        input,
+        keys,
+        source,
+        destination,
+        owner,
+    )?;
     let mut parts = Vec::new();
     while cursor.advance()? {
         parts.push(cursor.take_current()?);

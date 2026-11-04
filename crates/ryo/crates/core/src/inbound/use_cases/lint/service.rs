@@ -164,19 +164,6 @@ pub(super) fn memory_rule(
     memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", "cross_rule_memory", rule = %id.0, rule_index = index).entered())
 }
 
-/// Correlate a bounded input-prepare interval with the compiled frontier identity.
-pub(super) fn memory_input(
-    input: ryo_values::domain::plan_parts::types::Input,
-    index: usize,
-) -> Option<tracing::span::EnteredSpan> {
-    memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", "cross_input_memory", input_index = index, input = ?input).entered())
-}
-
-/// Keep provider bucket identity on temporary packed and decoded buffers.
-pub(super) fn memory_bucket(bucket: Bucket) -> Option<tracing::span::EnteredSpan> {
-    memory_enabled().then(|| tracing::trace_span!(target: "ryo::diagnostic::lifecycle_memory", "cross_bucket_memory", bucket = bucket.0).entered())
-}
-
 /// Do not walk stored payload metadata on ordinary lints.
 pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
     if memory_enabled() {
@@ -184,17 +171,6 @@ pub(super) fn observed_stored(phase: &'static str, handed: &StoredHanded) {
             phase,
             "store_handed",
             crate::domain::recording::types::retention::value::RetainedBytes::stored(handed),
-        );
-    }
-}
-
-/// Report the packed buffer only after the original provider read succeeded.
-pub(super) fn observed_packed(words: &ryo_values::domain::stored_facts::types::KeptWords) {
-    if memory_enabled() {
-        observed_memory(
-            "cross_input_packed",
-            "packed_input",
-            crate::domain::recording::types::retention::value::RetainedBytes::packed(words),
         );
     }
 }

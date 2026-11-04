@@ -117,7 +117,7 @@ fn population(
                     .collect(),
             )
         }
-        Rows::Tree(_) | Rows::Computed(_) => return None,
+        Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) => return None,
     };
     Some((
         graph::Population {

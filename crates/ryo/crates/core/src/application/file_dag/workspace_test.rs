@@ -32,22 +32,39 @@ fn streamed_capture_preserves_any_held_publication_and_unheld_rows_remain_scoped
         fn relation_owner(&self) -> Rc<crate::application::file_dag::relations::RelationOwner> {
             Rc::clone(&self.owner)
         }
-        fn origin(&self, _: InputPlace) -> Result<InputOrigin, OperatingError> {
-            Ok(InputOrigin::Internal)
+        fn origin(&self, which: InputPlace) -> Result<InputOrigin, OperatingError> {
+            (which.0 == 0)
+                .then_some(InputOrigin::Internal)
+                .ok_or(OperatingError::MissingInput {
+                    position: which.0 + 1,
+                })
         }
         fn publication(
             &self,
-            _: InputPlace,
+            which: InputPlace,
         ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
         {
+            if which.0 != 0 {
+                return Err(OperatingError::MissingInput {
+                    position: which.0 + 1,
+                });
+            }
             self.publication_calls.set(self.publication_calls.get() + 1);
             Ok(self.publication.clone())
         }
-        fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
-            Ok(&[CellKind::Number])
+        fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
+            (which.0 == 0)
+                .then_some(&[CellKind::Number][..])
+                .ok_or(OperatingError::MissingInput {
+                    position: which.0 + 1,
+                })
         }
-        fn streams(&self, _: InputPlace) -> Supply {
-            self.supply
+        fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+            (which.0 == 0)
+                .then_some(self.supply)
+                .ok_or(OperatingError::MissingInput {
+                    position: which.0 + 1,
+                })
         }
         fn stream(
             &mut self,
@@ -259,6 +276,10 @@ fn mixed_published_and_temporary_inputs_never_share_slot_only_identities() {
         .unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone()), None];
+    workspace.origins = vec![
+        crate::application::file_dag::feed::InputOrigin::Internal,
+        crate::application::file_dag::feed::InputOrigin::External,
+    ];
     let use_ = use_(
         DerivedKind::OrderedKeys,
         ViewRequest::OrderedKeys {
@@ -349,6 +370,9 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     let normalized = owner.normalized(&published, raw).unwrap().unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
     workspace.publications = vec![Some((published).clone())];
+    workspace.origins = vec![crate::application::file_dag::feed::InputOrigin::Relation(
+        Relation::LanguageTarget,
+    )];
     let use_ = use_(
         DerivedKind::Equality,
         ViewRequest::Equality {
@@ -368,6 +392,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
         Err(OperatingError::NotRead)
     ));
     workspace.publications[0] = None;
+    workspace.origins[0] = crate::application::file_dag::feed::InputOrigin::External;
     assert!(
         workspace.acquire_rows(&use_, &inputs, &mut context).is_ok(),
         "explicit unpublished temporary uses invocation ownership"
@@ -471,6 +496,13 @@ fn temporary_admission_cannot_repair_missing_or_mismatched_internal_publication(
         builds,
         "a supplied publication cannot silently become temporary"
     );
+    workspace.publications[0] = None;
+    workspace.origins.clear();
+    assert!(matches!(
+        workspace.acquire_rows(&use_, &rows, &mut context),
+        Err(OperatingError::MissingInput { position: 1 })
+    ));
+    assert_eq!(owner.derived.counts().0, builds);
 }
 
 use ryo_values::domain::rows::types::RowCount;

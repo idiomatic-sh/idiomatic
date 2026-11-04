@@ -184,7 +184,7 @@ impl CommonOperatorEngine<'_> {
             })?;
             if source.count() == 0
                 && (gate.representation == EmptyRepresentation::Any
-                    || matches!(source, BorrowedRows::Computed(_)))
+                    || matches!(source, BorrowedRows::Computed(_) | BorrowedRows::Compact(_)))
             {
                 reset(out, gate.kinds.as_ref().map_err(Clone::clone)?);
                 return Ok(());
@@ -195,7 +195,7 @@ impl CommonOperatorEngine<'_> {
         }
         if mode.preflight == PreflightOrder::SchemaFirst {
             for (place, input) in inputs.iter().enumerate() {
-                if matches!(input, BorrowedRows::Computed(_)) {
+                if matches!(input, BorrowedRows::Computed(_) | BorrowedRows::Compact(_)) {
                     workspace.validate(place, *input)?;
                 }
             }

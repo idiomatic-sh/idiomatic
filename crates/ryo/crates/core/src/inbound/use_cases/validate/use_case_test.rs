@@ -341,6 +341,7 @@ impl QueryLanguagePort for CompilesNothing {
         &self,
         _text: &ryo_values::domain::program::types::QueryBundle,
         _hosted: &[HostedRelation],
+        _observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<Plan, QueryLanguageError> {
         Err(QueryLanguageError::Refused {
             error: RefusedQuery {

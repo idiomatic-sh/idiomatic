@@ -18,7 +18,90 @@ use ryo_relations::domain::relations::{
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
 };
 use ryo_values::domain::{plan_parts::types::ColumnIndex, stored_facts::types::PartialCause};
-use std::{cell::Cell, sync::Arc};
+use std::{cell::Cell, mem::size_of, sync::Arc};
+
+#[test]
+fn compact_publications_share_backing_accounting_and_expire_with_generation() {
+    use crate::domain::table_words::{
+        service,
+        types::{DecodeMode, WordSlice},
+    };
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::{
+        domain::rows::types::{RowCount, Table},
+        domain::stored_facts::types::KeptWords,
+    };
+
+    let table = Table {
+        kinds: vec![CellKind::Number],
+        cells: vec![Value::Number(Integer(4)), Value::Number(Integer(5))],
+        count: RowCount(2),
+    };
+    let mut encoded = Words::default();
+    service::encode_table(&table, &[], &mut encoded);
+    let words = Arc::new(KeptWords(service::pack(WordSlice(&encoded.0))));
+    let words_weak = Arc::downgrade(&words);
+    let (compact, names) =
+        service::admit_compact(Arc::clone(&words), &mut Vec::new(), DecodeMode::Complete).unwrap();
+    assert!(names.is_empty());
+    assert!(service::compact_rectangular(&compact));
+    let compact = Arc::new(compact);
+    let compact_weak = Arc::downgrade(&compact);
+    let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
+    let first = owner.compact(Arc::clone(&compact)).unwrap();
+    let first_unique = owner.derived.publication_ownership_bytes().2;
+    let second = owner.compact(Arc::clone(&compact)).unwrap();
+    assert!(!first.same_record(&second));
+    // A second publication of the same immutable Compact and word buffer
+    // adds only its own record. Shared backing allocations are not charged
+    // again to the owner ledger.
+    assert_eq!(
+        owner.derived.publication_ownership_bytes().2,
+        first_unique + size_of::<super::RelationResult>() + 2 * size_of::<usize>()
+    );
+    assert_eq!(
+        super::bytes(first.record().as_ref()),
+        service::compact_metadata_bytes(&compact)
+            + words.0.0.capacity()
+            + size_of::<super::RelationResult>()
+            + 2 * size_of::<usize>(),
+    );
+    let unread = |_| Err(OperatingError::NotRead);
+    let resolved = owner.resolve(first.as_ref(), &unread).unwrap();
+    assert_eq!(
+        read(&resolved),
+        [
+            vec![Value::Number(Integer(4))],
+            vec![Value::Number(Integer(5))]
+        ]
+    );
+    drop(resolved);
+    let retained = owner
+        .retain_publication(&first, usize::MAX)
+        .unwrap()
+        .unwrap();
+    assert!(owner.derived.publication_ownership_bytes().1 > 0);
+    drop(compact);
+    drop(words);
+    assert!(compact_weak.upgrade().is_some());
+    assert!(words_weak.upgrade().is_some());
+    owner.release_population();
+    assert!(matches!(
+        owner.resolve(first.as_ref(), &unread),
+        Err(OperatingError::NotRead)
+    ));
+    assert!(matches!(
+        owner.resolve(second.as_ref(), &unread),
+        Err(OperatingError::NotRead)
+    ));
+    drop(first);
+    drop(second);
+    assert!(compact_weak.upgrade().is_some());
+    drop(retained);
+    assert!(compact_weak.upgrade().is_none());
+    assert!(words_weak.upgrade().is_none());
+    assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
+}
 mod fixtures;
 mod producer;
 use fixtures::{columns, group, read, row, selected};
@@ -61,11 +144,11 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
     }
     assert_eq!(
         groups,
-        [57, 7, 4],
-        "68 catalog relations, separately from four physical representations"
+        [57, 8, 4],
+        "69 catalog relations, separately from five physical representations"
     );
-    assert_eq!(owner.checks.get(), 68);
-    assert_eq!(owner.reuses.get(), 68);
+    assert_eq!(owner.checks.get(), 69);
+    assert_eq!(owner.reuses.get(), 69);
 }
 
 #[test]

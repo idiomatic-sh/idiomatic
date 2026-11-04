@@ -10,6 +10,7 @@ pub(crate) fn kind(input: RepresentationInput<'_>) -> RepresentationKind {
         RepresentationInput::Selected { .. } => RepresentationKind::Selected,
         RepresentationInput::Tree(_) => RepresentationKind::Tree,
         RepresentationInput::Computed(_) => RepresentationKind::Computed,
+        RepresentationInput::Compact(_) => RepresentationKind::Compact,
     }
 }
 pub(crate) fn borrowed<'a>(rows: &'a Rows<'a>) -> RepresentationInput<'a> {
@@ -23,6 +24,7 @@ pub(crate) fn borrowed<'a>(rows: &'a Rows<'a>) -> RepresentationInput<'a> {
         },
         Rows::Tree(tree) => RepresentationInput::Tree(*tree),
         Rows::Computed(table) => RepresentationInput::Computed(table),
+        Rows::Compact(table) => RepresentationInput::Compact(table),
     }
 }
 
@@ -56,6 +58,7 @@ impl<'f> RepresentationInput<'f> {
                 tree.form == crate::domain::table_cells::types::TreeForm::Edges,
             )),
             Self::Computed(table) => table.count.0,
+            Self::Compact(table) => crate::domain::table_words::service::compact_rows(table),
         }
     }
     pub(crate) fn kinds(self) -> &'f [ryo_relations::domain::relations::types::CellKind] {
@@ -63,6 +66,7 @@ impl<'f> RepresentationInput<'f> {
             Self::Stored(view) => view.kinds,
             Self::Selected { kinds, .. } => kinds,
             Self::Computed(table) => &table.kinds,
+            Self::Compact(table) => crate::domain::table_words::service::compact_kinds(table),
             Self::Tree(tree) => ryo_relations::domain::relations::service::kinds(match tree.form {
                 crate::domain::table_cells::types::TreeForm::Elements => {
                     ryo_relations::domain::relations::types::Relation::SyntaxTree

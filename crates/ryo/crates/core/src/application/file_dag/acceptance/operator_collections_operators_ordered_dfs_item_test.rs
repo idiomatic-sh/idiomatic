@@ -302,7 +302,7 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     let edges = numbers(4, &[&[1, 2, 0, 12], &[2, 3, 0, 23]]);
     let first = compute(&operation(&[], &[]), &roots, &edges, &mut scratch)?;
     assert_eq!(first.count.0, 2);
-    assert!(scratch.observation.dfs_adjacency_capacity > 0);
+    assert!(scratch.observation.dfs_adjacency_len > 0);
     assert!(scratch.observation.local_resources_released);
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
@@ -338,7 +338,7 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     assert_eq!(scratch.observation.dfs_visited_len, 0);
     assert_eq!(scratch.observation.dfs_frames_len, 0);
     assert_eq!(scratch.observation.dfs_adjacency_len, 0);
-    assert_eq!(scratch.observation.dfs_adjacency_capacity, 0);
+    assert_eq!(scratch.observation.dfs_adjacency_len, 0);
     assert!(scratch.observation.local_resources_released);
     let next = compute(
         &operation(&[], &[]),
@@ -413,31 +413,76 @@ fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingErro
 fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<usize, OperatingError>
 {
     use crate::domain::table_reach::{
-        service::{begin_ordered, next_ordered, prepare_ordered},
-        types::{Edges, OrderedGraph, OrderedWalk},
+        service::{begin_ordered, next_ordered},
+        types::{Edges, OrderedWalk},
     };
-    use ryo_derived::domain::contract::types::KeyIndex;
+    use ryo_derived::domain::contract::types::{
+        BuildOutcome, BuildWorkspace, CanonicalTexts, DerivedFault, DerivedInputs, DerivedView,
+        ValueTexts, ViewRequest,
+    };
+    struct NumberTexts;
+    impl ValueTexts for NumberTexts {
+        fn text(&self, _: Cell) -> Option<&str> {
+            None
+        }
+    }
+    impl CanonicalTexts for NumberTexts {
+        fn intern(&mut self, _: &str) -> Result<Cell, DerivedFault> {
+            Err(DerivedFault::WrongOperation)
+        }
+    }
     let table = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
-    let mut graph = OrderedGraph {
-        edge_columns: vec![column(0), column(1)],
-        ..OrderedGraph::default()
+    let roots = numbers(1, &[&[1]]);
+    let semantics = crate::outbound::derived::factory::test_port();
+    let prepared = semantics.prepare(
+        ViewRequest::OrderedDfs {
+            root: column(0),
+            root_keys: vec![],
+            source: column(0),
+            destination: column(1),
+            order: column(2),
+            edge: column(3),
+            edge_keys: vec![],
+        },
+        vec![roots.kinds.clone(), table.kinds.clone()],
+    );
+    let complete_roots = crate::application::file_dag::testing::CompleteTableRows(&roots);
+    let complete_edges = crate::application::file_dag::testing::CompleteTableRows(&table);
+    let BuildOutcome::Built(payload) = semantics
+        .build(
+            &prepared,
+            DerivedInputs::Dfs {
+                roots: &complete_roots,
+                edges: &complete_edges,
+                texts: &mut NumberTexts,
+            },
+            &mut BuildWorkspace::default(),
+            None,
+        )
+        .map_err(crate::domain::operator::contract::derived::portable_fault)?
+    else {
+        return Err(OperatingError::WrongOperation);
     };
-    let mut order = KeyIndex::default();
-    prepare_ordered(&table, column(2), &mut order, &mut graph)?;
+    let DerivedView::OrderedDfs(graph) = semantics
+        .view(&prepared, &payload)
+        .map_err(crate::domain::operator::contract::derived::portable_fault)?
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
     let source = [column(0)];
     let edges = Edges {
         table: &table,
-        order: &order,
+        order: graph.edge_index(),
         from: &source,
         to: column(1),
     };
     let mut walk = OrderedWalk::default();
-    begin_ordered(&edges, &graph, &[], Cell::Number(Integer(1)), &mut walk);
+    begin_ordered(&edges, graph, &[], Cell::Number(Integer(1)), &mut walk);
     walk.ordinal = Some(i64::MAX);
-    let first = next_ordered(&edges, &graph, &[], &mut walk)?.unwrap();
+    let first = next_ordered(&edges, graph, &[], &mut walk)?.unwrap();
     assert_eq!(first.1, Integer(i64::MAX));
     assert!(!walk.visited.contains(&Cell::Number(Integer(2))));
-    next_ordered(&edges, &graph, &[], &mut walk).map(|_| 0)
+    next_ordered(&edges, graph, &[], &mut walk).map(|_| 0)
 }
 fn retained_text_fixture(source: &[u8]) -> (Symbols, Table, Table) {
     use ryo_language::domain::{
@@ -653,20 +698,48 @@ fn file_keys_keep_reused_nodes_separate() -> Result<usize, OperatingError> {
 }
 
 struct Held<'f> {
+    owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
     tables: [&'f Table; 2],
 }
 impl<'f> crate::application::file_dag::feed::Feed<'f> for Held<'f> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.owner)
+    }
+    fn origin(
+        &self,
+        which: crate::domain::operating::types::InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 2)
+    }
+    fn publication(
+        &self,
+        which: crate::domain::operating::types::InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 2)
+    }
     fn kinds(
         &self,
         which: crate::domain::operating::types::InputPlace,
     ) -> Result<&[CellKind], OperatingError> {
-        Ok(&self.tables[which.0].kinds)
+        self.tables
+            .get(which.0)
+            .map(|table| table.kinds.as_slice())
+            .ok_or(OperatingError::MissingInput {
+                position: which.0 + 1,
+            })
     }
     fn streams(
         &self,
-        _which: crate::domain::operating::types::InputPlace,
-    ) -> crate::domain::operating::types::Supply {
-        crate::domain::operating::types::Supply::AtHand
+        which: crate::domain::operating::types::InputPlace,
+    ) -> Result<crate::domain::operating::types::Supply, OperatingError> {
+        crate::application::file_dag::testing::supplied(
+            which,
+            2,
+            crate::domain::operating::types::Supply::AtHand,
+        )
     }
     fn found(
         &mut self,
@@ -724,6 +797,10 @@ fn streamed_and_computed_visits_agree() -> Result<usize, OperatingError> {
     OrderedDfsItem.stream(
         &op,
         &mut Held {
+            owner: std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+                true,
+                crate::outbound::derived::factory::test_port(),
+            )),
             tables: [&roots, &edges],
         },
         &mut context,

@@ -1,4 +1,5 @@
 //! All supported physical row representations share one required contract.
+pub(crate) mod compact;
 pub(crate) mod computed;
 pub(crate) mod interface;
 pub(crate) mod publication;

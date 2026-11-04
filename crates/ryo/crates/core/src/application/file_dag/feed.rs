@@ -19,16 +19,11 @@ pub(crate) enum InputOrigin {
 }
 pub(crate) trait Feed<'f> {
     fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner>;
-    fn origin(&self, _which: InputPlace) -> Result<InputOrigin, OperatingError> {
-        Ok(InputOrigin::External)
-    }
+    fn origin(&self, which: InputPlace) -> Result<InputOrigin, OperatingError>;
     fn publication(
         &self,
-        _which: InputPlace,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
-    {
-        Ok(None)
-    }
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>;
 
     /// What the columns of the input hold.
     ///
@@ -38,7 +33,14 @@ pub(crate) trait Feed<'f> {
     fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError>;
 
     /// Whether the rows of the input are made as they are asked for (`Streamed`), so that they are not at hand to read in place.
-    fn streams(&self, which: InputPlace) -> Supply;
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError>;
+
+    /// Whether graph preparation held a formerly streamed Join left input
+    /// solely for a native right lookup. That Join still acquires its right
+    /// input first, including when either input refuses or the left is empty.
+    fn native_join_right_first(&self) -> bool {
+        false
+    }
 
     /// Passes the rows of the input to `emit`, one by one, as they are made.
     ///

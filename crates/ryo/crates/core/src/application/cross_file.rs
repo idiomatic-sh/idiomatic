@@ -1,6 +1,7 @@
 //! The `cross_file` application operation.
 mod coordinator;
 mod inputs;
+pub(crate) mod frontiers;
 pub(crate) mod publication;
 pub mod service;
 #[cfg(test)]

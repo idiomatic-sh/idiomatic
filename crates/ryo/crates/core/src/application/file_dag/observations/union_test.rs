@@ -12,15 +12,17 @@ use crate::domain::{
         types::{Emit, OperatorContext, Room},
     },
     operator::contract::types::OperatorContract,
-    table_model::types::{RowCount, Rows, Table},
+    table_model::types::Rows,
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::{
     plan_parts::types::{Input, StepId},
     plans::types::{Operation, OperationKind},
+    rows::types::RowCount,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug)]
@@ -37,6 +39,43 @@ impl Default for Counted {
     }
 }
 impl PrimitiveExecutor for Counted {
+    fn native_classes(
+        &self,
+        owner: &std::rc::Rc<RelationOwner>,
+        declaration: &crate::application::file_dag::executor::NativeClassBatch<'_>,
+        shared: &mut crate::domain::shared_walk::types::MergedWalk,
+        walking: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        self.engine
+            .native_classes(owner, declaration, shared, walking)
+    }
+    fn stream_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        owner: &std::rc::Rc<RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        self.engine
+            .stream_representation(contract, physical, feed, owner, context, room, emit)
+    }
+    fn keep_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        owner: &std::rc::Rc<RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        self.engine
+            .keep_representation(contract, physical, feed, owner, context, room)
+    }
     fn ordered_existence(
         &self,
         owner: &std::rc::Rc<RelationOwner>,

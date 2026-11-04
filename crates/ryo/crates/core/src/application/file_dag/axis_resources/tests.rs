@@ -49,15 +49,15 @@ fn acquired(
     rows: BorrowedRows<'_>,
 ) -> crate::application::file_dag::derived::view::AcquiredView {
     let plan = Arc::new(
-        crate::domain::derived_views::collections::views::registration::registered(kind)
-            .prepare(
-                &request,
-                &[crate::domain::operation_schema::types::InputSchema {
-                    kinds: rows.kinds(),
-                    tree: None,
-                }],
-            )
-            .unwrap(),
+        crate::application::file_dag::derived::prepare::view(
+            crate::outbound::derived::factory::test_port(),
+            &request,
+            &[crate::domain::operation_schema::types::InputSchema {
+                kinds: rows.kinds(),
+                tree: None,
+            }],
+        )
+        .unwrap(),
     );
     let owner = crate::application::file_dag::relations::RelationOwner::new(
         false,

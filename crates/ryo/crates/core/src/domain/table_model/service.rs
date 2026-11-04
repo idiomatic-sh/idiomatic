@@ -77,14 +77,6 @@ pub(crate) fn push_row(table: &mut Table, row: &[Value]) {
     table.count = RowCount(table.count.0 + 1);
 }
 
-/// Makes `into` a copy of `from`, keeping the room `into` has.
-#[cfg(test)]
-pub(crate) fn copy_table(from: &Table, into: &mut Table) {
-    reset(into, &from.kinds);
-    into.cells.extend_from_slice(&from.cells);
-    into.count = from.count;
-}
-
 /// What each column of the rows holds.
 #[must_use]
 pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
@@ -100,6 +92,7 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
             ..
         }) => &ELEMENT_KINDS,
         Rows::Computed(table) => &table.kinds,
+        Rows::Compact(table) => crate::domain::table_words::service::compact_kinds(table),
     }
 }
 
@@ -110,6 +103,7 @@ pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
         Rows::Selected(view) => RowCount(view.selection.rows.len()),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
+        Rows::Compact(table) => RowCount(crate::domain::table_words::service::compact_rows(table)),
         Rows::Tree(tree) => RowCount(
             real_count(tree.elements)
                 .0
@@ -189,6 +183,7 @@ pub(crate) fn materialize(rows: &Rows<'_>, into: &mut Table, scratch: &mut Vec<V
         }
     }
     tracing::trace!(target: "ryo::diagnostic::selection", event = "materialized",
+        compact_source = matches!(rows, Rows::Compact(_)),
         rows = into.count.0, columns = into.kinds.len(),
         cell_bytes = into.cells.len().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()),
         capacity_bytes = into.cells.capacity().saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>()));
@@ -294,7 +289,7 @@ pub(crate) fn complete_for_reuse(
                 && physical
                 && count <= u32::MAX as usize
         }
-        Rows::Tree(_) | Rows::Computed(_) | Rows::Selected(_) => false,
+        Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) | Rows::Selected(_) => false,
     }
 }
 

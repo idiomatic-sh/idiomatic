@@ -12,6 +12,18 @@ use ryo_values::domain::{
     plans::types::Operation,
 };
 
+fn fixture() -> (
+    CommonOperatorEngine<'static>,
+    std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+) {
+    let engine = CommonOperatorEngine::fixture();
+    let owner = {
+        let scope = crate::application::file_dag::testing::semantic_scope(&engine).unwrap();
+        std::rc::Rc::clone(scope.owner())
+    };
+    (engine, owner)
+}
+
 #[test]
 fn malformed_declared_population_is_refused_not_silently_shortened() {
     let tables = [Table {
@@ -40,7 +52,9 @@ fn malformed_declared_population_is_refused_not_silently_shortened() {
         memo: &mut memo,
         scratch: &mut scratch,
     };
-    let result = CommonOperatorEngine::fixture().collect(
+    let (engine, owner) = fixture();
+    let result = engine.collect(
+        &owner,
         &contract,
         &[Rows::Computed(&tables[0])],
         &mut context,
@@ -77,8 +91,10 @@ fn zero_width_bags_keep_their_declared_population() {
         scratch: &mut scratch,
     };
     let mut out = Table::default();
-    CommonOperatorEngine::fixture()
+    let (engine, owner) = fixture();
+    engine
         .collect(
+            &owner,
             &contract,
             &[Rows::Computed(&tables[0])],
             &mut context,
@@ -124,12 +140,15 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     };
     let mut starts = Vec::new();
     let mut produced = Vec::new();
+    let (engine, owner) = fixture();
     let mut feed = Held {
+        owner: std::rc::Rc::clone(&owner),
         tables: &tables,
         visits: vec![0],
     };
-    CommonOperatorEngine::fixture()
+    engine
         .stream(
+            &owner,
             &upstream,
             &mut feed,
             &mut context,
@@ -145,7 +164,8 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
                     count: RowCount(1),
                 };
                 let mut out = Table::default();
-                CommonOperatorEngine::fixture().collect(
+                engine.collect(
+                    &owner,
                     &downstream,
                     &[Rows::Computed(&input)],
                     each,
@@ -208,8 +228,10 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
         scratch: &mut scratch,
     };
     let mut output = Table::default();
-    CommonOperatorEngine::fixture()
+    let (engine, owner) = fixture();
+    engine
         .collect(
+            &owner,
             &contract,
             &[Rows::Computed(&edges)],
             &mut context,
@@ -268,8 +290,9 @@ fn ragged_selected_fallback_cannot_admit_mismatched_projection_kinds() {
         scratch: &mut scratch,
     };
     let mut out = Table::default();
+    let (engine, owner) = fixture();
     assert!(matches!(
-        CommonOperatorEngine::fixture().collect(&contract, &[rows], &mut context, &mut out),
+        engine.collect(&owner, &contract, &[rows], &mut context, &mut out),
         Err(OperatingError::ShapeMismatch)
     ));
     assert_eq!(out.count.0, 0);

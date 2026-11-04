@@ -37,30 +37,13 @@ impl ActivationCache {
                     })
             })
             .collect::<Vec<_>>();
-        let mut needed = vec![false; graph.nodes.len()];
-        let mut remaining = vec![0_usize; graph.nodes.len()];
-        let mut pending = Vec::new();
-        for (rule, roots) in graph.boundaries.iter().enumerate() {
-            if !active[rule] {
-                continue;
-            }
-            for (_, root) in roots {
-                remaining[root.0] += 1;
-                pending.push(*root);
-            }
-        }
-        while let Some(node) = pending.pop() {
-            if needed[node.0] {
-                continue;
-            }
-            needed[node.0] = true;
-            for input in &graph.nodes[node.0].inputs {
-                if let NodeInput::Node(child) = input {
-                    remaining[child.0] += 1;
-                    pending.push(*child);
-                }
-            }
-        }
+        let roots = graph
+            .boundaries
+            .iter()
+            .enumerate()
+            .filter(|(rule, _)| active[*rule])
+            .flat_map(|(_, roots)| roots.iter().map(|(_, root)| *root));
+        let remaining = remaining_for(graph, roots, |_| false);
         let entry = Arc::new(ActivatedSchedule {
             graph: Arc::clone(graph),
             governing: self.governing.clone(),
@@ -72,4 +55,36 @@ impl ActivationCache {
         self.entry = Some(Arc::clone(&entry));
         entry
     }
+}
+
+/// The same edge-count algorithm serves file roots and supplied project leaves.
+/// Root selection is phase orchestration; there is still one node scheduler.
+pub(in crate::application::file_dag) fn remaining_for(
+    graph: &RequestGraph,
+    roots: impl IntoIterator<Item = crate::domain::file_program::types::NodeId>,
+    supplied: impl Fn(crate::domain::file_program::types::NodeId) -> bool,
+) -> Vec<usize> {
+    let mut needed = vec![false; graph.nodes.len()];
+    let mut remaining = vec![0_usize; graph.nodes.len()];
+    let mut pending = Vec::new();
+    for root in roots {
+        remaining[root.0] += 1;
+        pending.push(root);
+    }
+    while let Some(node) = pending.pop() {
+        if needed[node.0] {
+            continue;
+        }
+        needed[node.0] = true;
+        if supplied(node) {
+            continue;
+        }
+        for input in &graph.nodes[node.0].inputs {
+            if let NodeInput::Node(child) = input {
+                remaining[child.0] += 1;
+                pending.push(*child);
+            }
+        }
+    }
+    remaining
 }

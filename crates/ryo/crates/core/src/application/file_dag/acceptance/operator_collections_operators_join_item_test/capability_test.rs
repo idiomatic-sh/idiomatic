@@ -10,6 +10,24 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 const REFUSAL: u32 = 60001;
+fn feed_owner() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+    std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    ))
+}
+fn stream_with_port(
+    port: &dyn OperatorsPort,
+    contract: &crate::domain::operator::contract::types::OperatorContract,
+    feed: &mut ControlledFeed<'_>,
+    context: &mut OperatorContext<'_>,
+    room: &mut Room,
+    emit: &mut dyn crate::domain::operating::types::Emit,
+) -> Result<(), OperatingError> {
+    let owner = std::rc::Rc::clone(&feed.owner);
+    CommonOperatorEngine::new(port, owner.derived.semantic_port())
+        .stream(&owner, contract, feed, context, room, emit)
+}
 #[derive(Debug)]
 pub(in crate::application::file_dag::acceptance) struct Refuses {
     calls: AtomicUsize,
@@ -81,7 +99,7 @@ impl OperatorsPort for Refuses {
 fn refused(result: Result<(), OperatingError>) {
     assert!(
         matches!(
-            result,
+            &result,
             Err(OperatingError::Table(
                 crate::domain::table_model::errors::TableModelError::NoSuchColumn {
                     index: REFUSAL
@@ -136,6 +154,22 @@ fn collected_computed_stored_selected_and_generic_routes_use_injected_join() {
             &[Cell::Number(Integer(7)), Cell::Number(Integer(2))],
         ],
     );
+    let mut words = ryo_relations::domain::relations::types::Words::default();
+    crate::domain::table_words::service::encode_table(&right, &[], &mut words);
+    let (compact, names) = crate::domain::table_words::service::admit_compact(
+        Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
+            crate::domain::table_words::service::pack(
+                crate::domain::table_words::types::WordSlice(&words.0),
+            ),
+        )),
+        &mut Vec::new(),
+        crate::domain::table_words::types::DecodeMode::Complete,
+    )
+    .unwrap();
+    assert!(names.is_empty());
+    assert!(crate::domain::table_words::service::compact_rectangular(
+        &compact
+    ));
     let columns = [fact_column(&[7, 7]), fact_column(&[1, 2])];
     let stored = ColumnsView {
         kinds: NUMBER_PAIR_KINDS,
@@ -158,6 +192,7 @@ fn collected_computed_stored_selected_and_generic_routes_use_injected_join() {
             RepresentationKind::Stored => Rows::Stored(stored),
             RepresentationKind::Selected => selected.clone(),
             RepresentationKind::Computed => Rows::Computed(&right),
+            RepresentationKind::Compact => Rows::Compact(&compact),
             RepresentationKind::Tree => {
                 let (elements, mut symbols) = wide_tree(1, true);
                 let nodes = table_of(&[CellKind::Node], &[&[node(1)]]);
@@ -304,6 +339,7 @@ fn stream(operation: &Operation, left: &Table, right: Rows<'_>, symbols: &mut Sy
     let mut memo = vec![];
     let mut ctx = context(symbols, &mut scratch, &mut memo);
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left,
         right: right.clone(),
         right_holds: 0,
@@ -311,34 +347,34 @@ fn stream(operation: &Operation, left: &Table, right: Rows<'_>, symbols: &mut Sy
         right_fails: false,
     };
     let mut output = CollectedRows::default();
-    refused(
-        CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port()).stream(
-            &contract,
-            &mut feed,
-            &mut ctx,
-            &mut Room::default(),
-            &mut output,
-        ),
-    );
+    refused(stream_with_port(
+        &port,
+        &contract,
+        &mut feed,
+        &mut ctx,
+        &mut Room::default(),
+        &mut output,
+    ));
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     assert!(output.rows.is_empty());
     let empty = table_of(&left.kinds, &[]);
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &empty,
         right,
         right_holds: 0,
         left_fails: false,
         right_fails: false,
     };
-    CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port())
-        .stream(
-            &contract,
-            &mut feed,
-            &mut ctx,
-            &mut Room::default(),
-            &mut output,
-        )
-        .expect("empty left");
+    stream_with_port(
+        &port,
+        &contract,
+        &mut feed,
+        &mut ctx,
+        &mut Room::default(),
+        &mut output,
+    )
+    .expect("empty left");
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     assert!(output.rows.is_empty());
 }
@@ -374,6 +410,7 @@ fn first_downstream_failure_remains_sticky_even_if_injected_kernel_returns_succe
     let mut memo = vec![];
     let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &left,
         right: Rows::Computed(&right),
         right_holds: 0,
@@ -385,11 +422,8 @@ fn first_downstream_failure_remains_sticky_even_if_injected_kernel_returns_succe
         fails: true,
     };
     assert!(matches!(
-        CommonOperatorEngine::new(
+        stream_with_port(
             &KeepsCalling,
-            crate::outbound::derived::factory::test_port(),
-        )
-        .stream(
             &contract,
             &mut feed,
             &mut ctx,
@@ -420,15 +454,21 @@ fn upstream_failure_and_empty_left_do_not_probe_rhs_or_enter_join_capability() {
     let mut output = CollectedRows::default();
     for fails in [false, true] {
         let mut feed = ControlledFeed {
+            owner: feed_owner(),
             left: &left,
             right: right.clone(),
             right_holds: 0,
             left_fails: fails,
             right_fails: false,
         };
-        let result =
-            CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port())
-                .stream(&contract, &mut feed, &mut ctx, &mut room, &mut output);
+        let result = stream_with_port(
+            &port,
+            &contract,
+            &mut feed,
+            &mut ctx,
+            &mut room,
+            &mut output,
+        );
         if fails {
             assert!(matches!(result, Err(OperatingError::NotRun)));
         } else {
@@ -550,11 +590,13 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         frontier: vec![],
         comparison_origins: vec![],
     };
+    let port = Refuses::default();
+    let engine = CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port());
     let request = crate::domain::operator::contract::types::RequestOperators::prepare(
         std::slice::from_ref(&plan),
         &[vec![]],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        engine.derived.clone(),
     )
     .expect("request preparation");
     let mut prepared = PreparedPool {
@@ -562,33 +604,95 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         ..PreparedPool::default()
     };
     crate::application::file_dag::derived::selection::prepare_request(&mut prepared, &request);
+    let scope = crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
+        std::slice::from_ref(&plan),
+        &request,
+        &prepared,
+        &[Relation::SyntaxTree, Relation::SyntaxChild],
+        &[],
+        &engine,
+    )
+    .expect("required execution scope");
+    let joined = *scope.scope.graph().program_nodes[0][root.0 as usize]
+        .as_ref()
+        .expect("compiled join");
+    assert_eq!(
+        scope.scope.graph().nodes[joined.0].input_supply[0],
+        crate::domain::operating::types::Supply::AtHand,
+        "the prepared join needs the left publication identity"
+    );
+    let plans = [plan.clone()];
+    let bindings = [Vec::new()];
+    let mut merged = crate::domain::shared_walk::types::MergedWalk::default();
+    let mut classes = crate::domain::shared_walk::types::SharedClasses::default();
+    let mut native_scratch = OperatorScratch::default();
+    let mask = crate::domain::placement::types::Mask::default();
+    crate::application::file_dag::types::FileDagExecution::prepare_native(
+        &scope.execution,
+        &mut merged,
+        crate::domain::shared_walk::types::Walking {
+            plans: &plans,
+            bindings: &bindings,
+            paths: &[],
+            mask: &mask,
+            file: FileId(0),
+            elements: &elements,
+            symbols: &mut symbols,
+            source: SourceView(b"abcd"),
+            scratch: &mut native_scratch,
+            room: &mut classes,
+            steps: strategy,
+        },
+        crate::domain::column_kernel::types::KernelStrategy::Existing,
+        crate::domain::lowering::types::Counting::DoesNotCount,
+        scope.scope.executor(),
+    )
+    .expect("native preparation uses the same required scope");
     let mut pool = pool_for(std::slice::from_ref(&plan));
     let mut scratch = OperatorScratch::default();
     let mut memo = vec![];
     let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
-    let port = Refuses::default();
     let read = |_| None;
     let _previous = crate::domain::table_model::service::take_read_row_counts();
-    refused(
-        crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
-            &plan,
-            &read,
-            Some(TreeRows {
-                elements: &elements,
-                file: FileId(0),
-                form: TreeForm::Elements,
-            }),
-            &mut ctx,
-            &mut pool,
-            &mut prepared,
-            &[],
-            None,
-            0,
-            None,
-            &CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port()),
-            &request.rules[0],
-        ),
+    let result = crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
+        &plan,
+        &read,
+        Some(TreeRows {
+            elements: &elements,
+            file: FileId(0),
+            form: TreeForm::Elements,
+        }),
+        &mut ctx,
+        &mut pool,
+        &mut prepared,
+        0,
+        &scope.execution,
+        scope.scope.executor(),
     );
+    let state = scope.execution.borrow();
+    assert!(
+        matches!(
+            &result,
+            Err(OperatingError::Table(
+                crate::domain::table_model::errors::TableModelError::NoSuchColumn {
+                    index: REFUSAL
+                }
+            ))
+        ),
+        "strategy={strategy:?}, right={right:?}, root={:?}, result={result:?}, failed={:?}, visiting={:?}, executions={:?}, supplies={:?}",
+        scope.scope.graph().program_nodes[0][root.0 as usize],
+        state.failed,
+        state.visiting,
+        state.executions,
+        scope
+            .scope
+            .graph()
+            .nodes
+            .iter()
+            .map(|node| &node.input_supply)
+            .collect::<Vec<_>>(),
+    );
+    drop(state);
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     let reads = crate::domain::table_model::service::take_read_row_counts();
     match strategy {
@@ -599,8 +703,13 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
                 "must use deferred positions, not value fallback"
             );
             assert!(
-                prepared.layouts[0].lowering.shapes[usize::try_from(root.0).expect("root index")]
-                    .is_some()
+                scope.scope.graph().program_nodes[0][root.0 as usize]
+                    .as_ref()
+                    .ok()
+                    .and_then(|id| scope.scope.graph().nodes.get(id.0))
+                    .is_some_and(|node| node.regions.iter().any(|region| {
+                        region.layout.lowering.shapes[root.0 as usize].is_some()
+                    }))
             );
             assert_eq!(
                 reads,
@@ -613,6 +722,143 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
             0,
             "ordinary native strategy must use the value capability"
         ),
+    }
+}
+
+struct NativeOrderedFeed<'a> {
+    owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+    left: &'a Table,
+    right: &'a Table,
+    left_fails: bool,
+    right_fails: bool,
+    left_holds: usize,
+    right_holds: usize,
+}
+
+impl<'f> Feed<'f> for NativeOrderedFeed<'f> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.owner)
+    }
+    fn origin(
+        &self,
+        which: InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 2)
+    }
+    fn publication(
+        &self,
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 2)
+    }
+    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
+        match which.0 {
+            0 => Ok(&self.left.kinds),
+            1 => Ok(&self.right.kinds),
+            _ => Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            }),
+        }
+    }
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 2, Supply::AtHand)
+    }
+    fn native_join_right_first(&self) -> bool {
+        true
+    }
+    fn stream(
+        &mut self,
+        _: InputPlace,
+        _: &mut OperatorContext<'_>,
+        _: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::WrongOperation)
+    }
+    fn found(&mut self, _: InputPlace, _: RowCount) {}
+    fn hold<'t>(
+        &mut self,
+        which: InputPlace,
+        _: &mut OperatorContext<'_>,
+        _: &'t mut Table,
+    ) -> Result<Rows<'t>, OperatingError>
+    where
+        'f: 't,
+    {
+        match which.0 {
+            0 => {
+                self.left_holds += 1;
+                if self.left_fails {
+                    Err(OperatingError::NotRun)
+                } else {
+                    Ok(Rows::Computed(self.left))
+                }
+            }
+            1 => {
+                self.right_holds += 1;
+                if self.right_fails {
+                    Err(OperatingError::NotRead)
+                } else {
+                    Ok(Rows::Computed(self.right))
+                }
+            }
+            _ => Err(OperatingError::MissingInput {
+                position: which.0 + 1,
+            }),
+        }
+    }
+}
+
+#[test]
+fn native_provenance_join_keeps_right_first_refusal_and_empty_left_order() {
+    let empty = table_of(&[CellKind::Number], &[]);
+    let nonempty = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
+    let operation = plan(&[0], &[0], &[(Side::Left, 0)], vec![], &[]);
+    let contract = prepared(
+        &operation,
+        &[Rows::Computed(&empty), Rows::Computed(&nonempty)],
+    );
+    let port = crate::outbound::operators::factory::test_port();
+    let mut symbols = Symbols::default();
+    let mut scratch = OperatorScratch::default();
+    let mut memo = vec![];
+    let mut context = context(&mut symbols, &mut scratch, &mut memo);
+    for (left_fails, right_fails, expected, expected_left_holds) in [
+        (false, true, Err(OperatingError::NotRead), 0),
+        (true, true, Err(OperatingError::NotRead), 0),
+        (true, false, Err(OperatingError::NotRun), 1),
+        (false, false, Ok(()), 1),
+    ] {
+        let owner = feed_owner();
+        let engine = CommonOperatorEngine::new(port, owner.derived.semantic_port());
+        let mut feed = NativeOrderedFeed {
+            owner: std::rc::Rc::clone(&owner),
+            left: &empty,
+            right: &nonempty,
+            left_fails,
+            right_fails,
+            left_holds: 0,
+            right_holds: 0,
+        };
+        let mut room = Room::default();
+        let mut output = CollectedRows::default();
+        let result = engine.stream(
+            &owner,
+            &contract,
+            &mut feed,
+            &mut context,
+            &mut room,
+            &mut output,
+        );
+        assert_eq!(result, expected);
+        assert_eq!(
+            feed.right_holds, 1,
+            "the formerly streamed Join held the right first"
+        );
+        assert_eq!(feed.left_holds, expected_left_holds);
+        assert!(output.rows.is_empty(), "empty left cannot emit a Join row");
     }
 }
 
@@ -638,6 +884,7 @@ impl Emit for NestedOutput {
         let operation = plan(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
         let contract = prepared(&operation, &[Rows::Computed(&left), Rows::Computed(&right)]);
         let mut feed = ControlledFeed {
+            owner: feed_owner(),
             left: &left,
             right: Rows::Computed(&right),
             right_holds: 0,
@@ -645,7 +892,8 @@ impl Emit for NestedOutput {
             right_fails: false,
         };
         let mut nested = CollectedRows::default();
-        CommonOperatorEngine::fixture().stream(
+        stream_with_port(
+            crate::outbound::operators::factory::test_port(),
             &contract,
             &mut feed,
             context,
@@ -684,6 +932,7 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
         entries: 0,
     };
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &left,
         right: right.clone(),
         right_holds: 0,
@@ -691,7 +940,8 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
         right_fails: false,
     };
     assert!(matches!(
-        CommonOperatorEngine::fixture().stream(
+        stream_with_port(
+            crate::outbound::operators::factory::test_port(),
             &contract,
             &mut feed,
             &mut ctx,
@@ -708,15 +958,22 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
     output.fail_at = None;
     output.entries = 0;
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &left,
         right,
         right_holds: 0,
         left_fails: false,
         right_fails: false,
     };
-    CommonOperatorEngine::fixture()
-        .stream(&contract, &mut feed, &mut ctx, &mut room, &mut output)
-        .expect("next invocation resumes");
+    stream_with_port(
+        crate::outbound::operators::factory::test_port(),
+        &contract,
+        &mut feed,
+        &mut ctx,
+        &mut room,
+        &mut output,
+    )
+    .expect("next invocation resumes");
     assert_eq!(output.rows, vec![vec![Cell::Number(Integer(7))]; 3]);
     assert_eq!(output.entries, 3);
     assert_eq!(*ctx.memo, vec![Memo::Fails]);

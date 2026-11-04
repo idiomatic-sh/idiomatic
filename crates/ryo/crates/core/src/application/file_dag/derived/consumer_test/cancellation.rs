@@ -9,8 +9,40 @@ use crate::domain::operator::contract::types::OperatorContract;
 use std::cell::Cell;
 
 #[derive(Debug)]
-struct Refuse;
+struct Refuse(std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
 impl PrimitiveExecutor for Refuse {
+    fn native_classes(
+        &self,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        _: &crate::application::file_dag::executor::NativeClassBatch<'_>,
+        _: &mut crate::domain::shared_walk::types::MergedWalk,
+        _: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::NotRead)
+    }
+    fn stream_representation(
+        &self,
+        _: &OperatorContract,
+        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        _: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        _: &mut OperatorContext<'_>,
+        _: &mut Room,
+        _: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::NotRead)
+    }
+    fn keep_representation(
+        &self,
+        _: &OperatorContract,
+        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        _: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        _: &mut OperatorContext<'_>,
+        _: &mut Room,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        Err(OperatingError::NotRead)
+    }
     fn ordered_existence(
         &self,
         owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
@@ -26,10 +58,11 @@ impl PrimitiveExecutor for Refuse {
     }
 
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        crate::outbound::derived::factory::test_port()
+        std::sync::Arc::clone(&self.0)
     }
     fn stream(
         &self,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         _: &OperatorContract,
         _: &mut dyn Feed<'_>,
         _: &mut OperatorContext<'_>,
@@ -40,6 +73,7 @@ impl PrimitiveExecutor for Refuse {
     }
     fn collect(
         &self,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         _: &OperatorContract,
         _: &[Rows<'_>],
         _: &mut OperatorContext<'_>,
@@ -68,6 +102,15 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         ));
         dag.borrow_mut().limit = 0;
         let owner = dag.relation_owner();
+        let engine = crate::application::file_dag::execution::CommonOperatorEngine::new(
+            crate::outbound::operators::factory::test_port(),
+            owner.derived.semantic_port(),
+        );
+        let executor = crate::application::file_dag::executor::ScopedExecutor::new(
+            &engine,
+            std::rc::Rc::clone(&owner),
+        )
+        .unwrap();
         owner.derived.prepare_file(
             true,
             &[Relation::LanguageTarget],
@@ -108,12 +151,7 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         };
         dag.begin_rule(0).unwrap();
         let first = dag
-            .demand(
-                roots[0],
-                &read,
-                &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-                &mut context,
-            )
+            .demand(roots[0], &read, &executor, &mut context)
             .unwrap();
         let rows = owner.resolve(first.as_ref(), &read).unwrap();
         let mut output = Table::default();
@@ -134,7 +172,13 @@ fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_r
         let before = reads.get();
         dag.begin_rule(1).unwrap();
         if refuse {
-            let result = dag.demand(roots[1], &read, &Refuse, &mut context);
+            let refusal = Refuse(owner.derived.semantic_port());
+            let refused = crate::application::file_dag::executor::ScopedExecutor::new(
+                &refusal,
+                std::rc::Rc::clone(&owner),
+            )
+            .unwrap();
+            let result = dag.demand(roots[1], &read, &refused, &mut context);
             assert!(matches!(result, Err(OperatingError::NotRead)));
         }
         dag.borrow_mut().finish_rule(1);

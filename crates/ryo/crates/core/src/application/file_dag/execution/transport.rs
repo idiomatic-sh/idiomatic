@@ -197,10 +197,14 @@ fn stream_scoped(
             Ok(())
         }
         DemandOrder::JoinTransport => {
-            if feed.streams(InputPlace(0)) == Supply::AtHand
-                || feed.streams(InputPlace(1)) == Supply::Streamed
+            if feed.streams(InputPlace(0))? == Supply::AtHand
+                || feed.streams(InputPlace(1))? == Supply::Streamed
             {
-                let views = hold(feed, context, &mut room.held, 2, true)?;
+                let views = if feed.native_join_right_first() {
+                    hold_join_right_first(feed, context, &mut room.held)?
+                } else {
+                    hold(feed, context, &mut room.held, 2, true)?
+                };
                 workspace.capture(feed, views.len())?;
                 if views.len() == 1 {
                     return Ok(());
@@ -269,9 +273,9 @@ fn stream_scoped(
             }
         }
         DemandOrder::AxisTransport => {
-            let streaming = feed.streams(InputPlace(0)) == Supply::Streamed
-                && feed.streams(InputPlace(1)) == Supply::AtHand
-                && feed.streams(InputPlace(2)) == Supply::AtHand;
+            let streaming = feed.streams(InputPlace(0))? == Supply::Streamed
+                && feed.streams(InputPlace(1))? == Supply::AtHand
+                && feed.streams(InputPlace(2))? == Supply::AtHand;
             if !streaming {
                 let views = hold(feed, context, &mut room.held, 3, true)?;
                 workspace.capture(feed, views.len())?;
@@ -338,6 +342,23 @@ fn stream_scoped(
         DemandOrder::None => Err(OperatingError::WrongOperation),
     }
 }
+fn hold_join_right_first<'a, 'f>(
+    feed: &mut dyn Feed<'f>,
+    context: &mut OperatorContext<'_>,
+    tables: &'a mut [Table; 3],
+) -> Result<Vec<Rows<'a>>, OperatingError>
+where
+    'f: 'a,
+{
+    let [left_table, right_table, _] = tables;
+    let right = feed.hold(InputPlace(1), context, right_table)?;
+    let left = feed.hold(InputPlace(0), context, left_table)?;
+    if count_of(&left).0 == 0 {
+        return Ok(vec![left]);
+    }
+    Ok(vec![left, right])
+}
+
 fn hold<'a, 'f>(
     feed: &mut dyn Feed<'f>,
     context: &mut OperatorContext<'_>,
@@ -383,7 +404,7 @@ fn held<'f>(
         // Physical fallback is permissive; authoritative computed populations are not.
         for (place, rows) in rows.iter().enumerate() {
             super::selected_schema(rows)?;
-            if matches!(rows, Rows::Computed(_)) {
+            if matches!(rows, Rows::Computed(_) | Rows::Compact(_)) {
                 workspace.validate(place, BorrowedRows::from(rows))?;
             }
         }

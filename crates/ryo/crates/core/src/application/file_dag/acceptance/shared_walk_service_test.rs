@@ -116,11 +116,17 @@ fn setting<'a>(
     plans: &'a [Plan],
     bindings: &'a [Vec<ParameterBinding>],
 ) -> VisitSetting<'a> {
+    let executor = crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
+    let operators =
+        crate::application::file_dag::testing::request_for_executor(executor, plans, bindings, &[]);
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        plans, &operators,
+    ));
     VisitSetting {
-        observations: crate::domain::file_program::types::ObservationRequest::Independent,
         source_language: None,
-        executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        operators: crate::application::file_dag::testing::request_fixture(plans, bindings, &[]),
+        executor,
+        operators,
+        graph,
         domain: crate::domain::workers::types::VisitSetting {
             observations: crate::domain::file_program::types::ObservationRequest::Independent,
             unknown: &[],

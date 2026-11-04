@@ -213,7 +213,13 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
             memo: &mut Vec::new(),
             scratch: &mut scratch,
         };
-        crate::application::file_dag::execution::CommonOperatorEngine::fixture().collect(
+        let engine = crate::application::file_dag::execution::CommonOperatorEngine::fixture();
+        let owner = std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+            false,
+            engine.derived.clone(),
+        ));
+        engine.collect(
+            &owner,
             &contract,
             &[Rows::Computed(&table)],
             &mut context,

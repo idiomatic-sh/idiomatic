@@ -55,11 +55,14 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason() {
             .compile(&[])
             .expect("empty matcher"),
     };
+    let operators = crate::application::file_dag::testing::request_fixture(&plans, &[], &[]);
     let setting = VisitSetting {
-        observations: crate::domain::file_program::types::ObservationRequest::Independent,
         source_language: None,
         executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-        operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
+        graph: Arc::new(crate::domain::file_program::service::compile_prepared(
+            &plans, &operators,
+        )),
+        operators,
         domain: crate::domain::workers::types::VisitSetting {
             observations: crate::domain::file_program::types::ObservationRequest::Independent,
             plans: &plans,
@@ -551,12 +554,18 @@ fn visited_inputs_with_rule_demands(
         matcher: MatchingFake.compile(&[]).expect("empty glob set"),
     };
     let records: Vec<_> = files.iter().map(|_| kept).collect();
+    let operators = crate::application::file_dag::testing::request_fixture(&[], &[], &[]);
+    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
+        &[],
+        &operators,
+    ));
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
             source_language: None,
             executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-            operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
+            operators,
+            graph,
             domain: crate::domain::workers::types::VisitSetting {
                 observations: crate::domain::file_program::types::ObservationRequest::Independent,
                 unknown: &[],
@@ -860,22 +869,23 @@ fn prepared_resource_state(
     use crate::domain::file_program::types::RequestGraph;
     use crate::domain::operator::types::PreparedPool;
     let graph = RequestGraph {
+        program_nodes: Vec::new(),
+        ordered_existence: Vec::new(),
         observations: None,
         derived_sources: Vec::new(),
-        plans: Vec::new(),
         nodes: Vec::new(),
         cuts: Vec::new(),
-        consumers: Vec::new(),
         boundaries: Vec::new(),
         rule_liveness: Vec::new(),
     };
-    let dag = FileDagExecution::new_for_population(
-        Arc::new(graph),
-        |_| true,
-        &[],
-        true,
-        crate::outbound::derived::factory::test_port(),
+    let owner = std::rc::Rc::new(
+        crate::application::file_dag::relations::RelationOwner::for_request(
+            true,
+            1,
+            crate::outbound::derived::factory::test_port(),
+        ),
     );
+    let dag = FileDagExecution::new_for_population(Arc::new(graph), |_| true, &[], owner);
     dag.prepare_resources(
         enabled,
         &[Relation::Function],
@@ -1017,10 +1027,9 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
     assert_eq!(
         take_resource_setup(),
         Some((false, false)),
-        "parse calls {}, language {:?}, graph {}, unread {}",
+        "parse calls {}, language {:?}, unread {}",
         unstable_language.parses.load(Ordering::Relaxed),
         unstable.tables.language,
-        unstable.tables.pool.file_graph.is_some(),
         unstable.tables.unread.len(),
     );
 
@@ -1075,13 +1084,17 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
             .compile(&[])
             .expect("matcher"),
     };
+    let operators = crate::application::file_dag::testing::request_fixture(&plans, &[], &[]);
+    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
+        &plans, &operators,
+    ));
     let visit = FileVisit {
         store: None,
         setting: VisitSetting {
-            observations: crate::domain::file_program::types::ObservationRequest::Independent,
             source_language: None,
             executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-            operators: crate::application::file_dag::testing::request_fixture(&plans, &[], &[]),
+            operators,
+            graph,
             domain: crate::domain::workers::types::VisitSetting {
                 observations: crate::domain::file_program::types::ObservationRequest::Independent,
                 plans: &plans,
@@ -1405,12 +1418,18 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
             .expect("matcher"),
     };
     let wanted = BucketsWanted::These(vec![Bucket(0)]);
+    let operators = crate::application::file_dag::testing::request_fixture(&[], &[], &[]);
+    let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
+        &[],
+        &operators,
+    ));
     let visit = FileVisit {
         store: Some(snapshot.as_ref()),
         setting: VisitSetting {
             source_language: None,
             executor: crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
-            operators: crate::application::file_dag::testing::request_fixture(&[], &[], &[]),
+            operators,
+            graph,
             domain: crate::domain::workers::types::VisitSetting {
                 observations: crate::domain::file_program::types::ObservationRequest::Independent,
                 plans: &[],

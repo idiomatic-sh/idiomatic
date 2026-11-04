@@ -13,8 +13,6 @@ pub(crate) enum BuildRoute {
     ClosurePartition,
     GraphAdjacency,
     GraphDomain,
-    #[cfg(test)]
-    Fixture,
 }
 impl BuildRoute {
     pub(crate) fn label(self) -> &'static str {
@@ -28,8 +26,6 @@ impl BuildRoute {
             Self::ClosurePartition => "closure_partition_build",
             Self::GraphAdjacency => "graph_adjacency_build",
             Self::GraphDomain => "graph_domain_build",
-            #[cfg(test)]
-            Self::Fixture => "fixture_build",
         }
     }
 }
@@ -334,6 +330,7 @@ pub(crate) fn representation(
         Selected => "Selected",
         Tree => "Tree",
         Computed => "Computed",
+        Compact => "Compact",
     }
 }
 #[cfg(test)]

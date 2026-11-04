@@ -45,6 +45,7 @@ enum RelationBody {
         selection: Arc<StoredSelection>,
     },
     Computed(Arc<Table>),
+    Compact(Arc<crate::domain::table_words::types::CompactTable>),
 }
 mod packed;
 pub(crate) use packed::PackedPublication;
@@ -181,6 +182,23 @@ impl RelationOwner {
         }
         Ok(result)
     }
+    pub(super) fn compact(
+        &self,
+        table: Arc<crate::domain::table_words::types::CompactTable>,
+    ) -> Result<PublishedInput, OperatingError> {
+        let input = BorrowedRows::Compact(&table);
+        let contract = input.contract()?;
+        let shape = registered(contract.kind).inspect(&contract)?;
+        self.publication(Arc::new(RelationResult {
+            population: self.allocate_population()?,
+            producer: OnceLock::new(),
+            generation: Arc::clone(&self.generation.borrow()),
+            kind: RepresentationKind::Compact,
+            body: RelationBody::Compact(table),
+            inspected: OnceLock::from(Ok(shape)),
+            normalized: OnceLock::new(),
+        }))
+    }
     pub(super) fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
         let input = BorrowedRows::Computed(&table);
         let contract = input.contract()?;
@@ -268,6 +286,7 @@ impl RelationOwner {
         (result.normalized.get().is_some_and(|table|matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref())))||match &result.body{
    RelationBody::Source(source)=>identity::matches(source,input),
    RelationBody::Computed(table)=>matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref())),
+   RelationBody::Compact(table)=>matches!(input,BorrowedRows::Compact(actual)if std::ptr::eq(actual,table.as_ref())),
    RelationBody::Selected{selection,source}=>matches!(input,BorrowedRows::Selected{source:actual,positions,columns,kinds}if std::ptr::eq(positions,selection.rows.as_slice())&&columns==selection.columns&&kinds==selection.kinds&&self.matches_current(source,BorrowedRows::Stored(actual))),
   })
     }
@@ -289,6 +308,7 @@ impl RelationOwner {
                 Ok(rows)
             }
             RelationBody::Computed(table) => Ok(Rows::Computed(table)),
+            RelationBody::Compact(table) => Ok(Rows::Compact(table)),
             RelationBody::Selected { source, selection } => {
                 let Rows::Stored(columns) = self.resolve(source.as_ref(), read)? else {
                     return Err(OperatingError::WrongOperation);
@@ -452,7 +472,7 @@ impl RelationOwner {
         match &result.body {
             RelationBody::Source(source) => Some(source.relation),
             RelationBody::Selected { source, .. } => Self::backing_relation(source),
-            RelationBody::Computed(_) => None,
+            RelationBody::Computed(_) | RelationBody::Compact(_) => None,
         }
     }
     fn backing_population(&self, result: &RelationResult) -> PopulationId {
@@ -464,7 +484,7 @@ impl RelationOwner {
                 )
             }
             RelationBody::Selected { source, .. } => self.backing_population(source),
-            RelationBody::Computed(_) => self.result_population(result),
+            RelationBody::Computed(_) | RelationBody::Compact(_) => self.result_population(result),
         }
     }
     pub(super) fn pin_derived(&self, result: &RelationResult) {

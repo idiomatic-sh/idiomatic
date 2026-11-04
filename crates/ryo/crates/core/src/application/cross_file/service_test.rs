@@ -164,6 +164,16 @@ fn crossing(world: &World) -> CrossingInput<'_> {
     }
 }
 
+fn prepared(rows: Vec<Frontier>) -> super::types::PreparedFrontiers {
+    super::types::PreparedFrontiers {
+        rows: rows
+            .into_iter()
+            .map(super::types::FrontierInput::Decoded)
+            .collect(),
+        refused: Vec::new(),
+    }
+}
+
 fn todo(rule: usize) -> Todo {
     Todo {
         rule: RuleIndex(rule),
@@ -282,7 +292,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let mut cross = Symbols::default();
             let frontier = handed_over(&mut cross);
             let done =
-                service().evaluate(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
+                service().evaluate(&crossing(&rules), &todo(0), prepared(frontier), &mut cross)?;
             [
                 done.rendered
                     .as_ref()
@@ -299,7 +309,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let done = service().evaluate(
                 &crossing(&rules),
                 &todo(0),
-                Vec::new(),
+                prepared(Vec::new()),
                 &mut Symbols::default(),
             )?;
             [usize::from(done.rendered.is_some()), done.fed.len(), 0]
@@ -309,7 +319,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let done = service().evaluate(
                 &crossing(&rules),
                 &todo(3),
-                Vec::new(),
+                prepared(Vec::new()),
                 &mut Symbols::default(),
             )?;
             [
@@ -337,8 +347,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 input: PlanInput::Step(StepId(0)),
                 table,
             }];
-            let done =
-                service().evaluate(&crossing(&rules), &todo(0), Vec::from(frontier), &mut cross)?;
+            let done = service().evaluate(
+                &crossing(&rules),
+                &todo(0),
+                prepared(Vec::from(frontier)),
+                &mut cross,
+            )?;
             [
                 done.rendered
                     .as_ref()
@@ -352,7 +366,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let done = service().evaluate(
                 &crossing(&rules),
                 &todo(0),
-                Vec::new(),
+                prepared(Vec::new()),
                 &mut Symbols::default(),
             )?;
             [

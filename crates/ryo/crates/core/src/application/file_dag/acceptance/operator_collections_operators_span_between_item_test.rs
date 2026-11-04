@@ -26,13 +26,44 @@ const fn span(start: u32, end: u32) -> Span {
     }
 }
 
-struct Held<'f>(&'f Table);
+struct Held<'f>(
+    &'f Table,
+    std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+);
+fn held(table: &Table) -> Held<'_> {
+    Held(
+        table,
+        std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+            true,
+            crate::outbound::derived::factory::test_port(),
+        )),
+    )
+}
 impl<'f> Feed<'f> for Held<'f> {
-    fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
+    fn relation_owner(
+        &self,
+    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+        std::rc::Rc::clone(&self.1)
+    }
+    fn origin(
+        &self,
+        which: InputPlace,
+    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
+        crate::application::file_dag::testing::external_origin(which, 1)
+    }
+    fn publication(
+        &self,
+        which: InputPlace,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+    {
+        crate::application::file_dag::testing::no_publication(which, 1)
+    }
+    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)?;
         Ok(&self.0.kinds)
     }
-    fn streams(&self, _: InputPlace) -> Supply {
-        Supply::AtHand
+    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
+        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)
     }
     fn found(&mut self, _: InputPlace, _: RowCount) {}
     fn stream(
@@ -96,7 +127,7 @@ fn subject((left, right, source): Input) -> Result<Span, Failure> {
     let mut streamed = Vec::new();
     let streaming = SpanBetweenItem.stream(
         &operation,
-        &mut Held(&table),
+        &mut held(&table),
         &mut context,
         &mut Room::default(),
         &mut Pipe(|_: &mut OperatorContext<'_>, emitted: &[Value]| {

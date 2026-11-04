@@ -1,5 +1,6 @@
 //! The `crossing` service: free functions named by verb over the cross-file steps of one rule, with no IO and no ports.
 
+use crate::application::cross_file::types::FrontierInput;
 use crate::application::file_dag::cross_execution::evaluate_cross_roots_with_executor;
 use crate::domain::answering::types::Todo;
 use crate::domain::coverage::types::{FilePartial, Partials, RuleIndex};
@@ -8,13 +9,13 @@ use crate::domain::finish::service::carry;
 use crate::domain::finish::types::{Arenas, Resolving};
 use crate::domain::hosted::service::table_of;
 use crate::domain::hosted::types::NumberedFiles;
-use crate::domain::layout::service::shaped;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::types::RowsFed;
-use crate::domain::spelling::service::check_spellings;
+use crate::domain::spelling::service::check_name_spellings;
 
 use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::failed;
+#[cfg(test)]
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
@@ -47,14 +48,21 @@ pub(crate) fn cross_rule(
         crossing.executor,
     )
     .map_err(|error| failed(&todo.id, &error))?;
-    cross_rule_with_inputs(crossing, &scope, todo, frontier, &[], cross)
+    cross_rule_with_inputs(
+        crossing,
+        &scope,
+        todo,
+        frontier.into_iter().map(FrontierInput::Decoded).collect(),
+        &[],
+        cross,
+    )
 }
 
 pub(crate) fn cross_rule_with_inputs(
     crossing: &CrossingInput<'_>,
     scope: &super::scope::ExecutionScope<'_>,
     todo: &Todo,
-    mut frontier: Vec<Frontier>,
+    mut frontier: Vec<FrontierInput>,
     refused: &[crate::domain::crossing::types::RefusedFrontier],
     cross: &mut Symbols,
 ) -> Result<Evaluated, RulesError> {
@@ -71,8 +79,25 @@ pub(crate) fn cross_rule_with_inputs(
         return Ok(Evaluated::default());
     };
     let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
-    check_spellings(
-        frontier.iter().map(|each| &each.table),
+    check_name_spellings(
+        frontier.iter().flat_map(
+            |each| -> Box<dyn Iterator<Item = ryo_relations::domain::relations::types::Name> + '_> {
+                match each {
+                    FrontierInput::Decoded(each) => {
+                        Box::new(each.table.cells.iter().filter_map(|value| {
+                            if let ryo_relations::domain::relations::types::Value::Name(name) =
+                                value
+                            {
+                                Some(*name)
+                            } else {
+                                None
+                            }
+                        }))
+                    }
+                    FrontierInput::Compact { spelling, .. } => Box::new(spelling.iter().copied()),
+                }
+            },
+        ),
         &Resolving {
             paths: crossing.paths,
             arenas: Arenas(crossing.arenas),
@@ -81,6 +106,13 @@ pub(crate) fn cross_rule_with_inputs(
         },
     )
     .map_err(|error| refuse(&error))?;
+    // Spelling occurrence metadata has served its eager invariant check. It is
+    // not retained alongside the compact source descriptors or decoded payloads.
+    for input in &mut frontier {
+        if let FrontierInput::Compact { spelling, .. } = input {
+            *spelling = Vec::new();
+        }
+    }
     // Findings are not decided over a relation read in part; rows of the query's own columns are the rows of what was read.
     let partials = match crossing.answering {
         crate::domain::render::types::Answering::Findings => partials_for(crossing, rule),
@@ -104,11 +136,48 @@ pub(crate) fn cross_rule_with_inputs(
             memo: &mut Vec::new(),
             scratch: &mut OperatorScratch::default(),
         };
-        shaped(plan, &mut frontier, &mut context).map_err(|error| refuse(&error))?;
+        let mut schemas = frontier
+            .iter()
+            .map(|each| match each {
+                FrontierInput::Decoded(each) => (each.input, each.table.kinds.clone()),
+                FrontierInput::Compact { input, table, .. } => (
+                    *input,
+                    crate::domain::table_words::service::compact_kinds(table).to_vec(),
+                ),
+            })
+            .collect::<Vec<_>>();
+        crate::domain::layout::service::shape_frontier_kinds(plan, &mut schemas, context.bindings)
+            .map_err(|error| refuse(&error))?;
+        for (each, (_, kinds)) in frontier.iter_mut().zip(schemas) {
+            match each {
+                FrontierInput::Decoded(each) => each.table.kinds = kinds,
+                FrontierInput::Compact { table, .. } => {
+                    crate::domain::table_words::service::shape_compact(table, &kinds)
+                        .map_err(|error| refuse(&error))?
+                }
+            }
+        }
         if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
-            let bytes =
-                crate::domain::recording::types::retention::value::RetainedBytes::inputs(&frontier);
-            tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_shape", owner = "decoded_inputs", objects = bytes.objects, decoded_live_bytes = bytes.cells_live, decoded_capacity_bytes = bytes.cells_capacity, metadata_capacity_bytes = bytes.metadata, payload_copied = false);
+            let bytes = frontier
+                .iter()
+                .filter_map(|each| {
+                    if let FrontierInput::Decoded(each) = each {
+                        Some(
+                            crate::domain::recording::types::retention::value::RetainedBytes::table(
+                                &each.table,
+                            ),
+                        )
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let live = bytes.iter().map(|bytes| bytes.cells_live).sum::<usize>();
+            let capacity = bytes
+                .iter()
+                .map(|bytes| bytes.cells_capacity)
+                .sum::<usize>();
+            tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_shape", owner = "admitted_frontiers", objects = frontier.len(), decoded_live_bytes = live, decoded_capacity_bytes = capacity, payload_copied = false);
         }
         let completion = scope
             .completion(

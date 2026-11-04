@@ -40,6 +40,8 @@ pub(crate) enum Rows<'a> {
     Tree(TreeRows<'a>),
     /// The rows of an earlier step.
     Computed(&'a Table),
+    /// Admitted immutable cross-file rows read without whole-population cell allocation.
+    Compact(&'a crate::domain::table_words::types::CompactTable),
 }
 
 /// A compact row view borrows only its generation's provider; its metadata has owned lifetime.

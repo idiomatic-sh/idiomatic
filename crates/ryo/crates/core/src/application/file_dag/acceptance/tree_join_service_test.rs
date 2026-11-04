@@ -24,8 +24,10 @@ use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 
-use crate::domain::tree_join::service::{source_column, tree_finding, tree_value};
-use ryo_derived::domain::contract::types::Finding;
+use crate::domain::tree_join::service::{source_column, tree_value};
+use ryo_derived::domain::contract::types::{
+    BuildOutcome, BuildWorkspace, DerivedInputs, DerivedView, Finding, NativeForm, ViewRequest,
+};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{
@@ -100,13 +102,36 @@ fn found(
     right_on: &[ColumnIndex],
     view: &[ColumnIndex],
 ) -> Option<Finding> {
-    let elements = tree();
-    let rows = TreeRows {
-        elements: &elements,
-        file: FileId(0),
-        form,
+    let semantics = crate::outbound::derived::factory::test_port();
+    let prepared = semantics.prepare(
+        ViewRequest::NativeLookup {
+            left_on: left_on.to_vec(),
+            right_on: right_on.to_vec(),
+            view: view.to_vec(),
+        },
+        vec![],
+    );
+    let form = match form {
+        TreeForm::Elements => NativeForm::Elements,
+        TreeForm::Edges => NativeForm::Edges,
     };
-    tree_finding(&rows, left_on, right_on, view)
+    let BuildOutcome::Built(payload) = semantics
+        .build(
+            &prepared,
+            DerivedInputs::Native(form),
+            &mut BuildWorkspace::default(),
+            None,
+        )
+        .expect("finite native lookup")
+    else {
+        return None;
+    };
+    let DerivedView::NativeLookup(finding) =
+        semantics.view(&prepared, &payload).expect("lookup view")
+    else {
+        panic!("native lookup family")
+    };
+    Some(*finding)
 }
 
 /// A join reads the elements of the tree on either side of it.

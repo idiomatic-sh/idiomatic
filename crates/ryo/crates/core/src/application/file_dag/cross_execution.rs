@@ -21,7 +21,7 @@ pub(crate) fn evaluate_cross_roots_with_executor(
     scope: &super::scope::ExecutionScope<'_>,
     rule: usize,
     plan: &Plan,
-    frontier: Vec<Frontier>,
+    frontier: Vec<crate::application::cross_file::types::FrontierInput>,
     refused: &[crate::domain::crossing::types::RefusedFrontier],
     observation_partials: &Partials,
     context: &mut OperatorContext<'_>,
@@ -60,20 +60,48 @@ pub(crate) fn evaluate_cross_roots_with_executor(
     // file producer again using project bindings.
     for fault in refused {
         if let Input::Step(step) = fault.input {
-            state
-                .provided
-                .insert(resolve(step.0 as usize)?, Err(fault.error.clone()));
+            state.provided.insert(
+                resolve(step.0 as usize)?,
+                super::types::ProvidedInput::Refused {
+                    input: fault.input,
+                    error: fault.error.clone(),
+                },
+            );
         }
     }
     let mut relation_tables = Vec::new();
     for input in frontier {
-        match input.input {
-            Input::Relation(relation) => relation_tables.push((relation, input.table)),
+        let each = match input {
+            crate::application::cross_file::types::FrontierInput::Compact {
+                input: Input::Step(step),
+                table,
+                ..
+            } => {
+                state.provided.insert(
+                    resolve(step.0 as usize)?,
+                    super::types::ProvidedInput::Compact {
+                        input: Input::Step(step),
+                        table: Arc::new(table),
+                    },
+                );
+                continue;
+            }
+            crate::application::cross_file::types::FrontierInput::Compact { .. } => {
+                return Err(OperatingError::WrongOperation);
+            }
+            crate::application::cross_file::types::FrontierInput::Decoded(each) => each,
+        };
+        match each.input {
+            Input::Relation(relation) => relation_tables.push((relation, each.table)),
             Input::Step(step) => {
-                let publication = scope.owner().computed(input.table)?;
-                state
-                    .provided
-                    .insert(resolve(step.0 as usize)?, Ok(publication));
+                let publication = scope.owner().computed(each.table)?;
+                state.provided.insert(
+                    resolve(step.0 as usize)?,
+                    super::types::ProvidedInput::Live {
+                        input: Input::Step(step),
+                        publication,
+                    },
+                );
             }
             Input::BoundObservation(binding) => {
                 let observations = graph.observations.as_ref().ok_or(OperatingError::NotRun)?;
@@ -83,11 +111,33 @@ pub(crate) fn evaluate_cross_roots_with_executor(
                     .position(|slot| slot.rule == rule && slot.input == binding)
                     .ok_or(OperatingError::NotRun)?;
                 let id = crate::domain::file_program::types::ObservationGraphInputId(at);
-                let publication = scope.owner().computed(input.table)?;
+                let publication = scope.owner().computed(each.table)?;
                 state.provided_observations.insert(id, Ok(publication));
             }
         }
     }
+    // Supplied file producers are leaves in this phase. Only actual emitted or
+    // observed roots own root edges; old file-frontier pins cannot retain them.
+    let mut roots = Vec::new();
+    for output in &plan.observations {
+        if output.scope == StepScope::CrossFile {
+            let Input::Step(step) = output.source else {
+                return Err(OperatingError::NotRun);
+            };
+            roots.push(resolve(step.0 as usize)?);
+        }
+    }
+    if plan
+        .steps
+        .get(plan.emit.step.0 as usize)
+        .is_some_and(|step| step.scope == StepScope::CrossFile)
+    {
+        roots.push(resolve(plan.emit.step.0 as usize)?);
+    }
+    state.remaining = super::activation::service::remaining_for(&graph, roots, |node| {
+        state.provided.contains_key(&node)
+    });
+    state.retire_unused_sources();
     let request_sources = hosted
         .into_iter()
         .map(|table| scope.owner().computed(table))
@@ -132,15 +182,22 @@ pub(crate) fn evaluate_cross_roots_with_executor(
     let mut emit = None;
     let mut emit_error = None;
     let mut demand = |step: usize| -> Result<Table, OperatingError> {
-        let publication = state.demand(resolve(step)?, &read, executor, context)?;
-        let rows = scope.owner().resolve(publication.as_ref(), &read)?;
-        let mut table = Table::default();
-        crate::domain::table_model::service::materialize(
-            &rows,
-            &mut table,
-            &mut context.scratch.row,
-        );
-        Ok(table)
+        let id = resolve(step)?;
+        let result = (|| {
+            let publication = state.demand(id, &read, executor, context)?;
+            let rows = scope.owner().resolve(publication.as_ref(), &read)?;
+            let mut table = Table::default();
+            crate::domain::table_model::service::materialize(
+                &rows,
+                &mut table,
+                &mut context.scratch.row,
+            );
+            Ok(table)
+        })();
+        // Root delivery consumed this logical reader, even for a deferred error.
+        state.borrow_mut().consumed(id);
+        state.borrow_mut().observe_provided("provided_after_root");
+        result
     };
     // Root order is orchestration only: the common owner schedules all actual
     // dependencies and preserves each independent root's original failure.
@@ -213,6 +270,7 @@ pub(crate) fn evaluate_cross_roots_with_executor(
 /// Legacy diagnostic-only caller of the same execution pass. A per-file Emit is not a cross result.
 #[cfg(test)]
 pub(crate) fn evaluate_cross_with_executor(
+    scope: &super::scope::ExecutionScope<'_>,
     plan: &Plan,
     frontier: Vec<Frontier>,
     partials: &Partials,
@@ -220,19 +278,27 @@ pub(crate) fn evaluate_cross_with_executor(
     fed: &mut [RowsFed],
     hosted: &[Table],
     executor: &super::executor::ScopedExecutor<'_>,
-    operators: &[std::sync::Arc<OperatorContract>],
+    _operators: &[std::sync::Arc<OperatorContract>],
 ) -> Result<Table, OperatingError> {
-    let roots = evaluate_cross_roots_with_executor(
-        plan,
-        frontier,
-        &[],
+    let completion = super::completion::CompletionPolicy::project(
+        crate::domain::coverage::types::RuleIndex(0),
         partials,
+    );
+    let roots = evaluate_cross_roots_with_executor(
+        &completion,
+        scope,
+        0,
+        plan,
+        frontier
+            .into_iter()
+            .map(crate::application::cross_file::types::FrontierInput::Decoded)
+            .collect(),
+        &[],
         partials,
         context,
         fed,
-        hosted,
+        hosted.to_vec(),
         executor,
-        operators,
     )?;
     if let Some(error) = roots.emit_error {
         return Err(error);
@@ -265,8 +331,12 @@ pub(crate) fn compute(
         &schemas,
         context.bindings,
     )?;
-    crate::application::file_dag::execution::CommonOperatorEngine::fixture()
-        .collect(&contract, inputs, context, out)
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::fixture();
+    let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
+        false,
+        engine.derived.clone(),
+    ));
+    engine.collect(&owner, &contract, inputs, context, out)
 }
 
 #[cfg(test)]
@@ -285,14 +355,26 @@ pub(crate) fn evaluate_cross(
         &[],
         crate::outbound::derived::factory::test_port(),
     )?;
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        std::slice::from_ref(plan),
+        &request,
+    ));
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::fixture();
+    let scope = super::scope::ExecutionScope::new(
+        graph,
+        super::scope::ScopePhase::Project,
+        false,
+        &engine,
+    )?;
     evaluate_cross_with_executor(
+        &scope,
         plan,
         frontier,
         partials,
         context,
         fed,
         hosted,
-        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
+        scope.executor(),
         &request.rules[0],
     )
 }

@@ -26,6 +26,8 @@ use crate::domain::walks::service::axis;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
+#[cfg(test)]
+pub(crate) use set_rows::{antijoin, union};
 
 /// The step `input` reads, when it reads one: the rows of a relation are made by no step.
 fn made_of(input: Input) -> Option<StepId> {

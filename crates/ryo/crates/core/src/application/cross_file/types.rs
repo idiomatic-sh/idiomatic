@@ -24,6 +24,17 @@ pub(crate) struct ObservationRun<'a> {
 
 /// Admission preserves independent input successes and explicit refusal causes.
 pub(crate) struct PreparedFrontiers {
-    pub rows: Vec<crate::domain::table_model::types::Frontier>,
+    pub rows: Vec<FrontierInput>,
     pub refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
+}
+
+/// Admitted phase inputs. Compact sources have schemas/name mappings but no
+/// decoded cell allocation; the same graph owner materializes them on demand.
+pub(crate) enum FrontierInput {
+    Decoded(crate::domain::table_model::types::Frontier),
+    Compact {
+        input: ryo_values::domain::plan_parts::types::Input,
+        table: crate::domain::table_words::types::CompactTable,
+        spelling: Vec<ryo_relations::domain::relations::types::Name>,
+    },
 }

@@ -21,24 +21,7 @@ pub(crate) fn evaluate_file<'f>(
     classes: &[crate::domain::positions::types::Slots],
 ) -> Result<(), OperatingError> {
     evaluate_file_with_dag(
-        plan, relations, tree, context, pool, prepared, classes, None, 0, None,
-    )
-}
-
-#[cfg(test)]
-pub(crate) fn evaluate_file_with_graph<'f>(
-    plan: &Plan,
-    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
-    tree: Option<TreeRows<'f>>,
-    context: &mut OperatorContext<'_>,
-    pool: &mut Pool,
-    prepared: &mut PreparedPool,
-    classes: &[crate::domain::positions::types::Slots],
-
-    rule: usize,
-) -> Result<(), OperatingError> {
-    evaluate_file_with_fixture::<true>(
-        plan, relations, tree, context, pool, prepared, classes, rule, None,
+        plan, relations, tree, context, pool, prepared, classes, 0, None,
     )
 }
 
@@ -55,26 +38,35 @@ pub(crate) fn evaluate_file_with_dag<'f>(
     rule: usize,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
 ) -> Result<(), OperatingError> {
-    evaluate_file_with_fixture::<false>(
+    evaluate_file_with_fixture(
         plan, relations, tree, context, pool, prepared, classes, rule, file_dag,
     )
 }
 
-/// The old retained-cut schedule is an explicit test oracle. Ordinary fixture
-/// calls instantiate the same no-legacy evaluator as production.
+/// Test fixtures use the same required graph scheduler as production.
 #[cfg(test)]
-fn evaluate_file_with_fixture<'f, const LEGACY: bool>(
+fn evaluate_file_with_fixture<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     tree: Option<TreeRows<'f>>,
     context: &mut OperatorContext<'_>,
     pool: &mut Pool,
     prepared: &mut PreparedPool,
-    classes: &[crate::domain::positions::types::Slots],
+    _classes: &[crate::domain::positions::types::Slots],
 
     rule: usize,
     file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
 ) -> Result<(), OperatingError> {
+    let prior_owner = file_dag.map(|dag| dag.relation_owner());
+    let semantic = prior_owner
+        .as_ref()
+        .map_or_else(crate::outbound::derived::factory::test_port, |owner| {
+            owner.derived.semantic_port()
+        });
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::new(
+        crate::outbound::operators::factory::test_port(),
+        semantic.clone(),
+    );
     let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
         std::slice::from_ref(plan),
         &[context.bindings.to_vec()],
@@ -85,20 +77,45 @@ fn evaluate_file_with_fixture<'f, const LEGACY: bool>(
                 |view| view.kinds,
             )
         },
-        crate::outbound::derived::factory::test_port(),
+        semantic,
     )?;
-    evaluate_file_inner::<LEGACY>(
+    let fixture = if file_dag.is_none() {
+        let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+            std::slice::from_ref(plan),
+            &request,
+        ));
+        Some(crate::application::file_dag::testing::FileScope::new(
+            graph,
+            &engine,
+            |_| true,
+            &[],
+            &[],
+        )?)
+    } else {
+        None
+    };
+    let dag = match file_dag {
+        Some(dag) => dag,
+        None => &fixture.as_ref().expect("fixture created").execution,
+    };
+    let scoped = match (&fixture, prior_owner) {
+        (Some(fixture), _) => fixture.scope.executor().clone(),
+        (None, Some(owner)) => {
+            crate::application::file_dag::executor::ScopedExecutor::new(&engine, owner)?
+        }
+        (None, None) => unreachable!("provided DAG has an owner"),
+    };
+    evaluate_file_inner(
         plan,
         relations,
         tree,
         context,
         pool,
         prepared,
-        classes,
         rule,
-        file_dag,
-        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-        &request.rules[0],
+        dag,
+        &scoped,
+        RuleRoots::EmitAndObservations,
     )
 }
 

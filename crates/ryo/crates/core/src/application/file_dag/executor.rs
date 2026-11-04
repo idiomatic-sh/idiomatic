@@ -176,10 +176,6 @@ impl<'a> ScopedExecutor<'a> {
     pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
     }
-    #[cfg(test)]
-    pub(crate) fn derived_port(&self) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        self.owner.derived.semantic_port()
-    }
     pub(crate) fn stream(
         &self,
         contract: &OperatorContract,

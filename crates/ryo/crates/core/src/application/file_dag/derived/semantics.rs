@@ -46,7 +46,7 @@ impl RowCells for Rows<'_, '_> {
                 columns,
             }),
             BorrowedRows::Computed(table) => Some(semantic::BulkRows::Computed(table)),
-            BorrowedRows::Tree(_) => None,
+            BorrowedRows::Tree(_) | BorrowedRows::Compact(_) => None,
         }
     }
     fn kinds(&self) -> &[CellKind] {

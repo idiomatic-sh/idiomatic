@@ -129,6 +129,15 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         let (mut symbols, mut scratch, mut memo) =
             (Symbols::default(), OperatorScratch::default(), vec![]);
         let owner = dag.relation_owner();
+        let engine = crate::application::file_dag::execution::CommonOperatorEngine::new(
+            crate::outbound::operators::factory::test_port(),
+            owner.derived.semantic_port(),
+        );
+        let executor = crate::application::file_dag::executor::ScopedExecutor::new(
+            &engine,
+            std::rc::Rc::clone(&owner),
+        )
+        .unwrap();
         owner.derived.prepare_file(
             true,
             &[Relation::LanguageTarget],
@@ -154,14 +163,7 @@ fn different_rule_consumers_share_the_canonical_computed_producer_index() {
         let mut outputs = Vec::<Table>::new();
         for (rule, root) in roots.into_iter().enumerate() {
             dag.begin_rule(rule).unwrap();
-            let result = dag
-                .demand(
-                    root,
-                    &read,
-                    &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-                    &mut context,
-                )
-                .unwrap();
+            let result = dag.demand(root, &read, &executor, &mut context).unwrap();
             let rows = dag
                 .relation_owner()
                 .resolve(result.as_ref(), &read)

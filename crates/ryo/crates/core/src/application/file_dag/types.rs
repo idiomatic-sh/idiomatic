@@ -24,10 +24,12 @@ pub(crate) struct FileDagExecution {
     pub(super) phase: ryo_values::domain::plans::types::StepScope,
     /// Phase-boundary publications/failures belong to this same owner. A
     /// missing producer is never evaluated in the consumer's phase/context.
-    pub(super) provided: std::collections::HashMap<
-        crate::domain::file_program::types::NodeId,
-        Result<super::relations::PublishedInput, crate::domain::operating::errors::OperatingError>,
-    >,
+    pub(super) provided:
+        std::collections::HashMap<crate::domain::file_program::types::NodeId, ProvidedInput>,
+    pub(super) provided_releases: u64,
+    pub(super) provided_peak_payload: usize,
+    pub(super) provided_allocations:
+        Vec<(std::sync::Weak<super::relations::RelationResult>, usize)>,
     pub(super) provided_observations: std::collections::HashMap<
         crate::domain::file_program::types::ObservationGraphInputId,
         Result<super::relations::PublishedInput, crate::domain::operating::errors::OperatingError>,
@@ -66,4 +68,27 @@ pub(crate) struct FileDagExecution {
     pub peak_bytes: usize,
     pub limit: usize,
     pub unretained: u64,
+}
+
+/// Supplied phase producers never fall back to execution in another phase.
+#[derive(Clone)]
+pub(super) enum ProvidedInput {
+    Compact {
+        input: ryo_values::domain::plan_parts::types::Input,
+        table: std::sync::Arc<crate::domain::table_words::types::CompactTable>,
+    },
+    Live {
+        input: ryo_values::domain::plan_parts::types::Input,
+        publication: super::relations::PublishedInput,
+    },
+    Refused {
+        input: ryo_values::domain::plan_parts::types::Input,
+        error: crate::domain::operating::errors::OperatingError,
+    },
+    Materializing {
+        input: ryo_values::domain::plan_parts::types::Input,
+    },
+    Retired {
+        input: ryo_values::domain::plan_parts::types::Input,
+    },
 }

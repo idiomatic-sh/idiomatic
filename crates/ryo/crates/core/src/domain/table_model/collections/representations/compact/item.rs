@@ -1,0 +1,77 @@
+//! Physical row semantics; policy and allocation ownership remain in the engine.
+use super::super::{interface::RepresentationsItem, types::*};
+use crate::domain::operating::errors::OperatingError;
+use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+pub(crate) struct CompactItem;
+impl RepresentationsItem for CompactItem {
+    fn bulk<'f>(&self, input: RepresentationInput<'f>) -> Result<BulkAccess<'f>, OperatingError> {
+        if matches!(input, RepresentationInput::Compact(_)) {
+            Ok(input)
+        } else {
+            Err(OperatingError::WrongOperation)
+        }
+    }
+    fn prepare<'f>(
+        &self,
+        input: RepresentationInput<'f>,
+    ) -> Result<RelationContract<'f>, OperatingError> {
+        let RepresentationInput::Compact(table) = input else {
+            return Err(OperatingError::WrongOperation);
+        };
+        Ok(RelationContract {
+            input,
+            kind: RepresentationKind::Compact,
+            kinds: crate::domain::table_words::service::compact_kinds(table),
+            rows: crate::domain::table_words::service::compact_rows(table),
+            metadata: Ok(()),
+        })
+    }
+    fn inspect(&self, contract: &RelationContract<'_>) -> Result<PhysicalShape, OperatingError> {
+        let RepresentationInput::Compact(table) = contract.input else {
+            return Err(OperatingError::WrongOperation);
+        };
+        if contract.kinds != contract.input.kinds() {
+            return Err(OperatingError::ShapeMismatch);
+        }
+        if !crate::domain::table_words::service::compact_rectangular(table) {
+            return Err(OperatingError::ShapeMismatch);
+        }
+        Ok(PhysicalShape::Complete)
+    }
+    fn cell(
+        &self,
+        input: RepresentationInput<'_>,
+        row: RowIndex,
+        column: ColumnIndex,
+    ) -> Result<CellRead, OperatingError> {
+        let RepresentationInput::Compact(table) = input else {
+            return Err(OperatingError::WrongOperation);
+        };
+        if row.0 >= crate::domain::table_words::service::compact_rows(table)
+            || column.0 as usize >= crate::domain::table_words::service::compact_kinds(table).len()
+        {
+            return Ok(CellRead::MissingPhysical);
+        }
+        crate::domain::table_words::service::compact_cell(table, row.0, column.0 as usize)
+            .map(CellRead::Value)
+            .ok_or(OperatingError::ShapeMismatch)
+    }
+    fn row<'r>(
+        &self,
+        input: RepresentationInput<'r>,
+        row: RowIndex,
+        _decode: &'r mut [Value],
+    ) -> Result<RowRead<'r>, OperatingError> {
+        let RepresentationInput::Compact(table) = input else {
+            return Err(OperatingError::WrongOperation);
+        };
+        if row.0 >= crate::domain::table_words::service::compact_rows(table) {
+            return Ok(RowRead::MissingPhysical);
+        }
+        crate::domain::table_words::service::compact_read(table, row.0, _decode)
+            .map(RowRead::Decoded)
+            .ok_or(OperatingError::ShapeMismatch)
+    }
+}
+use ryo_values::domain::rows::types::RowIndex;

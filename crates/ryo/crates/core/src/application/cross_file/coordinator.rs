@@ -18,14 +18,12 @@ use crate::domain::{
     },
     coverage::types::RuleIndex,
     file_program::types::ObservationRequest,
-    frontiers::service::{project_input, project_relation},
     operating::errors::OperatingError,
     reading::service::frontier_bucket,
-    table_model::types::Frontier,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
-    plan_parts::types::{Input, InputNumber},
+    plan_parts::types::Input,
     plans::types::StepScope,
     stored_facts::types::ArenaBytes,
 };
@@ -194,65 +192,14 @@ fn prepare_frontiers(
         .first_bucket
         .get(todo.rule.0)
         .ok_or_else(|| failed(&OperatingError::NotRun))?;
-    let mut prepared = super::types::PreparedFrontiers {
-        rows: Vec::new(),
-        refused: Vec::new(),
-    };
-    for (place, input) in plan.frontier.iter().enumerate() {
-        if !ready
-            .get(place)
-            .copied()
-            .ok_or_else(|| failed(&OperatingError::NotRun))?
-        {
-            prepared
-                .refused
-                .push(crate::domain::crossing::types::RefusedFrontier {
-                    input: *input,
-                    error: OperatingError::ObservationIncomplete {
-                        reason: "a producer feeding this retained frontier is unavailable".into(),
-                    },
-                });
-            continue;
-        }
-        if let Input::BoundObservation(id) = input {
-            if plan
-                .observation_inputs
-                .get(id.0 as usize)
-                .is_some_and(|schema| schema.scope == StepScope::CrossFile)
-            {
-                continue;
-            }
-        }
-        if let Some(relation) = project_relation(*input) {
-            let rows = run.project.rows(relation).map_err(|error| failed(&error))?;
-            prepared
-                .rows
-                .push(project_input(rows, *input, run.project_symbols, symbols));
-        } else {
-            let words = run
-                .facts
-                .kept(frontier_bucket(first, InputNumber(place)))
-                .map_err(|error| failed(&error))?;
-            match crate::domain::table_words::service::decode_complete(
-                &words.0,
-                ryo_language::domain::symbols::service::places_mut(symbols),
-            ) {
-                Ok(table) => prepared.rows.push(Frontier {
-                    input: *input,
-                    table,
-                }),
-                Err(error) => {
-                    prepared
-                        .refused
-                        .push(crate::domain::crossing::types::RefusedFrontier {
-                            input: *input,
-                            error: OperatingError::ObservationIncomplete {
-                                reason: error.to_string(),
-                            },
-                        })
-                }
-            }
-        }
-    }
-    Ok(prepared)
+    super::frontiers::prepare(
+        plan,
+        first,
+        run.facts,
+        run.project,
+        run.project_symbols,
+        symbols,
+        super::frontiers::PreparationPolicy::Observations { ready },
+    )
+    .map_err(|error| failed(&error))
 }

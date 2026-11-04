@@ -47,7 +47,12 @@ fn collect(operation: &Operation, tables: &[Table]) -> Result<Table, OperatingEr
     };
     let inputs = tables.iter().map(Rows::Computed).collect::<Vec<_>>();
     let mut output = Table::default();
-    CommonOperatorEngine::fixture().collect(&contract, &inputs, &mut context, &mut output)?;
+    let engine = CommonOperatorEngine::fixture();
+    let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
+        false,
+        engine.derived.clone(),
+    ));
+    engine.collect(&owner, &contract, &inputs, &mut context, &mut output)?;
     Ok(output)
 }
 fn project(column: u32) -> Operation {

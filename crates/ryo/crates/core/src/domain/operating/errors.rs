@@ -6,6 +6,10 @@ use ryo_language::domain::semantics::types::RenderError;
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum OperatingError {
+    /// A supplied producer has no future declared consumer in this phase.
+    #[error("supplied frontier {input:?} was retired after its last declared consumer")]
+    RetiredFrontier { input: ryo_values::domain::plan_parts::types::Input },
+
     /// An explicit bound producer did not publish a complete result in this generation.
     #[error("named producer is incomplete: {reason}")]
     ObservationIncomplete { reason: String },

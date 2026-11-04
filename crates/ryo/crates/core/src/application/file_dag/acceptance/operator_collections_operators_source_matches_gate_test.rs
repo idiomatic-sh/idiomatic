@@ -1,5 +1,5 @@
 //! Actual common-engine gates must precede demand-driven matcher compilation.
-use super::{Held, span};
+use super::{held, span};
 use crate::application::file_dag::testing::TestOperator as _;
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operating::{
@@ -75,7 +75,7 @@ fn run(source_span: Option<Span>, line: i64, stream: bool) -> (Result<(), Operat
     let result = if stream {
         SourceMatchesItem.stream(
             &operation,
-            &mut Held(&table),
+            &mut held(&table),
             &mut context,
             &mut Room::default(),
             &mut Pipe(|_: &mut OperatorContext<'_>, _: &[Value]| Ok(())),

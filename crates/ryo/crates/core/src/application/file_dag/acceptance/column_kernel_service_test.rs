@@ -2,7 +2,7 @@
 
 use crate::application::file_dag::derived::selection::prepare_request;
 use crate::application::file_dag::pipeline::service::evaluate_file_with_executor;
-use crate::domain::column_kernel::types::KernelStrategy;
+use crate::domain::column_kernel::types::{KernelCounts, KernelStrategy};
 use crate::domain::coverage::types::{Lacking, Partial};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
@@ -115,7 +115,7 @@ fn run<'f>(
     symbols: &mut Symbols,
     partial: &[Partial],
     strategy: KernelStrategy,
-) -> Result<(Pool, PreparedPool, (u64, u64)), OperatingError> {
+) -> Result<(Pool, KernelCounts, (u64, u64)), OperatingError> {
     run_with_port(
         plan,
         read,
@@ -132,13 +132,14 @@ fn run_with_port<'f>(
     partial: &[Partial],
     strategy: KernelStrategy,
     port: &dyn crate::outbound::operators::interface::OperatorsPort,
-) -> Result<(Pool, PreparedPool, (u64, u64)), OperatingError> {
+) -> Result<(Pool, KernelCounts, (u64, u64)), OperatingError> {
     let mut pool = pool_for(std::slice::from_ref(plan));
     pool.partial = partial.to_vec();
     let mut prepared = PreparedPool {
         kernel_strategy: strategy,
         ..PreparedPool::default()
     };
+    let derived = crate::outbound::derived::factory::test_port();
     let request = crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
         std::slice::from_ref(plan),
         &[vec![]],
@@ -149,13 +150,10 @@ fn run_with_port<'f>(
                 |view| view.kinds,
             )
         },
-        crate::outbound::derived::factory::test_port(),
+        std::sync::Arc::clone(&derived),
     )?;
     prepare_request(&mut prepared, &request);
-    let engine = crate::application::file_dag::execution::CommonOperatorEngine::new(
-        port,
-        crate::outbound::derived::factory::test_port(),
-    );
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::new(port, derived);
     let frame = crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
         std::slice::from_ref(plan),
         &request,
@@ -192,7 +190,18 @@ fn run_with_port<'f>(
     );
     let reads = take_read_row_counts();
     result?;
-    Ok((pool, prepared, reads))
+    let execution = frame.execution.borrow();
+    let mut counts = execution.kernel_counts;
+    // The old request-pool counter is no longer written. Count actual
+    // compiled physical regions in the request graph instead.
+    counts.compiled_chains = execution
+        .graph
+        .nodes
+        .iter()
+        .flat_map(|node| &node.regions)
+        .filter(|region| region.column.is_some())
+        .count() as u64;
+    Ok((pool, counts, reads))
 }
 
 #[test]
@@ -271,7 +280,7 @@ fn selected_stored_chain_matches_executor_and_reduces_full_row_reads() -> Result
             KernelStrategy::Existing => Refuses::default(),
             KernelStrategy::Column => {
                 assert!(observed.column_calls() > 0);
-                assert!(measured.kernel_counts.eligible_chains > 0);
+                assert!(measured.eligible_chains > 0);
                 Refuses::column_refusal()
             }
         };
@@ -301,11 +310,11 @@ fn selected_stored_chain_matches_executor_and_reduces_full_row_reads() -> Result
         candidate.steps[3].count.0, 64,
         "stable first representative of nine duplicate hits"
     );
-    assert_eq!(prepared.kernel_counts.compiled_chains, 1);
-    assert_eq!(prepared.kernel_counts.eligible_chains, 1);
-    assert_eq!(prepared.kernel_counts.covered_rows, 576);
-    assert_eq!(prepared.kernel_counts.joined_hits, 640);
-    assert!(prepared.kernel_counts.decoded_cells > 0);
+    assert_eq!(prepared.compiled_chains, 1);
+    assert_eq!(prepared.eligible_chains, 1);
+    assert_eq!(prepared.covered_rows, 576);
+    assert_eq!(prepared.joined_hits, 640);
+    assert!(prepared.decoded_cells > 0);
     assert!(
         old_reads.0 > 0 && old_reads.1 > 0,
         "independent executor was exercised"
@@ -369,7 +378,7 @@ fn no_hit_and_ragged_right_keep_exact_fallback() -> Result<(), OperatingError> {
     assert_eq!(baseline.steps[3], candidate.steps[3]);
     assert_eq!(baseline.frontier, candidate.frontier);
     assert_eq!(candidate.steps[3].count.0, 0);
-    assert_eq!(prepared.kernel_counts.eligible_chains, 1);
+    assert_eq!(prepared.eligible_chains, 1);
 
     let ragged_edges = [
         full_edges[0].clone(),
@@ -391,7 +400,7 @@ fn no_hit_and_ragged_right_keep_exact_fallback() -> Result<(), OperatingError> {
     assert_eq!(baseline.steps[3], candidate.steps[3]);
     assert_eq!(baseline.frontier, candidate.frontier);
     assert_eq!(
-        prepared.kernel_counts.eligible_chains, 0,
+        prepared.eligible_chains, 0,
         "ragged provider declines kernel"
     );
     Ok(())
@@ -458,6 +467,6 @@ fn missing_provider_and_partial_file_keep_executor_failure_boundary() -> Result<
     )?;
     assert_eq!(candidate.steps[3], baseline.steps[3]);
     assert_eq!(candidate.frontier, baseline.frontier);
-    assert_eq!(prepared.kernel_counts.eligible_chains, 0);
+    assert_eq!(prepared.eligible_chains, 0);
     Ok(())
 }
