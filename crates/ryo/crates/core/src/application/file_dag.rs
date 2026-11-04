@@ -57,4 +57,4 @@ mod ordered_existence;
 pub(in crate::application) mod completion;
 pub(in crate::application) mod scope;
 
-mod program;
+pub(crate) mod program;
