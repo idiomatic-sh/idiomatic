@@ -100,6 +100,7 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
             ..
         }) => &ELEMENT_KINDS,
         Rows::Computed(table) => &table.kinds,
+        Rows::Compact(table) => crate::domain::table_words::service::compact_kinds(table),
     }
 }
 
@@ -110,6 +111,7 @@ pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
         Rows::Selected(view) => RowCount(view.selection.rows.len()),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
+        Rows::Compact(table) => RowCount(crate::domain::table_words::service::compact_rows(table)),
         Rows::Tree(tree) => RowCount(
             real_count(tree.elements)
                 .0
@@ -294,7 +296,7 @@ pub(crate) fn complete_for_reuse(
                 && physical
                 && count <= u32::MAX as usize
         }
-        Rows::Tree(_) | Rows::Computed(_) | Rows::Selected(_) => false,
+        Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) | Rows::Selected(_) => false,
     }
 }
 

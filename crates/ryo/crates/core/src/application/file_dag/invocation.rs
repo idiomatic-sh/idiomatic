@@ -116,8 +116,18 @@ impl<'f> InvocationResources<'f> {
         let admitted = admission.inputs(inputs);
         // Empty contributing domain gates retain their ordinary typed resource
         // shortcut; no traversal request or memo is made for them.
-        let empty_domain=contract.collected_empty.iter().any(|gate|gate.input>0 && gate.representation==crate::domain::operator::contract::types::EmptyRepresentation::Computed &&
-          originals.get(gate.input).is_some_and(|rows|matches!(rows,crate::domain::table_model::types::Rows::Computed(table) if table.count.0==0)));
+        let empty_domain = contract.collected_empty.iter().any(|gate| {
+            gate.input > 0
+                && gate.representation
+                    == crate::domain::operator::contract::types::EmptyRepresentation::Computed
+                && originals.get(gate.input).is_some_and(|rows| {
+                    matches!(
+                        rows,
+                        crate::domain::table_model::types::Rows::Computed(_)
+                            | crate::domain::table_model::types::Rows::Compact(_)
+                    ) && crate::domain::table_model::service::count_of(rows).0 == 0
+                })
+        });
         if !empty_domain {
             resources.cached_graph = admission
                 .owner()

@@ -255,6 +255,7 @@ pub(crate) fn admit_compact(
     let mut names = Vec::new();
     let mut count = 0_usize;
     let mut total_cells = 0_usize;
+    let mut row_offsets = Vec::new();
     while let Some(Bits(columns)) = cursor.next() {
         let Some(Bits(rows)) = cursor.next() else {
             complete = false;
@@ -262,6 +263,7 @@ pub(crate) fn admit_compact(
         };
         let kept = places.len();
         let names_before = names.len();
+        let offsets_before = row_offsets.len();
         let had_kinds = !kinds.is_empty();
         let mut readable = true;
         for column in 0..columns {
@@ -295,7 +297,10 @@ pub(crate) fn admit_compact(
             readable = false;
         }
         if readable {
-            for _ in 0..cells.unwrap_or(0) {
+            for cell in 0..cells.unwrap_or(0) {
+                if !kinds.is_empty() && (total_cells + cell) % kinds.len() == 0 {
+                    row_offsets.push(cursor.offset);
+                }
                 let Some(value) = decode_value(&mut cursor) else {
                     readable = false;
                     break;
@@ -328,6 +333,7 @@ pub(crate) fn admit_compact(
             complete = false;
             places.truncate(kept);
             names.truncate(names_before);
+            row_offsets.truncate(offsets_before);
             if !had_kinds {
                 kinds.clear();
             }
@@ -353,6 +359,7 @@ pub(crate) fn admit_compact(
             frames,
             rows: count,
             cells: total_cells,
+            row_offsets,
         },
         names,
     ))
@@ -360,6 +367,7 @@ pub(crate) fn admit_compact(
 
 /// Decode only when the shared invocation owner demands this admitted source.
 /// Offset/name admission is immutable; no source-symbol mutation or remap repeats.
+#[cfg(test)]
 pub(crate) fn materialize_compact(
     input: &CompactTable,
 ) -> Result<Table, super::errors::WordsDecodeError> {
@@ -434,4 +442,96 @@ pub(crate) fn shape_compact(
         input.kinds.extend_from_slice(kinds);
     }
     Ok(())
+}
+
+/// Read one admitted physical row without allocating a whole decoded population.
+/// Permissive decoding historically concatenates self-tagged cells even across
+/// frames with different widths. Preserve that exact flat-row interpretation.
+fn compact_values(
+    input: &CompactTable,
+    row: usize,
+    count: usize,
+    mut emit: impl FnMut(usize, Value),
+) -> Option<()> {
+    if row >= input.rows || count > input.kinds.len() {
+        return None;
+    }
+    if count == 0 {
+        return Some(());
+    }
+    let offset = *input.row_offsets.get(row)?;
+    let mut frame_at = input
+        .frames
+        .partition_point(|frame| frame.bytes.start <= offset)
+        .checked_sub(1)?;
+    let mut cursor = CompactCursor {
+        bytes: &input.words.0.0,
+        offset,
+    };
+    for column in 0..count {
+        while cursor.offset == input.frames.get(frame_at)?.bytes.end {
+            frame_at += 1;
+            cursor.offset = input.frames.get(frame_at)?.bytes.start;
+        }
+        let frame = input.frames.get(frame_at)?;
+        let value = decode_value(&mut cursor)?;
+        if cursor.offset > frame.bytes.end {
+            return None;
+        }
+        emit(column, rebased(value, frame.base));
+    }
+    Some(())
+}
+pub(crate) fn compact_read<'a>(
+    input: &CompactTable,
+    row: usize,
+    scratch: &'a mut [Value],
+) -> Option<&'a [Value]> {
+    if scratch.len() < input.kinds.len() {
+        return None;
+    }
+    compact_values(input, row, input.kinds.len(), |column, value| {
+        scratch[column] = value
+    })?;
+    Some(&scratch[..input.kinds.len()])
+}
+pub(crate) fn compact_cell(input: &CompactTable, row: usize, column: usize) -> Option<Value> {
+    if column >= input.kinds.len() {
+        return None;
+    }
+    let mut found = None;
+    compact_values(input, row, column + 1, |_, value| found = Some(value))?;
+    found
+}
+/// Admission validated every encoded cell once; this is a metadata-only shape check.
+pub(crate) fn compact_rectangular(input: &CompactTable) -> bool {
+    input.rows.checked_mul(input.kinds.len()) == Some(input.cells)
+        && input.frames.iter().all(|frame| {
+            frame.bytes.start <= frame.bytes.end && frame.bytes.end <= input.words.0.0.len()
+        })
+        && input
+            .frames
+            .iter()
+            .try_fold(0usize, |sum, frame| sum.checked_add(frame.cells))
+            == Some(input.cells)
+        && (input.kinds.is_empty() || input.row_offsets.len() == input.rows)
+}
+pub(crate) fn compact_backing(
+    input: &CompactTable,
+) -> &std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords> {
+    &input.words
+}
+pub(crate) fn compact_metadata_bytes(input: &CompactTable) -> usize {
+    size_of::<CompactTable>()
+        + 2 * size_of::<usize>()
+        + input.frames.capacity() * size_of::<CompactFrame>()
+        + input.kinds.capacity() * size_of::<ryo_relations::domain::relations::types::CellKind>()
+        + input.row_offsets.capacity() * size_of::<usize>()
+}
+
+pub(crate) fn compact_storage(input: &CompactTable) -> [(usize, usize); 2] {
+    [
+        (input.words.0.0.as_ptr() as usize, input.words.0.0.len()),
+        (input.row_offsets.as_ptr() as usize, input.row_offsets.len()),
+    ]
 }

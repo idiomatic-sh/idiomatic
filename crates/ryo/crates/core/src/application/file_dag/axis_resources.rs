@@ -44,7 +44,10 @@ pub(crate) fn classify<'f>(
         direction,
         ..
     } = program;
-    if matches!(domain, BorrowedRows::Computed(_)) && domain.count() == 0 && output.is_empty() {
+    if matches!(domain, BorrowedRows::Computed(_) | BorrowedRows::Compact(_))
+        && domain.count() == 0
+        && output.is_empty()
+    {
         return Ok(AxisMode::Empty);
     }
     if let BorrowedRows::Tree(tree) = edges {

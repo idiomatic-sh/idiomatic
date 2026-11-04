@@ -115,6 +115,10 @@ pub(crate) fn layout_of<'f>(
                 }),
                 tree: Some(tree.form),
             },
+            Rows::Compact(table) => InputSchema {
+                kinds: crate::domain::table_words::service::compact_kinds(table),
+                tree: None,
+            },
             Rows::Selected(_) => return Err(OperatingError::WrongOperation),
         })
     };

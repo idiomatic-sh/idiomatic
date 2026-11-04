@@ -123,9 +123,8 @@ impl FileDagExecution {
             graph,
             phase: ryo_values::domain::plans::types::StepScope::PerFile,
             provided: std::collections::HashMap::new(),
-            provided_decodes: 0,
             provided_releases: 0,
-            provided_peak_cells: 0,
+            provided_peak_payload: 0,
             provided_allocations: Vec::new(),
             provided_observations: std::collections::HashMap::new(),
             hosted: std::collections::HashMap::new(),
@@ -499,21 +498,24 @@ impl FileDagExecution {
                 }
             }
         };
-        let decoded = crate::domain::table_words::service::materialize_compact(&table)
-            .map_err(|_| OperatingError::ShapeMismatch)
-            .and_then(|table| relations.computed(table));
+        let decoded = relations.compact(Arc::clone(&table));
         let mut state = scope.state_mut();
         match decoded {
             Ok(publication) => {
-                state.provided_decodes += 1;
                 if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE)
                 {
-                    let cells = crate::domain::table_words::service::compact_cells(&table)
-                        * size_of::<Value>();
+                    let words = crate::domain::table_words::service::compact_backing(&table);
+                    let cells = words.0.0.capacity()
+                        + crate::domain::table_words::service::compact_metadata_bytes(&table);
+                    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_publication", input=?input, node=id.0,
+                        rows=crate::domain::table_words::service::compact_rows(&table), kinds=?crate::domain::table_words::service::compact_kinds(&table),
+                        packed_bytes=words.0.0.len(), metadata_bytes=crate::domain::table_words::service::compact_metadata_bytes(&table),
+                        avoided_value_bytes=crate::domain::table_words::service::compact_cells(&table)*size_of::<ryo_relations::domain::relations::types::Value>());
+
                     state
                         .provided_allocations
                         .push((Arc::downgrade(publication.record()), cells));
-                    state.observe_provided("provided_acquire");
+                    state.observe_provided("provided_compact_acquire");
                 }
                 state.provided.insert(
                     id,
@@ -546,8 +548,8 @@ impl FileDagExecution {
             .filter(|(allocation, _)| allocation.strong_count() > 0)
             .map(|(_, cells)| *cells)
             .sum::<usize>();
-        self.provided_peak_cells = self.provided_peak_cells.max(live);
-        tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner="provided_cell_leases", decoded_live_bytes=live, decoded_peak_live_bytes=self.provided_peak_cells, decodes=self.provided_decodes, releases=self.provided_releases);
+        self.provided_peak_payload = self.provided_peak_payload.max(live);
+        tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner="provided_source_leases", source_payload_live_bytes=live, source_payload_peak_live_bytes=self.provided_peak_payload, decoded_live_bytes=0usize, decoded_peak_live_bytes=0usize, decodes=0u64, publications=self.provided_allocations.len(), releases=self.provided_releases);
     }
     /// Sole node lifecycle: owner validation, admission, strategy, first error,
     /// dependency release and publication are independent of output delivery.

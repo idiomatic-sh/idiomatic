@@ -21,6 +21,7 @@ pub(crate) struct CompactTable {
     pub(super) frames: Vec<CompactFrame>,
     pub(super) rows: usize,
     pub(super) cells: usize,
+    pub(super) row_offsets: Vec<usize>,
 }
 #[derive(Clone, Debug)]
 pub(super) struct CompactFrame {

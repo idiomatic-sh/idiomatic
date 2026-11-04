@@ -26,9 +26,8 @@ pub(crate) struct FileDagExecution {
     /// missing producer is never evaluated in the consumer's phase/context.
     pub(super) provided:
         std::collections::HashMap<crate::domain::file_program::types::NodeId, ProvidedInput>,
-    pub(super) provided_decodes: u64,
     pub(super) provided_releases: u64,
-    pub(super) provided_peak_cells: usize,
+    pub(super) provided_peak_payload: usize,
     pub(super) provided_allocations:
         Vec<(std::sync::Weak<super::relations::RelationResult>, usize)>,
     pub(super) provided_observations: std::collections::HashMap<

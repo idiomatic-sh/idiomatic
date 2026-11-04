@@ -10,10 +10,16 @@ pub(crate) enum RepresentationKind {
     Selected,
     Tree,
     Computed,
+    Compact,
 }
 impl RepresentationKind {
-    pub(crate) const ALL: &'static [Self] =
-        &[Self::Stored, Self::Selected, Self::Tree, Self::Computed];
+    pub(crate) const ALL: &'static [Self] = &[
+        Self::Stored,
+        Self::Selected,
+        Self::Tree,
+        Self::Computed,
+        Self::Compact,
+    ];
 }
 #[derive(Clone, Copy)]
 pub(crate) enum RepresentationInput<'a> {
@@ -26,6 +32,7 @@ pub(crate) enum RepresentationInput<'a> {
     },
     Tree(TreeRows<'a>),
     Computed(&'a Table),
+    Compact(&'a crate::domain::table_words::types::CompactTable),
 }
 pub(crate) type BulkAccess<'a> = RepresentationInput<'a>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

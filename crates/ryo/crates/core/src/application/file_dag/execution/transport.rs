@@ -383,7 +383,7 @@ fn held<'f>(
         // Physical fallback is permissive; authoritative computed populations are not.
         for (place, rows) in rows.iter().enumerate() {
             super::selected_schema(rows)?;
-            if matches!(rows, Rows::Computed(_)) {
+            if matches!(rows, Rows::Computed(_) | Rows::Compact(_)) {
                 workspace.validate(place, BorrowedRows::from(rows))?;
             }
         }

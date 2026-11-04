@@ -18,6 +18,21 @@ impl RelationOwner {
                     + source.source_kinds.capacity() * size_of::<CellKind>();
             }
             RelationBody::Computed(table) => output.push(Self::table_backing(table)),
+            RelationBody::Compact(table) => {
+                let words = crate::domain::table_words::service::compact_backing(table);
+                output.push(Backing {
+                    key: (22, Arc::as_ptr(words) as usize),
+                    retention_units: 0,
+                    bytes: size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
+                        + 2 * size_of::<usize>()
+                        + words.0.0.capacity(),
+                });
+                output.push(Backing {
+                    key: (24, Arc::as_ptr(table) as usize),
+                    retention_units: 0,
+                    bytes: crate::domain::table_words::service::compact_metadata_bytes(table),
+                });
+            }
             RelationBody::Selected { source, selection } => {
                 Self::record_backings(source, output);
                 output.push(Backing {
@@ -110,7 +125,7 @@ impl RelationOwner {
     }
     fn finalized_backings(record: &RelationResult) -> bool {
         match &record.body {
-            RelationBody::Computed(_) => true,
+            RelationBody::Computed(_) | RelationBody::Compact(_) => true,
             RelationBody::Selected { source, .. } => Self::finalized_backings(source),
             RelationBody::Source(_) => {
                 record.normalized.get().is_some()
@@ -145,6 +160,13 @@ impl RelationOwner {
 pub(in crate::application::file_dag) fn bytes(result: &RelationResult) -> usize {
     let owned = match &result.body {
         RelationBody::Computed(table) => crate::application::file_dag::service::table_bytes(table),
+        RelationBody::Compact(table) => {
+            crate::domain::table_words::service::compact_metadata_bytes(table)
+                + crate::domain::table_words::service::compact_backing(table)
+                    .0
+                    .0
+                    .capacity()
+        }
         RelationBody::Source(source) => {
             source.storage.capacity() * size_of::<(usize, usize)>()
                 + source.kinds.capacity()
