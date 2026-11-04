@@ -78,7 +78,7 @@ struct Slot {
     fed: Box<[crate::domain::operator::types::RowsFed]>,
     remaining: usize,
     dependencies_consumed: bool,
-    release_pending: bool,
+    waiting_on: Option<RegionId>,
     completion: Option<crate::application::file_dag::completion::CompletionPolicy>,
 }
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
@@ -87,7 +87,7 @@ struct RetirementWork {
     simulated: Vec<usize>,
     touched: Vec<RegionId>,
     pending: Vec<RegionId>,
-    deferred: std::collections::VecDeque<RegionId>,
+    waiters: std::collections::HashMap<RegionId, Vec<RegionId>>,
     retired: Vec<(State, Vec<KernelScratch>)>,
 }
 impl RetirementWork {
@@ -131,7 +131,7 @@ impl ProgramExecution {
                 .into_boxed_slice(),
                 remaining: region.consumers,
                 dependencies_consumed: false,
-                release_pending: false,
+                waiting_on: None,
                 completion: None,
             })
             .collect();
@@ -148,7 +148,7 @@ impl ProgramExecution {
                 simulated: vec![usize::MAX; region_count],
                 touched: Vec::new(),
                 pending: Vec::new(),
-                deferred: std::collections::VecDeque::new(),
+                waiters: std::collections::HashMap::new(),
                 retired: Vec::new(),
             }),
             slots: RefCell::new(slots),
@@ -234,7 +234,7 @@ impl ProgramExecution {
                     return Err(OperatingError::NotRun);
                 }
                 if current == 1 && matches!(slot.state, State::Running) {
-                    return Ok(false);
+                    return Ok(Some(id));
                 }
                 let remaining = current - 1;
                 work.simulated[id.0] = remaining;
@@ -243,32 +243,32 @@ impl ProgramExecution {
                         .extend(self.program.regions()[id.0].dependencies.iter().copied());
                 }
             }
-            Ok(true)
+            Ok(None)
         })();
         match planned {
             Err(error) => {
                 work.reset();
                 return Err(error);
             }
-            Ok(false) => {
+            Ok(Some(blocker)) => {
                 work.reset();
-                if !slots[consumer.0].release_pending {
-                    slots[consumer.0].release_pending = true;
-                    work.deferred.push_back(consumer);
+                if slots[consumer.0].waiting_on.is_none() {
+                    slots[consumer.0].waiting_on = Some(blocker);
+                    work.waiters.entry(blocker).or_default().push(consumer);
                 }
                 return Ok(());
             }
-            Ok(true) => {}
+            Ok(None) => {}
         }
         slots[consumer.0].dependencies_consumed = true;
-        slots[consumer.0].release_pending = false;
+        slots[consumer.0].waiting_on = None;
         for at in 0..work.touched.len() {
             let id = work.touched[at];
             let slot = &mut slots[id.0];
             slot.remaining = work.simulated[id.0];
             if slot.remaining == 0 {
                 slot.dependencies_consumed = true;
-                slot.release_pending = false;
+                slot.waiting_on = None;
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 work.retired.push((old, std::mem::take(&mut slot.scratch)));
             }
@@ -282,22 +282,21 @@ impl ProgramExecution {
         self.retirement.borrow_mut().retired = retired;
         Ok(())
     }
-    fn flush_retirements(&self) {
-        let pending = self.retirement.borrow().deferred.len();
-        for _ in 0..pending {
-            let consumer = self.retirement.borrow_mut().deferred.pop_front();
-            let Some(consumer) = consumer else {
-                break;
-            };
+    fn wake_retirements(&self, producer: RegionId) {
+        // Only a blocker transition wakes its exact consumers. Unchanged
+        // running ancestors never cause a full queue or graph rescan.
+        let waiters = self.retirement.borrow_mut().waiters.remove(&producer);
+        let Some(waiters) = waiters else {
+            return;
+        };
+        for consumer in waiters {
             {
                 let mut slots = self.slots.borrow_mut();
                 let slot = &mut slots[consumer.0];
-                // Another prepared cascade may already have discharged this
-                // queued obligation. That is a tombstone, not a second caller.
-                if !slot.release_pending {
+                if slot.waiting_on != Some(producer) {
                     continue;
                 }
-                slot.release_pending = false;
+                slot.waiting_on = None;
             }
             if let Err(error) = self.release_inputs(consumer) {
                 self.cleanup_failure.borrow_mut().get_or_insert(error);
@@ -823,7 +822,7 @@ impl Drop for Invocation<'_> {
             };
         }
         drop(slots);
-        self.execution.flush_retirements();
+        self.execution.wake_retirements(self.id);
     }
 }
 
