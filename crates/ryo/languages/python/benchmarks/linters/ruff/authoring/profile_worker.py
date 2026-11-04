@@ -229,6 +229,10 @@ def persist_run_record(output_directory: Path | None, name: str, command: list[s
     (record_directory / 'result.json').write_text(json.dumps(record, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     return status
 
+def with_case_receipts(command: list[str], destination: Path) -> list[str]:
+    """Pass the shared inventory verifier's explicit receipt destination, without environment state."""
+    return [*command, f'--case-receipts={destination}']
+
 def verify_profile(name: str, profile_root: Path, command: list[str], output_directory: Path | None, identities: dict[str, object], *, runner=subprocess.run) -> int:
     case_files = (profile_root / 'rules').glob('*/cases.toml')
     if any((any(('reference-discrepancy' in case for case in tomllib.loads(path.read_text(encoding='utf-8')).get('cases', []))) for path in case_files)):
@@ -241,7 +245,7 @@ def verify_profile(name: str, profile_root: Path, command: list[str], output_dir
     if output_directory is not None and command[1] != 'verify-reference-cases':
         record_directory = prepare_profile_record_directory(output_directory, name, ('cases.jsonl', 'stdout.bin', 'stderr.bin', 'result.json'))
         case_results_path = record_directory / 'cases.jsonl'
-        environment['RYO_VERIFY_CASE_RESULTS'] = str(case_results_path)
+        command = with_case_receipts(command, case_results_path)
     try:
         result = runner(command, cwd=profile_config.REPOSITORY / 'crates' / 'ryo', capture_output=True, text=False, check=False, env=environment)
     except Exception as error:

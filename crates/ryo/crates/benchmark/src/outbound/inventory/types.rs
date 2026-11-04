@@ -32,13 +32,16 @@ pub struct RegisteredRule {
     /// Tool-specific source identity, preserved without interpretation by the runner.
     pub instance: Option<serde_json::Value>,
 }
+/// Shared verifier argv contract: every registered verifier accepts this explicit receipt destination.
+pub const CASE_RECEIPTS_ARGUMENT: &str = "--case-receipts=";
+
 /// Native argv: no shell interpretation is involved.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Command {
     /// Existing verifier executable.
     pub executable: PathBuf,
-    /// Verifier arguments.
+    /// Verifier arguments; the runner appends CASE_RECEIPTS_ARGUMENT plus the exact destination path.
     pub arguments: Vec<String>,
     /// Explicit native invocation directory.
     pub directory: PathBuf,

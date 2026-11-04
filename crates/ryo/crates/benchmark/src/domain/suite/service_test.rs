@@ -85,6 +85,7 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
     let cases = Cases {
         cases: vec![
             SuiteCase {
+                performance: Default::default(),
                 file_metadata: None,
                 reference_discrepancy: None,
                 context: None,
@@ -94,6 +95,7 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
                 expected: vec![expected(rule.clone()), expected(rule.clone())],
             },
             SuiteCase {
+                performance: Default::default(),
                 file_metadata: None,
                 reference_discrepancy: None,
                 context: None,

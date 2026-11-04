@@ -27,19 +27,19 @@ fn subject(selected: Input) -> Result<Value, Failure> {
         empty_cases_are_refused();
         return Err(());
     }
-    check(&SuiteLocalAdapter);
+    check(&SuiteLocalAdapter::new(None));
     let directory = tempfile::tempdir().expect("source artifacts");
     let bytes = directory.path().join("executable");
     std::fs::write(&bytes, b"abc").expect("digest fixture");
     assert_eq!(
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .digest(ArtifactPath(&bytes))
             .expect("digest")
             .0,
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
     assert!(
-        matches!(SuiteLocalAdapter.digest(ArtifactPath(directory.path())), Err(crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)) if message == "executable digest requires a regular file")
+        matches!(SuiteLocalAdapter::new(None).digest(ArtifactPath(directory.path())), Err(crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)) if message == "executable digest requires a regular file")
     );
     let destination = tempfile::tempdir().expect("snapshot parent");
     selected_snapshot(directory.path(), destination.path());
@@ -72,7 +72,7 @@ fn empty_cases_are_refused() {
             std::fs::write(directory.join("cases.toml"), "cases = []").expect("cases");
         }
         let result =
-            SuiteLocalAdapter.cases(ArtifactPath(rules.path()), ArtifactPath(scratch.path()));
+            SuiteLocalAdapter::new(None).cases(ArtifactPath(rules.path()), ArtifactPath(scratch.path()));
         let actual = result
             .expect_err("no cases cannot certify correctness")
             .to_string();
@@ -134,7 +134,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
         ["F401", "F704"]
     );
     let snapshot = destination.join("profile");
-    SuiteLocalAdapter
+    SuiteLocalAdapter::new(None)
         .stage(ArtifactPath(directory), ArtifactPath(&snapshot), &selected)
         .expect("staged subset");
     let children: Vec<_> = std::fs::read_dir(snapshot.join("rules"))
@@ -142,7 +142,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
         .map(|entry| entry.expect("entry").file_name())
         .collect();
     assert_eq!(children, [std::ffi::OsString::from("E722")]);
-    let fingerprint = SuiteLocalAdapter
+    let fingerprint = SuiteLocalAdapter::new(None)
         .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
         .expect("seal");
     assert_eq!(
@@ -156,7 +156,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("source module edit");
     assert_eq!(
         fingerprint,
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("unchanged staged module seal")
     );
@@ -167,18 +167,18 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("staged module edit");
     assert_ne!(
         fingerprint,
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("changed staged module seal")
     );
-    let changed_module_fingerprint = SuiteLocalAdapter
+    let changed_module_fingerprint = SuiteLocalAdapter::new(None)
         .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
         .expect("seal after staged module edit");
     std::fs::write(directory.join("rules/F704/query.ryoql"), "concurrent work")
         .expect("unselected edit");
     assert_eq!(
         changed_module_fingerprint,
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .fingerprint(ArtifactSet(std::slice::from_ref(&snapshot)))
             .expect("unchanged seal")
     );
@@ -189,7 +189,7 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     .expect("selected edit");
     assert_ne!(
         fingerprint,
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .fingerprint(ArtifactSet(&[snapshot]))
             .expect("changed seal")
     );
@@ -225,7 +225,7 @@ expected = []
         parser_configuration: None,
         source_language: None,
     };
-    let audited = SuiteLocalAdapter
+    let audited = SuiteLocalAdapter::new(None)
         .audit(ArtifactPath(&oracle), &tool)
         .expect("negative-only oracle evidence");
     assert!(audited.implemented.is_empty());
@@ -240,7 +240,7 @@ expected = []
     std::fs::write(oracle.join("rules/F621/query.ryoql"), "nonempty query")
         .expect("authored query");
     assert_eq!(
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .audit(ArtifactPath(&oracle), &tool)
             .expect_err("negative-only authored evidence cannot certify")
             .to_string(),
@@ -264,10 +264,10 @@ patch = "patches/project.patch"
     .expect("shared manifest");
     std::fs::write(shared.join("patches/project.patch"), "original patch").expect("patch");
     let frozen = destination.join("workload");
-    SuiteLocalAdapter
+    SuiteLocalAdapter::new(None)
         .stage_projects(ArtifactPath(&shared), ArtifactPath(&frozen))
         .expect("freeze workload");
-    let seal = SuiteLocalAdapter
+    let seal = SuiteLocalAdapter::new(None)
         .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
         .expect("workload seal");
     std::fs::write(shared.join("patches/project.patch"), "concurrent edit").expect("source edit");
@@ -277,7 +277,7 @@ patch = "patches/project.patch"
     );
     assert_eq!(
         seal,
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .fingerprint(ArtifactSet(std::slice::from_ref(&frozen)))
             .unwrap()
     );
@@ -285,7 +285,7 @@ patch = "patches/project.patch"
         .expect("snapshot edit");
     assert_ne!(
         seal,
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .fingerprint(ArtifactSet(&[frozen]))
             .unwrap()
     );
@@ -297,7 +297,7 @@ fn discrepancy_artifacts_survive_staging_and_refuse_source_or_evidence_edits() {
         .join("../../languages/python/benchmarks/linters/ruff/fixtures/reference-discrepancy");
     let parent = tempfile::tempdir().expect("fixture staging parent");
     let staged = parent.path().join("profile");
-    let adapter = SuiteLocalAdapter;
+    let adapter = SuiteLocalAdapter::new(None);
     let tool = adapter
         .profile(ArtifactPath(&source))
         .expect("pinned profile");
@@ -408,7 +408,7 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
             format!("{base}{suffix}"),
         )
         .expect("profile bytes");
-        let profile = SuiteLocalAdapter
+        let profile = SuiteLocalAdapter::new(None)
             .profile(ArtifactPath(directory.path()))
             .expect("profile");
         assert_eq!(profile.source_language.as_deref(), expected);
@@ -420,7 +420,7 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
         )
         .expect("profile bytes");
         assert!(
-            SuiteLocalAdapter
+            SuiteLocalAdapter::new(None)
                 .profile(ArtifactPath(directory.path()))
                 .is_err()
         );

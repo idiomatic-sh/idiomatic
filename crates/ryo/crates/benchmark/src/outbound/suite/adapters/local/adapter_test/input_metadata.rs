@@ -32,11 +32,11 @@ fn both_materialization_routes_stage_and_reverify_declared_mode_before_each_atte
         let root = tempfile::tempdir().unwrap();
         let scratch = tempfile::tempdir().unwrap();
         let rules = fixture(root.path(), mode, true);
-        let cases = SuiteLocalAdapter
+        let cases = SuiteLocalAdapter::new(None)
             .cases(ArtifactPath(&rules), ArtifactPath(scratch.path()))
             .unwrap();
         for case in cases {
-            SuiteLocalAdapter
+            SuiteLocalAdapter::new(None)
                 .validate_file_metadata(&case.request)
                 .unwrap();
             let path = case.request.root.join("case.txt");
@@ -47,7 +47,7 @@ fn both_materialization_routes_stage_and_reverify_declared_mode_before_each_atte
             )
             .unwrap();
             assert!(
-                SuiteLocalAdapter
+                SuiteLocalAdapter::new(None)
                     .validate_file_metadata(&case.request)
                     .is_err()
             );
@@ -57,12 +57,12 @@ fn both_materialization_routes_stage_and_reverify_declared_mode_before_each_atte
                 before.modified().unwrap()
             );
             std::fs::set_permissions(&path, before.permissions()).unwrap();
-            SuiteLocalAdapter
+            SuiteLocalAdapter::new(None)
                 .validate_file_metadata(&case.request)
                 .unwrap();
             std::fs::remove_file(&path).unwrap();
             assert!(
-                SuiteLocalAdapter
+                SuiteLocalAdapter::new(None)
                     .validate_file_metadata(&case.request)
                     .is_err()
             );
@@ -76,7 +76,7 @@ fn required_profile_cannot_admit_omitted_observations_even_for_negative_cases() 
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), "isolated", false);
     assert!(
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .cases(ArtifactPath(&rules), ArtifactPath(scratch.path()))
             .is_err()
     );

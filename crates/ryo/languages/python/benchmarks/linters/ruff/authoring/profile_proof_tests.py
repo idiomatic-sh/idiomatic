@@ -34,7 +34,7 @@ def output_directory_self_test() -> None:
         calls = []
 
         def fake_runner(command, **options):
-            receipt = Path(options['env']['RYO_VERIFY_CASE_RESULTS'])
+            receipt = Path(next(arg.split('=', 1)[1] for arg in command if arg.startswith('--case-receipts=')))
             assert receipt.parent.is_dir()
             assert not receipt.exists()
             calls.append(command)

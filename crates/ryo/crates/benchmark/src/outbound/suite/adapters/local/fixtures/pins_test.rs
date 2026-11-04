@@ -118,7 +118,7 @@ fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result
         source_language: None,
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };
-    SuiteLocalAdapter
+    SuiteLocalAdapter::new(None)
         .verify_tool(ArtifactPath(&path), &tool)
         .map_err(|error| match error {
             Error::Invalid(message) if message == "tool executable hash differs from pin" => {

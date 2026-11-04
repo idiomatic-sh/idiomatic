@@ -42,6 +42,7 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     let root = tempfile::tempdir()?;
     let state = root.path().join("state");
     let request = RunRequest {
+        performance: Default::default(),
         file_metadata: None,
         context_manifest: None,
         root: root.path().to_owned(),

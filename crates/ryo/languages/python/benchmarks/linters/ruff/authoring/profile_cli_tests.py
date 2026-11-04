@@ -279,7 +279,7 @@ def self_test() -> int:
                 selected_ids = set(json.loads(Path(selection_arg.split('=', 1)[1]).read_text(encoding='utf-8')))
                 selected = [case for case in selected if f"{case['rule']}/{case['name']}" in selected_ids]
             calls.append(shard_index)
-            records_path = Path(env['RYO_VERIFY_CASE_RESULTS'])
+            records_path = Path(next(arg.split('=', 1)[1] for arg in command if arg.startswith('--case-receipts=')))
             with records_path.open('a' if records_path.exists() else 'w', encoding='utf-8') as records:
                 for case in selected:
                     for side in ('reference', 'candidate'):

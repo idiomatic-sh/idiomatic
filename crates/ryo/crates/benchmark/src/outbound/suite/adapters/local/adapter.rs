@@ -133,7 +133,15 @@ fn verify_executable(path: &Path, tool: &Tool) -> Result<(), Error> {
 
 #[derive(Debug)]
 /// Reads and freezes validated benchmark artifacts from the local filesystem.
-pub(crate) struct SuiteLocalAdapter;
+pub(crate) struct SuiteLocalAdapter {
+    case_receipts: Option<std::path::PathBuf>,
+}
+impl SuiteLocalAdapter {
+    /// Bind an optional receipt destination chosen explicitly by executable composition.
+    pub(crate) fn new(case_receipts: Option<std::path::PathBuf>) -> Self {
+        Self { case_receipts }
+    }
+}
 impl SuitePort for SuiteLocalAdapter {
     fn validate_file_metadata(
         &self,
@@ -143,7 +151,7 @@ impl SuitePort for SuiteLocalAdapter {
     }
 
     fn case_receipt_file(&self) -> Option<std::path::PathBuf> {
-        std::env::var_os("RYO_VERIFY_CASE_RESULTS").map(std::path::PathBuf::from)
+        self.case_receipts.clone()
     }
 
     fn case_source_digest(

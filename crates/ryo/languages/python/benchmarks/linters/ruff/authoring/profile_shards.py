@@ -86,7 +86,7 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
             profile_config.atomic_json_write(selection_path, [f"{case['rule']}/{case['name']}" for case in to_run])
         command = profile_worker.command_for(worker, ruff, profile_root, shard=(shard_index, effective_shard_count), case_selection=selection_path)
         environment = os.environ.copy()
-        environment['RYO_VERIFY_CASE_RESULTS'] = str(result_path)
+        command = profile_worker.with_case_receipts(command, result_path)
         try:
             result = runner(command, cwd=profile_config.REPOSITORY / 'crates' / 'ryo', env=environment, capture_output=True, text=False, check=False)
             error = prior_validation_error

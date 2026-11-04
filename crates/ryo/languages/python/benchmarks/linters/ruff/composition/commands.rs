@@ -88,7 +88,6 @@ pub(super) fn worker(
 pub(super) fn verify_cases(
     mut args: impl Iterator<Item = BenchmarkArgument>,
 ) -> Result<CaseCount, Error> {
-    let suite_source = Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let execution = Arc::new(ryo_benchmark::outbound::execution::factory::process());
     let executable = PathBuf::from(
         args.next()
@@ -99,10 +98,15 @@ pub(super) fn verify_cases(
     let source = args
         .next()
         .map_or_else(directory, |argument| PathBuf::from(argument.0));
+    let mut case_receipts = None;
     let mut shard = None;
     let mut case_selection = None;
     for argument in args {
-        if argument.0.starts_with("--shard=") {
+        if let Some(path) = argument.0.strip_prefix(ryo_benchmark::outbound::inventory::types::CASE_RECEIPTS_ARGUMENT) {
+            if path.is_empty() || case_receipts.replace(PathBuf::from(path)).is_some() {
+                return Err(Error::Invalid("case receipt destination must be nonempty and supplied once".into()));
+            }
+        } else if argument.0.starts_with("--shard=") {
             if shard.replace(parse_shard(&argument.0)?).is_some() {
                 return Err(Error::Invalid("duplicate case shard argument".into()));
             }
@@ -126,6 +130,10 @@ pub(super) fn verify_cases(
             return Err(Error::Invalid("unexpected verify-cases argument".into()));
         }
     }
+    let suite_source: Arc<dyn SuitePort> = match case_receipts {
+        Some(path) => Arc::new(ryo_benchmark::outbound::suite::factory::local_with_case_receipts(path)),
+        None => Arc::new(ryo_benchmark::outbound::suite::factory::local()),
+    };
     let mut tool = suite_source.profile(ArtifactPath(&source))?;
     let query_modules = tool.query_modules.clone();
     let rule_applicability = tool.rule_applicability.clone();

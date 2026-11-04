@@ -23,7 +23,7 @@ class ProcessShardTests(unittest.TestCase):
     def run_shards(self, resume=False, environment=None, payload=...):
         def runner(command, *, env, **kwargs):
             self.calls += 1
-            Path(env['RYO_VERIFY_CASE_RESULTS']).write_text(json.dumps({'rule':'A001','name':'case','side':'reference'} if payload is ... else payload) + '\n')
+            Path(next(arg.split('=', 1)[1] for arg in command if arg.startswith('--case-receipts='))).write_text(json.dumps({'rule':'A001','name':'case','side':'reference'} if payload is ... else payload) + '\n')
             return subprocess.CompletedProcess(command, 0, b'1 cases passed against both contestants\n', b'')
         with patch.dict(os.environ, environment or {}, clear=True), \
              patch('authoring.profile_shards.case_records.profile_case_inventory', return_value=[self.case]), \

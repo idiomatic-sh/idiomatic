@@ -7,7 +7,7 @@ use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::{
         interface::InventoryPort,
-        types::{Registration, Row, Summary},
+        types::{CASE_RECEIPTS_ARGUMENT, Registration, Row, Summary},
     },
 };
 use std::{
@@ -104,7 +104,7 @@ pub fn verify(
             {
                 return Err("case identity belongs to another registered rule".into());
             }
-            let mut environment = command
+            let environment = command
                 .environment
                 .iter()
                 .map(|(key, value)| {
@@ -114,14 +114,14 @@ pub fn verify(
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
-            let _previous = environment.insert(
-                "RYO_VERIFY_CASE_RESULTS".into(),
-                directory.join("cases.jsonl").into_os_string(),
-            );
+            let mut arguments = command.arguments.iter().map(Into::into).collect::<Vec<std::ffi::OsString>>();
+            let mut destination = std::ffi::OsString::from(CASE_RECEIPTS_ARGUMENT);
+            destination.push(directory.join("cases.jsonl").as_os_str());
+            arguments.push(destination);
             store.prepare(&directory)?;
             let invocation = Invocation {
                 executable: command.executable.clone(),
-                arguments: command.arguments.iter().map(Into::into).collect(),
+                arguments,
                 environment,
                 directory: command.directory.clone(),
             };
