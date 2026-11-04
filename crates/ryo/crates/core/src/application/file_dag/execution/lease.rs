@@ -196,7 +196,7 @@ pub(in crate::application::file_dag) fn evaluate(
     };
     let semantics = super::PrimitiveSemanticsBridge {
         port: operators,
-        permit,
+        permit: permit.semantics(),
         failure: &semantic_failure,
         binding: crate::domain::executable_program::physical::PhysicalBinding {
             native_join: resources.inputs.native_join.is_some(),

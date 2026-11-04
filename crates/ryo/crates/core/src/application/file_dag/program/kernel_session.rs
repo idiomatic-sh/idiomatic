@@ -86,7 +86,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let failure = std::sync::OnceLock::new();
         let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
             port: self.kernels,
-            permit,
+            permit: permit.semantics(),
             failure: &failure,
             binding: crate::domain::executable_program::physical::PhysicalBinding {
                 native_join: false,
@@ -197,7 +197,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let failure = std::sync::OnceLock::new();
         let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
             port: self.kernels,
-            permit,
+            permit: permit.semantics(),
             binding: crate::domain::executable_program::physical::PhysicalBinding {
                 native_join: false,
                 source_len: context.source.0.len(),
@@ -384,7 +384,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                 permit,
                                 native,
                                 &originals[0],
-                                admitted,
                                 &self.owner,
                                 context,
                                 &workspace.work,

@@ -1,5 +1,5 @@
 //! One admitted native Join instruction; this adapter never resolves dependencies.
-use super::admission::{AdmittedInput, KernelPermit};
+use super::admission::KernelPermit;
 use crate::application::file_dag::{
     executor::PrimitiveExecutor, invocation::NativeJoinLease, relations::RelationOwner,
 };
@@ -31,14 +31,13 @@ impl<'call, 'context, 'scope> PermittedNativeJoin<'call, 'context, 'scope> {
         permit: &'call KernelPermit<'scope>,
         native: NativeJoinLease<'call>,
         left: &'call Rows<'call>,
-        inputs: &[AdmittedInput],
         owner: &Rc<RelationOwner>,
         context: &'call mut OperatorContext<'context>,
         work: &'call WorkCounters,
         output: &'call mut dyn Emit,
         delivery: &'call OnceLock<OperatingError>,
     ) -> Result<Self, OperatingError> {
-        permit.validate_native_join(&native, inputs, owner, left)?;
+        permit.validate_native_join(&native, owner, left)?;
         Ok(Self {
             permit,
             native,
@@ -68,7 +67,7 @@ impl<'call, 'context, 'scope> PermittedNativeJoin<'call, 'context, 'scope> {
         let failure = OnceLock::new();
         let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
             port: kernels,
-            permit: self.permit,
+            permit: self.permit.semantics(),
             binding: crate::domain::executable_program::physical::PhysicalBinding {
                 native_join: true,
                 source_len: self.context.source.0.len(),

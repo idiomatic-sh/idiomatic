@@ -262,12 +262,22 @@ enum KernelStrategy {
     Ordered,
     Column,
 }
+#[derive(Clone, Copy)]
+enum BoundInputs<'a> {
+    Ordinary(&'a [AdmittedInput]),
+    Ordered(&'a AdmittedInput),
+    Column {
+        left: &'a AdmittedInput,
+        right: &'a AdmittedInput,
+    },
+}
 pub(crate) struct KernelPermit<'scope> {
     program: &'scope crate::domain::executable_program::types::ExecutableProgram,
     region: RegionId,
     instruction: usize,
     generation: &'scope Arc<()>,
     live: &'scope Arc<super::super::relations::GenerationLease>,
+    bindings: BoundInputs<'scope>,
     strategy: KernelStrategy,
     evaluation: crate::domain::operator::contract::types::EvaluationMode,
 }
@@ -292,7 +302,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(in crate::application::file_dag::program) fn admitted(
         execution: &'scope super::runtime::ProgramExecution,
         region: RegionId,
-        inputs: &[AdmittedInput],
+        inputs: &'scope [AdmittedInput],
         evaluation: crate::domain::operator::contract::types::EvaluationMode,
     ) -> Result<Self, OperatingError> {
         let code = Self::code(execution, region)?;
@@ -312,6 +322,7 @@ impl<'scope> KernelPermit<'scope> {
             instruction: 0,
             generation: &execution.generation,
             live: &execution.generation_live,
+            bindings: BoundInputs::Ordinary(inputs),
             strategy: KernelStrategy::Registered,
             evaluation,
         })
@@ -319,7 +330,7 @@ impl<'scope> KernelPermit<'scope> {
     pub(super) fn ordered(
         execution: &'scope super::runtime::ProgramExecution,
         region: RegionId,
-        input: &AdmittedInput,
+        input: &'scope AdmittedInput,
         evaluation: crate::domain::operator::contract::types::EvaluationMode,
     ) -> Result<Self, OperatingError> {
         let code = Self::code(execution, region)?;
@@ -334,6 +345,7 @@ impl<'scope> KernelPermit<'scope> {
             instruction: 0,
             generation: &execution.generation,
             live: &execution.generation_live,
+            bindings: BoundInputs::Ordered(input),
             strategy: KernelStrategy::Ordered,
             evaluation,
         })
@@ -341,8 +353,8 @@ impl<'scope> KernelPermit<'scope> {
     pub(super) fn column(
         execution: &'scope super::runtime::ProgramExecution,
         region: RegionId,
-        left: &AdmittedInput,
-        right: &AdmittedInput,
+        left: &'scope AdmittedInput,
+        right: &'scope AdmittedInput,
     ) -> Result<Self, OperatingError> {
         let code = Self::code(execution, region)?;
         let shape = code.column.as_ref().ok_or(OperatingError::WrongOperation)?;
@@ -357,6 +369,7 @@ impl<'scope> KernelPermit<'scope> {
             instruction: 0,
             generation: &execution.generation,
             live: &execution.generation_live,
+            bindings: BoundInputs::Column { left, right },
             strategy: KernelStrategy::Column,
             evaluation: crate::domain::operator::contract::types::EvaluationMode::Collected,
         })
@@ -377,40 +390,31 @@ impl<'scope> KernelPermit<'scope> {
             instruction: at,
             generation: self.generation,
             live: self.live,
+            bindings: self.bindings,
             strategy: self.strategy,
             evaluation: self.evaluation,
         })
     }
-    pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
-        &'call self,
-        binding: &crate::domain::executable_program::physical::PhysicalBinding,
-        meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
-    ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
-        if !self.live.is_live() {
-            return Err(OperatingError::NotRead);
+    pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {
+        SemanticPermit {
+            program: self.program,
+            region: self.region,
+            instruction: self.instruction,
+            live: self.live,
+            strategy: self.strategy,
         }
-        use crate::domain::executable_program::physical::{self, PhysicalRoute};
-        let route = match self.strategy {
-            KernelStrategy::Registered => PhysicalRoute::Registered,
-            KernelStrategy::Ordered => PhysicalRoute::Ordered(
-                self.program.regions()[self.region.0]
-                    .ordered_existence
-                    .as_ref()
-                    .ok_or(OperatingError::WrongOperation)?,
-            ),
-            KernelStrategy::Column => PhysicalRoute::Column(
-                self.program.regions()[self.region.0]
-                    .column
-                    .as_ref()
-                    .ok_or(OperatingError::WrongOperation)?,
-            ),
-        };
-        let authority = physical::authorize(self.operation(), route, binding, &meaning)?;
-        Ok(PermittedPhysical {
-            permit: self,
-            meaning,
-            authority,
-        })
+    }
+    fn bound_input(&self, at: usize) -> Result<&AdmittedInput, OperatingError> {
+        match self.bindings {
+            BoundInputs::Ordinary(inputs) => inputs.get(at),
+            BoundInputs::Ordered(input) => (at == 0).then_some(input),
+            BoundInputs::Column { left, right } => match at {
+                0 => Some(left),
+                1 => Some(right),
+                _ => None,
+            },
+        }
+        .ok_or(OperatingError::MissingInput { position: at + 1 })
     }
     pub(super) fn validate_live(&self) -> Result<(), OperatingError> {
         if self.live.is_live() {
@@ -513,7 +517,6 @@ impl<'scope> KernelPermit<'scope> {
     pub(super) fn validate_native_join(
         &self,
         native: &super::super::invocation::NativeJoinLease<'_>,
-        inputs: &[AdmittedInput],
         owner: &Rc<RelationOwner>,
         left: &crate::domain::table_model::types::Rows<'_>,
     ) -> Result<(), OperatingError> {
@@ -525,9 +528,11 @@ impl<'scope> KernelPermit<'scope> {
             return Err(OperatingError::WrongOperation);
         }
         let region = &self.program.regions()[self.region.0];
-        if region.instructions.len() != 1 || region.inputs.len() != 2 || inputs.len() != 2 {
+        if region.instructions.len() != 1 || region.inputs.len() != 2 {
             return Err(OperatingError::WrongOperation);
         }
+        let left_input = self.bound_input(0)?;
+        let right_input = self.bound_input(1)?;
         let expected = region.instructions[self.instruction]
             .contract
             .derived
@@ -537,26 +542,12 @@ impl<'scope> KernelPermit<'scope> {
         if !std::ptr::eq(expected.primary.plan.as_ref(), native.contract()) {
             return Err(OperatingError::NotRead);
         }
-        for (source, input) in region.inputs.iter().zip(inputs) {
-            let root = match source {
-                InputSource::Region(id) => ProducerRoot::Region(*id),
-                other => ProducerRoot::Input(*other),
-            };
-            if input.root != root
-                || !Arc::ptr_eq(&input.proof.generation, self.generation)
-                || !Rc::ptr_eq(&input.proof.owner, owner)
-                || !matches!(&input.partition, Partition::File(file) if file.file==native.tree().file)
-            {
-                return Err(OperatingError::NotRead);
-            }
-            input.publication(owner)?;
-        }
         owner.admit(
-            inputs[0].publication(owner)?.as_ref(),
+            left_input.publication(owner)?.as_ref(),
             crate::domain::operator::contract::views::BorrowedRows::from(left),
         )?;
         owner.admit(
-            inputs[1].publication(owner)?.as_ref(),
+            right_input.publication(owner)?.as_ref(),
             crate::domain::operator::contract::views::BorrowedRows::Tree(native.tree()),
         )?;
         native.finding()?;
@@ -783,9 +774,60 @@ impl ApplicabilityProof {
     }
 }
 
+/// Pure borrowed semantic authority. It exposes neither worker ownership nor
+/// dependency acquisition, and cannot outlive its admitted invocation permit.
+pub(in crate::application::file_dag) struct SemanticPermit<'scope> {
+    program: &'scope crate::domain::executable_program::types::ExecutableProgram,
+    region: RegionId,
+    instruction: usize,
+    live: &'scope Arc<super::super::relations::GenerationLease>,
+    strategy: KernelStrategy,
+}
+impl<'scope> SemanticPermit<'scope> {
+    fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
+        &self.program.regions()[self.region.0].instructions[self.instruction].operation
+    }
+    fn validate_live(&self) -> Result<(), OperatingError> {
+        if self.live.is_live() {
+            Ok(())
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    }
+    pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
+        &'call self,
+        binding: &crate::domain::executable_program::physical::PhysicalBinding,
+        meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
+    ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
+        self.validate_live()?;
+        use crate::domain::executable_program::physical::{self, PhysicalRoute};
+        let route = match self.strategy {
+            KernelStrategy::Registered => PhysicalRoute::Registered,
+            KernelStrategy::Ordered => PhysicalRoute::Ordered(
+                self.program.regions()[self.region.0]
+                    .ordered_existence
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            ),
+            KernelStrategy::Column => PhysicalRoute::Column(
+                self.program.regions()[self.region.0]
+                    .column
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            ),
+        };
+        let authority = physical::authorize(self.operation(), route, binding, &meaning)?;
+        Ok(PermittedPhysical {
+            permit: self,
+            meaning,
+            authority,
+        })
+    }
+}
+
 /// The request and its validated authority cannot be separated or rewritten.
 pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
-    permit: &'permit KernelPermit<'scope>,
+    permit: &'permit SemanticPermit<'scope>,
     meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
     authority: crate::domain::executable_program::physical::PhysicalAuthorization,
 }

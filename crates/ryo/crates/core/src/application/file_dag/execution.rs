@@ -35,13 +35,13 @@ impl PrimitiveExecutor for CommonOperatorEngine<'_> {
         }
     }
 }
-pub(super) struct PrimitiveSemanticsBridge<'a, 'invocation> {
+pub(super) struct PrimitiveSemanticsBridge<'a> {
     pub(super) port: &'a dyn PrimitiveExecutor,
-    pub(super) permit: &'a super::program::admission::KernelPermit<'invocation>,
+    pub(super) permit: super::program::admission::SemanticPermit<'a>,
     pub(super) binding: crate::domain::executable_program::physical::PhysicalBinding,
     pub(super) failure: &'a std::sync::OnceLock<crate::domain::operating::errors::OperatingError>,
 }
-impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_, '_> {
+impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     #[cfg(feature = "diagnostic-row-progress")]
     fn progress(&self) -> crate::domain::operator::contract::views::ProgressObserver {
         super::route_counts::progress
