@@ -279,7 +279,7 @@ fn a_single_emitted_step_is_residual_not_a_dag_cut() {
     )
     .unwrap();
     let dag = scope.execution.borrow();
-    assert!(dag.owned(0, 0).is_none());
+    assert!(dag.graph.cuts[0][0].is_none());
 }
 #[test]
 fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor() {
@@ -347,7 +347,7 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
             )
             .unwrap();
             let dag = scope.execution.borrow();
-            assert!(dag.owned(0, 0).is_none());
+            assert!(dag.graph.cuts[0][0].is_none());
             evaluate_cross_with_executor(
                 &plan,
                 vec![],
@@ -441,10 +441,10 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
             .unwrap();
             let dag = &scope.execution;
             assert!(
-                dag.borrow().owned(0, 0).is_some(),
+                dag.borrow().graph.cuts[0][0].is_some(),
                 "{kind:?} owned before execution"
             );
-            assert!(dag.borrow().owned(0, 1).is_none());
+            assert!(dag.borrow().graph.cuts[0][1].is_none());
             let (elements, _tree_symbols) = actual_tree();
             let tree = relations
                 .contains(&Relation::SyntaxTree)

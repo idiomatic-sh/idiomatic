@@ -679,7 +679,7 @@ fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
         );
         assert_eq!(frontier[0].count.0, rows);
         assert_eq!(
-            tables.pool.layouts.len(),
+            setting.operators.rules.len(),
             1,
             "only immutable plan metadata survives generations"
         );

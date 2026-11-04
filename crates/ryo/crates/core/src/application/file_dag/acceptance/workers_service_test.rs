@@ -14,7 +14,7 @@ use crate::application::file_dag::settings::VisitSetting;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::{PlanIdentity, PlanLayout, RowsFed, TreeSteps};
+use crate::domain::operator::types::{RowsFed, TreeSteps};
 use crate::domain::placement::service::decide;
 use crate::domain::placement::types::{Governing, Mask, PlacedScopes, RuleScope};
 use crate::domain::visit::types::{Noting, RoleRead};
@@ -151,11 +151,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(match scenario {
         Scenario::TablesFor => {
             let worker = tables(&[plan(2), plan(3)]);
-            assert!(worker.pool.layouts.capacity() >= 2);
-            assert!(worker.pool.fed.capacity() >= 2);
+            assert_eq!(
+                worker.pool.fed.iter().map(Vec::len).collect::<Vec<_>>(),
+                [2, 3],
+                "worker counts are prepared for each actual plan step"
+            );
             u64::from(
-                worker.pool.layouts.is_empty()
-                    && worker.pool.fed.is_empty()
+                worker
+                    .pool
+                    .fed
+                    .iter()
+                    .flatten()
+                    .all(|fed| *fed == RowsFed::default())
                     && worker.pool.selection_plans.is_empty()
                     && worker.partials.is_empty(),
             )
@@ -235,10 +242,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Absorb => {
             let plans = [plan(1)];
             let mut worker = tables(&plans);
-            worker.pool.layouts = vec![PlanLayout {
-                plan: PlanIdentity(std::ptr::from_ref(&plans[0]).addr()),
-                ..PlanLayout::default()
-            }];
             worker.pool.fed = vec![vec![RowsFed([1, 2, 3])]];
             worker.reads = FilesRead(2);
             worker.arena = ArenaBytes(vec![7]);
