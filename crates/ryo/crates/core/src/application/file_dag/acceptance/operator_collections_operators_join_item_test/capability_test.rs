@@ -819,7 +819,7 @@ fn native_provenance_join_keeps_right_first_refusal_and_empty_left_order() {
         (false, false, Ok(()), 1),
     ] {
         let owner = feed_owner();
-        let engine = CommonOperatorEngine::new(&port, owner.derived.semantic_port());
+        let engine = CommonOperatorEngine::new(port, owner.derived.semantic_port());
         let mut feed = NativeOrderedFeed {
             owner: std::rc::Rc::clone(&owner),
             left: &empty,
