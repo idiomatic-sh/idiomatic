@@ -1,6 +1,6 @@
 //! Set operations on borrowed position rows and an engine-scoped raw order.
 
-use super::types::{LEFT, PositionInput, PositionWork, RIGHT, input};
+use super::types::{PositionInput, PositionWork};
 use crate::domain::{
     lowering::types::LoweredShape,
     operating::errors::OperatingError,

@@ -1,6 +1,6 @@
 //! Equality joins over borrowed positions and prepared tree rows.
 
-use super::types::{LEFT, PositionInput, PositionWork, RIGHT, input};
+use super::types::{PositionInput, PositionWork};
 use crate::domain::{
     comparing::service::holds_all,
     lowering::{

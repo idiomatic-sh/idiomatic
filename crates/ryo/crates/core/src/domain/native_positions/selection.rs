@@ -1,6 +1,6 @@
 //! Borrowed selection and projection; all row storage remains with the caller.
 
-use super::types::{LEFT, PositionInput, PositionWork, RIGHT, input};
+use super::types::{PositionInput, PositionWork};
 use crate::domain::{
     comparing::service::holds_all,
     lowering::{service::kind_of, types::LoweredShape},

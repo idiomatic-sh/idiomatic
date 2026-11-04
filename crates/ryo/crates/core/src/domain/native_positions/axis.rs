@@ -1,6 +1,6 @@
 //! Borrowed axis traversal; the caller supplies both prepared operand populations.
 
-use super::types::{LEFT, PositionInput, PositionWork, RIGHT, input};
+use super::types::{PositionInput, PositionWork};
 use crate::domain::{
     lowering::types::LoweredShape,
     operating::{errors::OperatingError, types::OperatorContext},
