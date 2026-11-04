@@ -75,6 +75,9 @@ templates = [
   { template = "idiomatic.ryo/executable-lowering", file = "crates/core/src/domain/executable_program/selection.rs", description = "One exact pure executable-program lowering part." },
   { template = "idiomatic.arch/service", file = "crates/core/src/domain/operator/contract/context.rs", params = { concept = "contract" }, description = "Pure borrowed semantic context construction; executable authority remains in the application owner." },
   { template = "idiomatic.arch/unit-test", file = "crates/core/src/application/file_dag/acceptance/column_topology_test.rs", params = { kind = "concept", part = "column_topology" }, description = "The actual request-compiler topology cases for exclusive and shared column chains." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/application/file_dag/program/runtime/runtime_lifecycle_test.rs", description = "Actual compiled-program nested demand, reentrant refusal and retry assertions." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/application/file_dag/program/runtime/runtime_lifecycle_test/fixture.rs", description = "Nested kernel probe and downstream sink fixture for lifecycle assertions." },
+  { template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/application/file_dag/program/runtime/runtime_lifecycle_test/owner_inputs.rs", description = "Real request compiler and relation-owner input fixture for lifecycle assertions." },
 ]
 specs = [
   { alias = "crate-operators", spec = "idiomatic.arch/crate", include = ["crates/operators"], params = { package = "idiomatic-sh-ryo-operators", library = "ryo_operators", binary = "absent", distribution = "absent" }, description = "Portable operator capability behind its inbound contract; core scheduling and ownership remain outside this crate." },

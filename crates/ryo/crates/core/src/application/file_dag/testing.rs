@@ -19,6 +19,12 @@ use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plans::types::Operation;
+
+/// A composition-owned semantic port for program lifecycle fixtures.
+pub(crate) fn program_derived_port()
+-> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+    crate::outbound::derived::factory::test_port()
+}
 /// Complete computed fixture rows for portable derived semantics controls.
 pub(crate) struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);
 impl ryo_derived::domain::contract::types::RowCells for CompleteTableRows<'_> {

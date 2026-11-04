@@ -991,6 +991,9 @@ impl Drop for Invocation<'_> {
     }
 }
 
+#[cfg(test)]
+mod runtime_lifecycle_test;
+
 fn admit_join(
     region: &Region,
     instruction: &Instruction,

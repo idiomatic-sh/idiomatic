@@ -1,0 +1,17 @@
+description = "Actual compiled-program lifecycle controls and their colocated owner fixture."
+why = "The program runtime owns nested demand, reentrant refusal, publication, and retry. Both declared test parts stay next to the owner; production source cannot silently replace these proofs with a detached mock scheduler."
+content = '''
+//! Compiled program lifecycle proof with a real owner.
+'''
+
+[[scenarios]]
+id = "declared-proof"
+scenario = "One explicitly placed lifecycle proof exists."
+given.file = "runtime_lifecycle_test.rs"
+given.files."runtime_lifecycle_test.rs" = "//! Compiled program lifecycle proof with a real owner.\n"
+
+[[scenarios]]
+id = "missing-proof"
+scenario = "An explicitly placed lifecycle proof cannot disappear."
+given.file = "runtime_lifecycle_test.rs"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]
