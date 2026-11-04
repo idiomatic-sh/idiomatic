@@ -42,8 +42,8 @@ pub(super) fn install(program: &mut ExecutableProgram, shapes: Vec<Option<Arc<Lo
         ) {
             continue;
         }
-        // Legacy native lowering interprets an empty projection as identity;
-        // the registered Project contract instead produces zero-column rows.
+        // Zero-column row multiplicity stays on the registered Project route;
+        // this alternative declines before performing semantic work.
         if matches!(&instruction.operation, ryo_values::domain::plans::types::Operation::Project { columns, .. } if columns.is_empty())
         {
             continue;
