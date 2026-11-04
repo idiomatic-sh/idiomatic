@@ -166,8 +166,11 @@ impl TestInputs {
         &self,
         root: super::super::super::admission::ProducerRoot,
         partition: &Partition,
+        inputs: &[AdmittedInput],
         table: Table,
     ) -> Result<AdmittedInput, OperatingError> {
+        let readiness =
+            super::super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
         let publication = self.owner.computed(table)?;
         let rows = self
             .owner
@@ -181,7 +184,7 @@ impl TestInputs {
             &proof,
             root,
             partition.clone(),
-            super::super::super::admission::Readiness::Complete,
+            readiness,
         )
     }
 }
@@ -221,30 +224,55 @@ impl Inputs for TestInputs {
         &mut self,
         root: super::super::super::admission::ProducerRoot,
         partition: &Partition,
-        _: &[AdmittedInput],
+        inputs: &[AdmittedInput],
         rows: Table,
     ) -> Result<AdmittedInput, OperatingError> {
-        self.computed(root, partition, rows)
+        self.computed(root, partition, inputs, rows)
+    }
+    fn publish_positions(
+        &mut self,
+        root: super::super::super::admission::ProducerRoot,
+        partition: &Partition,
+        inputs: &[AdmittedInput],
+        publication: super::super::super::super::relations::PublishedInput,
+    ) -> Result<AdmittedInput, OperatingError> {
+        let readiness =
+            super::super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
+        let rows = self
+            .owner
+            .resolve(publication.as_ref(), &|relation| self.read(relation))?;
+        let proof = self
+            .owner
+            .admit(publication.as_ref(), BorrowedRows::from(&rows))?;
+        AdmittedInput::from_publication(
+            Rc::clone(&self.owner),
+            publication,
+            &proof,
+            root,
+            partition.clone(),
+            readiness,
+        )
     }
     fn publish_selected(
         &mut self,
-        _: super::super::super::admission::ProducerRoot,
-        _: &Partition,
-        _: &[AdmittedInput],
-        _: super::super::super::selection::ProducedSelection,
+        root: super::super::super::admission::ProducerRoot,
+        partition: &Partition,
+        inputs: &[AdmittedInput],
+        publication: super::super::super::super::relations::PublishedInput,
     ) -> Result<AdmittedInput, OperatingError> {
-        Err(OperatingError::WrongOperation)
+        self.publish_positions(root, partition, inputs, publication)
     }
     fn publish_empty(
         &mut self,
         root: super::super::super::admission::ProducerRoot,
         partition: &Partition,
-        _: &[AdmittedInput],
+        inputs: &[AdmittedInput],
         schema: Result<Vec<CellKind>, OperatingError>,
     ) -> Result<AdmittedInput, OperatingError> {
         self.computed(
             root,
             partition,
+            inputs,
             Table {
                 kinds: schema?,
                 cells: vec![],

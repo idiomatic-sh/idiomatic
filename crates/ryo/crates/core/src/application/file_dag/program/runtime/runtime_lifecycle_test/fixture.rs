@@ -57,13 +57,23 @@ impl KernelInvocation for RuntimeProbe {
     ) -> Result<StrategyOutcome, InvocationFailure> {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
     }
+    fn positions(
+        &self,
+        _: &super::super::super::admission::KernelPermit<'_>,
+        _: &mut OperatorContext<'_>,
+        _: &mut KernelScratch,
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
+    {
+        Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
+    }
     fn selected(
         &self,
         _: &crate::domain::executable_program::selection::SelectionAlternative,
         _: &super::super::super::admission::KernelPermit<'_>,
         _: &mut OperatorContext<'_>,
         _: &mut KernelScratch,
-    ) -> Result<Option<super::super::super::selection::ProducedSelection>, InvocationFailure> {
+    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
+    {
         Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
     }
     fn column(
