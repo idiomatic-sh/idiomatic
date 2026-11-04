@@ -168,7 +168,7 @@ impl AdmittedInput {
         owner: &Rc<RelationOwner>,
     ) -> Result<&PublishedInput, OperatingError> {
         if !Rc::ptr_eq(owner, &self.proof.owner)
-            || !Arc::ptr_eq(&self.proof.generation, &owner.generation.borrow())
+            || !owner.matches_generation(&self.proof.generation)
         {
             return Err(OperatingError::NotRead);
         }
@@ -188,7 +188,7 @@ impl FileGeneration {
     ) -> Self {
         Self {
             file,
-            generation: Arc::clone(&owner.generation.borrow()),
+            generation: owner.generation_guard(),
         }
     }
 }
@@ -215,7 +215,7 @@ impl<'scope> KernelPermit<'scope> {
         if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
             return Err(OperatingError::WrongOperation);
         }
-        if !Arc::ptr_eq(&execution.generation, &execution.owner.generation.borrow()) {
+        if !execution.owner.matches_generation(&execution.generation) {
             return Err(OperatingError::NotRead);
         }
         for (source, input) in code.inputs.iter().zip(inputs) {
@@ -223,7 +223,7 @@ impl<'scope> KernelPermit<'scope> {
                 InputSource::Region(id) => ProducerRoot::Region(*id),
                 other => ProducerRoot::Input(*other),
             };
-            if input.root != expected || !input.partition.supplies(&execution.partition) {
+            if input.root != expected || !input.partition.supplies(execution.partition()) {
                 return Err(OperatingError::NotRead);
             }
             input.publication(&execution.owner)?;

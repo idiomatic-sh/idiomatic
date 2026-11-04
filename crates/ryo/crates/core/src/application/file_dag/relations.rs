@@ -74,6 +74,16 @@ pub(crate) struct RelationOwner {
     pub reuses: Cell<u64>,
 }
 impl RelationOwner {
+    pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
+        Arc::clone(&self.generation.borrow())
+    }
+    pub(in crate::application::file_dag) fn matches_generation(
+        &self,
+        generation: &Arc<()>,
+    ) -> bool {
+        Arc::ptr_eq(generation, &self.generation.borrow())
+    }
+
     pub(super) fn for_scope(
         _permit: super::scope::ScopePermit,
         stable: bool,

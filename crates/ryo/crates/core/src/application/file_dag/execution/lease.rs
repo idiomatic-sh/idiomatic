@@ -162,6 +162,7 @@ pub(in crate::application::file_dag) fn evaluate(
         query_reborrow(&mut context.symbols),
         &mut predicate,
         &semantics,
+        &workspace.work,
     );
     let outcome = match operators.execute(KernelCall::Registered {
         permit,

@@ -84,15 +84,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
-                    let mut resources = InvocationResources::prepare(
-                        contract,
-                        &[],
-                        context,
-                        EvaluationMode::Streaming,
-                        &[],
-                        workspace,
-                    )
-                    .map_err(InvocationFailure::Semantic)?;
+                    workspace.work.found(0, 1);
+                    let mut resources = InvocationResources::continuation(contract)
+                        .map_err(InvocationFailure::Semantic)?;
                     crate::application::file_dag::execution::lease::evaluate(
                         self.kernels,
                         contract,
@@ -199,6 +193,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                 let row = read_row(source, RowIndex(at), &mut cells).ok_or(
                                     InvocationFailure::Semantic(OperatingError::ShapeMismatch),
                                 )?;
+                                workspace.work.found(primary.0, 1);
                                 let texts = crate::domain::table_texts::types::Texts {
                                     symbols: context.symbols.as_ref(),
                                     source: context.source,

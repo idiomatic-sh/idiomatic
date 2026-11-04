@@ -5,7 +5,7 @@ use crate::domain::{
     operator::contract::types::{PreparedInputs, PrimitiveLease, RowSink},
 };
 use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
-use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::plans::types::Operation;
 
 pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
     Registered {
@@ -17,7 +17,7 @@ pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
     },
     Physical {
         permit: &'call super::program::admission::KernelPermit<'invocation>,
-        meaning: OperatorCall<'call>,
+        meaning: OperatorCall<'resources>,
     },
 }
 pub(crate) enum KernelAnswer {

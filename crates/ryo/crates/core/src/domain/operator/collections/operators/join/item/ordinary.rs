@@ -54,6 +54,7 @@ impl Driver<'_, '_> {
             }
             while let Some(position) = self.positions.get(self.at).copied() {
                 self.at += 1;
+                self.lease.found(1, 1);
                 #[cfg(feature = "diagnostic-row-progress")]
                 self.lease.progress(
                     crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,

@@ -64,6 +64,36 @@ pub(crate) struct InvocationInputs<'f> {
     pub(crate) groups: Option<Vec<Group>>,
 }
 impl<'f> InvocationResources<'f> {
+    /// A compiler-proven direct row continuation has no acquisition program.
+    /// This creates borrowed semantic capability state, not an invocation setup.
+    pub(in crate::application::file_dag) fn continuation(
+        contract: &OperatorContract,
+    ) -> Result<Self, OperatingError> {
+        if !matches!(contract.resources, ResourceProgram::None)
+            || !matches!(contract.collected_resources, ResourceProgram::None)
+            || contract.derived.streaming.iter().any(Option::is_some)
+            || contract.derived.collected.iter().any(Option::is_some)
+        {
+            return Err(OperatingError::WrongOperation);
+        }
+        Ok(Self {
+            cached_graph: None,
+            inputs: InvocationInputs {
+                index: None,
+                appended: None,
+                rank_layers: None,
+                native_join: None,
+                native_storage: None,
+                cycles: None,
+                closure: Vec::new(),
+                partitioned_closure: None,
+                ordered: None,
+                dfs: None,
+                axis: None,
+                groups: None,
+            },
+        })
+    }
     /// Streaming aggregation has already acquired and validated the contributing population.
     pub(crate) fn with_groups(groups: Vec<Group>) -> Self {
         Self {

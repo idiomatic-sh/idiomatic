@@ -304,12 +304,26 @@ impl Default for PrimitiveWorkspace {
 }
 
 /// The engine constructs and releases this borrow; a primitive owns no service state.
+/// Borrowed logical work counters; storage belongs to the invocation owner.
+#[derive(Default)]
+pub(crate) struct WorkCounters([std::cell::Cell<u64>; 3]);
+impl WorkCounters {
+    pub(crate) fn found(&self, input: usize, rows: u64) {
+        if let Some(total) = self.0.get(input) {
+            total.set(total.get().saturating_add(rows));
+        }
+    }
+    pub(crate) fn snapshot(&self) -> [u64; 3] {
+        std::array::from_fn(|at| self.0[at].get())
+    }
+}
 pub(crate) struct PrimitiveLease<'a> {
     pub views: PrimitiveViews<'a>,
     pub workspace: &'a mut PrimitiveWorkspace,
     pub derived: QuerySymbols<'a>,
     predicate: &'a mut dyn PredicateProgram,
     semantics: &'a dyn PrimitiveSemantics,
+    work: &'a WorkCounters,
 }
 
 /// Borrowed portable primitive meanings; the application supplies the implementation.
@@ -404,6 +418,7 @@ impl<'a> PrimitiveLease<'a> {
         derived: QuerySymbols<'a>,
         predicate: &'a mut dyn PredicateProgram,
         semantics: &'a dyn PrimitiveSemantics,
+        work: &'a WorkCounters,
     ) -> Self {
         Self {
             views,
@@ -411,7 +426,11 @@ impl<'a> PrimitiveLease<'a> {
             derived,
             predicate,
             semantics,
+            work,
         }
+    }
+    pub(crate) fn found(&self, input: usize, rows: u64) {
+        self.work.found(input, rows);
     }
     pub(crate) fn project(
         &self,

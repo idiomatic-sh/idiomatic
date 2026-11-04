@@ -60,6 +60,7 @@ enum State {
 struct Slot {
     state: State,
     scratch: Vec<KernelScratch>,
+    fed: Box<[crate::domain::operator::types::RowsFed]>,
     remaining: usize,
     dependencies_consumed: bool,
     completion: Option<crate::application::file_dag::completion::CompletionPolicy>,
@@ -87,12 +88,17 @@ impl ProgramExecution {
                 scratch: (0..region.instructions.len())
                     .map(|_| KernelScratch::default())
                     .collect(),
+                fed: vec![
+                    crate::domain::operator::types::RowsFed::default();
+                    region.instructions.len()
+                ]
+                .into_boxed_slice(),
                 remaining: region.consumers,
                 dependencies_consumed: false,
                 completion: None,
             })
             .collect();
-        let generation = Arc::clone(&owner.generation.borrow());
+        let generation = owner.generation_guard();
         Self {
             program,
             owner,
@@ -100,6 +106,47 @@ impl ProgramExecution {
             partition,
             slots: RefCell::new(slots),
         }
+    }
+    pub(super) fn logical_counts(
+        &self,
+        rule: crate::domain::coverage::types::RuleIndex,
+    ) -> Result<super::facade::LogicalCounts, OperatingError> {
+        let rule = self
+            .program
+            .rules
+            .get(rule.0)
+            .ok_or(OperatingError::NotRun)?;
+        let slots = self.slots.borrow();
+        let mut fed = Vec::with_capacity(rule.original_steps.len());
+        for origin in rule.original_steps.iter() {
+            let origin = origin.as_ref().map_err(Clone::clone)?;
+            let region_id = *self
+                .program
+                .logical_regions
+                .get(origin.logical.0)
+                .ok_or(OperatingError::NotRun)?;
+            let code = self
+                .program
+                .regions
+                .get(region_id.0)
+                .ok_or(OperatingError::NotRun)?;
+            let at = code
+                .instructions
+                .iter()
+                .position(|instruction| instruction.logical == origin.logical)
+                .ok_or(OperatingError::NotRun)?;
+            let slot = slots.get(region_id.0).ok_or(OperatingError::NotRun)?;
+            if matches!(slot.state, State::Running) {
+                return Err(OperatingError::NotRun);
+            }
+            fed.push(*slot.fed.get(at).ok_or(OperatingError::NotRun)?);
+        }
+        Ok(super::facade::LogicalCounts {
+            fed: fed.into_boxed_slice(),
+        })
+    }
+    pub(super) fn partition(&self) -> &Partition {
+        &self.partition
     }
     /// Consume one declared reader edge. Cascaded cancellation uses the same
     /// prepared region edges; no semantic callback runs under the state borrow.
@@ -572,6 +619,11 @@ impl Drop for Invocation<'_> {
         let mut slots = self.execution.slots.borrow_mut();
         if let Some(slot) = slots.get_mut(self.id.0) {
             slot.scratch = self.scratch.take().unwrap_or_default();
+            for (fed, scratch) in slot.fed.iter_mut().zip(&slot.scratch) {
+                if let Some(workspace) = &scratch.workspace {
+                    *fed = crate::domain::operator::types::RowsFed(workspace.work.snapshot());
+                }
+            }
             slot.state = match &self.terminal {
                 Terminal::Retry => State::Dormant,
                 Terminal::Published(input) => State::Published(input.clone()),
