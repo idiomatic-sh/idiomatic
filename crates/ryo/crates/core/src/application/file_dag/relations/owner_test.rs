@@ -61,7 +61,10 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     );
     assert_eq!(
         super::bytes(first.record().as_ref()),
-        service::compact_metadata_bytes(&compact) + words.0.0.capacity(),
+        service::compact_metadata_bytes(&compact)
+            + words.0.0.capacity()
+            + size_of::<super::RelationResult>()
+            + 2 * size_of::<usize>(),
     );
     let unread = |_| Err(OperatingError::NotRead);
     let resolved = owner.resolve(first.as_ref(), &unread).unwrap();

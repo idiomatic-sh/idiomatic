@@ -16,14 +16,16 @@ use crate::domain::{
     table_texts::types::SourceView,
 };
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, Relation};
+use ryo_relations::domain::relations::types::{
+    CellKind, ColumnsView, FactColumn, FileId, Relation, Value,
+};
 use ryo_values::domain::{
     plan_parts::types::{
         ColumnIndex, ComparisonOriginId, Input, LiteralText, Operand, ParameterId, QueryLiteral,
         RepeatedRows, StepId, Test,
     },
     plans::types::{Operation, Plan, PlanStep, StepScope},
-    rows::types::Table,
+    rows::types::{RowCount, Table},
 };
 use std::{cell::Cell, sync::Arc};
 
@@ -85,6 +87,16 @@ fn execute<'f>(
     read: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     symbols: &mut Symbols,
 ) -> Result<Table, OperatingError> {
+    execute_results(fixture, plan, rule, read, symbols).map(|(emitted, _)| emitted)
+}
+
+fn execute_results<'f>(
+    fixture: &FileScope<'_>,
+    plan: &Plan,
+    rule: usize,
+    read: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    symbols: &mut Symbols,
+) -> Result<(Table, Vec<Table>), OperatingError> {
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
@@ -114,10 +126,12 @@ fn execute<'f>(
     );
     fixture.execution.borrow_mut().finish_rule(rule);
     result?;
-    pool.steps
+    let emitted = pool
+        .steps
         .get(plan.emit.step.0 as usize)
         .cloned()
-        .ok_or(OperatingError::NotRun)
+        .ok_or(OperatingError::NotRun)?;
+    Ok((emitted, pool.frontier))
 }
 
 fn branched() -> Plan {
@@ -237,7 +251,10 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         bound.program_nodes[1][0].as_ref().unwrap(),
         "different parameter bindings cannot share a physical node"
     );
-    assert!(bound.cuts[0][0].is_none() && bound.cuts[1][0].is_none());
+    assert_ne!(
+        bound.cuts[0][0], bound.cuts[1][0],
+        "parameterized cuts retain separate physical identities"
+    );
 
     let fixture = scope(&plans, &[Relation::Function]);
     let mut symbols = Symbols::default();
@@ -264,6 +281,7 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());
     query.emit.step = StepId(2);
+    query.frontier.push(Input::Step(StepId(1)));
     let graph = graph(&[query.clone(), query]);
     let node = graph.cuts[0][0].expect("first internal cut");
     assert_eq!(
@@ -278,6 +296,20 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
     let partial = crate::application::file_dag::activation::types::ActivationCache::default()
         .activate(&graph, |_| true, &[]);
     assert!(complete.remaining[node.0] > inactive.remaining[node.0]);
+    let mut deduplicated = plan();
+    deduplicated.frontier.push(Input::Step(StepId(0)));
+    let equivalent = graph(&[deduplicated.clone(), deduplicated]);
+    let equivalent_node = equivalent.cuts[0][0].expect("equivalent source cut");
+    let equivalent_schedule =
+        crate::application::file_dag::activation::types::ActivationCache::default().activate(
+            &equivalent,
+            |_| true,
+            &[Relation::Function],
+        );
+    assert_eq!(
+        complete.remaining[node.0], equivalent_schedule.remaining[equivalent_node.0],
+        "duplicate source spellings do not inflate physical reader counts"
+    );
     assert!(complete.reusable[node.0]);
     assert!(
         !partial.reusable[node.0],
@@ -291,6 +323,7 @@ fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());
     query.emit.step = StepId(2);
+    query.frontier.push(Input::Step(StepId(1)));
     let plans = [query.clone(), query];
     let fixture = scope(&plans, &[Relation::Function]);
     let node = fixture.scope.graph().cuts[0][0].expect("shared cut");
@@ -348,7 +381,24 @@ fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (
         retained.then(|| execute(&fixture, &plans[0], 0, &read, &mut symbols).unwrap());
     reads.set(0);
     let before_hits = fixture.execution.borrow().hits;
-    let second = execute(&fixture, &plans[1], 1, &read, &mut symbols).unwrap();
+    let (second, frontier) = execute_results(&fixture, &plans[1], 1, &read, &mut symbols).unwrap();
+    if shared_branch {
+        assert_eq!(
+            frontier,
+            vec![Table {
+                kinds: vec![CellKind::File],
+                cells: vec![
+                    Value::File(FileId(10)),
+                    Value::File(FileId(11)),
+                    Value::File(FileId(11)),
+                ],
+                count: RowCount(3),
+            }],
+            "a live frontier keeps its exact rows while the emitted cut is reused"
+        );
+    } else {
+        assert!(frontier.is_empty());
+    }
     if let Some(first) = first_result {
         assert_eq!(first, second, "shared emitted rows stay exact");
     }

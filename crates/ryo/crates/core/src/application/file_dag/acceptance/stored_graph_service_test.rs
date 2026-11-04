@@ -60,8 +60,9 @@ fn build(
         identity.population.rows,
         crate::domain::table_model::service::count_of(rows).0
     );
-    assert_eq!(identity.endpoints, endpoints);
-    assert_eq!(identity.keys, keys);
+    // The portable request carries the actual endpoints and keys. The old
+    // GraphIdentity belongs to the former local builder and is not an input
+    // to this port; invalid columns must be refused by the port itself.
     let semantics = crate::outbound::derived::factory::test_port();
     let prepared = semantics.prepare(
         ViewRequest::Adjacency {

@@ -99,7 +99,7 @@ impl OperatorsPort for Refuses {
 fn refused(result: Result<(), OperatingError>) {
     assert!(
         matches!(
-            result,
+            &result,
             Err(OperatingError::Table(
                 crate::domain::table_model::errors::TableModelError::NoSuchColumn {
                     index: REFUSAL
@@ -619,22 +619,32 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
     let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
     let read = |_| None;
     let _previous = crate::domain::table_model::service::take_read_row_counts();
-    refused(
-        crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
-            &plan,
-            &read,
-            Some(TreeRows {
-                elements: &elements,
-                file: FileId(0),
-                form: TreeForm::Elements,
-            }),
-            &mut ctx,
-            &mut pool,
-            &mut prepared,
-            0,
-            &scope.execution,
-            scope.scope.executor(),
+    let result = crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
+        &plan,
+        &read,
+        Some(TreeRows {
+            elements: &elements,
+            file: FileId(0),
+            form: TreeForm::Elements,
+        }),
+        &mut ctx,
+        &mut pool,
+        &mut prepared,
+        0,
+        &scope.execution,
+        scope.scope.executor(),
+    );
+    assert!(
+        matches!(
+            &result,
+            Err(OperatingError::Table(
+                crate::domain::table_model::errors::TableModelError::NoSuchColumn {
+                    index: REFUSAL
+                }
+            ))
         ),
+        "strategy={strategy:?}, right={right:?}, root={:?}, result={result:?}",
+        scope.scope.graph().program_nodes[0][root.0 as usize],
     );
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     let reads = crate::domain::table_model::service::take_read_row_counts();

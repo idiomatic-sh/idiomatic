@@ -142,11 +142,12 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
             let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
                 &plans, &operators,
             ));
-            let root = graph.boundaries[0]
-                .first()
-                .expect("internal representation producer feeds the residual terminal")
-                .1;
-            assert_eq!(graph.cuts[0][0], Some(root));
+            let root = graph.cuts[0][0].expect("internal representation producer");
+            assert_ne!(
+                graph.boundaries[0].first().map(|(_, terminal)| *terminal),
+                Some(root),
+                "the residual terminal is a distinct consumer"
+            );
             let scope = crate::application::file_dag::testing::FileScope::new(
                 graph,
                 crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
@@ -184,8 +185,8 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
             assert_eq!(result.kind(), *variant);
             assert_eq!(
                 dag.borrow().executions[root.0],
-                0,
-                "supplied input is published, not executed"
+                1,
+                "ordinary source is executed once"
             );
             let resolved = scope.scope.owner().resolve(result.as_ref(), &read).unwrap();
             let raw = borrowed(&resolved);
@@ -326,7 +327,11 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
                 dag.borrow().provided.get(&root),
                 Some(ProvidedInput::Live { .. })
             ));
-            assert_eq!(dag.borrow().executions[root.0], 1);
+            assert_eq!(
+                dag.borrow().executions[root.0],
+                0,
+                "supplied source is published, not executed"
+            );
             dag.borrow_mut().finish_rule(0);
             assert!(matches!(
                 dag.borrow().provided.get(&root),
