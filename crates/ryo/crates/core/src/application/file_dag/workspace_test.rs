@@ -17,7 +17,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::{rc::Rc, sync::Arc};
 
 #[test]
-fn streamed_internal_capture_never_demands_a_retained_publication() {
+fn streamed_capture_preserves_any_held_publication_and_unheld_rows_remain_scoped() {
     use crate::application::file_dag::feed::{Feed, InputOrigin};
     use crate::domain::operating::types::{Emit, InputPlace, Supply};
     use std::cell::Cell;
@@ -26,6 +26,7 @@ fn streamed_internal_capture_never_demands_a_retained_publication() {
         owner: Rc<crate::application::file_dag::relations::RelationOwner>,
         publication_calls: Cell<usize>,
         supply: Supply,
+        publication: Option<crate::application::file_dag::relations::PublishedInput>,
     }
     impl<'f> Feed<'f> for Streamed {
         fn relation_owner(&self) -> Rc<crate::application::file_dag::relations::RelationOwner> {
@@ -40,7 +41,7 @@ fn streamed_internal_capture_never_demands_a_retained_publication() {
         ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
         {
             self.publication_calls.set(self.publication_calls.get() + 1);
-            Err(OperatingError::NotRun)
+            Ok(self.publication.clone())
         }
         fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
             Ok(&[CellKind::Number])
@@ -76,25 +77,43 @@ fn streamed_internal_capture_never_demands_a_retained_publication() {
         owner: Rc::clone(&owner),
         publication_calls: Cell::new(0),
         supply: Supply::Streamed,
+        publication: None,
     };
     let mut workspace = InvocationWorkspace::new(owner);
     workspace.capture(&feed, 1).unwrap();
-    assert_eq!(feed.publication_calls.get(), 0);
+    assert_eq!(feed.publication_calls.get(), 1);
     assert!(matches!(workspace.origins[0], InputOrigin::InternalStream));
     assert!(workspace.publications[0].is_none());
     let row = table(&[7], 1);
     assert!(workspace.admit(0, BorrowedRows::Computed(&row)).is_ok());
 
+    let held_row = table(&[9], 1);
+    let publication = feed.owner.computed(held_row.clone()).unwrap();
     let held = Streamed {
         owner: Rc::clone(&feed.owner),
         publication_calls: Cell::new(0),
-        supply: Supply::AtHand,
+        supply: Supply::Streamed,
+        publication: Some(publication.clone()),
     };
-    assert!(matches!(
-        workspace.capture(&held, 1),
-        Err(OperatingError::NotRun)
-    ));
+    workspace.capture(&held, 1).unwrap();
     assert_eq!(held.publication_calls.get(), 1);
+    assert!(matches!(workspace.origins[0], InputOrigin::Internal));
+    assert!(
+        workspace.publications[0]
+            .as_ref()
+            .unwrap()
+            .same_record(&publication)
+    );
+    assert!(
+        workspace
+            .admit(0, BorrowedRows::Computed(&held_row))
+            .is_ok()
+    );
+    held.owner.release_population();
+    assert!(matches!(
+        workspace.admit(0, BorrowedRows::Computed(&held_row)),
+        Err(OperatingError::NotRead)
+    ));
 }
 fn table(values: &[i64], width: usize) -> Table {
     Table {

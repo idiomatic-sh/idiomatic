@@ -147,16 +147,20 @@ impl InvocationWorkspace {
         for at in 0..count {
             let which = crate::domain::operating::types::InputPlace(at);
             let origin = feed.origin(which)?;
-            if feed.streams(which) == crate::domain::operating::types::Supply::Streamed {
-                self.origins.push(match origin {
-                    super::feed::InputOrigin::Internal => super::feed::InputOrigin::InternalStream,
-                    other => other,
-                });
-                self.publications.push(None);
-            } else {
-                self.origins.push(origin);
-                self.publications.push(feed.publication(which)?);
-            }
+            // A stream may already have been held by an earlier input demand.
+            // Preserve its publication so admission keeps its population and
+            // generation proof. Only an unheld internal stream is row scoped.
+            let publication = feed.publication(which)?;
+            let origin = match (origin, feed.streams(which), publication.is_some()) {
+                (
+                    super::feed::InputOrigin::Internal,
+                    crate::domain::operating::types::Supply::Streamed,
+                    false,
+                ) => super::feed::InputOrigin::InternalStream,
+                (origin, _, _) => origin,
+            };
+            self.origins.push(origin);
+            self.publications.push(publication);
         }
         Ok(())
     }
