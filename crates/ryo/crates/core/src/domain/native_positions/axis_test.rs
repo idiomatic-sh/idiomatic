@@ -19,7 +19,7 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Direction, Input, StepId},
+    plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepId},
     plans::types::Operation,
 };
 
@@ -86,9 +86,9 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
         }),
     };
     let operation = Operation::Axis {
-        from: Input::Step(StepId(0)),
-        edges: Input::Relation(Relation::SyntaxChild),
-        domain: Input::Step(StepId(2)),
+        from: PlanInput::Step(StepId(0)),
+        edges: PlanInput::Relation(Relation::SyntaxChild),
+        domain: PlanInput::Step(StepId(2)),
         direction: Direction::Child,
         id: ColumnIndex(0),
         parent: ColumnIndex(0),
