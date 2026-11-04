@@ -8,6 +8,8 @@
 - Canonical cold/warm/edit benchmarks must select all 413 identical IDs for both contestants. Historical 409/411/subset benchmark evidence retains its recorded scope. Current all-413 ListedDisk Django execution reports incomplete RUF100 producers; canonical certification/context work and subsecond/memory goals remain open.
 - Relation, operator and derived category ownership, broader core fixture/runtime proof, SDK compatibility and remote QA remain open. Scoped passes promote no unchecked matrix cell.
 - RUF100 actual cold/warm/Unknown output controls pass on the named snapshots; paired implementation review and the latest canonical-context delta remain separately gated.
+- The isolated executable-program rewrite now has one compiled instruction/owner path under construction. Its Registered primitive call carries an opaque request binding the live permit, operation, admitted inputs and output; native calls also carry admitted inputs. The old graph and eager frontier descriptions below are historical route evidence, not a claim that the replacement has passed. The latest grouped check reported 236 dead-code diagnostics; the new compiled-program lifecycle controls are authored but unexecuted. No full-inventory performance result exists for this rewrite.
+- The placed Tastemaker owner-boundary guard has 22 bad/good scenarios; it checks resolved dependency placement. Rust privacy controls passed for selected construction and generation-write attempts. Same-crate execution bypass, runtime admission, sharing, readiness and release remain open until the current replacement route and its controls execute.
 
 
 ## 1. Ownership matrix
