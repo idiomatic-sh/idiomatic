@@ -45,8 +45,7 @@ impl PrimitiveExecutor for CommonOperatorEngine<'_> {
 pub(super) struct PrimitiveSemanticsBridge<'a, 'invocation> {
     pub(super) port: &'a dyn PrimitiveExecutor,
     pub(super) permit: &'a super::program::admission::KernelPermit<'invocation>,
-    pub(super) failure:
-        &'a std::cell::RefCell<Option<crate::domain::operating::errors::OperatingError>>,
+    pub(super) failure: &'a std::sync::OnceLock<crate::domain::operating::errors::OperatingError>,
 }
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_, '_> {
     #[cfg(feature = "diagnostic-row-progress")]
@@ -69,7 +68,7 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_, '_> {
             Ok(KernelAnswer::Complete) => Err(PortableOperatorFault::ShapeMismatch),
             Err(KernelFault::Portable(error)) => Err(error),
             Err(KernelFault::Refused(error)) => {
-                self.failure.borrow_mut().get_or_insert(error);
+                let _first = self.failure.set(error);
                 Err(PortableOperatorFault::Interrupted)
             }
         }

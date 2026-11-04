@@ -16,7 +16,7 @@ pub(super) struct FileGeneration {
     file: FileId,
     generation: Arc<()>,
 }
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct RequiredPartitions {
     pub(super) files: Box<[FileId]>,
     pub(super) covered: Box<[crate::domain::coverage::types::Covered]>,
@@ -43,6 +43,7 @@ pub(super) enum ApplicabilityReason {
 #[derive(Clone)]
 pub(super) enum Readiness {
     Complete,
+    Partial,
     Skipped(ApplicabilityProof),
     Unknown(OperatingError),
 }
@@ -97,6 +98,11 @@ pub(super) trait Inputs {
     ) -> Result<(), OperatingError>;
 }
 impl AdmittedInput {
+    pub(super) fn partial(mut self) -> Self {
+        self.readiness = Readiness::Partial;
+        self
+    }
+
     /// Only a real generation-checked admission can issue this required input.
     pub(in crate::application::file_dag::program) fn from_publication(
         owner: Rc<RelationOwner>,
@@ -130,7 +136,7 @@ impl AdmittedInput {
             return Err(OperatingError::NotRead);
         }
         match &self.readiness {
-            Readiness::Complete => Ok(&self.publication),
+            Readiness::Complete | Readiness::Partial => Ok(&self.publication),
             Readiness::Skipped(_) => Err(OperatingError::ObservationIncomplete {
                 reason: "admitted producer partition is skipped, not complete".into(),
             }),
@@ -175,7 +181,15 @@ impl<'scope> KernelPermit<'scope> {
         if !Arc::ptr_eq(&execution.generation, &execution.owner.generation.borrow()) {
             return Err(OperatingError::NotRead);
         }
-        for input in inputs {
+        for (source, input) in code.inputs.iter().zip(inputs) {
+            let expected = match source {
+                InputSource::Region(id) => ProducerRoot::Region(*id),
+                other => ProducerRoot::Input(*other),
+            };
+            if input.root != expected || !input.partition.supplies(&execution.partition) {
+                return Err(OperatingError::NotRead);
+            }
+            input.publication(&execution.owner)?;
             if !Rc::ptr_eq(&execution.owner, &input.proof.owner)
                 || !Arc::ptr_eq(&input.proof.generation, &execution.generation)
             {
@@ -242,5 +256,24 @@ impl RequiredPartitions {
     }
     pub(in crate::application::file_dag::program) fn files(&self) -> &[FileId] {
         &self.files
+    }
+}
+
+impl Partition {
+    fn supplies(&self, required: &Self) -> bool {
+        match (self, required) {
+            (Self::RequestInvariant, _) => true,
+            (Self::File(actual), Self::File(required)) => {
+                actual.file == required.file
+                    && Arc::ptr_eq(&actual.generation, &required.generation)
+            }
+            (Self::Project(actual), Self::Project(required)) => actual == required,
+            _ => false,
+        }
+    }
+}
+impl RequiredPartitions {
+    pub(super) fn same_request(&self, other: &Self) -> bool {
+        self == other
     }
 }

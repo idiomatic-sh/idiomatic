@@ -92,11 +92,18 @@ impl ProgramExecution {
             slots: RefCell::new(slots),
         }
     }
+    pub(super) fn project_partition_matches(
+        &self,
+        required: &super::admission::RequiredPartitions,
+    ) -> bool {
+        matches!(&self.partition, Partition::Project(actual) if actual.same_request(required))
+    }
     pub(in crate::application::file_dag::program) fn invoke(
         &self,
         id: RegionId,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
+        completion: &crate::application::file_dag::completion::CompletionPolicy,
         context: &mut OperatorContext<'_>,
         delivery: Delivery<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
@@ -136,12 +143,28 @@ impl ProgramExecution {
             terminal: Terminal::Retry,
         };
         let first = region.instructions.first().ok_or(OperatingError::NotRun)?;
+        let needs = region.needs.as_ref().map_err(Clone::clone)?;
         let mut admitted = Vec::new();
         let program = match delivery {
             Delivery::Retain => &first.collected_demand,
             Delivery::Forward(_) => &first.streaming_demand,
         };
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
+            if !completion.allows_region(needs) {
+                let last = region
+                    .instructions
+                    .last()
+                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+                let input = inputs
+                    .publish_empty(
+                        super::admission::ProducerRoot::Region(id),
+                        &self.partition,
+                        &[],
+                        last.contract.collected_kinds.clone(),
+                    )
+                    .map_err(InvocationFailure::Semantic)?;
+                return Ok(InvocationOutcome::Published(input.partial()));
+            }
             if matches!(delivery, Delivery::Retain) {
                 for instruction in region.instructions.iter().rev() {
                     if instruction.contract.collected.schema_boundary
@@ -173,7 +196,7 @@ impl ProgramExecution {
                         })?;
                         admitted.push(
                             inputs
-                                .admit(source, &self.partition)
+                                .admit(source, &self.partition, context)
                                 .map_err(InvocationFailure::Semantic)?,
                         );
                     }
@@ -215,6 +238,8 @@ impl ProgramExecution {
                     }
                 }
             }
+            let permit = super::admission::KernelPermit::admitted(self, id, &admitted)
+                .map_err(InvocationFailure::Semantic)?;
             let frames = cleanup
                 .scratch
                 .as_mut()
@@ -224,7 +249,7 @@ impl ProgramExecution {
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             match delivery {
-                Delivery::Forward(output) if !region.publishes => {
+                Delivery::Forward(output) if !region.publishes && !completion.requires_buffer() => {
                     let mut output = GuardedOutput {
                         output,
                         error: None,
@@ -268,6 +293,33 @@ impl ProgramExecution {
                                 &mut output,
                             )?;
                         }
+                        Delivery::Forward(output) if completion.requires_buffer() => {
+                            let mut collect = crate::domain::replay::types::Collect(&mut rows);
+                            continuation(
+                                &permit,
+                                region,
+                                0,
+                                KernelInput::Admitted(&admitted),
+                                kernels,
+                                context,
+                                frames,
+                                &mut collect,
+                            )?;
+                            completion.filter_rows(
+                                region
+                                    .last_operation()
+                                    .map_err(InvocationFailure::Semantic)?,
+                                needs,
+                                &mut rows,
+                            );
+                            let width = rows.kinds.len();
+                            for at in 0..rows.count.0 {
+                                let start = at * width;
+                                output
+                                    .row(context, &rows.cells[start..start + width])
+                                    .map_err(InvocationFailure::Delivery)?;
+                            }
+                        }
                         Delivery::Forward(output) => {
                             let mut output = Tee {
                                 rows: &mut rows,
@@ -290,6 +342,13 @@ impl ProgramExecution {
                             result?;
                         }
                     }
+                    completion.filter_rows(
+                        region
+                            .last_operation()
+                            .map_err(InvocationFailure::Semantic)?,
+                        needs,
+                        &mut rows,
+                    );
                     let published = inputs
                         .publish(
                             super::admission::ProducerRoot::Region(id),
@@ -298,6 +357,11 @@ impl ProgramExecution {
                             rows,
                         )
                         .map_err(InvocationFailure::Semantic)?;
+                    let published = if completion.observation_ready(needs) {
+                        published
+                    } else {
+                        published.partial()
+                    };
                     Ok(InvocationOutcome::Published(published))
                 }
             }

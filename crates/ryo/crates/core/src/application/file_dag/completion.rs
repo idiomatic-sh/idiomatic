@@ -119,6 +119,18 @@ impl CompletionPolicy {
     pub(super) fn requires_buffer(&self) -> bool {
         matches!(self.behavior, CompletionBehavior::DropAfterCollect(_))
     }
+    pub(super) fn filter_rows(
+        &self,
+        operation: &Operation,
+        needs: &[RelationRead],
+        rows: &mut Table,
+    ) {
+        if let CompletionBehavior::DropAfterCollect(partials) = &self.behavior {
+            let uncertain = files_for(partials, needs);
+            let kinds = rows.kinds.clone();
+            drop_uncertain(operation, &kinds, rows, &uncertain);
+        }
+    }
     pub(super) fn allows_region(&self, needs: &[RelationRead]) -> bool {
         match &self.behavior {
             CompletionBehavior::BlockBeforeRun(partials) => {

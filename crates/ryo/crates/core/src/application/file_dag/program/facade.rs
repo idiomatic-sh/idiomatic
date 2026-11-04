@@ -88,6 +88,7 @@ pub(super) struct RootMetadata {
 }
 pub(super) struct RuleMetadata {
     pub emit: Emit,
+    pub emit_reads: Result<Box<[RelationRead]>, OperatingError>,
     pub emit_root: Result<RegionId, OperatingError>,
     pub emit_phase: Result<StepScope, OperatingError>,
     pub frontiers: Box<[Input]>,
@@ -441,6 +442,11 @@ pub(crate) fn prepare(
             .collect();
         metadata.push(RuleMetadata {
             emit: plan.emit.clone(),
+            emit_reads: reads
+                .get(plan.emit.step.0 as usize)
+                .cloned()
+                .map(Vec::into_boxed_slice)
+                .ok_or(OperatingError::NotRun),
             emit_root: program
                 .rules
                 .get(rule)

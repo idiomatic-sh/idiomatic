@@ -64,6 +64,7 @@ pub(crate) enum OperandSource {
 #[derive(Debug)]
 pub(crate) struct Instruction {
     pub logical: LogicalInstruction,
+    pub producer: RuleIndex,
     pub operation: Operation,
     pub input_delivery: Box<[crate::domain::operating::types::Supply]>,
     pub contract: Arc<OperatorContract>,
@@ -75,6 +76,8 @@ pub(crate) struct Instruction {
 #[derive(Debug)]
 pub(crate) struct Region {
     pub id: RegionId,
+    pub producer: RuleIndex,
+    pub needs: Result<Box<[crate::domain::trust::types::RelationRead]>, OperatingError>,
     pub phase: StepScope,
     pub instructions: Box<[Instruction]>,
     pub inputs: Box<[InputSource]>,
@@ -130,4 +133,13 @@ pub(crate) trait ProducerPartitions {
         rule: RuleIndex,
         input: ryo_values::domain::observations::types::ObservationBindingId,
     ) -> Result<PartitionRequirement, OperatingError>;
+}
+
+impl Region {
+    pub(crate) fn last_operation(&self) -> Result<&Operation, OperatingError> {
+        self.instructions
+            .last()
+            .map(|instruction| &instruction.operation)
+            .ok_or(OperatingError::NotRun)
+    }
 }

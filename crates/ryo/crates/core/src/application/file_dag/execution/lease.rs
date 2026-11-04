@@ -37,7 +37,7 @@ pub(super) fn evaluate(
         crate::application::file_dag::route_counts::resume(workspace.progress_origin);
     #[cfg(test)]
     resources.observe(workspace);
-    let semantic_failure = std::cell::RefCell::new(None);
+    let semantic_failure = std::sync::OnceLock::new();
     let row = match input {
         PreparedInputs::Row { input, sides, row } => {
             if input.0 >= contract.inputs.used.0

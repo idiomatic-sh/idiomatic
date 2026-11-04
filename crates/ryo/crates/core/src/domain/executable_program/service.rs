@@ -46,6 +46,7 @@ struct DraftRegion {
     nodes: Vec<usize>,
     instructions: Vec<Instruction>,
     inputs: Vec<NodeInput>,
+    needs: Result<Vec<crate::domain::trust::types::RelationRead>, OperatingError>,
 }
 fn continuation(node: &Node) -> bool {
     node.schema_valid
@@ -162,6 +163,7 @@ pub(crate) fn compile(
         };
         let instruction = Instruction {
             logical: LogicalInstruction(logical),
+            producer: rule,
             operation: node.operation,
             streaming_demand: demand(node.contract.streaming, node.contract.inputs.used.0, join),
             collected_demand: demand(node.contract.collected, node.contract.inputs.used.0, join),
@@ -181,6 +183,7 @@ pub(crate) fn compile(
             let region_body = drafts[region].as_mut().ok_or(OperatingError::NotRun)?;
             region_body.nodes.push(logical);
             region_body.instructions.push(instruction);
+            region_body.needs = node.needs;
             region
         } else {
             let region = drafts.len();
@@ -189,6 +192,7 @@ pub(crate) fn compile(
                 nodes: vec![logical],
                 instructions: vec![instruction],
                 inputs: node.inputs,
+                needs: node.needs,
             }));
             region
         };
@@ -219,6 +223,12 @@ pub(crate) fn compile(
         let logical = *draft.nodes.last().ok_or(OperatingError::NotRun)?;
         regions.push(Region {
             id: RegionId(dense[at]),
+            producer: draft
+                .instructions
+                .last()
+                .ok_or(OperatingError::NotRun)?
+                .producer,
+            needs: draft.needs.map(Vec::into_boxed_slice),
             phase: draft.phase,
             instructions: draft.instructions.into_boxed_slice(),
             inputs: draft
