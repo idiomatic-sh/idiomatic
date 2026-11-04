@@ -500,6 +500,8 @@ pub fn places_mut(symbols: &mut Symbols) -> &mut Vec<NamePlace> {
 
 /// Name places decoded from an admitted project publication. This grants a
 /// query only the transport place table, never source-name interning or notes.
-pub fn query_places_mut(symbols: &mut super::types::QuerySymbols<'_>) -> &mut Vec<NamePlace> {
+pub fn query_places_mut<'borrow>(
+    symbols: &'borrow mut super::types::QuerySymbols<'_>,
+) -> &'borrow mut Vec<NamePlace> {
     places_mut(symbols.0)
 }
