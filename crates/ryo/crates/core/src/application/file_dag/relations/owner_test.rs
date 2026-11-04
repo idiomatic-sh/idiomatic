@@ -18,7 +18,7 @@ use ryo_relations::domain::relations::{
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
 };
 use ryo_values::domain::{plan_parts::types::ColumnIndex, stored_facts::types::PartialCause};
-use std::{cell::Cell, sync::Arc};
+use std::{cell::Cell, mem::size_of, sync::Arc};
 
 #[test]
 fn compact_publications_share_backing_accounting_and_expire_with_generation() {
@@ -31,7 +31,6 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
         domain::rows::types::{RowCount, Table},
         domain::stored_facts::types::KeptWords,
     };
-    use std::collections::HashMap;
 
     let table = Table {
         kinds: vec![CellKind::Number],
@@ -50,29 +49,15 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let compact_weak = Arc::downgrade(&compact);
     let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let first = owner.compact(Arc::clone(&compact)).unwrap();
+    let first_unique = owner.derived.publication_ownership_bytes().2;
     let second = owner.compact(Arc::clone(&compact)).unwrap();
     assert!(!first.same_record(&second));
-    let left = owner.backings(first.record());
-    let right = owner.backings(second.record());
-    let mut unique = HashMap::new();
-    for backing in left.iter().chain(&right) {
-        if let Some(previous) = unique.insert(backing.key, backing.bytes) {
-            assert_eq!(previous, backing.bytes);
-        }
-    }
-    assert_eq!(left.iter().filter(|backing| backing.key.0 == 22).count(), 1);
-    assert_eq!(left.iter().filter(|backing| backing.key.0 == 24).count(), 1);
-    assert_eq!(
-        right.iter().filter(|backing| backing.key.0 == 22).count(),
-        1
-    );
-    assert_eq!(
-        right.iter().filter(|backing| backing.key.0 == 24).count(),
-        1
-    );
+    // A second publication of the same immutable Compact and word buffer
+    // adds only its own record. Shared backing allocations are not charged
+    // again to the owner ledger.
     assert_eq!(
         owner.derived.publication_ownership_bytes().2,
-        unique.values().sum()
+        first_unique + size_of::<super::RelationResult>() + 2 * size_of::<usize>()
     );
     assert_eq!(
         super::bytes(first.record().as_ref()),
@@ -156,11 +141,11 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
     }
     assert_eq!(
         groups,
-        [57, 7, 4],
-        "68 catalog relations, separately from four physical representations"
+        [57, 8, 4],
+        "69 catalog relations, separately from five physical representations"
     );
-    assert_eq!(owner.checks.get(), 68);
-    assert_eq!(owner.reuses.get(), 68);
+    assert_eq!(owner.checks.get(), 69);
+    assert_eq!(owner.reuses.get(), 69);
 }
 
 #[test]
