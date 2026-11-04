@@ -70,6 +70,12 @@ impl ProjectRun<'_, '_> {
         demand: RuleDemand,
         context: &mut OperatorContext<'_>,
     ) -> Result<RuleOutcome, OperatingError> {
+        if !ryo_language::domain::symbols::service::query_has_transport_generation(
+            &context.symbols,
+            &self.transport,
+        ) {
+            return Err(OperatingError::NotRead);
+        }
         let metadata = self.program.rule_metadata(rule)?;
         let completion = match &self.partials {
             ScopePartials::Project {

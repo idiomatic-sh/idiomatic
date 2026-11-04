@@ -515,6 +515,16 @@ pub fn same_transport_generation(
     std::sync::Arc::ptr_eq(&first.0, &second.0)
 }
 
+/// Check a semantic query borrow against an application-held frame key without
+/// granting the query a way to mint keys or mutate transported name places.
+pub fn query_has_transport_generation(
+    symbols: &QuerySymbols<'_>,
+    permit: &super::types::TransportPermit,
+) -> bool {
+    let pool: &SymbolsEngine = symbols.0.as_ref();
+    std::sync::Arc::ptr_eq(&pool.transport_generation, &permit.0)
+}
+
 /// Let the owner decode one demanded transport frame in place. QuerySymbols
 /// alone cannot call this: it cannot mint the key, and a stale/foreign key
 /// refuses before any place is appended.
