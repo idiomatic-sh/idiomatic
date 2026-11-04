@@ -8,6 +8,7 @@ use ryo_values::domain::plans::types::{Operation, OperationKind};
 
 pub(crate) enum PhysicalRoute<'a> {
     Registered,
+    Positions(&'a crate::domain::lowering::types::LoweredShape),
     Ordered(&'a OrderedExistence),
     Column(&'a super::column::ColumnAlternative),
 }
@@ -93,7 +94,9 @@ pub(crate) fn authorize(
                                 }
                             }
                 }
-                PhysicalRoute::Registered | PhysicalRoute::Column(_) => false,
+                PhysicalRoute::Registered
+                | PhysicalRoute::Column(_)
+                | PhysicalRoute::Positions(_) => false,
             },
         ),
         OperatorCall::Project { columns, .. } => (
@@ -164,6 +167,9 @@ pub(crate) fn authorize(
                             actual_view.is_empty()
                         }
                 }
+                (Operation::Join { .. }, JoinInput::Positions { .. }) => {
+                    matches!(route, PhysicalRoute::Positions(shape) if shape.width.0 > 0)
+                }
                 // Deferred positions require their own compiled native descriptor;
                 // an ordinary row permit cannot authorize that representation.
                 (_, JoinInput::Positions { .. }) | (_, JoinInput::Values { .. }) => false,
@@ -184,7 +190,14 @@ pub(crate) fn authorize(
                     ) => expected.as_slice() == *left_on,
                     _ => false,
                 },
-                SetInput::Positions { .. } => false,
+                SetInput::Positions { kind, .. } => {
+                    matches!(route, PhysicalRoute::Positions(shape) if shape.width.0 > 0)
+                        && matches!(
+                            (operation, kind),
+                            (Operation::Union { .. }, SetKind::Union)
+                                | (Operation::Antijoin { .. }, SetKind::Antijoin)
+                        )
+                }
             },
         ),
     };

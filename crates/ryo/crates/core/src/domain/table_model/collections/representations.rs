@@ -11,3 +11,5 @@ mod service_test;
 pub(crate) mod stored;
 pub(crate) mod tree;
 pub(crate) mod types;
+
+pub(crate) mod positioned;

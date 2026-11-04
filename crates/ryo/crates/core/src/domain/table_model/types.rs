@@ -38,12 +38,22 @@ pub(crate) enum Rows<'a> {
     Selected(SelectedRows<'a>),
     /// The edges of a file's syntax tree, read from the tree itself: no row of them is stored.
     Tree(TreeRows<'a>),
+    /// Native tuple positions, decoded only when a consumer asks for a cell.
+    Positioned(PositionedRows<'a>),
     /// The rows of an earlier step.
     Computed(&'a Table),
     /// Admitted immutable cross-file rows read without whole-population cell allocation.
     Compact(&'a crate::domain::table_words::types::CompactTable),
 }
 
+/// Geometry and positions are borrowed from the same generation-owned publication.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PositionedRows<'a> {
+    pub tree: TreeRows<'a>,
+    pub positions: &'a crate::domain::positions::types::Positions,
+    pub shape: &'a crate::domain::lowering::types::LoweredShape,
+    pub kinds: &'a [CellKind],
+}
 /// A compact row view borrows only its generation's provider; its metadata has owned lifetime.
 #[derive(Clone, Debug)]
 pub(crate) struct SelectedRows<'a> {

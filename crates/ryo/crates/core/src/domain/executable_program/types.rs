@@ -105,6 +105,7 @@ pub(crate) struct Region {
     pub ordered_existence: Option<OrderedExistence>,
     pub column: Option<super::column::ColumnAlternative>,
     pub selection: Option<super::selection::SelectionAlternative>,
+    pub native_positions: Option<Arc<crate::domain::lowering::types::LoweredShape>>,
     pub publishes: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

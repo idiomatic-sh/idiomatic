@@ -24,6 +24,7 @@ pub(super) enum InvocationFailure {
 /// No held inputs/publication or dependency accounting at internal instructions.
 #[derive(Default)]
 pub(super) struct KernelScratch {
+    pub positions: crate::domain::native_positions::types::PositionWork,
     pub workspace: Option<super::super::workspace::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::contract::types::OrderedExistenceScratch,
@@ -53,6 +54,14 @@ pub(super) trait KernelInvocation {
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
     ) -> Result<StrategyOutcome, InvocationFailure>;
+    fn positions(
+        &self,
+        region: RegionId,
+        shape: &Arc<crate::domain::lowering::types::LoweredShape>,
+        permit: &super::admission::KernelPermit<'_>,
+        context: &mut OperatorContext<'_>,
+        scratch: &mut KernelScratch,
+    ) -> Result<Option<super::positions::ProducedPositions>, InvocationFailure>;
     fn selected(
         &self,
         shape: &crate::domain::executable_program::selection::SelectionAlternative,
@@ -707,6 +716,25 @@ impl ProgramExecution {
                 .instructions
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+            if let (Some(shape), Delivery::Retain) = (&region.native_positions, &delivery) {
+                if !completion.requires_buffer() {
+                    let frame = frames
+                        .first_mut()
+                        .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
+                    if let Some(produced) = kernels.positions(id, shape, &permit, context, frame)? {
+                        let publication = inputs
+                            .publish_positions(
+                                super::admission::ProducerRoot::Region(id),
+                                &self.partition,
+                                &admitted,
+                                produced,
+                            )
+                            .map_err(InvocationFailure::Semantic)?
+                            .with_coverage(completion.coverage(needs));
+                        return Ok(InvocationOutcome::Published(publication));
+                    }
+                }
+            }
             if let (Some(shape), Delivery::Retain) = (&region.selection, &delivery) {
                 let frame = frames
                     .first_mut()

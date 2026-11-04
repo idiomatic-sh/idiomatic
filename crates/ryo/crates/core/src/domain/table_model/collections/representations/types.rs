@@ -11,6 +11,7 @@ pub(crate) enum RepresentationKind {
     Tree,
     Computed,
     Compact,
+    Positioned,
 }
 impl RepresentationKind {
     pub(crate) const ALL: &'static [Self] = &[
@@ -19,6 +20,7 @@ impl RepresentationKind {
         Self::Tree,
         Self::Computed,
         Self::Compact,
+        Self::Positioned,
     ];
 }
 #[derive(Clone, Copy)]
@@ -31,6 +33,7 @@ pub(crate) enum RepresentationInput<'a> {
         kinds: &'a [CellKind],
     },
     Tree(TreeRows<'a>),
+    Positioned(crate::domain::table_model::types::PositionedRows<'a>),
     Computed(&'a Table),
     Compact(&'a crate::domain::table_words::types::CompactTable),
 }

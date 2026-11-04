@@ -83,6 +83,7 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
     match rows {
         Rows::Stored(view) => view.kinds,
         Rows::Selected(view) => &view.selection.kinds,
+        Rows::Positioned(view) => view.kinds,
         Rows::Tree(TreeRows {
             form: TreeForm::Edges,
             ..
@@ -101,6 +102,14 @@ pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {
 pub(crate) fn count_of(rows: &Rows<'_>) -> RowCount {
     match rows {
         Rows::Selected(view) => RowCount(view.selection.rows.len()),
+        Rows::Positioned(view) => RowCount(
+            view.positions
+                .slots
+                .0
+                .len()
+                .checked_div(view.positions.width.0)
+                .unwrap_or(0),
+        ),
         Rows::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
         Rows::Computed(table) => table.count,
         Rows::Compact(table) => RowCount(crate::domain::table_words::service::compact_rows(table)),
@@ -289,7 +298,11 @@ pub(crate) fn complete_for_reuse(
                 && physical
                 && count <= u32::MAX as usize
         }
-        Rows::Tree(_) | Rows::Computed(_) | Rows::Compact(_) | Rows::Selected(_) => false,
+        Rows::Tree(_)
+        | Rows::Computed(_)
+        | Rows::Compact(_)
+        | Rows::Selected(_)
+        | Rows::Positioned(_) => false,
     }
 }
 

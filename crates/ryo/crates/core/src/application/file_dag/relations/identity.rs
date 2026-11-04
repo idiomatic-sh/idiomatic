@@ -42,6 +42,16 @@ pub(super) fn describe(relation: Relation, input: BorrowedRows<'_>) -> SourceDes
             vec![],
             vec![],
         ),
+        BorrowedRows::Positioned(view) => {
+            let tree = describe(relation, BorrowedRows::Tree(view.tree));
+            let mut storage = tree.storage;
+            storage.push((
+                view.positions.slots.0.as_ptr() as usize,
+                view.positions.slots.0.len(),
+            ));
+            storage.push((view.shape as *const _ as usize, view.positions.width.0));
+            (storage, vec![], vec![])
+        }
         BorrowedRows::Tree(tree) => {
             let e = tree.elements;
             (
@@ -105,6 +115,10 @@ pub(super) fn matches(source: &SourceDescriptor, input: BorrowedRows<'_>) -> boo
                     (table as *const _ as usize, table.count.0),
                     (table.cells.as_ptr() as usize, table.cells.len()),
                 ]
+        }
+        BorrowedRows::Positioned(view) => {
+            let actual = describe(source.relation, BorrowedRows::Positioned(view));
+            source.storage == actual.storage
         }
         BorrowedRows::Tree(tree) => {
             let e = tree.elements;

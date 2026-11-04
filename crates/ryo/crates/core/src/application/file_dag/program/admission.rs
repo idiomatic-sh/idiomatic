@@ -84,6 +84,13 @@ pub(super) trait Inputs {
         inputs: &[AdmittedInput],
         rows: ryo_values::domain::rows::types::Table,
     ) -> Result<AdmittedInput, OperatingError>;
+    fn publish_positions(
+        &mut self,
+        root: ProducerRoot,
+        partition: &Partition,
+        inputs: &[AdmittedInput],
+        produced: super::positions::ProducedPositions,
+    ) -> Result<AdmittedInput, OperatingError>;
     fn publish_selected(
         &mut self,
         root: ProducerRoot,
@@ -259,6 +266,7 @@ impl AdmittedTree<'_> {
 #[derive(Clone, Copy)]
 enum KernelStrategy {
     Registered,
+    Positions,
     Ordered,
     Column,
 }
@@ -395,6 +403,25 @@ impl<'scope> KernelPermit<'scope> {
             evaluation: self.evaluation,
         })
     }
+    pub(super) fn position_semantics(
+        &self,
+        shape: &Arc<crate::domain::lowering::types::LoweredShape>,
+    ) -> Result<SemanticPermit<'_>, OperatingError> {
+        self.validate_registered(self.operation())?;
+        let actual = self.program.regions()[self.region.0]
+            .native_positions
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)?;
+        if !Arc::ptr_eq(actual, shape)
+            || self.evaluation
+                != crate::domain::operator::contract::types::EvaluationMode::Collected
+        {
+            return Err(OperatingError::WrongOperation);
+        }
+        let mut permit = self.semantics();
+        permit.strategy = KernelStrategy::Positions;
+        Ok(permit)
+    }
     pub(in crate::application::file_dag) fn semantics(&self) -> SemanticPermit<'_> {
         SemanticPermit {
             program: self.program,
@@ -404,7 +431,7 @@ impl<'scope> KernelPermit<'scope> {
             strategy: self.strategy,
         }
     }
-    fn bound_input(&self, at: usize) -> Result<&AdmittedInput, OperatingError> {
+    pub(super) fn bound_input(&self, at: usize) -> Result<&AdmittedInput, OperatingError> {
         match self.bindings {
             BoundInputs::Ordinary(inputs) => inputs.get(at),
             BoundInputs::Ordered(input) => (at == 0).then_some(input),
@@ -799,6 +826,12 @@ impl<'scope> SemanticPermit<'scope> {
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
         let route = match self.strategy {
             KernelStrategy::Registered => PhysicalRoute::Registered,
+            KernelStrategy::Positions => PhysicalRoute::Positions(
+                self.program.regions()[self.region.0]
+                    .native_positions
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            ),
             KernelStrategy::Ordered => PhysicalRoute::Ordered(
                 self.program.regions()[self.region.0]
                     .ordered_existence

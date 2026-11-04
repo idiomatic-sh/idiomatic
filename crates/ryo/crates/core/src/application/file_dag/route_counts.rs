@@ -331,6 +331,7 @@ pub(crate) fn representation(
         Tree => "Tree",
         Computed => "Computed",
         Compact => "Compact",
+        Positioned => "Positioned",
     }
 }
 #[cfg(test)]

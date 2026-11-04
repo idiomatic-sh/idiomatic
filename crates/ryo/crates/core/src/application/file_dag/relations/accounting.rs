@@ -17,6 +17,34 @@ impl RelationOwner {
                         * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
                     + source.source_kinds.capacity() * size_of::<CellKind>();
             }
+            RelationBody::Positioned {
+                source,
+                positions,
+                shape,
+                kinds,
+            } => {
+                Self::record_backings(source, output);
+                output.push(Backing {
+                    key: (25, Arc::as_ptr(positions) as usize),
+                    retention_units: positions.slots.0.capacity(),
+                    bytes: size_of::<crate::domain::positions::types::Positions>()
+                        + 2 * size_of::<usize>()
+                        + positions.slots.0.capacity() * size_of::<u32>(),
+                });
+                output.push(Backing {
+                    key: (26, Arc::as_ptr(shape) as usize),
+                    retention_units: 0,
+                    bytes: size_of::<crate::domain::lowering::types::LoweredShape>()
+                        + 2 * size_of::<usize>()
+                        + shape.columns.capacity()
+                            * size_of::<crate::domain::lowering::types::LoweredColumn>(),
+                });
+                output.push(Backing {
+                    key: (27, kinds.as_ptr() as usize),
+                    retention_units: 0,
+                    bytes: std::mem::size_of_val(kinds.as_ref()) + 2 * size_of::<usize>(),
+                });
+            }
             RelationBody::Computed(table) => output.push(Self::table_backing(table)),
             RelationBody::Compact(table) => {
                 let words = crate::domain::table_words::service::compact_backing(table);
@@ -126,7 +154,9 @@ impl RelationOwner {
     fn finalized_backings(record: &RelationResult) -> bool {
         match &record.body {
             RelationBody::Computed(_) | RelationBody::Compact(_) => true,
-            RelationBody::Selected { source, .. } => Self::finalized_backings(source),
+            RelationBody::Selected { source, .. } | RelationBody::Positioned { source, .. } => {
+                Self::finalized_backings(source)
+            }
             RelationBody::Source(_) => {
                 record.normalized.get().is_some()
                     || matches!(record.inspected.get(), Some(Ok(PhysicalShape::Complete)))
@@ -159,6 +189,19 @@ impl RelationOwner {
 
 pub(in crate::application::file_dag) fn bytes(result: &RelationResult) -> usize {
     let owned = match &result.body {
+        RelationBody::Positioned {
+            positions,
+            shape,
+            kinds,
+            ..
+        } => {
+            positions.slots.0.capacity() * size_of::<u32>()
+                + shape.columns.capacity()
+                    * size_of::<crate::domain::lowering::types::LoweredColumn>()
+                + std::mem::size_of_val(kinds.as_ref())
+                + size_of::<crate::domain::positions::types::Positions>()
+                + size_of::<crate::domain::lowering::types::LoweredShape>()
+        }
         RelationBody::Computed(table) => table_bytes(table),
         RelationBody::Compact(table) => {
             crate::domain::table_words::service::compact_metadata_bytes(table)

@@ -110,6 +110,53 @@ impl KernelInvocation for KernelSession<'_, '_> {
             .map_err(InvocationFailure::Semantic)?;
         Ok(super::runtime::StrategyOutcome::Executed)
     }
+    fn positions(
+        &self,
+        region: crate::domain::executable_program::types::RegionId,
+        shape: &std::sync::Arc<crate::domain::lowering::types::LoweredShape>,
+        permit: &KernelPermit<'_>,
+        context: &mut OperatorContext<'_>,
+        scratch: &mut KernelScratch,
+    ) -> Result<Option<super::positions::ProducedPositions>, InvocationFailure> {
+        let instruction = &self.prepared.program().regions()[region.0].instructions[0];
+        if self
+            .walk
+            .is_some_and(|walk| walk.class(self.prepared, instruction).is_some())
+        {
+            return Ok(None);
+        }
+        let mut rebound = OperatorContext {
+            semantic: context.semantic,
+            prepared_matchers: context.prepared_matchers,
+            prepared_kinds: context.prepared_kinds,
+            bindings: self
+                .prepared
+                .bindings(instruction.producer)
+                .map_err(InvocationFailure::Semantic)?,
+            symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
+            source: context.source,
+            paths: context.paths,
+            arenas: context.arenas,
+            memo: &mut *context.memo,
+            scratch: &mut *context.scratch,
+        };
+        let workspace = scratch
+            .workspace
+            .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
+        super::positions::evaluate(
+            self.prepared,
+            permit,
+            region,
+            shape,
+            &self.owner,
+            self.read,
+            self.kernels,
+            &mut rebound,
+            &mut scratch.positions,
+            &workspace.work,
+        )
+        .map_err(InvocationFailure::Semantic)
+    }
     fn selected(
         &self,
         shape: &crate::domain::executable_program::selection::SelectionAlternative,

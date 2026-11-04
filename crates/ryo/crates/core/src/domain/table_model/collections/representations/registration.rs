@@ -6,6 +6,7 @@ static ITEMS: [&dyn RepresentationsItem; RepresentationKind::ALL.len()] = [
     &super::tree::item::TreeItem,
     &super::computed::item::ComputedItem,
     &super::compact::item::CompactItem,
+    &super::positioned::item::PositionedItem,
 ];
 pub(crate) fn registered(kind: RepresentationKind) -> &'static dyn RepresentationsItem {
     match kind {
@@ -14,5 +15,6 @@ pub(crate) fn registered(kind: RepresentationKind) -> &'static dyn Representatio
         RepresentationKind::Tree => ITEMS[2],
         RepresentationKind::Computed => ITEMS[3],
         RepresentationKind::Compact => ITEMS[4],
+        RepresentationKind::Positioned => ITEMS[5],
     }
 }

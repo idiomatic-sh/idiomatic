@@ -177,9 +177,21 @@ pub(crate) struct PreparedProgram {
     hosted: Box<[HostRelation]>,
     matchers: Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     derived: super::super::derived::prepared::PreparedDerived,
+    native_orders: Box<[Option<Arc<ryo_derived::domain::contract::types::PreparedDerived>>]>,
     walk: crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
 impl PreparedProgram {
+    pub(super) fn native_order(
+        &self,
+        region: crate::domain::executable_program::types::RegionId,
+    ) -> Result<Option<Arc<ryo_derived::domain::contract::types::PreparedDerived>>, OperatingError>
+    {
+        self.native_orders
+            .get(region.0)
+            .cloned()
+            .ok_or(OperatingError::NotRun)
+    }
+
     pub(super) fn walk(
         &self,
     ) -> &crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
@@ -470,7 +482,7 @@ pub(crate) fn prepare(
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
-    let operators = RequestOperators::prepare(&plans, &bindings, hosted, derived)?;
+    let operators = RequestOperators::prepare(&plans, &bindings, hosted, Arc::clone(&derived))?;
     let request = match identity {
         ObservationIdentity::Independent => {
             crate::domain::file_program::types::ObservationRequest::Independent
@@ -531,6 +543,37 @@ pub(crate) fn prepare(
         &partitions,
         &operators,
     )?);
+    let native_orders = program
+        .regions()
+        .iter()
+        .map(|region| {
+            if region.native_positions.is_none() {
+                return None;
+            }
+            use ryo_values::domain::plan_parts::types::RepeatedRows;
+            use ryo_values::domain::plans::types::Operation;
+            let stride = match &region.instructions[0].operation {
+                Operation::Project {
+                    columns,
+                    distinct: RepeatedRows::Dropped,
+                    ..
+                } => Some(columns.len().max(1)),
+                Operation::Union { .. } => region
+                    .native_positions
+                    .as_ref()
+                    .map(|shape| shape.columns.len().max(1)),
+                Operation::Antijoin { right_on, .. } | Operation::Join { right_on, .. } => {
+                    Some(right_on.len())
+                }
+                _ => None,
+            }?;
+            Some(derived.prepare(
+                ryo_derived::domain::contract::types::ViewRequest::RawKeyOrder { stride },
+                Vec::new(),
+            ))
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
     let derived = super::super::derived::prepared::PreparedDerived::compile(&program, &operators)?;
     let mut metadata = Vec::with_capacity(plans.len());
     for (rule, plan) in plans.iter().enumerate() {
@@ -600,6 +643,7 @@ pub(crate) fn prepare(
     );
     Ok(Arc::new(PreparedProgram {
         program,
+        native_orders,
         rule_ids: rules.iter().map(|rule| rule.id.clone()).collect(),
         rule_digests: rule_digests.to_vec().into_boxed_slice(),
         bindings: bindings.into_iter().map(Vec::into_boxed_slice).collect(),

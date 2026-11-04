@@ -348,6 +348,30 @@ impl Inputs for SourceInputs<'_, '_> {
             readiness,
         )
     }
+    fn publish_positions(
+        &mut self,
+        root: ProducerRoot,
+        partition: &Partition,
+        inputs: &[AdmittedInput],
+        produced: super::super::positions::ProducedPositions,
+    ) -> Result<AdmittedInput, OperatingError> {
+        let readiness =
+            super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
+        let publication = self.owner.publish_positions(produced)?;
+        let rows = self.owner.resolve(publication.as_ref(), self.read)?;
+        let checked = self.owner.admit(
+            publication.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+        )?;
+        AdmittedInput::from_publication(
+            Rc::clone(&self.owner),
+            publication.clone(),
+            &checked,
+            root,
+            partition.clone(),
+            readiness,
+        )
+    }
     fn publish_selected(
         &mut self,
         root: ProducerRoot,

@@ -25,6 +25,7 @@ pub(in crate::application::file_dag) struct RawScope {
     prepared: Option<Arc<PreparedDerived>>,
     room: BuildWorkspace,
     working: Option<Working>,
+    finite: bool,
 }
 impl std::fmt::Debug for RawScope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -38,6 +39,19 @@ impl RawScope {
             prepared: None,
             room: BuildWorkspace::default(),
             working: None,
+            finite: false,
+        }
+    }
+    pub(in crate::application::file_dag) fn for_program(
+        owner: Rc<RelationOwner>,
+        prepared: Option<Arc<PreparedDerived>>,
+    ) -> Self {
+        Self {
+            owner,
+            prepared,
+            room: BuildWorkspace::default(),
+            working: None,
+            finite: true,
         }
     }
 }
@@ -52,6 +66,7 @@ impl ScopedDerived for RawScope {
         let request = ViewRequest::RawKeyOrder { stride };
         let prepared = match &self.prepared {
             Some(prepared) if prepared.request() == &request => Arc::clone(prepared),
+            _ if self.finite => return Err(OperatingError::WrongOperation),
             _ => {
                 let prepared = port.prepare(request, Vec::new());
                 self.prepared = Some(Arc::clone(&prepared));

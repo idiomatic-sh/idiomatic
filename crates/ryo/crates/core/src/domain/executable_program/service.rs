@@ -88,6 +88,7 @@ pub(crate) fn compile(
     prepared: &crate::domain::operator::contract::types::RequestOperators,
 ) -> Result<ExecutableProgram, OperatingError> {
     let mut column_candidates = super::column::ColumnCandidates::capture(&graph);
+    let native_shapes = super::native::capture(&graph);
     let count = graph.nodes.len();
     let mut consumers = vec![0usize; count];
     let mut origins = vec![None; count];
@@ -285,6 +286,7 @@ pub(crate) fn compile(
             ordered_existence: None,
             column: None,
             selection: None,
+            native_positions: None,
             publishes: boundary[logical] || consumers[logical] > 1,
         });
     }
@@ -451,6 +453,7 @@ pub(crate) fn compile(
             executable.regions[target.0].selection = Some(selection);
         }
     }
+    super::native::install(&mut executable, native_shapes);
     Ok(executable)
 }
 

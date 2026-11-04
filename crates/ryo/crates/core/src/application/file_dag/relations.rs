@@ -44,6 +44,12 @@ enum RelationBody {
         source: Arc<RelationResult>,
         selection: Arc<StoredSelection>,
     },
+    Positioned {
+        source: Arc<RelationResult>,
+        positions: Arc<crate::domain::positions::types::Positions>,
+        shape: Arc<crate::domain::lowering::types::LoweredShape>,
+        kinds: Arc<[CellKind]>,
+    },
     Computed(Arc<Table>),
     Compact(Arc<crate::domain::table_words::types::CompactTable>),
 }
@@ -103,6 +109,7 @@ impl RelationOwner {
         Ok(match &record.body {
             RelationBody::Source(source) => &source.kinds,
             RelationBody::Selected { selection, .. } => &selection.kinds,
+            RelationBody::Positioned { kinds, .. } => kinds,
             RelationBody::Computed(table) => &table.kinds,
             RelationBody::Compact(table) => {
                 crate::domain::table_words::service::compact_kinds(table)
@@ -289,6 +296,45 @@ impl RelationOwner {
             resources,
         )
     }
+    pub(in crate::application::file_dag) fn position_source(
+        &self,
+        publication: &PublishedInput,
+    ) -> Result<Arc<RelationResult>, OperatingError> {
+        self.generation(publication)?;
+        match &publication.body {
+            RelationBody::Positioned { source, .. } => Ok(Arc::clone(source)),
+            RelationBody::Source(source) if source.kind == RepresentationKind::Tree => {
+                Ok(Arc::clone(publication.record()))
+            }
+            _ => Err(OperatingError::WrongOperation),
+        }
+    }
+    pub(super) fn publish_positions(
+        &self,
+        produced: super::program::positions::ProducedPositions,
+    ) -> Result<PublishedInput, OperatingError> {
+        let super::program::positions::PositionParts {
+            source,
+            positions,
+            shape,
+            kinds,
+        } = produced.into_parts();
+        self.generation(&source)?;
+        self.publication(Arc::new(RelationResult {
+            population: self.allocate_population()?,
+            producer: OnceLock::new(),
+            generation: Arc::clone(&self.generation.borrow()),
+            kind: RepresentationKind::Positioned,
+            body: RelationBody::Positioned {
+                source,
+                positions,
+                shape,
+                kinds,
+            },
+            inspected: OnceLock::new(),
+            normalized: OnceLock::new(),
+        }))
+    }
     pub(super) fn stable(&self) -> bool {
         self.stable
     }
@@ -330,6 +376,7 @@ impl RelationOwner {
    RelationBody::Source(source)=>identity::matches(source,input),
    RelationBody::Computed(table)=>matches!(input,BorrowedRows::Computed(actual)if std::ptr::eq(actual,table.as_ref())),
    RelationBody::Compact(table)=>matches!(input,BorrowedRows::Compact(actual)if std::ptr::eq(actual,table.as_ref())),
+   RelationBody::Positioned{source,positions,shape,kinds}=>matches!(input,BorrowedRows::Positioned(actual)if std::ptr::eq(actual.positions,positions.as_ref())&&std::ptr::eq(actual.shape,shape.as_ref())&&actual.kinds==kinds.as_ref()&&self.matches_current(source,BorrowedRows::Tree(actual.tree))),
    RelationBody::Selected{selection,source}=>matches!(input,BorrowedRows::Selected{source:actual,positions,columns,kinds}if std::ptr::eq(positions,selection.rows.as_slice())&&columns==selection.columns&&kinds==selection.kinds&&self.matches_current(source,BorrowedRows::Stored(actual))),
   })
     }
@@ -352,6 +399,24 @@ impl RelationOwner {
             }
             RelationBody::Computed(table) => Ok(Rows::Computed(table)),
             RelationBody::Compact(table) => Ok(Rows::Compact(table)),
+            RelationBody::Positioned {
+                source,
+                positions,
+                shape,
+                kinds,
+            } => {
+                let Rows::Tree(tree) = self.resolve(source.as_ref(), read)? else {
+                    return Err(OperatingError::WrongOperation);
+                };
+                Ok(Rows::Positioned(
+                    crate::domain::table_model::types::PositionedRows {
+                        tree,
+                        positions,
+                        shape,
+                        kinds,
+                    },
+                ))
+            }
             RelationBody::Selected { source, selection } => {
                 let Rows::Stored(columns) = self.resolve(source.as_ref(), read)? else {
                     return Err(OperatingError::WrongOperation);
@@ -514,7 +579,9 @@ impl RelationOwner {
     fn backing_relation(result: &RelationResult) -> Option<Relation> {
         match &result.body {
             RelationBody::Source(source) => Some(source.relation),
-            RelationBody::Selected { source, .. } => Self::backing_relation(source),
+            RelationBody::Selected { source, .. } | RelationBody::Positioned { source, .. } => {
+                Self::backing_relation(source)
+            }
             RelationBody::Computed(_) | RelationBody::Compact(_) => None,
         }
     }
@@ -526,7 +593,9 @@ impl RelationOwner {
                     |source| source.canonical_population,
                 )
             }
-            RelationBody::Selected { source, .. } => self.backing_population(source),
+            RelationBody::Selected { source, .. } | RelationBody::Positioned { source, .. } => {
+                self.backing_population(source)
+            }
             RelationBody::Computed(_) | RelationBody::Compact(_) => self.result_population(result),
         }
     }
