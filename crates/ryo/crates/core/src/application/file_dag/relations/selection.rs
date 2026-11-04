@@ -31,7 +31,7 @@ pub(in crate::application::file_dag) fn publish(
             population: owner.allocate_population()?,
             producer: OnceLock::new(),
             generation: Arc::clone(&owner.generation.borrow()),
-            kind: RepresentationKind::Selected,
+
             body: RelationBody::Selected {
                 source: Arc::clone(source.record()),
                 selection,

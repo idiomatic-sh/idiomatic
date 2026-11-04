@@ -1,8 +1,7 @@
 //! Dense executable instructions and their real publication boundaries.
 use crate::domain::{
-    coverage::types::RuleIndex,
-    operating::errors::OperatingError,
-    operator::contract::types::{ModeContract, OperatorContract},
+    coverage::types::RuleIndex, operating::errors::OperatingError,
+    operator::contract::types::OperatorContract,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
@@ -148,9 +147,6 @@ impl DemandProgram {
     pub(crate) fn actions(&self) -> &[DemandAction] {
         &self.actions
     }
-}
-pub(crate) struct KernelMode {
-    pub mode: ModeContract,
 }
 
 /// Mandatory producer declarations. No operation kind implies broadcast completeness.

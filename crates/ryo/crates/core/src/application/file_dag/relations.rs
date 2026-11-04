@@ -213,7 +213,7 @@ impl RelationOwner {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
-            kind: kind(raw),
+
             body: RelationBody::Source(identity::describe(relation, raw)),
             inspected: OnceLock::new(),
             normalized: OnceLock::new(),
@@ -250,7 +250,7 @@ impl RelationOwner {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
-            kind: RepresentationKind::Compact,
+
             body: RelationBody::Compact(table),
             inspected: OnceLock::from(Ok(shape)),
             normalized: OnceLock::new(),
@@ -264,7 +264,7 @@ impl RelationOwner {
             population: self.allocate_population()?,
             producer: OnceLock::new(),
             generation: Arc::clone(&self.generation.borrow()),
-            kind: RepresentationKind::Computed,
+
             body: RelationBody::Computed(Arc::new(table)),
             inspected: OnceLock::from(Ok(PhysicalShape::Complete)),
             normalized: OnceLock::new(),

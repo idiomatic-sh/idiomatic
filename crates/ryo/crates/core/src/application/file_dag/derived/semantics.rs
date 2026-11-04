@@ -33,7 +33,8 @@ impl RowCells for Rows<'_, '_> {
         if self.failure.borrow().failed() {
             return None;
         }
-        match self.rows {
+        let rows = self.failure.borrow_mut().run(|| self.rows.bulk()).ok()?;
+        match rows {
             BorrowedRows::Stored(source) => Some(semantic::BulkRows::Stored(source)),
             BorrowedRows::Selected {
                 source,

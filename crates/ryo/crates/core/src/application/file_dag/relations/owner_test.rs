@@ -374,9 +374,6 @@ impl PublishedRelation for Forged {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn kind(&self) -> RepresentationKind {
-        RepresentationKind::Stored
-    }
 }
 #[test]
 fn a_foreign_publication_with_correct_kind_has_no_admission_authority() {

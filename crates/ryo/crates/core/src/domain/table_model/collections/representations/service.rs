@@ -36,6 +36,13 @@ impl<'f> From<&'f Rows<'f>> for RepresentationInput<'f> {
     }
 }
 impl<'f> RepresentationInput<'f> {
+    pub(crate) fn bulk(
+        self,
+    ) -> Result<super::types::BulkAccess<'f>, crate::domain::operating::errors::OperatingError>
+    {
+        registered(kind(self)).bulk(self)
+    }
+
     pub(crate) fn contract(
         self,
     ) -> Result<super::types::RelationContract<'f>, crate::domain::operating::errors::OperatingError>

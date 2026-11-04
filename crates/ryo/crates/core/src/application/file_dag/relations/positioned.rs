@@ -35,7 +35,7 @@ pub(in crate::application::file_dag) fn publish(
         population: owner.allocate_population()?,
         producer: OnceLock::new(),
         generation: Arc::clone(&owner.generation.borrow()),
-        kind: RepresentationKind::Positioned,
+
         body: RelationBody::Positioned {
             source: owner.position_source(source)?,
             positions: Arc::new(positions),
