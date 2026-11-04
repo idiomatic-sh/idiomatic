@@ -86,7 +86,7 @@ pub(crate) fn compile(
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
 ) -> Result<ExecutableProgram, OperatingError> {
-    let column_candidates = super::column::ColumnCandidates::capture(&graph);
+    let mut column_candidates = super::column::ColumnCandidates::capture(&graph);
     let count = graph.nodes.len();
     let mut consumers = vec![0usize; count];
     let mut origins = vec![None; count];
@@ -96,9 +96,6 @@ pub(crate) fn compile(
         }
     }
     let mut boundary = graph.derived_sources.clone();
-    for node in column_candidates.fences() {
-        boundary[node.0] = true;
-    }
     let ordered_alternatives = graph.ordered_existence.clone();
     for alternative in ordered_alternatives.iter().flatten() {
         if let crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(shape) =
@@ -143,6 +140,16 @@ pub(crate) fn compile(
                 boundary[id.0] = true;
             }
         }
+    }
+    column_candidates.retain_internal(|node| {
+        if consumers[node.0] == 1 && !boundary[node.0] {
+            super::column::ReplacementUse::Exclusive
+        } else {
+            super::column::ReplacementUse::Observed
+        }
+    });
+    for node in column_candidates.fences() {
+        boundary[node.0] = true;
     }
     let mut drafts: Vec<Option<DraftRegion>> = Vec::new();
     let mut mapping = vec![usize::MAX; count];
@@ -281,6 +288,9 @@ pub(crate) fn compile(
     }
     for column in column_candidates.lower(&logical_regions) {
         let target = column.target();
+        if regions[target.0].column.is_some() {
+            continue;
+        }
         let left = column.left();
         regions[left.0].consumers += 1;
         regions[target.0].column = Some(column);

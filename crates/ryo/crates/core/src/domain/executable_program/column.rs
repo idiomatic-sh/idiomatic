@@ -82,6 +82,11 @@ fn original(graph: &RequestGraph, rule: RuleIndex, step: StepId) -> Option<NodeI
     }
 }
 
+/// Only unobserved, single-reader ancestors may be replaced by one physical instruction.
+pub(super) enum ReplacementUse {
+    Exclusive,
+    Observed,
+}
 impl ColumnCandidates {
     /// Capture exact original identities before the transient graph is consumed.
     /// Invalid or unmatched authored roots keep their ordinary compiled route.
@@ -188,6 +193,13 @@ impl ColumnCandidates {
         Self { candidates }
     }
 
+    pub(super) fn retain_internal(&mut self, mut usage: impl FnMut(NodeId) -> ReplacementUse) {
+        self.candidates.retain(|candidate| {
+            [candidate.join, candidate.filter]
+                .into_iter()
+                .all(|node| matches!(usage(node), ReplacementUse::Exclusive))
+        });
+    }
     /// Every original node in a candidate must remain a compiler boundary.
     pub(crate) fn fences(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.candidates
