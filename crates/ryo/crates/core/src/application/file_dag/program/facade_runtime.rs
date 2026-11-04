@@ -170,3 +170,6 @@ mod project_execution;
 use file_execution::{FileRoot, classify, outcome_of};
 pub(crate) use file_execution::{FileRun, open_file};
 pub(crate) use project_execution::{ProjectRun, open_project};
+
+#[cfg(test)]
+mod compiled_parity_test;
