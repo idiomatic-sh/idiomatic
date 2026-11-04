@@ -100,6 +100,11 @@ impl CrossFile {
             cross_rule_with_inputs(crossing, todo, frontier, bound_inputs, cross, scope)?;
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let roots = evaluated.roots;
+        if let Some(error) = &roots.emit_error
+            && crossing.files.is_empty()
+        {
+            return Err(refuse(error));
+        }
         let mut unknowns = if let Some(error) = &roots.emit_error {
             crossing
                 .paths
@@ -114,6 +119,23 @@ impl CrossFile {
         } else {
             Vec::new()
         };
+        if let Some(affected) = &roots.emit_affected {
+            for index in
+                crate::domain::coverage::service::affected_ordinals(affected, crossing.files.len())
+                    .map_err(|error| refuse(&error))?
+            {
+                let path = crossing.paths.get(index).ok_or_else(|| {
+                    refuse(&crate::domain::operating::errors::OperatingError::NotRun)
+                })?;
+                unknowns.push(crate::domain::coverage::types::Unknown {
+                    rule: todo.id.clone(),
+                    path: path.clone(),
+                    message: crate::domain::coverage::types::Message(
+                        "physical source facts are incomplete".into(),
+                    ),
+                });
+            }
+        }
         let rendered = match self.render_emit(crossing, todo, emit, roots.emit, cross) {
             Ok(rendered) => rendered,
             Err(error)

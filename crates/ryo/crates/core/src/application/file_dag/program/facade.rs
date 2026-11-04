@@ -68,8 +68,11 @@ pub(crate) struct RuleDemand {
 }
 pub(crate) enum RootOutcome {
     Complete(Table),
-    /// Usable diagnostic rows with incomplete physical source coverage.
-    Partial(Table),
+    /// Usable diagnostic rows and the exact physical partitions still uncertain.
+    Partial {
+        table: Table,
+        affected: Vec<Option<ryo_relations::domain::relations::types::FileId>>,
+    },
     Skipped(super::admission::ApplicabilityProof),
     Unknown(OperatingError),
     Failed(OperatingError),

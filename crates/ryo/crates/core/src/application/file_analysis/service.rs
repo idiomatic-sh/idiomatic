@@ -486,9 +486,9 @@ impl FileAnalysis {
             let outcome = outcome?;
             // Named roots have already been published independently of diagnostic delivery.
             if emit {
-                let partial = matches!(&outcome.emit, RootOutcome::Partial(_));
+                let partial = matches!(&outcome.emit, RootOutcome::Partial { .. });
                 match outcome.emit {
-                    RootOutcome::Complete(table) | RootOutcome::Partial(table) => {
+                    RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => {
                         let number = RuleNumber(u32::try_from(rule.0).map_err(|_| {
                             crate::domain::operating::errors::OperatingError::NotRun
                         })?);

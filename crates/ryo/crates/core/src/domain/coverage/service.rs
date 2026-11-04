@@ -14,6 +14,36 @@ use super::types::{CoverageScope, Keying, Lacking, LackingKind, Message, Partial
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadInPart};
 
+/// Physical file ordinals affected by a partial project publication. An
+/// unlocated cause applies to the entire named file set; no named file means
+/// the caller must retain the project refusal instead of losing it in a report.
+pub(crate) fn affected_ordinals(
+    affected: &[Option<FileId>],
+    file_count: usize,
+) -> Result<Vec<usize>, crate::domain::operating::errors::OperatingError> {
+    use crate::domain::operating::errors::OperatingError;
+    let refuse = || OperatingError::ObservationIncomplete {
+        reason: "partial project coverage cannot be placed on its declared files".into(),
+    };
+    if affected.is_empty() || file_count == 0 {
+        return Err(refuse());
+    }
+    if affected.iter().any(Option::is_none) {
+        return Ok((0..file_count).collect());
+    }
+    let mut ordinals = affected
+        .iter()
+        .map(|file| {
+            let file = file.ok_or_else(refuse)?;
+            let ordinal = usize::try_from(file.0).map_err(|_| refuse())?;
+            (ordinal < file_count).then_some(ordinal).ok_or_else(refuse)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    ordinals.sort_unstable();
+    ordinals.dedup();
+    Ok(ordinals)
+}
+
 /// The file a value lies in, when it is a file or a node.
 fn file_of(value: Value) -> Option<FileId> {
     match value {

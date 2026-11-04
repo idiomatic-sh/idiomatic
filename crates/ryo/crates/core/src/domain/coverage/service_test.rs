@@ -189,3 +189,19 @@ fn recovered_byte_literals_refuse_absence_while_whole_source_keeps_the_same_resu
 }
 
 use ryo_values::domain::rows::types::Table;
+
+#[test]
+fn partial_project_coverage_names_only_affected_files_and_refuses_unplaceable_roots() {
+    use super::service::affected_ordinals;
+    assert_eq!(
+        affected_ordinals(&[Some(FileId(2)), Some(FileId(0)), Some(FileId(2))], 3).unwrap(),
+        [0, 2]
+    );
+    assert_eq!(
+        affected_ordinals(&[None, Some(FileId(2))], 3).unwrap(),
+        [0, 1, 2]
+    );
+    assert!(affected_ordinals(&[], 3).is_err());
+    assert!(affected_ordinals(&[None], 0).is_err());
+    assert!(affected_ordinals(&[Some(FileId(3))], 3).is_err());
+}

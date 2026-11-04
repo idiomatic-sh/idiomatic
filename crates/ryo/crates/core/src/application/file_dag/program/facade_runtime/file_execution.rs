@@ -331,7 +331,7 @@ fn readiness_of(
     use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
     Some(match outcome {
         RootOutcome::Complete(_) => ProducerReadiness::Complete,
-        RootOutcome::Partial(_) => ProducerReadiness::Unknown(ObservationReason(
+        RootOutcome::Partial { .. } => ProducerReadiness::Unknown(ObservationReason(
             "physical source facts are incomplete".into(),
         )),
         RootOutcome::Skipped(_) => ProducerReadiness::Skipped,
@@ -356,10 +356,19 @@ pub(super) fn outcome_of<'facts>(
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> RootOutcome {
     match result {
-        Ok(InvocationOutcome::Published(input)) => match input.observation_ready() {
-            Ok(ready) => match table_of(owner, &input, read) {
-                Ok(table) if ready => RootOutcome::Complete(table),
-                Ok(table) => RootOutcome::Partial(table),
+        Ok(InvocationOutcome::Published(input)) => match input.coverage() {
+            Ok(coverage) => match table_of(owner, &input, read) {
+                Ok(table) => match coverage {
+                    crate::application::file_dag::completion::CoverageState::Complete => {
+                        RootOutcome::Complete(table)
+                    }
+                    crate::application::file_dag::completion::CoverageState::Partial { files } => {
+                        RootOutcome::Partial {
+                            table,
+                            affected: files,
+                        }
+                    }
+                },
                 Err(error) => classify(error),
             },
             Err(error) => classify(error),
