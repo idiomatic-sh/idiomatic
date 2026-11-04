@@ -1339,3 +1339,112 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
     );
     Ok(())
 }
+
+#[test]
+fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay()
+-> Result<(), Error> {
+    use ryo::linter::{
+        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationKind, ObservationName, ObservationProducer, RuleId,
+    };
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    let authored = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("benchmarks/linters/ruff/rules/I001/query.ryoql"),
+    )?;
+    let producer_query = authored.replace(
+        "emit problems9 subject file key(span);",
+        "observe import_nodes as used; emit problems9 subject file key(span);",
+    );
+    for (id, query) in [
+        (
+            "CONSUMER",
+            "let found = select id, file, span from published; emit found subject file key(id);",
+        ),
+        ("I001", producer_query.as_str()),
+    ] {
+        std::fs::create_dir_all(rules.join(id))?;
+        std::fs::write(rules.join(id).join("query.ryoql"), query)?;
+    }
+    std::fs::write(
+        root.path().join("case.py"),
+        "import local\nimport unresolved\n",
+    )?;
+    let consumer = RuleId::try_from("CONSUMER").unwrap();
+    let producer = RuleId::try_from("I001").unwrap();
+    let request = WorkerRequest {
+        performance: Default::default(),
+        selected_rules: Some(vec![consumer.clone()]),
+        rule_observations: Some(BTreeMap::from([(
+            consumer.clone(),
+            vec![ObservationBinding {
+                name: ObservationBindingName("published".into()),
+                columns: vec![
+                    ObservationColumn {
+                        name: ObservationColumnName("id".into()),
+                        kind: ObservationKind::Node,
+                    },
+                    ObservationColumn {
+                        name: ObservationColumnName("file".into()),
+                        kind: ObservationKind::File,
+                    },
+                    ObservationColumn {
+                        name: ObservationColumnName("span".into()),
+                        kind: ObservationKind::Span,
+                    },
+                ],
+                producers: vec![ObservationProducer::Output {
+                    rule: producer,
+                    output: ObservationName("used".into()),
+                }],
+            }],
+        )])),
+        rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
+        project_context_mode: Default::default(),
+        context_manifest: None,
+        root: root.path().into(),
+        rules,
+        query_modules: BTreeMap::new(),
+        rule_applicability: BTreeMap::new(),
+        parser_configuration: Some("python-target=3.10".into()),
+        source_language: None,
+        files: vec![ryo::linter::RelativePath("case.py".into())],
+        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
+            root.path().join("cache"),
+        ),
+    };
+    let engine = factory::local(python_310(), None);
+    let mut request = request;
+    request.project_search_roots = Some(vec![ryo::linter::RelativePath("".into())]);
+    request.given_project_inventory.entries = vec![ryo::linter::ProjectEntryObservation {
+        path: ryo::linter::RelativePath("local.py".into()),
+        state: ryo::linter::ProjectEntryState::File,
+    }];
+    for complete in [true, true, false, false, true] {
+        request.given_project_inventory.completeness = if complete {
+            ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+        } else {
+            ryo::linter::ProjectInventoryCompleteness::Partial
+        };
+        let answer = engine.run_prepared(request.clone());
+        if complete {
+            let report = answer?;
+            assert_eq!(report.diagnostics.len(), 2);
+            assert!(
+                report
+                    .diagnostics
+                    .iter()
+                    .all(|finding| finding.rule == consumer)
+            );
+        } else {
+            assert!(
+                matches!(answer, Err(Error::Invalid(_))),
+                "mixed known/Unknown project input cannot certify publication"
+            );
+        }
+    }
+    Ok(())
+}
