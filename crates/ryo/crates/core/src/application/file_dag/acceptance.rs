@@ -39,7 +39,6 @@ pub(crate) mod operator_service_test;
 pub(crate) mod reading_service_test;
 pub(crate) mod recording_service_test;
 pub(crate) mod replay_service_test;
-pub(crate) mod shared_walk_service_test;
 pub(crate) mod stored_graph_service_test;
 pub(crate) mod stored_selection_service_test;
 pub(crate) mod stored_selection_types_program_value_test;
