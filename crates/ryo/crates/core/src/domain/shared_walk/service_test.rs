@@ -1,5 +1,6 @@
 //! The prepared native pass keeps independent class results and never publishes.
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     coverage::types::RuleIndex,
     operating::types::OperatorContext,
@@ -9,7 +10,10 @@ use crate::domain::{
     },
     shared_walk::{
         service::evaluate,
-        types::{NativeBatch, PreparedWalk, WalkWork},
+        types::{
+            RuleActivity, WalkWork,
+            prepared_walk::value::{NativeBatch, PreparedWalk},
+        },
     },
     table_cells::types::{TreeForm, TreeRows},
     table_model::types::ParameterBinding,
@@ -64,14 +68,14 @@ fn plan(name: &str) -> Plan {
     }
 }
 
-fn plans() -> [Plan; 4] {
+pub(crate) fn plans() -> [Plan; 4] {
     [plan("word"), plan("other"), plan("word"), plan("")]
 }
 
-fn evaluate_plans(
+pub(crate) fn evaluate_plans(
     prepared: &PreparedWalk,
     bindings: &[Vec<ParameterBinding>],
-    active: &[bool],
+    active: &[RuleActivity],
 ) -> NativeBatch {
     let SmallTree {
         elements,
@@ -111,66 +115,39 @@ fn evaluate_plans(
     )
 }
 
-#[test]
-fn equivalent_rules_share_one_ordered_class_without_retaining_plans() {
-    let plans = plans();
-    let bindings = vec![Vec::new(); plans.len()];
-    let prepared = PreparedWalk::compile(&plans, &bindings);
-    assert_eq!(prepared.classes().len(), 3);
-    assert_eq!(prepared.classes()[0].members.len(), 2);
-    assert_eq!(
-        prepared.class_of(RuleIndex(2)).unwrap()[0],
-        Some(ClassPlace(0))
-    );
-    let batch = evaluate_plans(&prepared, &bindings, &[true; 4]);
-    assert_eq!(
-        batch.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
-        [1, 3]
-    );
-    assert_eq!(batch.visits(ClassPlace(0)), 2);
-    assert_eq!(batch.visits(ClassPlace(1)), 0);
-    assert!(batch.class(ClassPlace(1)).is_none());
-    assert!(batch.class(ClassPlace(2)).is_none());
-}
-
-#[test]
-fn only_referenced_bindings_affect_class_equivalence() {
-    let plans = plans();
-    let mut bindings = vec![Vec::new(); plans.len()];
-    bindings[0] = vec![ParameterBinding::Text(LiteralText("[".into()))];
-    bindings[2] = vec![
-        ParameterBinding::Text(LiteralText("[".into())),
-        ParameterBinding::Numbers(Vec::new()),
-    ];
-    let prepared = PreparedWalk::compile(&plans, &bindings);
-    assert_eq!(prepared.classes()[0].members.len(), 2);
-    assert_eq!(
-        evaluate_plans(&prepared, &bindings, &[true; 4])
-            .class(ClassPlace(0))
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .0,
-        [1, 3]
-    );
-}
-
-#[test]
 fn inactive_representative_and_single_member_preserve_eligibility() {
     let mut plans = plans();
     plans[1] = plan("word");
     let bindings = vec![Vec::new(); plans.len()];
     let prepared = PreparedWalk::compile(&plans, &bindings);
-    let with_two = evaluate_plans(&prepared, &bindings, &[false, true, true, false]);
+    let with_two = evaluate_plans(
+        &prepared,
+        &bindings,
+        &[
+            RuleActivity::Inactive,
+            RuleActivity::Active,
+            RuleActivity::Active,
+            RuleActivity::Inactive,
+        ],
+    );
     assert_eq!(
         with_two.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
         [1, 3]
     );
-    let with_one = evaluate_plans(&prepared, &bindings, &[true, false, false, false]);
+    let with_one = evaluate_plans(
+        &prepared,
+        &bindings,
+        &[
+            RuleActivity::Active,
+            RuleActivity::Inactive,
+            RuleActivity::Inactive,
+            RuleActivity::Inactive,
+        ],
+    );
     assert!(with_one.into_classes().iter().all(Option::is_none));
 }
 
-fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
+pub(crate) fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
     for rule in [0, 2] {
         let Operation::Select { comparisons, .. } = &mut plans[rule].steps[0].operation else {
             unreachable!();
@@ -184,7 +161,6 @@ fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
     }
 }
 
-#[test]
 fn a_reached_semantic_error_is_kept_for_its_class() {
     let mut plans = plans();
     add_pattern(&mut plans, 0);
@@ -193,13 +169,12 @@ fn a_reached_semantic_error_is_kept_for_its_class() {
     bindings[2] = vec![ParameterBinding::Text(LiteralText("[".into()))];
     let prepared = PreparedWalk::compile(&plans, &bindings);
     assert_eq!(prepared.classes()[0].members.len(), 2);
-    let batch = evaluate_plans(&prepared, &bindings, &[true; 4]);
+    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
     assert!(matches!(batch.class(ClassPlace(0)), Some(Err(_))));
-    assert_eq!(batch.visits(ClassPlace(0)), 1);
+    assert_eq!(batch.visits(ClassPlace(0)).0, 1);
     assert!(batch.class(ClassPlace(1)).is_none());
 }
 
-#[test]
 fn different_kind_errors_keep_the_first_source_row() {
     let source = b"[(a";
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
@@ -267,7 +242,7 @@ fn different_kind_errors_keep_the_first_source_row() {
         },
         &bound,
         &mut context,
-        &[true; 4],
+        &[RuleActivity::Active; 4],
         &mut WalkWork::default(),
     );
     let Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { reason })) =
@@ -276,31 +251,9 @@ fn different_kind_errors_keep_the_first_source_row() {
         panic!("first source row must retain its regex error");
     };
     assert!(reason.contains('['), "{reason}");
-    assert_eq!(batch.visits(ClassPlace(0)), 1);
+    assert_eq!(batch.visits(ClassPlace(0)).0, 1);
 }
 
-#[test]
-fn a_missing_referenced_binding_cannot_be_shared_as_a_value() {
-    let mut plans = plans();
-    add_pattern(&mut plans, 3);
-    let bindings = vec![Vec::new(); plans.len()];
-    let prepared = PreparedWalk::compile(&plans, &bindings);
-    assert_eq!(prepared.classes().len(), 4);
-    assert!(
-        prepared
-            .classes()
-            .iter()
-            .all(|class| class.members.len() == 1)
-    );
-    assert!(
-        evaluate_plans(&prepared, &bindings, &[true; 4])
-            .into_classes()
-            .iter()
-            .all(Option::is_none)
-    );
-}
-
-#[test]
 fn an_empty_next_file_has_no_stale_native_publication() {
     let plans = plans();
     let bindings = vec![Vec::new(); plans.len()];
@@ -338,7 +291,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         },
         &bound,
         &mut context,
-        &[true; 4],
+        &[RuleActivity::Active; 4],
         &mut work,
     );
     assert_eq!(
@@ -355,7 +308,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         },
         &bound,
         &mut context,
-        &[true; 4],
+        &[RuleActivity::Active; 4],
         &mut work,
     );
     assert!(next.into_classes().iter().all(Option::is_none));
@@ -363,4 +316,58 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         first.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
         [1, 3]
     );
+}
+
+#[derive(Clone, Copy)]
+enum Scenario {
+    Active,
+    Failure,
+    SourceOrder,
+    NextFile,
+}
+
+type Input = Scenario;
+type Value = usize;
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("inactive representative and one active member"),
+        word: Word::Succeeds,
+        input: || Scenario::Active,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("reached semantic error retained"),
+        word: Word::Succeeds,
+        input: || Scenario::Failure,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("first source row owns first error"),
+        word: Word::Succeeds,
+        input: || Scenario::SourceOrder,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("next file drops previous native publication"),
+        word: Word::Succeeds,
+        input: || Scenario::NextFile,
+        expect: Expect::Value(1),
+    },
+];
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::Active => inactive_representative_and_single_member_preserve_eligibility(),
+        Scenario::Failure => a_reached_semantic_error_is_kept_for_its_class(),
+        Scenario::SourceOrder => different_kind_errors_keep_the_first_source_row(),
+        Scenario::NextFile => an_empty_next_file_has_no_stale_native_publication(),
+    }
+    Ok(1)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

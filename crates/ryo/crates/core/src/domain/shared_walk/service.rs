@@ -1,7 +1,10 @@
 //! One borrowed tree pass for equivalent selection classes. No publication,
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
-use super::types::{ClassWork, NativeBatch, PreparedWalk, WalkWork};
+use super::types::{
+    ClassWork, Eligibility, KindCount, RowRead, RuleActivity, WalkWork,
+    prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
+};
 use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::{
     comparing::service::holds_some,
@@ -15,7 +18,7 @@ use crate::domain::{
         types::{Memo, NameCount, OperatorContext},
     },
     positions::types::{ClassPlace, Slots},
-    step_classes::{constants::ELEMENT_COLUMNS, service::merge, types::StepClass},
+    step_classes::{constants::ELEMENT_COLUMNS, types::StepClass},
     table_cells::{
         service::read_tree_cells,
         types::{CellsRead, ColumnPlaces, TreeForm, TreeRows},
@@ -28,20 +31,11 @@ use crate::domain::{
     text_gate::service::{needed_of_rest, text_admitted, text_gate, undecided},
 };
 use ryo_language::domain::{
-    elements::service::{kind_at, kind_names, positions},
+    elements::service::{kind_at, kind_names, positions, real_count},
     symbols::service::{name_count, query_reborrow},
 };
 use ryo_relations::domain::relations::types::{CellKind, Position, Value};
-use ryo_values::domain::{plans::types::Plan, rows::types::RowIndex};
-
-impl PreparedWalk {
-    /// Retain only exact comparison/binding classes from transient authored plans.
-    pub(crate) fn compile(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Self {
-        Self {
-            classes: merge(plans, bindings),
-        }
-    }
-}
+use ryo_values::domain::rows::types::RowIndex;
 
 fn class_context<'a>(
     base: &'a mut OperatorContext<'_>,
@@ -91,9 +85,9 @@ fn consider(
     bindings: &[Box<[ParameterBinding]>],
     context: &mut OperatorContext<'_>,
     cells: &mut [Value; ELEMENT_COLUMNS],
-    read: &mut bool,
+    read: &mut RowRead,
 ) {
-    if !each.eligible {
+    if each.eligible != Eligibility::Ready {
         return;
     }
     let Some(bound) = bindings.get(class.first.rule.0) else {
@@ -119,11 +113,11 @@ fn consider(
         {
             return Ok(Verdict::Fails);
         }
-        if !*read {
+        if *read == RowRead::Pending {
             if read_tree_cells(tree, RowIndex(index), cells, union) == CellsRead::Missing {
                 return Ok(Verdict::Fails);
             }
-            *read = true;
+            *read = RowRead::Done;
         }
         holds_some(
             comparisons,
@@ -156,13 +150,15 @@ pub(crate) fn evaluate(
     tree: TreeRows<'_>,
     bindings: &[Box<[ParameterBinding]>],
     context: &mut OperatorContext<'_>,
-    active: &[bool],
+    active: &[RuleActivity],
     scratch: &mut WalkWork,
 ) -> NativeBatch {
-    let mut batch = NativeBatch::empty(program.classes().len());
+    let mut batch = NativeBatch::empty(ClassCount(program.classes().len()));
     if tree.form != TreeForm::Elements
+        || real_count(tree.elements).0 > u32::MAX as usize
         || kind_names(tree.elements).is_empty()
         || program.classes().is_empty()
+        || active.len() != program.rule_count().0
     {
         return batch;
     }
@@ -176,13 +172,13 @@ pub(crate) fn evaluate(
     } = scratch;
     work.resize_with(program.classes().len(), ClassWork::default);
     for each in work.iter_mut() {
-        each.kinds = 0;
+        each.kinds = KindCount(0);
         each.gate.0.clear();
         each.text_ok.0.clear();
         each.rest.0.clear();
         each.needed.0.clear();
         each.memo.clear();
-        each.eligible = false;
+        each.eligible = Eligibility::Declined;
     }
     by_kind.resize_with(kind_names(tree.elements).len(), Vec::new);
     for group in by_kind.iter_mut() {
@@ -202,7 +198,7 @@ pub(crate) fn evaluate(
         if class
             .members
             .iter()
-            .filter(|member| active.get(member.rule.0).copied().unwrap_or(false))
+            .filter(|member| active[member.rule.0] == RuleActivity::Active)
             .nth(1)
             .is_none()
         {
@@ -241,13 +237,13 @@ pub(crate) fn evaluate(
                     && let Some(group) = by_kind.get_mut(usize::from(kind.0))
                 {
                     group.push(ClassPlace(at));
-                    each.kinds += 1;
+                    each.kinds.0 += 1;
                 }
             }
         } else {
             every.push(ClassPlace(at));
         }
-        each.eligible = true;
+        each.eligible = Eligibility::Ready;
         batch.set(ClassPlace(at), Ok(Slots::default()));
     }
 
@@ -271,7 +267,7 @@ pub(crate) fn evaluate(
         let (Some(group), Some(columns)) = (by_kind.get(kind), columns_by_kind.get(kind)) else {
             continue;
         };
-        let mut read = false;
+        let mut read = RowRead::Pending;
         for place in group {
             if let (Some(class), Some(each)) =
                 (program.classes().get(place.0), work.get_mut(place.0))
@@ -295,7 +291,7 @@ pub(crate) fn evaluate(
         }
     }
     for (at, each) in work.iter().enumerate() {
-        if each.kinds > 1
+        if each.kinds.0 > 1
             && let Some(done) = batch.output(ClassPlace(at))
         {
             done.0.sort_unstable();
