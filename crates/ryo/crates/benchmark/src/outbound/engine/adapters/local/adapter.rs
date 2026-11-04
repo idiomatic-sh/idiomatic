@@ -104,6 +104,7 @@ impl EngineLocalAdapter {
                 .insert(
                     id,
                     Rule {
+                        observations: Vec::new(),
                         query,
                         applicability,
                         parameters: BTreeMap::new(),
@@ -131,6 +132,7 @@ impl EngineLocalAdapter {
                 .insert(
                     projection.rule,
                     Rule {
+                        observations: Vec::new(),
                         query: projection.query,
                         applicability: RuleApplicability::Always,
                         parameters: BTreeMap::new(),
