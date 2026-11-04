@@ -28,9 +28,9 @@ pub(crate) const CASES_DIRECTORY: &str = "cases";
 /// Accounted full-input measurement command.
 pub(crate) const MEASURE: &str = "measure";
 /// Interim subset measurement command.
-pub(crate) const MEASURE_SCOPED: &str = "measure-scoped";
+pub(crate) const MEASURE_SCOPED: &str = "diagnostic-measure";
 /// Interim subset command with explicitly audited invalid-source exclusions.
-pub(crate) const MEASURE_VALID: &str = "measure-scoped-valid";
+pub(crate) const MEASURE_VALID: &str = "diagnostic-measure-valid";
 /// Required argument or refusal for release required.
 pub(crate) const RELEASE_REQUIRED: &str =
     "measurement requires a release-profile benchmark executable";

@@ -88,6 +88,7 @@ pub(crate) fn run(
             let cache = cache.canonicalize()?;
             let mut tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
             suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
+            let declared_inventory = tool.defaults.clone();
             let mut audit = suite_source.audit(ArtifactPath(&commands::directory()), &tool)?;
             let authored_total = audit.authored_count();
             if let Some(selected) = args.next() {
@@ -110,6 +111,18 @@ pub(crate) fn run(
             if scope == BenchmarkCoverage::Accounted {
                 require_accounted(&audit, &tool)?;
             }
+            let measurement_mode = if scope == BenchmarkCoverage::Accounted {
+                ryo_benchmark::domain::measurements::types::MeasurementMode::Benchmark {
+                    inventory: declared_inventory,
+                }
+            } else {
+                ryo_benchmark::domain::measurements::types::MeasurementMode::Diagnostic
+            };
+            ryo_benchmark::domain::measurements::service::require_inventory(
+                &measurement_mode,
+                audit.authored(),
+                Some(audit.authored()),
+            )?;
             let default_count = tool.defaults.len();
             let deferred_count = tool.deferred.len();
             let pending_count = tool.pending.len();
@@ -124,9 +137,7 @@ pub(crate) fn run(
             let candidate_observations = tool.rule_observations.clone();
             let candidate_observation_selection = tool.rule_observation_selection;
             let declared_rule_context = tool.rule_context.clone();
-            let configured_cohort = declared_rule_context
-                .as_ref()
-                .map(|_| tool.defaults.clone());
+            let configured_cohort = Some(tool.defaults.clone());
             let reference = Arc::new(commands::reference(executable.clone(), tool)?);
             let selected_scratch = tempfile::Builder::new()
                 .prefix(constants::CERTIFICATION_PREFIX)
@@ -202,6 +213,7 @@ pub(crate) fn run(
                 Arc::<_>::clone(&candidate),
                 Arc::<_>::clone(&execution),
                 Arc::<_>::clone(&suite_source),
+                measurement_mode,
             );
             let evidence =
                 ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout()));
@@ -428,7 +440,14 @@ pub(crate) fn run(
                 }
             }
             // The evidence boundary refuses an empty observation set; never bypass that guard.
-            evidence.publish(&samples)?;
+            if scope == BenchmarkCoverage::Accounted {
+                evidence.publish(&samples)?;
+            } else {
+                writeln!(
+                    observations,
+                    "diagnostic-only: scoped samples are not benchmark metrics"
+                )?;
+            }
             if failures.is_empty() {
                 Ok(())
             } else {

@@ -342,3 +342,7 @@ Reuse [measured demand/admission results](../../languages/python/benchmarks/lint
 Frozen3ff full inventory passes413/413; this is rule evidence, not category closure. Join left GroupCount now has scoped successful replay; broader dependency-readiness and core fixture ownership proof remain open. Generated-Union balancing does not prove arbitrary plan-depth safety. Compact memory evidence is scoped, still exceeds the overall memory/subsecond goals, and promotes no category. Later cross-file scope/edit correction and paired review are separately gated.
 
 Each checkpoint requires independent Astra and Opus adversarial reviews bound to its immutable source/diff and actual receipts. Review shared-layer placement; required engine authority over schedule/cache/invalidation/data/lifetime; all callers; refusal and lifetime tests; no optional owner or bypass; readable orchestration; and honest matrix scope. Missing, stale or blocking reviews must reject acceptance. The paired enforcement gate is under construction; this paragraph alone is not enforcement.
+
+| Scoped route evidence | Data path | Remaining proof |
+| --- | --- | --- |
+| Unheld streaming input | `workspace.rs` marks `InternalStream`; `RelationOwner::admit_external` validates physical rows. Streaming Join can use a transient empty placeholder before delivery. Already-held publications retain their original population/generation identity. | ☐ Broader ownership/runtime proof and core fixture closure; this row promotes no matrix category. |

@@ -132,3 +132,12 @@ pub struct CollectorDigest(
     /// Expected SHA256 hexadecimal digest of collector bytes.
     pub String,
 );
+
+/// Whether a timed invocation is a complete benchmark or an explicitly narrowed diagnostic.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MeasurementMode {
+    /// Immutable declared rule identities captured before selection/projection.
+    Benchmark { inventory: Vec<ryo::linter::RuleId> },
+    /// Scoped observations are diagnostic evidence, never a complete benchmark.
+    Diagnostic,
+}

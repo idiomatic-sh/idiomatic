@@ -55,6 +55,7 @@ use crate::domain::suite::types::audit::value::Audit;
 /// Measure only the exact case-certified subset and immutable source bytes.
 pub(super) fn measure_certified(
     certificate: &crate::domain::suite::types::certificate::value::Certificate,
+    mode: &crate::domain::measurements::types::MeasurementMode,
     suite: &dyn crate::outbound::suite::interface::SuitePort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
@@ -62,6 +63,11 @@ pub(super) fn measure_certified(
     request: &RunRequest,
     order: RunOrder,
 ) -> Result<Pair, Error> {
+    crate::domain::measurements::service::require_inventory(
+        mode,
+        certificate.coverage.authored(),
+        request.selected_rules.as_deref(),
+    )?;
     if execution.profile() != certificate.execution {
         return Err(Error::Invalid(
             super::constants::CHANGED_INSTRUMENTATION.into(),

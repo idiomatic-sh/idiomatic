@@ -10,6 +10,8 @@ use std::sync::Arc;
 pub struct MeasureUseCaseImpl {
     /// Pinned reference tool preparation and decoding boundary.
     reference: Arc<dyn LinterPort>,
+    /// Required workload meaning, independent of timing/collector choices.
+    mode: crate::domain::measurements::types::MeasurementMode,
     /// Candidate tool preparation and decoding boundary.
     candidate: Arc<dyn LinterPort>,
     /// Process launch and resource observation boundary.
@@ -25,12 +27,14 @@ impl MeasureUseCaseImpl {
         candidate: Arc<dyn LinterPort>,
         execution: Arc<dyn ExecutionPort>,
         suite: Arc<dyn SuitePort>,
+        mode: crate::domain::measurements::types::MeasurementMode,
     ) -> Self {
         Self {
             reference,
             candidate,
             execution,
             suite,
+            mode,
         }
     }
 }
@@ -43,6 +47,7 @@ impl MeasureUseCase for MeasureUseCaseImpl {
     ) -> Result<Pair, Error> {
         super::service::measure_certified(
             certificate,
+            &self.mode,
             self.suite.as_ref(),
             self.reference.as_ref(),
             self.candidate.as_ref(),

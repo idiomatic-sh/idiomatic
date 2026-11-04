@@ -301,6 +301,7 @@ pub fn exercise(
         candidate.clone(),
         execution.clone(),
         suite.clone(),
+        crate::domain::measurements::types::MeasurementMode::Diagnostic,
     );
     let result = crate::inbound::use_cases::measure::interface::MeasureUseCase::measure(
         &measurement,

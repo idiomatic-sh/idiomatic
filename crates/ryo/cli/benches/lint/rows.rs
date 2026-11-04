@@ -24,7 +24,10 @@ fn load() -> String {
 
 /// The ruff rows: each set in a process of its own, so the peak is its own.
 pub(crate) fn sets() {
-    eprintln!("ruff, release, cold; load average at start: {}", load());
+    eprintln!(
+        "diagnostic-only rule subsets, release, cold; no headline benchmark metrics; load average: {}",
+        load()
+    );
     eprintln!(
         "{:<8} {:>5} {:>8} {:>9} {:>9} {:>8}  rules that ran",
         "set", "rules", "rows", "wall ms", "CPU ms", "peak MB"
