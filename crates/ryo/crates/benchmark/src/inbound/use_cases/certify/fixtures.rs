@@ -147,6 +147,7 @@ pub fn exercise(
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn LinterPort>,
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
+        std::sync::Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
     ) -> super::use_case::CertifyUseCaseImpl,
 ) -> Result<crate::domain::suite::types::CaseCount, ()> {
     let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
@@ -220,6 +221,7 @@ pub fn exercise(
         reference.clone(),
         candidate.clone(),
         execution.clone(),
+        std::sync::Arc::new(crate::outbound::inventory::factory::local()),
     );
     let certificate = super::interface::CertifyUseCase::certify(
         &operation,
@@ -230,6 +232,7 @@ pub fn exercise(
         &rules,
         &root.path().join(constants::FIXTURE_CASE_DIRECTORY),
         BenchmarkCoverage::Accounted,
+        &crate::domain::suite::types::CertificationCases::Profile,
     )
     .expect(constants::FIXTURE_PRECONDITION);
     assert!(

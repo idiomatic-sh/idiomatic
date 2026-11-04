@@ -59,6 +59,7 @@ pub fn verify(
     execution: &dyn ExecutionPort,
     store: &dyn InventoryPort,
 ) -> Result<bool, Error> {
+    require_authority(registration, store)?;
     let mut inventory = Inventory::new(&registration.defaults)?;
     store.begin(output).map_err(io_error)?;
     store
@@ -94,6 +95,19 @@ pub fn verify(
                 .command
                 .as_ref()
                 .ok_or("missing implementation invocation")?;
+            store.verify_artifacts(&entry.artifacts)?;
+            let definition = entry
+                .definition
+                .as_ref()
+                .ok_or("executable rule has no tested definition pin")?;
+            if entry.artifacts.get(&definition.path) != Some(&definition.sha256)
+                || entry
+                    .modules
+                    .values()
+                    .any(|pin| entry.artifacts.get(&pin.path) != Some(&pin.sha256))
+            {
+                return Err("query/module pins are outside the registered case context".into());
+            }
             if entry.cases.is_empty() {
                 return Err("missing independent cases".into());
             }
@@ -114,7 +128,11 @@ pub fn verify(
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
-            let mut arguments = command.arguments.iter().map(Into::into).collect::<Vec<std::ffi::OsString>>();
+            let mut arguments = command
+                .arguments
+                .iter()
+                .map(Into::into)
+                .collect::<Vec<std::ffi::OsString>>();
             let mut destination = std::ffi::OsString::from(CASE_RECEIPTS_ARGUMENT);
             destination.push(directory.join("cases.jsonl").as_os_str());
             arguments.push(destination);
@@ -145,6 +163,7 @@ pub fn verify(
                     &captured.artifacts,
                 )?
             };
+            store.verify_artifacts(&entry.artifacts)?;
             let digest = captured.sha256.ok_or("native receipt digest is missing")?;
             Ok((entry.cases.len(), raw, documented, contract_only, digest))
         })();
@@ -167,6 +186,7 @@ pub fn verify(
             .map_err(io_error)?;
         store.publish(output, &report).map_err(io_error)?;
     }
+    require_authority(registration, store)?;
     store
         .publish(output, &summary(registration, &inventory, "complete"))
         .map_err(io_error)?;
@@ -176,3 +196,59 @@ pub fn verify(
 #[cfg(test)]
 #[path = "inventory_tests.rs"]
 mod tests;
+
+/// A complete result cannot contradict its pinned canonical profile.
+pub(crate) fn require_authority(
+    registration: &Registration,
+    store: &dyn InventoryPort,
+) -> Result<(), Error> {
+    use crate::outbound::inventory::types::RegistrationAuthority;
+    if matches!(
+        &registration.authority,
+        RegistrationAuthority::Unavailable { .. }
+    ) && registration.rules.iter().all(|r| r.command.is_none())
+    {
+        return Ok(());
+    }
+    let RegistrationAuthority::Execution {
+        profile_sha256,
+        reference,
+        worker,
+        ..
+    } = &registration.authority
+    else {
+        return Err(Error::Invalid(
+            "receipt-only inventory cannot authorize execution".into(),
+        ));
+    };
+    let observed = store
+        .canonical(&registration.authority)
+        .map_err(Error::Invalid)?;
+    let declared: std::collections::BTreeSet<_> = registration.defaults.iter().collect();
+    let actual: std::collections::BTreeSet<_> = observed.defaults.iter().collect();
+    if declared.is_empty()
+        || declared.len() != registration.defaults.len()
+        || actual.len() != observed.defaults.len()
+        || declared != actual
+        || observed.profile_sha256 != *profile_sha256
+        || observed.reference_sha256 != reference.sha256
+        || observed.worker_sha256 != worker.sha256
+        || !observed.approved_reference.contains(&reference.sha256)
+    {
+        return Err(Error::Invalid(
+            "canonical inventory/profile/executable identity differs".into(),
+        ));
+    }
+    for entry in &registration.rules {
+        if entry.command.is_some()
+            && (observed.deferred.contains(&entry.rule_id)
+                || observed.pending.contains(&entry.rule_id))
+        {
+            return Err(Error::Invalid(format!(
+                "canonical profile defers an executable registered rule: {}",
+                entry.rule_id
+            )));
+        }
+    }
+    Ok(())
+}

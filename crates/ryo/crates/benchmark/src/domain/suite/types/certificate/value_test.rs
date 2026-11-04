@@ -30,6 +30,7 @@ fn subject(_: ()) -> Result<(bool, usize), ()> {
     };
     let profile = LinterFake::default().prepare(&request).unwrap();
     let certificate = Certificate {
+        case_source: crate::domain::suite::types::CertificationCases::Profile,
         coverage: Audit {
             implemented: vec![ryo::linter::RuleId::try_from("A").unwrap()],
             missing: vec![],

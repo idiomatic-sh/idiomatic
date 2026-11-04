@@ -111,7 +111,23 @@ impl SuitePort for SuiteFake {
     fn stage_projects(&self, _: ArtifactPath<'_>, _: ArtifactPath<'_>) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
-    fn stage(&self, _: ArtifactPath<'_>, _: ArtifactPath<'_>, _: &Audit) -> Result<(), Error> {
+    fn seal_context(
+        &self,
+        _: ArtifactPath<'_>,
+        _: &[ryo::linter::RelativePath],
+        _: &[std::path::PathBuf],
+    ) -> Result<crate::domain::suite::types::ContextManifest, Error> {
+        Err(Error::Invalid(
+            "fixture has no observed disk context".into(),
+        ))
+    }
+    fn stage(
+        &self,
+        _: ArtifactPath<'_>,
+        _: ArtifactPath<'_>,
+        _: &Audit,
+        _: crate::domain::suite::types::StagePurpose,
+    ) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
     fn fingerprint(&self, _: ArtifactSet<'_>) -> Result<ArtifactDigest, Error> {

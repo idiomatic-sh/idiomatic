@@ -4,6 +4,17 @@ use std::path::Path;
 
 /// Read registrations and persist exact inventory observations.
 pub trait InventoryPort {
+    /// Read canonical facts without assigning coverage or scheduling policy.
+    fn canonical(
+        &self,
+        authority: &super::types::RegistrationAuthority,
+    ) -> Result<super::types::CanonicalFacts, String>;
+    /// Recheck every context file; errors retain the exact path.
+    fn verify_artifacts(
+        &self,
+        artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
+    ) -> Result<(), String>;
+
     /// Read one explicit receipt file and only its referenced process artifact attempts.
     ///
     /// # Errors

@@ -71,9 +71,75 @@ fn digest(path: &Path) -> Result<String, String> {
 }
 
 /// Local registrations and atomic verification artifacts.
-#[derive(Debug)]
-pub(crate) struct InventoryLocalAdapter;
+pub(crate) struct InventoryLocalAdapter {
+    suite: std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
+}
+impl InventoryLocalAdapter {
+    pub(crate) fn new(
+        suite: std::sync::Arc<dyn crate::outbound::suite::interface::SuitePort>,
+    ) -> Self {
+        Self { suite }
+    }
+}
+
 impl InventoryPort for InventoryLocalAdapter {
+    fn canonical(
+        &self,
+        authority: &crate::outbound::inventory::types::RegistrationAuthority,
+    ) -> Result<crate::outbound::inventory::types::CanonicalFacts, String> {
+        use crate::outbound::inventory::types::{CanonicalFacts, RegistrationAuthority};
+        use crate::outbound::suite::types::ArtifactPath;
+        let RegistrationAuthority::Execution {
+            profile,
+            reference,
+            worker,
+            ..
+        } = authority
+        else {
+            return Err("receipt-only registration cannot execute".into());
+        };
+        let tool = self
+            .suite
+            .profile(ArtifactPath(profile))
+            .map_err(|e| format!("canonical profile {}: {e}", profile.display()))?;
+        let read = |path: &Path| {
+            self.suite
+                .digest(ArtifactPath(path))
+                .map(|d| d.0)
+                .map_err(|e| format!("inventory artifact {}: {e}", path.display()))
+        };
+        Ok(CanonicalFacts {
+            profile_sha256: read(&profile.join("benchmark.toml"))?,
+            reference_sha256: read(&reference.path)?,
+            worker_sha256: read(&worker.path)?,
+            defaults: tool.defaults.iter().map(ToString::to_string).collect(),
+            deferred: tool.deferred.keys().map(ToString::to_string).collect(),
+            pending: tool.pending.keys().map(ToString::to_string).collect(),
+            approved_reference: tool.sha256.iter().map(|s| s.0.clone()).collect(),
+        })
+    }
+    fn verify_artifacts(
+        &self,
+        artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
+    ) -> Result<(), String> {
+        if artifacts.is_empty() {
+            return Err("registered case context is empty".into());
+        }
+        for (path, expected) in artifacts {
+            let actual = self
+                .suite
+                .digest(crate::outbound::suite::types::ArtifactPath(path))
+                .map_err(|e| format!("registered case artifact {}: {e}", path.display()))?;
+            if actual.0 != *expected {
+                return Err(format!(
+                    "registered case artifact changed: {}",
+                    path.display()
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn observations(&self, receipt: &Path) -> Result<CapturedObservation, String> {
         let records = observations(receipt)?;
         Ok(CapturedObservation {
@@ -114,5 +180,12 @@ impl InventoryPort for InventoryLocalAdapter {
     }
     fn result(&self, directory: &Path, row: &Row) -> Result<(), String> {
         result(directory, row)
+    }
+}
+
+impl std::fmt::Debug for InventoryLocalAdapter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InventoryLocalAdapter")
+            .finish_non_exhaustive()
     }
 }

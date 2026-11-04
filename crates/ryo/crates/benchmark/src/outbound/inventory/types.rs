@@ -6,6 +6,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Registration {
+    /// Explicit execution authority or receipt-only interpretation; never inferred.
+    pub authority: RegistrationAuthority,
     /// Provider identity for report consumers.
     pub provider: String,
     /// Complete defaults read from the provider's pinned benchmark profile.
@@ -20,6 +22,12 @@ pub struct Registration {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RegisteredRule {
+    /// Exact tested query definition, independently linked to measured code.
+    pub definition: Option<FilePin>,
+    /// Named helper definitions in this registered context.
+    pub modules: BTreeMap<String, FilePin>,
+    /// Exact regular-file context, preserving each registered profile namespace.
+    pub artifacts: BTreeMap<PathBuf, String>,
     /// Pinned default identifier.
     pub rule_id: String,
     /// Absent when no implementation can be invoked.
@@ -97,4 +105,47 @@ pub struct CapturedObservation {
     pub records: Vec<serde_json::Value>,
     /// Absent until a native case receipt exists.
     pub sha256: Option<String>,
+}
+
+/// Receipt interpretation cannot authorize execution or benchmark certification.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum RegistrationAuthority {
+    /// Parse existing receipts only; execution explicitly refuses this variant.
+    ReceiptOnly,
+    /// Registration failed before native execution; every row remains a failure.
+    Unavailable { reason: String },
+    /// Pinned root inventory and both actual native executable identities.
+    Execution {
+        profile: PathBuf,
+        profile_sha256: String,
+        reference: ExecutablePin,
+        worker: ExecutablePin,
+    },
+}
+/// An explicit executable location and immutable byte identity.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExecutablePin {
+    pub path: PathBuf,
+    pub sha256: String,
+}
+/// Facts read from the canonical profile and actual executable bytes.
+#[derive(Clone, Debug)]
+pub struct CanonicalFacts {
+    pub profile_sha256: String,
+    pub reference_sha256: String,
+    pub worker_sha256: String,
+    pub defaults: Vec<String>,
+    pub deferred: Vec<String>,
+    pub pending: Vec<String>,
+    pub approved_reference: Vec<String>,
+}
+
+/// Exact raw content of one explicit case-context file.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FilePin {
+    pub path: PathBuf,
+    pub sha256: String,
 }

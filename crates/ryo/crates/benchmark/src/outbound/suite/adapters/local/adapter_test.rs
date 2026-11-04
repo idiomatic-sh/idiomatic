@@ -135,7 +135,12 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
     );
     let snapshot = destination.join("profile");
     SuiteLocalAdapter::new(None)
-        .stage(ArtifactPath(directory), ArtifactPath(&snapshot), &selected)
+        .stage(
+            ArtifactPath(directory),
+            ArtifactPath(&snapshot),
+            &selected,
+            crate::domain::suite::types::StagePurpose::Certification,
+        )
         .expect("staged subset");
     let children: Vec<_> = std::fs::read_dir(snapshot.join("rules"))
         .expect("snapshot rules")
@@ -345,7 +350,12 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
         .audit(ArtifactPath(&source), &tool)
         .expect("neutral case audit");
     adapter
-        .stage(ArtifactPath(&source), ArtifactPath(&staged), &audit)
+        .stage(
+            ArtifactPath(&source),
+            ArtifactPath(&staged),
+            &audit,
+            crate::domain::suite::types::StagePurpose::Certification,
+        )
         .expect("evidence staged");
     let materialized = adapter
         .cases(
@@ -482,7 +492,12 @@ expected = []
     assert!(audited.missing.is_empty());
     let snapshot = destination.path().join("profile");
     SuiteLocalAdapter::new(None)
-        .stage(ArtifactPath(root), ArtifactPath(&snapshot), &audited)
+        .stage(
+            ArtifactPath(root),
+            ArtifactPath(&snapshot),
+            &audited,
+            crate::domain::suite::types::StagePurpose::Certification,
+        )
         .unwrap();
     assert_eq!(
         std::fs::read_to_string(snapshot.join("rules/B002/query.ryoql")).unwrap(),

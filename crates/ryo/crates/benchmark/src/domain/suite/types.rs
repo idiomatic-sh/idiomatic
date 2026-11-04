@@ -759,3 +759,24 @@ pub enum RuleConfigurationSupport {
     /// Exact disabled-file pairs and external prefixes are projected without a second matcher.
     Explicit,
 }
+
+/// Artifact staging keeps independent certification evidence separate from execution definitions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StagePurpose {
+    /// One registered profile's cases and evidence retain their own relative namespace.
+    Certification,
+    /// Complete measured queries/modules; case evidence is certified in registered contexts.
+    Execution,
+}
+
+/// Independent cases retain the context in which their reference contract was registered.
+#[derive(Clone, Debug)]
+pub enum CertificationCases {
+    /// One self-contained profile, used for focused adapter/diagnostic certificates.
+    Profile,
+    /// Existing shared inventory runner owns all registered native case executions.
+    Registered {
+        registration: PathBuf,
+        output: PathBuf,
+    },
+}

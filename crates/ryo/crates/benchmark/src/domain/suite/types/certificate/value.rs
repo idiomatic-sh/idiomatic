@@ -13,6 +13,8 @@ use std::path::PathBuf;
 /// ```
 #[derive(Clone, Debug)]
 pub struct Certificate {
+    /// Exact registered settings/evidence contexts; never flattened into measured profile semantics.
+    pub(crate) case_source: crate::domain::suite::types::CertificationCases,
     /// Audited subset covered by the executed case proof.
     pub(crate) coverage: Audit,
     /// Exact artifacts whose framed content fingerprint must remain unchanged.
@@ -32,6 +34,11 @@ pub struct Certificate {
 }
 
 impl Certificate {
+    /// Context model under which independent cases were certified.
+    #[must_use]
+    pub fn case_contexts(&self) -> &crate::domain::suite::types::CertificationCases {
+        &self.case_source
+    }
     /// Stable content identity of profile, rule/case bytes and contestant executables.
     #[must_use]
     pub fn fingerprint(&self) -> &crate::domain::suite::types::ArtifactDigest {

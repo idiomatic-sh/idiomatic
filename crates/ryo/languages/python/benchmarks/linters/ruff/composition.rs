@@ -91,15 +91,7 @@ pub(crate) fn run(
             let declared_inventory = tool.defaults.clone();
             let mut audit = suite_source.audit(ArtifactPath(&commands::directory()), &tool)?;
             let authored_total = audit.authored_count();
-            if let Some(selected) = args.next() {
-                audit = audit.select(
-                    &selected
-                        .split(',')
-                        .map(ryo::linter::RuleId::try_from)
-                        .collect::<Result<Vec<_>, _>>()
-                        .map_err(|error| Error::Invalid(error.to_string()))?,
-                )?;
-            }
+            let selection_or_inventory = args.next();
             let scope = if matches!(
                 command.as_deref(),
                 Some(constants::MEASURE | constants::MEASURE_ACCOUNTED_VALID)
@@ -108,6 +100,30 @@ pub(crate) fn run(
             } else {
                 BenchmarkCoverage::Interim
             };
+            let case_source = if scope == BenchmarkCoverage::Accounted {
+                let input=selection_or_inventory.as_deref().and_then(|s|s.strip_prefix("--case-inventory=")).filter(|s|!s.is_empty()).ok_or_else(||Error::Invalid("canonical benchmark requires explicit registered --case-inventory=PATH".into()))?;
+                ryo_benchmark::domain::suite::types::CertificationCases::Registered {
+                    registration: std::path::PathBuf::from(input).canonicalize()?,
+                    output: tempfile::Builder::new()
+                        .prefix("registered-case-results-")
+                        .tempdir_in(&cache)?
+                        .keep(),
+                }
+            } else {
+                if let Some(selected) = selection_or_inventory {
+                    audit = audit.select(
+                        &selected
+                            .split(',')
+                            .map(ryo::linter::RuleId::try_from)
+                            .collect::<Result<Vec<_>, _>>()
+                            .map_err(|e| Error::Invalid(e.to_string()))?,
+                    )?;
+                }
+                ryo_benchmark::domain::suite::types::CertificationCases::Profile
+            };
+            if args.next().is_some() {
+                return Err(Error::Invalid("unexpected measurement argument".into()));
+            }
             if scope == BenchmarkCoverage::Accounted {
                 require_accounted(&audit, &tool)?;
             }
@@ -148,6 +164,7 @@ pub(crate) fn run(
                 ArtifactPath(&commands::directory()),
                 ArtifactPath(&selected_profile),
                 &audit,
+                ryo_benchmark::domain::suite::types::StagePurpose::Execution,
             )?;
             let frozen_workload = selected_scratch.join(constants::WORKLOAD_DIRECTORY);
             suite_source.stage_projects(
@@ -179,6 +196,7 @@ pub(crate) fn run(
                 Arc::<super::adapter::LinterRuffAdapter>::clone(&reference),
                 Arc::<_>::clone(&candidate),
                 Arc::<_>::clone(&execution),
+                Arc::new(ryo_benchmark::outbound::inventory::factory::local()),
             )
             .certify(
                 &selected_profile,
@@ -188,6 +206,7 @@ pub(crate) fn run(
                 &selected_rules,
                 case_scratch.path(),
                 scope,
+                &case_source,
             )?;
             writeln!(
                 observations,
@@ -246,6 +265,8 @@ pub(crate) fn run(
                             .join(constants::PATH_SEPARATOR)
                     )?;
                     let tracked = workspaces.tracked_files(&workspace)?.0;
+                    let tracked_paths: Vec<_> =
+                        tracked.iter().map(std::path::PathBuf::from).collect();
                     if files.iter().any(|file| {
                         !tracked
                             .iter()
@@ -269,7 +290,13 @@ pub(crate) fn run(
                             given_project_inventory: Default::default(),
                             staged_sources: None,
                             file_metadata: None,
-                            context_manifest: None,
+                            context_manifest: commands::seal_context(
+                                suite_source.as_ref(),
+                                project_context_mode,
+                                workspace.root(),
+                                &files,
+                                &tracked_paths,
+                            )?,
                             root: workspace.root().to_owned(),
                             files: files.clone(),
                             state: cache
@@ -345,14 +372,16 @@ pub(crate) fn run(
                             given_project_inventory: Default::default(),
                             staged_sources: None,
                             file_metadata: None,
-                            context_manifest: None,
+                            context_manifest: commands::seal_context(
+                                suite_source.as_ref(),
+                                project_context_mode,
+                                workspace.root(),
+                                &files,
+                                &tracked_paths,
+                            )?,
                             root: workspace.root().to_owned(),
                             files: files.clone(),
                             state: trial.join(constants::RETAINED_DIRECTORY),
-                        };
-                        let clean_request = RunRequest {
-                            state: trial.join(constants::CLEAN_EDITED_DIRECTORY),
-                            ..request.clone()
                         };
                         let cold = measurements.measure(&certificate, &request, order)?;
                         let counts = output::diagnostic_counts(&cold.reference().report);
@@ -378,7 +407,21 @@ pub(crate) fn run(
                             })?;
                         workspaces
                             .apply_patch(&mut workspace, &frozen_workload.join(&project.patch))?;
-                        let edited = measurements.measure(&certificate, &request, order);
+                        let edited_request = RunRequest {
+                            context_manifest: commands::seal_context(
+                                suite_source.as_ref(),
+                                project_context_mode,
+                                workspace.root(),
+                                &files,
+                                &tracked_paths,
+                            )?,
+                            ..request.clone()
+                        };
+                        let clean_request = RunRequest {
+                            state: trial.join(constants::CLEAN_EDITED_DIRECTORY),
+                            ..edited_request.clone()
+                        };
+                        let edited = measurements.measure(&certificate, &edited_request, order);
                         let clean_reference =
                             execute(reference.as_ref(), execution.as_ref(), &clean_request);
                         let clean_candidate =

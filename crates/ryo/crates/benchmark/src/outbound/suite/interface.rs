@@ -131,6 +131,15 @@ pub trait SuitePort {
         source: ArtifactPath<'_>,
         destination: ArtifactPath<'_>,
     ) -> Result<(), Error>;
+    /// Seal the actual requested/auxiliary corpus bytes before both disk contestants.
+    /// # Errors
+    /// Refuses missing, escaping, symlinked or changed inputs without inventing metadata.
+    fn seal_context(
+        &self,
+        root: ArtifactPath<'_>,
+        sources: &[ryo::linter::RelativePath],
+        tracked: &[std::path::PathBuf],
+    ) -> Result<crate::domain::suite::types::ContextManifest, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors
@@ -141,6 +150,7 @@ pub trait SuitePort {
         directory: ArtifactPath<'_>,
         destination: ArtifactPath<'_>,
         audit: &Audit,
+        purpose: crate::domain::suite::types::StagePurpose,
     ) -> Result<(), Error>;
     /// Materialize the snapshot's independent case sources without executing contestants.
     ///

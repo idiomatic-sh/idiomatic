@@ -224,6 +224,14 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
         prepare_cases(rules, scratch)
     }
+    fn seal_context(
+        &self,
+        ArtifactPath(root): ArtifactPath<'_>,
+        sources: &[ryo::linter::RelativePath],
+        tracked: &[std::path::PathBuf],
+    ) -> Result<crate::domain::suite::types::ContextManifest, Error> {
+        crate::outbound::context::adapters::local::adapter::seal_existing(root, sources, tracked)
+    }
     #[expect(
         clippy::create_dir,
         reason = "snapshot staging must refuse an existing destination rather than merge artifacts"
@@ -263,6 +271,7 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(directory): ArtifactPath<'_>,
         ArtifactPath(destination): ArtifactPath<'_>,
         audit: &Audit,
+        purpose: crate::domain::suite::types::StagePurpose,
     ) -> Result<(), Error> {
         let tool = super::schemas::tool(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
@@ -376,11 +385,13 @@ impl SuitePort for SuiteLocalAdapter {
                         .join(constants::CASES),
                 )?,
             )?;
-            super::discrepancy_artifacts::copy_evidence(
-                directory,
-                destination,
-                &target.join(constants::CASES),
-            )?;
+            if purpose == crate::domain::suite::types::StagePurpose::Certification {
+                super::discrepancy_artifacts::copy_evidence(
+                    directory,
+                    destination,
+                    &target.join(constants::CASES),
+                )?;
+            }
         }
         for rule in definitions
             .iter()

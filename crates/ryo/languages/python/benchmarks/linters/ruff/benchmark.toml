@@ -1,3 +1,4 @@
+project-context-mode = "listed-disk"
 parser-configuration = "python-target=3.10"
 project-search-roots = ["", "src"]
 rule-context = { "tables" = { "selected" = "config.selected", "disabled" = "config.disabled", "external" = "config.external" }, "defaults" = { "external-prefixes" = [], "disabled-rules" = {  } } }

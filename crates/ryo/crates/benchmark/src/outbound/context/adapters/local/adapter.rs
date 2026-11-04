@@ -161,6 +161,55 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
     Ok(())
 }
 
+/// Seal actual existing corpus bytes without changing its filesystem or fabricating observations.
+pub(crate) fn seal_existing(
+    root: &Path,
+    sources: &[ryo::linter::RelativePath],
+    tracked: &[PathBuf],
+) -> Result<ContextManifest, Error> {
+    let boundary = std::path::absolute(root)?;
+    let source_set: std::collections::BTreeSet<_> = sources
+        .iter()
+        .map(|p| PathBuf::from(p.0.as_ref()))
+        .collect();
+    let tracked_set: std::collections::BTreeSet<_> = tracked.iter().cloned().collect();
+    if source_set.len() != sources.len()
+        || tracked_set.len() != tracked.len()
+        || !source_set.is_subset(&tracked_set)
+    {
+        return Err(Error::Invalid(
+            "sealed corpus requires unique actual tracked paths covering every requested source"
+                .into(),
+        ));
+    }
+    let mut manifest = ContextManifest {
+        boundary,
+        logical_root: PathBuf::from("."),
+        source_files: BTreeMap::new(),
+        auxiliary_files: BTreeMap::new(),
+        missing: Vec::new(),
+    };
+    for path in tracked {
+        relative(path, false)?;
+        no_symlinks(&manifest.boundary, path)?;
+        let actual = manifest.boundary.join(path);
+        let bytes = std::fs::read(&actual).map_err(|error| {
+            Error::Io(std::io::Error::new(
+                error.kind(),
+                format!("seal corpus {}: {error}", actual.display()),
+            ))
+        })?;
+        let destination = if source_set.contains(path) {
+            &mut manifest.source_files
+        } else {
+            &mut manifest.auxiliary_files
+        };
+        let _prior = destination.insert(path.clone(), artifact(&bytes));
+    }
+    validate(&manifest, root)?;
+    Ok(manifest)
+}
+
 /// Materialize all bytes before either contestant runs and seal the exact lint input inventory.
 pub(crate) fn materialize(
     boundary: &Path,

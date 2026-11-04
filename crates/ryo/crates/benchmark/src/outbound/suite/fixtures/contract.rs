@@ -161,7 +161,12 @@ pub fn check(adapter: &impl SuitePort) {
                     .audit(ArtifactPath(temporary.path()), &tool)
                     .expect("valid inventory");
                 adapter
-                    .stage(ArtifactPath(&missing), ArtifactPath(&destination), &audit)
+                    .stage(
+                        ArtifactPath(&missing),
+                        ArtifactPath(&destination),
+                        &audit,
+                        crate::domain::suite::types::StagePurpose::Certification,
+                    )
                     .map(|()| (0, 0))
             }
             Operation::Digest => adapter.digest(ArtifactPath(&missing)).map(|_| (0, 0)),

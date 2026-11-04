@@ -292,8 +292,15 @@ pub(super) fn copy_evidence(
         for evidence in artifacts {
             relative(&evidence.path)
                 .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
-            let source = boundary.join(&evidence.path).canonicalize()?;
-            let bytes = std::fs::read(&source)?;
+            let requested = boundary.join(&evidence.path);
+            let contextual = |error: std::io::Error| {
+                std::io::Error::new(
+                    error.kind(),
+                    format!("case evidence {}: {error}", requested.display()),
+                )
+            };
+            let source = requested.canonicalize().map_err(contextual)?;
+            let bytes = std::fs::read(&source).map_err(contextual)?;
             if !source.starts_with(&boundary)
                 || format!("{:x}", Sha256::digest(&bytes)) != evidence.sha256
             {

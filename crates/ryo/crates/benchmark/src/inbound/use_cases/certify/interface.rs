@@ -21,5 +21,6 @@ pub trait CertifyUseCase {
         selected_rules: &std::path::Path,
         scratch: &std::path::Path,
         scope: crate::domain::suite::types::BenchmarkCoverage,
+        cases: &crate::domain::suite::types::CertificationCases,
     ) -> Result<Certificate, Error>;
 }

@@ -181,7 +181,7 @@ def verify_full_inventory(arguments) -> int:
         registration_error = f'tool registration: {type(error).__name__}: {error}'
     registered = []
     for rule in rules:
-        entry = {'rule_id': rule, 'command': None, 'reason': None, 'cases': [], 'instance': None}
+        entry = {'rule_id': rule, 'command': None, 'reason': None, 'cases': [], 'instance': None, 'artifacts': {}, 'definition': None, 'modules': {}}
         directory = profile_config.RUFF_DIR / 'rules' / rule
         if selected and rule not in selected:
             entry['reason'] = 'not selected for this invocation'
@@ -193,11 +193,23 @@ def verify_full_inventory(arguments) -> int:
             try:
                 stage, entry['instance'] = stage_full_inventory_rule(rule, output, base, phases, manifest, native)
                 entry['cases'] = case_records.profile_case_inventory(stage)
+                entry['artifacts'] = {str(path.resolve()): profile_config.sha256(path) for path in sorted(stage.rglob('*')) if path.is_file()}
+                entry['definition'] = {'path': str((stage / 'rules' / rule / 'query.ryoql').resolve()), 'sha256': profile_config.sha256(stage / 'rules' / rule / 'query.ryoql')}
+                stage_profile = tomllib.loads((stage / 'benchmark.toml').read_text(encoding='utf-8'))
+                entry['modules'] = {name: {'path': str((stage / relative).resolve()), 'sha256': profile_config.sha256(stage / relative)} for name, relative in stage_profile.get('query-modules', {}).items()}
                 entry['command'] = {'executable': str(worker), 'arguments': ['verify-cases', str(reference), str(stage)], 'directory': str(profile_config.REPOSITORY / 'crates' / 'ryo'), 'environment': {}}
             except Exception as error:
                 entry['reason'] = f'rule registration: {type(error).__name__}: {error}'
         registered.append(entry)
     registration = output / 'registration.json'
-    profile_config.atomic_json_write(registration, {'provider': 'ruff', 'defaults': rules, 'rules': registered, 'identity': identity})
+    authority = {'kind': 'unavailable', 'reason': registration_error} if registration_error is not None else {
+        'kind': 'execution', 'profile': str(profile_config.RUFF_DIR.resolve()),
+        'profile_sha256': profile_config.sha256(profile_config.RUFF_DIR / 'benchmark.toml'),
+        'reference': {'path': str(reference), 'sha256': profile_config.sha256(reference)},
+        'worker': {'path': str(worker), 'sha256': profile_config.sha256(worker)},
+    }
+    profile_config.atomic_json_write(registration, {'authority': authority, 'provider': 'ruff', 'defaults': rules, 'rules': registered, 'identity': identity})
+    if getattr(arguments, 'prepare_inventory', False):
+        return 0
     runner = arguments.inventory_runner or shutil.which('ryo-benchmark-collector') or profile_config.REPOSITORY / 'crates' / 'ryo' / 'target' / 'release' / 'ryo-benchmark-collector'
     return subprocess.run([str(runner), 'verify-inventory', str(registration), str(output), str(arguments.rule_timeout)], check=False).returncode

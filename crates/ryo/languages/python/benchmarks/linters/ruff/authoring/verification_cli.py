@@ -26,6 +26,7 @@ def main() -> int:
     parser.add_argument('--profile', help='run one named combined prepared profile')
     parser.add_argument('--full-inventory', action='store_true', help='enumerate all 413 pinned defaults; strict failure unless every rule passes')
     parser.add_argument('--prepared', action='store_true', help='use the historical prepared-profile authoring manifest')
+    parser.add_argument('--prepare-inventory', action='store_true', help='materialize registered case contexts without executing them; shared certification owns execution')
     parser.add_argument('--worker', type=Path, help='existing sealed worker for --full-inventory; never builds a worker')
     parser.add_argument('--inventory-runner', type=Path, help='existing shared benchmark collector executable')
     parser.add_argument('--rule-timeout', type=float, default=120.0, help='per-rule full-inventory timeout in seconds (default: 120)')

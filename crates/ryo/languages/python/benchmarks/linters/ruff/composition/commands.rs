@@ -158,7 +158,12 @@ pub(super) fn verify_cases(
     let scratch = tempfile::tempdir()?;
     let root = scratch.path().canonicalize()?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
-    suite_source.stage(ArtifactPath(&source), ArtifactPath(&profile), &audit)?;
+    suite_source.stage(
+        ArtifactPath(&source),
+        ArtifactPath(&profile),
+        &audit,
+        ryo_benchmark::domain::suite::types::StagePurpose::Certification,
+    )?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
         std::env::current_exe()?,
         profile.join(constants::RULES_DIRECTORY),
@@ -317,4 +322,27 @@ pub(super) fn audit(
         tool.defaults.len()
     )?;
     ryo_benchmark::domain::suite::service::require_accounted(&result, &tool)
+}
+
+/// Select the declared generic corpus mode and delegate all observation to the shared suite boundary.
+pub(super) fn seal_context(
+    suite: &dyn ryo_benchmark::outbound::suite::interface::SuitePort,
+    mode: ryo_benchmark::domain::suite::types::ProjectContextMode,
+    root: &std::path::Path,
+    files: &[ryo::linter::RelativePath],
+    tracked: &[std::path::PathBuf],
+) -> Result<
+    Option<ryo_benchmark::domain::suite::types::ContextManifest>,
+    ryo_benchmark::domain::diagnostics::errors::DiagnosticsError,
+> {
+    match mode {
+        ryo_benchmark::domain::suite::types::ProjectContextMode::Isolated => Ok(None),
+        ryo_benchmark::domain::suite::types::ProjectContextMode::ListedDisk => suite
+            .seal_context(
+                ryo_benchmark::outbound::suite::types::ArtifactPath(root),
+                files,
+                tracked,
+            )
+            .map(Some),
+    }
 }

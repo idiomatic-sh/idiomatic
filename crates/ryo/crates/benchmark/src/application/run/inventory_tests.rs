@@ -19,7 +19,12 @@ impl ExecutionPort for ToyExecution {
         self.calls.lock().unwrap().push(name.clone());
         if name == "good" {
             let rule = invocation.arguments[1].to_string_lossy();
-            let path = invocation.arguments.iter().find_map(|argument| argument.to_str()?.strip_prefix("--case-receipts=")).map(std::path::PathBuf::from).expect("explicit receipt argument");
+            let path = invocation
+                .arguments
+                .iter()
+                .find_map(|argument| argument.to_str()?.strip_prefix("--case-receipts="))
+                .map(std::path::PathBuf::from)
+                .expect("explicit receipt argument");
             let records = ["reference", "candidate"].map(|side| json!({
                 "rule": rule, "name": "independent-case", "side": side, "complete": true, "error": null,
                 "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"], "expected": [], "reference_expected": [],

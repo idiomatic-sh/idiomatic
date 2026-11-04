@@ -17,6 +17,7 @@ pub struct CertifyUseCaseImpl {
     candidate: Arc<dyn LinterPort>,
     /// Process launch and resource observation boundary.
     execution: Arc<dyn ExecutionPort>,
+    inventory: Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
 }
 impl CertifyUseCaseImpl {
     /// Bind the four independently replaceable boundaries.
@@ -25,12 +26,14 @@ impl CertifyUseCaseImpl {
         reference: Arc<dyn LinterPort>,
         candidate: Arc<dyn LinterPort>,
         execution: Arc<dyn ExecutionPort>,
+        inventory: Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
     ) -> Self {
         Self {
             suite,
             reference,
             candidate,
             execution,
+            inventory,
         }
     }
 }
@@ -44,12 +47,14 @@ impl CertifyUseCase for CertifyUseCaseImpl {
         selected_rules: &std::path::Path,
         scratch: &std::path::Path,
         scope: crate::domain::suite::types::BenchmarkCoverage,
+        cases: &crate::domain::suite::types::CertificationCases,
     ) -> Result<Certificate, Error> {
         super::service::certify(
             self.suite.as_ref(),
             self.reference.as_ref(),
             self.candidate.as_ref(),
             self.execution.as_ref(),
+            self.inventory.as_ref(),
             directory,
             workload,
             reference_executable,
@@ -57,6 +62,7 @@ impl CertifyUseCase for CertifyUseCaseImpl {
             selected_rules,
             scratch,
             scope,
+            cases,
         )
     }
 }

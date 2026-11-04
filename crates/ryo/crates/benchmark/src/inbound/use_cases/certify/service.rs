@@ -21,6 +21,7 @@ pub(super) fn certify(
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
     execution: &dyn ExecutionPort,
+    inventory_store: &dyn crate::outbound::inventory::interface::InventoryPort,
     directory: &Path,
     workload: &Path,
     reference_executable: &Path,
@@ -28,6 +29,7 @@ pub(super) fn certify(
     selected_rules: &Path,
     scratch: &Path,
     scope: crate::domain::suite::types::BenchmarkCoverage,
+    case_source: &crate::domain::suite::types::CertificationCases,
 ) -> Result<Certificate, Error> {
     let tool = suite.profile(crate::outbound::suite::types::ArtifactPath(directory))?;
     suite.verify_tool(
@@ -63,6 +65,30 @@ pub(super) fn certify(
     {
         paths.push(collector.executable.clone());
     }
+    let prepared_cases = match case_source {
+        crate::domain::suite::types::CertificationCases::Profile => {
+            super::case_inventory::PreparedCases::Profile
+        }
+        crate::domain::suite::types::CertificationCases::Registered {
+            registration,
+            output,
+        } => {
+            let (registration, context_paths) = super::case_inventory::prepare(
+                inventory_store,
+                suite,
+                registration,
+                &tool,
+                selected_rules,
+                reference_executable,
+                candidate_executable,
+            )?;
+            paths.extend(context_paths);
+            super::case_inventory::PreparedCases::Registered {
+                registration,
+                output: output.clone(),
+            }
+        }
+    };
     let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     let probe = crate::domain::suite::types::RunRequest {
         performance: Default::default(),
@@ -81,29 +107,41 @@ pub(super) fn certify(
         state: scratch.join(super::constants::IDENTITY_STATE),
     };
     let profiles = [reference.prepare(&probe)?, candidate.prepare(&probe)?];
-    let cases = crate::application::run::service::verify(
-        suite,
-        reference,
-        candidate,
-        execution,
-        &directory.join(super::constants::RULE_DIRECTORY),
-        scratch,
-    )?;
+    let cases = match &prepared_cases {
+        super::case_inventory::PreparedCases::Profile => crate::application::run::service::verify(
+            suite,
+            reference,
+            candidate,
+            execution,
+            &directory.join(super::constants::RULE_DIRECTORY),
+            scratch,
+        )?,
+        super::case_inventory::PreparedCases::Registered {
+            registration,
+            output,
+        } => super::case_inventory::execute(registration, output, execution, inventory_store)?,
+    };
     let after = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     if before != after || execution.profile() != execution_profile {
         return Err(Error::Invalid(super::constants::CHANGED_EVIDENCE.into()));
     }
+    if let crate::domain::suite::types::CertificationCases::Registered { output, .. } = case_source
+    {
+        paths.push(output.clone());
+    }
+    let sealed = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
     Ok(Certificate {
         coverage: Audit {
             implemented: audit.implemented,
             missing: Vec::new(),
         },
         paths,
-        fingerprint: after,
+        fingerprint: sealed,
         contestants,
         probe,
         profiles,
         execution: execution_profile,
         cases,
+        case_source: case_source.clone(),
     })
 }
