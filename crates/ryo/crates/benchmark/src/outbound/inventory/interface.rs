@@ -12,6 +12,7 @@ pub trait InventoryPort {
     /// Recheck every context file; errors retain the exact path.
     fn verify_artifacts(
         &self,
+        context: &Path,
         artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
     ) -> Result<(), String>;
 

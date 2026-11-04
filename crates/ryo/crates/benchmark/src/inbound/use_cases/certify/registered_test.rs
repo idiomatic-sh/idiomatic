@@ -11,15 +11,27 @@ use std::{
     time::Duration,
 };
 
-#[derive(Default)]
-struct Native(Mutex<usize>);
+struct Native {
+    launches: Mutex<usize>,
+    worker: PathBuf,
+    reference: PathBuf,
+}
 impl ExecutionPort for Native {
     fn profile(&self) -> ExecutionProfile {
         ExecutionProfile::Wall
     }
     fn run(&self, request: Invocation) -> Result<ProcessOutput, DiagnosticsError> {
-        *self.0.lock().unwrap() += 1;
-        let rule = request.arguments[0].to_str().unwrap();
+        *self.launches.lock().unwrap() += 1;
+        assert_eq!(request.executable, self.worker);
+        assert_eq!(request.arguments[1], self.reference.as_os_str());
+        assert_eq!(request.directory.as_os_str(), request.arguments[2]);
+        assert!(request.environment.is_empty());
+        assert_eq!(request.arguments[0], "verify-cases");
+        let rule = Path::new(&request.arguments[2])
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
         let receipt = request
             .arguments
             .iter()
@@ -85,13 +97,14 @@ impl Fixture {
             write(&profile.join(format!("rules/{rule}/query.ryoql")), &format!("query {rule}"));
             write(&profile.join(format!("rules/{rule}/cases.toml")), "[[cases]]\nname='positive'\nfiles={'input.txt'='x'}\nexpected=[{file='input.txt',start=0,end=1}]\n[[cases]]\nname='negative'\nfiles={'input.txt'='y'}\nexpected=[]\n");
             let context = root.path().join(format!("registered/{rule}"));
-            let definition = context.join("query.ryoql");
+            let definition = context.join(format!("rules/{rule}/query.ryoql"));
             let helper = context.join("helper.ryoql");
             let evidence = context.join("evidence/oracle.json");
             write(&definition,&format!("query {rule}")); write(&helper,"shared tested helper"); write(&evidence,&format!("independent {rule} evidence"));
-            let artifacts = [definition.clone(),helper.clone(),evidence].into_iter().map(|p|(p.display().to_string(),json!(digest(&p)))).collect::<serde_json::Map<_,_>>();
+            write(&context.join("benchmark.toml"), &format!("tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['{rule}']\nquery-modules={{'test/helper'='helper.ryoql'}}\n",digest(&executable)));
+            let artifacts = [definition.clone(),helper.clone(),evidence,context.join("benchmark.toml")].into_iter().map(|p|(p.display().to_string(),json!(digest(&p)))).collect::<serde_json::Map<_,_>>();
             json!({"rule_id":rule,"reason":null,"instance":null,"definition":{"path":definition,"sha256":digest(&definition)},"modules":{"test/helper":{"path":helper,"sha256":digest(&helper)}},"artifacts":artifacts,
-                "command":{"executable":executable,"arguments":[rule],"directory":context,"environment":{}},
+                "command":{"kind":"case-verification","context":context},
                 "cases":[{"rule":rule,"name":"independent","source_sha256":"source","files":["input.txt"],"expected":[],"project_context_mode":"isolated","reference_discrepancy":null}]})
         });
         let document = json!({"authority":{"kind":"execution","profile":profile,"profile_sha256":digest(&profile.join("benchmark.toml")),"reference":{"path":executable,"sha256":digest(&executable)},"worker":{"path":executable,"sha256":digest(&executable)}},"provider":"neutral","defaults":["A","B"],"rules":entries,"identity":{}});
@@ -100,10 +113,14 @@ impl Fixture {
         Self {
             _root: root,
             profile,
-            executable,
+            executable: executable.clone(),
             registration,
             document,
-            execution: Arc::new(Native::default()),
+            execution: Arc::new(Native {
+                launches: Mutex::new(0),
+                worker: executable.clone(),
+                reference: executable.clone(),
+            }),
         }
     }
     fn certify(
@@ -143,7 +160,7 @@ impl Fixture {
 fn registered_contexts_execute_and_keep_colliding_relative_evidence_names_separate() {
     let f = Fixture::new();
     let certificate = f.certify().unwrap();
-    assert_eq!(*f.execution.0.lock().unwrap(), 2);
+    assert_eq!(*f.execution.launches.lock().unwrap(), 2);
     assert!(matches!(
         certificate.case_contexts(),
         CertificationCases::Registered { .. }
@@ -193,7 +210,7 @@ fn registered_context_drift_and_untrusted_authority_refuse_before_native_launch(
             _ => unreachable!(),
         };
         assert!(error.contains(expected), "{change}: {error}");
-        assert_eq!(*f.execution.0.lock().unwrap(), 0, "{change}");
+        assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{change}");
     }
 }
 #[test]
@@ -202,5 +219,68 @@ fn missing_registered_rule_never_issues_a_certificate() {
     f.document["rules"].as_array_mut().unwrap().pop();
     f.save();
     assert!(f.certify().is_err());
-    assert_eq!(*f.execution.0.lock().unwrap(), 1);
+    assert_eq!(*f.execution.launches.lock().unwrap(), 1);
+}
+
+#[test]
+fn invocation_and_canonical_profile_substitution_refuse_before_launch() {
+    for change in [
+        "executable",
+        "arguments",
+        "directory",
+        "environment",
+        "context",
+        "extra-context-file",
+        "foreign-profile",
+    ] {
+        let mut f = Fixture::new();
+        match change {
+            "executable" => {
+                f.document["rules"][0]["command"]["executable"] = json!("foreign-worker")
+            }
+            "arguments" => {
+                f.document["rules"][0]["command"]["arguments"] = json!(["different-operation"])
+            }
+            "directory" => {
+                f.document["rules"][0]["command"]["directory"] = json!("foreign-context")
+            }
+            "environment" => {
+                f.document["rules"][0]["command"]["environment"] = json!({"CONFIG":"foreign"})
+            }
+            "context" => {
+                f.document["rules"][0]["command"]["context"] =
+                    f.document["rules"][1]["command"]["context"].clone()
+            }
+            "extra-context-file" => write(
+                &PathBuf::from(
+                    f.document["rules"][0]["command"]["context"]
+                        .as_str()
+                        .unwrap(),
+                )
+                .join("rogue-config.toml"),
+                "changed configuration",
+            ),
+            "foreign-profile" => {
+                let foreign = f._root.path().join("foreign");
+                let bytes = std::fs::read_to_string(f.profile.join("benchmark.toml")).unwrap();
+                write(
+                    &foreign.join("benchmark.toml"),
+                    &(bytes + "parser-configuration='different-parser'\n"),
+                );
+                f.document["authority"]["profile"] = json!(foreign);
+                f.document["authority"]["profile_sha256"] =
+                    json!(digest(&foreign.join("benchmark.toml")));
+            }
+            _ => unreachable!(),
+        }
+        f.save();
+        let error = f.certify().unwrap_err().to_string();
+        let expected = match change {
+            "context" | "extra-context-file" => "registered context namespace differs",
+            "foreign-profile" => "registered authority differs from measured canonical profile",
+            _ => "unknown field",
+        };
+        assert!(error.contains(expected), "{change}: {error}");
+        assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{change}");
+    }
 }

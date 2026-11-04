@@ -95,7 +95,8 @@ pub fn verify(
                 .command
                 .as_ref()
                 .ok_or("missing implementation invocation")?;
-            store.verify_artifacts(&entry.artifacts)?;
+            let crate::outbound::inventory::types::Command::CaseVerification { context } = command;
+            store.verify_artifacts(context, &entry.artifacts)?;
             let definition = entry
                 .definition
                 .as_ref()
@@ -118,30 +119,27 @@ pub fn verify(
             {
                 return Err("case identity belongs to another registered rule".into());
             }
-            let environment = command
-                .environment
-                .iter()
-                .map(|(key, value)| {
-                    (
-                        std::ffi::OsString::from(key.as_str()),
-                        std::ffi::OsString::from(value.as_str()),
-                    )
-                })
-                .collect::<BTreeMap<_, _>>();
-            let mut arguments = command
-                .arguments
-                .iter()
-                .map(Into::into)
-                .collect::<Vec<std::ffi::OsString>>();
+            let crate::outbound::inventory::types::RegistrationAuthority::Execution {
+                reference,
+                worker,
+                ..
+            } = &registration.authority
+            else {
+                return Err("case verification requires execution authority".into());
+            };
             let mut destination = std::ffi::OsString::from(CASE_RECEIPTS_ARGUMENT);
             destination.push(directory.join("cases.jsonl").as_os_str());
-            arguments.push(destination);
             store.prepare(&directory)?;
             let invocation = Invocation {
-                executable: command.executable.clone(),
-                arguments,
-                environment,
-                directory: command.directory.clone(),
+                executable: worker.path.clone(),
+                arguments: vec![
+                    "verify-cases".into(),
+                    reference.path.as_os_str().to_owned(),
+                    context.as_os_str().to_owned(),
+                    destination,
+                ],
+                environment: BTreeMap::new(),
+                directory: context.clone(),
             };
             let observed = execution
                 .run(invocation)
@@ -163,7 +161,7 @@ pub fn verify(
                     &captured.artifacts,
                 )?
             };
-            store.verify_artifacts(&entry.artifacts)?;
+            store.verify_artifacts(context, &entry.artifacts)?;
             let digest = captured.sha256.ok_or("native receipt digest is missing")?;
             Ok((entry.cases.len(), raw, documented, contract_only, digest))
         })();

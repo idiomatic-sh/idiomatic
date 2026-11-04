@@ -120,10 +120,35 @@ impl InventoryPort for InventoryLocalAdapter {
     }
     fn verify_artifacts(
         &self,
+        context: &Path,
         artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
     ) -> Result<(), String> {
         if artifacts.is_empty() {
             return Err("registered case context is empty".into());
+        }
+        let root = context
+            .canonicalize()
+            .map_err(|e| format!("registered context {}: {e}", context.display()))?;
+        if root != context {
+            return Err("registered context must be canonical and absolute".into());
+        }
+        let mut pending = vec![root.clone()];
+        let mut files = std::collections::BTreeSet::new();
+        while let Some(directory) = pending.pop() {
+            for entry in std::fs::read_dir(directory).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let kind = entry.file_type().map_err(|e| e.to_string())?;
+                if kind.is_dir() {
+                    pending.push(entry.path());
+                } else if kind.is_file() {
+                    files.insert(entry.path());
+                } else {
+                    return Err("registered context contains non-regular entry".into());
+                }
+            }
+        }
+        if files != artifacts.keys().cloned().collect() {
+            return Err("registered context namespace differs from pinned artifacts".into());
         }
         for (path, expected) in artifacts {
             let actual = self

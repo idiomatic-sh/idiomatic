@@ -43,19 +43,13 @@ pub struct RegisteredRule {
 /// Shared verifier argv contract: every registered verifier accepts this explicit receipt destination.
 pub const CASE_RECEIPTS_ARGUMENT: &str = "--case-receipts=";
 
-/// Native argv: no shell interpretation is involved.
+/// The shared worker's native case-verification operation. Executable and reference
+/// come exclusively from registration authority; argv/cwd/environment are not authorable.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Command {
-    /// Existing verifier executable.
-    pub executable: PathBuf,
-    /// Verifier arguments; the runner appends CASE_RECEIPTS_ARGUMENT plus the exact destination path.
-    pub arguments: Vec<String>,
-    /// Explicit native invocation directory.
-    pub directory: PathBuf,
-    /// Explicit environment overrides.
-    #[serde(default)]
-    pub environment: BTreeMap<String, String>,
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum Command {
+    /// Execute the existing shared verify-cases protocol over this exact pinned context.
+    CaseVerification { context: PathBuf },
 }
 /// Public summary row: only PASS or FAIL.
 #[derive(Clone, Debug, Serialize)]

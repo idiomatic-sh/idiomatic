@@ -17,10 +17,16 @@ impl ExecutionPort for ToyExecution {
         ExecutionProfile::Wall
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
-        let name = invocation.arguments[0].to_string_lossy().to_string();
+        assert_eq!(invocation.arguments[0], "verify-cases");
+        let rule = std::path::Path::new(&invocation.arguments[2])
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let name = rule.rsplit('-').next().unwrap().to_owned();
         self.calls.lock().unwrap().push(name.clone());
         if name == "good" {
-            let rule = invocation.arguments[1].to_string_lossy();
             let path = invocation
                 .arguments
                 .iter()
@@ -76,7 +82,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
         definition: Some(pin), modules: BTreeMap::new(),
         artifacts: BTreeMap::from([(definition.clone(), digest(&definition)), (evidence.clone(), digest(&evidence))]),
         rule_id: rule.clone(), reason: None,
-        command: Some(Command { executable: executable.clone(), arguments: vec![mode.into(), rule.clone()], directory: ".".into(), environment: BTreeMap::new() }),
+        command: Some(Command::CaseVerification { context: directory.clone() }),
         cases: vec![json!({"rule": rule, "name": "independent-case", "source_sha256": "source-pin", "files": ["input.txt"], "expected": [], "project_context_mode": "isolated", "reference_discrepancy": null})],
         instance: Some(json!({"input-pin": "immutable-provider-bytes"})),
     }}).collect();

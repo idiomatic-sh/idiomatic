@@ -197,7 +197,7 @@ def verify_full_inventory(arguments) -> int:
                 entry['definition'] = {'path': str((stage / 'rules' / rule / 'query.ryoql').resolve()), 'sha256': profile_config.sha256(stage / 'rules' / rule / 'query.ryoql')}
                 stage_profile = tomllib.loads((stage / 'benchmark.toml').read_text(encoding='utf-8'))
                 entry['modules'] = {name: {'path': str((stage / relative).resolve()), 'sha256': profile_config.sha256(stage / relative)} for name, relative in stage_profile.get('query-modules', {}).items()}
-                entry['command'] = {'executable': str(worker), 'arguments': ['verify-cases', str(reference), str(stage)], 'directory': str(profile_config.REPOSITORY / 'crates' / 'ryo'), 'environment': {}}
+                entry['command'] = {'kind': 'case-verification', 'context': str(stage.resolve())}
             except Exception as error:
                 entry['reason'] = f'rule registration: {type(error).__name__}: {error}'
         registered.append(entry)
