@@ -100,7 +100,7 @@ pub struct ProjectContextReceipt {
     pub logical_root: std::path::PathBuf,
     /// Actual physical run directory supplied to both tools.
     pub actual_root: std::path::PathBuf,
-    /// Hash of declared files, missing paths and logical root.
+    /// Hash of declared files, physically validated observed absences and logical root.
     pub manifest_hash: crate::domain::suite::types::ArtifactDigest,
     /// Every observed dependency, including those retained by warm reuse.
     pub dependencies:

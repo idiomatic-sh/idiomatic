@@ -196,8 +196,22 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
         .missing
         .clear();
     assert!(
-        engine.run_prepared(undeclared).is_err(),
-        "the first missing ancestor must have been declared"
+        undeclared
+            .context_manifest
+            .as_ref()
+            .expect("base seal")
+            .missing
+            .is_empty()
+    );
+    let discovered = engine.run_prepared(undeclared)?;
+    assert_eq!(
+        discovered
+            .project_context
+            .expect("observed context")
+            .dependencies
+            .get(std::path::Path::new("../__init__.py")),
+        Some(&None),
+        "the candidate must report the actual absent ancestor despite an empty base missing list"
     );
     let mut escape = request(&profile, case, &cache);
     escape
@@ -247,9 +261,16 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     let engine = factory::local(super::python_310(), None);
     let cache = scratch.path().join("cache");
     let mut asked = request(&profile, case, &cache);
+    let marker = PathBuf::from("pkg2/__init__.py");
+    asked
+        .context_manifest
+        .as_mut()
+        .expect("base seal")
+        .missing
+        .retain(|path| path != &marker);
     let absent = engine.run_prepared(asked.clone())?;
     assert!(absent.diagnostics.is_empty());
-    let marker = PathBuf::from("pkg2/__init__.py");
+    assert_eq!(absent, engine.run_prepared(asked.clone())?);
     let added_seal = asked.context_manifest.as_mut().expect("seal");
     std::fs::write(added_seal.boundary.join(&marker), b"")?;
     added_seal.missing.retain(|path| path != &marker);
@@ -271,9 +292,9 @@ fn ancestor_marker_appearance_removal_and_edits_invalidate_warm_project_rows() -
     let removed_seal = asked.context_manifest.as_mut().expect("seal");
     std::fs::remove_file(removed_seal.boundary.join(&marker))?;
     let _removed = removed_seal.auxiliary_files.remove(&marker);
-    removed_seal.missing.push(marker);
     let removed = engine.run_prepared(asked.clone())?;
     assert!(removed.diagnostics.is_empty());
+    assert_eq!(removed.project_context, absent.project_context);
     assert_eq!(removed, engine.run_prepared(asked)?);
     Ok(())
 }

@@ -263,13 +263,16 @@ pub(crate) fn materialize(
     Ok(manifest)
 }
 
-/// Require an observed dependency to match a predeclared file or absence and its actual bytes.
+/// Seal observed absences against the same filesystem snapshot as declared files.
+/// A missing observation is admissible only after the boundary verifies that path is absent.
 pub(crate) fn receipt(
     manifest: &ContextManifest,
     actual_root: &Path,
     dependencies: Vec<ryo::linter::ProjectDependency>,
 ) -> Result<ProjectContextReceipt, Error> {
     validate(manifest, actual_root)?;
+    let mut effective = manifest.clone();
+    let mut missing: std::collections::BTreeSet<_> = manifest.missing.iter().cloned().collect();
     let mut observed = BTreeMap::new();
     for dependency in dependencies {
         let path = PathBuf::from(dependency.path.0.as_ref());
@@ -293,11 +296,27 @@ pub(crate) fn receipt(
                 Some(fingerprint)
             }
             ryo::linter::ProjectDependencyState::Missing => {
-                if !manifest.missing.contains(&declared) {
+                if manifest.auxiliary_files.contains_key(&declared)
+                    || manifest.source_files.contains_key(&declared)
+                {
                     return Err(Error::Invalid(format!(
-                        "undeclared missing context dependency: {}",
+                        "missing context dependency contradicts a sealed file: {}",
                         path.display()
                     )));
+                }
+                if !missing.contains(&declared) {
+                    no_symlinks(&manifest.boundary, &declared)?;
+                    match std::fs::symlink_metadata(manifest.boundary.join(&declared)) {
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(error) => return Err(error.into()),
+                        Ok(_) => {
+                            return Err(Error::Invalid(format!(
+                                "observed missing context path appeared: {}",
+                                path.display()
+                            )));
+                        }
+                    }
+                    let _new = missing.insert(declared);
                 }
                 None
             }
@@ -309,11 +328,12 @@ pub(crate) fn receipt(
             )));
         }
     }
+    effective.missing = missing.into_iter().collect();
     Ok(ProjectContextReceipt {
         mode: ProjectContextMode::ListedDisk,
         logical_root: manifest.logical_root.clone(),
         actual_root: actual_root.to_owned(),
-        manifest_hash: fingerprint(manifest),
+        manifest_hash: fingerprint(&effective),
         dependencies: observed,
     })
 }
