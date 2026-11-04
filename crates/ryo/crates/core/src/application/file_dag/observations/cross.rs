@@ -310,7 +310,11 @@ impl<'a> CrossPublications<'a> {
                 }
             }
         }
-        self.arenas[at] = transfer.arena;
+        // Prepare every lease and checked reference increment before changing
+        // the coordinator's roots. A malformed later output leaves no earlier
+        // publication visible, and dropping this local vector releases leases.
+        let mut additions = vec![0usize; self.references.len()];
+        let mut prepared = Vec::with_capacity(transfer.roots.len());
         for root in transfer.roots {
             let output = root.output.0 as usize;
             if let Some(words) = root.words {
@@ -322,27 +326,46 @@ impl<'a> CrossPublications<'a> {
                         return Err(incomplete());
                     }
                     referenced.push(arena);
-                    let count = self
-                        .references
-                        .get_mut(arena.0 as usize)
-                        .ok_or_else(incomplete)?;
-                    *count = count.checked_add(1).ok_or(OperatingError::NotRun)?;
+                    let at = arena.0 as usize;
+                    let added = additions.get_mut(at).ok_or_else(incomplete)?;
+                    *added = added.checked_add(1).ok_or(OperatingError::NotRun)?;
+                    self.references
+                        .get(at)
+                        .ok_or_else(incomplete)?
+                        .checked_add(*added)
+                        .ok_or(OperatingError::NotRun)?;
                 }
                 let backings = referenced
                     .iter()
-                    .map(|worker| self.arenas.get(worker.0 as usize).ok_or_else(incomplete))
+                    .map(|worker| {
+                        if *worker == expected {
+                            Ok(&transfer.arena)
+                        } else {
+                            self.arenas.get(worker.0 as usize).ok_or_else(incomplete)
+                        }
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
                 let publication = self.owner.packed_publication(words, &backings)?;
-                self.roots[rule.0][output] = CrossRoot::Named {
-                    publication,
-                    admitted: admitted
-                        .remove(&u32::try_from(output).map_err(|_| incomplete())?)
-                        .ok_or_else(incomplete)?,
-                    arenas: referenced,
-                };
+                prepared.push((
+                    output,
+                    CrossRoot::Named {
+                        publication,
+                        admitted: admitted
+                            .remove(&u32::try_from(output).map_err(|_| incomplete())?)
+                            .ok_or_else(incomplete)?,
+                        arenas: referenced,
+                    },
+                ));
             } else {
-                self.roots[rule.0][output] = CrossRoot::Unavailable;
+                prepared.push((output, CrossRoot::Unavailable));
             }
+        }
+        self.arenas[at] = transfer.arena;
+        for (count, added) in self.references.iter_mut().zip(additions) {
+            *count += added; // checked against the old count above
+        }
+        for (output, root) in prepared {
+            self.roots[rule.0][output] = root;
         }
         for (output, declared) in outputs.iter().enumerate() {
             if matches!(declared.root, OutputRoot::CrossFile) && !seen[output] {
