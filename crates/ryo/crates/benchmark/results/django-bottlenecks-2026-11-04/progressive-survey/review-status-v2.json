@@ -1,0 +1,9 @@
+{
+  "requested_model": "claude-fable-5-1",
+  "effort": "high",
+  "runner_session": 69450,
+  "status": "LIVE",
+  "approved": false,
+  "fallback": "User explicitly permits Opus only if Fable unavailable",
+  "prior_quota_attempt_preserved": "fable-attempt.json"
+}

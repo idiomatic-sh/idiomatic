@@ -1,56 +1,432 @@
 # Django rule bottlenecks
 
-Snapshot **2026-11-04T01:53:45.226121+00:00**: all **411 runnable rules attempted** over the same pinned **2,875 Django files**; **410 completed**, **ISC004 is censored beyond 360s**, and **I001/RUF100 remain two missing implementations** in the 413-slot inventory. Authorized progressive retries continue independently. A timeout is incomplete failure and a lower bound, never its actual cost. Results are diagnostic and **not reference-certified speed acceptance**.
+**Every one of the 413 rules is listed below. Snapshot: 2026-11-04T01:57:46.700138+00:00.** Public parity is the [source-bound c336 inventory](../../../languages/python/benchmarks/linters/ruff/results/ci-c336-full-inventory-2026-11-04/README.md):411 PASS, I001/RUF100 FAIL. This is frozen-fixture parity (including documented discrepancies), **not Django parity**. Django diagnostics:410 complete, ISC004 incomplete/censored, two unimplemented/not run.
 
-The main cohort uses sealed source `db1f035022c4b758362a7f010226d7a853088b6d`, worker `68156078f5f7947d1ea178f39ceb67fa509698ae4d2465323cde15c0f92398f5`, frozen409 queries and one worker. E902/RUF200 use a **separate current411+namespace source cohort** (`7a097013`, worker `d025a7b0a13443fb36b9d70647744ddc6ccbd2526a8b71b9e542f42086656166`); their times must not be pooled as same-source comparisons. Both cohorts retain the pinned file manifest and explicit query/helper identities.
+All measurements use the same pinned2,875 Django files and one worker. **db1** means sealed db1/68156078, frozen409 queries; **current411+namespace** means separate7a097013/d025a7b0 source for E902/RUF200. Do not pool sources or add/subtract isolated timings to predict combined time. Complete diagnostics are uncertified; they do not earn parity PASS or whole-category ownership credit. Peak for an incomplete run is only the observed prefix peak.
 
-In db1, the application DAG is used for both historical flag settings. Survey flags `DAG=1/graph=0` enable optional completed node-result retention; `0/0` disables that retention and changes a stored digest marker. They do **not** select different executors. The same-worker full-corpus F841 retention control was essentially flat:20.988s off versus21.043s on, with exact complete report bags/coverage/files. A new unmerged typed-control source passes actual malformed/default/on/off/diagnostic/syntax controls; shared receipt-output environment cleanup remains open.
+| Rule | Public parity | Django wall s | Peak MiB | Measurement status | Cohort / evidence |
+|---|---|---:|---:|---|---|
+| ASYNC100 | PASS | 5.153 | 97.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC105 | PASS | 4.173 | 80.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC115 | PASS | 5.014 | 89.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC116 | PASS | 4.653 | 81.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC210 | PASS | 4.093 | 80.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC220 | PASS | 4.635 | 81.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC221 | PASS | 4.811 | 86.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC222 | PASS | 3.803 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC230 | PASS | 5.003 | 89.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ASYNC251 | PASS | 3.796 | 79.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B002 | PASS | 2.852 | 80.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B003 | PASS | 3.574 | 86.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B004 | PASS | 4.367 | 82.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B005 | PASS | 4.073 | 82.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B006 | PASS | 4.452 | 84.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B008 | PASS | 6.503 | 107.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B009 | PASS | 5.548 | 97.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B010 | PASS | 5.421 | 97.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B012 | PASS | 3.090 | 79.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B013 | PASS | 2.814 | 79.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B014 | PASS | 2.885 | 79.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B015 | PASS | 2.957 | 80.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B016 | PASS | 2.844 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B017 | PASS | 5.449 | 87.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B018 | PASS | 8.571 | 179.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B019 | PASS | 4.303 | 88.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B020 | PASS | 6.086 | 100.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B021 | PASS | 3.496 | 90.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B022 | PASS | 3.903 | 81.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B023 | PASS | 8.121 | 100.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B025 | PASS | 2.929 | 81.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B026 | PASS | 2.866 | 79.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B029 | PASS | 2.799 | 80.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B030 | PASS | 4.219 | 107.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B031 | PASS | 6.116 | 102.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B032 | PASS | 2.874 | 80.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B033 | PASS | 5.078 | 89.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B035 | PASS | 5.461 | 91.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| B039 | PASS | 4.728 | 84.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| BLE001 | PASS | 8.516 | 104.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C400 | PASS | 4.876 | 87.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C401 | PASS | 4.963 | 87.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C402 | PASS | 4.032 | 85.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C403 | PASS | 4.950 | 86.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C404 | PASS | 4.864 | 87.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C405 | PASS | 4.817 | 87.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C406 | PASS | 4.868 | 87.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C408 | PASS | 4.408 | 82.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C409 | PASS | 4.791 | 86.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C410 | PASS | 4.842 | 86.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C411 | PASS | 4.874 | 85.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C413 | PASS | 4.254 | 81.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C414 | PASS | 6.009 | 93.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C415 | PASS | 4.516 | 81.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C417 | PASS | 5.014 | 82.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C418 | PASS | 4.756 | 88.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| C419 | PASS | 4.523 | 91.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| D419 | PASS | 4.087 | 93.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ001 | PASS | 4.564 | 92.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ002 | PASS | 4.111 | 91.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ003 | PASS | 4.025 | 82.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ004 | PASS | 4.012 | 82.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ005 | PASS | 4.378 | 92.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ006 | PASS | 4.053 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ007 | PASS | 5.605 | 83.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ011 | PASS | 4.081 | 80.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ012 | PASS | 3.992 | 78.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| DTZ901 | PASS | 3.730 | 79.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| E722 | PASS | 2.789 | 78.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| E902 | PASS | 0.760 | 53.9 | Complete; uncertified | current411+namespace [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/current411-resource-receipts.json) |
+| EXE001 | PASS | 1.358 | 67.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| EXE002 | PASS | 1.376 | 67.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| EXE004 | PASS | 1.337 | 67.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| EXE005 | PASS | 1.405 | 67.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F401 | PASS | 9.830 | 103.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F402 | PASS | 5.040 | 101.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F404 | PASS | 3.158 | 83.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F407 | PASS | 3.160 | 81.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F501 | PASS | 4.074 | 104.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F502 | PASS | 4.088 | 103.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F503 | PASS | 4.082 | 103.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F504 | PASS | 4.009 | 105.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F505 | PASS | 4.029 | 106.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F506 | PASS | 4.203 | 103.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F507 | PASS | 4.343 | 111.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F508 | PASS | 4.266 | 103.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F509 | PASS | 4.053 | 103.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F521 | PASS | 3.439 | 82.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F522 | PASS | 4.424 | 88.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F523 | PASS | 4.149 | 88.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F524 | PASS | 3.624 | 83.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F525 | PASS | 3.499 | 82.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F541 | PASS | 2.866 | 79.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F601 | PASS | 6.517 | 101.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F602 | PASS | 3.211 | 87.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F621 | PASS | 3.363 | 79.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F622 | PASS | 3.317 | 79.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F631 | PASS | 2.727 | 78.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F632 | PASS | 4.056 | 85.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F633 | PASS | 3.665 | 79.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F634 | PASS | 2.804 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F701 | PASS | 3.174 | 89.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F702 | PASS | 3.212 | 86.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F704 | PASS | 3.307 | 97.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F706 | PASS | 3.443 | 96.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F707 | PASS | 2.803 | 79.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F811 | PASS | 19.470 | 137.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F821 | PASS | 7.066 | 105.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F822 | PASS | 7.913 | 100.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F823 | PASS | 3.942 | 85.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F841 | PASS | 21.043 | 127.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F842 | PASS | 2.367 | 75.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| F901 | PASS | 3.190 | 83.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FA100 | PASS | 10.381 | 109.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FA102 | PASS | 5.597 | 97.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FLY002 | PASS | 7.095 | 97.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB105 | PASS | 6.127 | 89.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB122 | PASS | 7.300 | 110.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB129 | PASS | 7.609 | 104.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB132 | PASS | 6.981 | 118.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB136 | PASS | 3.810 | 83.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB157 | PASS | 4.975 | 92.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB161 | PASS | 4.092 | 83.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB162 | PASS | 5.411 | 83.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB163 | PASS | 4.403 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB166 | PASS | 5.501 | 83.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB167 | PASS | 2.910 | 74.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB168 | PASS | 6.410 | 96.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB169 | PASS | 6.051 | 97.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB177 | PASS | 5.654 | 97.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB181 | PASS | 5.760 | 97.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB188 | PASS | 8.695 | 102.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| FURB192 | PASS | 6.968 | 104.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| G010 | PASS | 5.320 | 91.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| G101 | PASS | 5.628 | 97.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| G201 | PASS | 6.199 | 87.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| G202 | PASS | 5.912 | 98.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| I001 | FAIL | — | — | Not run; missing implementation | [public FAIL](../../../languages/python/benchmarks/linters/ruff/results/ci-c336-full-inventory-2026-11-04/README.md) |
+| INT001 | PASS | 5.166 | 86.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| INT002 | PASS | 5.051 | 86.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| INT003 | PASS | 5.146 | 87.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| ISC004 | PASS | >360 (censored) | 133.6 observed | INCOMPLETE; latest terminal 360s timeout; 720s attempt running | db1 [attempts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| LOG001 | PASS | 4.037 | 78.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| LOG002 | PASS | 6.061 | 99.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| LOG009 | PASS | 2.090 | 67.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| LOG014 | PASS | 4.792 | 85.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| LOG015 | PASS | 3.997 | 80.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| N999 | PASS | 9.333 | 1504.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PERF101 | PASS | 5.125 | 88.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PERF102 | PASS | 6.196 | 119.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PERF402 | PASS | 5.375 | 97.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PGH005 | PASS | 3.610 | 86.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE790 | PASS | 13.971 | 103.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE794 | PASS | 4.326 | 105.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE796 | PASS | 5.072 | 83.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE800 | PASS | 3.302 | 97.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE804 | PASS | 4.222 | 81.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE807 | PASS | 3.143 | 80.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE808 | PASS | 4.871 | 100.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PIE810 | PASS | 4.621 | 86.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC0105 | PASS | 5.007 | 84.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC0131 | PASS | 4.865 | 83.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC0132 | PASS | 4.329 | 83.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC0205 | PASS | 3.482 | 86.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC0206 | PASS | 14.752 | 141.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC0208 | PASS | 4.341 | 94.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC0414 | PASS | 3.148 | 84.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLC3002 | PASS | 2.943 | 80.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0100 | PASS | 4.502 | 102.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0101 | PASS | 5.920 | 104.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0115 | PASS | 2.429 | 76.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0116 | PASS | 3.063 | 78.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0117 | PASS | 3.183 | 88.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0118 | PASS | 8.397 | 102.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0303 | PASS | 4.696 | 101.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0304 | PASS | 4.720 | 103.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0305 | PASS | 4.626 | 102.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0307 | PASS | 4.701 | 103.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0308 | PASS | 4.771 | 102.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0309 | PASS | 4.696 | 102.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0604 | PASS | 5.879 | 97.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0605 | PASS | 5.585 | 99.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0643 | PASS | 5.342 | 97.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE0704 | PASS | 5.047 | 96.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1132 | PASS | 3.615 | 79.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1142 | PASS | 4.908 | 96.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1205 | PASS | 6.272 | 99.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1206 | PASS | 6.203 | 98.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1300 | PASS | 5.692 | 113.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1307 | PASS | 4.602 | 113.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1310 | PASS | 6.837 | 130.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1507 | PASS | 6.038 | 86.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1519 | PASS | 4.070 | 84.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1520 | PASS | 3.203 | 75.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE1700 | PASS | 4.132 | 97.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE2502 | PASS | 1.365 | 67.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE2510 | PASS | 2.155 | 69.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE2512 | PASS | 2.170 | 68.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE2513 | PASS | 2.206 | 68.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE2514 | PASS | 2.193 | 68.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLE2515 | PASS | 2.205 | 68.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR0124 | PASS | 4.220 | 90.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR0133 | PASS | 2.964 | 80.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR0206 | PASS | 3.991 | 83.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR0402 | PASS | 2.834 | 80.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1704 | PASS | 3.704 | 101.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1708 | PASS | 7.779 | 104.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1711 | PASS | 3.695 | 85.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1716 | PASS | 3.716 | 104.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1722 | PASS | 3.983 | 79.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1730 | PASS | 4.025 | 85.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1733 | PASS | 6.713 | 156.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR1736 | PASS | 8.782 | 155.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLR2044 | PASS | 5.057 | 887.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0120 | PASS | 3.469 | 91.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0127 | PASS | 5.045 | 113.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0128 | PASS | 3.901 | 88.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0129 | PASS | 2.757 | 79.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0131 | PASS | 2.973 | 80.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0133 | PASS | 6.504 | 83.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0177 | PASS | 4.601 | 82.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0211 | PASS | 4.058 | 84.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0245 | PASS | 4.056 | 81.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0406 | PASS | 12.705 | 1976.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0602 | PASS | 7.507 | 102.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0604 | PASS | 2.684 | 83.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0642 | PASS | 4.284 | 102.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW0711 | PASS | 2.784 | 78.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW1501 | PASS | 5.253 | 86.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW1507 | PASS | 3.934 | 81.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW1508 | PASS | 6.206 | 84.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW1509 | PASS | 4.570 | 88.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW1510 | PASS | 4.099 | 86.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PLW2101 | PASS | 6.251 | 97.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PT010 | PASS | 3.869 | 81.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PT014 | PASS | 5.532 | 88.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PT020 | PASS | 16.164 | 1575.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PT025 | PASS | 17.217 | 1566.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PT026 | PASS | 18.361 | 1523.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PT031 | PASS | 3.863 | 81.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PTH124 | PASS | 3.966 | 79.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PTH210 | PASS | 5.901 | 89.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI001 | PASS | 3.950 | 81.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI002 | PASS | 3.859 | 77.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI003 | PASS | 4.528 | 82.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI004 | PASS | 4.483 | 82.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI005 | PASS | 4.006 | 81.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI006 | PASS | 3.676 | 79.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI007 | PASS | 4.586 | 80.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI008 | PASS | 3.818 | 79.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI009 | PASS | 3.490 | 80.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI010 | PASS | 3.278 | 78.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI012 | PASS | 3.002 | 78.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI013 | PASS | 3.355 | 91.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI015 | PASS | 5.349 | 96.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI016 | PASS | 8.677 | 102.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI017 | PASS | 3.099 | 80.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI018 | PASS | 4.526 | 83.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI019 | PASS | 6.074 | 89.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI020 | PASS | 4.765 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI025 | PASS | 2.843 | 79.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI026 | PASS | 4.510 | 81.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI029 | PASS | 4.105 | 80.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI030 | PASS | 3.947 | 90.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI032 | PASS | 4.272 | 86.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI033 | PASS | 1.112 | 68.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI034 | PASS | 6.365 | 105.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI035 | PASS | 3.219 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI036 | PASS | 6.514 | 98.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI041 | PASS | 4.389 | 84.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI042 | PASS | 3.911 | 81.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI043 | PASS | 3.866 | 80.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI044 | PASS | 2.914 | 77.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI045 | PASS | 3.801 | 80.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI046 | PASS | 3.368 | 77.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI047 | PASS | 4.084 | 81.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI048 | PASS | 3.216 | 79.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI049 | PASS | 4.148 | 81.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI050 | PASS | 3.014 | 73.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI052 | PASS | 11.012 | 127.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI055 | PASS | 5.489 | 97.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI057 | PASS | 2.052 | 68.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI058 | PASS | 5.489 | 96.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI059 | PASS | 3.037 | 75.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI061 | PASS | 4.340 | 80.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI062 | PASS | 4.499 | 85.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI063 | PASS | 5.822 | 105.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI064 | PASS | 4.325 | 81.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| PYI066 | PASS | 3.975 | 79.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RET501 | PASS | 10.728 | 156.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF007 | PASS | 5.680 | 97.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF008 | PASS | 5.483 | 86.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF009 | PASS | 5.986 | 90.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF010 | PASS | 5.743 | 100.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF012 | PASS | 8.723 | 104.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF013 | PASS | 6.100 | 101.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF015 | PASS | 8.000 | 101.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF016 | PASS | 4.022 | 80.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF017 | PASS | 5.154 | 98.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF018 | PASS | 3.235 | 87.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF019 | PASS | 10.390 | 118.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF020 | PASS | 8.500 | 111.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF022 | PASS | 7.279 | 98.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF023 | PASS | 5.703 | 97.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF024 | PASS | 5.427 | 97.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF026 | PASS | 5.110 | 98.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF028 | PASS | 16.684 | 254.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF030 | PASS | 3.619 | 80.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF032 | PASS | 4.651 | 84.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF033 | PASS | 3.913 | 80.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF034 | PASS | 3.830 | 82.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF040 | PASS | 2.816 | 78.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF041 | PASS | 6.576 | 103.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF046 | PASS | 7.589 | 107.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF048 | PASS | 5.298 | 98.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF049 | PASS | 4.280 | 85.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF051 | PASS | 8.213 | 117.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF053 | PASS | 4.753 | 96.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF057 | PASS | 7.812 | 108.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF058 | PASS | 3.909 | 81.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF059 | PASS | 5.473 | 105.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF063 | PASS | 5.734 | 96.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF068 | PASS | 8.349 | 107.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF100 | FAIL | — | — | Not run; missing implementation | [public FAIL](../../../languages/python/benchmarks/linters/ruff/results/ci-c336-full-inventory-2026-11-04/README.md) |
+| RUF101 | PASS | 1.119 | 66.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| RUF200 | PASS | 0.773 | 54.1 | Complete; uncertified | current411+namespace [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/current411-resource-receipts.json) |
+| S102 | PASS | 3.911 | 79.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| S110 | PASS | 3.758 | 81.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| S112 | PASS | 3.667 | 82.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM101 | PASS | 4.858 | 90.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM102 | PASS | 6.942 | 127.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM103 | PASS | 6.292 | 99.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM107 | PASS | 4.072 | 95.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM113 | PASS | 5.316 | 100.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM114 | PASS | 6.393 | 139.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM115 | PASS | 8.309 | 101.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM117 | PASS | 8.282 | 543.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM118 | PASS | 6.540 | 99.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM201 | PASS | 2.992 | 83.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM202 | PASS | 3.002 | 82.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM208 | PASS | 2.941 | 80.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM210 | PASS | 2.881 | 79.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM211 | PASS | 2.882 | 80.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM220 | PASS | 3.862 | 83.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM221 | PASS | 3.821 | 83.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM222 | PASS | 3.636 | 82.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM223 | PASS | 3.662 | 81.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM401 | PASS | 8.889 | 112.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM905 | PASS | 4.198 | 81.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| SIM911 | PASS | 4.358 | 84.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| T100 | PASS | 5.246 | 83.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TC004 | PASS | 8.515 | 102.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TC005 | PASS | 6.065 | 99.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TC007 | PASS | 5.439 | 102.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TC010 | PASS | 6.967 | 105.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TRY002 | PASS | 3.903 | 80.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TRY004 | PASS | 5.246 | 87.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TRY201 | PASS | 4.198 | 95.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TRY203 | PASS | 3.382 | 92.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| TRY401 | PASS | 6.124 | 107.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP001 | PASS | 3.616 | 87.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP003 | PASS | 5.632 | 94.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP004 | PASS | 4.207 | 80.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP005 | PASS | 3.698 | 86.0 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP006 | PASS | 2.936 | 74.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP007 | PASS | 8.147 | 99.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP008 | PASS | 11.390 | 106.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP009 | PASS | 1.212 | 68.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP010 | PASS | 3.362 | 82.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP011 | PASS | 3.706 | 85.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP012 | PASS | 5.397 | 98.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP014 | PASS | 6.470 | 96.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP017 | PASS | 2.073 | 67.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP018 | PASS | 7.586 | 99.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP019 | PASS | 2.779 | 74.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP020 | PASS | 3.821 | 80.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP021 | PASS | 5.037 | 98.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP022 | PASS | 5.155 | 98.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP023 | PASS | 2.975 | 78.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP024 | PASS | 4.813 | 84.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP025 | PASS | 2.155 | 75.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP026 | PASS | 3.995 | 85.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP028 | PASS | 4.343 | 90.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP029 | PASS | 3.215 | 81.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP030 | PASS | 3.715 | 82.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP031 | PASS | 4.372 | 95.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP032 | PASS | 5.069 | 96.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP033 | PASS | 5.855 | 97.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP034 | PASS | 4.595 | 102.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP035 | PASS | 5.382 | 78.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP036 | PASS | 7.631 | 99.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP037 | PASS | 11.079 | 116.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP039 | PASS | 2.914 | 82.8 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP040 | PASS | 7.427 | 99.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP041 | PASS | 3.949 | 82.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP043 | PASS | 5.608 | 96.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP044 | PASS | 5.015 | 98.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP045 | PASS | 8.156 | 100.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP046 | PASS | 7.103 | 101.5 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP047 | PASS | 7.080 | 100.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP049 | PASS | 3.432 | 90.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| UP050 | PASS | 3.794 | 88.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| W605 | PASS | 1.843 | 71.7 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT101 | PASS | 3.668 | 82.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT102 | PASS | 3.754 | 79.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT103 | PASS | 3.807 | 79.9 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT201 | PASS | 4.441 | 82.4 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT202 | PASS | 2.071 | 67.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT203 | PASS | 4.412 | 85.2 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT204 | PASS | 4.423 | 79.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT301 | PASS | 4.461 | 80.6 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT302 | PASS | 3.771 | 78.3 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
+| YTT303 | PASS | 3.651 | 81.1 | Complete; uncertified | db1 [receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) |
 
-## Provisional measured ranking
+## Measured findings and plan
 
-Main-source completed timings are ranked below; ISC004 is shown separately as a censored outlier. CPU and peak for that row are observations before termination, not completed-workload costs. Setup versus execution time is not separately exposed by this sealed worker.
+- ISC004 is the largest isolated outlier: actual indexed selfjoin counters show30.67M matching pairs after620 probes on99,202-row predecessor inputs. Its generic ordered-existence/anti-selfjoin pattern can be considered without changing the rule query. [Counter evidence](../results/django-bottlenecks-2026-11-04/progressive-survey/ISC004-operation-summary.json) is an incomplete instrumented prefix, not a timing result.
+- Direct measured cohorts, with exact isolated per-rule/skip bags and native syntax once: binding-source4 **31.251s/147.4MiB**, mixed-flow4 **33.955s/285.5MiB**, original mixed12 **62.522s/329.8MiB**. These do not prove pathological collective overhead. [Cohort evidence](../results/django-bottlenecks-2026-11-04/progressive-survey/manifest.json).
+- F841 reveals repeated scans after a DISTINCT composition barrier; mixed selectors also hit a saturated view pool. Ordinary-policy reclaim yields0.657MB, insufficient for a3.122MB equality index. Graph/ordinary admission and lifetime remain split. Required/external aliases must be respected; no stale-byte claim or cap increase. Copies/conversion bytes and index rebuild CPU are not measured.
+- Both historical flag settings use the same application DAG in db1; flags change optional node-result retention and a stored digest marker. Full-corpus F841 off/on **20.988/21.043s** was flat in one pair, with exact reports. New typed controls pass focused actual-path checks; remaining explicit receipt-output cleanup is underway.
 
-| Rule | Status | Wall s | CPU s | Peak MiB | Hot operation | Work amplification | Evidence | Shared fix |
-|---|---|---:|---:|---:|---|---|---|---|
-| ISC004 | Censored >360s; retry live | >360 | 359.893 observed | 133.6 observed | Indexed predecessor selfjoin | 30.67M matching pairs after 620 probes on 99,202-row inputs | [counter receipt](../results/django-bottlenecks-2026-11-04/progressive-survey/ISC004-operation-summary.json) | Generic ordered-existence/anti-selfjoin strategy; review pending |
-| F841 | Complete, uncertified | 21.043 | 21.036 | 127.8 | Repeated kind Select scans | Multiple129,899-row passes; DISTINCT composition barrier | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Preserve dedup stage; unify owner admission/lifetime |
-| F811 | Complete, uncertified | 19.470 | 19.467 | 137.1 | Binding helper/source joins | Source overlap with F841; not CPU attribution | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Measured binding-source cohort below |
-| PT026 | Complete, uncertified | 18.361 | 18.311 | 1523.2 | Token-prefix/range source pattern | Source hypothesis; CPU not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Compare generic ordered-existence eligibility |
-| PT025 | Complete, uncertified | 17.217 | 17.148 | 1566.0 | Token-prefix/range source pattern | Source hypothesis; CPU not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Compare generic ordered-existence eligibility |
-| RUF028 | Complete, uncertified | 16.684 | 16.677 | 254.8 | Indexed joins/intermediate flow | 151,833-row intermediate;154,374 chain rows at one node | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Shared demand/range planning; not a rule workaround |
-| PT020 | Complete, uncertified | 16.164 | 16.125 | 1575.6 | Token-prefix/range source pattern | Source hypothesis; CPU not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Compare generic ordered-existence eligibility |
-| PLC0206 | Complete, uncertified | 14.752 | 14.749 | 141.6 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| PIE790 | Complete, uncertified | 13.971 | 13.969 | 103.5 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| PLW0406 | Complete, uncertified | 12.705 | 12.691 | 1976.6 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| UP008 | Complete, uncertified | 11.390 | 11.388 | 106.8 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| UP037 | Complete, uncertified | 11.079 | 11.079 | 116.4 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| PYI052 | Complete, uncertified | 11.012 | 11.004 | 127.9 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| RET501 | Complete, uncertified | 10.728 | 10.725 | 156.9 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| RUF019 | Complete, uncertified | 10.390 | 10.387 | 118.7 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
-| FA100 | Complete, uncertified | 10.381 | 10.378 | 109.1 | Not attributed | Not attributed | [resource receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/db1-resource-receipts.json) | Await evidence |
+The [hypothesis and bounded POC plan](../results/django-bottlenecks-2026-11-04/progressive-survey/hypothesis-plan-v2.md) preserves ties/bags, projected DISTINCT keys, missing/malformed values, lazy errors/refusal, cancellation and required owners. Pure recognition belongs in domain planning; application owns policy/state/acquisition/lifetime; strong capability crates keep semantics. **No major optimization or category closure is approved.** Prior Fable quota failure is preserved; the user-authorized high-effort Fable retry is now live, with Opus allowed only if unavailable. [Review state](../results/django-bottlenecks-2026-11-04/progressive-survey/review-status-v2.json).
 
-Separate-source E902 completed0.760s wall/0.756CPU/53.9MiB; RUF200 completed 0.773s wall/0.769CPU/54.1MiB. Each selected/evaluated all2,875 files with zero unknowns. See [separate cohort receipts](../results/django-bottlenecks-2026-11-04/progressive-survey/current411-resource-receipts.json).
-
-## Family versus collective work
-
-| Same-source measured cohort | Wall s | CPU s | Peak MiB | Report comparison |
-|---|---:|---:|---:|---|
-| F401/F811/F821/F841 binding-source4 |31.251|31.229|147.4|Exact isolated per-rule/skip bags; native syntax once|
-| RUF028/RET501/SIM114/B018 mixed-flow4 |33.955|33.951|285.5|Exact isolated per-rule/skip bags; native syntax once|
-| Original mixed12 |62.522|62.496|329.8|Exact isolated per-rule/skip bags; native syntax once|
-
-These are direct cohort measurements, not sums/subtractions of isolated timings. They do not establish pathological collective overhead. ISC004 is a clear single-rule outlier; whether its ordered-existence family dominates the full workload still needs measurement. The shared-helper groups overlap in physical primitives; their labels do not imply disjoint costs.
-
-## Confirmed mechanisms and proposed next step
-
-ISC004’s counter capture is an **incomplete, instrumented prefix**, not a timing result:1,028 completed file scopes, zero overflow. In `tests/admin_views/tests.py`, rule-step35 selfjoins a99,202-row predecessor population by `(id,file)`. Its equality index already works, but broad same-key chains yield30,666,917 matching candidate pairs after only620 probes. The query then tests strict token-end ordering and antijoins away dominated predecessors. A generic ordered-existence/extrema physical strategy could avoid enumerating quadratic pairs while preserving maxima ties, bags and absence. Pure algebraic recognition belongs in domain planning; application owns strategy policy, acquisition, sharing and lifetime. No rule-specific rewrite, new cap, or new major implementation has been accepted.
-
-F841 exposes a separate DISTINCT projection composition barrier. Mixed-rule selector histograms also show real budget refusal. At the first refusal the16MiB view pool is almost full; a3,122,479-byte equality index cannot fit. Existing ordinary-policy reclaim can release only657,312 physical bytes/32,768 position units; required/external aliases pin larger views. Graph/domain/nearest leases also occupy this ledger outside ordinary `State.entries`, so the ordinary top16 does not attribute the whole pool. Only graph acquisition currently invokes reclamation; selector prechecks and ordinary acquisition have separate admission decisions. These remain **unchecked ownership/admission/lifetime gaps**, not proof of stale accounting or a reason to raise caps.
-
-All semantic capabilities remain in strong crates. Shared representations and service control flow should address copies/materializations; these captures measure row work, not allocation/retained-byte attribution, conversion copies, or index rebuild cost. Mandatory owners/interfaces remain required even when optional retention is disabled.
-
-## Review and replay
-
-The [evidence-backed hypothesis/plan](../results/django-bottlenecks-2026-11-04/progressive-survey/hypothesis-plan.md) includes ties, projected dedup keys, bag order, missing/malformed operands, lazy errors, injected refusal, cancellation and lifetime risks. Requested Fable high-effort review **did not run**: [actual response](../results/django-bottlenecks-2026-11-04/progressive-survey/fable-response.json) reports “weekly limit · resets Nov5,8am(UTC)”, zero review tokens. There is no Fable approval; major performance implementation waits for the requested review choice.
-
-The [timestamped all413 inventory](../results/django-bottlenecks-2026-11-04/progressive-survey/inventory-state.json), [manifest](../results/django-bottlenecks-2026-11-04/progressive-survey/manifest.json), preserved survey/cohort drivers and separate source-cohort resource receipts bind current findings. Raw collector observations remain preserved under the local paths recorded in those receipts; this compact public snapshot is not a self-contained reference-parity audit. Replay requires the pinned corpus, frozen query/helper pack and sealed workers identified by their manifests. Each invocation takes workspace then serial locks; completed receipts are reused, and only timed-out rules retry30→90→180→doubling without a hard final cutoff.
+Replay/source identities and all-slot resource receipts: [manifest](../results/django-bottlenecks-2026-11-04/progressive-survey/manifest.json). Raw collector observations remain preserved at the recorded local source-cohort paths; this compact public snapshot is not a self-contained parity audit. Drivers retain query/helper/file seals, fresh per-attempt cache and per-invocation workspace→serial locks; completed receipts are reused, only timeouts retry30→90→180→doubling without a hard final cutoff.

@@ -434,7 +434,7 @@
   "inventory_source": "/tmp/ryo-audit-docs-publish-20261103/crates/ryo/languages/python/benchmarks/linters/ruff/results/ci-5331-full-inventory-2026-11-03/summary.json",
   "inventory_source_sha256": "5f85637d42aed8c8e2763491a7ef31e182343cc7931e12d43bcf22c1a341eef8",
   "authoritative_reporting_state": "/tmp/django-all413-progressive-20261104/inventory-state.json",
-  "updated_utc": "2026-11-04T01:53:45.226121+00:00",
+  "updated_utc": "2026-11-04T01:57:46.700138+00:00",
   "rules": {
     "ASYNC100": {
       "rule": "ASYNC100",

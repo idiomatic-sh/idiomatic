@@ -1,5 +1,5 @@
 {
-  "snapshot_utc": "2026-11-04T01:53:45.226121+00:00",
+  "snapshot_utc": "2026-11-04T01:57:46.700138+00:00",
   "inventory_sha256": "c570a301716b0806db46c4e019244d536570f5348a5928bf797d93482cc96620",
   "counts": {
     "COMPLETED_UNCERTIFIED": 410,
@@ -9,7 +9,7 @@
   "raw_observations_preserved_not_rewritten": true,
   "public_bundle_scope": "Resource receipt snapshots, report-comparison summaries and source identities; not self-contained reference parity certification",
   "files": {
-    "inventory-state.json": "c75f8b372eb0f580eff4df5bdc748600846f90981da03758f89c1fe8b4d390fb",
+    "inventory-state.json": "c9138f95f16796f8ce9a9e1f478e1cffa3b9b718449028fd62366288ba133096",
     "db1-survey-manifest.json": "aa4d1f8c1f3c70d984d7c8e88ef85cacb0f9133bec40e1d4c8e040bb55f3e220",
     "combined12.json": "c4fbe1f594f262fc3fc0091f8385cd08d2d9ab08e24f4a4f653dd115dbce02d7",
     "binding-source4.json": "469e1aa7fed04d0165dea9365c48016714d373cc143231903c5bf6a37ba7eafa",
@@ -27,6 +27,15 @@
     "reporting-renderer.py": "e06c461f64f8f5fcf2b35638e267430653f5dd25daeeeb42267ed415a87c0bd4",
     "owner-first-refusal.json": "a1f07427a232768cc3789712adfdb3fac9244003ecc03abea6f98114337b966c",
     "db1-resource-receipts.json": "3e21e69688c2e10395ea10d7d553f63fce9f5d6ec292d01b4f52ac5bc51f4da4",
-    "current411-resource-receipts.json": "ad08bfd69ef36ca7e0d16df4bd78e5bd2b443682f47d491a203af3b7a398fc26"
+    "current411-resource-receipts.json": "ad08bfd69ef36ca7e0d16df4bd78e5bd2b443682f47d491a203af3b7a398fc26",
+    "hypothesis-plan-v2.md": "1cff2ec6307c68ebb0778959bf82167d4af11afb03e9b7b8dfb298ce86109b3e",
+    "namespace-compiled-worker.json": "1f51658aed3f135ea5e0b6660f3dcdbb4a4ff9fa784635ecbe5b954b10507941",
+    "review-status-v2.json": "0117ae998df080f2ff72ca6223747fd4aaa1e6714db696d861e8d4576dd8c853"
+  },
+  "visible_table_rows": 413,
+  "public_parity_source_sha256": "804a167c698ab7c56d26fc67c158078fa65afdf736ba8ea527330b93d77b1cbc",
+  "public_parity_counts": {
+    "PASS": 411,
+    "FAIL": 2
   }
 }
