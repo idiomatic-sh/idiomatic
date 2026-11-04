@@ -287,7 +287,11 @@ pub(crate) fn compile_prepared(
             let resolve = |step: StepId| cuts.get(rule)?.get(step.0 as usize).copied().flatten();
             let (Some(source), Some(join), Some(select), Some(project)) =
                 (resolve(shape.source), resolve(shape.replaced_join), resolve(shape.replaced_select), resolve(shape.retained_project)) else { continue; };
-            if [join, select, project].iter().any(|id| resolved_readers[id.0] != 1) { continue; }
+            if [join, select, project].iter().any(|id| resolved_readers[id.0] != 1) {
+                ordered_existence[select.0] = Some(crate::domain::ordered_existence::types::ResolvedAlternative::Declined(
+                    crate::domain::ordered_existence::types::Decline::ExtraConsumer));
+                continue;
+            }
             // Verify canonical edges, not normalized operation-local Step numbers.
             if nodes[join.0].inputs != [NodeInput::Node(source), NodeInput::Node(source)]
                 || nodes[select.0].inputs != [NodeInput::Node(join)] { continue; }
@@ -298,9 +302,9 @@ pub(crate) fn compile_prepared(
             let projected_left = columns.iter().map(|column| output.get(column.0 as usize).map(|mapped| mapped.column)).collect::<Option<Vec<_>>>();
             if projected_left.as_deref() != Some(shape.projected_left.as_slice()) { continue; }
 
-            ordered_existence[select.0] = Some(crate::domain::ordered_existence::types::ResolvedShape {
+            ordered_existence[select.0] = Some(crate::domain::ordered_existence::types::ResolvedAlternative::Eligible(crate::domain::ordered_existence::types::ResolvedShape {
                 shape: shape.clone(), source, join, select, output: output.clone(),
-            });
+            }));
         }
     }
     RequestGraph {

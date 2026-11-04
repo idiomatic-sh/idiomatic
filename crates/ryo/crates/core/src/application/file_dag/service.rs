@@ -176,7 +176,13 @@ impl FileDagExecution {
         }
         self.visiting[id.0] = true;
         let outcome = (|| {
-            if let Some(shape) = graph.ordered_existence.get(id.0).and_then(Option::as_ref) {
+            use crate::domain::ordered_existence::types::ResolvedAlternative;
+            let alternative = graph.ordered_existence.get(id.0).and_then(Option::as_ref);
+            if let Some(ResolvedAlternative::Declined(reason)) = alternative {
+                let _ = reason;
+                super::route_counts::event("ordered_existence", "declined_shared_consumer");
+            }
+            if let Some(ResolvedAlternative::Eligible(shape)) = alternative {
                 // The request compiler matched original plan coordinates to these
                 // exact producer edges. Demand only S: J/F remain unexecuted and
                 // their ordinary edges are cancelled by consumed below.
@@ -190,8 +196,13 @@ impl FileDagExecution {
                     node.contract.schema.as_ref().map_err(Clone::clone)?,
                     context, &mut Room::default(),
                 )? {
-                    super::ordered_existence::StrategyOutcome::Executed(result) => return Ok(result),
-                    super::ordered_existence::StrategyOutcome::Declined(_reason) => {}
+                    super::ordered_existence::StrategyOutcome::Executed(result) => {
+                        super::route_counts::event("ordered_existence", "executed_skipped_join");
+                        return Ok(result);
+                    }
+                    super::ordered_existence::StrategyOutcome::Declined(_reason) => {
+                        super::route_counts::event("ordered_existence", "declined_population");
+                    }
                 }
                 // Admission declined before output. Ordinary evaluation retains
                 // all malformed/unsupported representation and fault behavior.

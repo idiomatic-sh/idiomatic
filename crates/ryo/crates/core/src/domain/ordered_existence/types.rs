@@ -77,3 +77,9 @@ pub(crate) struct ResolvedShape {
     /// Exact logical output layout consumed by the unchanged Project.
     pub output: Vec<ryo_values::domain::plan_parts::types::JoinColumn>,
 }
+
+#[derive(Clone, Debug)]
+pub(crate) enum ResolvedAlternative {
+    Eligible(ResolvedShape),
+    Declined(Decline),
+}
