@@ -497,3 +497,9 @@ pub fn places_mut(symbols: &mut Symbols) -> &mut Vec<NamePlace> {
     let symbols: &mut SymbolsEngine = symbols.as_mut();
     &mut symbols.places
 }
+
+/// Name places decoded from an admitted project publication. This grants a
+/// query only the transport place table, never source-name interning or notes.
+pub fn query_places_mut(symbols: &mut super::types::QuerySymbols<'_>) -> &mut Vec<NamePlace> {
+    places_mut(symbols.0)
+}

@@ -58,6 +58,7 @@ impl<'service> ProgramServices<'service> {
 /// A named project phase and its bound inputs must use the very same owner.
 pub(crate) struct PublicationScope {
     owner: Rc<RelationOwner>,
+    execution: std::cell::OnceCell<ProgramExecution>,
 }
 impl PublicationScope {
     pub(in crate::application::file_dag) fn owner(&self) -> &Rc<RelationOwner> {
@@ -70,6 +71,7 @@ pub(crate) fn publication_owner(
 ) -> Result<PublicationScope, OperatingError> {
     Ok(PublicationScope {
         owner: open_program_owner(program.program(), Arc::clone(services.derived())),
+        execution: std::cell::OnceCell::new(),
     })
 }
 
@@ -86,6 +88,141 @@ pub(crate) fn required_partitions(
     RequiredPartitions::from_request(files, covered, skipped)
 }
 
+struct ProjectSources<'a> {
+    program: &'a PreparedProgram,
+    rule: RuleIndex,
+    ordinary: &'a mut [Option<crate::application::cross_file::types::FrontierInput>],
+    refused: &'a [crate::domain::crossing::types::RefusedFrontier],
+    bound: &'a mut [Option<crate::domain::crossing::types::BoundInputWords>],
+    cache: &'a mut Vec<(
+        crate::domain::executable_program::types::InputSource,
+        AdmittedInput,
+    )>,
+}
+impl ProjectSources<'_> {
+    /// Called only by an actual DemandAction::Admit. Raw source handles and
+    /// errors remain untouched when a branch does not demand them.
+    fn admit(
+        &mut self,
+        source: crate::domain::executable_program::types::InputSource,
+        partition: &Partition,
+        context: &mut OperatorContext<'_>,
+        owner: &Rc<RelationOwner>,
+        kernels: &dyn KernelInvocation,
+    ) -> Option<Result<AdmittedInput, OperatingError>> {
+        use crate::{
+            application::cross_file::types::FrontierInput,
+            domain::executable_program::types::InputSource,
+        };
+        if let Some((_, admitted)) = self.cache.iter().find(|(key, _)| *key == source) {
+            return Some(Ok(admitted.clone()));
+        }
+        let program = self.program;
+        let rule = self.rule;
+        let mut pending = None;
+        for (at, input) in self.ordinary.iter().enumerate() {
+            let Some(input) = input else { continue };
+            let original = match input {
+                FrontierInput::Decoded(frontier) => frontier.input,
+                FrontierInput::Compact { input, .. } => *input,
+            };
+            if source_for(program, rule, original).ok() == Some(source) {
+                pending = Some(at);
+                break;
+            }
+        }
+        if let Some(at) = pending {
+            let input = self.ordinary[at]
+                .take()
+                .expect("demanded source was present");
+            let publication = match input {
+                FrontierInput::Decoded(frontier) => owner.computed(frontier.table),
+                FrontierInput::Compact { table, .. } => owner.compact(Arc::new(table)),
+            };
+            let result = publication
+                .and_then(|publication| admit_published(owner, publication, source, partition));
+            if let Ok(input) = &result {
+                self.cache.push((source, input.clone()));
+            }
+            return Some(result);
+        }
+        for refused in self.refused {
+            if source_for(program, rule, refused.input).ok() == Some(source) {
+                return Some(Err(refused.error.clone()));
+            }
+        }
+        if let InputSource::Observation(slot) = source {
+            for bound in &mut *self.bound {
+                let Some(words) = bound.as_ref() else {
+                    continue;
+                };
+                if program.observation_slot(rule, words.input).ok() != Some(slot) {
+                    continue;
+                }
+                let words = bound.take().expect("demanded bound input was present");
+                let result = (|| {
+                    let kept = words.words?;
+                    let tables = kept
+                        .iter()
+                        .map(|words| {
+                            crate::domain::table_words::service::decode_complete(
+                                &words.0,
+                                ryo_language::domain::symbols::service::query_places_mut(
+                                    &mut context.symbols,
+                                ),
+                            )
+                            .map_err(|error| {
+                                OperatingError::ObservationIncomplete {
+                                    reason: error.to_string(),
+                                }
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let contract = words.union?;
+                    let publication = super::kernel_session::combine_bound(
+                        kernels,
+                        owner,
+                        &tables,
+                        &words.kinds,
+                        &contract,
+                        context,
+                    )?;
+                    admit_published(owner, publication, source, partition)
+                })();
+                if let Ok(input) = &result {
+                    self.cache.push((source, input.clone()));
+                }
+                return Some(result);
+            }
+            return Some(Err(OperatingError::ObservationIncomplete {
+                reason: "declared bound producer is unavailable".into(),
+            }));
+        }
+        None
+    }
+}
+fn admit_published(
+    owner: &Rc<RelationOwner>,
+    publication: PublishedInput,
+    source: crate::domain::executable_program::types::InputSource,
+    partition: &Partition,
+) -> Result<AdmittedInput, OperatingError> {
+    let unavailable = |_| Err(OperatingError::NotRead);
+    let rows = owner.resolve(publication.as_ref(), &unavailable)?;
+    let checked = owner.admit(
+        publication.as_ref(),
+        crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+    )?;
+    AdmittedInput::from_publication(
+        Rc::clone(owner),
+        publication,
+        &checked,
+        ProducerRoot::Input(source),
+        partition.clone(),
+        Readiness::Complete,
+    )
+}
+
 /// The application admission port is the only bridge from an executable source
 /// to a generation-checked publication. It has no second scheduler.
 struct SourceInputs<'a, 'facts> {
@@ -94,10 +231,7 @@ struct SourceInputs<'a, 'facts> {
     read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     kernels: &'a dyn KernelInvocation,
     observations: &'a HashMap<usize, AdmittedInput>,
-    prepared: &'a [(
-        crate::domain::executable_program::types::InputSource,
-        Result<AdmittedInput, OperatingError>,
-    )],
+    project: Option<ProjectSources<'a>>,
 }
 impl Inputs for SourceInputs<'_, '_> {
     fn admit(
@@ -107,8 +241,12 @@ impl Inputs for SourceInputs<'_, '_> {
         context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
         use crate::domain::executable_program::types::InputSource;
-        if let Some((_, provided)) = self.prepared.iter().find(|(key, _)| *key == source) {
-            return provided.clone();
+        if let Some(project) = &mut self.project {
+            if let Some(provided) =
+                project.admit(source, partition, context, &self.owner, self.kernels)
+            {
+                return provided;
+            }
         }
         match source {
             InputSource::Relation(relation) => {
@@ -296,7 +434,7 @@ impl FileRun<'_, '_> {
             read,
             kernels: &kernels,
             observations: &self.observed,
-            prepared: &[],
+            project: None,
         };
         let emit = match demand.emit {
             EmitDemand::Disabled => RootOutcome::NoQuery,
@@ -381,7 +519,7 @@ impl FileRun<'_, '_> {
             read,
             kernels: &kernels,
             observations: &self.observed,
-            prepared: &[],
+            project: None,
         };
         let CaptureContext {
             file,
@@ -526,55 +664,54 @@ fn outcome_of(
     }
 }
 
-struct BoundTables {
-    input: ryo_values::domain::observations::types::ObservationBindingId,
-    decoded: Result<Vec<Table>, OperatingError>,
-    kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
-    union: Result<Arc<crate::domain::operator::contract::types::OperatorContract>, OperatingError>,
-}
-/// One project phase consumes the caller's already prepared frontier population.
-/// Its named sources are decoded before the query borrows project symbols.
+/// One project phase borrows the coordinator's shared executable generation.
+/// Raw frontier and bound handles remain deferred until the demand interpreter
+/// calls SourceInputs::admit for their exact source.
 pub(crate) struct ProjectRun<'a, 'service> {
     program: &'a Arc<PreparedProgram>,
     services: &'a ProgramServices<'service>,
-    execution: ProgramExecution,
+    execution: &'a ProgramExecution,
     owner: Rc<RelationOwner>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
-    ordinary: crate::application::cross_file::types::PreparedFrontiers,
-    bound: Vec<BoundTables>,
+    ordinary: Vec<Option<crate::application::cross_file::types::FrontierInput>>,
+    refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
+    bound: Vec<Option<crate::domain::crossing::types::BoundInputWords>>,
+    cache: Vec<(
+        crate::domain::executable_program::types::InputSource,
+        AdmittedInput,
+    )>,
 }
 pub(crate) fn open_project<'a, 'service>(
     program: &'a Arc<PreparedProgram>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
-    frontiers: ProjectFrontiers<'_>,
-    symbols: &mut ryo_language::domain::symbols::types::Symbols,
+    frontiers: ProjectFrontiers<'a>,
+    _symbols: &mut ryo_language::domain::symbols::types::Symbols,
     services: &'a ProgramServices<'service>,
 ) -> Result<ProjectRun<'a, 'service>, OperatingError> {
     if !matches!(partials, ScopePartials::Project { .. }) {
         return Err(OperatingError::WrongOperation);
     }
-    let owner = Rc::clone(frontiers.publication.owner());
-    let execution = ProgramExecution::open(
-        Arc::clone(program.program()),
-        Partition::Project(required.clone()),
-        Rc::clone(&owner),
-    );
-    let bound = frontiers
-        .bound_inputs
-        .iter()
-        .map(|source| BoundTables {
-            input: source.input,
-            decoded: source
-                .words
-                .as_ref()
-                .map_err(Clone::clone)
-                .and_then(|words| super::super::observations::bound::decoded(words, symbols)),
-            kinds: source.kinds.clone(),
-            union: source.union.clone(),
-        })
-        .collect();
+    let scope = frontiers.publication;
+    let owner = Rc::clone(scope.owner());
+    if let Some(existing) = scope.execution.get() {
+        if !Arc::ptr_eq(&existing.program, program.program())
+            || !existing.project_partition_matches(&required)
+        {
+            return Err(OperatingError::WrongOperation);
+        }
+    } else {
+        scope
+            .execution
+            .set(ProgramExecution::open(
+                Arc::clone(program.program()),
+                Partition::Project(required.clone()),
+                Rc::clone(&owner),
+            ))
+            .map_err(|_| OperatingError::WrongOperation)?;
+    }
+    let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
     Ok(ProjectRun {
         program,
         services,
@@ -582,8 +719,10 @@ pub(crate) fn open_project<'a, 'service>(
         owner,
         required,
         partials,
-        ordinary: frontiers.ordinary,
-        bound,
+        ordinary: frontiers.ordinary.rows.into_iter().map(Some).collect(),
+        refused: frontiers.ordinary.refused,
+        bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
+        cache: Vec::new(),
     })
 }
 impl ProjectRun<'_, '_> {
@@ -593,10 +732,6 @@ impl ProjectRun<'_, '_> {
         demand: RuleDemand,
         context: &mut OperatorContext<'_>,
     ) -> Result<RuleOutcome, OperatingError> {
-        use crate::{
-            application::cross_file::types::FrontierInput,
-            domain::executable_program::types::InputSource,
-        };
         let metadata = self.program.rule_metadata(rule)?;
         let unavailable = |_relation| Err(OperatingError::NotRead);
         let kernels = super::kernel_session::KernelSession::new(
@@ -605,71 +740,21 @@ impl ProjectRun<'_, '_> {
             &unavailable,
         );
         let partition = Partition::Project(self.required.clone());
-        let mut prepared =
-            Vec::with_capacity(self.ordinary.rows.len() + self.ordinary.refused.len());
-        for input in &self.ordinary.rows {
-            let (original, publication) = match input {
-                FrontierInput::Decoded(frontier) => {
-                    (frontier.input, self.owner.computed(frontier.table.clone())?)
-                }
-                FrontierInput::Compact { input, table, .. } => {
-                    (*input, self.owner.compact(Arc::new(table.clone()))?)
-                }
-            };
-            let source = source_for(self.program, rule, original)?;
-            let rows = self.owner.resolve(publication.as_ref(), &unavailable)?;
-            let checked = self.owner.admit(
-                publication.as_ref(),
-                crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-            )?;
-            prepared.push((
-                source,
-                Ok(AdmittedInput::from_publication(
-                    Rc::clone(&self.owner),
-                    publication,
-                    &checked,
-                    ProducerRoot::Input(source),
-                    partition.clone(),
-                    Readiness::Complete,
-                )?),
-            ));
-        }
-        for refused in &self.ordinary.refused {
-            prepared.push((
-                source_for(self.program, rule, refused.input)?,
-                Err(refused.error.clone()),
-            ));
-        }
-        for binding in &self.bound {
-            let slot = self.program.observation_slot(rule, binding.input)?;
-            let result = (|| {
-                let tables = binding.decoded.as_ref().map_err(Clone::clone)?;
-                let contract = binding.union.as_ref().map_err(Clone::clone)?;
-                let publication =
-                    kernels.combine_bound(tables, &binding.kinds, contract, context)?;
-                let rows = self.owner.resolve(publication.as_ref(), &unavailable)?;
-                let checked = self.owner.admit(
-                    publication.as_ref(),
-                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-                )?;
-                AdmittedInput::from_publication(
-                    Rc::clone(&self.owner),
-                    publication,
-                    &checked,
-                    ProducerRoot::Input(InputSource::Observation(slot)),
-                    partition.clone(),
-                    Readiness::Complete,
-                )
-            })();
-            prepared.push((InputSource::Observation(slot), result));
-        }
+        let absent = HashMap::new();
         let mut sources = SourceInputs {
-            execution: &self.execution,
+            execution: self.execution,
             owner: Rc::clone(&self.owner),
             read: &unavailable,
             kernels: &kernels,
-            observations: &HashMap::new(),
-            prepared: &prepared,
+            observations: &absent,
+            project: Some(ProjectSources {
+                program: self.program,
+                rule,
+                ordinary: &mut self.ordinary,
+                refused: &self.refused,
+                bound: &mut self.bound,
+                cache: &mut self.cache,
+            }),
         };
         let emit = match demand.emit {
             EmitDemand::Disabled => RootOutcome::NoQuery,
