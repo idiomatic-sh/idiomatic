@@ -167,7 +167,6 @@ fn request_dag_executes_shared_dependencies_once_and_releases_at_graph_last_use(
             &mut actual,
             &mut prepared,
             &[],
-            None,
             rule,
             Some(&std::cell::RefCell::new(&mut dag)),
         )
@@ -244,7 +243,6 @@ fn distinct_graph_joins_share_the_existing_file_owned_source_index() {
             &mut actual,
             &mut prepared,
             &[],
-            None,
             rule,
             Some(&std::cell::RefCell::new(&mut dag)),
         )
@@ -368,7 +366,6 @@ fn opaque_first_failure_prevents_later_rule_graph_work() {
         &mut pool,
         &mut PreparedPool::default(),
         &[],
-        None,
         0,
         Some(&std::cell::RefCell::new(&mut dag)),
     )
@@ -440,7 +437,6 @@ fn registered_union_preserves_bag_contract_and_shares_its_repeated_dependency() 
             &mut actual,
             &mut PreparedPool::default(),
             &[],
-            None,
             rule,
             Some(&std::cell::RefCell::new(&mut dag)),
         )
@@ -479,7 +475,6 @@ fn budget_refusal_is_explicit_recomputation_and_never_stale_generation_reuse() {
             &mut pool,
             &mut PreparedPool::default(),
             &[],
-            None,
             rule,
             Some(&std::cell::RefCell::new(&mut dag)),
         )
@@ -534,7 +529,6 @@ fn empty_left_join_never_executes_its_right_dependency_and_cancels_its_lifetime(
         &mut actual,
         &mut PreparedPool::default(),
         &[],
-        None,
         0,
         Some(&std::cell::RefCell::new(&mut dag)),
     )
