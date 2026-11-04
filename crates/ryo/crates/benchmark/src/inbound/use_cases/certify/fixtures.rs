@@ -355,6 +355,33 @@ pub fn exercise(
                     crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
                 );
             }
+            if matches!(change, Change::None | Change::InventoryFull) {
+                use crate::outbound::evidence::interface::EvidencePort as _;
+                let full = matches!(change, Change::InventoryFull);
+                assert_eq!(
+                    pair.eligibility,
+                    if full {
+                        crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
+                    } else {
+                        crate::domain::measurements::types::MeasurementEligibility::Diagnostic
+                    }
+                );
+                let samples = pair.samples([
+                    crate::domain::measurements::types::SampleName("fixture/reference/cold".into()),
+                    crate::domain::measurements::types::SampleName("fixture/candidate/cold".into()),
+                ]);
+                let publication =
+                    crate::outbound::evidence::factory::bmf(Box::new(Vec::<u8>::new()))
+                        .publish(&samples);
+                if full {
+                    publication.expect("complete measured inventory publishes");
+                } else {
+                    assert_eq!(
+                        publication.unwrap_err().to_string(),
+                        "diagnostic observations cannot publish benchmark metrics"
+                    );
+                }
+            }
             Ok(certificate.cases())
         }
         Err(error) => {
