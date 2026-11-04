@@ -1260,3 +1260,76 @@ mod compiler_features;
 mod future_directives;
 
 mod project_inputs;
+
+#[test]
+fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Result<(), Error> {
+    use ryo::linter::{
+        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationKind, ObservationName, ObservationProducer, RuleId,
+    };
+    let root = tempfile::tempdir()?;
+    let rules = root.path().join("rules");
+    for (id, query) in [
+        (
+            "CONSUMER",
+            "let found = select path from published; emit found subject path key(path);",
+        ),
+        (
+            "PRODUCER",
+            "let files = select path from \"filesystem.file\"; observe files as used; emit files subject path key(path);",
+        ),
+    ] {
+        std::fs::create_dir_all(rules.join(id))?;
+        std::fs::write(rules.join(id).join("query.ryoql"), query)?;
+    }
+    std::fs::write(root.path().join("case.py"), "value = 1\n")?;
+    let consumer = RuleId::try_from("CONSUMER").unwrap();
+    let producer = RuleId::try_from("PRODUCER").unwrap();
+    let request = WorkerRequest {
+        performance: Default::default(),
+        selected_rules: Some(vec![consumer.clone()]),
+        rule_observations: Some(BTreeMap::from([(
+            consumer.clone(),
+            vec![ObservationBinding {
+                name: ObservationBindingName("published".into()),
+                columns: vec![ObservationColumn {
+                    name: ObservationColumnName("path".into()),
+                    kind: ObservationKind::File,
+                }],
+                producers: vec![ObservationProducer::Output {
+                    rule: producer,
+                    output: ObservationName("used".into()),
+                }],
+            }],
+        )])),
+        rule_context: None,
+        project_search_roots: None,
+        given_project_inventory: Default::default(),
+        project_context_mode: Default::default(),
+        context_manifest: None,
+        root: root.path().into(),
+        rules,
+        query_modules: BTreeMap::new(),
+        rule_applicability: BTreeMap::new(),
+        parser_configuration: Some("python-target=3.10".into()),
+        source_language: None,
+        files: vec![ryo::linter::RelativePath("case.py".into())],
+        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
+            root.path().join("cache"),
+        ),
+    };
+    let engine = factory::local(python_310(), None);
+    for _ in 0..2 {
+        let report = engine.run_prepared(request.clone())?;
+        assert_eq!(report.diagnostics.len(), 1);
+        assert_eq!(report.diagnostics[0].rule, consumer);
+    }
+    let mut missing = request;
+    std::fs::remove_file(missing.rules.join("PRODUCER/query.ryoql"))?;
+    missing.state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
+    assert!(
+        engine.run_prepared(missing).is_err(),
+        "missing bound producer cannot become empty"
+    );
+    Ok(())
+}
