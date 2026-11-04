@@ -10,6 +10,24 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 const REFUSAL: u32 = 60001;
+fn feed_owner() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
+    std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
+        true,
+        crate::outbound::derived::factory::test_port(),
+    ))
+}
+fn stream_with_port(
+    port: &dyn OperatorsPort,
+    contract: &crate::domain::operator::contract::types::OperatorContract,
+    feed: &mut ControlledFeed<'_>,
+    context: &mut OperatorContext<'_>,
+    room: &mut Room,
+    emit: &mut dyn crate::domain::operating::types::Emit,
+) -> Result<(), OperatingError> {
+    let owner = std::rc::Rc::clone(&feed.owner);
+    CommonOperatorEngine::new(port, owner.derived.semantic_port())
+        .stream(&owner, contract, feed, context, room, emit)
+}
 #[derive(Debug)]
 pub(in crate::application::file_dag::acceptance) struct Refuses {
     calls: AtomicUsize,
@@ -321,6 +339,7 @@ fn stream(operation: &Operation, left: &Table, right: Rows<'_>, symbols: &mut Sy
     let mut memo = vec![];
     let mut ctx = context(symbols, &mut scratch, &mut memo);
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left,
         right: right.clone(),
         right_holds: 0,
@@ -328,34 +347,34 @@ fn stream(operation: &Operation, left: &Table, right: Rows<'_>, symbols: &mut Sy
         right_fails: false,
     };
     let mut output = CollectedRows::default();
-    refused(
-        CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port()).stream(
-            &contract,
-            &mut feed,
-            &mut ctx,
-            &mut Room::default(),
-            &mut output,
-        ),
-    );
+    refused(stream_with_port(
+        &port,
+        &contract,
+        &mut feed,
+        &mut ctx,
+        &mut Room::default(),
+        &mut output,
+    ));
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     assert!(output.rows.is_empty());
     let empty = table_of(&left.kinds, &[]);
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &empty,
         right,
         right_holds: 0,
         left_fails: false,
         right_fails: false,
     };
-    CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port())
-        .stream(
-            &contract,
-            &mut feed,
-            &mut ctx,
-            &mut Room::default(),
-            &mut output,
-        )
-        .expect("empty left");
+    stream_with_port(
+        &port,
+        &contract,
+        &mut feed,
+        &mut ctx,
+        &mut Room::default(),
+        &mut output,
+    )
+    .expect("empty left");
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
     assert!(output.rows.is_empty());
 }
@@ -391,6 +410,7 @@ fn first_downstream_failure_remains_sticky_even_if_injected_kernel_returns_succe
     let mut memo = vec![];
     let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &left,
         right: Rows::Computed(&right),
         right_holds: 0,
@@ -402,11 +422,8 @@ fn first_downstream_failure_remains_sticky_even_if_injected_kernel_returns_succe
         fails: true,
     };
     assert!(matches!(
-        CommonOperatorEngine::new(
+        stream_with_port(
             &KeepsCalling,
-            crate::outbound::derived::factory::test_port(),
-        )
-        .stream(
             &contract,
             &mut feed,
             &mut ctx,
@@ -437,15 +454,21 @@ fn upstream_failure_and_empty_left_do_not_probe_rhs_or_enter_join_capability() {
     let mut output = CollectedRows::default();
     for fails in [false, true] {
         let mut feed = ControlledFeed {
+            owner: feed_owner(),
             left: &left,
             right: right.clone(),
             right_holds: 0,
             left_fails: fails,
             right_fails: false,
         };
-        let result =
-            CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port())
-                .stream(&contract, &mut feed, &mut ctx, &mut room, &mut output);
+        let result = stream_with_port(
+            &port,
+            &contract,
+            &mut feed,
+            &mut ctx,
+            &mut room,
+            &mut output,
+        );
         if fails {
             assert!(matches!(result, Err(OperatingError::NotRun)));
         } else {
@@ -655,6 +678,7 @@ impl Emit for NestedOutput {
         let operation = plan(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
         let contract = prepared(&operation, &[Rows::Computed(&left), Rows::Computed(&right)]);
         let mut feed = ControlledFeed {
+            owner: feed_owner(),
             left: &left,
             right: Rows::Computed(&right),
             right_holds: 0,
@@ -662,7 +686,8 @@ impl Emit for NestedOutput {
             right_fails: false,
         };
         let mut nested = CollectedRows::default();
-        CommonOperatorEngine::fixture().stream(
+        stream_with_port(
+            crate::outbound::operators::factory::test_port(),
             &contract,
             &mut feed,
             context,
@@ -701,6 +726,7 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
         entries: 0,
     };
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &left,
         right: right.clone(),
         right_holds: 0,
@@ -708,7 +734,8 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
         right_fails: false,
     };
     assert!(matches!(
-        CommonOperatorEngine::fixture().stream(
+        stream_with_port(
+            crate::outbound::operators::factory::test_port(),
             &contract,
             &mut feed,
             &mut ctx,
@@ -725,15 +752,22 @@ fn shared_output_scope_preserves_nested_state_error_prefix_and_next_invocation_r
     output.fail_at = None;
     output.entries = 0;
     let mut feed = ControlledFeed {
+        owner: feed_owner(),
         left: &left,
         right,
         right_holds: 0,
         left_fails: false,
         right_fails: false,
     };
-    CommonOperatorEngine::fixture()
-        .stream(&contract, &mut feed, &mut ctx, &mut room, &mut output)
-        .expect("next invocation resumes");
+    stream_with_port(
+        crate::outbound::operators::factory::test_port(),
+        &contract,
+        &mut feed,
+        &mut ctx,
+        &mut room,
+        &mut output,
+    )
+    .expect("next invocation resumes");
     assert_eq!(output.rows, vec![vec![Cell::Number(Integer(7))]; 3]);
     assert_eq!(output.entries, 3);
     assert_eq!(*ctx.memo, vec![Memo::Fails]);
