@@ -1,6 +1,6 @@
 //! Decode owned producer words in the consuming arena, then use the common distinct Union once.
 use super::union;
-use crate::application::file_dag::{executor::PrimitiveExecutor, relations::RelationOwner};
+use crate::application::file_dag::executor::ScopedExecutor;
 use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::types::OperatorContract,
@@ -35,7 +35,7 @@ pub(crate) fn combine(
     mut tables: Vec<Table>,
     kinds: &[CellKind],
     contract: &OperatorContract,
-    executor: &dyn PrimitiveExecutor,
+    executor: &ScopedExecutor<'_>,
     context: &mut OperatorContext<'_>,
 ) -> Result<Table, OperatingError> {
     for table in &mut tables {
@@ -43,13 +43,13 @@ pub(crate) fn combine(
             crate::domain::table_model::service::reset(table, kinds);
         }
     }
-    let owner = RelationOwner::new(true);
+    let owner = std::rc::Rc::clone(executor.owner());
     let sources = tables
         .into_iter()
         .map(|table| owner.computed(table))
         .collect::<Result<Vec<_>, _>>()?;
     let read = |_| Err(OperatingError::NotRead);
-    let result = union::combine(&owner, &sources, kinds, contract, &read, executor, context)?;
+    let result = union::combine(&sources, kinds, contract, &read, executor, context)?;
     let rows = owner.resolve(result.as_ref(), &read)?;
     let mut table = Table::default();
     materialize(&rows, &mut table, &mut Vec::new());

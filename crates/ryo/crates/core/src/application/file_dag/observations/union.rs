@@ -1,6 +1,6 @@
 //! N-ary publication delivery through one registered Union invocation and its one distinct workspace.
 use crate::application::file_dag::{
-    executor::PrimitiveExecutor,
+    executor::ScopedExecutor,
     feed::{Feed, InputOrigin},
     relations::{PublishedInput, RelationOwner},
 };
@@ -17,16 +17,17 @@ use crate::domain::{
     },
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
+use std::rc::Rc;
 
 pub(super) fn combine<'a, 'f: 'a>(
-    owner: &'a RelationOwner,
     sources: &'a [PublishedInput],
     kinds: &'a [CellKind],
     contract: &OperatorContract,
     read: &'a dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-    executor: &dyn PrimitiveExecutor,
+    executor: &ScopedExecutor<'_>,
     context: &mut OperatorContext<'_>,
 ) -> Result<PublishedInput, OperatingError> {
+    let owner = Rc::clone(executor.owner());
     for source in sources {
         let rows = owner.resolve(source.as_ref(), read)?;
         if kinds_of(&rows) != kinds {
@@ -36,7 +37,7 @@ pub(super) fn combine<'a, 'f: 'a>(
         }
     }
     let mut feed = PublicationUnion {
-        owner,
+        owner: Rc::clone(&owner),
         sources,
         kinds,
         read,
@@ -55,7 +56,7 @@ pub(super) fn combine<'a, 'f: 'a>(
 /// Two logical streamed inputs preserve the existing binary Union contract:
 /// first publication, then the remaining publications. No accumulated prefix is copied or rehashed.
 struct PublicationUnion<'a, 'f> {
-    owner: &'a RelationOwner,
+    owner: Rc<RelationOwner>,
     sources: &'a [PublishedInput],
     kinds: &'a [CellKind],
     read: &'a dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
@@ -73,6 +74,9 @@ impl PublicationUnion<'_, '_> {
     }
 }
 impl<'a, 'f: 'a> Feed<'a> for PublicationUnion<'a, 'f> {
+    fn relation_owner(&self) -> Rc<RelationOwner> {
+        Rc::clone(&self.owner)
+    }
     fn origin(&self, which: InputPlace) -> Result<InputOrigin, OperatingError> {
         self.sources(which)?;
         Ok(InputOrigin::External)

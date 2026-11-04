@@ -11,6 +11,7 @@ use ryo_values::domain::{
     observations::types::{ObservationIndex, ProducerReadiness},
     stored_facts::types::{ArenaBytes, KeptWords},
 };
+use std::rc::Rc;
 use std::sync::Arc;
 
 enum CrossRoot {
@@ -33,7 +34,7 @@ pub(crate) struct PreparedFrontier {
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {
     graph: &'a GraphObservations,
-    owner: std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+    owner: Rc<crate::application::file_dag::relations::RelationOwner>,
     arenas: &'a mut Vec<ArenaBytes>,
     inherited: usize,
     references: Vec<usize>,
@@ -42,13 +43,15 @@ pub(crate) struct CrossPublications<'a> {
     finished: Vec<bool>,
 }
 impl<'a> CrossPublications<'a> {
-    pub(crate) fn new(graph: &'a GraphObservations, arenas: &'a mut Vec<ArenaBytes>) -> Self {
+    pub(crate) fn new(
+        graph: &'a GraphObservations,
+        owner: Rc<crate::application::file_dag::relations::RelationOwner>,
+        arenas: &'a mut Vec<ArenaBytes>,
+    ) -> Self {
         let inherited = arenas.len();
         Self {
             graph,
-            owner: std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-                true,
-            )),
+            owner,
             inherited,
             references: vec![0; inherited],
             arenas,

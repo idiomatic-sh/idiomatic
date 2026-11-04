@@ -1,7 +1,9 @@
 //! Multiplicity and invocation count are independent of zero/one/many producer grouping.
 use super::union::combine;
 use crate::application::file_dag::{
-    execution::CommonOperatorEngine, executor::PrimitiveExecutor, feed::Feed,
+    execution::CommonOperatorEngine,
+    executor::{PrimitiveExecutor, ScopedExecutor},
+    feed::Feed,
     relations::RelationOwner,
 };
 use crate::domain::{
@@ -21,28 +23,66 @@ use ryo_values::domain::{
     plans::types::{Operation, OperationKind},
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
-#[derive(Debug, Default)]
-struct Counted(AtomicUsize);
+#[derive(Debug)]
+struct Counted {
+    calls: AtomicUsize,
+    engine: CommonOperatorEngine<'static>,
+}
+impl Default for Counted {
+    fn default() -> Self {
+        Self {
+            calls: AtomicUsize::default(),
+            engine: CommonOperatorEngine::fixture(),
+        }
+    }
+}
 impl PrimitiveExecutor for Counted {
+    fn ordered_existence(
+        &self,
+        owner: &std::rc::Rc<RelationOwner>,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &crate::application::file_dag::relations::PublishedInput,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        output_kinds: &[CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
+    {
+        PrimitiveExecutor::ordered_existence(
+            &self.engine,
+            owner,
+            shape,
+            source,
+            rows,
+            output_kinds,
+            context,
+            room,
+        )
+    }
+    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+        self.engine.derived_port()
+    }
     fn stream(
         &self,
+        owner: &std::rc::Rc<RelationOwner>,
         contract: &OperatorContract,
         feed: &mut dyn Feed<'_>,
         context: &mut OperatorContext<'_>,
         room: &mut Room,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
-        self.0.fetch_add(1, Ordering::Relaxed);
-        CommonOperatorEngine::fixture().stream(contract, feed, context, room, emit)
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        PrimitiveExecutor::stream(&self.engine, owner, contract, feed, context, room, emit)
     }
     fn collect(
         &self,
+        owner: &std::rc::Rc<RelationOwner>,
         contract: &OperatorContract,
         inputs: &[Rows<'_>],
         context: &mut OperatorContext<'_>,
         out: &mut Table,
     ) -> Result<(), OperatingError> {
-        CommonOperatorEngine::fixture().collect(contract, inputs, context, out)
+        PrimitiveExecutor::collect(&self.engine, owner, contract, inputs, context, out)
     }
 }
 #[test]
@@ -56,7 +96,10 @@ fn zero_singleton_and_many_producers_share_one_distinct_union_invocation() {
         (&[&[1, 2], &[2, 3], &[1, 3]], &[1, 2, 3]),
     ];
     for (given, expected) in cases {
-        let owner = RelationOwner::new(true);
+        let counted = Counted::default();
+        let owner = std::rc::Rc::new(RelationOwner::new(true, counted.derived_port()));
+        let executor = ScopedExecutor::new(&counted, std::rc::Rc::clone(&owner))
+            .expect("the scoped owner uses the same derived port");
         let sources = given
             .iter()
             .map(|rows| {
@@ -101,15 +144,13 @@ fn zero_singleton_and_many_producers_share_one_distinct_union_invocation() {
             memo: &mut memo,
             scratch: &mut scratch,
         };
-        let counted = Counted::default();
         let read = |_| Err(OperatingError::NotRead);
         let published = combine(
-            &owner,
             &sources,
             &[CellKind::Number],
             &contract,
             &read,
-            &counted,
+            &executor,
             &mut context,
         )
         .expect("one union pass");
@@ -129,7 +170,7 @@ fn zero_singleton_and_many_producers_share_one_distinct_union_invocation() {
         );
         assert_eq!(table.count.0, expected.len());
         assert_eq!(
-            counted.0.load(Ordering::Relaxed),
+            counted.calls.load(Ordering::Relaxed),
             1,
             "one engine-owned distinct state for {given:?}"
         );
