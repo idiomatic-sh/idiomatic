@@ -1,6 +1,7 @@
 //! Compiled program lifecycle proof with a real owner.
 //! Distinct state survives repeated left rows and resets after a failed delivery.
 use super::*;
+use crate::application::file_dag::program::runtime::{AttemptCheckpoint, DependencyCheckpoint};
 use crate::application::{
     file_dag::{execution::CommonOperatorEngine, scope::ScopePartials},
     rule_compilation::types::{Compiled, ObservationIdentity},
@@ -278,6 +279,14 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
             Ok(nodes(&table.cells))
         }
         Scenario::ProjectRetry | Scenario::UnionRetry => {
+            let root = file
+                .program
+                .rule_metadata(RuleIndex(0))?
+                .emit_root
+                .clone()?;
+            let before = file.execution.retry_checkpoint(root)?;
+            assert_eq!(before.attempt, AttemptCheckpoint::Dormant);
+            assert_eq!(before.dependencies, DependencyCheckpoint::Pending);
             let mut fail = RefusingSink {
                 reject: true,
                 rows: vec![],
@@ -290,6 +299,13 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
                 fail.rows.is_empty(),
                 "the first sink refuses before publishing a row"
             );
+            let refused = file.execution.retry_checkpoint(root)?;
+            assert_eq!(refused.attempt, AttemptCheckpoint::Dormant);
+            assert_eq!(refused.dependencies, DependencyCheckpoint::Pending);
+            assert_eq!(
+                refused.remaining, before.remaining,
+                "failed delivery retains reader obligations"
+            );
             let mut accept = RefusingSink {
                 reject: false,
                 rows: vec![],
@@ -298,6 +314,9 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
                 forward(&mut file, &read, &mut symbols, &mut accept),
                 Ok(InvocationOutcome::Published(_))
             ));
+            let complete = file.execution.retry_checkpoint(root)?;
+            assert_eq!(complete.attempt, AttemptCheckpoint::Published);
+            assert_eq!(complete.dependencies, DependencyCheckpoint::Consumed);
             Ok(accept.rows.iter().flat_map(|row| nodes(row)).collect())
         }
     }
