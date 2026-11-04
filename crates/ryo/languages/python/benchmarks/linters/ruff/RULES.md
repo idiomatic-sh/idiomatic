@@ -2,7 +2,7 @@
 
 Generated from canonical source and the existing full-inventory runner's results. Every pinned default is preloaded; missing, unrun, invalid and failed implementations remain FAIL.
 
-**405 PASS / 8 FAIL / 413 pinned defaults**; run state `complete`. Base worker `f0e2a143d9eb685ae6bc3a311159c861e0081711bbd16b67069c4e3f4bb6367b`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
+**413 PASS / 0 FAIL / 413 pinned defaults**; run state `complete`. Base worker `4db1914f651180172cec4e3050f99df2de73fc07fa5d03a7e6a3dbff078da012`. PASS means executed intended expectations, including only independently validated explicit reference discrepancies. Raw parity and documented differences remain explicit in result receipts. This table is not an admission subset.
 
 | Rule | Result | Reason / evidence |
 |---|---|---|
@@ -98,7 +98,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | F523 | PASS | verified intended expectations |
 | F524 | PASS | verified intended expectations |
 | F525 | PASS | verified intended expectations |
-| F541 | FAIL | [Registration failed](results/integrated-a402-full413-2026-11-04/summary.json) |
+| F541 | PASS | verified intended expectations |
 | F601 | PASS | verified intended expectations |
 | F602 | PASS | verified intended expectations |
 | F621 | PASS | verified intended expectations |
@@ -143,7 +143,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | G101 | PASS | verified intended expectations |
 | G201 | PASS | verified intended expectations |
 | G202 | PASS | verified intended expectations |
-| I001 | FAIL | [Stale source proof](results/integrated-a402-full413-2026-11-04/summary.json) |
+| I001 | PASS | verified intended expectations |
 | INT001 | PASS | verified intended expectations |
 | INT002 | PASS | verified intended expectations |
 | INT003 | PASS | verified intended expectations |
@@ -225,7 +225,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | PLW0128 | PASS | verified intended expectations |
 | PLW0129 | PASS | verified intended expectations |
 | PLW0131 | PASS | verified intended expectations |
-| PLW0133 | FAIL | [Fixture mismatch](results/integrated-a402-full413-2026-11-04/summary.json) |
+| PLW0133 | PASS | verified intended expectations |
 | PLW0177 | PASS | verified intended expectations |
 | PLW0211 | PASS | verified intended expectations |
 | PLW0245 | PASS | verified intended expectations |
@@ -312,7 +312,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF023 | PASS | verified intended expectations |
 | RUF024 | PASS | verified intended expectations |
 | RUF026 | PASS | verified intended expectations |
-| RUF028 | FAIL | [Not run](results/integrated-a402-full413-2026-11-04/summary.json) |
+| RUF028 | PASS | verified intended expectations |
 | RUF030 | PASS | verified intended expectations |
 | RUF032 | PASS | verified intended expectations |
 | RUF033 | PASS | verified intended expectations |
@@ -329,7 +329,7 @@ Generated from canonical source and the existing full-inventory runner's results
 | RUF059 | PASS | verified intended expectations |
 | RUF063 | PASS | verified intended expectations |
 | RUF068 | PASS | verified intended expectations |
-| RUF100 | FAIL | [Not run](results/integrated-a402-full413-2026-11-04/summary.json) |
+| RUF100 | PASS | verified intended expectations |
 | RUF101 | PASS | verified intended expectations |
 | RUF200 | PASS | verified intended expectations |
 | S102 | PASS | verified intended expectations |
@@ -391,11 +391,11 @@ Generated from canonical source and the existing full-inventory runner's results
 | UP028 | PASS | verified intended expectations |
 | UP029 | PASS | verified intended expectations |
 | UP030 | PASS | verified intended expectations |
-| UP031 | FAIL | [Verifier failed](results/integrated-a402-full413-2026-11-04/summary.json) |
+| UP031 | PASS | verified intended expectations |
 | UP032 | PASS | verified intended expectations |
 | UP033 | PASS | verified intended expectations |
-| UP034 | FAIL | [Not run](results/integrated-a402-full413-2026-11-04/summary.json) |
-| UP035 | FAIL | [Fixture mismatch](results/integrated-a402-full413-2026-11-04/summary.json) |
+| UP034 | PASS | verified intended expectations |
+| UP035 | PASS | verified intended expectations |
 | UP036 | PASS | verified intended expectations |
 | UP037 | PASS | verified intended expectations |
 | UP039 | PASS | verified intended expectations |

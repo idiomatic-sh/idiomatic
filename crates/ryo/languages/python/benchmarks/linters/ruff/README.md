@@ -1,6 +1,6 @@
 # Ruff benchmark
 
-**Latest complete integrated run: 406 PASS / 7 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [source-bound checkpoint](results/integrated-a402-full413-2026-11-04/README.md) ran every rule on `a402537b`. F541 admission, PLW0133/UP035 stack depth, RUF028/UP034 dependency readiness, RUF100 producer readiness, and UP031 archived identity failed. F541 later passes21 targeted cases; current source followups are not a new complete run. I001's precursor passed, but its N3 correction still needs fresh proof. The generated [per-rule inventory](RULES.md) distinguishes stale source evidence. Full parity and contract closure remain open.
+**Complete milestone: 413 PASS / 0 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [source-bound full-run receipts](results/integrated-3ff-full413-2026-11-04/README.md) bind frozen `3ffb75b3`, sealed worker and all11,185 cases. [Remote QA and Rust performance runner](https://github.com/idiomatic-sh/idiomatic/actions/runs/41850986212) targets the earlier public checkpoint and has independent status. Later cross-file scope/edit correction `cb5200df` and paired contract review remain separately gated. Broader core fixture ownership proof, memory and subsecond performance remain open. Historical [406/413 failure receipts](results/integrated-a402-full413-2026-11-04/README.md) remain unchanged.
 
 Run the current inventory from this directory with the shared runner:
 
