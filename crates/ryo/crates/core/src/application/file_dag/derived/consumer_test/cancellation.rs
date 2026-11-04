@@ -11,6 +11,38 @@ use std::cell::Cell;
 #[derive(Debug)]
 struct Refuse;
 impl PrimitiveExecutor for Refuse {
+    fn native_classes(
+        &self,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        _: &crate::application::file_dag::executor::NativeClassBatch<'_>,
+        _: &mut crate::domain::shared_walk::types::MergedWalk,
+        _: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::NotRead)
+    }
+    fn stream_representation(
+        &self,
+        _: &OperatorContract,
+        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        _: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        _: &mut OperatorContext<'_>,
+        _: &mut Room,
+        _: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        Err(OperatingError::NotRead)
+    }
+    fn keep_representation(
+        &self,
+        _: &OperatorContract,
+        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        _: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        _: &mut OperatorContext<'_>,
+        _: &mut Room,
+    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        Err(OperatingError::NotRead)
+    }
     fn ordered_existence(
         &self,
         owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
@@ -30,6 +62,7 @@ impl PrimitiveExecutor for Refuse {
     }
     fn stream(
         &self,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         _: &OperatorContract,
         _: &mut dyn Feed<'_>,
         _: &mut OperatorContext<'_>,
@@ -40,6 +73,7 @@ impl PrimitiveExecutor for Refuse {
     }
     fn collect(
         &self,
+        _: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
         _: &OperatorContract,
         _: &[Rows<'_>],
         _: &mut OperatorContext<'_>,

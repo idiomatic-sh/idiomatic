@@ -205,6 +205,7 @@ impl QueryLanguagePort for LockCheckingCompiler {
         &self,
         bundle: &QueryBundle,
         hosted: &[HostedRelation],
+        observations: &[ryo_values::domain::observations::types::BoundObservationSchema],
     ) -> Result<Plan, QueryLanguageError> {
         let available = self
             .plans
@@ -212,7 +213,7 @@ impl QueryLanguagePort for LockCheckingCompiler {
             .try_lock()
             .expect("no cache lock may cross a compiler call");
         drop(available);
-        self.compiler.compile(bundle, hosted)
+        self.compiler.compile(bundle, hosted, observations)
     }
 }
 
