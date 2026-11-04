@@ -56,7 +56,7 @@ pub(super) fn subscriber(
     path: &Path,
     options: crate::domain::suite::types::DiagnosticOptions,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
-    let aggregate_level = if options.execution {
+    let aggregate_level = if options.execution && !options.lifecycle_memory {
         tracing_subscriber::filter::LevelFilter::TRACE
     } else {
         tracing_subscriber::filter::LevelFilter::OFF

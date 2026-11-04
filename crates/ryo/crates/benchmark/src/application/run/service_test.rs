@@ -610,6 +610,7 @@ fn discrepancy_suite() -> SuiteFake {
     let settings = super::discrepancy::json_digest(&serde_json::json!({
         "arguments": [], "environment": {}, "directory": "$ROOT",
         "parser_configuration": "python-target=3.10", "project_context_mode": "Isolated",
+        "performance": crate::outbound::worker::schemas::OptionsSchema::from(case.request.performance),
     }));
     case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
         basis: crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,

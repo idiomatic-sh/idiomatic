@@ -509,6 +509,7 @@ mod tests {
             "case_passed": true, "source_sha256": "source-pin", "files": ["input.txt"],
             "expected": [], "reference_expected": [finding], "diagnostics": [], "skipped": [],
             "discrepancy_validation": proof,
+            "documented_reference_discrepancy": true, "documented_tool_contract_difference": false,
             "context_manifest": null, "project_context": null,
             "observation_schema": "benchmark-case/v2", "expectation_contract": "diagnostics",
             "execution_metadata": {"availability": "complete"},

@@ -8,7 +8,9 @@ use crate::domain::{
 pub fn request() -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(vec![
+            ryo::linter::RuleId::try_from("fixture").expect("fixture rule"),
+        ]),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
