@@ -412,3 +412,18 @@ pub(super) fn alias_observation(
     alias.root = ProducerRoot::Input(InputSource::Observation(slot));
     Ok(alias)
 }
+
+impl ApplicabilityProof {
+    pub(super) fn for_file(
+        producer: RuleIndex,
+        file: FileId,
+        reason: ApplicabilityReason,
+        owner: &RelationOwner,
+    ) -> Self {
+        Self {
+            producer,
+            file: FileGeneration::from_owner(file, owner),
+            reason,
+        }
+    }
+}
