@@ -228,6 +228,13 @@ impl EnginePort for EngineLocalAdapter {
             self.frontend_diagnostic.clone(),
             request.rule_observations.as_ref(),
         )?;
+        let diagnostic_rules = rule_context::retain_producers(
+            &prepared.selected_rules,
+            self.frontend_diagnostic
+                .as_ref()
+                .map(|projection| &projection.rule),
+            &mut rules,
+        )?;
         if let Some(projection) = &self.frontend_diagnostic {
             let frontend = rules
                 .get_mut(&projection.rule)
@@ -237,11 +244,11 @@ impl EnginePort for EngineLocalAdapter {
                 .exclude
                 .extend(project_input_exclusions(&request, &self.languages)?);
         }
-        let selected_rules = rules.keys().cloned().collect();
-        let selected_rule_count = rules
-            .len()
-            .saturating_sub(usize::from(self.frontend_diagnostic.is_some()));
-        let selected_pairs = selected_rule_count.saturating_mul(request.files.len());
+        let mut selected_rules = diagnostic_rules.clone();
+        if let Some(projection) = &self.frontend_diagnostic {
+            selected_rules.insert(projection.rule.clone());
+        }
+        let selected_pairs = diagnostic_rules.len().saturating_mul(request.files.len());
         let configured = rule_context::project(&request, &mut rules, selected_pairs)?;
         let selected_pairs = configured.selected_pairs;
         let (sources, accepted) = source_inputs(&request, &selected_missing)?;

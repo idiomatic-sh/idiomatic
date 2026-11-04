@@ -34,6 +34,8 @@ struct RequestSchema {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     rule_observations: Option<std::collections::BTreeMap<String, Vec<ObservationBindingSchema>>>,
     #[serde(default)]
+    selected_rules: Option<Vec<String>>,
+    #[serde(default)]
     /// Explicit project lookup mode for this invocation.
     project_context_mode: crate::outbound::context::adapters::local::schemas::ModeSchema,
     #[serde(default)]
@@ -175,7 +177,7 @@ struct DiagnosticSchema<'a> {
 pub(super) fn request(payload: &OsStr) -> Result<WorkerRequest, WorkerSchemaError> {
     let text = payload.to_str().ok_or(WorkerSchemaError::NotText)?;
     let request: RequestSchema = serde_json::from_str(text)?;
-    Ok(request.into())
+    request.try_into()
 }
 /// Serialize findings and complete input coverage without deduplication.
 pub(super) fn report(report: &RunReport) -> Result<WorkerResponseBytes, WorkerSchemaError> {

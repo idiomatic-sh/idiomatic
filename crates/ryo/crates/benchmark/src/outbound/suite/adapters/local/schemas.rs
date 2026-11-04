@@ -211,9 +211,25 @@ impl TryFrom<ToolSchema> for types::Tool {
             .iter()
             .map(|value| rule(value))
             .collect::<Result<Vec<_>, _>>()?;
+        let supporting_rules = wire
+            .supporting_rules
+            .iter()
+            .map(|id| rule(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        if supporting_rules
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            != supporting_rules.len()
+            || supporting_rules.iter().any(|id| defaults.contains(id))
+        {
+            return Err(Error::Invalid(
+                "supporting rules must be unique and distinct from defaults".into(),
+            ));
+        }
         for (id, applicability) in &wire.rule_applicability {
             let parsed_id = rule(id)?;
-            if !defaults.contains(&parsed_id)
+            if (!defaults.contains(&parsed_id) && !supporting_rules.contains(&parsed_id))
                 || !matches!(applicability.as_str(), "always" | "accepted-syntax")
             {
                 return Err(Error::Invalid(format!(

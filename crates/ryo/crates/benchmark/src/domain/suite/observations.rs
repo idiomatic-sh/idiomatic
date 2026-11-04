@@ -34,3 +34,25 @@ pub(crate) fn value(declarations: &RuleObservationDeclarations) -> serde_json::V
         .collect();
     serde_json::Value::Object(entries)
 }
+
+/// Executable dependency closure. NoQuery is knowledge, not an executable definition.
+pub(crate) fn closure<'a>(
+    seeds: impl IntoIterator<Item = ryo::linter::RuleId>,
+    lookup: impl Fn(&ryo::linter::RuleId) -> Option<&'a [ryo::linter::ObservationBinding]>,
+) -> std::collections::BTreeSet<ryo::linter::RuleId> {
+    let mut found = std::collections::BTreeSet::new();
+    let mut pending: Vec<_> = seeds.into_iter().collect();
+    while let Some(id) = pending.pop() {
+        if !found.insert(id.clone()) {
+            continue;
+        }
+        for binding in lookup(&id).into_iter().flatten() {
+            for producer in &binding.producers {
+                if let ryo::linter::ObservationProducer::Output { rule, .. } = producer {
+                    pending.push(rule.clone());
+                }
+            }
+        }
+    }
+    found
+}

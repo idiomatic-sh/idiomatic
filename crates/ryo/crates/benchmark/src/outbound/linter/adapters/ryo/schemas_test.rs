@@ -141,3 +141,21 @@ fn request_transports_the_explicit_module_registry() {
     );
     assert_eq!(value["rule_applicability"]["F401"], "accepted-syntax");
 }
+
+#[test]
+fn explicit_cohort_is_serialized_but_absent_cohort_keeps_the_legacy_wire_shape() {
+    let mut request = crate::outbound::worker::fixtures::data::request();
+    let encoded = super::encode_request(request.clone()).unwrap();
+    let legacy: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+    assert!(legacy.get("selected_rules").is_none());
+    request.selected_rules = Some(vec![
+        ryo::linter::RuleId::try_from("F401").unwrap(),
+        ryo::linter::RuleId::try_from("RUF100").unwrap(),
+    ]);
+    let encoded = super::encode_request(request).unwrap();
+    let explicit: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(
+        explicit["selected_rules"],
+        serde_json::json!(["F401", "RUF100"])
+    );
+}

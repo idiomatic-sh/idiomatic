@@ -16,7 +16,8 @@ let file_short = source-matches(from=file_heads, span="marker", pattern="#[^\S\r
 let inline_blanket = select id, file, short_marker as span from inline_short where matches(suffix, "^(?:$|#|\s+(?:$|[^:\s]))");
 let file_blanket = select id, file, short_marker as span from file_short where matches(suffix, "^(?:$|#|\s+(?:$|[^:\s]))");
 let blanket = union(left=inline_blanket, right=file_blanket);
-let enabled_matches = antijoin(left=suppression_matches, right="config.disabled", left-on=[file, code], right-on=[file, code]);
+let selected_matches = join(left=suppression_matches, right="config.selected", left-on=[code], right-on=[code], output={directive:[left,directive], file:[left,file], code:[left,code]});
+let enabled_matches = antijoin(left=selected_matches, right="config.disabled", left-on=[file, code], right-on=[file, code]);
 let used = select directive as id, file from enabled_matches;
 let unused_blanket = antijoin(left=blanket, right=used, left-on=[id, file], right-on=[id, file]);
 let inline_tokens = select id, file, code, code_span as token_span from inline_codes;

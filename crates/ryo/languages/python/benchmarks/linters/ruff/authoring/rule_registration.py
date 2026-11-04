@@ -106,6 +106,10 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
         shutil.copyfile(profile_config.RUFF_DIR / relative, copied)
     projected = {key: value for key, value in data.items() if key not in {'deferred', 'pending', 'query-modules', 'rule-applicability'}}
     projected['defaults'] = [rule]
+    if supporting:
+        projected['supporting-rules'] = supporting
+    else:
+        projected.pop('supporting-rules', None)
     projected['parser-configuration'] = configuration
     if stage_registry:
         projected['query-modules'] = stage_registry
@@ -116,6 +120,10 @@ def stage_full_inventory_rule(rule: str, output: Path, base: dict[str, object], 
     profile_sources.assert_staged_profile_fixed_point(destination)
     shutil.copyfile(query, rule_root / 'query.ryoql')
     shutil.copyfile(cases_path, rule_root / 'cases.toml')
+    for code, source in supporting_queries.items():
+        target = destination / 'rules' / code / 'query.ryoql'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
     evidence_root = profile_config.discrepancy_source_root(rule, source_profile).resolve(strict=True)
     if not evidence_root.is_relative_to(profile_config.RUFF_DIR.resolve(strict=True)):
         raise ValueError('external discrepancy evidence root')

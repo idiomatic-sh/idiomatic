@@ -219,8 +219,9 @@ def selected_rule_applicability(manifest: dict[str, object], selected_rules: lis
 
 def check_staged_applicability(profile: Path, selected_rules: list[str], manifest: dict[str, object]) -> None:
     """Refuse a staged profile whose typed policy differs from its sealed selection."""
-    actual = tomllib.loads(profile.read_text(encoding='utf-8')).get('rule-applicability')
-    expected = selected_rule_applicability(manifest, selected_rules)
+    data = tomllib.loads(profile.read_text(encoding='utf-8'))
+    actual = data.get('rule-applicability')
+    expected = selected_rule_applicability(manifest, [*selected_rules, *data.get('supporting-rules', [])])
     if actual != expected:
         raise ValueError('staged rule applicability differs from the pinned phase registry')
 

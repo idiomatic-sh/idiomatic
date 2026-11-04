@@ -941,38 +941,6 @@ files = { "input.py" = "from os import (\n    environ,  # C:\\\n)\n" }
 expected = []
 
 [[cases]]
-name = "review6-comment-gap-blank-after-comment-ruff-fixed"
-comparison = "full"
-project-search-roots = ["", "src"]
-given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
-files = { "input.py" = "import os\n\n# c\n\ndef f(): pass\n" }
-expected = []
-
-[[cases]]
-name = "review6-multialias-same-line-ruff-fixed"
-comparison = "full"
-project-search-roots = ["", "src"]
-given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
-files = { "input.py" = "from os import (\n    environ,\n    path,\n)\n" }
-expected = []
-
-[[cases]]
-name = "review6-multialias-opening-line-ruff-fixed"
-comparison = "full"
-project-search-roots = ["", "src"]
-given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
-files = { "input.py" = "from os import (\n    environ,\n    path,\n)\n" }
-expected = []
-
-[[cases]]
-name = "review6-multialias-closing-line-ruff-fixed"
-comparison = "full"
-project-search-roots = ["", "src"]
-given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
-files = { "input.py" = "from os import (\n    path,\n)\n" }
-expected = []
-
-[[cases]]
 name = "review6-roman-class-first"
 comparison = "full"
 project-search-roots = ["", "src"]
@@ -1087,12 +1055,12 @@ rationale = "Pinned isort ranks Unicode imported members by isupper/code-point l
 [[cases.tool-contract-difference.evidence]]
 kind = "prior-worker-run"
 path = "evidence/titlecase-class-prior-worker.json"
-sha256 = "2c5d380190b97fe4dce4a84828a5857e68456906d58712d74c502c6f1d16ab7b"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
 worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
-control-source-sha256 = "498c8b2308594bb362691d8b36f67a65585c22efbb36ddbb74fbbfab84d97ad2"
-control-query-sha256 = "afaff29b7c6530f1d9d3a398491637ed2db634ad0925438d62b6a55fc4db0114"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
 control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
-witness-case = "titlecase-class-first"
+witness-case = "titlecase-vs-zz-first"
 rationale = "Sealed Ryo worker recorded a complete candidate finding on the class-first Unicode witness while Ruff returned no finding."
 
 [[cases]]
@@ -1128,12 +1096,12 @@ rationale = "Pinned isort ranks Unicode imported members by isupper/code-point l
 [[cases.tool-contract-difference.evidence]]
 kind = "prior-worker-run"
 path = "evidence/titlecase-class-prior-worker.json"
-sha256 = "2c5d380190b97fe4dce4a84828a5857e68456906d58712d74c502c6f1d16ab7b"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
 worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
-control-source-sha256 = "498c8b2308594bb362691d8b36f67a65585c22efbb36ddbb74fbbfab84d97ad2"
-control-query-sha256 = "afaff29b7c6530f1d9d3a398491637ed2db634ad0925438d62b6a55fc4db0114"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
 control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
-witness-case = "titlecase-class-first"
+witness-case = "titlecase-vs-zz-first"
 rationale = "Sealed Ryo worker recorded a complete candidate finding on the class-first Unicode witness while Ruff returned no finding."
 
 [[cases]]
@@ -1150,4 +1118,444 @@ comparison = "full"
 project-search-roots = ["", "src"]
 given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.pyi", state = "file" }] }
 files = { "input.pyi" = "import os\n\n# c\ndef f(): ...\n" }
+expected = []
+
+[[cases]]
+name = "review7-titlecase-vs-zz-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A\u01c5, ZZ\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode isupper classification; Ruff 0.16.5 ranks a titlecase-containing member as an uppercase constant."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-class-prior-worker.json"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "titlecase-vs-zz-first"
+rationale = "Sealed Ryo worker recorded a complete finding on a discriminating titlecase-versus-constant witness while Ruff returned no finding."
+
+[[cases]]
+name = "review7-titlecase-vs-zz-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import ZZ, A\u01c5\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode isupper classification; Ruff 0.16.5 ranks a titlecase-containing member as an uppercase constant."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "0746e161a6a84827cad689a2743759b1a96724474d11a3250bd86af76e2f44db"
+reference-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-class-prior-worker.json"
+sha256 = "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "6da7ac0d2d53c6195fa44956a09ca2d1ecef10be1c56cf4d0ed3f56479a4efa8"
+control-query-sha256 = "feddb0bc0a683fb7510c828e0b7e3ba546d0581b8d3019484dccdc2a7def8684"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "titlecase-vs-zz-first"
+rationale = "Sealed Ryo worker recorded a complete finding on a discriminating titlecase-versus-constant witness while Ruff returned no finding."
+
+[[cases]]
+name = "review8-decomposed-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A\u0308, B\n" }
+expected = []
+
+[[cases]]
+name = "review8-decomposed-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B, A\u0308\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "review8-decomposed-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import A\u0308, B\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-from-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import fz, \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-from-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \ufb01, fz\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "review8-ligature-from-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import fz, \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-plain-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import fz\nimport \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-ligature-plain-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import \ufb01\nimport fz\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "review8-ligature-plain-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import fz\nimport \ufb01\n" }
+expected = []
+
+[[cases]]
+name = "review8-modifier-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import Ab, B\u1d2c\n" }
+expected = []
+
+[[cases]]
+name = "review8-modifier-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B\u1d2c, Ab\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "review8-modifier-second-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import Ab, B\u1d2c\n" }
+expected = []
+
+[[cases]]
+name = "review8-roman-two-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u2161, B\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode code-point length; Ruff 0.16.5 uses UTF-8 byte length for a single Roman numeral member."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "259dbd5796c7dc4bf06b0a95b6d7908526e6753c05c54078c274d1019127d014"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "d17c3d63e08a2ac77d859e73c509f631abde5e5d945ada8c3eed6af34f956eb5"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/roman-two-prior-worker.json"
+sha256 = "8e06e57ffd4f5a7431e633958e63625e87b5504ee0771cd3da9910ff395f9f31"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "259dbd5796c7dc4bf06b0a95b6d7908526e6753c05c54078c274d1019127d014"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "roman-two-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-roman-two-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B, \u2161\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort Unicode code-point length; Ruff 0.16.5 uses UTF-8 byte length for a single Roman numeral member."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "3a2aed75e243c91d6149a24d08da8c417a901fa8c46ed84a00fb033be9f1d4c4"
+reference-output-sha256 = "d17c3d63e08a2ac77d859e73c509f631abde5e5d945ada8c3eed6af34f956eb5"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-unicode-length-contract.json"
+sha256 = "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/roman-two-prior-worker.json"
+sha256 = "8e06e57ffd4f5a7431e633958e63625e87b5504ee0771cd3da9910ff395f9f31"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "259dbd5796c7dc4bf06b0a95b6d7908526e6753c05c54078c274d1019127d014"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "roman-two-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-survive-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import \u1f88B, a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-survive-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import a, \u1f88B\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "d3c62c5d9fe6514832bf07f7519589e72348d9dd32abd871498ac3491169e148"
+reference-output-sha256 = "e527b932ec4d3c0885ba54cb97dc3187f513d46a6b09ec0cbed47be9cfdbdded"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-later-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import B\u1f88, ZZ\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = []
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "778578755e8e0cf93796efa8e7bff8cb8e375cef05528cd7657f4ce397b4bd89"
+reference-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+intended-output-sha256 = "fdbe66ad4c4217e84d4a95458c8641beb7bbbfd14dd88a90c2c4a3c27fbca9ab"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review8-title-later-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import ZZ, B\u1f88\n" }
+expected = []
+
+[cases.tool-contract-difference]
+reason = "Ryo follows pinned isort isupper classification on source spelling; Ruff 0.16.5 ranks a titlecase-containing member differently."
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[cases.tool-contract-difference.identity]
+tool = "ruff"
+version = "0.16.5"
+observed-executable-sha256 = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+settings-sha256 = "de091debf4c34974f101cf46a729e0095f59cc3fe3faa9b934f26881a321fb26"
+source-sha256 = "6d1b303d9bd7d4d2967b5976e6957954de9e74ab2dc53c11f9417e02d8ad3c97"
+reference-output-sha256 = "fdbe66ad4c4217e84d4a95458c8641beb7bbbfd14dd88a90c2c4a3c27fbca9ab"
+intended-output-sha256 = "4cf0a23ba8a9fc9271008498ce15e44f846a0308a20af17ce74de9318f3b1461"
+
+[[cases.tool-contract-difference.evidence]]
+kind = "public-tool-contract"
+path = "evidence/isort-titlecase-contract.json"
+sha256 = "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa"
+source-revision = "12cc5fbd67eebf92eb2213b03c07b138ae1fb448"
+source-path = "isort/sorting.py"
+rationale = "Pinned isort ranks Unicode imported members by isupper/code-point length on source spelling; Ruff cites this source but its pinned implementation differs."
+
+[[cases.tool-contract-difference.evidence]]
+kind = "prior-worker-run"
+path = "evidence/titlecase-survivor-prior-worker.json"
+sha256 = "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0"
+worker-sha256 = "96d1a603cb0b3221723faf49884031596d5381898707b409adcc1d042d30ad05"
+control-source-sha256 = "c1082458b5887864fdc5e082bf576972789ac21cb5aa7920d0b239a972659670"
+control-query-sha256 = "829a7d49091e5ac92e9f0bc98b49442b42d006b757b1821df6e863edc94fe571"
+control-profile-sha256 = "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0"
+witness-case = "title-survive-first"
+rationale = "Sealed Ryo worker recorded a complete candidate finding on a source-spelling Unicode control while Ruff returned no finding."
+
+[[cases]]
+name = "review9-split-as-alias"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a\n    as b,\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "review9-split-as-alias-ruff-fixed"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from m import (\n    a as b,\n)\n" }
 expected = []

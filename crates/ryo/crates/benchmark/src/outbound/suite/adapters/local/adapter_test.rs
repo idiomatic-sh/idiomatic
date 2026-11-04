@@ -470,19 +470,19 @@ expected = []
 "#,
     )
     .unwrap();
-    let tool = SuiteLocalAdapter.profile(ArtifactPath(root)).unwrap();
-    let audited = SuiteLocalAdapter.audit(ArtifactPath(root), &tool).unwrap();
+    let tool = SuiteLocalAdapter::new(None).profile(ArtifactPath(root)).unwrap();
+    let audited = SuiteLocalAdapter::new(None).audit(ArtifactPath(root), &tool).unwrap();
     assert_eq!(audited.implemented, vec!["A001".try_into().unwrap()]);
     assert!(audited.missing.is_empty());
     let snapshot = destination.path().join("profile");
-    SuiteLocalAdapter
+    SuiteLocalAdapter::new(None)
         .stage(ArtifactPath(root), ArtifactPath(&snapshot), &audited)
         .unwrap();
     assert_eq!(
         std::fs::read_to_string(snapshot.join("rules/B002/query.ryoql")).unwrap(),
         "actual support query"
     );
-    let cases = SuiteLocalAdapter
+    let cases = SuiteLocalAdapter::new(None)
         .cases(
             ArtifactPath(&snapshot.join("rules")),
             ArtifactPath(&destination.path().join("scratch")),
@@ -491,7 +491,7 @@ expected = []
     assert_eq!(cases.len(), 2);
     assert!(cases.iter().all(|case| case.rule.as_ref() == "A001"));
     assert!(
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .case_reference_wires(ArtifactPath(&snapshot))
             .unwrap()
             .is_empty()
@@ -503,7 +503,7 @@ expected = []
     )
     .unwrap();
     assert!(
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .case_reference_wires(ArtifactPath(&snapshot))
             .unwrap()
             .is_empty()
@@ -511,10 +511,10 @@ expected = []
     // Missing owned case evidence remains an error, rather than being silently skipped.
     std::fs::remove_file(snapshot.join("rules/A001/cases.toml")).unwrap();
     assert!(
-        SuiteLocalAdapter
+        SuiteLocalAdapter::new(None)
             .case_reference_wires(ArtifactPath(&snapshot))
             .is_err()
     );
     std::fs::remove_file(root.join("rules/B002/query.ryoql")).unwrap();
-    assert!(SuiteLocalAdapter.audit(ArtifactPath(root), &tool).is_err());
+    assert!(SuiteLocalAdapter::new(None).audit(ArtifactPath(root), &tool).is_err());
 }

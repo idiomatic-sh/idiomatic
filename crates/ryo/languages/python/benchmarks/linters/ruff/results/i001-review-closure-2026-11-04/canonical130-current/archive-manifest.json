@@ -1,0 +1,24 @@
+{
+  "files": {
+    "audit.json": "c883803c4c5743ff1571f9860d3f01385a8adaad2a4496ac5aed7eb3cf5cde84",
+    "audit.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "cases.jsonl": "5bf888605da08327679c412e4593aa4944ff71e6d200a28194e76cc0ec5e1038",
+    "registration.json": "cded1e64218842d7fdf5c2ce8c9a5cd57b073a7274fc0fc8e362d542dcb9ea32",
+    "repro/benchmark.toml": "84302b60f5c2a3e0e8c4d25ce26f34493d419553ecd26017a3f36553ada350f0",
+    "repro/evidence/isort-titlecase-contract.json": "638e7f86d184f57297430a2174ff305bb18ad308c7ea6e39493bec6f229fbeaa",
+    "repro/evidence/isort-unicode-length-contract.json": "2c91f6274d7dd9ff7a1b744395cbeaabd89e5f61f6053945b9e7d26222c8e11a",
+    "repro/evidence/review55-ruff-fixed-counterparts.json": "0beae6e62a2fd20d34ff2d217b31ffe3fd99dc5c8753c12c3eb2896479241849",
+    "repro/evidence/review64-nfkc-ruff-fixed-counterparts.json": "e61ef8d530ff028046b3d47f820374f8fb28922162d15c6b88ab95af5cda3400",
+    "repro/evidence/review9-split-as-fixed-counterpart.json": "ba5c425312ba775005a527a6926a28e81a4cd4ed446b8a43c5410fa5b0fefbcb",
+    "repro/evidence/roman-class-prior-worker.json": "627d807c20952c63391e8b588b9910b794da0deba2ff0b5fc6ece493e3e62b26",
+    "repro/evidence/roman-two-prior-worker.json": "8e06e57ffd4f5a7431e633958e63625e87b5504ee0771cd3da9910ff395f9f31",
+    "repro/evidence/titlecase-class-prior-worker.json": "84c174d3055b6d010168288c7b7e59e3de701efca679996dab923dea6a5d74fd",
+    "repro/evidence/titlecase-survivor-prior-worker.json": "00fd952cd6c1ecc85991ccf382aebacf3074b9d8348677b68c7a80c5a55573e0",
+    "repro/evidence/unicode-class-prior-worker.json": "0c4dc78976fcc0e8f2c3095a4c69546f908d09c73c562b954115aef65f23d0ea",
+    "repro/rules/I001/cases.toml": "15f62540eadd0b0197d69864480184649d3ddd509298a3ad096c675aad58ad8a",
+    "repro/rules/I001/query.ryoql": "664c9985e69a793dbfdfe3b929c11f982c689124569629dbd852a282344890cc",
+    "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout.txt": "5888e2aee56d3fe55623ff099267ac509ecd8e13075c3bc3512e0196ca8ab44b"
+  },
+  "schema": "source-bound-canonical-cases/v1"
+}

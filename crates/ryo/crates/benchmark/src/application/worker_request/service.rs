@@ -12,6 +12,10 @@ use std::collections::BTreeSet;
 /// Refuses a mismatched mode, source seal, or requested path inventory.
 pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
     crate::domain::suite::service::validate_selected_rules(request.selected_rules.as_deref())?;
+    let selected_rules = request
+        .selected_rules
+        .clone()
+        .ok_or_else(|| Error::Invalid("worker requires a resolved diagnostic selection".into()))?;
     if let Some(context) = &request.rule_context {
         crate::domain::suite::rule_context::check(context, &request.files)?;
         crate::domain::suite::rule_context::check_selection(
@@ -79,6 +83,9 @@ pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
     };
     Ok(PreparedRequest {
         request,
-        missing: PreparedMissingInputs { selected_missing },
+        missing: PreparedMissingInputs {
+            selected_missing,
+            selected_rules,
+        },
     })
 }

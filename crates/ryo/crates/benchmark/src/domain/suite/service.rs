@@ -110,6 +110,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
     }
     let mut names = std::collections::BTreeSet::new();
     for case in &cases.cases {
+        validate_selected_rules(case.selected_rules.as_deref())?;
         if (case.files.is_empty() && case.requested_files.as_ref().is_none_or(Vec::is_empty))
             || case.name.0.trim().is_empty()
             || !names.insert(&case.name)
@@ -254,4 +255,17 @@ pub(crate) fn context_input_path(
         .components()
         .filter(|part| *part != Component::CurDir)
         .collect()
+}
+
+/// Admit only explicit, nonempty, duplicate-free cohorts. None preserves historical profile selection.
+pub fn validate_selected_rules(rules: Option<&[ryo::linter::RuleId]>) -> Result<(), Error> {
+    if let Some(rules) = rules {
+        let unique: std::collections::BTreeSet<_> = rules.iter().collect();
+        if rules.is_empty() || unique.len() != rules.len() {
+            return Err(Error::Invalid(
+                "selected-rules must be nonempty and contain each rule once".into(),
+            ));
+        }
+    }
+    Ok(())
 }

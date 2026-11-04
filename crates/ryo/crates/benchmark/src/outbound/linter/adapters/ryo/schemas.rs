@@ -128,6 +128,9 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
             context_manifest: request.context_manifest.map(Into::into),
             root: request.root,
             rules: request.rules,
+            selected_rules: request
+                .selected_rules
+                .map(|rules| rules.into_iter().map(|id| id.to_string()).collect()),
             query_modules: request.query_modules,
             rule_applicability: request.rule_applicability,
             parser_configuration: request.parser_configuration,

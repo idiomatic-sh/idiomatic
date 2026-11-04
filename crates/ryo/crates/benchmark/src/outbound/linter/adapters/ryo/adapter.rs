@@ -34,18 +34,28 @@ impl LinterPort for LinterRyoAdapter {
         crate::domain::suite::types::RuleConfigurationSupport::Explicit
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
+        let selected_rules = request
+            .selected_rules
+            .clone()
+            .unwrap_or_else(|| self.defaults.clone());
+        let profile_closure =
+            crate::domain::suite::observations::closure(selected_rules.iter().cloned(), |id| {
+                self.rule_observations.get(id).map(Vec::as_slice)
+            });
+        let profile_observations: crate::domain::suite::types::RuleObservationDeclarations = self
+            .rule_observations
+            .iter()
+            .filter(|(id, _)| profile_closure.contains(*id))
+            .map(|(id, bindings)| (id.clone(), bindings.clone()))
+            .collect();
         let worker = WorkerRequest {
             performance: request.performance,
             rule_context: request.rule_context.clone(),
-            rule_observations: request.rule_observations.clone().or_else(|| {
-                (!self.rule_observations.is_empty()).then(|| self.rule_observations.clone())
-            }),
-            selected_rules: Some(
-                request
-                    .selected_rules
-                    .clone()
-                    .unwrap_or_else(|| self.defaults.clone()),
-            ),
+            rule_observations: request
+                .rule_observations
+                .clone()
+                .or_else(|| (!profile_observations.is_empty()).then_some(profile_observations)),
+            selected_rules: Some(selected_rules),
             project_search_roots: request.project_search_roots.clone(),
             given_project_inventory: request.given_project_inventory.clone(),
             project_context_mode: self.project_context_mode,

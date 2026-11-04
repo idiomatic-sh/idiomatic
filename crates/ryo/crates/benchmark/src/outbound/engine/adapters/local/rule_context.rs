@@ -4,7 +4,7 @@ use ryo::linter::{
     Cell, Glob, HostColumn, HostColumnName, HostKind, HostRelation, HostRelationName, HostRow,
     HostText, Rule, RuleId,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Data only: the common engine still owns matching, scheduling, storage and lifetime.
 pub(super) struct Configured {
@@ -31,9 +31,10 @@ pub(super) fn project(
     for (file, disabled) in &context.disabled_rules {
         let pattern = crate::domain::suite::rule_context::literal_glob(file.0.as_ref());
         for id in disabled {
-            let rule = rules.get_mut(id).ok_or_else(|| {
-                Error::Invalid(format!("disabled rule has no registered query: {id}"))
-            })?;
+            // Configuration can describe codes outside this execution cohort.
+            let Some(rule) = rules.get_mut(id) else {
+                continue;
+            };
             rule.exclude.push(
                 Glob::try_from(pattern.as_str())
                     .map_err(|error| Error::Invalid(error.to_string()))?,
@@ -97,4 +98,36 @@ pub(super) fn project(
             ),
         ],
     })
+}
+
+/// Resolve diagnostic selection separately from explicit producer dependencies.
+/// The SDK remains responsible for output/schema validation and cycle rejection.
+pub(super) fn retain_producers(
+    declared: &[RuleId],
+    frontend: Option<&RuleId>,
+    rules: &mut BTreeMap<RuleId, Rule>,
+) -> Result<BTreeSet<RuleId>, Error> {
+    let selected: BTreeSet<_> = declared.iter().cloned().collect();
+    let mut retained = selected.clone();
+    if let Some(frontend) = frontend {
+        retained.insert(frontend.clone());
+    }
+    retained = crate::domain::suite::observations::closure(retained, |id| {
+        rules.get(id).map(|rule| rule.observations.as_slice())
+    });
+    for id in &retained {
+        if !rules.contains_key(id) {
+            return Err(Error::Invalid(format!(
+                "selected or required producer has no registered query: {id}"
+            )));
+        }
+    }
+    rules.retain(|id, _| retained.contains(id));
+    let excluded = Glob::try_from("**").map_err(|error| Error::Invalid(error.to_string()))?;
+    for (id, rule) in rules {
+        if !selected.contains(id) && frontend != Some(id) {
+            rule.exclude.push(excluded.clone());
+        }
+    }
+    Ok(selected)
 }

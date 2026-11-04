@@ -38,6 +38,10 @@ impl LinterPort for LinterRuffAdapter {
         }) {
             return Err(Error::Invalid(constants::UNSUPPORTED_PROJECT_ROOTS.into()));
         }
+        let selected = request.selected_rules.as_ref().map_or_else(
+            || self.defaults.clone(),
+            |rules| rules.iter().cloned().collect(),
+        );
         let mut arguments = vec![
             constants::CHECK.into(),
             constants::ISOLATED.into(),
@@ -46,7 +50,7 @@ impl LinterPort for LinterRuffAdapter {
             constants::CACHE_DIR.into(),
             request.state.join(constants::CACHE_NAME).into_os_string(),
             constants::SELECT.into(),
-            self.defaults
+            selected
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>()
@@ -95,7 +99,11 @@ impl LinterPort for LinterRuffAdapter {
                 return Err(Error::Invalid(constants::DUPLICATE_INPUT.into()));
             }
         }
-        schemas::decode(request, &output, &self.defaults, &sources)
+        let selected = request.selected_rules.as_ref().map_or_else(
+            || self.defaults.clone(),
+            |rules| rules.iter().cloned().collect(),
+        );
+        schemas::decode(request, &output, &selected, &sources)
     }
 }
 

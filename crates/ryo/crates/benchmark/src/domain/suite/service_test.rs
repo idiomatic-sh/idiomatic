@@ -257,3 +257,13 @@ fn given_project_inventory_can_stage_an_unselected_local_module() {
         "staged bytes cannot also be absent"
     );
 }
+
+#[test]
+fn explicit_selection_requires_real_nonempty_unique_rule_ids() {
+    use crate::domain::suite::service::validate_selected_rules;
+    let rule = ryo::linter::RuleId::try_from("F401").unwrap();
+    assert!(validate_selected_rules(None).is_ok());
+    assert!(validate_selected_rules(Some(&[rule.clone()])).is_ok());
+    assert!(validate_selected_rules(Some(&[])).is_err());
+    assert!(validate_selected_rules(Some(&[rule.clone(), rule])).is_err());
+}

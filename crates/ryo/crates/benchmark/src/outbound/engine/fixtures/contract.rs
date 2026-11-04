@@ -57,6 +57,7 @@ pub fn check(adapter: &impl EnginePort) {
                 },
                 crate::outbound::engine::types::PreparedMissingInputs {
                     selected_missing: std::collections::BTreeSet::new(),
+                    selected_rules: Vec::new(),
                 },
             )
             .map(|_| ())

@@ -28,6 +28,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
             )));
         }
     }
+    let mut supporting_seen = BTreeSet::new();
     let mut implemented = BTreeSet::new();
     for entry in std::fs::read_dir(directory.join(constants::RULES))? {
         let entry = entry?;
@@ -36,7 +37,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
             .into_string()
             .map_err(|_invalid_utf8| Error::Invalid(constants::INVALID_RULE_ID.into()))?;
         let rule = super::schemas::rule(&rule)?;
-        if !defaults.contains(&rule) {
+        if !defaults.contains(&rule) && !tool.supporting_rules.contains(&rule) {
             return Err(Error::Invalid(format!(
                 "rule {rule} is not a shipped default"
             )));
@@ -48,6 +49,15 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
         };
         if query.as_ref().is_some_and(|query| query.trim().is_empty()) {
             return Err(Error::Invalid(format!("empty query for {rule}")));
+        }
+        if tool.supporting_rules.contains(&rule) {
+            if query.is_none() {
+                return Err(Error::Invalid(format!(
+                    "supporting rule has no query: {rule}"
+                )));
+            }
+            supporting_seen.insert(rule);
+            continue;
         }
         let cases: Cases = super::schemas::cases(&std::fs::read_to_string(
             entry.path().join(constants::CASES),
@@ -62,6 +72,11 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
             }
             let _already_present = implemented.insert(rule);
         }
+    }
+    if supporting_seen.len() != tool.supporting_rules.len() {
+        return Err(Error::Invalid(
+            "declared supporting query is missing".into(),
+        ));
     }
     Ok(Audit {
         missing: defaults.difference(&implemented).cloned().collect(),
@@ -253,11 +268,75 @@ impl SuitePort for SuiteLocalAdapter {
             directory.join(constants::MANIFEST),
         )?)?;
         validate_query_modules(directory, &tool.query_modules)?;
+        let mut definitions: BTreeSet<_> = audit
+            .implemented
+            .iter()
+            .cloned()
+            .chain(tool.supporting_rules.iter().cloned())
+            .collect();
+        definitions.extend(crate::domain::suite::observations::closure(
+            audit.implemented.iter().cloned(),
+            |id| tool.rule_observations.get(id).map(Vec::as_slice),
+        ));
+        for owner in &audit.implemented {
+            let cases = super::schemas::cases(&std::fs::read_to_string(
+                directory
+                    .join(constants::RULES)
+                    .join(owner.to_string())
+                    .join(constants::CASES),
+            )?)?;
+            for case in cases.cases {
+                let declarations = case
+                    .rule_observations
+                    .as_ref()
+                    .unwrap_or(&tool.rule_observations);
+                let selected = case.selected_rules.as_deref().unwrap_or(&audit.implemented);
+                definitions.extend(crate::domain::suite::observations::closure(
+                    selected.iter().cloned(),
+                    |id| declarations.get(id).map(Vec::as_slice),
+                ));
+            }
+        }
         std::fs::create_dir(destination)?;
-        std::fs::write(
-            destination.join(constants::MANIFEST),
-            std::fs::read(directory.join(constants::MANIFEST))?,
-        )?;
+        let original = std::fs::read_to_string(directory.join(constants::MANIFEST))?;
+        let narrowed = tool.defaults != audit.implemented;
+        let manifest = if narrowed {
+            let mut value: toml::Value = toml::from_str(&original)?;
+            let table = value
+                .as_table_mut()
+                .ok_or_else(|| Error::Invalid("profile must be a table".into()))?;
+            table.insert(
+                "defaults".into(),
+                toml::Value::Array(
+                    audit
+                        .implemented
+                        .iter()
+                        .map(|id| toml::Value::String(id.to_string()))
+                        .collect(),
+                ),
+            );
+            table.insert(
+                "supporting-rules".into(),
+                toml::Value::Array(
+                    definitions
+                        .iter()
+                        .filter(|id| !audit.implemented.contains(id))
+                        .map(|id| toml::Value::String(id.to_string()))
+                        .collect(),
+                ),
+            );
+            table.remove("pending");
+            table.remove("deferred");
+            for key in ["rule-observations", "rule-applicability"] {
+                if let Some(entries) = table.get_mut(key).and_then(toml::Value::as_table_mut) {
+                    entries.retain(|id, _| definitions.iter().any(|rule| rule.as_ref() == id));
+                }
+            }
+            toml::to_string(&value).map_err(|error| Error::Invalid(error.to_string()))?
+        } else {
+            original
+        };
+        std::fs::write(destination.join(constants::MANIFEST), manifest)?;
         std::fs::create_dir(destination.join(constants::RULES))?;
         for relative in tool.query_modules.values() {
             let target = destination.join(relative);
@@ -291,6 +370,22 @@ impl SuitePort for SuiteLocalAdapter {
                 directory,
                 destination,
                 &target.join(constants::CASES),
+            )?;
+        }
+        for rule in definitions
+            .iter()
+            .filter(|id| !audit.implemented.contains(id))
+        {
+            let target = destination.join(constants::RULES).join(rule.to_string());
+            std::fs::create_dir(&target)?;
+            std::fs::write(
+                target.join(constants::QUERY),
+                std::fs::read(
+                    directory
+                        .join(constants::RULES)
+                        .join(rule.to_string())
+                        .join(constants::QUERY),
+                )?,
             )?;
         }
         Ok(())

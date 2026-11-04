@@ -1,0 +1,244 @@
+{
+  "schema": "ruff-fixed-counterparts/v1",
+  "reference_executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "items": [
+    {
+      "name": "decomposed-first",
+      "source": "from m import Ä, B\n",
+      "source_sha256": "878ecee86c5fe1abce1399f6bb018cb89923080584adadc53b6ce1c338b60bd5",
+      "reference_expected": [],
+      "candidate_diagnostics": [],
+      "ruff_fixed": "from m import Ä, B\n",
+      "ruff_fixed_sha256": "878ecee86c5fe1abce1399f6bb018cb89923080584adadc53b6ce1c338b60bd5",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "decomposed-second",
+      "source": "from m import B, Ä\n",
+      "source_sha256": "078dd9bb12f8f8bc8ddb2925581e8e1a6f3d983033cb34bc12724dc838f23ec0",
+      "reference_expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 20
+        }
+      ],
+      "candidate_diagnostics": [
+        {
+          "end": 20,
+          "file": "input.py",
+          "rule": "I001",
+          "start": 0
+        }
+      ],
+      "ruff_fixed": "from m import Ä, B\n",
+      "ruff_fixed_sha256": "878ecee86c5fe1abce1399f6bb018cb89923080584adadc53b6ce1c338b60bd5",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "ligature-from-first",
+      "source": "from m import fz, ﬁ\n",
+      "source_sha256": "68ecba56cbcc5ebb25531de2dec74d9a64481c88440a157afeedce0c79e94531",
+      "reference_expected": [],
+      "candidate_diagnostics": [],
+      "ruff_fixed": "from m import fz, ﬁ\n",
+      "ruff_fixed_sha256": "68ecba56cbcc5ebb25531de2dec74d9a64481c88440a157afeedce0c79e94531",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "ligature-from-second",
+      "source": "from m import ﬁ, fz\n",
+      "source_sha256": "01f8446df72fd241ef6db3a81d8f53a77842bd4b697baff6bc0a2869323c6c2f",
+      "reference_expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 21
+        }
+      ],
+      "candidate_diagnostics": [
+        {
+          "end": 21,
+          "file": "input.py",
+          "rule": "I001",
+          "start": 0
+        }
+      ],
+      "ruff_fixed": "from m import fz, ﬁ\n",
+      "ruff_fixed_sha256": "68ecba56cbcc5ebb25531de2dec74d9a64481c88440a157afeedce0c79e94531",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "ligature-plain-first",
+      "source": "import fz\nimport ﬁ\n",
+      "source_sha256": "0cb0dce1548cf6aa61caf4b597750450a5cc2909d5625fc94cd2ebb514b5b2e4",
+      "reference_expected": [],
+      "candidate_diagnostics": [],
+      "ruff_fixed": "import fz\nimport ﬁ\n",
+      "ruff_fixed_sha256": "0cb0dce1548cf6aa61caf4b597750450a5cc2909d5625fc94cd2ebb514b5b2e4",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "ligature-plain-second",
+      "source": "import ﬁ\nimport fz\n",
+      "source_sha256": "dd6a38894b2904d76008ffa07e2fe3a9dd2e84a9fb3206e1607b7a0e004aa4fb",
+      "reference_expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 20
+        }
+      ],
+      "candidate_diagnostics": [
+        {
+          "end": 20,
+          "file": "input.py",
+          "rule": "I001",
+          "start": 0
+        }
+      ],
+      "ruff_fixed": "import fz\nimport ﬁ\n",
+      "ruff_fixed_sha256": "0cb0dce1548cf6aa61caf4b597750450a5cc2909d5625fc94cd2ebb514b5b2e4",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "modifier-first",
+      "source": "from m import Ab, Bᴬ\n",
+      "source_sha256": "8a1398302be8174fe1a53030203519a881790ebcd80229f66b360020f175bd91",
+      "reference_expected": [],
+      "candidate_diagnostics": [],
+      "ruff_fixed": "from m import Ab, Bᴬ\n",
+      "ruff_fixed_sha256": "8a1398302be8174fe1a53030203519a881790ebcd80229f66b360020f175bd91",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "modifier-second",
+      "source": "from m import Bᴬ, Ab\n",
+      "source_sha256": "a65df359d91e0430cfc8e2a7522c8dc782b2da65a0ba87a4d2271388c094c9b7",
+      "reference_expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 22
+        }
+      ],
+      "candidate_diagnostics": [
+        {
+          "end": 22,
+          "file": "input.py",
+          "rule": "I001",
+          "start": 0
+        }
+      ],
+      "ruff_fixed": "from m import Ab, Bᴬ\n",
+      "ruff_fixed_sha256": "8a1398302be8174fe1a53030203519a881790ebcd80229f66b360020f175bd91",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "roman-two-first",
+      "source": "from m import Ⅱ, B\n",
+      "source_sha256": "bd4d296f55c0063f19fc9b995c34902625a65125c8e17dbcc5a3a9ef522fe5c9",
+      "reference_expected": [],
+      "candidate_diagnostics": [
+        {
+          "end": 20,
+          "file": "input.py",
+          "rule": "I001",
+          "start": 0
+        }
+      ],
+      "ruff_fixed": "from m import Ⅱ, B\n",
+      "ruff_fixed_sha256": "bd4d296f55c0063f19fc9b995c34902625a65125c8e17dbcc5a3a9ef522fe5c9",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "roman-two-second",
+      "source": "from m import B, Ⅱ\n",
+      "source_sha256": "9f83e34a8ed4c4cec4cde0a2a70504cb1a4d8d27d750f6bc9016ee16ff0b6e48",
+      "reference_expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 20
+        }
+      ],
+      "candidate_diagnostics": [],
+      "ruff_fixed": "from m import Ⅱ, B\n",
+      "ruff_fixed_sha256": "bd4d296f55c0063f19fc9b995c34902625a65125c8e17dbcc5a3a9ef522fe5c9",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "title-survive-first",
+      "source": "from m import ᾈB, a\n",
+      "source_sha256": "7c5dc002c17c4d4d09c1ba18718ab74b5134b5c281c9311b103cdf7059fce0c6",
+      "reference_expected": [],
+      "candidate_diagnostics": [
+        {
+          "end": 21,
+          "file": "input.py",
+          "rule": "I001",
+          "start": 0
+        }
+      ],
+      "ruff_fixed": "from m import ᾈB, a\n",
+      "ruff_fixed_sha256": "7c5dc002c17c4d4d09c1ba18718ab74b5134b5c281c9311b103cdf7059fce0c6",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "title-survive-second",
+      "source": "from m import a, ᾈB\n",
+      "source_sha256": "290e50b7e8693a92e47012ba6a2816717846f1a19c5e0a9dd6a95028dcde9473",
+      "reference_expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 21
+        }
+      ],
+      "candidate_diagnostics": [],
+      "ruff_fixed": "from m import ᾈB, a\n",
+      "ruff_fixed_sha256": "7c5dc002c17c4d4d09c1ba18718ab74b5134b5c281c9311b103cdf7059fce0c6",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    },
+    {
+      "name": "title-later-first",
+      "source": "from m import Bᾈ, ZZ\n",
+      "source_sha256": "3c32a9c5b70c2745c3e0ebcf872d451bba2dd5bee45ed2023a4c6100e927917c",
+      "reference_expected": [],
+      "candidate_diagnostics": [
+        {
+          "end": 22,
+          "file": "input.py",
+          "rule": "I001",
+          "start": 0
+        }
+      ],
+      "ruff_fixed": "from m import Bᾈ, ZZ\n",
+      "ruff_fixed_sha256": "3c32a9c5b70c2745c3e0ebcf872d451bba2dd5bee45ed2023a4c6100e927917c",
+      "reference_fix_stderr": "All checks passed!\n"
+    },
+    {
+      "name": "title-later-second",
+      "source": "from m import ZZ, Bᾈ\n",
+      "source_sha256": "47a2e5f28b06560a8d4f6abfd7621ebe5e43b669e80b179909cbfb5468cd768a",
+      "reference_expected": [
+        {
+          "rule": "I001",
+          "file": "input.py",
+          "start": 0,
+          "end": 22
+        }
+      ],
+      "candidate_diagnostics": [],
+      "ruff_fixed": "from m import Bᾈ, ZZ\n",
+      "ruff_fixed_sha256": "3c32a9c5b70c2745c3e0ebcf872d451bba2dd5bee45ed2023a4c6100e927917c",
+      "reference_fix_stderr": "Found 1 error (1 fixed, 0 remaining).\n"
+    }
+  ]
+}
