@@ -258,20 +258,40 @@ pub(crate) fn complete_for_reuse(
                     .first()
                     .is_none_or(|column| column.0.len() <= u32::MAX as usize)
         }
-        Rows::Tree(tree) if relation == Relation::SyntaxTree && tree.form == TreeForm::Elements => {
+        Rows::Tree(tree)
+            if crate::domain::table_cells::service::native_form(relation) == Some(tree.form) =>
+        {
             let elements = tree.elements;
             let count = real_count(elements).0;
             let names = kind_names(elements);
+            let physical = match tree.form {
+                TreeForm::Elements => {
+                    elements.start.len() == count
+                        && elements.end.len() == count
+                        && elements.text.len() == count
+                        && elements
+                            .kind
+                            .iter()
+                            .all(|kind| usize::from(kind.0) < names.len())
+                }
+                // Child rows are positions1..count. Parent and ordinal are
+                // actually read by edge_of; roles may be deliberately omitted
+                // and retain the reader's documented NO_SYMBOL semantics.
+                TreeForm::Edges => {
+                    elements.parent.len() == count
+                        && elements.ordinal.len() == count
+                        && (elements.field.is_empty() || elements.field.len() == count)
+                        && elements
+                            .parent
+                            .iter()
+                            .skip(1)
+                            .all(|parent| (parent.0 as usize) < count)
+                }
+            };
             syntax_acceptance(elements) == SyntaxAcceptance::Accepted
                 && !has_incomplete_syntax(elements)
+                && physical
                 && count <= u32::MAX as usize
-                && elements.start.len() == count
-                && elements.end.len() == count
-                && elements.text.len() == count
-                && elements
-                    .kind
-                    .iter()
-                    .all(|kind| usize::from(kind.0) < names.len())
         }
         Rows::Tree(_) | Rows::Computed(_) | Rows::Selected(_) => false,
     }

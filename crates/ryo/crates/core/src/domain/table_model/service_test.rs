@@ -734,6 +734,43 @@ fn complete_source_contract_covers_native_and_stored_without_promoting_partial_o
         form: TreeForm::Edges,
     });
     assert!(!complete_for_reuse(Relation::SyntaxTree, &edges, &[], true));
+    assert!(complete_for_reuse(Relation::SyntaxChild, &edges, &[], true));
+    assert!(!complete_for_reuse(
+        Relation::SyntaxChild,
+        &edges,
+        &[],
+        false
+    ));
+    let child_partials = [Partial {
+        relation: Relation::SyntaxChild,
+        cause: PartialCause("child recovery".into()),
+        lacking: Lacking::Any,
+        at: Some(FileId(0)),
+    }];
+    assert!(!complete_for_reuse(
+        Relation::SyntaxChild,
+        &edges,
+        &child_partials,
+        true
+    ));
+    for missing in ["parent", "ordinal"] {
+        let mut absent = tree(SyntaxAcceptance::Accepted, false);
+        if missing == "parent" {
+            absent.parent = Default::default();
+        } else {
+            absent.ordinal = Default::default();
+        }
+        let edges = Rows::Tree(TreeRows {
+            elements: &absent,
+            file: FileId(0),
+            form: TreeForm::Edges,
+        });
+        assert!(
+            !complete_for_reuse(Relation::SyntaxChild, &edges, &[], true),
+            "absent {missing} is not complete native child backing"
+        );
+    }
+
     for acceptance in [SyntaxAcceptance::Rejected, SyntaxAcceptance::Undetermined] {
         let elements = tree(acceptance, false);
         let rows = Rows::Tree(TreeRows {
@@ -742,6 +779,17 @@ fn complete_source_contract_covers_native_and_stored_without_promoting_partial_o
             form: TreeForm::Elements,
         });
         assert!(!complete_for_reuse(Relation::SyntaxTree, &rows, &[], true));
+        let edges = Rows::Tree(TreeRows {
+            elements: &elements,
+            file: FileId(0),
+            form: TreeForm::Edges,
+        });
+        assert!(!complete_for_reuse(
+            Relation::SyntaxChild,
+            &edges,
+            &[],
+            true
+        ));
     }
     let recovered = tree(SyntaxAcceptance::Accepted, true);
     let rows = Rows::Tree(TreeRows {
@@ -750,6 +798,17 @@ fn complete_source_contract_covers_native_and_stored_without_promoting_partial_o
         form: TreeForm::Elements,
     });
     assert!(!complete_for_reuse(Relation::SyntaxTree, &rows, &[], true));
+    let recovered_edges = Rows::Tree(TreeRows {
+        elements: &recovered,
+        file: FileId(0),
+        form: TreeForm::Edges,
+    });
+    assert!(!complete_for_reuse(
+        Relation::SyntaxChild,
+        &recovered_edges,
+        &[],
+        true
+    ));
 
     let malformed = vec![FactColumn(vec![0]), FactColumn(Vec::new())];
     assert!(!complete_for_reuse(

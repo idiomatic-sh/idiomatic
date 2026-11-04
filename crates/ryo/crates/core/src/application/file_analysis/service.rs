@@ -435,7 +435,7 @@ impl FileAnalysis {
             {
                 selectable.push(*relation);
                 if graph_enabled
-                    && !matches!(*relation, Relation::SyntaxTree | Relation::SyntaxChild)
+                    && crate::domain::table_cells::service::native_form(*relation).is_none()
                     && crate::domain::table_model::service::complete_for_reuse(
                         *relation,
                         &crate::domain::table_model::types::Rows::Stored(view),
@@ -451,29 +451,19 @@ impl FileAnalysis {
             && tables.language.is_some()
             && facts.resident_stability() == ResidentStability::Stable
         {
-            let native_tree = crate::domain::table_model::service::complete_for_reuse(
-                Relation::SyntaxTree,
-                &crate::domain::table_model::types::Rows::Tree(
-                    crate::domain::table_cells::types::TreeRows {
-                        elements: &tables.elements,
-                        file,
-                        form: crate::domain::table_cells::types::TreeForm::Elements,
-                    },
-                ),
-                &physical_partials,
-                true,
-            );
-            // `active_wanted` is the provider walk and intentionally excludes
-            // SyntaxTree. The prepared graph's typed relation edges express
-            // demand; the native reader above proves this file's population.
-            tracing::trace!(target: "ryo::diagnostic::file_program",
-                event = "native_tree_admission", file = file.0,
-                relation = ?Relation::SyntaxTree, admitted = native_tree,
-                acceptance = ?acceptance,
-                incomplete_syntax = has_incomplete_syntax(&tables.elements),
-                physically_partial = physical_partials.iter().any(|partial| partial.relation == Relation::SyntaxTree));
-            if native_tree && !complete.contains(&Relation::SyntaxTree) {
-                complete.push(Relation::SyntaxTree);
+            for &(relation, form) in crate::domain::table_cells::service::native_relations() {
+                let admitted = crate::domain::table_model::service::complete_for_reuse(
+                    relation,
+                    &crate::domain::table_model::types::Rows::Tree(crate::domain::table_cells::types::TreeRows {
+                        elements: &tables.elements, file, form,
+                    }),
+                    &physical_partials, true,
+                );
+                tracing::trace!(target: "ryo::diagnostic::file_program", event = "native_relation_admission",
+                    file = file.0, relation = ?relation, admitted,
+                    acceptance = ?acceptance, incomplete_syntax = has_incomplete_syntax(&tables.elements),
+                    physically_partial = physical_partials.iter().any(|partial| partial.relation == relation));
+                if admitted && !complete.contains(&relation) { complete.push(relation); }
             }
             tracing::trace!(target: "ryo::diagnostic::file_program", event = "complete_relations",
                 complete = ?complete);

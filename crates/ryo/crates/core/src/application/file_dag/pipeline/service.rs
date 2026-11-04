@@ -665,18 +665,9 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
         dag.begin_rule(rule)?;
     }
     let read = |relation: Relation| -> Result<Rows<'f>, OperatingError> {
-        match (relation, tree) {
-            (Relation::SyntaxChild, Some(tree)) => Ok(Rows::Tree(TreeRows {
-                form: TreeForm::Edges,
-                ..tree
-            })),
-            (Relation::SyntaxTree, Some(tree)) => Ok(Rows::Tree(TreeRows {
-                form: TreeForm::Elements,
-                ..tree
-            })),
-            _ => relations(relation)
-                .map(Rows::Stored)
-                .ok_or(OperatingError::NotRead),
+        match (crate::domain::table_cells::service::native_form(relation), tree) {
+            (Some(form), Some(tree)) => Ok(Rows::Tree(TreeRows { form, ..tree })),
+            _ => relations(relation).map(Rows::Stored).ok_or(OperatingError::NotRead),
         }
     };
     let identity = PlanIdentity(std::ptr::from_ref(plan).addr());

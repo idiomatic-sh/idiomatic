@@ -63,11 +63,7 @@ impl RequestOperators {
                     .map(|input| match input {
                         Input::Relation(relation) => InputSchema {
                             kinds: relation_kinds(*relation),
-                            tree: match relation {
-                                Relation::SyntaxTree => Some(TreeForm::Elements),
-                                Relation::SyntaxChild => Some(TreeForm::Edges),
-                                _ => None,
-                            },
+                            tree: crate::domain::table_cells::service::native_form(*relation),
                         },
                         Input::Step(id) => InputSchema {
                             kinds: contracts
