@@ -21,7 +21,7 @@ use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
-pub(super) fn evaluate(
+pub(in crate::application::file_dag) fn evaluate(
     operators: &dyn PrimitiveExecutor,
     contract: &OperatorContract,
     permit: &super::super::program::admission::KernelPermit<'_>,

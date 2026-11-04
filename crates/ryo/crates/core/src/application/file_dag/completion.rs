@@ -60,13 +60,13 @@ pub(super) enum NodeAdmission {
         coverage: CoverageState,
     },
 }
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 enum CompletionBehavior {
     BlockBeforeRun(std::sync::Arc<[Partial]>),
     DropAfterCollect(std::sync::Arc<Partials>),
 }
 /// No Default: the scope's actual partiality source must be supplied.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct CompletionPolicy {
     scope: ScopeIdentity,
     behavior: CompletionBehavior,

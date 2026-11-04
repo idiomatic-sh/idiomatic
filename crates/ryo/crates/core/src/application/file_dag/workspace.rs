@@ -106,6 +106,15 @@ impl InvocationWorkspace {
 }
 
 impl InvocationWorkspace {
+    pub(in crate::application::file_dag) fn capture_admitted(
+        &mut self,
+        publications: Vec<super::relations::PublishedInput>,
+    ) {
+        self.origins.clear();
+        self.origins
+            .resize(publications.len(), super::feed::InputOrigin::Internal);
+        self.publications = publications.into_iter().map(Some).collect();
+    }
     pub(super) fn capture_inputs(
         &mut self,
         logical: &[ryo_values::domain::plan_parts::types::Input],

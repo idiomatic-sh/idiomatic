@@ -98,6 +98,14 @@ pub(super) trait Inputs {
     ) -> Result<(), OperatingError>;
 }
 impl AdmittedInput {
+    pub(super) fn observation_ready(&self) -> Result<bool, OperatingError> {
+        match &self.readiness {
+            Readiness::Complete => Ok(true),
+            Readiness::Partial | Readiness::Skipped(_) => Ok(false),
+            Readiness::Unknown(error) => Err(error.clone()),
+        }
+    }
+
     pub(super) fn partial(mut self) -> Self {
         self.readiness = Readiness::Partial;
         self

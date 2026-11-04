@@ -27,9 +27,13 @@ pub(super) enum InvocationFailure {
 pub(super) struct KernelScratch {
     pub scratch: OperatorScratch,
     pub memo: Vec<crate::domain::operating::types::Memo>,
+    pub workspace: Option<super::super::workspace::InvocationWorkspace>,
 }
 pub(super) enum KernelInput<'a> {
-    Admitted(&'a [AdmittedInput]),
+    Admitted(
+        &'a [AdmittedInput],
+        crate::domain::operator::contract::types::EvaluationMode,
+    ),
     Continuation(&'a [Value]),
 }
 /// Application-owned preparation/acquisition supplies the borrowed semantic call.
@@ -56,6 +60,7 @@ struct Slot {
     state: State,
     scratch: Vec<KernelScratch>,
     remaining: usize,
+    completion: Option<crate::application::file_dag::completion::CompletionPolicy>,
 }
 pub(crate) struct ProgramExecution {
     pub(super) program: Arc<ExecutableProgram>,
@@ -81,6 +86,7 @@ impl ProgramExecution {
                     .map(|_| KernelScratch::default())
                     .collect(),
                 remaining: region.consumers,
+                completion: None,
             })
             .collect();
         let generation = Arc::clone(&owner.generation.borrow());
@@ -112,10 +118,17 @@ impl ProgramExecution {
             .regions
             .get(id.0)
             .ok_or(OperatingError::NotRun)?;
+        let producer_policy = completion.for_rule(region.producer);
+        let completion = &producer_policy;
         // A scope borrow never crosses admission, kernels or downstream callbacks.
         let mut scratch = {
             let mut slots = self.slots.borrow_mut();
             let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+            match &slot.completion {
+                Some(bound) if bound != completion => return Err(OperatingError::NotRead),
+                Some(_) => {}
+                None => slot.completion = Some(completion.clone()),
+            }
             match &slot.state {
                 State::Running => return Err(OperatingError::NotRun),
                 State::Failed(error) => return Err(error.clone()),
@@ -145,6 +158,12 @@ impl ProgramExecution {
         let first = region.instructions.first().ok_or(OperatingError::NotRun)?;
         let needs = region.needs.as_ref().map_err(Clone::clone)?;
         let mut admitted = Vec::new();
+        let evaluation = match &delivery {
+            Delivery::Retain => crate::domain::operator::contract::types::EvaluationMode::Collected,
+            Delivery::Forward(_) => {
+                crate::domain::operator::contract::types::EvaluationMode::Streaming
+            }
+        };
         let program = match delivery {
             Delivery::Retain => &first.collected_demand,
             Delivery::Forward(_) => &first.streaming_demand,
@@ -230,7 +249,23 @@ impl ProgramExecution {
                     }
                     DemandAction::JoinInputs { .. } => {
                         admitted = admit_join(region, first, inputs, &self.partition, context)
-                            .map_err(InvocationFailure::Semantic)?
+                            .map_err(InvocationFailure::Semantic)?;
+                        if admitted.len() == 1 {
+                            // The mandatory left-empty gate ends the invocation before RHS
+                            // acquisition and before any semantic permit is issued.
+                            let last = region.instructions.last().ok_or_else(|| {
+                                InvocationFailure::Semantic(OperatingError::NotRun)
+                            })?;
+                            let published = inputs
+                                .publish_empty(
+                                    super::admission::ProducerRoot::Region(id),
+                                    &self.partition,
+                                    &admitted,
+                                    last.contract.collected_kinds.clone(),
+                                )
+                                .map_err(InvocationFailure::Semantic)?;
+                            return Ok(InvocationOutcome::Published(published));
+                        }
                     }
                     DemandAction::AxisInputs => {
                         admitted = admit_axis(region, first, inputs, &self.partition, context)
@@ -258,7 +293,7 @@ impl ProgramExecution {
                         &permit,
                         region,
                         0,
-                        KernelInput::Admitted(&admitted),
+                        KernelInput::Admitted(&admitted, evaluation),
                         kernels,
                         context,
                         frames,
@@ -286,7 +321,7 @@ impl ProgramExecution {
                                 &permit,
                                 region,
                                 0,
-                                KernelInput::Admitted(&admitted),
+                                KernelInput::Admitted(&admitted, evaluation),
                                 kernels,
                                 context,
                                 frames,
@@ -299,7 +334,7 @@ impl ProgramExecution {
                                 &permit,
                                 region,
                                 0,
-                                KernelInput::Admitted(&admitted),
+                                KernelInput::Admitted(&admitted, evaluation),
                                 kernels,
                                 context,
                                 frames,
@@ -330,7 +365,7 @@ impl ProgramExecution {
                                 &permit,
                                 region,
                                 0,
-                                KernelInput::Admitted(&admitted),
+                                KernelInput::Admitted(&admitted, evaluation),
                                 kernels,
                                 context,
                                 frames,
