@@ -18,30 +18,23 @@ impl PrimitiveExecutor for CommonOperatorEngine<'_> {
     fn execute(&self, call: KernelCall<'_, '_, '_>) -> Result<KernelAnswer, KernelFault> {
         match call {
             KernelCall::Registered {
-                permit,
                 operation,
                 inputs,
                 lease,
                 output,
             } => {
-                if operation != permit.operation() {
-                    return Err(KernelFault::Refused(
-                        crate::domain::operating::errors::OperatingError::WrongOperation,
-                    ));
-                }
-                crate::domain::executable_program::kernel::evaluate(
-                    permit.kind(),
-                    operation,
-                    inputs,
-                    lease,
-                    output,
-                )
-                .map_err(KernelFault::Refused)?;
+                lease
+                    .dispatch(operation, inputs, output)
+                    .map_err(KernelFault::Refused)?;
                 Ok(KernelAnswer::Complete)
             }
             KernelCall::Walk { request } => request
                 .dispatch()
                 .map(KernelAnswer::Walk)
+                .map_err(KernelFault::Refused),
+            KernelCall::NativeJoin { request } => request
+                .dispatch(self)
+                .map(|()| KernelAnswer::Complete)
                 .map_err(KernelFault::Refused),
             KernelCall::Physical { request } => {
                 request.dispatch(self.operators).map(KernelAnswer::Physical)

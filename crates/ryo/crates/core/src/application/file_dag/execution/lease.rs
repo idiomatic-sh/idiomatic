@@ -20,6 +20,36 @@ use crate::domain::table_texts::{
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 
+/// The executable lease belongs to the application invocation owner. A pure
+/// borrowed context cannot be promoted into a registered call by a sibling.
+pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
+    permit: &'call super::super::program::admission::KernelPermit<'scope>,
+    context: &'call mut PrimitiveLease<'resources>,
+}
+impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
+    fn new(
+        permit: &'call super::super::program::admission::KernelPermit<'scope>,
+        context: &'call mut PrimitiveLease<'resources>,
+    ) -> Self {
+        Self { permit, context }
+    }
+
+    pub(super) fn dispatch(
+        self,
+        operation: &ryo_values::domain::plans::types::Operation,
+        input: PreparedInputs<'_>,
+        output: &mut dyn RowSink,
+    ) -> Result<(), OperatingError> {
+        self.permit.validate_registered(operation)?;
+        crate::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
+            operation,
+            input,
+            self.context,
+            output,
+        )
+    }
+}
+
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
 pub(in crate::application::file_dag) fn evaluate(
     operators: &dyn PrimitiveExecutor,
@@ -160,29 +190,30 @@ pub(in crate::application::file_dag) fn evaluate(
             source_len: context.source.0.len(),
         },
     };
-    let mut lease = PrimitiveLease::new(
+    let outcome = with_primitive_context(
         views,
         &mut workspace.primitive,
         query_reborrow(&mut context.symbols),
         &mut predicate,
         &semantics,
         &workspace.work,
+        |context| {
+            let lease = ExecutableLease::new(permit, context);
+            match operators.execute(KernelCall::Registered {
+                operation,
+                inputs: input,
+                lease,
+                output: &mut output,
+            }) {
+                Ok(KernelAnswer::Complete) => Ok(()),
+                Ok(KernelAnswer::Physical(_) | KernelAnswer::Walk(_)) => {
+                    Err(OperatingError::WrongOperation)
+                }
+                Err(KernelFault::Refused(error)) => Err(error),
+                Err(KernelFault::Portable(error)) => Err(portable_fault(error)),
+            }
+        },
     );
-    let outcome = match operators.execute(KernelCall::Registered {
-        permit,
-        operation,
-        inputs: input,
-        lease: &mut lease,
-        output: &mut output,
-    }) {
-        Ok(KernelAnswer::Complete) => Ok(()),
-        Ok(KernelAnswer::Physical(_) | KernelAnswer::Walk(_)) => {
-            Err(OperatingError::WrongOperation)
-        }
-        Err(KernelFault::Refused(error)) => Err(error),
-        Err(KernelFault::Portable(error)) => Err(portable_fault(error)),
-    };
-    drop(lease);
     drop(output);
     drop(predicate);
     #[cfg(test)]

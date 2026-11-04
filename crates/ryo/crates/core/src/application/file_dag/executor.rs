@@ -2,21 +2,23 @@
 //! It has no owner, dependency resolver, publication or cache acquisition API.
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::types::{PreparedInputs, PrimitiveLease, RowSink},
+    operator::contract::types::{PreparedInputs, RowSink},
 };
 use ryo_operators::domain::contract::types::{OperatorAnswer, PortableOperatorFault};
 use ryo_values::domain::plans::types::Operation;
 
 pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
     Registered {
-        permit: &'call super::program::admission::KernelPermit<'invocation>,
         operation: &'call Operation,
         inputs: PreparedInputs<'call>,
-        lease: &'call mut PrimitiveLease<'resources>,
+        lease: super::execution::lease::ExecutableLease<'call, 'resources, 'invocation>,
         output: &'call mut dyn RowSink,
     },
     Walk {
         request: super::program::native_walk::PermittedWalk<'call, 'resources, 'invocation>,
+    },
+    NativeJoin {
+        request: super::program::native_join::PermittedNativeJoin<'call, 'resources, 'invocation>,
     },
     Physical {
         request: super::program::admission::PermittedPhysical<'call, 'resources, 'invocation>,

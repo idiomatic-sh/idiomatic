@@ -7,11 +7,11 @@ let targets = capture(from=paths, path="target", pattern="{*target-root}/applica
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let protected = select * from local where implementation-tail != "facade.rs";
 let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
-let forbidden = select * from outsiders where implementation-tail != "admission.rs" or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
+let forbidden = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,native_walk.rs,native_join.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
 let program-violations = select file, span from forbidden;
 let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
 let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
+let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
 let cache-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
 let local-cache = select source as file, span, source-tail, cache-part from cache-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
@@ -23,7 +23,7 @@ let local-kernel = select source as file, span, source-tail from kernel-targets 
 let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
 let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
 let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,domain/executable_program/kernel.rs,application/file_dag/request.rs,application/file_dag/relations.rs,application/file_dag/testing.rs,application/file_dag/derived/owner/resource_fixture.rs}");
+let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease.rs,application/file_dag/request.rs,application/file_dag/relations.rs,application/file_dag/testing.rs,application/file_dag/derived/owner/resource_fixture.rs}");
 let domain-violations = union(left=foreign-kernel, right=foreign-registry);
 let violations = union(left=app-violations, right=domain-violations);
 emit violations subject file key(span);
@@ -190,6 +190,11 @@ id = "declared-operator-preparation"
 scenario = "The request preparation owner may inspect the registered contract."
 given.files.'src/application/file_dag/request.rs' = 'pub fn prepare() { crate::domain::operator::contract::registration::registered(); }'
 given.files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod request;'
+
+[[scenarios]]
+id = "declared-operator-execution"
+scenario = "The application execution owner may dispatch the registered primitive after permit validation."
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub fn dispatch() { crate::domain::operator::contract::registration::registered(); }'
 
 [[scenarios]]
 id = "cache-owner-is-supported"

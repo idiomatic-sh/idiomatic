@@ -2,16 +2,14 @@
 use crate::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputSchema,
-    operator::{
-        collections::operators::interface::OperatorsItem, contract::types::OperatorContract,
-    },
+    operator::{contract::types::OperatorContract, service::PreparationRoute},
     table_model::types::ParameterBinding,
 };
 use ryo_values::domain::plans::types::Operation;
 
 #[cfg(test)]
-pub(crate) fn operator<T: OperatorsItem + ?Sized>(
-    item: &T,
+pub(crate) fn operator(
+    item: PreparationRoute,
     operation: &Operation,
     schemas: &[InputSchema<'_>],
     bindings: &[ParameterBinding],
