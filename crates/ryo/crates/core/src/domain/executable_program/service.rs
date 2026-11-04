@@ -85,6 +85,7 @@ pub(crate) fn compile(
     plans: &[Plan],
     graph: RequestGraph,
     partitions: &dyn ProducerPartitions,
+    prepared: &crate::domain::operator::contract::types::RequestOperators,
 ) -> Result<ExecutableProgram, OperatingError> {
     let mut column_candidates = super::column::ColumnCandidates::capture(&graph);
     let count = graph.nodes.len();
@@ -283,6 +284,7 @@ pub(crate) fn compile(
             dependencies: Box::new([]),
             ordered_existence: None,
             column: None,
+            selection: None,
             publishes: boundary[logical] || consumers[logical] > 1,
         });
     }
@@ -429,14 +431,27 @@ pub(crate) fn compile(
             regions[root.0].consumers = named_readers[slot];
         }
     }
-    Ok(ExecutableProgram {
+    let mut executable = ExecutableProgram {
         regions: regions.into_boxed_slice(),
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
         original_instruction_count: count,
         fused_instruction_count,
-    })
+    };
+    for selection in super::selection::compile(&executable, prepared) {
+        let target = selection.target();
+        if !matches!(
+            executable.regions[target.0].instructions[0].operation,
+            Operation::Select { .. }
+        ) {
+            continue;
+        }
+        if executable.regions[target.0].selection.is_none() {
+            executable.regions[target.0].selection = Some(selection);
+        }
+    }
+    Ok(executable)
 }
 
 #[cfg(test)]

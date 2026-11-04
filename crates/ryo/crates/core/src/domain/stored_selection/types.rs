@@ -48,6 +48,8 @@ pub(crate) struct SelectionCounts {
     pub candidates: u64,
     /// Predicate cells decoded.
     pub predicate_cells: u64,
+    /// Actual reached predicate rows, including failed comparisons.
+    pub predicate_rows: u64,
     /// Cells decoded during compact replay through the row-stream boundary.
     pub output_cells: u64,
     /// Cells appended to materialized collectors during this file's execution.

@@ -65,9 +65,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let publication = input
             .publication(&self.owner)
             .map_err(InvocationFailure::Semantic)?;
-        let rows = self
-            .owner
-            .resolve(publication.as_ref(), self.read)
+        let rows = input
+            .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
         let Some(number) = self
             .owner
@@ -111,6 +110,32 @@ impl KernelInvocation for KernelSession<'_, '_> {
             .map_err(InvocationFailure::Semantic)?;
         Ok(super::runtime::StrategyOutcome::Executed)
     }
+    fn selected(
+        &self,
+        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+        permit: &KernelPermit<'_>,
+        input: &super::admission::AdmittedInput,
+        context: &mut OperatorContext<'_>,
+        scratch: &mut KernelScratch,
+    ) -> Result<Option<super::selection::ProducedSelection>, InvocationFailure> {
+        let rows = input
+            .rows(&self.owner, self.read)
+            .map_err(InvocationFailure::Semantic)?;
+        let workspace = scratch
+            .workspace
+            .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
+        super::selection::acquire(
+            self.prepared,
+            permit,
+            shape,
+            input,
+            &rows,
+            &self.owner,
+            context,
+            &workspace.work,
+        )
+        .map_err(InvocationFailure::Semantic)
+    }
     fn column(
         &self,
         shape: &crate::domain::executable_program::column::ColumnAlternative,
@@ -132,13 +157,11 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let right_publication = right
             .publication(&self.owner)
             .map_err(InvocationFailure::Semantic)?;
-        let left_rows = self
-            .owner
-            .resolve(left_publication.as_ref(), self.read)
+        let left_rows = left
+            .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
-        let right_rows = self
-            .owner
-            .resolve(right_publication.as_ref(), self.read)
+        let right_rows = right
+            .rows(&self.owner, self.read)
             .map_err(InvocationFailure::Semantic)?;
         let Rows::Stored(right_source) = &right_rows else {
             return Ok(super::runtime::StrategyOutcome::Declined);
@@ -268,9 +291,9 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         .map(|input| input.publication(&self.owner).cloned())
                         .collect::<Result<Vec<_>, _>>()
                         .map_err(InvocationFailure::Semantic)?;
-                    let originals = publications
+                    let originals = admitted
                         .iter()
-                        .map(|publication| self.owner.resolve(publication.as_ref(), self.read))
+                        .map(|input| input.rows(&self.owner, self.read))
                         .collect::<Result<Vec<_>, _>>()
                         .map_err(InvocationFailure::Semantic)?;
                     if mode == EvaluationMode::Collected {

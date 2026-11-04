@@ -9,6 +9,18 @@ pub(in crate::application::file_dag) struct IndexObservation {
     pub reuses: u64,
 }
 impl DerivedOwner {
+    pub(in crate::application::file_dag) fn selector_work(
+        &self,
+    ) -> Result<crate::domain::operator::types::RowsFed, OperatingError> {
+        let backend = self.backend.borrow();
+        let backend = backend.as_ref().ok_or(OperatingError::NotRun)?;
+        Ok(crate::domain::operator::types::RowsFed([
+            backend.selection_counts.predicate_rows,
+            0,
+            0,
+        ]))
+    }
+
     #[cfg(test)]
     pub(crate) fn index_fixture_state(&self) -> (u64, u64, usize, bool) {
         self.backend

@@ -104,6 +104,7 @@ pub(crate) struct Region {
     pub dependencies: Box<[RegionId]>,
     pub ordered_existence: Option<OrderedExistence>,
     pub column: Option<super::column::ColumnAlternative>,
+    pub selection: Option<super::selection::SelectionAlternative>,
     pub publishes: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

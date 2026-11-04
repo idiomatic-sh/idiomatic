@@ -321,9 +321,7 @@ impl Inputs for SourceInputs<'_, '_> {
         }
     }
     fn is_empty(&self, input: &AdmittedInput) -> Result<bool, OperatingError> {
-        let rows = self
-            .owner
-            .resolve(input.publication(&self.owner)?.as_ref(), self.read)?;
+        let rows = input.rows(&self.owner, self.read)?;
         Ok(count_of(&rows).0 == 0)
     }
     fn publish(
@@ -340,6 +338,30 @@ impl Inputs for SourceInputs<'_, '_> {
         let checked = self.owner.admit(
             publication.as_ref(),
             crate::domain::operator::contract::views::BorrowedRows::from(&resolved),
+        )?;
+        AdmittedInput::from_publication(
+            Rc::clone(&self.owner),
+            publication.clone(),
+            &checked,
+            root,
+            partition.clone(),
+            readiness,
+        )
+    }
+    fn publish_selected(
+        &mut self,
+        root: ProducerRoot,
+        partition: &Partition,
+        inputs: &[AdmittedInput],
+        produced: super::super::selection::ProducedSelection,
+    ) -> Result<AdmittedInput, OperatingError> {
+        let readiness =
+            super::super::admission::contributor_readiness(partition, inputs, &self.owner)?;
+        let publication = self.owner.publish_selection(produced)?;
+        let rows = self.owner.resolve(publication.as_ref(), self.read)?;
+        let checked = self.owner.admit(
+            publication.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
         )?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
@@ -367,9 +389,7 @@ impl Inputs for SourceInputs<'_, '_> {
         context: &mut OperatorContext<'_>,
         output: &mut dyn crate::domain::operating::types::Emit,
     ) -> Result<(), OperatingError> {
-        let rows = self
-            .owner
-            .resolve(input.publication(&self.owner)?.as_ref(), self.read)?;
+        let rows = input.rows(&self.owner, self.read)?;
         scan(&rows, &mut Vec::new(), context, output)
     }
 }
@@ -379,7 +399,7 @@ pub(super) fn table_of<'facts>(
     input: &AdmittedInput,
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> Result<Table, OperatingError> {
-    let rows = owner.resolve(input.publication(owner)?.as_ref(), read)?;
+    let rows = input.rows(owner, read)?;
     let mut table = Table::default();
     materialize(&rows, &mut table, &mut Vec::new());
     Ok(table)

@@ -23,9 +23,9 @@ mod external;
 mod handle;
 pub(crate) use handle::{PublishedInput, RetainedPublication};
 mod identity;
-mod produced;
 mod selected_access;
-pub(super) use {admission::AdmittedInput, produced::ProducedSelection};
+use super::program::selection::{ProducedSelection, SelectionParts};
+pub(super) use admission::AdmittedInput;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct SourceDescriptor {
@@ -266,12 +266,12 @@ impl RelationOwner {
         &self,
         produced: ProducedSelection,
     ) -> Result<PublishedInput, OperatingError> {
-        let ProducedSelection {
+        let SelectionParts {
             source,
             selection,
             resources,
             ..
-        } = produced;
+        } = produced.into_parts();
         self.generation(&source)?;
         self.publication_with_resources(
             Arc::new(RelationResult {
@@ -291,14 +291,6 @@ impl RelationOwner {
     }
     pub(super) fn stable(&self) -> bool {
         self.stable
-    }
-    pub(super) fn produce_selection<'f>(
-        &self,
-        program: &Arc<crate::domain::stored_selection::types::Selector>,
-        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        context: &mut crate::domain::operating::types::OperatorContext<'_>,
-    ) -> Result<Option<ProducedSelection>, OperatingError> {
-        produced::select(self, program, read, context)
     }
     /// Explicitly ends the immutable resident-population lease before release or refill.
     pub(super) fn release_population(&self) {

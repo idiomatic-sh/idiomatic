@@ -188,15 +188,15 @@ impl DerivedOwner {
         program: &Arc<Selector>,
     ) -> Result<Option<Arc<DerivedContract>>, OperatingError> {
         let backend = self.backend.borrow();
-        let Some(backend) = backend.as_ref() else {
-            return Ok(None);
-        };
-        let Some(plans) = backend.selection_views.as_ref() else {
-            return Ok(None);
-        };
-        let Some(views) = plans.by_selector.get(&(Arc::as_ptr(program) as usize)) else {
-            return Ok(None);
-        };
+        let backend = backend.as_ref().ok_or(OperatingError::NotRun)?;
+        let plans = backend
+            .selection_views
+            .as_ref()
+            .ok_or(OperatingError::NotRun)?;
+        let views = plans
+            .by_selector
+            .get(&(Arc::as_ptr(program) as usize))
+            .ok_or(OperatingError::NotRun)?;
         if backend.selector_repetition_failed {
             return Ok(None);
         }

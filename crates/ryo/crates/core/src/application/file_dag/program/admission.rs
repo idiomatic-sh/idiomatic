@@ -84,6 +84,13 @@ pub(super) trait Inputs {
         inputs: &[AdmittedInput],
         rows: ryo_values::domain::rows::types::Table,
     ) -> Result<AdmittedInput, OperatingError>;
+    fn publish_selected(
+        &mut self,
+        root: ProducerRoot,
+        partition: &Partition,
+        inputs: &[AdmittedInput],
+        produced: super::selection::ProducedSelection,
+    ) -> Result<AdmittedInput, OperatingError>;
     fn publish_empty(
         &mut self,
         root: ProducerRoot,
@@ -99,6 +106,24 @@ pub(super) trait Inputs {
     ) -> Result<(), OperatingError>;
 }
 impl AdmittedInput {
+    /// Every admitted consumer uses the same physical-layout contract. A readable
+    /// malformed provider is normalized once by its owner; complete native and
+    /// compact populations remain borrowed in their original representation.
+    pub(super) fn rows<'a, 'facts>(
+        &'a self,
+        owner: &'a Rc<RelationOwner>,
+        read: &dyn Fn(
+            ryo_relations::domain::relations::types::Relation,
+        )
+            -> Result<crate::domain::table_model::types::Rows<'facts>, OperatingError>,
+    ) -> Result<crate::domain::table_model::types::Rows<'a>, OperatingError>
+    where
+        'facts: 'a,
+    {
+        let publication = self.publication(owner)?;
+        let rows = owner.resolve(publication.as_ref(), read)?;
+        owner.normalize(publication, rows)
+    }
     pub(super) fn observation_ready(&self) -> Result<bool, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(true),
@@ -440,6 +465,28 @@ impl<'scope> KernelPermit<'scope> {
             active,
             work,
         })
+    }
+    pub(super) fn validate_selection(
+        &self,
+        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+        source: &AdmittedInput,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        let region = &self.program.regions()[self.region.0];
+        let declared = region
+            .selection
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)?;
+        if shape.target() != self.region
+            || shape.logical() != region.instructions[self.instruction].logical
+            || !Arc::ptr_eq(shape.selector(), declared.selector())
+            || !Arc::ptr_eq(&source.proof.generation, self.generation)
+            || source.root != ProducerRoot::Input(InputSource::Relation(shape.selector().relation))
+        {
+            return Err(OperatingError::NotRead);
+        }
+        source.publication(&source.proof.owner)?;
+        Ok(())
     }
     pub(super) fn collected_kinds(
         &self,

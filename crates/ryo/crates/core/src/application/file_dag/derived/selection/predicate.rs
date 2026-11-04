@@ -117,6 +117,10 @@ fn build_matches(
         },
     );
     let visited = decision.visits;
+    cache.selection_counts.predicate_rows = cache
+        .selection_counts
+        .predicate_rows
+        .saturating_add(visited);
     if !indexed {
         cache.selection_counts.scanned = cache.selection_counts.scanned.saturating_add(visited);
     }

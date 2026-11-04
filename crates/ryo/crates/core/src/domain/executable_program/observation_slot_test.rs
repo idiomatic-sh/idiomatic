@@ -91,7 +91,12 @@ fn plan(source: Input) -> Plan {
         frontier: vec![],
     }
 }
-fn fixture(invalid_frontier: bool) -> (Vec<Plan>, RequestGraph) {
+struct Fixture {
+    plans: Vec<Plan>,
+    graph: RequestGraph,
+    operators: RequestOperators,
+}
+fn fixture(invalid_frontier: bool) -> Fixture {
     let mut producers = [
         plan(Input::Relation(Relation::LanguageTarget)),
         plan(Input::Relation(Relation::CompilerFeature)),
@@ -161,11 +166,19 @@ fn fixture(invalid_frontier: bool) -> (Vec<Plan>, RequestGraph) {
             bindings: &bindings,
         },
     );
-    (plans, graph)
+    Fixture {
+        plans,
+        graph,
+        operators,
+    }
 }
 #[test]
 fn two_local_zero_inputs_keep_their_distinct_request_producers() {
-    let (plans, graph) = fixture(false);
+    let Fixture {
+        plans,
+        graph,
+        operators,
+    } = fixture(false);
     let metadata = graph.observations.as_ref().unwrap();
     assert_eq!(metadata.slots.len(), 2);
     assert_eq!(metadata.slots[0].rule, 2);
@@ -184,7 +197,7 @@ fn two_local_zero_inputs_keep_their_distinct_request_producers() {
             output: ObservationIndex(0)
         }
     );
-    let program = compile(&plans, graph, &DeclaredFileProducers).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     assert_eq!(
         program.rules[2].frontier[0],
         Ok(InputSource::Observation(0))
@@ -196,8 +209,12 @@ fn two_local_zero_inputs_keep_their_distinct_request_producers() {
 }
 #[test]
 fn undeclared_frontier_ordinal_is_a_typed_refusal() {
-    let (plans, graph) = fixture(true);
-    let program = compile(&plans, graph, &DeclaredFileProducers).unwrap();
+    let Fixture {
+        plans,
+        graph,
+        operators,
+    } = fixture(true);
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     assert!(matches!(
         &program.rules[2].frontier[0],
         Err(OperatingError::ObservationIncomplete { .. })
@@ -210,9 +227,13 @@ fn undeclared_frontier_ordinal_is_a_typed_refusal() {
 
 #[test]
 fn declared_local_input_without_its_qualified_slot_is_a_typed_refusal() {
-    let (plans, mut graph) = fixture(false);
+    let Fixture {
+        plans,
+        mut graph,
+        operators,
+    } = fixture(false);
     graph.observations.as_mut().unwrap().slots[0].rule = 99;
-    let program = compile(&plans, graph, &DeclaredFileProducers).unwrap();
+    let program = compile(&plans, graph, &DeclaredFileProducers, &operators).unwrap();
     assert!(matches!(
         &program.rules[2].frontier[0],
         Err(OperatingError::ObservationIncomplete { .. })

@@ -9,7 +9,6 @@ use crate::domain::{
         errors::OperatingError,
         types::{Emit, OperatorContext},
     },
-    table_scratch::types::OperatorScratch,
 };
 use ryo_relations::domain::relations::types::Value;
 use std::{cell::RefCell, sync::Arc};
@@ -25,8 +24,6 @@ pub(super) enum InvocationFailure {
 /// No held inputs/publication or dependency accounting at internal instructions.
 #[derive(Default)]
 pub(super) struct KernelScratch {
-    pub scratch: OperatorScratch,
-    pub memo: Vec<crate::domain::operating::types::Memo>,
     pub workspace: Option<super::super::workspace::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::contract::types::OrderedExistenceScratch,
@@ -56,6 +53,14 @@ pub(super) trait KernelInvocation {
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
     ) -> Result<StrategyOutcome, InvocationFailure>;
+    fn selected(
+        &self,
+        shape: &crate::domain::executable_program::selection::SelectionAlternative,
+        permit: &super::admission::KernelPermit<'_>,
+        input: &AdmittedInput,
+        context: &mut OperatorContext<'_>,
+        scratch: &mut KernelScratch,
+    ) -> Result<Option<super::selection::ProducedSelection>, InvocationFailure>;
     fn column(
         &self,
         shape: &crate::domain::executable_program::column::ColumnAlternative,
@@ -138,9 +143,7 @@ impl ProgramExecution {
             .iter()
             .map(|region| Slot {
                 state: State::Dormant,
-                scratch: (0..region.instructions.len())
-                    .map(|_| KernelScratch::default())
-                    .collect(),
+                scratch: Vec::new(),
                 fed: vec![
                     crate::domain::operator::types::RowsFed::default();
                     region.instructions.len()
@@ -395,6 +398,10 @@ impl ProgramExecution {
                 State::Dormant => {}
             }
             slot.state = State::Running;
+            if slot.scratch.is_empty() {
+                slot.scratch
+                    .resize_with(region.instructions.len(), KernelScratch::default);
+            }
             std::mem::take(&mut slot.scratch)
         };
         let mut cleanup = Invocation {
@@ -701,6 +708,26 @@ impl ProgramExecution {
                 .instructions
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
+            if let (Some(shape), Delivery::Retain) = (&region.selection, &delivery) {
+                let input = admitted.first().ok_or(InvocationFailure::Semantic(
+                    OperatingError::MissingInput { position: 1 },
+                ))?;
+                let frame = frames
+                    .first_mut()
+                    .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
+                if let Some(produced) = kernels.selected(shape, &permit, input, context, frame)? {
+                    let publication = inputs
+                        .publish_selected(
+                            super::admission::ProducerRoot::Region(id),
+                            &self.partition,
+                            &admitted,
+                            produced,
+                        )
+                        .map_err(InvocationFailure::Semantic)?
+                        .with_coverage(completion.coverage(needs));
+                    return Ok(InvocationOutcome::Published(publication));
+                }
+            }
             match delivery {
                 Delivery::Forward(output) if !region.publishes && !completion.requires_buffer() => {
                     let mut output = GuardedOutput {

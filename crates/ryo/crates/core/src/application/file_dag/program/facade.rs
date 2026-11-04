@@ -529,6 +529,7 @@ pub(crate) fn prepare(
         &plans,
         graph,
         &partitions,
+        &operators,
     )?);
     let derived = super::super::derived::prepared::PreparedDerived::compile(&program, &operators)?;
     let mut metadata = Vec::with_capacity(plans.len());

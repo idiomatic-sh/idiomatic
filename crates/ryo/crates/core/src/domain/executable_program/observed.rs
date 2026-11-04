@@ -65,6 +65,7 @@ pub(super) fn compile_unions(
                         dependencies: Box::new([]),
                         ordered_existence: None,
                         column: None,
+                        selection: None,
                         publishes: true,
                         instructions: vec![Instruction {
                             logical,

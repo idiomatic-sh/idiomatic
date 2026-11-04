@@ -8,3 +8,5 @@ mod observed;
 pub(crate) mod physical;
 
 pub(crate) mod column;
+
+pub(crate) mod selection;
