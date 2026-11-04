@@ -166,8 +166,10 @@ pub(crate) fn lower_select(
     Ok(())
 }
 
-/// The rows of `input` that one of the alternatives holds for: a filter for each, and the union of them after the first,
-/// which keeps each row once. The last step is given `name`, when it has one.
+/// The rows of `input` that one of the alternatives holds for: a filter for each,
+/// then a balanced union of the alternatives. Union keeps each row once, so
+/// regrouping contiguous alternatives preserves the relation while bounding
+/// the depth of a demanded plan. The final step is given `name`, when it has one.
 fn filtered_by(
     builder: &mut Builder<'_>,
     name: Option<&syntax::StepName>,
@@ -176,34 +178,44 @@ fn filtered_by(
     fields: &[PlannedColumn],
 ) -> parts::Input {
     let count = alternatives.len();
-    let mut united = input;
-    for (place, comparisons) in alternatives.into_iter().enumerate() {
-        let last = place + 1 == count;
-        let alternative = parts::Input::Step(pushed(
-            builder,
-            name.filter(|_| last && count == 1),
-            plans::Operation::Select {
-                from: input,
-                comparisons,
-                kept: Vec::new(),
-            },
-            fields.to_vec(),
-        ));
-        united = if place == 0 {
-            alternative
-        } else {
+    let mut level = alternatives
+        .into_iter()
+        .map(|comparisons| {
             parts::Input::Step(pushed(
                 builder,
-                name.filter(|_| last),
-                plans::Operation::Union {
-                    left: united,
-                    right: alternative,
+                name.filter(|_| count == 1),
+                plans::Operation::Select {
+                    from: input,
+                    comparisons,
+                    kept: Vec::new(),
                 },
                 fields.to_vec(),
             ))
-        };
+        })
+        .collect::<Vec<_>>();
+    if level.is_empty() {
+        return input;
     }
-    united
+    while level.len() > 1 {
+        let last = level.len() == 2;
+        level = level
+            .chunks(2)
+            .map(|pair| match pair {
+                [left, right] => parts::Input::Step(pushed(
+                    builder,
+                    name.filter(|_| last),
+                    plans::Operation::Union {
+                        left: *left,
+                        right: *right,
+                    },
+                    fields.to_vec(),
+                )),
+                [single] => *single,
+                [] | [_, _, ..] => unreachable!("chunks of two"),
+            })
+            .collect();
+    }
+    level[0]
 }
 
 /// The comparisons of each alternative of a `where`, resolved over `columns`.

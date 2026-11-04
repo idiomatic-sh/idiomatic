@@ -172,3 +172,56 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
+    let tests = (0..195)
+        .map(|number| format!("name = \"alternative_{number}\""))
+        .collect::<Vec<_>>();
+    let query = format!(
+        "let found = select * from \"function\" where {}; emit found subject file key(id);",
+        tests.join(" or ")
+    );
+    let program = winnow().read(QueryView(&query)).expect("readable OR query");
+    let mut builder = Builder {
+        catalog: CATALOG,
+        hosted_steps: Vec::new(),
+        parameters: &program.parameters,
+        kinds: Vec::new(),
+        steps: Vec::new(),
+        lowered: Vec::new(),
+        span: program.emit.span,
+        origin: None,
+        comparison_origins: Vec::new(),
+    };
+    for step in &program.steps {
+        if let Expression::Select(select) = &step.expression {
+            builder.span = step.span;
+            lower_select(&mut builder, &step.name, select).expect("lowered OR query");
+        }
+    }
+    let mut depths = Vec::new();
+    let mut selects = 0;
+    let mut unions = 0;
+    for step in &builder.steps {
+        let depth = match &step.operation {
+            Operation::Select { .. } => {
+                selects += 1;
+                0
+            }
+            Operation::Union { left, right } => {
+                unions += 1;
+                let depth_of = |input: &ryo_values::domain::plan_parts::types::Input| match input {
+                    ryo_values::domain::plan_parts::types::Input::Step(id) => depths[id.0 as usize],
+                    ryo_values::domain::plan_parts::types::Input::Relation(_) => 0,
+                };
+                1 + depth_of(left).max(depth_of(right))
+            }
+            other => panic!("unexpected operation in OR reduction: {other:?}"),
+        };
+        depths.push(depth);
+    }
+    assert_eq!(selects, 195);
+    assert_eq!(unions, 194);
+    assert!(depths.last().copied().unwrap_or_default() <= 8);
+}

@@ -161,7 +161,10 @@ pub(crate) fn memberships(
             )
         })
         .collect();
-    // A supplied child without its observed parent cannot prove a project path.
+    // A supplied child without a known parent cannot prove a project path. A
+    // module file and a directory of the same name can coexist; the physical
+    // child remains observed even though Python's import resolver may choose
+    // the module file. This fact does not decide import resolution.
     for (path, _) in &paths {
         let Some((parent, _)) = path.rsplit_once('.') else {
             continue;
@@ -171,7 +174,7 @@ pub(crate) fn memberships(
             Some(EntryKind::Module | EntryKind::Package | EntryKind::Namespace)
         ) && !matches!(
             classified.get(parent),
-            Some(EntryKind::Package | EntryKind::Namespace)
+            Some(EntryKind::Module | EntryKind::Package | EntryKind::Namespace)
         ) {
             classified.insert(path.clone(), EntryKind::Unknown);
         }

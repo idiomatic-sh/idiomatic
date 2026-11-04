@@ -242,7 +242,7 @@ def check_standard_suppression(profile: Path, selected_rules: list[str], policie
     if not scoped:
         return
     registry = profile_sources.profile_modules(tomllib.loads(profile.read_text(encoding='utf-8')))
-    variants = {'standard-module': 'suppress', 'unmapped-module': 'suppress-unmapped', 'additional-lines-module': 'suppress-with-additional-lines'}
+    variants = {'standard-module': 'suppress', 'unmapped-module': 'suppress-unmapped', 'additional-lines-module': 'suppress-with-additional-lines', 'explicit-edges-module': 'suppression-edges'}
     for rule in sorted(scoped):
         if policies[rule] not in variants:
             raise ValueError(f'unreviewed suppression policy for {rule}')
@@ -266,24 +266,30 @@ def check_standard_suppression(profile: Path, selected_rules: list[str], policie
         source = (profile.parent / 'rules' / rule / 'query.ryoql').read_text(encoding='utf-8')
         imports = re.findall('^import\\s+(\\w+)\\s+from\\s+"' + re.escape(logical) + '"\\s*;', source, re.MULTILINE)
         if len(imports) != 1:
-            raise ValueError(f'{rule} requires one standard suppression import')
+            raise ValueError(f'{rule} requires one declared suppression-family import')
         if re.search('^let\\s+(?:mapping_edges|supp_range_comments)\\s*=', source, re.MULTILINE):
             raise ValueError(f'{rule} contains a copied suppression implementation')
         bindings = dict(re.findall('^let\\s+(\\w+)\\s*=\\s*(.*);\\s*$', source, re.MULTILINE))
-        pending = re.findall('^emit\\s+(\\w+)\\s+subject\\b', source, re.MULTILINE)
-        visited = set()
-        used = False
-        while pending:
-            name = pending.pop()
-            if name in visited or name not in bindings:
-                continue
-            visited.add(name)
-            expression = re.sub('"(?:\\\\.|[^"\\\\])*"', '""', bindings[name])
-            if re.search('\\b' + re.escape(imports[0]) + '\\s*\\(', expression):
-                used = True
-            pending.extend(set(re.findall('\\b\\w+\\b', expression)) & bindings.keys())
-        if not used:
-            raise ValueError(f'{rule} does not emit a result depending on standard suppression')
+        def depends_on_family(roots: list[str]) -> bool:
+            pending = list(roots)
+            visited = set()
+            while pending:
+                name = pending.pop()
+                if name in visited or name not in bindings:
+                    continue
+                visited.add(name)
+                expression = re.sub('"(?:\\\\.|[^"\\\\])*"', '""', bindings[name])
+                if re.search('\\b' + re.escape(imports[0]) + '\\s*\\(', expression):
+                    return True
+                pending.extend(set(re.findall('\\b\\w+\\b', expression)) & bindings.keys())
+            return False
+        emitted = re.findall(r'^emit\s+(\w+)\s+subject\b', source, re.MULTILINE)
+        if not depends_on_family(emitted):
+            raise ValueError(f'{rule} does not emit a result depending on declared suppression')
+        if policies[rule] == 'explicit-edges-module':
+            observed = re.findall(r'^observe\s+(\w+)\s+as\s+\w+\s*;', source, re.MULTILINE)
+            if not observed or not all(depends_on_family([root]) for root in observed):
+                raise ValueError(f'{rule} does not publish named outputs depending on declared suppression matches')
 
 def native_descriptor_json(text: str) -> dict[str, object]:
     """An explicit execution contract must not lose duplicate JSON declarations."""

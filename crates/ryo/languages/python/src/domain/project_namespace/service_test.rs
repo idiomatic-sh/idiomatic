@@ -121,6 +121,33 @@ fn namespace_root_stays_present_while_dotted_children_are_observed_separately() 
 }
 
 #[test]
+fn module_file_and_directory_collision_preserves_both_observed_prefixes() {
+    let imported = [dotted(0, "acme.billing"), dotted(0, "acme.unknown")];
+    let search = [path("src")];
+    let observe = |candidate: &FilePath, file: bool| match (candidate.0.as_ref(), file) {
+        ("src/acme.py", true) | ("src/acme/billing/__init__.py", true) => Some(true),
+        ("src/acme", false) | ("src/acme/billing", false) => Some(true),
+        ("src/acme/unknown", false) => None,
+        _ => Some(false),
+    };
+    let rows = memberships(Some(&search), &imported, Vec::new(), observe).rows;
+    let kind = |path: &str| {
+        rows.iter()
+            .find(|row| row.path.as_ref() == path)
+            .map(|row| row.kind)
+    };
+    assert_eq!(kind("acme"), Some(EntryKind::Module));
+    assert_eq!(kind("acme.billing"), Some(EntryKind::Package));
+    assert_eq!(kind("acme.unknown"), Some(EntryKind::Unknown));
+    assert_eq!(
+        rows.iter()
+            .filter(|row| row.path.as_ref() == "acme")
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn dotted_child_add_delete_type_change_and_partial_observation_change_its_kind() {
     let imported = [dotted(0, "acme.billing")];
     let search = [path("src")];

@@ -1805,3 +1805,21 @@ requested-files = ["input.py"]
 given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme", state = "directory" }, { path = "src/acme/__init__.py", state = "file" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
 files = { "input.py" = "import numpy\n\nimport acme.billing\n", "src/acme/__init__.py" = "", "src/acme/billing/__init__.py" = "" }
 expected = []
+
+[[cases]]
+name = "review-n3-module-directory-collision-first"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme.py", state = "file" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import acme.billing\nimport numpy\n", "src/acme.py" = "", "src/acme/billing/__init__.py" = "" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 32 }]
+
+[[cases]]
+name = "review-n3-module-directory-collision-second"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "src", state = "directory" }, { path = "src/acme.py", state = "file" }, { path = "src/acme", state = "directory" }, { path = "src/acme/billing", state = "directory" }, { path = "src/acme/billing/__init__.py", state = "file" }] }
+files = { "input.py" = "import numpy\n\nimport acme.billing\n", "src/acme.py" = "", "src/acme/billing/__init__.py" = "" }
+expected = []

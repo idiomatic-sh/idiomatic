@@ -146,8 +146,17 @@ impl InvocationWorkspace {
         self.origins.clear();
         for at in 0..count {
             let which = crate::domain::operating::types::InputPlace(at);
-            self.origins.push(feed.origin(which)?);
-            self.publications.push(feed.publication(which)?);
+            let origin = feed.origin(which)?;
+            if feed.streams(which) == crate::domain::operating::types::Supply::Streamed {
+                self.origins.push(match origin {
+                    super::feed::InputOrigin::Internal => super::feed::InputOrigin::InternalStream,
+                    other => other,
+                });
+                self.publications.push(None);
+            } else {
+                self.origins.push(origin);
+                self.publications.push(feed.publication(which)?);
+            }
         }
         Ok(())
     }
@@ -354,6 +363,7 @@ impl InvocationWorkspace {
         {
             super::feed::InputOrigin::Relation(relation) => owner.admit_relation(relation, rows),
             super::feed::InputOrigin::External => owner.admit_external(rows),
+            super::feed::InputOrigin::InternalStream => owner.admit_external(rows),
             super::feed::InputOrigin::Internal => Err(OperatingError::NotRun),
         }
     }

@@ -10,10 +10,150 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FactColumn, FileId, Integer},
 };
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId},
+    plan_parts::types::{ColumnIndex, Input, JoinColumn, RepeatedRows, Side, StepId},
     plans::types::{Emit as PlanEmit, Operation, Plan, PlanStep, StepScope},
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[test]
+fn streamed_count_left_and_held_count_right_join_under_one_owner() {
+    fn plan(reverse: bool) -> Plan {
+        let relation = Relation::LanguageTarget;
+        let counted = Input::Step(StepId(2));
+        let source = Input::Relation(relation);
+        Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
+            parameters: Vec::new(),
+            steps: vec![
+                PlanStep {
+                    scope: StepScope::PerFile,
+                    operation: Operation::Select {
+                        from: source,
+                        comparisons: Vec::new(),
+                        kept: Vec::new(),
+                    },
+                },
+                PlanStep {
+                    scope: StepScope::PerFile,
+                    operation: Operation::GroupCount {
+                        from: Input::Step(StepId(0)),
+                        keys: vec![ColumnIndex(0)],
+                        distinct: None,
+                    },
+                },
+                PlanStep {
+                    scope: StepScope::PerFile,
+                    operation: Operation::Select {
+                        from: Input::Step(StepId(1)),
+                        comparisons: Vec::new(),
+                        kept: Vec::new(),
+                    },
+                },
+                PlanStep {
+                    scope: StepScope::PerFile,
+                    operation: Operation::Join {
+                        left: if reverse { source } else { counted },
+                        right: if reverse { counted } else { source },
+                        left_on: vec![ColumnIndex(0)],
+                        right_on: vec![ColumnIndex(0)],
+                        output: vec![JoinColumn {
+                            side: Side::Left,
+                            column: ColumnIndex(0),
+                        }],
+                        filter: Vec::new(),
+                        view: Vec::new(),
+                        reach: None,
+                    },
+                },
+            ],
+            emit: PlanEmit {
+                step: StepId(3),
+                subject: ColumnIndex(0),
+                key: Vec::new(),
+                headings: Vec::new(),
+            },
+            frontier: Vec::new(),
+            comparison_origins: Vec::new(),
+        }
+    }
+
+    let relation = Relation::LanguageTarget;
+    let columns = [
+        FactColumn(vec![
+            to_bits(Value::File(FileId(1))).0,
+            to_bits(Value::File(FileId(2))).0,
+        ]),
+        FactColumn(vec![
+            to_bits(Value::Number(Integer(3))).0,
+            to_bits(Value::Number(Integer(5))).0,
+        ]),
+        FactColumn(vec![
+            to_bits(Value::Number(Integer(7))).0,
+            to_bits(Value::Number(Integer(9))).0,
+        ]),
+    ];
+    let read = |asked| {
+        if asked == relation {
+            Ok(Rows::Stored(ColumnsView {
+                kinds: ryo_relations::domain::relations::service::kinds(relation),
+                columns: &columns,
+            }))
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    };
+    let engine = super::super::execution::CommonOperatorEngine::fixture();
+    for reverse in [false, true] {
+        let plan = plan(reverse);
+        let operators =
+            crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
+                &[plan.clone()],
+                &[vec![]],
+                &[],
+                &ryo_relations::domain::relations::service::kinds,
+                crate::outbound::derived::factory::test_port(),
+            )
+            .unwrap();
+        let graph = Arc::new(crate::domain::file_program::service::compile_prepared(
+            &[plan],
+            &operators,
+        ));
+        let root = graph.boundaries[0].last().unwrap().1;
+        assert_eq!(
+            graph.nodes[root.0].input_supply[0] == Supply::Streamed,
+            !reverse
+        );
+        let fixture =
+            super::super::testing::FileScope::new(graph, &engine, |_| true, &[relation], &[])
+                .unwrap();
+        let mut symbols = Symbols::default();
+        let mut scratch = OperatorScratch::default();
+        let mut memo = Vec::new();
+        let mut context = OperatorContext {
+            semantic: None,
+            prepared_matchers: None,
+            prepared_kinds: None,
+            bindings: &[],
+            symbols: (&mut symbols).into(),
+            source: SourceView(&[]),
+            paths: &[],
+            arenas: &[],
+            memo: &mut memo,
+            scratch: &mut scratch,
+        };
+        let dag = &fixture.execution;
+        dag.begin_rule(0).unwrap();
+        let published = dag
+            .demand(root, &read, fixture.scope.executor(), &mut context)
+            .unwrap();
+        let rows = dag
+            .relation_owner()
+            .resolve(published.as_ref(), &read)
+            .unwrap();
+        assert_eq!(crate::domain::table_model::service::count_of(&rows).0, 2);
+    }
+}
 
 #[derive(Debug)]
 struct CountingExecutor {

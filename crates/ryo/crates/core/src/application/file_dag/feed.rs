@@ -12,6 +12,9 @@ pub(crate) enum InputOrigin {
     External,
     Relation(ryo_relations::domain::relations::types::Relation),
     Internal,
+    /// Rows arrive through a declared graph stream. No retained publication
+    /// exists at capture time; admission is scoped to each delivered row.
+    InternalStream,
 }
 pub(crate) trait Feed<'f> {
     fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner>;

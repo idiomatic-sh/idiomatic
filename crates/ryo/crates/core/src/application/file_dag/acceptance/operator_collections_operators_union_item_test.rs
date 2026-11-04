@@ -48,6 +48,14 @@ fn compute(
     inputs: &[&Table],
     bindings: &[ParameterBinding],
 ) -> Result<Value, OperatingError> {
+    compute_table(operation, inputs, bindings).map(|out| out.count.0)
+}
+
+fn compute_table(
+    operation: &Operation,
+    inputs: &[&Table],
+    bindings: &[ParameterBinding],
+) -> Result<Table, OperatingError> {
     let mut symbols = Symbols::default();
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
@@ -63,9 +71,28 @@ fn compute(
         memo: &mut Vec::new(),
         scratch: &mut OperatorScratch::default(),
     };
-    UnionItem
-        .compute(operation, &rows, &mut context, &mut out)
-        .map(|()| out.count.0)
+    UnionItem.compute(operation, &rows, &mut context, &mut out)?;
+    Ok(out)
+}
+
+fn repeated_alternatives_keep_one_finding_in_both_associations() -> Result<Value, OperatingError> {
+    let union = Operation::Union {
+        left: FROM,
+        right: FROM,
+    };
+    let a = numbers(&[&[1], &[2]]);
+    let b = numbers(&[&[1], &[2]]);
+    let c = numbers(&[&[2], &[3]]);
+    let d = numbers(&[&[1], &[3]]);
+    let ab = compute_table(&union, &[&a, &b], &[])?;
+    let cd = compute_table(&union, &[&c, &d], &[])?;
+    let balanced = compute_table(&union, &[&ab, &cd], &[])?;
+    let abc = compute_table(&union, &[&ab, &c], &[])?;
+    let left_deep = compute_table(&union, &[&abc, &d], &[])?;
+    assert_eq!(balanced.count, left_deep.count);
+    assert_eq!(balanced.cells, left_deep.cells);
+    assert_eq!(balanced.cells, numbers(&[&[1], &[2], &[3]]).cells);
+    Ok(balanced.count.0)
 }
 
 fn two_inputs() -> Result<Value, OperatingError> {
@@ -102,6 +129,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("rows_are_combined_as_the_operator_says"),
         word: Word::Succeeds,
         input: || two_inputs,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("repeated_or_alternatives_are_one_finding_in_balanced_or_left_deep_order"),
+        word: Word::Succeeds,
+        input: || repeated_alternatives_keep_one_finding_in_both_associations,
         expect: Expect::Value(3),
     },
     Case {

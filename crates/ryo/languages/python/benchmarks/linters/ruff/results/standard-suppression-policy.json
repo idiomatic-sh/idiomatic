@@ -56,7 +56,7 @@
     "EXE005": "standard-module",
     "F404": "standard-module",
     "F407": "standard-module",
-    "F541": "standard-module",
+    "F541": "explicit-edges-module",
     "F601": "standard-module",
     "F602": "standard-module",
     "F622": "standard-module",

@@ -197,6 +197,21 @@ def self_test_standard_suppression() -> None:
             else:
                 raise AssertionError('wrong mapped/unmapped suppression import was accepted')
         profile_proofs.check_standard_suppression(profile, ['UNMAPPED001'], policies)
+        # The explicit matching family must feed both diagnostic filtering and named publication.
+        profile.write_text('[query-modules]\n"python/ruff/suppression-edges" = "fragments/suppression-edges.ryoql"\n', encoding='utf-8')
+        (module.parent / 'suppression-edges.ryoql').write_text('return candidates;\n', encoding='utf-8')
+        explicit = 'import matching from "python/ruff/suppression-edges";\nlet matched = matching(candidates=candidate_locations);\nlet visible = antijoin(left=candidate_locations, right=matched, left-on=[id], right-on=[id]);\n'
+        publication = 'let published = select directive, file from matched;\nobserve published as used;\n'
+        emission = 'emit visible subject file key(id);\n'
+        query.write_text(explicit + publication + emission, encoding='utf-8')
+        profile_proofs.check_standard_suppression(profile, ['GUARD001'], {'GUARD001': 'explicit-edges-module'})
+        for source in (explicit + emission, explicit + 'observe candidate_locations as used;\n' + emission, explicit + publication + 'emit candidate_locations subject file key(id);\n'):
+            query.write_text(source, encoding='utf-8')
+            try:
+                profile_proofs.check_standard_suppression(profile, ['GUARD001'], {'GUARD001': 'explicit-edges-module'})
+            except ValueError:
+                continue
+            raise AssertionError('explicit matching family lost its Emit or named-output dependency')
     valid_report = {'execution_metadata': {'availability': 'complete'}, 'diagnostics': [], 'skipped': [], 'files': ['case.py'], 'coverage': {'selected': 1, 'evaluated': 1, 'skipped': 0, 'unknown_or_unread': 0}}
     case_records.complete_run_ryo_report(0, json.dumps(valid_report), '', ['case.py'], ['GUARD001'])
     phases = json.loads(profile_config.RULE_PHASES_FILE.read_text(encoding='utf-8'))
@@ -218,6 +233,7 @@ def self_test_standard_suppression() -> None:
             except (ValueError, json.JSONDecodeError):
                 continue
             raise AssertionError('incomplete direct worker report was accepted')
+
 
 def reference_discrepancy_self_test() -> None:
     """Two concrete independent-language fixtures exercise admission, not diagnostic ignores."""

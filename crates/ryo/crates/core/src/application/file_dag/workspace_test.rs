@@ -15,6 +15,87 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::{rc::Rc, sync::Arc};
+
+#[test]
+fn streamed_internal_capture_never_demands_a_retained_publication() {
+    use crate::application::file_dag::feed::{Feed, InputOrigin};
+    use crate::domain::operating::types::{Emit, InputPlace, Supply};
+    use std::cell::Cell;
+
+    struct Streamed {
+        owner: Rc<crate::application::file_dag::relations::RelationOwner>,
+        publication_calls: Cell<usize>,
+        supply: Supply,
+    }
+    impl<'f> Feed<'f> for Streamed {
+        fn relation_owner(&self) -> Rc<crate::application::file_dag::relations::RelationOwner> {
+            Rc::clone(&self.owner)
+        }
+        fn origin(&self, _: InputPlace) -> Result<InputOrigin, OperatingError> {
+            Ok(InputOrigin::Internal)
+        }
+        fn publication(
+            &self,
+            _: InputPlace,
+        ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
+        {
+            self.publication_calls.set(self.publication_calls.get() + 1);
+            Err(OperatingError::NotRun)
+        }
+        fn kinds(&self, _: InputPlace) -> Result<&[CellKind], OperatingError> {
+            Ok(&[CellKind::Number])
+        }
+        fn streams(&self, _: InputPlace) -> Supply {
+            self.supply
+        }
+        fn stream(
+            &mut self,
+            _: InputPlace,
+            _: &mut OperatorContext<'_>,
+            _: &mut dyn Emit,
+        ) -> Result<(), OperatingError> {
+            panic!("capture must not consume the stream")
+        }
+        fn found(&mut self, _: InputPlace, _: RowCount) {}
+        fn hold<'t>(
+            &mut self,
+            _: InputPlace,
+            _: &mut OperatorContext<'_>,
+            _: &'t mut Table,
+        ) -> Result<Rows<'t>, OperatingError>
+        where
+            'f: 't,
+        {
+            panic!("capture must not hold the stream")
+        }
+    }
+
+    let scope = file_scope();
+    let owner = Rc::clone(scope.scope.owner());
+    let feed = Streamed {
+        owner: Rc::clone(&owner),
+        publication_calls: Cell::new(0),
+        supply: Supply::Streamed,
+    };
+    let mut workspace = InvocationWorkspace::new(owner);
+    workspace.capture(&feed, 1).unwrap();
+    assert_eq!(feed.publication_calls.get(), 0);
+    assert!(matches!(workspace.origins[0], InputOrigin::InternalStream));
+    assert!(workspace.publications[0].is_none());
+    let row = table(&[7], 1);
+    assert!(workspace.admit(0, BorrowedRows::Computed(&row)).is_ok());
+
+    let held = Streamed {
+        owner: Rc::clone(&feed.owner),
+        publication_calls: Cell::new(0),
+        supply: Supply::AtHand,
+    };
+    assert!(matches!(
+        workspace.capture(&held, 1),
+        Err(OperatingError::NotRun)
+    ));
+    assert_eq!(held.publication_calls.get(), 1);
+}
 fn table(values: &[i64], width: usize) -> Table {
     Table {
         kinds: vec![CellKind::Number; width],
