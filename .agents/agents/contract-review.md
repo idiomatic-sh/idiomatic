@@ -29,6 +29,8 @@ A bounded review never closes wider architecture categories.
 - Keep orchestration thin; enforce shared guarantees in shared contracts.
 - Missing evidence for a claimed guarantee blocks approval.
 ## Architectural enforcement
+- Audit callable execution, publication, cache-acquisition and permit-construction APIs. Require access controls and unforgeable engine-issued capabilities that prevent callers bypassing the owner; compliant current call sites are insufficient.
+- Require compile-fail bypass examples and passing authorized examples; runtime tests must prove admission, sharing, readiness and release. State the exact boundary proved.
 - For recurring findings, enumerate the class and all instances; require authors to reuse, strengthen, or create TM rules/specs/templates and scaffolds using [nu-hex](../../tastemaker/specs/nu-hex/0.2.0/spec.toml).
 - Require actual enforcement with failing bad and passing good fixtures; missing enforceable guards block architectural closure, not become future TODOs.
 - Require Rust types/privacy for impossible states and behavioral tests where TM cannot prove guarantees; state those limits explicitly.
