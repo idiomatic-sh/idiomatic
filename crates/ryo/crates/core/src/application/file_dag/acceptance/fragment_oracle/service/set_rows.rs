@@ -130,7 +130,7 @@ pub(crate) fn union(
         });
         let result = written_result(answer, driver.failure.take());
         if result.is_ok() {
-            driver.slots.truncate(driver.written.0 * stride.0);
+            driver.slots.0.truncate(driver.written.0 * stride.0);
         }
         result
     });

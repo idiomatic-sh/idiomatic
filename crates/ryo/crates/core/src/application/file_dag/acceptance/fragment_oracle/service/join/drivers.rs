@@ -6,7 +6,7 @@ use crate::domain::lowering::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{NameCount, OperatorContext};
 use crate::domain::positions::service::{row, value};
-use crate::domain::positions::types::{Positions, Slots};
+use crate::domain::positions::types::{FoundPositions, Positions, Slots};
 use crate::domain::table_cells::types::TreeRows;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::walks::service::allows;
@@ -145,7 +145,7 @@ pub(super) struct OracleEdgeDriver<'a, 'f, 'c> {
     pub(super) filter: &'a [Comparison],
     pub(super) cells: &'a mut Vec<Value>,
     pub(super) context: &'a mut OperatorContext<'c>,
-    pub(super) found: &'a Slots,
+    pub(super) found: &'a FoundPositions,
     pub(super) at: RowIndex,
     pub(super) current: Option<RowIndex>,
     pub(super) error: Option<OperatingError>,
