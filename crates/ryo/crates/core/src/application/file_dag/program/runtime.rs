@@ -84,6 +84,7 @@ pub(crate) struct ProgramExecution {
     pub(super) program: Arc<ExecutableProgram>,
     pub(super) owner: std::rc::Rc<super::super::relations::RelationOwner>,
     pub(super) generation: Arc<()>,
+    pub(super) generation_live: Arc<std::sync::atomic::AtomicBool>,
     partition: Partition,
     slots: RefCell<Vec<Slot>>,
 }
@@ -114,10 +115,12 @@ impl ProgramExecution {
             })
             .collect();
         let generation = owner.generation_guard();
+        let generation_live = owner.generation_liveness();
         Self {
             program,
             owner,
             generation,
+            generation_live,
             partition,
             slots: RefCell::new(slots),
         }

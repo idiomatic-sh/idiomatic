@@ -221,7 +221,7 @@ pub(crate) struct KernelPermit<'scope> {
     region: RegionId,
     instruction: usize,
     generation: &'scope Arc<()>,
-    owner: &'scope RelationOwner,
+    live: &'scope Arc<std::sync::atomic::AtomicBool>,
     ordered: bool,
 }
 impl<'scope> KernelPermit<'scope> {
@@ -263,7 +263,7 @@ impl<'scope> KernelPermit<'scope> {
             region,
             instruction: 0,
             generation: &execution.generation,
-            owner: &execution.owner,
+            live: &execution.generation_live,
             ordered: false,
         })
     }
@@ -283,7 +283,7 @@ impl<'scope> KernelPermit<'scope> {
             region,
             instruction: 0,
             generation: &execution.generation,
-            owner: &execution.owner,
+            live: &execution.generation_live,
             ordered: true,
         })
     }
@@ -302,7 +302,7 @@ impl<'scope> KernelPermit<'scope> {
             region: self.region,
             instruction: at,
             generation: self.generation,
-            owner: self.owner,
+            live: self.live,
             ordered: self.ordered,
         })
     }
@@ -311,7 +311,7 @@ impl<'scope> KernelPermit<'scope> {
         binding: &crate::domain::executable_program::physical::PhysicalBinding,
         meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
     ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
-        if !self.owner.matches_generation(self.generation) {
+        if !self.live.load(std::sync::atomic::Ordering::Acquire) {
             return Err(OperatingError::NotRead);
         }
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
@@ -522,7 +522,7 @@ impl PermittedPhysical<'_, '_, '_> {
         ryo_operators::domain::contract::types::OperatorAnswer,
         super::super::executor::KernelFault,
     > {
-        if !self.permit.owner.matches_generation(self.permit.generation) {
+        if !self.permit.live.load(std::sync::atomic::Ordering::Acquire) {
             return Err(super::super::executor::KernelFault::Refused(
                 OperatingError::NotRead,
             ));

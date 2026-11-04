@@ -67,6 +67,7 @@ pub(crate) struct RelationOwner {
     next_population: Cell<usize>,
     producer_populations: RefCell<HashMap<usize, (usize, PopulationId)>>,
     generation: RefCell<Arc<()>>,
+    generation_live: RefCell<Arc<std::sync::atomic::AtomicBool>>,
     stable: bool,
     sources: RefCell<HashMap<Relation, SourceViews>>,
     max_views: usize,
@@ -77,6 +78,11 @@ pub(crate) struct RelationOwner {
 impl RelationOwner {
     pub(in crate::application::file_dag) fn generation_guard(&self) -> Arc<()> {
         Arc::clone(&self.generation.borrow())
+    }
+    pub(in crate::application::file_dag) fn generation_liveness(
+        &self,
+    ) -> Arc<std::sync::atomic::AtomicBool> {
+        Arc::clone(&self.generation_live.borrow())
     }
     pub(in crate::application::file_dag) fn matches_generation(
         &self,
@@ -131,6 +137,7 @@ impl RelationOwner {
             next_population: Cell::new(0),
             producer_populations: RefCell::new(HashMap::new()),
             generation: RefCell::new(Arc::new(())),
+            generation_live: RefCell::new(Arc::new(std::sync::atomic::AtomicBool::new(true))),
             stable,
             sources: RefCell::new(HashMap::new()),
             max_views,
@@ -268,6 +275,10 @@ impl RelationOwner {
         self.producer_populations.borrow_mut().clear();
         self.sources.borrow_mut().clear();
         self.views.set(0);
+        self.generation_live
+            .borrow()
+            .store(false, std::sync::atomic::Ordering::Release);
+        *self.generation_live.borrow_mut() = Arc::new(std::sync::atomic::AtomicBool::new(true));
         *self.generation.borrow_mut() = Arc::new(());
     }
     fn private<'a>(

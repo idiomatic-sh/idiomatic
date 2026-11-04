@@ -153,13 +153,11 @@ impl ValidatedFrontier {
         .map_err(|_| OperatingError::NotRead)?;
         let before = places.len();
         let result = (|| {
-            let table = crate::domain::table_words::service::decode_complete(
-                &self.payload.words.0.0,
-                places,
-            )
-            .map_err(|error| OperatingError::ObservationIncomplete {
-                reason: error.to_string(),
-            })?;
+            let table =
+                crate::domain::table_words::service::decode_complete(&self.payload.words.0, places)
+                    .map_err(|error| OperatingError::ObservationIncomplete {
+                        reason: error.to_string(),
+                    })?;
             if table.kinds.as_slice() != self.kinds.as_ref() {
                 return Err(OperatingError::ShapeMismatch);
             }

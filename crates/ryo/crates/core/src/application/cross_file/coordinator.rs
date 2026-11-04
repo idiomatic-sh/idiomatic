@@ -95,6 +95,7 @@ impl CrossFile {
                             run.domain.files,
                             run.domain.covered,
                             run.domain.skipped,
+                            run.services,
                         )?;
                     let verified = super::frontiers::validate_bucket(
                         &run.program,
@@ -248,6 +249,7 @@ fn prepare_frontiers(
         run.domain.files,
         run.domain.covered,
         run.domain.skipped,
+        run.services,
     )
     .map_err(|error| failed(&error))?;
     super::frontiers::prepare(
