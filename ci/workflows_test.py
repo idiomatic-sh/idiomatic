@@ -224,6 +224,9 @@ def problems(workflow: dict) -> list[str]:
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
+        if name == "contract-review":
+            found.extend(contract_review_problems(workflow))
+            continue
         if name == "ruff-all-defaults":
             found.extend(full_inventory_problems(job))
             continue
@@ -249,6 +252,8 @@ def problems(workflow: dict) -> list[str]:
                 found.append(f"{name} hands a step more than {sorted(HANDED)}")
 
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
+        if name == "contract-review":
+            return not contract_review_problems(workflow)
         if name == "ruff-all-defaults":
             return not full_inventory_problems(jobs[name])
         return bool(checks(jobs[name])) or any(gated(each, seen | {name}) for each in needs(jobs[name]) if each not in seen)
@@ -761,7 +766,7 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
     }
     assert workflow["concurrency"] == {"group": "check-${{ github.event.pull_request.number || github.ref }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
-    assert set(jobs) == {"changes", "root", "check", "gate", "speed", "ruff-candidates", "ruff-all-defaults"}
+    assert set(jobs) == {"changes", "root", "check", "gate", "speed", "ruff-candidates", "ruff-all-defaults", "contract-review"}
     (filter,) = jobs["changes"]["steps"]
     assert filter["uses"].startswith("dorny/paths-filter@") and filter["with"]["predicate-quantifier"] == "some-with-excludes"
     filters = yaml.safe_load(filter["with"]["filters"])
@@ -800,7 +805,7 @@ def test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gat
             step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
         ]
     gate = jobs["gate"]
-    assert gate["if"] == "always()" and gate["needs"] == ["changes", "root", "check", "speed", "ruff-candidates"]
+    assert gate["if"] == "always()" and gate["needs"] == ["changes", "root", "check", "speed", "ruff-candidates", "contract-review"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
     assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "root, check, ruff-candidates"}
@@ -903,3 +908,39 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
             "git_release_enable": False,
         }
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
+
+
+def contract_review_problems(workflow: dict) -> list[str]:
+    """Reject an orphaned, conditional, replaced, or failure-masked review gate."""
+    jobs = workflow["jobs"]
+    expected = {
+        "runs-on": "ubuntu-26.04",
+        "steps": [
+            {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0, "persist-credentials": False}},
+            {"uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}},
+            {"name": "Require exact-source Astra and Opus reviews", "run": "python3 ci/contract_review/command.py"},
+        ],
+    }
+    gate = jobs.get("gate", {})
+    allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
+    if jobs.get("contract-review") != expected or "contract-review" not in needs(gate) or "contract-review" in allowed:
+        return ["paired contract review must run unconditionally and be required by gate"]
+    return []
+
+
+def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert not contract_review_problems(workflow)
+    for mutate in (
+        lambda w: w["jobs"].pop("contract-review"),
+        lambda w: w["jobs"]["gate"]["needs"].remove("contract-review"),
+        lambda w: w["jobs"]["contract-review"].update({"if": "false"}),
+        lambda w: w["jobs"]["contract-review"].update({"continue-on-error": True}),
+        lambda w: w["jobs"]["contract-review"]["steps"][-1].update({"run": "true"}),
+        lambda w: w["jobs"]["contract-review"]["steps"][-1].update({"if": "false"}),
+        lambda w: w["jobs"]["contract-review"]["steps"][0]["with"].update({"ref": "main"}),
+        lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "contract-review"}),
+    ):
+        changed = deepcopy(workflow)
+        mutate(changed)
+        assert contract_review_problems(changed)
