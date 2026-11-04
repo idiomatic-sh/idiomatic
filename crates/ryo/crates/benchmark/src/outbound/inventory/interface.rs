@@ -9,12 +9,12 @@ pub trait InventoryPort {
         &self,
         authority: &super::types::RegistrationAuthority,
     ) -> Result<super::types::CanonicalFacts, String>;
-    /// Recheck every context file; errors retain the exact path.
-    fn verify_artifacts(
+    /// Recheck every context file and read the complete module map from its pinned profile.
+    fn inspect_context(
         &self,
         context: &Path,
         artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
-    ) -> Result<(), String>;
+    ) -> Result<super::types::ContextFacts, String>;
 
     /// Read one explicit receipt file and only its referenced process artifact attempts.
     ///

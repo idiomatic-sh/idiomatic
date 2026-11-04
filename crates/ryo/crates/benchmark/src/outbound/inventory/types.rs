@@ -143,3 +143,10 @@ pub struct FilePin {
     pub path: PathBuf,
     pub sha256: String,
 }
+
+/// Module declarations read from a fully verified registered context profile.
+#[derive(Clone, Debug)]
+pub struct ContextFacts {
+    /// Complete logical-name to profile-relative-path map; empty means declared empty.
+    pub modules: BTreeMap<String, PathBuf>,
+}

@@ -86,10 +86,11 @@ impl Fixture {
             std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
         }
         write(&profile.join("helper.ryoql"), "shared tested helper");
+        write(&profile.join("second.ryoql"), "second tested helper");
         write(
             &profile.join("benchmark.toml"),
             &format!(
-                "tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['A','B']\nquery-modules={{'test/helper'='helper.ryoql'}}\n",
+                "tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['A','B']\nquery-modules={{'test/helper'='helper.ryoql','test/second'='second.ryoql'}}\n",
                 digest(&executable)
             ),
         );
@@ -99,11 +100,13 @@ impl Fixture {
             let context = root.path().join(format!("registered/{rule}"));
             let definition = context.join(format!("rules/{rule}/query.ryoql"));
             let helper = context.join("helper.ryoql");
+            let second = context.join("second.ryoql");
+            write(&second,"second tested helper");
             let evidence = context.join("evidence/oracle.json");
             write(&definition,&format!("query {rule}")); write(&helper,"shared tested helper"); write(&evidence,&format!("independent {rule} evidence"));
-            write(&context.join("benchmark.toml"), &format!("tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['{rule}']\nquery-modules={{'test/helper'='helper.ryoql'}}\n",digest(&executable)));
-            let artifacts = [definition.clone(),helper.clone(),evidence,context.join("benchmark.toml")].into_iter().map(|p|(p.display().to_string(),json!(digest(&p)))).collect::<serde_json::Map<_,_>>();
-            json!({"rule_id":rule,"reason":null,"instance":null,"definition":{"path":definition,"sha256":digest(&definition)},"modules":{"test/helper":{"path":helper,"sha256":digest(&helper)}},"artifacts":artifacts,
+            write(&context.join("benchmark.toml"), &format!("tool='fixture'\nversion='1'\nsha256=['{}']\ndefaults=['{rule}']\nquery-modules={{'test/helper'='helper.ryoql','test/second'='second.ryoql'}}\n",digest(&executable)));
+            let artifacts = [definition.clone(),helper.clone(),second.clone(),evidence,context.join("benchmark.toml")].into_iter().map(|p|(p.display().to_string(),json!(digest(&p)))).collect::<serde_json::Map<_,_>>();
+            json!({"rule_id":rule,"reason":null,"instance":null,"definition":{"path":definition,"sha256":digest(&definition)},"modules":{"test/helper":{"path":helper,"sha256":digest(&helper)},"test/second":{"path":second,"sha256":digest(&second)}},"artifacts":artifacts,
                 "command":{"kind":"case-verification","context":context},
                 "cases":[{"rule":rule,"name":"independent","source_sha256":"source","files":["input.txt"],"expected":[],"project_context_mode":"isolated","reference_discrepancy":null}]})
         });
@@ -298,6 +301,7 @@ fn measured_profile_identity_cannot_be_substituted_via_the_query_directory() {
     let foreign = f._root.path().join("measured-foreign");
     for relative in [
         "helper.ryoql",
+        "second.ryoql",
         "rules/A/query.ryoql",
         "rules/A/cases.toml",
         "rules/B/query.ryoql",
@@ -321,4 +325,29 @@ fn measured_profile_identity_cannot_be_substituted_via_the_query_directory() {
         "{error}"
     );
     assert_eq!(*f.execution.launches.lock().unwrap(), 0);
+}
+
+#[test]
+fn module_inventory_omission_and_addition_refuse_before_native_launch() {
+    for change in ["omit-all", "omit-one", "unexpected"] {
+        let mut f = Fixture::new();
+        let modules = f.document["rules"][0]["modules"].as_object_mut().unwrap();
+        match change {
+            "omit-all" => modules.clear(),
+            "omit-one" => {
+                modules.remove("test/second").unwrap();
+            }
+            "unexpected" => {
+                modules.insert("test/unexpected".into(), modules["test/helper"].clone());
+            }
+            _ => unreachable!(),
+        }
+        f.save();
+        let error = f.certify().unwrap_err().to_string();
+        assert!(
+            error.contains("registered module inventory differs from pinned context profile"),
+            "{change}: {error}"
+        );
+        assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{change}");
+    }
 }

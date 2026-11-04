@@ -84,8 +84,7 @@ pub(super) fn prepare(
             .command
             .as_ref()
             .ok_or_else(|| Error::Invalid("missing verification command".into()))?;
-        store
-            .verify_artifacts(context, &entry.artifacts)
+        crate::application::run::registered_context::verify(entry, store)
             .map_err(Error::Invalid)?;
         let pin = entry
             .definition
@@ -109,17 +108,7 @@ pub(super) fn prepare(
                 entry.rule_id
             )));
         }
-        let context_tool = suite.profile(ArtifactPath(context))?;
         for (name, pin) in &entry.modules {
-            let context_relative = context_tool.query_modules.get(name).ok_or_else(|| {
-                Error::Invalid(format!("registered context lacks tested module: {name}"))
-            })?;
-            if context.join(context_relative) != pin.path {
-                return Err(Error::Invalid(format!(
-                    "registered module path differs from verification context: {name}"
-                )));
-            }
-
             let relative = tool.query_modules.get(name).ok_or_else(|| {
                 Error::Invalid(format!("measured profile lacks tested module: {name}"))
             })?;

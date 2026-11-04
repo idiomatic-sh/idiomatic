@@ -96,7 +96,7 @@ pub fn verify(
                 .as_ref()
                 .ok_or("missing implementation invocation")?;
             let crate::outbound::inventory::types::Command::CaseVerification { context } = command;
-            store.verify_artifacts(context, &entry.artifacts)?;
+            super::registered_context::verify(entry, store)?;
             let definition = entry
                 .definition
                 .as_ref()
@@ -161,7 +161,7 @@ pub fn verify(
                     &captured.artifacts,
                 )?
             };
-            store.verify_artifacts(context, &entry.artifacts)?;
+            super::registered_context::verify(entry, store)?;
             let digest = captured.sha256.ok_or("native receipt digest is missing")?;
             Ok((entry.cases.len(), raw, documented, contract_only, digest))
         })();

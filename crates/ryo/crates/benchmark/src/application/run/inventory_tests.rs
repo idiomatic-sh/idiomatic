@@ -77,10 +77,12 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
         std::fs::write(&definition, format!("definition for {rule}")).unwrap();
         let evidence = directory.join("evidence/oracle.json");
         std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
+        let context_profile = directory.join("benchmark.toml");
+        std::fs::write(&context_profile, format!("tool='fixture'\nversion='1'\nsha256=['{executable_sha}']\ndefaults=['{rule}']\n")).unwrap();
         let pin = FilePin { sha256: digest(&definition), path: definition.clone() };
         RegisteredRule {
         definition: Some(pin), modules: BTreeMap::new(),
-        artifacts: BTreeMap::from([(definition.clone(), digest(&definition)), (evidence.clone(), digest(&evidence))]),
+        artifacts: BTreeMap::from([(definition.clone(), digest(&definition)), (evidence.clone(), digest(&evidence)), (context_profile.clone(), digest(&context_profile))]),
         rule_id: rule.clone(), reason: None,
         command: Some(Command::CaseVerification { context: directory.clone() }),
         cases: vec![json!({"rule": rule, "name": "independent-case", "source_sha256": "source-pin", "files": ["input.txt"], "expected": [], "project_context_mode": "isolated", "reference_discrepancy": null})],
@@ -160,4 +162,50 @@ fn duplicate_and_unknown_registration_never_changes_inventory_cardinality() {
         serde_json::from_slice(&std::fs::read(root.path().join("summary.json")).unwrap()).unwrap();
     assert_eq!(snapshot["counts"], json!({"PASS": 0, "FAIL": 3}));
     assert!(execution.calls.lock().unwrap().is_empty());
+}
+
+#[test]
+fn inventory_rejects_undeclared_module_pins_before_each_native_invocation() {
+    use sha2::Digest as _;
+    let (mut registration, _context) = provider("module-provider", "bad");
+    for entry in &mut registration.rules {
+        let Command::CaseVerification { context } = entry.command.as_ref().unwrap();
+        let helper = context.join("helper.ryoql");
+        std::fs::write(&helper, "declared helper").unwrap();
+        let profile = context.join("benchmark.toml");
+        let content = std::fs::read_to_string(&profile).unwrap()
+            + "query-modules={'test/helper'='helper.ryoql'}\n";
+        std::fs::write(&profile, content).unwrap();
+        for path in [profile, helper] {
+            let digest = format!("{:x}", sha2::Sha256::digest(std::fs::read(&path).unwrap()));
+            entry.artifacts.insert(path, digest);
+        }
+        assert!(entry.modules.is_empty()); // The omission under test; all actual bytes stay pinned.
+    }
+    let output = tempfile::tempdir().unwrap();
+    let execution = ToyExecution {
+        calls: Mutex::new(Vec::new()),
+    };
+    assert!(
+        !verify(
+            &registration,
+            output.path(),
+            &execution,
+            &crate::outbound::inventory::factory::local()
+        )
+        .unwrap()
+    );
+    assert!(execution.calls.lock().unwrap().is_empty());
+    let summary: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(output.path().join("summary.json")).unwrap())
+            .unwrap();
+    assert_eq!(summary["counts"], json!({"PASS":0,"FAIL":3}));
+    for row in &summary["rules"].as_array().unwrap()[1..] {
+        assert!(
+            row["reason"]
+                .as_str()
+                .unwrap()
+                .contains("registered module inventory differs from pinned context profile")
+        );
+    }
 }

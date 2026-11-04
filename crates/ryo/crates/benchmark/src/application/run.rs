@@ -29,3 +29,5 @@ mod invocation_identity;
 mod process_discrepancy_test;
 
 mod input_metadata;
+
+pub(crate) mod registered_context;

@@ -118,11 +118,11 @@ impl InventoryPort for InventoryLocalAdapter {
             approved_reference: tool.sha256.iter().map(|s| s.0.clone()).collect(),
         })
     }
-    fn verify_artifacts(
+    fn inspect_context(
         &self,
         context: &Path,
         artifacts: &std::collections::BTreeMap<std::path::PathBuf, String>,
-    ) -> Result<(), String> {
+    ) -> Result<crate::outbound::inventory::types::ContextFacts, String> {
         if artifacts.is_empty() {
             return Err("registered case context is empty".into());
         }
@@ -162,7 +162,15 @@ impl InventoryPort for InventoryLocalAdapter {
                 ));
             }
         }
-        Ok(())
+        let tool = self
+            .suite
+            .profile(crate::outbound::suite::types::ArtifactPath(context))
+            .map_err(|error| {
+                format!("registered context profile {}: {error}", context.display())
+            })?;
+        Ok(crate::outbound::inventory::types::ContextFacts {
+            modules: tool.query_modules,
+        })
     }
 
     fn observations(&self, receipt: &Path) -> Result<CapturedObservation, String> {
