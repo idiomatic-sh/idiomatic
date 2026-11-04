@@ -337,10 +337,14 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
                 dag.borrow().provided.get(&root),
                 Some(ProvidedInput::Retired { .. })
             ));
-            assert!(matches!(
-                dag.demand(root, &unread, scope.scope.executor(), &mut context),
-                Err(OperatingError::RetiredFrontier { .. })
-            ));
+            let after_retirement = dag.demand(root, &unread, scope.scope.executor(), &mut context);
+            assert!(
+                matches!(
+                    after_retirement,
+                    Err(OperatingError::RetiredFrontier { .. })
+                ),
+                "retired supplied input must latch its refusal: {after_retirement:?}"
+            );
         }
     }
 }

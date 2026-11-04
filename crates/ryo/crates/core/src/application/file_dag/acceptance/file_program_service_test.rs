@@ -285,9 +285,9 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
     let duplicated = graph(&[query.clone(), query]);
     let node = duplicated.cuts[0][0].expect("first internal cut");
     assert_eq!(
-        duplicated.cuts[0][1],
+        duplicated.program_nodes[0][1].as_ref().ok().copied(),
         Some(node),
-        "duplicate occurrence retains one node identity"
+        "the exported duplicate is a distinct boundary for the same physical node"
     );
     let complete = crate::application::file_dag::activation::types::ActivationCache::default()
         .activate(&duplicated, |_| true, &[Relation::Function]);

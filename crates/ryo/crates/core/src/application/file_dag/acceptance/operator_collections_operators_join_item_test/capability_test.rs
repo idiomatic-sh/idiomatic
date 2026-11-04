@@ -613,6 +613,33 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         &engine,
     )
     .expect("required execution scope");
+    let plans = [plan.clone()];
+    let bindings = [Vec::new()];
+    let mut merged = crate::domain::shared_walk::types::MergedWalk::default();
+    let mut classes = crate::domain::shared_walk::types::SharedClasses::default();
+    let mut native_scratch = OperatorScratch::default();
+    let mask = crate::domain::placement::types::Mask::default();
+    crate::application::file_dag::types::FileDagExecution::prepare_native(
+        &scope.execution,
+        &mut merged,
+        crate::domain::shared_walk::types::Walking {
+            plans: &plans,
+            bindings: &bindings,
+            paths: &[],
+            mask: &mask,
+            file: FileId(0),
+            elements: &elements,
+            symbols: &mut symbols,
+            source: SourceView(b"abcd"),
+            scratch: &mut native_scratch,
+            room: &mut classes,
+            steps: strategy,
+        },
+        crate::domain::column_kernel::types::KernelStrategy::Existing,
+        crate::domain::lowering::types::Counting::DoesNotCount,
+        scope.scope.executor(),
+    )
+    .expect("native preparation uses the same required scope");
     let mut pool = pool_for(std::slice::from_ref(&plan));
     let mut scratch = OperatorScratch::default();
     let mut memo = vec![];
