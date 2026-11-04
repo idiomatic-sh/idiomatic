@@ -1,0 +1,267 @@
+use super::*;
+use crate::domain::rules::types::RuleParameters;
+use ryo_relations::domain::relations::{
+    service::{ALL, provenance_of},
+    types::Provenance,
+};
+use ryo_values::domain::{
+    hosted::types::HostName,
+    observations::types::{
+        BoundObservationSchema, ObservationBinding, ObservationBindingName, ObservationIndex,
+        ObservationName, PlanObservation,
+    },
+    plan_parts::types::{ColumnIndex, ParameterName, StepId, WholeNumber},
+    plans::types::{Emit, Operation, ParameterType, PlanParameter, PlanStep},
+    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    runs::types::{RuleApplicability, RuleId},
+};
+
+fn rule() -> RuleSpec {
+    RuleSpec {
+        id: RuleId("consumer".into()),
+        query: QueryBundle {
+            root: QueryDocumentSource {
+                id: QuerySourceId("root".into()),
+                text: "".into(),
+            },
+            modules: Default::default(),
+        },
+        applicability: RuleApplicability::Always,
+        given: vec![],
+        observations: vec![],
+        spelled: RuleParameters("".into()),
+        include: vec![],
+        exclude: vec![],
+    }
+}
+fn plan() -> Plan {
+    Plan {
+        observation_inputs: vec![],
+        parameters: vec![],
+        steps: vec![],
+        comparison_origins: vec![],
+        observations: vec![],
+        frontier: vec![],
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
+    }
+}
+fn host() -> HostRelation {
+    HostRelation {
+        name: HostName("snapshot".into()),
+        columns: vec![],
+        rows: vec![],
+    }
+}
+fn observed(phase: StepScope) -> (RuleSpec, Plan, ResolvedObservationBinding) {
+    let name = ObservationBindingName("bound".into());
+    let mut rule = rule();
+    rule.observations.push(ObservationBinding {
+        name: name.clone(),
+        columns: vec![],
+        producers: vec![
+            ryo_values::domain::observations::types::ObservationProducer::Output {
+                rule: RuleId("consumer".into()),
+                output: ObservationName("root".into()),
+            },
+        ],
+    });
+    let schema = BoundObservationSchema {
+        name,
+        columns: vec![],
+        scope: phase,
+    };
+    let mut plan = plan();
+    plan.observation_inputs.push(schema.clone());
+    let binding = ResolvedObservationBinding {
+        input: ObservationBindingId(0),
+        schema,
+        producers: vec![ResolvedObservationProducer::Output {
+            rule: RuleIndex(1),
+            output: ObservationIndex(0),
+        }],
+    };
+    (rule, plan, binding)
+}
+fn producer(phase: StepScope) -> Plan {
+    let mut plan = plan();
+    plan.steps.push(PlanStep {
+        operation: Operation::Hosted {
+            relation: HostedNumber(0),
+        },
+        scope: phase,
+    });
+    plan.observations.push(PlanObservation {
+        name: ObservationName("root".into()),
+        source: Input::Step(StepId(0)),
+        columns: vec![],
+        scope: phase,
+    });
+    plan
+}
+#[test]
+fn catalog_is_closed_and_uses_actual_provider_origins() {
+    assert_eq!(ALL.len(), 69);
+    for &relation in ALL {
+        let expected = match provenance_of(relation) {
+            Provenance::Trees | Provenance::Engine => PartitionRequirement::CurrentFile,
+            Provenance::Manifests => PartitionRequirement::Project,
+        };
+        assert_eq!(relation_partition(relation), expected, "{relation:?}");
+    }
+}
+#[test]
+fn snapshots_are_invariant_but_file_sources_keep_their_requirement() {
+    let mut plan = plan();
+    plan.parameters.push(PlanParameter {
+        name: ParameterName("value".into()),
+        kind: ParameterType::Number,
+    });
+    let sources = SourcePartitions::new(
+        &[rule()],
+        &[Ok(&plan)],
+        &[vec![ParameterBinding::Number(WholeNumber(7))]],
+        &[host()],
+        &[vec![]],
+    )
+    .unwrap();
+    assert_eq!(
+        sources.hosted(RuleIndex(0), HostedNumber(0)),
+        Ok(PartitionRequirement::RequestInvariant)
+    );
+    assert_eq!(
+        sources.parameter(RuleIndex(0), ParameterId(0)),
+        Ok(PartitionRequirement::RequestInvariant)
+    );
+    assert_eq!(
+        sources.relation(Relation::Function),
+        PartitionRequirement::CurrentFile
+    );
+    assert_eq!(
+        sources.relation(Relation::PackageDependency),
+        PartitionRequirement::Project
+    );
+    assert_eq!(
+        sources.hosted(RuleIndex(0), HostedNumber(1)),
+        Err(OperatingError::NotRead)
+    );
+    assert_eq!(
+        sources.hosted(RuleIndex(1), HostedNumber(0)),
+        Err(OperatingError::NotRun)
+    );
+    assert_eq!(
+        sources.parameter(RuleIndex(0), ParameterId(1)),
+        Err(OperatingError::Unbound)
+    );
+    assert!(matches!(
+        sources.observation(RuleIndex(0), ObservationBindingId(0)),
+        Err(OperatingError::ObservationIncomplete { .. })
+    ));
+}
+#[test]
+fn actual_project_root_is_project_even_for_zero_input_hosted_operation() {
+    let (consumer, plan, binding) = observed(StepScope::CrossFile);
+    let producer = producer(StepScope::CrossFile);
+    let sources = SourcePartitions::new(
+        &[consumer, rule()],
+        &[Ok(&plan), Ok(&producer)],
+        &[vec![], vec![]],
+        &[host()],
+        &[vec![binding], vec![]],
+    )
+    .unwrap();
+    assert_eq!(
+        sources.observation(RuleIndex(0), ObservationBindingId(0)),
+        Ok(PartitionRequirement::Project)
+    );
+}
+#[test]
+fn file_observation_retains_its_actual_producer_phase() {
+    let (consumer, plan, binding) = observed(StepScope::PerFile);
+    let producer = producer(StepScope::PerFile);
+    let sources = SourcePartitions::new(
+        &[consumer, rule()],
+        &[Ok(&plan), Ok(&producer)],
+        &[vec![], vec![]],
+        &[host()],
+        &[vec![binding], vec![]],
+    )
+    .unwrap();
+    assert_eq!(
+        sources.observation(RuleIndex(0), ObservationBindingId(0)),
+        Ok(PartitionRequirement::CurrentFile)
+    );
+}
+#[test]
+fn stale_output_and_missing_queries_refuse_instead_of_becoming_invariant() {
+    let (consumer, plan, mut binding) = observed(StepScope::PerFile);
+    binding.producers = vec![ResolvedObservationProducer::Output {
+        rule: RuleIndex(1),
+        output: ObservationIndex(9),
+    }];
+    let producer = producer(StepScope::PerFile);
+    let sources = SourcePartitions::new(
+        &[consumer.clone(), rule()],
+        &[Ok(&plan), Ok(&producer)],
+        &[vec![], vec![]],
+        &[],
+        &[vec![binding.clone()], vec![]],
+    )
+    .unwrap();
+    assert!(matches!(
+        sources.observation(RuleIndex(0), ObservationBindingId(0)),
+        Err(OperatingError::ObservationIncomplete { .. })
+    ));
+    binding.producers = vec![ResolvedObservationProducer::NoQuery {
+        rule: RuleId("absent".into()),
+    }];
+    let sources = SourcePartitions::new(
+        &[consumer, rule()],
+        &[Ok(&plan), Ok(&producer)],
+        &[vec![], vec![]],
+        &[],
+        &[vec![binding], vec![]],
+    )
+    .unwrap();
+    assert!(matches!(
+        sources.observation(RuleIndex(0), ObservationBindingId(0)),
+        Err(OperatingError::ObservationIncomplete { .. })
+    ));
+}
+#[test]
+fn failed_producer_preserves_exact_error_on_demand() {
+    let (consumer, plan, binding) = observed(StepScope::PerFile);
+    let sources = SourcePartitions::new(
+        &[consumer, rule()],
+        &[Ok(&plan), Err(OperatingError::WrongBinding)],
+        &[vec![], vec![]],
+        &[],
+        &[vec![binding], vec![]],
+    )
+    .unwrap();
+    assert_eq!(
+        sources.observation(RuleIndex(0), ObservationBindingId(0)),
+        Err(OperatingError::WrongBinding)
+    );
+    assert_eq!(
+        sources.hosted(RuleIndex(1), HostedNumber(0)),
+        Err(OperatingError::WrongBinding)
+    );
+}
+#[test]
+fn malformed_alignment_and_observation_ordinals_are_rejected() {
+    assert!(matches!(
+        SourcePartitions::new(&[rule()], &[], &[], &[], &[]),
+        Err(OperatingError::ShapeMismatch)
+    ));
+    let (consumer, plan, mut binding) = observed(StepScope::PerFile);
+    binding.input = ObservationBindingId(3);
+    assert!(matches!(
+        SourcePartitions::new(&[consumer], &[Ok(&plan)], &[vec![]], &[], &[vec![binding]]),
+        Err(OperatingError::ObservationIncomplete { .. })
+    ));
+}

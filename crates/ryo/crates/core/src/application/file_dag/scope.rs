@@ -1,10 +1,9 @@
 //! Explicit outer scope creation over one required request schedule. Inner
 //! operators/observation adapters receive its executor; they cannot mint owners.
-use super::{
-    executor::{PrimitiveExecutor, ScopedExecutor},
-    relations::RelationOwner,
+use super::relations::RelationOwner;
+use crate::domain::{
+    executable_program::types::ExecutableProgram, operating::errors::OperatingError,
 };
-use crate::domain::{file_program::types::RequestGraph, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::FileId;
 use std::{rc::Rc, sync::Arc};
 
@@ -25,43 +24,39 @@ impl ScopePermit {
     }
 }
 
-pub(crate) struct ExecutionScope<'a> {
-    graph: Arc<RequestGraph>,
+pub(crate) struct ExecutionScope {
+    program: Arc<ExecutableProgram>,
     phase: ScopePhase,
-    executor: ScopedExecutor<'a>,
+    owner: Rc<RelationOwner>,
 }
-impl<'a> ExecutionScope<'a> {
+impl ExecutionScope {
     pub(crate) fn new(
-        graph: Arc<RequestGraph>,
+        program: Arc<ExecutableProgram>,
         phase: ScopePhase,
         stable_population: bool,
-        primitive: &'a dyn PrimitiveExecutor,
+        derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Result<Self, OperatingError> {
         let owner = Rc::new(RelationOwner::for_scope(
             ScopePermit { _private: () },
             stable_population,
-            graph
-                .nodes
+            program
+                .regions
                 .len()
                 .saturating_add(ryo_relations::domain::relations::service::all().len())
                 .saturating_add(1),
-            primitive.derived_port(),
+            derived,
         ));
-        let executor = ScopedExecutor::new(primitive, owner)?;
         Ok(Self {
-            graph,
+            program,
             phase,
-            executor,
+            owner,
         })
     }
-    pub(crate) fn executor(&self) -> &ScopedExecutor<'a> {
-        &self.executor
-    }
     pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
-        self.executor.owner()
+        &self.owner
     }
-    pub(crate) fn graph(&self) -> &Arc<RequestGraph> {
-        &self.graph
+    pub(crate) fn program(&self) -> &Arc<ExecutableProgram> {
+        &self.program
     }
 }
 
@@ -75,7 +70,7 @@ pub(crate) enum ScopePartials<'a> {
         publication: &'a crate::domain::coverage::types::Partials,
     },
 }
-impl ExecutionScope<'_> {
+impl ExecutionScope {
     pub(crate) fn completion<'a>(
         &self,
         rule: crate::domain::coverage::types::RuleIndex,
@@ -108,4 +103,21 @@ impl ExecutionScope<'_> {
             _ => Err(OperatingError::WrongOperation),
         }
     }
+}
+
+/// The one outer owner factory. Kernels have no way to acquire this permit.
+pub(in crate::application::file_dag) fn open_program_owner(
+    program: &Arc<crate::domain::executable_program::types::ExecutableProgram>,
+    derived: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+) -> Rc<RelationOwner> {
+    Rc::new(RelationOwner::for_scope(
+        ScopePermit { _private: () },
+        true,
+        program
+            .regions
+            .len()
+            .saturating_add(ryo_relations::domain::relations::service::all().len())
+            .saturating_add(1),
+        derived,
+    ))
 }

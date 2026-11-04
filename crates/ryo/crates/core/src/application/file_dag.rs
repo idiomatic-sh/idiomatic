@@ -8,7 +8,6 @@ pub(crate) mod invocation;
 pub(crate) mod predicates;
 pub(crate) mod request;
 pub(crate) mod resources;
-pub(crate) mod service;
 #[cfg(test)]
 mod service_test;
 #[cfg(test)]
@@ -26,7 +25,6 @@ mod contract_timing_test;
 pub(crate) mod optimized;
 pub(crate) mod selected;
 
-mod required;
 
 pub(in crate::application) mod relations;
 
@@ -58,3 +56,5 @@ mod ordered_existence;
 
 pub(in crate::application) mod completion;
 pub(in crate::application) mod scope;
+
+mod program;

@@ -1,4 +1,5 @@
 //! Construct and release the finite primitive capability at one scheduled evaluation.
+use super::super::executor::{KernelAnswer, KernelCall, KernelFault, PrimitiveExecutor};
 use super::super::{
     invocation::InvocationResources, predicates::BoundPredicate, workspace::InvocationWorkspace,
 };
@@ -16,14 +17,15 @@ use crate::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
-use crate::outbound::operators::interface::OperatorsPort;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 
 /// All resources are borrowed for this call. No mutable owner crosses the boundary.
 pub(super) fn evaluate(
-    operators: &dyn OperatorsPort,
+    operators: &dyn PrimitiveExecutor,
     contract: &OperatorContract,
+    permit: &super::super::program::admission::KernelPermit<'_>,
+    operation: &ryo_values::domain::plans::types::Operation,
     input: PreparedInputs<'_>,
     resources: &mut InvocationResources<'_>,
     workspace: &mut InvocationWorkspace,
@@ -35,6 +37,7 @@ pub(super) fn evaluate(
         crate::application::file_dag::route_counts::resume(workspace.progress_origin);
     #[cfg(test)]
     resources.observe(workspace);
+    let semantic_failure = std::cell::RefCell::new(None);
     let row = match input {
         PreparedInputs::Row { input, sides, row } => {
             if input.0 >= contract.inputs.used.0
@@ -104,49 +107,6 @@ pub(super) fn evaluate(
     } else {
         None
     };
-    if let (Some(row), crate::domain::operator::contract::resources::ResourceProgram::Join(join)) =
-        (row, &contract.resources)
-        && join.reach.is_none()
-        && !join.has_filter
-        && join.view.is_empty()
-        && let Some(selected) = resources
-            .inputs
-            .index
-            .as_ref()
-            .and_then(|index| index.selected())
-    {
-        return selected.emit_join(
-            &super::PrimitiveSemanticsBridge { port: operators },
-            &join.left_on,
-            &join.output,
-            row,
-            &mut workspace.primitive.row,
-            &mut workspace.primitive.other,
-            context,
-            emit,
-        );
-    }
-    if let (Some(row), crate::domain::operator::contract::resources::ResourceProgram::Join(join)) =
-        (row, &contract.resources)
-        && join.reach.is_none()
-        && !join.has_filter
-        && join.view.is_empty()
-        && let Some(index) = resources.inputs.index.as_ref()
-    {
-        // The invocation already owns its immutable index. Ordinary Join needs
-        // only this finite reborrow, not an all-operator lease/predicate bundle.
-        return super::super::equality_join::indexed(
-            &super::PrimitiveSemanticsBridge { port: operators },
-            index.view(),
-            row,
-            &join.left_on,
-            &join.output,
-            &mut workspace.primitive.row,
-            &mut workspace.primitive.other,
-            context,
-            emit,
-        );
-    }
     let cached = if let (Some(graph), Some(row)) = (resources.cached_graph.as_mut(), row) {
         Some(workspace.owner().derived.graph_row(graph, row)?)
     } else {
@@ -191,7 +151,11 @@ pub(super) fn evaluate(
         scratch: &mut workspace.downstream_scratch,
         memo: &mut workspace.downstream_memo,
     };
-    let semantics = super::PrimitiveSemanticsBridge { port: operators };
+    let semantics = super::PrimitiveSemanticsBridge {
+        port: operators,
+        permit,
+        failure: &semantic_failure,
+    };
     let mut lease = PrimitiveLease::new(
         views,
         &mut workspace.primitive,
@@ -199,18 +163,24 @@ pub(super) fn evaluate(
         &mut predicate,
         &semantics,
     );
-    let outcome = crate::domain::operator::service::registered(contract.kind).evaluate(
-        &contract.identity,
-        input,
-        &mut lease,
-        &mut output,
-    );
+    let outcome = match operators.execute(KernelCall::Registered {
+        permit,
+        operation,
+        inputs: input,
+        lease: &mut lease,
+        output: &mut output,
+    }) {
+        Ok(KernelAnswer::Complete) => Ok(()),
+        Ok(KernelAnswer::Physical(_)) => Err(OperatingError::WrongOperation),
+        Err(KernelFault::Refused(error)) => Err(error),
+        Err(KernelFault::Portable(error)) => Err(portable_fault(error)),
+    };
     drop(lease);
     drop(output);
     drop(predicate);
     #[cfg(test)]
     resources.observe(workspace);
-    outcome
+    semantic_failure.into_inner().map_or(outcome, Err)
 }
 struct OutputBridge<'a> {
     emit: &'a mut dyn Emit,
