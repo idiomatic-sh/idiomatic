@@ -1,6 +1,5 @@
 //! Application execution capabilities beside pure domain run configuration.
-use super::executor::PrimitiveExecutor;
-use crate::domain::operator::contract::types::RequestOperators;
+use super::program::facade::{PreparedProgram, ProgramServices};
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -9,10 +8,10 @@ use std::{
 pub(crate) struct VisitSetting<'a> {
     /// Explicit request provider; none preserves ordinary path recognition.
     pub source_language: Option<&'a ryo_values::domain::descriptions::types::LanguageName>,
-    pub executor: &'a dyn PrimitiveExecutor,
-    pub operators: Arc<RequestOperators>,
-    /// The single request-prepared schedule shared by file/project/terminal scopes.
-    pub graph: Arc<crate::domain::file_program::types::RequestGraph>,
+    /// One prepared executable program shared by all scopes in this request.
+    pub program: Arc<PreparedProgram>,
+    /// Required application capabilities; no domain code owns or constructs them.
+    pub services: &'a ProgramServices<'a>,
     pub domain: crate::domain::workers::types::VisitSetting<'a>,
 }
 impl<'a> Deref for VisitSetting<'a> {
@@ -26,13 +25,12 @@ impl DerefMut for VisitSetting<'_> {
         &mut self.domain
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct CrossingInput<'a> {
     /// Invocation-owned physical arena lease view, supplied by the application coordinator.
     pub arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
-    pub executor: &'a dyn PrimitiveExecutor,
-    /// The single request-prepared schedule shared by file/project/terminal scopes.
-    pub graph: Arc<crate::domain::file_program::types::RequestGraph>,
+    pub program: Arc<PreparedProgram>,
+    pub services: &'a ProgramServices<'a>,
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,
 }
 impl<'a> Deref for CrossingInput<'a> {

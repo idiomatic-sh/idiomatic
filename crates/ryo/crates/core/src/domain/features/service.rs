@@ -4,12 +4,11 @@ use ryo_relations::domain::relations::service::all;
 
 use super::types::{FeatureRows, StepWork};
 use crate::domain::operator::types::RowsFed;
+use crate::domain::run_metadata::types::{FeatureSource, RuleMetadata, StepMetadata};
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction;
-use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::Test;
-use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Feature, Operation, OperationKind, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
 use ryo_values::domain::records::types::RowTotal;
 
 /// The kind of an operation.
@@ -46,7 +45,7 @@ pub(crate) fn kind_of(operation: &Operation) -> OperationKind {
 }
 
 /// The comparisons an operation makes.
-fn comparisons_of(operation: &Operation) -> &[Comparison] {
+pub(crate) fn comparisons_of(operation: &Operation) -> &[Comparison] {
     match operation {
         Operation::Select { comparisons, .. } => comparisons,
         Operation::Join { filter, .. } => filter,
@@ -153,41 +152,25 @@ pub(crate) fn catalog() -> Vec<Feature> {
 
 /// How many rows each feature of `step` was fed, given the rows each of its inputs was: an operation, a way of comparing and a
 /// direction take every input, a relation the input that reads it.
-fn fed_by_step(step: &PlanStep, fed: &RowsFed) -> Vec<FeatureRows> {
+fn fed_by_step(step: &StepMetadata, fed: &RowsFed) -> Vec<FeatureRows> {
     let all_inputs: u64 = fed.0.iter().copied().fold(0, u64::saturating_add);
-    let mut features = vec![FeatureRows {
-        feature: Feature::Operation(kind_of(&step.operation)),
-        rows: RowTotal(all_inputs),
-    }];
-    for comparison in comparisons_of(&step.operation) {
-        features.push(FeatureRows {
-            feature: Feature::Family(comparison.test),
-            rows: RowTotal(all_inputs),
-        });
-    }
-    if let Operation::Axis { direction, .. } = &step.operation {
-        features.push(FeatureRows {
-            feature: Feature::Direction(*direction),
-            rows: RowTotal(all_inputs),
-        });
-    }
-    let inputs = inputs_of(&step.operation);
-    for (place, input) in named(&inputs).iter().enumerate() {
-        if let Input::Relation(relation) = input {
-            features.push(FeatureRows {
-                feature: Feature::Relation(*relation),
-                rows: RowTotal(fed.0.get(place).copied().unwrap_or(0)),
-            });
-        }
-    }
-    features
+    step.features
+        .iter()
+        .map(|slot| FeatureRows {
+            feature: slot.feature,
+            rows: RowTotal(match slot.source {
+                FeatureSource::AllInputs => all_inputs,
+                FeatureSource::Input(place) => fed.0.get(place).copied().unwrap_or(0),
+            }),
+        })
+        .collect()
 }
 
 /// How many rows each feature of `plan` was fed, a feature counted once for each step that has it. `fed` holds the rows each
 /// step was fed, in the order of the steps.
 #[must_use]
-pub(crate) fn tally(plan: &Plan, fed: &[RowsFed]) -> Vec<FeatureRows> {
-    plan.steps
+pub(crate) fn tally(rule: &RuleMetadata, fed: &[RowsFed]) -> Vec<FeatureRows> {
+    rule.steps
         .iter()
         .zip(fed)
         .flat_map(|(step, fed)| fed_by_step(step, fed))
@@ -197,16 +180,16 @@ pub(crate) fn tally(plan: &Plan, fed: &[RowsFed]) -> Vec<FeatureRows> {
 /// How many rows each step of each plan was fed, summed over its inputs: the work of a rule as a count, the same on any machine at any
 /// load. `fed` is the rows each step of each plan was fed, in the order of the plans.
 #[must_use]
-pub(crate) fn work_over(plans: &[Plan], fed: &[Vec<RowsFed>]) -> Vec<Vec<StepWork>> {
-    plans
+pub(crate) fn work_over(metadata: &[RuleMetadata], fed: &[Vec<RowsFed>]) -> Vec<Vec<StepWork>> {
+    metadata
         .iter()
         .zip(fed)
-        .map(|(plan, steps)| {
-            plan.steps
+        .map(|(rule, steps)| {
+            rule.steps
                 .iter()
                 .zip(steps)
                 .map(|(step, each)| StepWork {
-                    operation: kind_of(&step.operation),
+                    operation: step.operation,
                     rows: RowTotal(
                         each.0
                             .iter()
@@ -221,10 +204,10 @@ pub(crate) fn work_over(plans: &[Plan], fed: &[Vec<RowsFed>]) -> Vec<Vec<StepWor
 /// How many rows each feature of the language was fed over a run, in the catalog's order: the rows of the steps of every plan that
 /// has it, summed. `fed` is the rows each step of each plan was fed, in the order of the plans.
 #[must_use]
-pub(crate) fn fed_over(plans: &[Plan], fed: &[Vec<RowsFed>]) -> Vec<FeatureRows> {
+pub(crate) fn fed_over(metadata: &[RuleMetadata], fed: &[Vec<RowsFed>]) -> Vec<FeatureRows> {
     let mut totals: std::collections::BTreeMap<Feature, u64> = std::collections::BTreeMap::new();
-    for (plan, steps) in plans.iter().zip(fed) {
-        for each in tally(plan, steps) {
+    for (rule, steps) in metadata.iter().zip(fed) {
+        for each in tally(rule, steps) {
             let slot = totals.entry(each.feature).or_default();
             *slot = slot.saturating_add(each.rows.0);
         }

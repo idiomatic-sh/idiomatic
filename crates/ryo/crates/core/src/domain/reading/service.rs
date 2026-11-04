@@ -167,18 +167,11 @@ pub(crate) fn prepare_frontier(
     place: InputNumber,
     frontier: &mut [Table],
 ) -> Option<Bucket> {
-    let plan = setting.plans.get(rule.0)?;
-    if place.0 >= plan.frontier.len() {
-        return None;
-    }
-    if let Some(ryo_values::domain::plan_parts::types::Input::BoundObservation(id)) =
-        plan.frontier.get(place.0)
-        && plan
-            .observation_inputs
-            .get(id.0 as usize)
-            .is_some_and(|input| {
-                input.scope == ryo_values::domain::plans::types::StepScope::CrossFile
-            })
+    if !*setting
+        .metadata
+        .get(rule.0)?
+        .frontier_capture
+        .get(place.0)?
     {
         return None;
     }
@@ -227,17 +220,17 @@ pub(crate) fn settle(tables: &mut Tables, answering: &Answering) {
 /// The buckets of the frontiers of the rules `rules`, by their place among `plans`, in order: every bucket when `rules` is all.
 #[must_use]
 pub(crate) fn buckets_of(
-    plans: &[Plan],
+    metadata: &[crate::domain::run_metadata::types::RuleMetadata],
     first: &[Bucket],
     rules: Option<&[PlacedRule]>,
 ) -> Vec<Bucket> {
     let mut buckets = Vec::new();
-    for (place, (plan, start)) in plans.iter().zip(first).enumerate() {
+    for (place, (rule, start)) in metadata.iter().zip(first).enumerate() {
         let rule = PlacedRule(u32::try_from(place).unwrap_or(u32::MAX));
         if rules.is_some_and(|rules| rules.binary_search_by_key(&rule.0, |each| each.0).is_err()) {
             continue;
         }
-        for input in 0..plan.frontier.len() {
+        for input in 0..rule.frontier_capture.len() {
             buckets.push(frontier_bucket(*start, InputNumber(input)));
         }
     }

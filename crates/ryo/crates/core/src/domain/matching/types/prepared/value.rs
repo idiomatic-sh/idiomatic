@@ -5,7 +5,9 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_texts::types::RegexPattern;
 use regex_automata::meta::Regex;
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
+#[cfg(test)]
+use ryo_values::domain::plans::types::Plan;
 use std::sync::OnceLock;
 
 /// Request-owned metadata only; runtime patterns cannot add keys or replace compiled slots.
@@ -29,25 +31,32 @@ enum PreparedPattern {
 
 impl PreparedMatchers {
     /// Declare only authored literal keys from these plans, without interpreting their contents.
+    #[cfg(test)]
     pub(crate) fn new(plans: &[Plan]) -> Self {
+        Self::from_operations(
+            plans
+                .iter()
+                .flat_map(|plan| plan.steps.iter().map(|step| &step.operation)),
+        )
+    }
+
+    /// Declare literal keys from the one compiled executable program, before any worker runs.
+    pub(crate) fn from_operations<'a>(operations: impl IntoIterator<Item = &'a Operation>) -> Self {
         let mut prepared = Self::default();
-        for plan in plans {
-            for step in &plan.steps {
-                let comparisons = match &step.operation {
-                    Operation::Select { comparisons, .. } => comparisons.as_slice(),
-                    Operation::Join { filter, .. } => filter.as_slice(),
-                    Operation::Axis { domain_filter, .. } => domain_filter.as_slice(),
-                    Operation::Replace { pattern, .. }
-                    | Operation::SourceMatches { pattern, .. } => {
-                        prepared.declare(Test::Matches, &pattern.0);
-                        continue;
-                    }
-                    _ => continue,
-                };
-                for comparison in comparisons {
-                    if let Operand::Literal(QueryLiteral::Text(pattern)) = &comparison.right {
-                        prepared.declare(comparison.test, &pattern.0);
-                    }
+        for operation in operations {
+            let comparisons = match operation {
+                Operation::Select { comparisons, .. } => comparisons.as_slice(),
+                Operation::Join { filter, .. } => filter.as_slice(),
+                Operation::Axis { domain_filter, .. } => domain_filter.as_slice(),
+                Operation::Replace { pattern, .. } | Operation::SourceMatches { pattern, .. } => {
+                    prepared.declare(Test::Matches, &pattern.0);
+                    continue;
+                }
+                _ => continue,
+            };
+            for comparison in comparisons {
+                if let Operand::Literal(QueryLiteral::Text(pattern)) = &comparison.right {
+                    prepared.declare(comparison.test, &pattern.0);
                 }
             }
         }

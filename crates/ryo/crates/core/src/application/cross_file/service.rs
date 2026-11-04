@@ -1,5 +1,6 @@
 //! Cross-file evaluation and bounded source rendering over injected ports.
 use crate::application::file_dag::crossing::cross_rule_with_inputs;
+use crate::application::file_dag::program::facade;
 use crate::application::file_dag::settings::CrossingInput;
 use crate::domain::answering::types::{Crossed, Todo};
 use crate::domain::crossing::service::placeable;
@@ -61,6 +62,8 @@ impl CrossFile {
         frontier: super::types::PreparedFrontiers,
         cross: &mut Symbols,
     ) -> Result<Crossed, RulesError> {
+        let scope = facade::publication_owner(&crossing.program, crossing.services)
+            .map_err(|error| failed(&todo.id, &error))?;
         self.evaluate_phase(
             crossing,
             todo,
@@ -68,24 +71,19 @@ impl CrossFile {
             cross,
             &[],
             super::types::PublicationSlot::Unused,
+            &scope,
         )
     }
     pub(crate) fn evaluate_phase(
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
-        mut frontier: super::types::PreparedFrontiers,
+        frontier: super::types::PreparedFrontiers,
         cross: &mut Symbols,
         bound_inputs: &[crate::domain::crossing::types::BoundInputWords],
         publication: super::types::PublicationSlot,
+        scope: &facade::PublicationScope,
     ) -> Result<Crossed, RulesError> {
-        let scope = crate::application::file_dag::scope::ExecutionScope::new(
-            std::sync::Arc::clone(&crossing.graph),
-            crate::application::file_dag::scope::ScopePhase::Project,
-            false,
-            crossing.executor,
-        )
-        .map_err(|error| failed(&todo.id, &error))?;
         #[cfg(feature = "diagnostic-row-progress")]
         let _project_progress =
             crate::application::file_dag::route_counts::FileScope::begin(usize::MAX);
@@ -94,37 +92,12 @@ impl CrossFile {
             crate::application::file_dag::route_counts::rule(todo.rule.0, todo.id.0.as_ref());
         #[cfg(feature = "diagnostic-row-progress")]
         crate::application::file_dag::route_counts::file_name("<project>");
-        let (Some(plan), Some(_)) = (
-            crossing.plans.get(todo.rule.0),
-            crossing.bindings.get(todo.rule.0),
-        ) else {
-            return Ok(Crossed::default());
-        };
-        for input in bound_inputs {
-            match super::inputs::observed(crossing, scope.executor(), todo.rule, input, cross) {
-                Ok(input) => frontier
-                    .rows
-                    .push(super::types::FrontierInput::Decoded(input)),
-                Err(error) => {
-                    frontier
-                        .refused
-                        .push(crate::domain::crossing::types::RefusedFrontier {
-                            input: ryo_values::domain::plan_parts::types::Input::BoundObservation(
-                                input.input,
-                            ),
-                            error,
-                        })
-                }
-            }
-        }
-        let evaluated = cross_rule_with_inputs(
-            crossing,
-            &scope,
-            todo,
-            frontier.rows,
-            &frontier.refused,
-            cross,
-        )?;
+        let emit = crossing
+            .program
+            .emit(todo.rule)
+            .map_err(|error| failed(&todo.id, &error))?;
+        let evaluated =
+            cross_rule_with_inputs(crossing, todo, frontier, bound_inputs, cross, scope)?;
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let roots = evaluated.roots;
         let mut unknowns = if let Some(error) = &roots.emit_error {
@@ -141,9 +114,14 @@ impl CrossFile {
         } else {
             Vec::new()
         };
-        let rendered = match self.render_emit(crossing, todo, plan, roots.emit, cross) {
+        let rendered = match self.render_emit(crossing, todo, emit, roots.emit, cross) {
             Ok(rendered) => rendered,
-            Err(error) if !plan.observations.is_empty() || !plan.observation_inputs.is_empty() => {
+            Err(error)
+                if crossing
+                    .program
+                    .has_observation_contract(todo.rule)
+                    .map_err(|reason| failed(&todo.id, &reason))? =>
+            {
                 unknowns.extend(
                     crossing
                         .paths
@@ -188,14 +166,14 @@ impl CrossFile {
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
-        plan: &ryo_values::domain::plans::types::Plan,
+        emit: &ryo_values::domain::plans::types::Emit,
         table: Option<ryo_values::domain::rows::types::Table>,
         cross: &mut Symbols,
     ) -> Result<Option<Rendered>, RulesError> {
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let rule_number = RuleNumber(u32::try_from(todo.rule.0).unwrap_or(u32::MAX));
         Ok(if let Some(table) = table {
-            let mut found = founds(rule_number, &table, &plan.emit, FileId(u32::MAX))
+            let mut found = founds(rule_number, &table, emit, FileId(u32::MAX))
                 .map_err(|error| refuse(&error))?;
             // Observation demand can execute a rule on a file outside its
             // diagnostic scope. Apply the same compiled placement decision to
@@ -220,7 +198,7 @@ impl CrossFile {
             });
             found.sort_by_key(|each| each.file);
             let mut bytes = FileBytes::default();
-            if placeable(plan, &table) == Placeability::Placeable {
+            if placeable(emit, &table) == Placeability::Placeable {
                 for group in found.chunk_by_mut(|left, right| left.file == right.file) {
                     let Some(CorpusInput::Available(entry)) = group
                         .first()
@@ -229,7 +207,7 @@ impl CrossFile {
                         continue;
                     };
                     if self.corpus.read(entry, &mut bytes).is_ok() {
-                        place_all(group, &plan.emit, SourceView(&bytes.0), cross);
+                        place_all(group, emit, SourceView(&bytes.0), cross);
                     }
                 }
             }
@@ -294,26 +272,30 @@ impl CrossFile {
             unknown: crossing.unknown,
         };
         let mut loaded = Loaded::default();
-        let (plans, ids, files) = (crossing.plans, crossing.ids, crossing.files);
+        let (ids, files) = (crossing.ids, crossing.files);
         for each in found {
-            let Some(plan) = plans.get(usize::try_from(each.rule.0).unwrap_or(usize::MAX)) else {
-                continue;
-            };
+            let emit = crossing
+                .program
+                .emit(crate::domain::coverage::types::RuleIndex(
+                    usize::try_from(each.rule.0).unwrap_or(usize::MAX),
+                ))
+                .map_err(|error| FinishError::Publication {
+                    reason: error.to_string().into_boxed_str(),
+                })?;
             let id = ids
                 .get(usize::try_from(each.rule.0).unwrap_or(usize::MAX))
                 .map(|id| keep(&mut into.text, Cell::Text(CellText(&id.0))));
             into.cells.push(id);
             let subject = self.show_value(
                 &mut into.text,
-                cell(&each.row, plan.emit.subject)?,
+                cell(&each.row, emit.subject)?,
                 files,
                 &resolving,
                 &mut loaded,
             );
             into.cells.push(subject);
-            into.cells
-                .push(Some(key_count(KeyCount(plan.emit.key.len()))));
-            for index in &plan.emit.key {
+            into.cells.push(Some(key_count(KeyCount(emit.key.len()))));
+            for index in &emit.key {
                 let shown = self.show_value(
                     &mut into.text,
                     cell(&each.row, *index)?,
@@ -323,7 +305,7 @@ impl CrossFile {
                 );
                 into.cells.push(shown);
             }
-            for (heading, value) in plan.emit.headings.iter().zip(&each.row) {
+            for (heading, value) in emit.headings.iter().zip(&each.row) {
                 let named = keep(&mut into.text, Cell::Text(CellText(&heading.0)));
                 into.cells.push(Some(named));
                 let shown = self.show_value(&mut into.text, *value, files, &resolving, &mut loaded);

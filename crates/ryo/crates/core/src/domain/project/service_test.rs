@@ -72,7 +72,12 @@ fn subject(scenario: Input) -> Value {
             yes(reads_project(&manifests())) * 10 + yes(reads_project(&files()))
         }
         Scenario::ReadsAny => {
-            yes(reads_any(&[files(), manifests()])) * 10 + yes(reads_any(&[files(), files()]))
+            yes(reads_any(
+                &crate::domain::run_metadata::service::from_plans(&[files(), manifests()]),
+            )) * 10
+                + yes(reads_any(
+                    &crate::domain::run_metadata::service::from_plans(&[files(), files()]),
+                ))
         }
         Scenario::WithConsulted => {
             let project = [PlacedRule(1), PlacedRule(3)];

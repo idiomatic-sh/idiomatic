@@ -1,6 +1,7 @@
 //! The `project` service: free functions named by verb over what the rules read of the project, with no IO and no ports.
 
 use super::types::PlanReads;
+use crate::domain::run_metadata::types::RuleMetadata;
 use crate::domain::storing::types::MadeAgain;
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::Provenance;
@@ -24,11 +25,8 @@ pub(crate) fn reads_project(plan: &Plan) -> PlanReads {
 
 /// Whether the cross-file steps of any of the plans read what the project writes.
 #[must_use]
-pub(crate) fn reads_any(plans: &[Plan]) -> PlanReads {
-    if plans
-        .iter()
-        .any(|plan| reads_project(plan) == PlanReads::Reads)
-    {
+pub(crate) fn reads_any(metadata: &[RuleMetadata]) -> PlanReads {
+    if metadata.iter().any(|rule| rule.reads_project) {
         PlanReads::Reads
     } else {
         PlanReads::DoesNotRead
@@ -37,11 +35,11 @@ pub(crate) fn reads_any(plans: &[Plan]) -> PlanReads {
 
 /// The rules that read what the project writes, by their place among `plans`, in order.
 #[must_use]
-pub(crate) fn project_rules(plans: &[Plan]) -> Vec<PlacedRule> {
-    plans
+pub(crate) fn project_rules(metadata: &[RuleMetadata]) -> Vec<PlacedRule> {
+    metadata
         .iter()
         .enumerate()
-        .filter(|(_, plan)| reads_project(plan) == PlanReads::Reads)
+        .filter(|(_, rule)| rule.reads_project)
         .map(|(place, _)| PlacedRule(u32::try_from(place).unwrap_or(u32::MAX)))
         .collect()
 }

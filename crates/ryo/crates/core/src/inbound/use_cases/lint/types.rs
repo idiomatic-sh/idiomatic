@@ -19,7 +19,6 @@ use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_values::domain::files::types::{CorpusInput, Glob};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::records::types::{RowTotal, Unread};
 use ryo_values::domain::runs::types::{
@@ -319,18 +318,15 @@ impl From<AdmissionError> for ProviderFault {
 pub(super) struct LintRun<'a> {
     /// Required file applicability for both per-file and cross-file diagnostic Emit.
     pub placed: &'a crate::domain::placement::types::PlacedScopes,
-    /// Resolved named-root demand, with independent scheduling for ordinary requests.
-    pub observations: crate::domain::file_program::types::ObservationRequest<'a>,
-    pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
-    pub graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
+    /// The sole request-prepared executable program and its required application capabilities.
+    pub program: Arc<crate::application::file_dag::program::facade::PreparedProgram>,
+    pub services: &'a crate::application::file_dag::program::facade::ProgramServices<'a>,
     /// What the caller asked.
     pub request: &'a LintRequest,
     /// The rules, compiled.
     pub rules: &'a [RuleSpec],
-    /// The rules' plans.
-    pub plans: &'a [Plan],
-    /// The rules' bindings, by rule.
-    pub bindings: &'a [Vec<ParameterBinding>],
+    /// Pure rule facts retained for source demand, frontier and work accounting.
+    pub metadata: &'a [crate::domain::run_metadata::types::RuleMetadata],
     /// The rules' ids.
     pub ids: &'a [RuleId],
     /// What the rules read of the files.

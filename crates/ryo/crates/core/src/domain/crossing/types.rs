@@ -1,13 +1,11 @@
 //! The types of the `crossing` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::coverage::types::{Covered, Partial};
-use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::trust::types::Needs;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -19,10 +17,8 @@ pub(crate) struct CrossingInput<'a> {
     pub placed: &'a crate::domain::placement::types::PlacedScopes,
     /// Actual generation-bound readiness beside the producer frontier words.
     pub observations: &'a [crate::domain::coverage::types::FileObservationReadiness],
-    /// The plans of the rules.
-    pub plans: &'a [Plan],
-    /// What each rule binds its parameters to.
-    pub bindings: &'a [Vec<ParameterBinding>],
+    /// Pure source and accounting facts extracted before executable plans are consumed.
+    pub metadata: &'a [crate::domain::run_metadata::types::RuleMetadata],
     /// The ids of the rules.
     pub ids: &'a [RuleId],
     /// The relations the steps of each rule trust the absence of rows of.

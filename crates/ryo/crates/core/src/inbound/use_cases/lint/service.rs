@@ -6,7 +6,6 @@ use crate::domain::reading::service::buckets_of;
 use crate::domain::storing::types::{HandedAgain, MadeAgain, Reuse};
 use crate::outbound::lint_store::interface::ReadStore;
 use ryo_values::domain::files::types::CorpusInput;
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::Record;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, StoredHanded};
@@ -47,14 +46,14 @@ pub(super) fn records_of<'a>(files: &[CorpusInput], kept: &'a [Record]) -> Vec<O
 /// alone, and what the store kept of them.
 pub(super) fn handed_of(
     read: Option<&Arc<dyn ReadStore>>,
-    plans: &[Plan],
+    metadata: &[crate::domain::run_metadata::types::RuleMetadata],
     first_bucket: &[Bucket],
     again: &Reuse,
     producer_buckets: &[Bucket],
 ) -> Result<HandedAgain, LintError> {
     let mut wanted = match again {
         Reuse::Cross(MadeAgain::These(made)) => {
-            BucketsWanted::These(buckets_of(plans, first_bucket, Some(made)))
+            BucketsWanted::These(buckets_of(metadata, first_bucket, Some(made)))
         }
         Reuse::Cross(MadeAgain::All | MadeAgain::Nothing) | Reuse::Whole => BucketsWanted::All,
         Reuse::Again => BucketsWanted::These(Vec::new()),

@@ -44,6 +44,7 @@ pub(crate) mod reading;
 pub(crate) mod recording;
 pub(crate) mod relation_lookup;
 pub(crate) mod render;
+pub(crate) mod run_metadata;
 pub(crate) mod replay;
 pub(crate) mod reporting;
 pub(crate) mod repository;

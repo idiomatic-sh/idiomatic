@@ -1,0 +1,59 @@
+//! Extract the few non-executable rule facts once while plans are transient.
+use super::types::{FeatureSlot, FeatureSource, RuleMetadata, StepMetadata};
+use crate::domain::features::service::{comparisons_of, kind_of};
+use ryo_relations::domain::relations::{service::provenance_of, types::Provenance};
+use ryo_values::domain::{
+    plan_parts::types::Input,
+    plans::{
+        service::{inputs_of, named},
+        types::{Feature, Operation, Plan, StepScope},
+    },
+};
+
+#[must_use]
+pub(crate) fn from_plans(plans: &[Plan]) -> Vec<RuleMetadata> {
+    plans.iter().map(from_plan).collect()
+}
+
+fn from_plan(plan: &Plan) -> RuleMetadata {
+    RuleMetadata {
+        reads_project: plan.frontier.iter().any(|input| {
+            matches!(input, Input::Relation(relation) if provenance_of(*relation) == Provenance::Manifests)
+        }),
+        has_cross_steps: plan.steps.iter().any(|step| step.scope == StepScope::CrossFile),
+        frontier_capture: plan.frontier.iter().map(|input| {
+            !matches!(input, Input::BoundObservation(id) if plan.observation_inputs
+                .get(id.0 as usize)
+                .is_some_and(|schema| schema.scope == StepScope::CrossFile))
+        }).collect(),
+        steps: plan.steps.iter().map(|step| {
+            let mut features = vec![FeatureSlot {
+                feature: Feature::Operation(kind_of(&step.operation)),
+                source: FeatureSource::AllInputs,
+            }];
+            features.extend(comparisons_of(&step.operation).iter().map(|comparison| FeatureSlot {
+                feature: Feature::Family(comparison.test),
+                source: FeatureSource::AllInputs,
+            }));
+            if let Operation::Axis { direction, .. } = &step.operation {
+                features.push(FeatureSlot {
+                    feature: Feature::Direction(*direction),
+                    source: FeatureSource::AllInputs,
+                });
+            }
+            let inputs = inputs_of(&step.operation);
+            features.extend(named(&inputs).iter().enumerate().filter_map(|(place, input)| {
+                let Input::Relation(relation) = input else { return None; };
+                Some(FeatureSlot {
+                    feature: Feature::Relation(*relation),
+                    source: FeatureSource::Input(place),
+                })
+            }));
+            StepMetadata {
+                operation: kind_of(&step.operation),
+                scope: step.scope,
+                features: features.into_boxed_slice(),
+            }
+        }).collect(),
+    }
+}

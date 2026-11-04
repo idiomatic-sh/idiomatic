@@ -13,12 +13,12 @@ use crate::domain::operator::types::{PreparedPool, RowsFed, TreeSteps};
 use crate::domain::placement::service::{governed, governs, place};
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
+use crate::domain::run_metadata::types::RuleMetadata;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::files::types::{CorpusInput, FileBytes, FileSize, Hits};
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
 
@@ -26,7 +26,8 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
 #[must_use]
 pub(crate) fn tables_for(
     number: WorkerNumber,
-    plans: &[Plan],
+    metadata: &[RuleMetadata],
+    matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     unlowered: TreeSteps,
     counting: Counting,
 ) -> Tables {
@@ -43,12 +44,10 @@ pub(crate) fn tables_for(
         words: Words::default(),
         packed: PackedWords::default(),
         pool: PreparedPool {
-            matchers: std::sync::Arc::new(
-                crate::domain::matching::types::prepared::value::PreparedMatchers::new(plans),
-            ),
-            fed: plans
+            matchers,
+            fed: metadata
                 .iter()
-                .map(|plan| vec![RowsFed::default(); plan.steps.len()])
+                .map(|rule| vec![RowsFed::default(); rule.steps.len()])
                 .collect(),
             unlowered,
             counting,
@@ -117,11 +116,11 @@ pub(crate) fn add_fed(total: &mut RowsFed, more: &RowsFed) {
 
 /// Nothing met yet, with room for the rows each step of each plan is fed.
 #[must_use]
-pub(crate) fn gathering(plans: &[Plan]) -> WorkersMet {
+pub(crate) fn gathering(metadata: &[RuleMetadata]) -> WorkersMet {
     WorkersMet {
-        fed: plans
+        fed: metadata
             .iter()
-            .map(|plan| vec![RowsFed::default(); plan.steps.len()])
+            .map(|rule| vec![RowsFed::default(); rule.steps.len()])
             .collect(),
         ..WorkersMet::default()
     }

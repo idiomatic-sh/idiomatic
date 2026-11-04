@@ -6,8 +6,8 @@ use crate::domain::operator::types::RowsFed;
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
 use crate::domain::rules::service::id_at;
+use crate::domain::run_metadata::types::RuleMetadata;
 use crate::domain::workers::service::add_fed;
-use ryo_values::domain::plans::types::{Plan, StepScope};
 use ryo_values::domain::runs::types::RuleId;
 
 /// Whether the plan has cross-file steps.
@@ -26,11 +26,11 @@ pub(crate) fn cross_steps(plan: &Plan) -> CrossSteps {
 
 /// The rules whose cross-file steps are made, in the order of the rules.
 #[must_use]
-pub(crate) fn todo_list(plans: &[Plan], ids: &[RuleId]) -> Vec<Todo> {
-    plans
+pub(crate) fn todo_list(metadata: &[RuleMetadata], ids: &[RuleId]) -> Vec<Todo> {
+    metadata
         .iter()
         .enumerate()
-        .filter(|(_, plan)| cross_steps(plan) == CrossSteps::Has)
+        .filter(|(_, rule)| rule.has_cross_steps)
         .map(|(rule, _)| Todo {
             rule: RuleIndex(rule),
             id: id_at(ids, RuleIndex(rule)),
@@ -63,3 +63,4 @@ pub(crate) fn settle(
     unknowns.append(&mut incomplete);
     observations
 }
+use ryo_values::domain::plans::types::{Plan, StepScope};

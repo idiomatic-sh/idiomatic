@@ -128,9 +128,12 @@ fn subject(scenario: Input) -> Value {
                 plan(&[StepScope::CrossFile]),
             ];
             let ids = [RuleId("a".into()), RuleId("b".into()), RuleId("c".into())];
-            todo_list(&plans, &ids)
-                .iter()
-                .fold(0, |packed, each| packed * 10 + each.rule.0 + 1)
+            todo_list(
+                &crate::domain::run_metadata::service::from_plans(&plans),
+                &ids,
+            )
+            .iter()
+            .fold(0, |packed, each| packed * 10 + each.rule.0 + 1)
         }
         Scenario::SettleFed => usize::try_from(settled(7, &[], &[]).0).unwrap_or(0),
         Scenario::SettleLater => usize::from(settled(0, &["a"], &["b"]).1 == "ab"),

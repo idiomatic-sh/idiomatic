@@ -5,7 +5,6 @@ use crate::domain::finish::types::LineStarts;
 use crate::domain::operator::types::{PreparedPool, RowsFed};
 use crate::domain::placement::types::{Mask, PlacedScopes};
 use crate::domain::render::types::{Answering, Rendered};
-use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
 use ryo_language::domain::elements::types::Elements;
@@ -14,7 +13,6 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{NamePlace, Relation, Words, WorkerNumber};
 use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::{FileBytes, Hits};
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::{Kept, Record, RowTotal, Unread};
 use ryo_values::domain::runs::types::MemoryBytes;
 use ryo_values::domain::runs::types::RuleApplicability;
@@ -139,12 +137,8 @@ pub(crate) struct Tables {
 /// What a visit of a file reads that is the same for every file.
 #[derive(Clone)]
 pub(crate) struct VisitSetting<'a> {
-    /// Resolved named-root demand, with independent scheduling for ordinary requests.
-    pub observations: crate::domain::file_program::types::ObservationRequest<'a>,
-    /// The plans of the rules.
-    pub plans: &'a [Plan],
-    /// What each rule binds its parameters to.
-    pub bindings: &'a [Vec<ParameterBinding>],
+    /// Pure source and accounting facts extracted once before executable plans are consumed.
+    pub metadata: &'a [crate::domain::run_metadata::types::RuleMetadata],
     /// The relations the languages are asked to walk the files for.
     pub wanted: &'a [Relation],
     /// The path of each file of the run.

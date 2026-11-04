@@ -22,13 +22,12 @@ use ryo_relations::domain::relations::types::CellKind;
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::{Emit, Operation, Plan};
 
-/// Whether a finding of the plan can have a place in a file: a stretch, a node or a name among the columns that say what it is.
+/// Whether an emitted finding can have a place in a file: a stretch, a node or a name among its columns.
 #[must_use]
-pub(crate) fn placeable(plan: &Plan, table: &Table) -> Placeability {
-    let places = plan
-        .emit
+pub(crate) fn placeable(emit: &Emit, table: &Table) -> Placeability {
+    let places = emit
         .key
         .iter()
         .chain(std::iter::once(&plan.emit.subject))

@@ -287,7 +287,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             };
             let says = |emitted, key| {
                 usize::from(
-                    placeable(&counting_plan(emitted, key), &table) == Placeability::Placeable,
+                    placeable(&counting_plan(emitted, key).emit, &table) == Placeability::Placeable,
                 )
             };
             [

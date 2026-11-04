@@ -268,7 +268,7 @@ fn placing_outcomes() -> Value {
         ..Table::default()
     };
     let says = |emitted, key| {
-        usize::from(placeable(&counting_plan(emitted, key), &table) == Placeability::Placeable)
+        usize::from(placeable(&counting_plan(emitted, key).emit, &table) == Placeability::Placeable)
     };
     [
         says(0, Vec::new()),

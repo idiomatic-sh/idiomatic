@@ -79,22 +79,28 @@ fn subject(scenario: Input) -> Value {
                 .iter()
                 .map(|each| vec![RowsFed([*each, 0, 0])])
                 .collect();
-            fed_over(&plans, &fed)
-                .into_iter()
-                .filter(|each| each.feature == wanted)
-                .map(|each| each.rows.0)
-                .sum()
+            fed_over(
+                &crate::domain::run_metadata::service::from_plans(&plans),
+                &fed,
+            )
+            .into_iter()
+            .filter(|each| each.feature == wanted)
+            .map(|each| each.rows.0)
+            .sum()
         }
         Scenario::FedOverNothing => {
             let told = fed_over(&[], &[]);
             u64::from(told.len() == catalog().len() && told.iter().all(|each| each.rows.0 == 0))
         }
         Scenario::Catalog => u64::try_from(catalog().len()).unwrap_or(u64::MAX),
-        Scenario::SelectFed(wanted) => tally(&select_over_function(), &[RowsFed([1500, 0, 0])])
-            .into_iter()
-            .filter(|each| each.feature == wanted)
-            .map(|each| each.rows.0)
-            .sum(),
+        Scenario::SelectFed(wanted) => tally(
+            &crate::domain::run_metadata::service::from_plans(&[select_over_function()])[0],
+            &[RowsFed([1500, 0, 0])],
+        )
+        .into_iter()
+        .filter(|each| each.feature == wanted)
+        .map(|each| each.rows.0)
+        .sum(),
     }
 }
 

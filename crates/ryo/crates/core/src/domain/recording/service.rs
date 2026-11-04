@@ -264,7 +264,7 @@ pub(crate) fn cover(
     }
     let mut rules = Vec::new();
     for (rule, needs) in setting.needs.iter().enumerate() {
-        let applicable = if setting.plans.is_empty() || !setting.applicability_can_gate {
+        let applicable = if setting.metadata.is_empty() || !setting.applicability_can_gate {
             true
         } else {
             match setting.applicability.get(rule).copied() {
