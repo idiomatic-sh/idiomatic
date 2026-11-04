@@ -301,7 +301,9 @@ fn succeeds() {
 
 #[test]
 fn transported_places_require_the_same_live_symbol_generation() {
-    use super::service::{clear_symbols, query_places_mut, transport_permit};
+    use super::service::{
+        clear_symbols, query_has_transport_generation, query_places_mut, transport_permit,
+    };
     use ryo_relations::domain::relations::types::NamePlace;
 
     let mut first = Symbols::default();
@@ -309,10 +311,12 @@ fn transported_places_require_the_same_live_symbol_generation() {
     let key = transport_permit(&mut first);
     {
         let mut query = QuerySymbols::from(&mut second);
+        assert!(!query_has_transport_generation(&query, &key));
         assert!(query_places_mut(&mut query, &key).is_err());
     }
     {
         let mut query = QuerySymbols::from(&mut first);
+        assert!(query_has_transport_generation(&query, &key));
         let places = query_places_mut(&mut query, &key).expect("exact live pool");
         places.push(NamePlace {
             origin: Origin::Derived(WorkerNumber(0)),
@@ -324,5 +328,6 @@ fn transported_places_require_the_same_live_symbol_generation() {
     }
     clear_symbols(&mut first);
     let mut query = QuerySymbols::from(&mut first);
+    assert!(!query_has_transport_generation(&query, &key));
     assert!(query_places_mut(&mut query, &key).is_err());
 }
