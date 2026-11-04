@@ -161,7 +161,7 @@ pub(crate) fn compile(
         } else {
             HeldJoinOrder::LeftWithEmptyGate
         };
-        let instruction = Instruction {
+        let mut instruction = Instruction {
             logical: LogicalInstruction(logical),
             producer: rule,
             operation: node.operation,
@@ -179,6 +179,20 @@ pub(crate) fn compile(
             .into_boxed_slice(),
             contract: node.contract,
         };
+        if matches!(instruction.operation, Operation::Hosted { .. }) {
+            for program in [
+                &mut instruction.streaming_demand,
+                &mut instruction.collected_demand,
+            ] {
+                let mut actions = program.actions.to_vec();
+                let at = actions
+                    .iter()
+                    .position(|action| matches!(action, DemandAction::ValidateBeforeInputs))
+                    .map_or(0, |at| at + 1);
+                actions.insert(at, DemandAction::Admit(InputId(0)));
+                program.actions = actions.into_boxed_slice();
+            }
+        }
         let region = if let Some(region) = fuse {
             let region_body = drafts[region].as_mut().ok_or(OperatingError::NotRun)?;
             region_body.nodes.push(logical);
@@ -221,6 +235,18 @@ pub(crate) fn compile(
     for (at, draft) in drafts.into_iter().enumerate() {
         let Some(draft) = draft else { continue };
         let logical = *draft.nodes.last().ok_or(OperatingError::NotRun)?;
+        let mut inputs: Vec<_> = draft.inputs.into_iter().map(source).collect();
+        if let Some(Instruction {
+            producer,
+            operation: Operation::Hosted { relation },
+            ..
+        }) = draft.instructions.first()
+        {
+            inputs.push(InputSource::Hosted {
+                rule: *producer,
+                relation: *relation,
+            });
+        }
         regions.push(Region {
             id: RegionId(dense[at]),
             producer: draft
@@ -231,12 +257,7 @@ pub(crate) fn compile(
             needs: draft.needs.map(Vec::into_boxed_slice),
             phase: draft.phase,
             instructions: draft.instructions.into_boxed_slice(),
-            inputs: draft
-                .inputs
-                .into_iter()
-                .map(source)
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
+            inputs: inputs.into_boxed_slice(),
             consumers: consumers[logical],
             publishes: boundary[logical] || consumers[logical] > 1,
         });

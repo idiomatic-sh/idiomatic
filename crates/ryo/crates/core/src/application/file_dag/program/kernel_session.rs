@@ -30,17 +30,20 @@ use std::rc::Rc;
 
 pub(super) struct KernelSession<'a, 'facts> {
     kernels: &'a dyn PrimitiveExecutor,
+    prepared: &'a super::facade::PreparedProgram,
     owner: Rc<RelationOwner>,
     read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 }
 impl<'a, 'facts> KernelSession<'a, 'facts> {
     pub(super) fn new(
         kernels: &'a dyn PrimitiveExecutor,
+        prepared: &'a super::facade::PreparedProgram,
         owner: Rc<RelationOwner>,
         read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     ) -> Self {
         Self {
             kernels,
+            prepared,
             owner,
             read,
         }
@@ -56,6 +59,22 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
     ) -> Result<(), InvocationFailure> {
+        let mut rebound = OperatorContext {
+            semantic: context.semantic,
+            prepared_matchers: context.prepared_matchers,
+            prepared_kinds: context.prepared_kinds,
+            bindings: self
+                .prepared
+                .bindings(instruction.producer)
+                .map_err(InvocationFailure::Semantic)?,
+            symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
+            source: context.source,
+            paths: context.paths,
+            arenas: context.arenas,
+            memo: &mut *context.memo,
+            scratch: &mut *context.scratch,
+        };
+        let context = &mut rebound;
         let workspace = scratch
             .workspace
             .get_or_insert_with(|| InvocationWorkspace::new(Rc::clone(&self.owner)));
@@ -123,15 +142,23 @@ impl KernelInvocation for KernelSession<'_, '_> {
                     )
                     .map_err(InvocationFailure::Semantic),
                     InputShape::RequestSource => {
-                        let source = views.first().ok_or(InvocationFailure::Semantic(
-                            OperatingError::MissingInput { position: 1 },
-                        ))?;
+                        let empty = ryo_values::domain::rows::types::Table::default();
+                        let source = match &instruction.operation {
+                            // Rows semantics consume the exact producer's parameter
+                            // snapshot through the lease, not an external relation.
+                            ryo_values::domain::plans::types::Operation::Rows { .. } => {
+                                BorrowedRows::Computed(&empty)
+                            }
+                            _ => views.first().copied().ok_or(InvocationFailure::Semantic(
+                                OperatingError::MissingInput { position: 1 },
+                            ))?,
+                        };
                         crate::application::file_dag::execution::lease::evaluate(
                             self.kernels,
                             contract,
                             permit,
                             &instruction.operation,
-                            PreparedInputs::RequestSource(source),
+                            PreparedInputs::RequestSource(&source),
                             &mut resources,
                             workspace,
                             context,

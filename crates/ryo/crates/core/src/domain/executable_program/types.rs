@@ -20,6 +20,10 @@ pub(crate) struct LogicalInstruction(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InputSource {
     Relation(Relation),
+    Hosted {
+        rule: RuleIndex,
+        relation: ryo_values::domain::plan_parts::types::HostedNumber,
+    },
     Region(RegionId),
     Observation(usize),
     /// One exact producer of a request-qualified named input.

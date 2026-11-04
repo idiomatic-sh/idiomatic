@@ -24,6 +24,11 @@ impl PrimitiveExecutor for CommonOperatorEngine<'_> {
                 lease,
                 output,
             } => {
+                if operation != permit.operation() {
+                    return Err(KernelFault::Refused(
+                        crate::domain::operating::errors::OperatingError::WrongOperation,
+                    ));
+                }
                 crate::domain::executable_program::kernel::evaluate(
                     permit.kind(),
                     operation,
