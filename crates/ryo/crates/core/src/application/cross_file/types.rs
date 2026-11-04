@@ -16,6 +16,21 @@ pub(crate) struct CrossedWithPublications {
     )>,
 }
 
+/// Each named member carries its own admission source, never just decoded words.
+#[derive(Clone)]
+pub(crate) enum BoundMember {
+    Current(crate::application::file_dag::program::facade::ObservedPublication),
+    Restored(crate::application::file_dag::program::facade::ValidatedFrontier),
+}
+
+/// Application-only named binding. The producer schema remains pure metadata;
+/// the member list retains the matching owner evidence in the same payload.
+#[derive(Clone)]
+pub(crate) struct BoundInput {
+    pub input: ryo_values::domain::observations::types::ObservationBindingId,
+    pub members: Result<Vec<BoundMember>, crate::domain::operating::errors::OperatingError>,
+}
+
 /// Required resources for the existing cross ready batches; no optional owner/fallback executor.
 pub(crate) struct ObservationRun<'a> {
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,

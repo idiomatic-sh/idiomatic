@@ -26,7 +26,7 @@ use ryo_values::domain::{
 struct PreparedTask {
     todo: Todo,
     slot: PublicationSlot,
-    bindings: Vec<crate::domain::crossing::types::BoundInputWords>,
+    bindings: Vec<super::types::BoundInput>,
     frontier_ready: Vec<bool>,
 }
 impl CrossFile {
@@ -107,7 +107,17 @@ impl CrossFile {
                     );
                     let prepared = match verified {
                         Ok(crate::application::file_dag::completion::CoverageState::Complete) => {
-                            publications.prepare_frontier(payload.words)
+                            crate::application::file_dag::program::facade::validate_restored_frontier(
+                                &run.program,
+                                root.producer,
+                                root.frontier,
+                                first,
+                                bucket,
+                                &required,
+                                payload,
+                                &owner,
+                            )
+                            .and_then(|token| publications.prepare_frontier(token))
                         }
                         Ok(crate::application::file_dag::completion::CoverageState::Partial {
                             ..

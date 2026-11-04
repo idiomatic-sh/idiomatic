@@ -6,12 +6,13 @@ pub(super) struct ProjectSources<'a> {
     pub(super) rule: RuleIndex,
     pub(super) ordinary: &'a mut [Option<crate::application::cross_file::types::FrontierInput>],
     pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
-    pub(super) bound: &'a mut [Option<crate::domain::crossing::types::BoundInputWords>],
+    pub(super) bound: &'a mut [Option<crate::application::cross_file::types::BoundInput>],
     pub(super) cache: &'a mut Vec<(
         crate::domain::executable_program::types::InputSource,
         AdmittedInput,
     )>,
     pub(super) transport: &'a ryo_language::domain::symbols::types::TransportPermit,
+    pub(super) publication: &'a PublicationScope,
 }
 impl ProjectSources<'_> {
     /// Called only by an actual DemandAction::Admit. Raw source handles and
@@ -71,67 +72,40 @@ impl ProjectSources<'_> {
         }
         if let InputSource::ObservationMember { slot, member } = source {
             for bound in &mut *self.bound {
-                let Some(words) = bound.as_mut() else {
+                let Some(binding) = bound.as_mut() else {
                     continue;
                 };
-                if observation_slot(program, rule, words.input).ok() != Some(slot) {
+                if observation_slot(program, rule, binding.input).ok() != Some(slot) {
                     continue;
                 }
                 let result = (|| {
-                    let kept = words.words.as_ref().map_err(Clone::clone)?;
-                    let bytes = kept.get(member).ok_or(OperatingError::NotRun)?;
-                    let table = crate::domain::table_words::service::decode_complete(
-                        &bytes.0,
-                        ryo_language::domain::symbols::service::query_places_mut(
-                            &mut context.symbols,
-                            self.transport,
-                        )
-                        .map_err(|_| OperatingError::NotRead)?,
-                    )
-                    .map_err(|error| {
-                        OperatingError::ObservationIncomplete {
-                            reason: error.to_string(),
-                        }
-                    })?;
-                    if table.kinds != words.kinds {
-                        return Err(OperatingError::ObservationIncomplete {
-                            reason: "named member differs from its declared schema".into(),
-                        });
-                    }
-                    let named = program
-                        .observation_metadata()
-                        .ok_or(OperatingError::NotRun)?;
-                    let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
-                    let producer = named
-                        .bindings
-                        .get(declaration.rule)
-                        .and_then(|bindings| bindings.get(declaration.input.0 as usize))
-                        .and_then(|binding| binding.producers.get(member))
-                        .ok_or(OperatingError::NotRun)?;
-                    let crate::domain::file_program::types::ResolvedObservationProducer::Output {
-                        rule: producer_rule,
-                        output,
-                    } = producer
-                    else {
-                        return Err(OperatingError::ObservationIncomplete {
-                            reason: "named producer has no executable query".into(),
-                        });
-                    };
-                    let original = program
-                        .rule_metadata(*producer_rule)?
-                        .observations
-                        .get(output.0 as usize)
-                        .ok_or(OperatingError::NotRun)?
-                        .source
+                    let proof = binding
+                        .members
                         .as_ref()
-                        .map_err(Clone::clone)?;
-                    let publication = owner.computed(table)?;
-                    let producer_input = admit_published(owner, publication, *original, partition)?;
+                        .map_err(Clone::clone)?
+                        .get(member)
+                        .ok_or(OperatingError::NotRun)?;
+                    let producer = match proof {
+                        crate::application::cross_file::types::BoundMember::Current(actual) => {
+                            actual.clone()
+                        }
+                        crate::application::cross_file::types::BoundMember::Restored(token) => {
+                            let Partition::Project(required) = partition else {
+                                return Err(OperatingError::WrongOperation);
+                            };
+                            token.materialize(
+                                self.publication,
+                                required,
+                                self.transport,
+                                context,
+                            )?
+                        }
+                    };
                     super::super::admission::alias_member(
                         program,
                         slot,
                         member,
-                        &producer_input,
+                        producer.admitted(),
                         partition,
                         owner,
                     )

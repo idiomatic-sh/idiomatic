@@ -20,7 +20,7 @@ pub(crate) fn cross_rule_with_inputs(
     crossing: &CrossingInput<'_>,
     todo: &Todo,
     mut frontiers: PreparedFrontiers,
-    bound_inputs: &[crate::domain::crossing::types::BoundInputWords],
+    bound_inputs: &[crate::application::cross_file::types::BoundInput],
     cross: &mut Symbols,
     publication: &facade::PublicationScope,
 ) -> Result<ProgramEvaluated, RulesError> {

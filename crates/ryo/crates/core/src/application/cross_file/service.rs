@@ -81,7 +81,7 @@ impl CrossFile {
         todo: &Todo,
         frontier: super::types::PreparedFrontiers,
         cross: &mut Symbols,
-        bound_inputs: &[crate::domain::crossing::types::BoundInputWords],
+        bound_inputs: &[super::types::BoundInput],
         publication: super::types::PublicationSlot,
         scope: &facade::PublicationScope,
     ) -> Result<super::types::CrossedWithPublications, RulesError> {

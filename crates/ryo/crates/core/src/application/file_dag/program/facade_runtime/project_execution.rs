@@ -11,12 +11,13 @@ pub(crate) struct ProjectRun<'a, 'service> {
     partials: ScopePartials<'a>,
     ordinary: Vec<Option<crate::application::cross_file::types::FrontierInput>>,
     refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
-    bound: Vec<Option<crate::domain::crossing::types::BoundInputWords>>,
+    bound: Vec<Option<crate::application::cross_file::types::BoundInput>>,
     cache: Vec<(
         crate::domain::executable_program::types::InputSource,
         AdmittedInput,
     )>,
     transport: ryo_language::domain::symbols::types::TransportPermit,
+    publication: &'a PublicationScope,
 }
 pub(crate) fn open_project<'a, 'service>(
     program: &'a Arc<PreparedProgram>,
@@ -62,6 +63,7 @@ pub(crate) fn open_project<'a, 'service>(
         bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
         cache: Vec::new(),
         transport,
+        publication: scope,
     })
 }
 impl ProjectRun<'_, '_> {
@@ -112,6 +114,7 @@ impl ProjectRun<'_, '_> {
                 bound: &mut self.bound,
                 cache: &mut self.cache,
                 transport: &self.transport,
+                publication: self.publication,
             }),
         };
         let emit = match demand.emit {

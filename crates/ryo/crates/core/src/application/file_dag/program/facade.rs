@@ -43,7 +43,7 @@ pub(crate) struct CaptureContext<'a> {
 pub(crate) struct ProjectFrontiers<'a> {
     pub publication: &'a PublicationScope,
     pub ordinary: crate::application::cross_file::types::PreparedFrontiers,
-    pub bound_inputs: &'a [crate::domain::crossing::types::BoundInputWords],
+    pub bound_inputs: &'a [crate::application::cross_file::types::BoundInput],
 }
 pub(crate) struct FrontierCapture {
     pub input: ryo_values::domain::plan_parts::types::InputNumber,

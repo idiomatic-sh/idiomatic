@@ -100,21 +100,6 @@ pub(crate) struct CrossPublicationTransfer {
     pub roots: Vec<PackedObservedRoot>,
 }
 
-/// One actual named input supplied to a cross task. Failure stays explicit and cannot be empty rows.
-#[derive(Clone, Debug)]
-pub(crate) struct BoundInputWords {
-    pub input: ryo_values::domain::observations::types::ObservationBindingId,
-    pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
-    pub union: Result<
-        std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>,
-        crate::domain::operating::errors::OperatingError,
-    >,
-    pub words: Result<
-        Vec<std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords>>,
-        crate::domain::operating::errors::OperatingError,
-    >,
-}
-
 /// One required source that cannot provide rows; never represented by an empty Table.
 #[derive(Clone, Debug)]
 pub(crate) struct RefusedFrontier {

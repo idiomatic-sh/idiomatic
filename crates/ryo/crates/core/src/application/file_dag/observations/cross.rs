@@ -1,5 +1,5 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
-use crate::application::cross_file::types::PublicationSlot;
+use crate::application::cross_file::types::{BoundInput, BoundMember, PublicationSlot};
 use crate::application::file_dag::program::facade::{ObservationMetadata, OutputRoot};
 use crate::domain::{
     coverage::types::RuleIndex, crossing::types::CrossPublicationTransfer,
@@ -8,15 +8,15 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
     observations::types::{ObservationIndex, ProducerReadiness},
-    stored_facts::types::{ArenaBytes, KeptWords},
+    stored_facts::types::ArenaBytes,
 };
 use std::rc::Rc;
-use std::sync::Arc;
 
 enum CrossRoot {
     Pending,
     FileFrontier {
         publication: crate::application::file_dag::relations::PackedPublication,
+        token: crate::application::file_dag::program::facade::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
@@ -33,6 +33,7 @@ pub(crate) struct FrontierPopulation<'a> {
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
     publication: crate::application::file_dag::relations::PackedPublication,
+    token: crate::application::file_dag::program::facade::ValidatedFrontier,
     arenas: Vec<WorkerNumber>,
 }
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
@@ -91,10 +92,10 @@ impl<'a> CrossPublications<'a> {
     /// Decode and retain one actual physical bucket through the common publication owner.
     pub(crate) fn prepare_frontier(
         &self,
-        words: KeptWords,
+        token: crate::application::file_dag::program::facade::ValidatedFrontier,
     ) -> Result<PreparedFrontier, OperatingError> {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-        let backing = std::sync::Arc::new(words);
+        let backing = std::sync::Arc::new(token.words().clone());
         let (metadata, _spelling) = crate::domain::table_words::service::admit_compact(
             std::sync::Arc::clone(&backing),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
@@ -123,6 +124,7 @@ impl<'a> CrossPublications<'a> {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(PreparedFrontier {
             publication: self.owner.packed_publication(words, &backings)?,
+            token,
             arenas,
         })
     }
@@ -164,6 +166,7 @@ impl<'a> CrossPublications<'a> {
         }
         *root = CrossRoot::FileFrontier {
             publication: prepared.publication.clone(),
+            token: prepared.token.clone(),
             arenas: prepared.arenas.clone(),
         };
         Ok(())
@@ -207,38 +210,33 @@ impl<'a> CrossPublications<'a> {
         self.references.push(0);
         Ok(PublicationSlot::Reserved(worker))
     }
-    pub(crate) fn words(
+    fn member(
         &self,
         rule: RuleIndex,
         output: ObservationIndex,
-    ) -> Result<Arc<KeptWords>, OperatingError> {
+    ) -> Result<BoundMember, OperatingError> {
         match self
             .roots
             .get(rule.0)
             .and_then(|outputs| outputs.get(output.0 as usize))
         {
-            Some(
-                CrossRoot::FileFrontier { publication, .. } | CrossRoot::Named { publication, .. },
-            ) => Ok(publication.words()),
+            Some(CrossRoot::FileFrontier { token, .. }) => Ok(BoundMember::Restored(token.clone())),
+            Some(CrossRoot::Named { admitted, .. }) => Ok(BoundMember::Current(admitted.clone())),
             Some(CrossRoot::Pending | CrossRoot::Unavailable) | None => Err(incomplete()),
         }
     }
     /// Freeze this task's actual producer handles before the ready batch executes.
     /// Workers receive immutable words only; the coordinator retains the physical leases.
-    pub(crate) fn bindings(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<Vec<crate::domain::crossing::types::BoundInputWords>, OperatingError> {
+    pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
         let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
-        Ok(bindings.iter().enumerate().filter(|(_,binding)| binding.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile).map(|(ordinal,binding)| {
-            let words = binding.producers.iter().map(|producer| match producer {
-                crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.words(*rule, *output),
+        Ok(bindings.iter().filter(|binding| binding.schema.scope == ryo_values::domain::plans::types::StepScope::CrossFile).map(|binding| {
+            let members = binding.producers.iter().map(|producer| match producer {
+                crate::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.member(*rule, *output),
                 crate::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
             }).collect();
-            crate::domain::crossing::types::BoundInputWords {
+            BoundInput {
                 input: binding.input,
-                kinds: binding.schema.columns.iter().map(|column| column.kind).collect(),
-                union: self.metadata.unions[rule.0][ordinal].clone(), words,
+                members,
             }
         }).collect())
     }
@@ -393,6 +391,7 @@ impl<'a> CrossPublications<'a> {
             CrossRoot::FileFrontier {
                 publication,
                 arenas,
+                ..
             }
             | CrossRoot::Named {
                 publication,
