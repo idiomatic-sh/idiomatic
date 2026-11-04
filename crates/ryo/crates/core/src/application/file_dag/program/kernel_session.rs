@@ -357,6 +357,71 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         .map_err(InvocationFailure::Semantic)?,
                     )
                 };
+                    if mode == EvaluationMode::Collected
+                        && matches!(
+                            permit.native_join_eligibility(),
+                            super::native_join::Eligibility::Native
+                        )
+                        && originals.first().is_some_and(|left| count_of(left).0 != 0)
+                        && matches!(originals.get(1), Some(Rows::Tree(_)))
+                    {
+                        if resources.is_none() {
+                            resources = Some(
+                                InvocationResources::prepare(
+                                    contract, &views, context, mode, &originals, workspace,
+                                )
+                                .map_err(InvocationFailure::Semantic)?,
+                            );
+                        }
+                        if let Some(native) = resources
+                            .as_ref()
+                            .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?
+                            .native_join_lease()
+                            .map_err(InvocationFailure::Semantic)?
+                        {
+                            let delivery = std::sync::OnceLock::new();
+                            let request = super::native_join::PermittedNativeJoin::new(
+                                permit,
+                                native,
+                                &originals[0],
+                                admitted,
+                                &self.owner,
+                                context,
+                                &workspace.work,
+                                output,
+                                &delivery,
+                            )
+                            .map_err(InvocationFailure::Semantic)?;
+                            let result = self.kernels.execute(
+                                crate::application::file_dag::executor::KernelCall::NativeJoin {
+                                    request,
+                                },
+                            );
+                            if let Some(error) = delivery.get() {
+                                return Err(InvocationFailure::Delivery(error.clone()));
+                            }
+                            return match result {
+                                Ok(
+                                    crate::application::file_dag::executor::KernelAnswer::Complete,
+                                ) => Ok(()),
+                                Ok(_) => {
+                                    Err(InvocationFailure::Semantic(OperatingError::WrongOperation))
+                                }
+                                Err(
+                                    crate::application::file_dag::executor::KernelFault::Refused(
+                                        error,
+                                    ),
+                                ) => Err(InvocationFailure::Semantic(error)),
+                                Err(
+                                    crate::application::file_dag::executor::KernelFault::Portable(
+                                        error,
+                                    ),
+                                ) => Err(InvocationFailure::Semantic(
+                                    crate::domain::operator::contract::types::portable_fault(error),
+                                )),
+                            };
+                        }
+                    }
                     let meaning = match mode {
                         EvaluationMode::Streaming => &contract.streaming,
                         EvaluationMode::Collected => &contract.collected,

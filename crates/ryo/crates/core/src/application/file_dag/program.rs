@@ -14,3 +14,5 @@ mod context;
 pub(in crate::application::file_dag) mod native_walk;
 
 pub(in crate::application::file_dag) mod selection;
+
+pub(in crate::application::file_dag) mod native_join;

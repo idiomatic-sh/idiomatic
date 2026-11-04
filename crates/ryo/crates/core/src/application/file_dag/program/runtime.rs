@@ -462,7 +462,7 @@ impl ProgramExecution {
                         context,
                     )
                     .map_err(InvocationFailure::Semantic)?;
-                let permit = super::admission::KernelPermit::ordered(self, id, &source)
+                let permit = super::admission::KernelPermit::ordered(self, id, &source, evaluation)
                     .map_err(InvocationFailure::Semantic)?;
                 let last = region
                     .instructions
@@ -698,7 +698,7 @@ impl ProgramExecution {
                     }
                 }
             }
-            let permit = super::admission::KernelPermit::admitted(self, id, &admitted)
+            let permit = super::admission::KernelPermit::admitted(self, id, &admitted, evaluation)
                 .map_err(InvocationFailure::Semantic)?;
             let frames = cleanup
                 .scratch

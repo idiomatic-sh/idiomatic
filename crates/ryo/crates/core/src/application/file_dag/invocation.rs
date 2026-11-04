@@ -40,6 +40,37 @@ fn input<'f>(inputs: &[BorrowedRows<'f>], at: usize) -> Result<BorrowedRows<'f>,
         .ok_or(OperatingError::MissingInput { position: at + 1 })
 }
 
+/// A borrowed acquired native resource. Its fields can be minted only by
+/// InvocationResources after the required derived acquisition has succeeded.
+pub(in crate::application::file_dag) struct NativeJoinLease<'a> {
+    native: NativeJoin<'a>,
+    acquired: &'a AcquiredView,
+}
+impl NativeJoinLease<'_> {
+    pub(in crate::application::file_dag) fn tree(
+        &self,
+    ) -> crate::domain::table_cells::types::TreeRows<'_> {
+        self.native.tree
+    }
+    pub(in crate::application::file_dag) fn finding(
+        &self,
+    ) -> Result<ryo_derived::domain::contract::types::Finding, OperatingError> {
+        let ryo_derived::domain::contract::types::DerivedView::NativeLookup(finding) =
+            self.acquired.view()?
+        else {
+            return Err(OperatingError::WrongOperation);
+        };
+        if *finding != self.native.finding {
+            return Err(OperatingError::WrongOperation);
+        }
+        Ok(*finding)
+    }
+    pub(in crate::application::file_dag) fn contract(
+        &self,
+    ) -> &crate::domain::derived_views::types::DerivedContract {
+        self.acquired.contract()
+    }
+}
 /// Resources are prepared once, after the scheduler's static/empty/first-row gates.
 /// Regex resources are acquired separately after the checked physical/text row gates.
 pub(crate) struct InvocationResources<'f> {
@@ -448,3 +479,21 @@ impl crate::domain::operator::contract::views::ClosureParts
 }
 
 pub(super) mod rooms;
+
+impl InvocationResources<'_> {
+    pub(in crate::application::file_dag) fn native_join_lease(
+        &self,
+    ) -> Result<Option<NativeJoinLease<'_>>, OperatingError> {
+        match (
+            self.inputs.native_join.as_ref(),
+            self.inputs.native_storage.as_ref(),
+        ) {
+            (None, None) => Ok(None),
+            (Some(native), Some(acquired)) => Ok(Some(NativeJoinLease {
+                native: *native,
+                acquired,
+            })),
+            _ => Err(OperatingError::WrongOperation),
+        }
+    }
+}

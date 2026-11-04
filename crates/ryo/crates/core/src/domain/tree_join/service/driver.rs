@@ -5,6 +5,7 @@ pub(super) struct Driver<'a, 'f, 'c> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,
     pub(super) state: &'a mut TreeState,
+    pub(super) work: &'a crate::domain::operator::contract::types::WorkCounters,
     pub(super) tree: &'a TreeRows<'f>,
     pub(super) comparisons: &'a [Comparison],
     pub(super) context: &'a mut OperatorContext<'c>,
@@ -20,6 +21,7 @@ impl Driver<'_, '_, '_> {
         let elements = kinds_of(&tree_rows);
         while let Some(found) = self.state.stretched.get(self.at).copied() {
             self.at += 1;
+            self.work.found(1, 1);
             #[cfg(feature = "diagnostic-row-progress")]
             (self.progress)(
                 crate::domain::operator::contract::views::ProgressCounter::JoinCandidatePairs,

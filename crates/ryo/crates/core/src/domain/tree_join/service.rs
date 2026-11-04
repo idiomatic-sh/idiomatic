@@ -152,6 +152,7 @@ pub(crate) fn give_back(state: TreeState, context: &mut OperatorContext<'_>) {
 pub(crate) fn probe(
     semantics: &dyn PrimitiveSemantics,
     left_on: &[ColumnIndex],
+    work: &crate::domain::operator::contract::types::WorkCounters,
     state: &mut TreeState,
     tree: &TreeRows<'_>,
     finding: Finding,
@@ -201,6 +202,7 @@ pub(crate) fn probe(
         #[cfg(feature = "diagnostic-row-progress")]
         progress: semantics.progress(),
         state,
+        work,
         tree,
         comparisons,
         context,
@@ -238,6 +240,7 @@ pub(crate) fn join_tree(
     left_on: &[ColumnIndex],
     tree: &TreeRows<'_>,
     left: &Rows<'_>,
+    work: &crate::domain::operator::contract::types::WorkCounters,
     finding: Finding,
     shape: TreeShape<'_>,
     context: &mut OperatorContext<'_>,
@@ -264,6 +267,9 @@ pub(crate) fn join_tree(
         let mut candidates = std::mem::take(&mut state.candidates);
         let narrowed = by_child
             && candidates_of(tree, &state.kinds, &mut candidates) == KindNarrowing::Narrowed;
+        if narrowed {
+            candidates.0.sort_unstable();
+        }
         let places = if narrowed {
             candidates.0.len()
         } else {
@@ -287,8 +293,9 @@ pub(crate) fn join_tree(
             let Some(left_row) = read_row(left, position, &mut buffer) else {
                 continue;
             };
+            work.found(0, 1);
             outcome = probe(
-                semantics, left_on, &mut state, tree, finding, shape, left_row, context, emit,
+                semantics, left_on, work, &mut state, tree, finding, shape, left_row, context, emit,
             );
             if outcome.is_err() {
                 break;

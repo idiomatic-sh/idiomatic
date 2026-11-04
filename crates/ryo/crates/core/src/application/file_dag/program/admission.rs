@@ -269,6 +269,7 @@ pub(crate) struct KernelPermit<'scope> {
     generation: &'scope Arc<()>,
     live: &'scope Arc<super::super::relations::GenerationLease>,
     strategy: KernelStrategy,
+    evaluation: crate::domain::operator::contract::types::EvaluationMode,
 }
 impl<'scope> KernelPermit<'scope> {
     fn code(
@@ -292,6 +293,7 @@ impl<'scope> KernelPermit<'scope> {
         execution: &'scope super::runtime::ProgramExecution,
         region: RegionId,
         inputs: &[AdmittedInput],
+        evaluation: crate::domain::operator::contract::types::EvaluationMode,
     ) -> Result<Self, OperatingError> {
         let code = Self::code(execution, region)?;
         if code.instructions.is_empty() || inputs.len() != code.inputs.len() {
@@ -311,12 +313,14 @@ impl<'scope> KernelPermit<'scope> {
             generation: &execution.generation,
             live: &execution.generation_live,
             strategy: KernelStrategy::Registered,
+            evaluation,
         })
     }
     pub(super) fn ordered(
         execution: &'scope super::runtime::ProgramExecution,
         region: RegionId,
         input: &AdmittedInput,
+        evaluation: crate::domain::operator::contract::types::EvaluationMode,
     ) -> Result<Self, OperatingError> {
         let code = Self::code(execution, region)?;
         let shape = code
@@ -331,6 +335,7 @@ impl<'scope> KernelPermit<'scope> {
             generation: &execution.generation,
             live: &execution.generation_live,
             strategy: KernelStrategy::Ordered,
+            evaluation,
         })
     }
     pub(super) fn column(
@@ -353,6 +358,7 @@ impl<'scope> KernelPermit<'scope> {
             generation: &execution.generation,
             live: &execution.generation_live,
             strategy: KernelStrategy::Column,
+            evaluation: crate::domain::operator::contract::types::EvaluationMode::Collected,
         })
     }
     /// A continuation borrows the already admitted invocation; no refcount,
@@ -372,6 +378,7 @@ impl<'scope> KernelPermit<'scope> {
             generation: self.generation,
             live: self.live,
             strategy: self.strategy,
+            evaluation: self.evaluation,
         })
     }
     pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
@@ -447,6 +454,9 @@ impl<'scope> KernelPermit<'scope> {
         work: &'call mut crate::domain::shared_walk::types::WalkWork,
     ) -> Result<super::native_walk::PermittedWalk<'call, 'context, 'scope>, OperatingError> {
         self.validate_live()?;
+        if self.evaluation != crate::domain::operator::contract::types::EvaluationMode::Collected {
+            return Err(OperatingError::WrongOperation);
+        }
         if !Arc::ptr_eq(&source.source.proof.generation, self.generation) {
             return Err(OperatingError::NotRead);
         }
@@ -472,6 +482,9 @@ impl<'scope> KernelPermit<'scope> {
         source: &AdmittedInput,
     ) -> Result<(), OperatingError> {
         self.validate_live()?;
+        if self.evaluation != crate::domain::operator::contract::types::EvaluationMode::Collected {
+            return Err(OperatingError::WrongOperation);
+        }
         let region = &self.program.regions()[self.region.0];
         let declared = region
             .selection
@@ -496,6 +509,80 @@ impl<'scope> KernelPermit<'scope> {
             .collected_kinds
             .as_deref()
             .map_err(Clone::clone)
+    }
+    pub(super) fn validate_native_join(
+        &self,
+        native: &super::super::invocation::NativeJoinLease<'_>,
+        inputs: &[AdmittedInput],
+        owner: &Rc<RelationOwner>,
+        left: &crate::domain::table_model::types::Rows<'_>,
+    ) -> Result<(), OperatingError> {
+        self.validate_registered(self.operation())?;
+        if !matches!(
+            self.native_join_eligibility(),
+            super::native_join::Eligibility::Native
+        ) {
+            return Err(OperatingError::WrongOperation);
+        }
+        let region = &self.program.regions()[self.region.0];
+        if region.instructions.len() != 1 || region.inputs.len() != 2 || inputs.len() != 2 {
+            return Err(OperatingError::WrongOperation);
+        }
+        let expected = region.instructions[self.instruction]
+            .contract
+            .derived
+            .collected[ryo_derived::domain::contract::types::DerivedKind::NativeLookup.ordinal()]
+        .as_ref()
+        .ok_or(OperatingError::WrongOperation)?;
+        if !std::ptr::eq(expected.primary.plan.as_ref(), native.contract()) {
+            return Err(OperatingError::NotRead);
+        }
+        for (source, input) in region.inputs.iter().zip(inputs) {
+            let root = match source {
+                InputSource::Region(id) => ProducerRoot::Region(*id),
+                other => ProducerRoot::Input(*other),
+            };
+            if input.root != root
+                || !Arc::ptr_eq(&input.proof.generation, self.generation)
+                || !Rc::ptr_eq(&input.proof.owner, owner)
+                || !matches!(&input.partition, Partition::File(file) if file.file==native.tree().file)
+            {
+                return Err(OperatingError::NotRead);
+            }
+            input.publication(owner)?;
+        }
+        owner.admit(
+            inputs[0].publication(owner)?.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::from(left),
+        )?;
+        owner.admit(
+            inputs[1].publication(owner)?.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::Tree(native.tree()),
+        )?;
+        native.finding()?;
+        Ok(())
+    }
+    pub(super) fn native_join_eligibility(&self) -> super::native_join::Eligibility {
+        let region = &self.program.regions()[self.region.0];
+        if self.evaluation == crate::domain::operator::contract::types::EvaluationMode::Collected
+            && region.instructions.len() == 1
+            && matches!(
+                self.operation(),
+                ryo_values::domain::plans::types::Operation::Join { reach: None, filter, .. } if filter.is_empty()
+            )
+            && region.instructions[self.instruction]
+                .contract
+                .schema
+                .is_ok()
+            && region.instructions[self.instruction]
+                .contract
+                .row_error
+                .is_none()
+        {
+            super::native_join::Eligibility::Native
+        } else {
+            super::native_join::Eligibility::Ordinary
+        }
     }
     pub(in crate::application::file_dag) fn validate_registered(
         &self,
