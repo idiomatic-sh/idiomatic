@@ -28,16 +28,31 @@ impl InvocationResources<'_> {
             .inputs
             .closure
             .iter()
-            .map(|part| part.table.count.0)
+            .map(|part| {
+                let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(view) =
+                    part.view().expect("validated closure partition")
+                else {
+                    unreachable!("closure partition family")
+                };
+                view.table().count.0
+            })
             .sum();
         let mut capacity = self
             .inputs
             .closure
             .iter()
-            .map(|part| part.table.cells.capacity() + part.key.capacity() + part.sources.capacity())
+            .map(|part| {
+                let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(view) =
+                    part.view().expect("validated closure partition")
+                else {
+                    unreachable!("closure partition family")
+                };
+                let (keys, sources) = view.capacities();
+                view.table().cells.capacity() + keys + sources
+            })
             .sum();
         if let Some(parts) = &self.inputs.partitioned_closure {
-            rows = parts.current().table.count.0;
+            rows = parts.current().table().count.0;
             capacity = parts.working_capacity();
         }
         if !self.inputs.closure.is_empty() || self.inputs.partitioned_closure.is_some() {
@@ -72,8 +87,7 @@ impl InvocationResources<'_> {
             observed.closure_partition_capacity = observed.closure_partition_capacity.max(capacity);
         }
         if let Some(dfs) = Self::dfs_view(self.inputs.dfs.as_ref()).expect("validated DFS view") {
-            observed.dfs_adjacency_capacity = dfs.layout.adjacency.capacity();
-            observed.dfs_adjacency_len = dfs.layout.adjacency.len();
+            observed.dfs_adjacency_len = dfs.adjacency().len();
         }
     }
 }

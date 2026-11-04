@@ -302,7 +302,7 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     let edges = numbers(4, &[&[1, 2, 0, 12], &[2, 3, 0, 23]]);
     let first = compute(&operation(&[], &[]), &roots, &edges, &mut scratch)?;
     assert_eq!(first.count.0, 2);
-    assert!(scratch.observation.dfs_adjacency_capacity > 0);
+    assert!(scratch.observation.dfs_adjacency_len > 0);
     assert!(scratch.observation.local_resources_released);
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
@@ -338,7 +338,7 @@ fn scratch_reuse_across_graphs_empty_and_old_operator() -> Result<usize, Operati
     assert_eq!(scratch.observation.dfs_visited_len, 0);
     assert_eq!(scratch.observation.dfs_frames_len, 0);
     assert_eq!(scratch.observation.dfs_adjacency_len, 0);
-    assert_eq!(scratch.observation.dfs_adjacency_capacity, 0);
+    assert_eq!(scratch.observation.dfs_adjacency_len, 0);
     assert!(scratch.observation.local_resources_released);
     let next = compute(
         &operation(&[], &[]),

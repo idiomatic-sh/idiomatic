@@ -64,7 +64,8 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
         |index| index == rule.0,
         setting.wanted,
         &[],
-    )?;
+    )
+    .map_err(|error| failed(&id_at(setting.ids, rule), &error))?;
     scope.execution.borrow().prepare_resources(
         true,
         setting.wanted,

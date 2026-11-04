@@ -259,7 +259,12 @@ fn subject_with_counting(
         assert_eq!(compact.steps[2].count.0, 8);
         if counting == crate::domain::lowering::types::Counting::Counts {
             assert!(
-                compact.selected[0].is_none(),
+                frame
+                    .borrow()
+                    .relations
+                    .derived
+                    .retained_predicate_rows()
+                    .is_none(),
                 "counted work uses the ordinary materialized input path"
             );
             assert_eq!(
@@ -275,7 +280,11 @@ fn subject_with_counting(
                 "the counted path must record actual fed rows"
             );
         } else {
-            assert!(compact.selected[0].is_some());
+            assert_eq!(
+                frame.borrow().relations.derived.retained_predicate_rows(),
+                Some(8),
+                "selected row IDs stay in the generation owner"
+            );
             assert!(compact.steps[0].cells.is_empty());
             assert!(compact.steps[1].cells.is_empty());
             assert_eq!(
@@ -288,18 +297,12 @@ fn subject_with_counting(
                 8,
                 "shared IDs remain predicate-only"
             );
-            assert!(
-                compact
-                    .rooms
-                    .iter()
-                    .flatten()
-                    .all(|room| room.held.iter().all(|table| table.cells.is_empty()))
-            );
+            assert!(compact.steps[..2].iter().all(|step| step.cells.is_empty()));
         }
         let frontier = std::mem::take(&mut compact.frontier);
         drop(compact);
         compact = pool_for(&plans);
-        assert!(compact.selected.is_empty());
+        assert!(compact.steps.iter().all(|step| step.cells.is_empty()));
         assert_eq!(
             frontier[0].count.0, 8,
             "application-owned output outlives its rule workspace"
@@ -310,6 +313,7 @@ fn subject_with_counting(
         assert!(frame.borrow().relations.derived.selection_counts().1 >= 3);
     }
     readable.set(false);
+    let selection_before_refusal = frame.borrow().relations.derived.selection_counts();
     let refused = {
         let mut actual = OperatorContext {
             semantic: None,
@@ -339,7 +343,11 @@ fn subject_with_counting(
         refused,
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));
-    assert!(compact.selected.iter().all(Option::is_none));
+    assert_eq!(
+        frame.borrow().relations.derived.selection_counts(),
+        selection_before_refusal,
+        "a refused provider read cannot acquire a selected population"
+    );
     let baseline_scope =
         crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
             &plans,
