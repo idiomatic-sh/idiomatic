@@ -18,6 +18,10 @@ impl OperatorsUseCaseImpl {
 impl OperatorsUseCase for OperatorsUseCaseImpl {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         match call {
+            OperatorCall::OrderedExistence { partition, order, extremum, driver, scratch } => {
+                crate::domain::ordered_existence::service::flag(partition, order, extremum, driver, scratch)?;
+                Ok(OperatorAnswer::Written)
+            }
             OperatorCall::SetRow { input } => {
                 match input {
                     crate::domain::contract::types::SetInput::Values {

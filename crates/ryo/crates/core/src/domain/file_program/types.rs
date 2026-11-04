@@ -29,6 +29,8 @@ pub(crate) struct Node {
 
 #[derive(Debug)]
 pub(crate) struct RequestGraph {
+    /// Reviewed alternatives indexed by their replaced Select producer.
+    pub ordered_existence: Vec<Option<crate::domain::ordered_existence::types::ResolvedShape>>,
     /// Producers of declared derived inputs, computed once for the whole request.
     pub derived_sources: Vec<bool>,
     pub plans: Vec<usize>,

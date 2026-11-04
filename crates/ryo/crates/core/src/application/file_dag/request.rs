@@ -153,7 +153,13 @@ impl RequestOperators {
                 crate::domain::table_model::collections::representations::publication::PreparedPhysical{selector:selectors.steps.get(at).cloned().flatten(),alias}
             }).collect()
         }).collect();
+        let ordered_existence = Arc::new(plans.iter().enumerate().map(|(rule, plan)| {
+            crate::domain::ordered_existence::service::compile(plan, &|id| {
+                rules.get(rule)?.get(id.0 as usize)?.schema.as_ref().ok().map(Vec::as_slice)
+            })
+        }).collect());
         let request = Self {
+            ordered_existence,
             selection_plans,
             selection_views,
             rules,

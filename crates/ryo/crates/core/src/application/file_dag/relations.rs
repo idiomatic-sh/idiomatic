@@ -48,6 +48,7 @@ enum RelationBody {
     Computed(Arc<Table>),
 }
 mod record;
+mod number;
 pub(crate) use record::RelationResult;
 
 struct SourceViews {

@@ -41,6 +41,8 @@ pub(crate) struct PreparedPool {
     pub kernel_strategy: crate::domain::column_kernel::types::KernelStrategy,
     /// Immutable fused chains aligned with `layouts` by plan identity.
     pub kernel_plans: Vec<crate::domain::column_kernel::types::KernelPlan>,
+    /// Pure shape declarations only; runtime strategy requires admitted numeric provenance.
+    pub ordered_existence: std::sync::Arc<Vec<crate::domain::ordered_existence::types::Program>>,
     /// Actual successful physical-column work for this worker.
     pub kernel_counts: crate::domain::column_kernel::types::KernelCounts,
     /// Finite authored literal matcher slots shared by this worker's rule/file invocations.

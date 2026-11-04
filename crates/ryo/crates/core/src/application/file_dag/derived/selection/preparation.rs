@@ -128,7 +128,8 @@ pub(crate) fn prepare_views_with_schemas<'s>(
 }
 
 pub(crate) fn prepare_request(pool: &mut PreparedPool, request: &RequestOperators) {
-    if Arc::ptr_eq(&pool.selection_plans, &request.selection_plans)
+    if Arc::ptr_eq(&pool.ordered_existence, &request.ordered_existence)
+        && Arc::ptr_eq(&pool.selection_plans, &request.selection_plans)
         && pool
             .selection_views
             .as_ref()
@@ -137,6 +138,7 @@ pub(crate) fn prepare_request(pool: &mut PreparedPool, request: &RequestOperator
         return;
     }
     pool.file_graph = None;
+    pool.ordered_existence = Arc::clone(&request.ordered_existence);
     pool.selection_plans = (request.selection_plans).clone();
     pool.selection_views = Some((request.selection_views).clone());
 }

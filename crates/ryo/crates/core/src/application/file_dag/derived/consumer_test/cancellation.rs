@@ -11,6 +11,19 @@ use std::cell::Cell;
 #[derive(Debug)]
 struct Refuse;
 impl PrimitiveExecutor for Refuse {
+    fn ordered_existence(
+        &self,
+        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &crate::application::file_dag::relations::PublishedInput,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError> {
+        Err(OperatingError::NotRead)
+    }
+
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         crate::outbound::derived::factory::test_port()
     }

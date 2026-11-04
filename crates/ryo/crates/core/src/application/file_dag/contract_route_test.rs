@@ -62,6 +62,21 @@ struct CountingExecutor {
     emitted: Mutex<Vec<(OperationKind, usize)>>,
 }
 impl PrimitiveExecutor for CountingExecutor {
+    fn ordered_existence(
+        &self,
+        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &crate::application::file_dag::relations::PublishedInput,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError> {
+        self.calls.lock().unwrap().push(OperationKind::Select);
+        crate::application::file_dag::execution::CommonOperatorEngine::fixture()
+            .ordered_existence(owner, shape, source, rows, output_kinds, context, room)
+    }
+
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         crate::outbound::derived::factory::test_port()
     }
@@ -482,6 +497,19 @@ fn partial_positive_rows_reach_common_engine_but_partial_absence_does_not() {
 #[derive(Debug)]
 struct RejectingExecutor;
 impl PrimitiveExecutor for RejectingExecutor {
+    fn ordered_existence(
+        &self,
+        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &crate::application::file_dag::relations::PublishedInput,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError> {
+        Err(OperatingError::WrongOperation)
+    }
+
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         crate::outbound::derived::factory::test_port()
     }

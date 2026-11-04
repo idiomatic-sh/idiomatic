@@ -359,6 +359,8 @@ pub(crate) struct DistinctWorkspace {
 /// Prepared metadata belongs to the request; workers only borrow this immutable value.
 #[derive(Debug)]
 pub(crate) struct RequestOperators {
+    /// Original-plan shape metadata owned by this exact immutable request, never file state.
+    pub ordered_existence: std::sync::Arc<Vec<crate::domain::ordered_existence::types::Program>>,
     pub selection_plans: std::sync::Arc<Vec<crate::domain::stored_selection::types::PreparedPlan>>,
     pub selection_views:
         std::sync::Arc<crate::domain::stored_selection::types::PreparedSelectionViews>,

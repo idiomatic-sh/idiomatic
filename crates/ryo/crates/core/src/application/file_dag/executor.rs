@@ -17,6 +17,19 @@ pub(crate) enum StepMaterialization {
     Selected(std::sync::Arc<crate::domain::table_model::types::StoredSelection>),
 }
 pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
+    /// Required invocation boundary: custom executors must explicitly preserve
+    /// their refusal/observation policy for the planned physical alternative.
+    fn ordered_existence(
+        &self,
+        owner: &Rc<RelationOwner>,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &super::relations::PublishedInput,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<super::ordered_existence::StrategyOutcome, OperatingError>;
+
     fn derived_port(&self) -> Arc<dyn crate::outbound::derived::interface::DerivedPort>;
 
     fn stream(
@@ -130,6 +143,17 @@ impl<'a> ScopedExecutor<'a> {
             return Err(OperatingError::WrongOperation);
         }
         Ok(Self { executor, owner })
+    }
+    pub(super) fn ordered_existence(
+        &self,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &super::relations::PublishedInput,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<super::ordered_existence::StrategyOutcome, OperatingError> {
+        self.executor.ordered_existence(&self.owner, shape, source, rows, output_kinds, context, room)
     }
     pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner

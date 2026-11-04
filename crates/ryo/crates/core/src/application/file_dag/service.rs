@@ -175,21 +175,38 @@ impl FileDagExecution {
             return Err(OperatingError::WrongOperation);
         }
         self.visiting[id.0] = true;
-        let held = (0..node.inputs.len())
-            .map(|_| OnceCell::new())
-            .collect::<Vec<_>>();
-        let mut feed = GraphInputs {
-            execution: self,
-            inputs: &node.inputs,
-            schemas: &node.contract.input_kinds,
-            held: &held,
-            read,
-            executor,
-        };
-        let outcome =
-            executor.keep_representation(&node.contract, &node.physical, &mut feed, context);
-        drop(feed);
-        drop(held);
+        let outcome = (|| {
+            if let Some(shape) = graph.ordered_existence.get(id.0).and_then(Option::as_ref) {
+                // The request compiler matched original plan coordinates to these
+                // exact producer edges. Demand only S: J/F remain unexecuted and
+                // their ordinary edges are cancelled by consumed below.
+                if shape.select != id || node.inputs != [NodeInput::Node(shape.join)] {
+                    return Err(OperatingError::WrongOperation);
+                }
+                let source = self.demand_result(shape.source, read, executor, context)?;
+                let rows = self.relations.resolve(source.as_ref(), read)?;
+                match executor.ordered_existence(
+                    shape, &source, crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+                    node.contract.schema.as_ref().map_err(Clone::clone)?,
+                    context, &mut Room::default(),
+                )? {
+                    super::ordered_existence::StrategyOutcome::Executed(result) => return Ok(result),
+                    super::ordered_existence::StrategyOutcome::Declined(_reason) => {}
+                }
+                // Admission declined before output. Ordinary evaluation retains
+                // all malformed/unsupported representation and fault behavior.
+            }
+            let held = (0..node.inputs.len()).map(|_| OnceCell::new()).collect::<Vec<_>>();
+            let mut feed = GraphInputs {
+                execution: self,
+                inputs: &node.inputs,
+                schemas: &node.contract.input_kinds,
+                held: &held,
+                read,
+                executor,
+            };
+            executor.keep_representation(&node.contract, &node.physical, &mut feed, context)
+        })();
         self.visiting[id.0] = false;
         let table = outcome?;
         if self.graph.derived_sources[id.0] {

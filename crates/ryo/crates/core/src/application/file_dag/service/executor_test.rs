@@ -20,6 +20,22 @@ struct CountingExecutor {
     refuse: bool,
 }
 impl PrimitiveExecutor for CountingExecutor {
+    fn ordered_existence(
+        &self,
+        owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &crate::application::file_dag::relations::PublishedInput,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        if self.refuse { return Err(OperatingError::NotRun); }
+        crate::application::file_dag::execution::CommonOperatorEngine::fixture()
+            .ordered_existence(owner, shape, source, rows, output_kinds, context, room)
+    }
+
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         crate::outbound::derived::factory::test_port()
     }

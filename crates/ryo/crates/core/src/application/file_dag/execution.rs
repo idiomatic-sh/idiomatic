@@ -489,6 +489,19 @@ impl CommonOperatorEngine<'_> {
 }
 
 impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperatorEngine<'_> {
+    fn ordered_existence(
+        &self,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
+        shape: &crate::domain::ordered_existence::types::ResolvedShape,
+        source: &super::relations::PublishedInput,
+        rows: BorrowedRows<'_>,
+        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+    ) -> Result<super::ordered_existence::StrategyOutcome, OperatingError> {
+        super::ordered_existence::evaluate(owner, self.operators, shape, source, rows, output_kinds, context, room)
+    }
+
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         std::sync::Arc::clone(&self.derived)
     }

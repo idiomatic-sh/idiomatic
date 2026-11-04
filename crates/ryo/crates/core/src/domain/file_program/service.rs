@@ -110,6 +110,7 @@ pub(crate) fn compile_prepared(
 ) -> RequestGraph {
     let mut nodes = Vec::<CanonicalNode>::new();
     let mut cuts = Vec::with_capacity(plans.len());
+    let mut observed_outputs = Vec::new();
     let mut buckets = HashMap::<u64, Vec<NodeId>>::new();
     for (rule, plan) in plans.iter().enumerate() {
         let mut mapped = Vec::with_capacity(plan.steps.len());
@@ -170,6 +171,7 @@ pub(crate) fn compile_prepared(
             };
             let internal = index != plan.emit.step.0 as usize
                 && !plan.frontier.contains(&Input::Step(StepId(index as u32)));
+            if !internal { if let Some(node) = node { observed_outputs.push(node); } }
             rule_cuts.push(node.filter(|_| internal));
             mapped.push(node);
         }
@@ -268,7 +270,35 @@ pub(crate) fn compile_prepared(
             }
         }
     }
+    // Canonical sharing can add consumers absent from any original-plan use
+    // count. Include terminal/frontier observations, even where cuts are None.
+    let mut resolved_readers = vec![0usize; nodes.len()];
+    for node in &nodes {
+        for input in &node.inputs {
+            if let NodeInput::Node(id) = input { resolved_readers[id.0] += 1; }
+        }
+    }
+    for root in observed_outputs { resolved_readers[root.0] += 1; }
+    let mut ordered_existence = vec![None; nodes.len()];
+    for (rule, program) in operators.ordered_existence.iter().enumerate() {
+        let Some(plan) = plans.get(rule) else { continue; };
+        for shape in &program.shapes {
+            if shape.plan.0 != std::ptr::from_ref(plan).addr() { continue; }
+            let resolve = |step: StepId| cuts.get(rule)?.get(step.0 as usize).copied().flatten();
+            let (Some(source), Some(join), Some(select), Some(project)) =
+                (resolve(shape.source), resolve(shape.replaced_join), resolve(shape.replaced_select), resolve(shape.retained_project)) else { continue; };
+            if [join, select, project].iter().any(|id| resolved_readers[id.0] != 1) { continue; }
+            // Verify canonical edges, not normalized operation-local Step numbers.
+            if nodes[join.0].inputs != [NodeInput::Node(source), NodeInput::Node(source)]
+                || nodes[select.0].inputs != [NodeInput::Node(join)] { continue; }
+            let Operation::Join { output, .. } = &plan.steps[shape.replaced_join.0 as usize].operation else { continue; };
+            ordered_existence[select.0] = Some(crate::domain::ordered_existence::types::ResolvedShape {
+                shape: shape.clone(), source, join, select, output: output.clone(),
+            });
+        }
+    }
     RequestGraph {
+        ordered_existence,
         derived_sources,
         rule_liveness,
         boundaries,
