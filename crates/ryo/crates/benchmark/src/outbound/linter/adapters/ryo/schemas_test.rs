@@ -145,6 +145,8 @@ fn request_transports_the_explicit_module_registry() {
 #[test]
 fn explicit_cohort_is_serialized_but_absent_cohort_keeps_the_legacy_wire_shape() {
     let mut request = crate::outbound::worker::fixtures::data::request();
+    // The external wire can omit selection; worker preparation still requires resolution.
+    request.selected_rules = None;
     let encoded = super::encode_request(request.clone()).unwrap();
     let legacy: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     assert!(legacy.get("selected_rules").is_none());
