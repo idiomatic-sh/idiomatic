@@ -184,6 +184,11 @@ pub(crate) struct LinterLintEngine {
 }
 
 impl Linter {
+    /// Update composition-owned execution options for the public builder entry.
+    pub(super) fn set_execution(&mut self, execution: ExecutionOptions) {
+        self.0.execution = execution;
+    }
+
     /// The linter over `engine`, which its sibling entry builds, never a caller.
     pub(super) const fn over(engine: LinterLintEngine) -> Self {
         Self(engine)

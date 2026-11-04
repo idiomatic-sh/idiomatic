@@ -53,7 +53,7 @@ impl Linter {
     /// Select execution explicitly; the same choice controls runtime and persisted identity.
     #[must_use]
     pub fn with_execution(mut self, execution: super::types::ExecutionOptions) -> Self {
-        self.0.execution = execution;
+        self.set_execution(execution);
         self
     }
 }
