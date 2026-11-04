@@ -220,4 +220,5 @@ language = "0.1.0"
 provider-imports = "0.1.0"
 
 [packages."idiomatic.ryo".templates]
+executable-lowering = "0.1.0"
 executable-program-part = "0.1.0"

@@ -71,6 +71,7 @@ templates = [
   { template = "idiomatic.arch/asymptote-config", file = "asymptote.toml", description = "The tools whose findings the product's asymptote lock ratchets." },
   { template = "idiomatic.arch/asymptote-lock", file = ".asymptote/operations/{operation}.lock", count = { min = 0 }, description = "One of the lock files asymptote writes: the findings accepted for one operation." },
   { template = "idiomatic.arch/doc-page", file = "docs/{*page}" },
+  { template = "idiomatic.ryo/executable-lowering", file = "crates/core/src/domain/executable_program/column.rs", description = "One exact pure executable-program lowering part." },
 ]
 specs = [
   { alias = "crate-operators", spec = "idiomatic.arch/crate", include = ["crates/operators"], params = { package = "idiomatic-sh-ryo-operators", library = "ryo_operators", binary = "absent", distribution = "absent" }, description = "Portable operator capability behind its inbound contract; core scheduling and ownership remain outside this crate." },
