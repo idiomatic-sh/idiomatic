@@ -19,6 +19,38 @@ use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plans::types::Operation;
+/// Complete computed fixture rows for portable derived semantics controls.
+pub(crate) struct CompleteTableRows<'a>(pub &'a ryo_values::domain::rows::types::Table);
+impl ryo_derived::domain::contract::types::RowCells for CompleteTableRows<'_> {
+    fn bulk(&self) -> Option<ryo_derived::domain::contract::types::BulkRows<'_>> {
+        Some(ryo_derived::domain::contract::types::BulkRows::Computed(
+            self.0,
+        ))
+    }
+    fn validate(&self) -> Result<(), ryo_derived::domain::contract::types::DerivedFault> {
+        (self.0.count.0.checked_mul(self.0.kinds.len()) == Some(self.0.cells.len()))
+            .then_some(())
+            .ok_or(ryo_derived::domain::contract::types::DerivedFault::ShapeMismatch)
+    }
+    fn kinds(&self) -> &[CellKind] {
+        &self.0.kinds
+    }
+    fn count(&self) -> usize {
+        self.0.count.0
+    }
+    fn cell(
+        &self,
+        row: usize,
+        column: ryo_values::domain::plan_parts::types::ColumnIndex,
+    ) -> Option<Value> {
+        crate::domain::table_model::service::row_in(
+            self.0,
+            ryo_values::domain::rows::types::RowIndex(row),
+        )?
+        .get(column.0 as usize)
+        .copied()
+    }
+}
 
 /// Explicit outer fixture scope. All dependency tests use the actual scheduler,
 /// required executor/owner and generation constructor; no fallback owner is minted.

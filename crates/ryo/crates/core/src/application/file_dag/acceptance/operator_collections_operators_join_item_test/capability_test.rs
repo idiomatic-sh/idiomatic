@@ -590,11 +590,13 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         frontier: vec![],
         comparison_origins: vec![],
     };
+    let port = Refuses::default();
+    let engine = CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port());
     let request = crate::domain::operator::contract::types::RequestOperators::prepare(
         std::slice::from_ref(&plan),
         &[vec![]],
         &[],
-        crate::outbound::derived::factory::test_port(),
+        engine.derived.clone(),
     )
     .expect("request preparation");
     let mut prepared = PreparedPool {
@@ -602,11 +604,19 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         ..PreparedPool::default()
     };
     crate::application::file_dag::derived::selection::prepare_request(&mut prepared, &request);
+    let scope = crate::application::file_dag::derived::owner::resource_fixture::prepared_scope(
+        std::slice::from_ref(&plan),
+        &request,
+        &prepared,
+        &[Relation::SyntaxTree, Relation::SyntaxChild],
+        &[],
+        &engine,
+    )
+    .expect("required execution scope");
     let mut pool = pool_for(std::slice::from_ref(&plan));
     let mut scratch = OperatorScratch::default();
     let mut memo = vec![];
     let mut ctx = context(&mut symbols, &mut scratch, &mut memo);
-    let port = Refuses::default();
     let read = |_| None;
     let _previous = crate::domain::table_model::service::take_read_row_counts();
     refused(
@@ -621,12 +631,9 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
             &mut ctx,
             &mut pool,
             &mut prepared,
-            &[],
-            None,
             0,
-            None,
-            &CommonOperatorEngine::new(&port, crate::outbound::derived::factory::test_port()),
-            &request.rules[0],
+            &scope.execution,
+            scope.scope.executor(),
         ),
     );
     assert_eq!(port.calls.load(Ordering::Relaxed), 1);
@@ -639,8 +646,13 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
                 "must use deferred positions, not value fallback"
             );
             assert!(
-                prepared.layouts[0].lowering.shapes[usize::try_from(root.0).expect("root index")]
-                    .is_some()
+                scope.scope.graph().program_nodes[0][root.0 as usize]
+                    .as_ref()
+                    .ok()
+                    .and_then(|id| scope.scope.graph().nodes.get(id.0))
+                    .is_some_and(|node| node.regions.iter().any(|region| {
+                        region.layout.lowering.shapes[root.0 as usize].is_some()
+                    }))
             );
             assert_eq!(
                 reads,

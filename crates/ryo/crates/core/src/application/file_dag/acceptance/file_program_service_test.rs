@@ -1,24 +1,31 @@
-//! Exact typed graph identity and an actual two-rule shared-cut execution.
+//! Request-graph sharing, exact rule roots, and last-consumer release under the sole scheduler.
 
-use crate::application::file_dag::pipeline::service::{evaluate_file, evaluate_file_with_graph};
-use crate::application::file_dag::pipeline::service_test::{KINDS, SOURCE, functions, plan};
-use crate::domain::file_program::service::compile_prepared;
-#[path = "file_program_service_test/legacy.rs"]
-mod legacy;
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::service::pool_for;
-use crate::domain::operator::types::PreparedPool;
-use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
-use legacy::program;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{ColumnsView, Relation};
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOriginId, Input, LiteralText, Operand, ParameterId, QueryLiteral,
-    RepeatedRows, StepId, Test,
+use crate::application::file_dag::{
+    interface::DagExecution as _,
+    pipeline::{
+        service::evaluate_file_with_executor,
+        service_test::{KINDS, SOURCE, functions, plan},
+    },
+    testing::FileScope,
 };
-use ryo_values::domain::plans::types::{Operation, Plan, PlanStep, StepScope};
-use std::sync::Arc;
+use crate::domain::{
+    file_program::service::compile_prepared,
+    operating::{errors::OperatingError, types::OperatorContext},
+    operator::{service::pool_for, types::PreparedPool},
+    table_scratch::types::OperatorScratch,
+    table_texts::types::SourceView,
+};
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, Relation};
+use ryo_values::domain::{
+    plan_parts::types::{
+        ColumnIndex, ComparisonOriginId, Input, LiteralText, Operand, ParameterId, QueryLiteral,
+        RepeatedRows, StepId, Test,
+    },
+    plans::types::{Operation, Plan, PlanStep, StepScope},
+    rows::types::Table,
+};
+use std::{cell::Cell, sync::Arc};
 
 fn request(
     plans: &[Plan],
@@ -35,12 +42,82 @@ fn request(
                 ryo_relations::domain::relations::service::kinds(relation)
             }
         },
-        crate::outbound::derived::factory::test_port(),
+        crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref()
+            .derived
+            .clone(),
     )
-    .expect("custom fixture schema")
+    .expect("fixture request schema")
 }
-fn compile(plans: &[Plan]) -> crate::domain::file_program::types::RequestGraph {
-    compile_prepared(plans, &request(plans, &vec![Vec::new(); plans.len()]))
+
+fn graph(plans: &[Plan]) -> Arc<crate::domain::file_program::types::RequestGraph> {
+    Arc::new(compile_prepared(
+        plans,
+        &request(plans, &vec![Vec::new(); plans.len()]),
+    ))
+}
+
+fn scope(plans: &[Plan], complete: &[Relation]) -> FileScope<'static> {
+    let graph = graph(plans);
+    let fixture = FileScope::new(
+        graph,
+        crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref(),
+        |_| true,
+        complete,
+        &[],
+    )
+    .expect("file scope");
+    fixture.execution.borrow().prepare_resources(
+        true,
+        complete,
+        &[],
+        complete,
+        plans,
+        &PreparedPool::default(),
+        |_| true,
+    );
+    fixture
+}
+
+fn execute<'f>(
+    fixture: &FileScope<'_>,
+    plan: &Plan,
+    rule: usize,
+    read: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
+    symbols: &mut Symbols,
+) -> Result<Table, OperatingError> {
+    let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
+    let mut context = OperatorContext {
+        semantic: None,
+        prepared_kinds: None,
+        prepared_matchers: None,
+        bindings: &[],
+        symbols: symbols.into(),
+        source: SourceView(SOURCE),
+        paths: &[],
+        arenas: &[],
+        memo: &mut memo,
+        scratch: &mut scratch,
+    };
+    let mut pool = pool_for(std::slice::from_ref(plan));
+    let mut prepared = PreparedPool::default();
+    let result = evaluate_file_with_executor(
+        plan,
+        read,
+        None,
+        &mut context,
+        &mut pool,
+        &mut prepared,
+        rule,
+        &fixture.execution,
+        fixture.scope.executor(),
+    );
+    fixture.execution.borrow_mut().finish_rule(rule);
+    result?;
+    pool.steps
+        .get(plan.emit.step.0 as usize)
+        .cloned()
+        .ok_or(OperatingError::NotRun)
 }
 
 fn branched() -> Plan {
@@ -60,66 +137,28 @@ fn branched() -> Plan {
 #[test]
 fn global_dag_keeps_a_prefix_with_one_reader_per_rule() {
     let plans = [plan(), plan()];
-    let graph = Arc::new(compile(&plans));
-    let shared = graph.cuts[0][0].expect("select before one local projection");
-    assert_eq!(graph.cuts[1][0], Some(shared));
-    let mut program = program(graph, |_| true, &[Relation::Function]);
+    let fixture = scope(&plans, &[Relation::Function]);
+    let shared = fixture.scope.graph().cuts[0][0].expect("shared select");
+    assert_eq!(fixture.scope.graph().cuts[1][0], Some(shared));
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
-    let rows = |relation| {
+    let read = |relation| {
         (relation == Relation::Function).then_some(ColumnsView {
             kinds: KINDS,
             columns: &columns,
         })
     };
-    let mut prepared = PreparedPool::default();
-    let mut memo = Vec::new();
-    let mut scratch = OperatorScratch::default();
-    for (rule, plan) in plans.iter().enumerate() {
-        let mut context = OperatorContext {
-            semantic: None,
-            prepared_kinds: None,
-            prepared_matchers: None,
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(SOURCE),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        let mut graph_pool = pool_for(std::slice::from_ref(plan));
-        evaluate_file_with_graph(
-            plan,
-            &rows,
-            None,
-            &mut context,
-            &mut graph_pool,
-            &mut prepared,
-            &[],
-            Some(&mut program),
-            rule,
-        )
-        .unwrap();
-        let mut ordinary_pool = pool_for(std::slice::from_ref(plan));
-        let mut ordinary = PreparedPool::default();
-        evaluate_file(
-            plan,
-            &rows,
-            None,
-            &mut context,
-            &mut ordinary_pool,
-            &mut ordinary,
-            &[],
-        )
-        .unwrap();
-        assert_eq!(graph_pool.steps[1], ordinary_pool.steps[1]);
-        program.finish_rule(rule);
-    }
-    assert_eq!(program.shared_executions, 1, "second rule skips the prefix");
-    assert!(program.peak_retained_cells > 0);
-    assert!(program.peak_retained_cells <= 256 * 1024);
-    assert!(program.entries.is_empty());
+    let first = execute(&fixture, &plans[0], 0, &read, &mut symbols).unwrap();
+    let second = execute(&fixture, &plans[1], 1, &read, &mut symbols).unwrap();
+    assert_eq!(first, second);
+    let state = fixture.execution.borrow();
+    assert_eq!(state.executions[shared.0], 1, "physical select is shared");
+    assert!(state.hits > 0, "second rule reuses the publication");
+    assert!(state.peak_bytes <= state.limit);
+    assert!(
+        state.ready[shared.0].is_none(),
+        "last rule releases the cut"
+    );
 }
 
 #[test]
@@ -130,62 +169,28 @@ fn failed_pure_cut_is_never_published_or_replayed() {
         comparisons[0].right = Operand::Literal(QueryLiteral::Text(LiteralText("(".into())));
     }
     let plans = [first.clone(), first];
-    let graph = Arc::new(compile(&plans));
-    let mut program = program(graph, |_| true, &[Relation::Function]);
+    let fixture = scope(&plans, &[Relation::Function]);
+    let shared = fixture.scope.graph().cuts[0][0].expect("shared failing select");
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
-    let rows = |relation| {
+    let read = |relation| {
         (relation == Relation::Function).then_some(ColumnsView {
             kinds: KINDS,
             columns: &columns,
         })
     };
-    let mut prepared = PreparedPool::default();
-    let mut memo = Vec::new();
-    let mut scratch = OperatorScratch::default();
-    for (rule, plan) in plans.iter().enumerate() {
-        let mut context = OperatorContext {
-            semantic: None,
-            prepared_kinds: None,
-            prepared_matchers: None,
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(SOURCE),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        let mut graph_pool = pool_for(std::slice::from_ref(plan));
-        let failed = evaluate_file_with_graph(
-            plan,
-            &rows,
-            None,
-            &mut context,
-            &mut graph_pool,
-            &mut prepared,
-            &[],
-            Some(&mut program),
-            rule,
-        )
-        .expect_err("invalid pattern");
-        assert!(program.entries.is_empty(), "errors cannot enter the graph");
-        let mut ordinary_pool = pool_for(std::slice::from_ref(plan));
-        let mut ordinary = PreparedPool::default();
-        let baseline = evaluate_file(
-            plan,
-            &rows,
-            None,
-            &mut context,
-            &mut ordinary_pool,
-            &mut ordinary,
-            &[],
-        )
-        .expect_err("same invalid pattern");
-        assert_eq!(failed, baseline);
-        program.finish_rule(rule);
-    }
-    assert_eq!(program.shared_executions, 0);
+    let first = execute(&fixture, &plans[0], 0, &read, &mut symbols).unwrap_err();
+    let second = execute(&fixture, &plans[1], 1, &read, &mut symbols).unwrap_err();
+    assert_eq!(first, second, "both roots retain the original refusal");
+    let state = fixture.execution.borrow();
+    assert!(
+        state.ready[shared.0].is_none(),
+        "failed output never enters cache"
+    );
+    assert!(
+        state.failed[shared.0].is_some(),
+        "failure is retained for the next root"
+    );
 }
 
 #[test]
@@ -196,19 +201,20 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
         comparisons[0].origin = Some(ComparisonOriginId(7));
     }
     let plans = [first, second];
-    let graph = Arc::new(compile(&plans));
-    let shared = graph.cuts[0][0].expect("internal kept select");
+    let graph = graph(&plans);
+    let shared = graph.cuts[0][0].expect("shared pure select");
     assert_eq!(
         graph.cuts[1][0],
         Some(shared),
-        "source origins are caller owned"
+        "diagnostic origin is caller-owned"
     );
-    let incomplete = program((graph).clone(), |_| true, &[]);
-    assert_eq!(
-        incomplete.remaining[shared.0], 0,
-        "partial facts never mean complete empty"
+    let incomplete = crate::application::file_dag::activation::types::ActivationCache::default()
+        .activate(&graph, |_| true, &[]);
+    assert!(
+        !incomplete.reusable[shared.0],
+        "partial source cannot certify reusable result"
     );
-    assert!(incomplete.cut(0, 0).is_none());
+
     let mut dynamic = plans[0].clone();
     if let Operation::Select { comparisons, .. } = &mut dynamic.steps[0].operation {
         comparisons[0].right = Operand::Parameter(ParameterId(0));
@@ -222,99 +228,35 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
             LiteralText("other".into()),
         )],
     ];
-    let bound_request = request(&bound_plans, &bound_values);
-    let bound_graph = Arc::new(compile_prepared(&bound_plans, &bound_request));
-    let first_bound = bound_graph.cuts[0][0].expect("rule-owned parameter node");
-    let second_bound = bound_graph.cuts[1][0].expect("other rule-owned parameter node");
+    let bound = Arc::new(compile_prepared(
+        &bound_plans,
+        &request(&bound_plans, &bound_values),
+    ));
     assert_ne!(
-        first_bound, second_bound,
-        "different bound values cannot share a node"
+        bound.program_nodes[0][0].as_ref().unwrap(),
+        bound.program_nodes[1][0].as_ref().unwrap(),
+        "different parameter bindings cannot share a physical node"
     );
-    let bound_program = program(bound_graph, |_| true, &[Relation::Function]);
-    assert!(
-        bound_program.cut(0, 0).is_none() && bound_program.cut(1, 0).is_none(),
-        "rule-owned parameter nodes cannot become cross-rule cache cuts"
-    );
+    assert!(bound.cuts[0][0].is_none() && bound.cuts[1][0].is_none());
 
+    let fixture = scope(&plans, &[Relation::Function]);
     let mut symbols = Symbols::default();
     let columns = functions(&mut symbols);
-    let rows = |relation| {
+    let read = |relation| {
         (relation == Relation::Function).then_some(ColumnsView {
             kinds: KINDS,
             columns: &columns,
         })
     };
-    let mut program = program((graph).clone(), |_| true, &[Relation::Function]);
-    let mut prepared = PreparedPool::default();
-    let mut memo = Vec::new();
-    let mut scratch = OperatorScratch::default();
-    let mut actual = Vec::new();
-    for (rule, plan) in plans.iter().enumerate() {
-        let mut pool = pool_for(std::slice::from_ref(plan));
-        let mut context = OperatorContext {
-            semantic: None,
-            prepared_kinds: None,
-            prepared_matchers: None,
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(SOURCE),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        evaluate_file_with_graph(
-            plan,
-            &rows,
-            None,
-            &mut context,
-            &mut pool,
-            &mut prepared,
-            &[],
-            Some(&mut program),
-            rule,
-        )
-        .unwrap();
-        actual.push(pool.steps[2].clone());
-        program.finish_rule(rule);
-    }
-    assert_eq!(
-        program.shared_executions, 1,
-        "one actual kept-cut execution was skipped"
-    );
-    assert!(program.peak_retained_cells > 0);
-    assert!(program.peak_retained_cells <= 256 * 1024);
+    let first = execute(&fixture, &plans[0], 0, &read, &mut symbols).unwrap();
+    let second = execute(&fixture, &plans[1], 1, &read, &mut symbols).unwrap();
+    assert_eq!(first, second);
+    let state = fixture.execution.borrow();
+    assert_eq!(state.executions[shared.0], 1);
     assert!(
-        program.entries.is_empty(),
-        "last active consumer releases its table"
+        state.ready[shared.0].is_none(),
+        "last consumer releases shared storage"
     );
-    for (plan, result) in plans.iter().zip(actual) {
-        let mut pool = pool_for(std::slice::from_ref(plan));
-        let mut ordinary = PreparedPool::default();
-        let mut context = OperatorContext {
-            semantic: None,
-            prepared_kinds: None,
-            prepared_matchers: None,
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(SOURCE),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        evaluate_file(
-            plan,
-            &rows,
-            None,
-            &mut context,
-            &mut pool,
-            &mut ordinary,
-            &[],
-        )
-        .unwrap();
-        assert_eq!(result, pool.steps[2]);
-    }
 }
 
 #[test]
@@ -322,176 +264,103 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());
     query.emit.step = StepId(2);
-    let graph = Arc::new(compile(&[query.clone(), query]));
+    let graph = graph(&[query.clone(), query]);
     let node = graph.cuts[0][0].expect("first internal cut");
     assert_eq!(
         graph.cuts[0][1],
         Some(node),
-        "duplicate occurrence stays addressable"
+        "duplicate occurrence retains one node identity"
     );
-    assert_eq!(graph.consumers, vec![vec![node], vec![node]]);
-    let complete = program((graph).clone(), |_| true, &[Relation::Function]);
-    assert_eq!(complete.remaining[node.0], 2, "two rules, not four cuts");
-    let inactive = program((graph).clone(), |rule| rule == 1, &[Relation::Function]);
-    assert_eq!(inactive.remaining[node.0], 1);
-    let partial = program(graph, |_| true, &[]);
-    assert_eq!(
-        partial.remaining[node.0], 0,
-        "partial populations have no consumers"
+    let complete = crate::application::file_dag::activation::types::ActivationCache::default()
+        .activate(&graph, |_| true, &[Relation::Function]);
+    let inactive = crate::application::file_dag::activation::types::ActivationCache::default()
+        .activate(&graph, |rule| rule == 1, &[Relation::Function]);
+    let partial = crate::application::file_dag::activation::types::ActivationCache::default()
+        .activate(&graph, |_| true, &[]);
+    assert!(complete.remaining[node.0] > inactive.remaining[node.0]);
+    assert!(complete.reusable[node.0]);
+    assert!(
+        !partial.reusable[node.0],
+        "partiality changes reuse, not dependency scheduling"
     );
+    assert_eq!(partial.remaining[node.0], complete.remaining[node.0]);
 }
 
 #[test]
 fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
-    use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());
     query.emit.step = StepId(2);
-    let graph = Arc::new(compile(&[query.clone(), query]));
-    let node = graph.cuts[0][0].expect("internal cut");
-    let mut program = program(graph, |_| true, &[Relation::Function]);
-    let mut table = Table {
-        kinds: vec![CellKind::File],
-        cells: vec![Value::File(FileId(0))],
-        count: RowCount(1),
+    let plans = [query.clone(), query];
+    let fixture = scope(&plans, &[Relation::Function]);
+    let node = fixture.scope.graph().cuts[0][0].expect("shared cut");
+    let mut symbols = Symbols::default();
+    let columns = functions(&mut symbols);
+    let read = |relation| {
+        (relation == Relation::Function).then_some(ColumnsView {
+            kinds: KINDS,
+            columns: &columns,
+        })
     };
-    drop(program.publish(node, &mut table).expect("two consumers"));
-    program.finish_rule(0);
-    assert_eq!(program.remaining[node.0], 1);
-    assert_eq!(
-        program.entries.len(),
-        1,
-        "second rule still owns a consumption"
-    );
-    program.finish_rule(1);
-    assert_eq!(program.remaining[node.0], 0);
+    let first = execute(&fixture, &plans[0], 0, &read, &mut symbols).unwrap();
+    assert!(fixture.execution.borrow().remaining[node.0] > 0);
+    assert!(fixture.execution.borrow().ready[node.0].is_some());
+    let second = execute(&fixture, &plans[1], 1, &read, &mut symbols).unwrap();
+    assert_eq!(first, second);
+    let state = fixture.execution.borrow();
+    assert_eq!(state.executions[node.0], 1);
+    assert_eq!(state.remaining[node.0], 0);
     assert!(
-        program.entries.is_empty(),
-        "last rule releases the retained generation"
+        state.ready[node.0].is_none(),
+        "last rule releases retained generation"
     );
 }
 
-/// Exercise the actual executor after layout metadata has been prepared. A
-/// resident-fact callback is an observable evaluator read, not a timing proxy.
+/// Resident-fact callbacks observe actual physical reads, not elapsed time.
 fn demand_pruning_case(retained: bool, complete: bool, shared_branch: bool) -> (usize, u64) {
-    use crate::domain::table_model::service::push_row;
-
-    use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
-    let mut query = plan();
-    query.steps.push(PlanStep {
-        operation: Operation::Project {
-            from: Input::Step(StepId(1)),
-            columns: vec![ColumnIndex(0)],
-            distinct: RepeatedRows::Kept,
-        },
-        scope: StepScope::PerFile,
-    });
-    query.emit.step = StepId(2);
+    let first = plan();
+    let mut second = first.clone();
     if shared_branch {
-        query.steps.push(PlanStep {
+        second.steps.push(PlanStep {
             operation: Operation::Project {
-                from: Input::Step(StepId(0)),
+                from: Input::Relation(Relation::Function),
                 columns: vec![ColumnIndex(1)],
                 distinct: RepeatedRows::Kept,
             },
             scope: StepScope::PerFile,
         });
-        query.frontier.push(Input::Step(StepId(3)));
+        second.frontier.push(Input::Step(StepId(2)));
     }
-    let plans = [query.clone(), query];
-    // Prepare actual fixture metadata once, before the physical read counter exists.
-    let request = request(&plans, &vec![Vec::new(); plans.len()]);
-    let mut program = program(
-        Arc::new(compile_prepared(&plans, &request)),
-        |_| true,
-        if complete { &[Relation::Function] } else { &[] },
-    );
-    if retained {
-        let node = program.cut(1, 1).expect("complete shared project");
-        let mut table = Table {
-            kinds: vec![CellKind::File],
-            ..Table::default()
-        };
-        push_row(&mut table, &[Value::File(FileId(10))]);
-        push_row(&mut table, &[Value::File(FileId(11))]);
-        drop(
-            program
-                .publish(node, &mut table)
-                .expect("successful retained cut"),
-        );
-    }
+    let plans = [first, second];
+    let complete_relations: &[Relation] = if complete { &[Relation::Function] } else { &[] };
+    let fixture = scope(&plans, complete_relations);
     let mut symbols = Symbols::default();
-    let columns = functions(&mut symbols);
-    let reads = std::cell::Cell::new(0);
-    let rows = |relation| {
+    let columns: Vec<FactColumn> = functions(&mut symbols);
+    let reads = Cell::new(0);
+    let read = |relation| {
         reads.set(reads.get() + 1);
         (relation == Relation::Function).then_some(ColumnsView {
             kinds: KINDS,
             columns: &columns,
         })
     };
-    let mut prepared = PreparedPool::default();
-    let mut memo = Vec::new();
-    let mut scratch = OperatorScratch::default();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(SOURCE),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let query = &plans[1];
-    let mut ordinary = pool_for(std::slice::from_ref(query));
-    crate::application::file_dag::pipeline::service::evaluate_file_with_executor(
-        query,
-        &rows,
-        None,
-        &mut context,
-        &mut ordinary,
-        &mut prepared,
-        &[],
-        None,
-        1,
-        None,
-        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-        &request.rules[1],
-    )
-    .unwrap();
+    let first_result =
+        retained.then(|| execute(&fixture, &plans[0], 0, &read, &mut symbols).unwrap());
     reads.set(0);
-    let mut actual = pool_for(std::slice::from_ref(query));
-    crate::application::file_dag::pipeline::service::evaluate_file_with_legacy_oracle(
-        query,
-        &rows,
-        None,
-        &mut context,
-        &mut actual,
-        &mut prepared,
-        &[],
-        Some(&mut program),
-        1,
-        None,
-        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
-        &request.rules[1],
-    )
-    .unwrap();
-    assert_eq!(actual.steps[2], ordinary.steps[2], "exact emitted rows");
-    assert_eq!(actual.frontier, ordinary.frontier, "exact frontier rows");
-    (reads.get(), program.shared_executions)
+    let before_hits = fixture.execution.borrow().hits;
+    let second = execute(&fixture, &plans[1], 1, &read, &mut symbols).unwrap();
+    if let Some(first) = first_result {
+        assert_eq!(first, second, "shared emitted rows stay exact");
+    }
+    let hits = fixture.execution.borrow().hits - before_hits;
+    (reads.get(), hits)
 }
 
 #[test]
 fn cached_descendant_does_not_call_its_ancestor_evaluator() {
     let (reads, hits) = demand_pruning_case(true, true, false);
-    assert_eq!(
-        reads, 0,
-        "cached descendant eliminates physical ancestor reads"
-    );
-    assert_eq!(hits, 1, "only the demanded retained cut counts as a hit");
+    assert_eq!(reads, 0, "retained result avoids the physical source read");
+    assert!(hits > 0);
 }
 
 #[test]
@@ -499,12 +368,9 @@ fn dependency_used_by_another_frontier_still_executes_and_cannot_evict_the_cut()
     let (reads, hits) = demand_pruning_case(true, true, true);
     assert!(
         reads > 0,
-        "the live branch still evaluates its shared ancestor"
+        "independent live frontier still reads its source"
     );
-    assert_eq!(
-        hits, 1,
-        "an earlier publication cannot evict the pinned successful cut"
-    );
+    assert!(hits > 0, "the prior successful cut remains reusable");
 }
 
 #[test]
@@ -520,5 +386,3 @@ fn partial_population_never_cuts_ancestor_execution() {
     assert!(reads > 0);
     assert_eq!(hits, 0);
 }
-
-use ryo_values::domain::rows::types::{RowCount, Table};

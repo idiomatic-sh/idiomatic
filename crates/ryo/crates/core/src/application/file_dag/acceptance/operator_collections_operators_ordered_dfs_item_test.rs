@@ -413,31 +413,76 @@ fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingErro
 fn ordinal_overflow_is_checked_after_the_last_representable_visit() -> Result<usize, OperatingError>
 {
     use crate::domain::table_reach::{
-        service::{begin_ordered, next_ordered, prepare_ordered},
-        types::{Edges, OrderedGraph, OrderedWalk},
+        service::{begin_ordered, next_ordered},
+        types::{Edges, OrderedWalk},
     };
-    use ryo_derived::domain::contract::types::KeyIndex;
+    use ryo_derived::domain::contract::types::{
+        BuildOutcome, BuildWorkspace, CanonicalTexts, DerivedFault, DerivedInputs, DerivedView,
+        ValueTexts, ViewRequest,
+    };
+    struct NumberTexts;
+    impl ValueTexts for NumberTexts {
+        fn text(&self, _: Cell) -> Option<&str> {
+            None
+        }
+    }
+    impl CanonicalTexts for NumberTexts {
+        fn intern(&mut self, _: &str) -> Result<Cell, DerivedFault> {
+            Err(DerivedFault::WrongOperation)
+        }
+    }
     let table = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
-    let mut graph = OrderedGraph {
-        edge_columns: vec![column(0), column(1)],
-        ..OrderedGraph::default()
+    let roots = numbers(1, &[&[1]]);
+    let semantics = crate::outbound::derived::factory::test_port();
+    let prepared = semantics.prepare(
+        ViewRequest::OrderedDfs {
+            root: column(0),
+            root_keys: vec![],
+            source: column(0),
+            destination: column(1),
+            order: column(2),
+            edge: column(3),
+            edge_keys: vec![],
+        },
+        vec![roots.kinds.clone(), table.kinds.clone()],
+    );
+    let complete_roots = crate::application::file_dag::testing::CompleteTableRows(&roots);
+    let complete_edges = crate::application::file_dag::testing::CompleteTableRows(&table);
+    let BuildOutcome::Built(payload) = semantics
+        .build(
+            &prepared,
+            DerivedInputs::Dfs {
+                roots: &complete_roots,
+                edges: &complete_edges,
+                texts: &mut NumberTexts,
+            },
+            &mut BuildWorkspace::default(),
+            None,
+        )
+        .map_err(crate::domain::operator::contract::derived::portable_fault)?
+    else {
+        return Err(OperatingError::WrongOperation);
     };
-    let mut order = KeyIndex::default();
-    prepare_ordered(&table, column(2), &mut order, &mut graph)?;
+    let DerivedView::OrderedDfs(graph) = semantics
+        .view(&prepared, &payload)
+        .map_err(crate::domain::operator::contract::derived::portable_fault)?
+    else {
+        return Err(OperatingError::WrongOperation);
+    };
     let source = [column(0)];
     let edges = Edges {
         table: &table,
-        order: &order,
+        order: graph.edge_index(),
         from: &source,
         to: column(1),
     };
     let mut walk = OrderedWalk::default();
-    begin_ordered(&edges, &graph, &[], Cell::Number(Integer(1)), &mut walk);
+    begin_ordered(&edges, graph, &[], Cell::Number(Integer(1)), &mut walk);
     walk.ordinal = Some(i64::MAX);
-    let first = next_ordered(&edges, &graph, &[], &mut walk)?.unwrap();
+    let first = next_ordered(&edges, graph, &[], &mut walk)?.unwrap();
     assert_eq!(first.1, Integer(i64::MAX));
     assert!(!walk.visited.contains(&Cell::Number(Integer(2))));
-    next_ordered(&edges, &graph, &[], &mut walk).map(|_| 0)
+    next_ordered(&edges, graph, &[], &mut walk).map(|_| 0)
 }
 fn retained_text_fixture(source: &[u8]) -> (Symbols, Table, Table) {
     use ryo_language::domain::{

@@ -1,5 +1,6 @@
 //! Compact adjacency matches ordinary closure without enumerating unrelated roots.
 
+use crate::application::file_dag::testing::CompleteTableRows;
 use crate::application::file_dag::testing::TestOperator as _;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::closure::item::ClosureItem;
@@ -57,7 +58,7 @@ fn build(
 ) -> Result<Option<Arc<CompactGraph>>, crate::domain::operating::errors::OperatingError> {
     assert_eq!(
         identity.population.rows,
-        crate::domain::table_model::service::count_of(rows)
+        crate::domain::table_model::service::count_of(rows).0
     );
     assert_eq!(identity.endpoints, endpoints);
     assert_eq!(identity.keys, keys);
@@ -69,10 +70,14 @@ fn build(
         },
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
     );
+    let Rows::Computed(table) = rows else {
+        return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+    };
+    let complete = CompleteTableRows(table);
     match semantics
         .build(
             &prepared,
-            DerivedInputs::Rows(rows),
+            DerivedInputs::Rows(&complete),
             &mut BuildWorkspace::default(),
             None,
         )
