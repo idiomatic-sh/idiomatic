@@ -54,12 +54,14 @@ enum State {
     Running,
     Published(AdmittedInput),
     Forwarded,
+    Retired,
     Failed(OperatingError),
 }
 struct Slot {
     state: State,
     scratch: Vec<KernelScratch>,
     remaining: usize,
+    dependencies_consumed: bool,
     completion: Option<crate::application::file_dag::completion::CompletionPolicy>,
 }
 pub(crate) struct ProgramExecution {
@@ -86,6 +88,7 @@ impl ProgramExecution {
                     .map(|_| KernelScratch::default())
                     .collect(),
                 remaining: region.consumers,
+                dependencies_consumed: false,
                 completion: None,
             })
             .collect();
@@ -97,6 +100,59 @@ impl ProgramExecution {
             partition,
             slots: RefCell::new(slots),
         }
+    }
+    /// Consume one declared reader edge. Cascaded cancellation uses the same
+    /// prepared region edges; no semantic callback runs under the state borrow.
+    pub(super) fn retire(&self, id: RegionId) -> Result<(), OperatingError> {
+        let mut pending = vec![id];
+        while let Some(id) = pending.pop() {
+            let dependencies = {
+                let mut slots = self.slots.borrow_mut();
+                let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+                if slot.remaining == 0 {
+                    continue;
+                }
+                slot.remaining -= 1;
+                if slot.remaining != 0 {
+                    continue;
+                }
+                if matches!(slot.state, State::Running) {
+                    return Err(OperatingError::NotRun);
+                }
+                let cancel = !slot.dependencies_consumed;
+                slot.dependencies_consumed = true;
+                slot.state = State::Retired;
+                slot.scratch.clear();
+                cancel
+            };
+            if dependencies {
+                for source in self.program.regions[id.0].inputs.iter() {
+                    if let crate::domain::executable_program::types::InputSource::Region(producer) =
+                        source
+                    {
+                        pending.push(*producer);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    fn release_inputs(&self, id: RegionId) -> Result<(), OperatingError> {
+        {
+            let mut slots = self.slots.borrow_mut();
+            let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+            if slot.dependencies_consumed {
+                return Ok(());
+            }
+            slot.dependencies_consumed = true;
+        }
+        for source in self.program.regions[id.0].inputs.iter() {
+            if let crate::domain::executable_program::types::InputSource::Region(producer) = source
+            {
+                self.retire(*producer)?;
+            }
+        }
+        Ok(())
     }
     pub(super) fn project_partition_matches(
         &self,
@@ -143,7 +199,7 @@ impl ProgramExecution {
                         }
                     };
                 }
-                State::Forwarded => return Err(OperatingError::NotRun),
+                State::Forwarded | State::Retired => return Err(OperatingError::NotRun),
                 State::Dormant => {}
             }
             slot.state = State::Running;
@@ -404,14 +460,17 @@ impl ProgramExecution {
         match result {
             Ok(InvocationOutcome::Published(input)) => {
                 cleanup.terminal = Terminal::Published(input.clone());
+                self.release_inputs(id)?;
                 Ok(InvocationOutcome::Published(input))
             }
             Ok(InvocationOutcome::Forwarded) => {
                 cleanup.terminal = Terminal::Forwarded;
+                self.release_inputs(id)?;
                 Ok(InvocationOutcome::Forwarded)
             }
             Err(InvocationFailure::Semantic(error)) => {
                 cleanup.terminal = Terminal::Failed(error.clone());
+                self.release_inputs(id)?;
                 Err(error)
             }
             Err(InvocationFailure::Delivery(error)) => Err(error),

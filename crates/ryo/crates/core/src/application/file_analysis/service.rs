@@ -430,7 +430,7 @@ impl FileAnalysis {
                 .copied()
                 .ok_or(crate::domain::operating::errors::OperatingError::NotRun)?
             {
-                run.skip_rule(rule, crate::application::file_dag::program::admission::ApplicabilityReason::SyntaxRejected)?;
+                run.skip_rule(rule, crate::application::file_dag::program::facade::ApplicabilityReason::SyntaxRejected)?;
                 continue;
             }
             let emit = governs_rule(tables, rule) == Governing::Governs;

@@ -36,7 +36,7 @@ pub(super) struct ApplicabilityProof {
     reason: ApplicabilityReason,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum ApplicabilityReason {
+pub(crate) enum ApplicabilityReason {
     SyntaxRejected,
     DiagnosticNotApplicable,
 }

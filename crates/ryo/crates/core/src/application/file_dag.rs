@@ -22,21 +22,18 @@ pub(crate) mod cached_graph;
 pub(crate) mod closure_partitions;
 #[cfg(test)]
 mod contract_timing_test;
-pub(crate) mod optimized;
 pub(crate) mod selected;
 
 
 pub(in crate::application) mod relations;
 
 pub(crate) mod executor;
-pub(crate) mod interface;
 pub(crate) mod pipeline;
 
 pub(crate) mod settings;
 
 pub(crate) mod cross_execution;
 pub(crate) mod crossing;
-pub(crate) mod rule_execution;
 
 #[cfg(test)]
 pub(crate) mod acceptance;

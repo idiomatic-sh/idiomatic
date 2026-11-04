@@ -3,7 +3,6 @@
 //! whole (the side of a join that is looked up, what a group counts) or what the plan emits or hands over, or what more than one
 //! step reads and is not cheap to make again.
 
-pub(crate) mod service;
 // Historical compact transport cases remain registered while their fixtures
 // migrate to the same required graph/executor API; no old evaluator is retained.
 #[cfg(test)]

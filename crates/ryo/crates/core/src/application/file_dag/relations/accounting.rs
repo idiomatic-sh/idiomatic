@@ -69,7 +69,7 @@ impl RelationOwner {
         Backing {
             key: (0, Arc::as_ptr(table) as usize),
             retention_units: 0,
-            bytes: super::super::service::table_bytes(table),
+            bytes: table_bytes(table),
         }
     }
     fn resource_backings(
@@ -159,7 +159,7 @@ impl RelationOwner {
 
 pub(in crate::application::file_dag) fn bytes(result: &RelationResult) -> usize {
     let owned = match &result.body {
-        RelationBody::Computed(table) => crate::application::file_dag::service::table_bytes(table),
+        RelationBody::Computed(table) => table_bytes(table),
         RelationBody::Compact(table) => {
             crate::domain::table_words::service::compact_metadata_bytes(table)
                 + crate::domain::table_words::service::compact_backing(table)
@@ -186,9 +186,21 @@ pub(in crate::application::file_dag) fn bytes(result: &RelationResult) -> usize 
         }
     };
     owned
-        + result.normalized.get().map_or(0, |table| {
-            crate::application::file_dag::service::table_bytes(table)
-        })
+        + result
+            .normalized
+            .get()
+            .map_or(0, |table| table_bytes(table))
         + size_of::<RelationResult>()
         + 2 * size_of::<usize>()
+}
+
+fn table_bytes(table: &ryo_values::domain::rows::types::Table) -> usize {
+    table
+        .cells
+        .capacity()
+        .saturating_mul(size_of::<Value>())
+        .saturating_add(table.kinds.capacity().saturating_mul(size_of::<CellKind>()))
+        .saturating_add(
+            size_of::<ryo_values::domain::rows::types::Table>() + 2 * size_of::<usize>(),
+        )
 }
