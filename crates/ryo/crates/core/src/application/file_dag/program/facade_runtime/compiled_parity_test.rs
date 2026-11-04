@@ -20,16 +20,19 @@ use crate::domain::{
     table_model::types::Rows,
 };
 use ryo_language::domain::files::types::FilePath;
-use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::{Integer, Relation, Value as Cell};
+use ryo_relations::domain::relations::{
+    service::{kinds, node_id},
+    types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
+};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, Comparison, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId,
-        Test,
+        ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
+        QueryLiteral, Side, StepId, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    rows::types::{RowCount, Table},
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
@@ -39,6 +42,8 @@ use std::{collections::BTreeMap, sync::Arc};
 enum Scenario {
     Words,
     Counted,
+    MissingRight,
+    OrdinaryFunctionJoin,
 }
 type Input = Scenario;
 type Value = (usize, &'static str);
@@ -48,12 +53,16 @@ fn plan(scenario: Scenario) -> Plan {
     let mut steps = vec![PlanStep {
         operation: Operation::Select {
             from: PlanInput::Relation(Relation::SyntaxTree),
-            comparisons: vec![Comparison {
-                test: Test::Equal,
-                left: Operand::Column(ColumnIndex(1)),
-                right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
-                origin: None,
-            }],
+            comparisons: if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
+                vec![]
+            } else {
+                vec![Comparison {
+                    test: Test::Equal,
+                    left: Operand::Column(ColumnIndex(1)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
+                    origin: None,
+                }]
+            },
             kept: vec![ColumnIndex(0), ColumnIndex(1)],
         },
         scope: StepScope::PerFile,
@@ -66,6 +75,43 @@ fn plan(scenario: Scenario) -> Plan {
                 distinct: None,
             },
             scope: StepScope::PerFile,
+        });
+    }
+    if matches!(scenario, Scenario::MissingRight) {
+        steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: PlanInput::Relation(Relation::SyntaxChild),
+                comparisons: vec![],
+                kept: vec![],
+            },
+        });
+        steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Antijoin {
+                left: PlanInput::Step(StepId(0)),
+                right: PlanInput::Step(StepId(1)),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(1)],
+            },
+        });
+    }
+    if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
+        steps.push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Join {
+                left: PlanInput::Step(StepId(0)),
+                right: PlanInput::Relation(Relation::Function),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(0),
+                }],
+                filter: vec![],
+                view: vec![],
+                reach: None,
+            },
         });
     }
     let last = StepId((steps.len() - 1) as u32);
@@ -146,8 +192,28 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         None,
         None,
     )?;
+    let function = Table {
+        kinds: kinds(Relation::Function).to_vec(),
+        cells: kinds(Relation::Function)
+            .iter()
+            .copied()
+            .map(|kind| match kind {
+                CellKind::Node => Cell::Node(node_id(FileId(0), Position(2))),
+                CellKind::Symbol => Cell::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
+                CellKind::File => Cell::File(FileId(0)),
+                CellKind::Span => Cell::Span(Span {
+                    start: Offset(0),
+                    end: Offset(0),
+                }),
+                CellKind::Number => Cell::Number(Integer(0)),
+                CellKind::Flag => Cell::Flag(Flag::Lowered),
+            })
+            .collect(),
+        count: RowCount(1),
+    };
     let read = |relation| match relation {
         Relation::SyntaxTree => Ok(Rows::Tree(rows_over(&elements))),
+        Relation::Function => Ok(Rows::Computed(&function)),
         _ => Err(OperatingError::NotRead),
     };
     let outcome = file.rule(
@@ -159,8 +225,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         &read,
         &mut symbols,
     )?;
-    let RootOutcome::Complete(table) = outcome.emit else {
-        return Err(OperatingError::NotRun);
+    let table = match outcome.emit {
+        RootOutcome::Complete(table) => table,
+        RootOutcome::Unknown(error) | RootOutcome::Failed(error) => return Err(error),
+        _ => return Err(OperatingError::NotRun),
     };
     let shown = table
         .cells
@@ -189,8 +257,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Counted,
         expect: Expect::Value((1, "_ 2")),
     },
+    Case {
+        name: CaseName("non_tree_join_uses_registered_operator_after_native_decline"),
+        word: Word::Succeeds,
+        input: || Scenario::OrdinaryFunctionJoin,
+        expect: Expect::Value((1, "2")),
+    },
+    Case {
+        name: CaseName("missing_demanded_right_source_refuses_instead_of_empty_success"),
+        word: Word::Refuses,
+        input: || Scenario::MissingRight,
+        expect: Expect::Error(OperatingError::NotRead),
+    },
 ];
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
