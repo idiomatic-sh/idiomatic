@@ -454,7 +454,7 @@ fn source_for(
         .ok_or(OperatingError::NotRun)?;
     program
         .program()
-        .rules
+        .rules()
         .get(rule.0)
         .and_then(|rule| rule.frontier.get(index))
         .ok_or(OperatingError::NotRun)?

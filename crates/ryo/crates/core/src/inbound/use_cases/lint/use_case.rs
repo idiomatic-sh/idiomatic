@@ -988,7 +988,7 @@ impl LintUseCaseImpl {
                     )]
                     let first = run.first_bucket[each.rule.0];
                     let required = crate::application::file_dag::program::facade::required_partitions(
-                        &run.program, each.rule, domain.files, domain.covered, domain.skipped,
+                        &run.program, each.rule, crossing.domain.files, crossing.domain.covered, crossing.domain.skipped,
                     ).map_err(|error| LintError::from(crate::domain::rules::service::failed(&each.id, &error)))?;
                     let inputs = crate::application::cross_file::frontiers::prepare(
                         run.program.as_ref(), each.rule, first, kept_facts.as_ref(), handle.facts.as_ref(), &handle.symbols,

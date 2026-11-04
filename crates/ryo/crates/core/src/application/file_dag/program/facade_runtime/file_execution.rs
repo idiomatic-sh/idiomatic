@@ -203,7 +203,7 @@ impl FileRun<'_, '_> {
         let sources = self
             .program
             .program()
-            .rules
+            .rules()
             .get(rule.0)
             .ok_or(OperatingError::NotRun)?
             .frontier
