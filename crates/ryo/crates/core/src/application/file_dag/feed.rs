@@ -12,8 +12,6 @@ pub(crate) enum InputOrigin {
     External,
     Relation(ryo_relations::domain::relations::types::Relation),
     Internal,
-    /// A streamed producer materialized only for this input demand, with no promised resident publication.
-    Temporary,
 }
 pub(crate) trait Feed<'f> {
     fn relation_owner(&self) -> std::rc::Rc<super::relations::RelationOwner>;

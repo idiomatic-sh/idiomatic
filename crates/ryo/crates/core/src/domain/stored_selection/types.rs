@@ -22,15 +22,9 @@ pub(crate) struct Selector {
 /// Immutable selector descriptors for one plan and its request bindings.
 #[derive(Debug)]
 pub(crate) struct PreparedPlan {
-    /// Same request-local plan identity as its layout.
-    pub identity: SelectionPlanId,
     /// Eligible direct/chain selectors and terminal projections by step index.
     pub steps: Vec<Option<Arc<Selector>>>,
 }
-
-/// Request-local plan address used only to reuse its immutable selector descriptors.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SelectionPlanId(pub usize);
 
 /// One discriminator column used by distinct active predicate programs.
 #[derive(Debug)]

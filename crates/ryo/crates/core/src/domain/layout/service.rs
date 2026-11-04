@@ -8,9 +8,11 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operation_schema::service::schema_of;
 use crate::domain::operation_schema::types::InputSchema;
+#[cfg(test)]
 use crate::domain::operator::types::{KeptSteps, PlanIdentity, PlanLayout, ReadCount, StepPlace};
 use crate::domain::table_cells::types::TreeForm;
 use crate::domain::table_model::types::{Frontier, ParameterBinding, Rows};
+#[cfg(test)]
 use crate::domain::trust::service::needs_of;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -19,6 +21,7 @@ use ryo_values::domain::plans::types::{Plan, StepScope};
 
 /// How many steps read the step `id`, the plan's emitting and handing over counting as reads.
 #[must_use]
+#[cfg(test)]
 pub(crate) fn reads_of(plan: &Plan, id: StepPlace) -> ReadCount {
     let id = id.0;
     let steps = plan
@@ -55,6 +58,7 @@ pub(crate) fn reads_of(plan: &Plan, id: StepPlace) -> ReadCount {
 ///
 /// `NotRun` when a step reads a step that has no columns, `NotRead` when `read` has no rows for a relation, and whatever an
 /// operator refuses.
+#[cfg(test)]
 pub(crate) fn layout_of<'f>(
     plan: &Plan,
     index: PlanIdentity,

@@ -16,7 +16,6 @@ use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, RenderInput};
 use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
-use crate::domain::shared_walk::service::install;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 
 use crate::domain::table_texts::types::SourceView;
@@ -58,19 +57,8 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
     file: FileId,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
-    file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
 ) -> Result<Vec<Table>, RulesError> {
-    evaluate_rule_with_dag(
-        tables,
-        setting,
-        rule,
-        file,
-        relations,
-        classes,
-        file_program,
-        None,
-        None,
-    )
+    evaluate_rule_with_dag(tables, setting, rule, file, relations, classes, None, None)
 }
 
 pub(crate) fn evaluate_rule_with_dag<'f>(
@@ -80,8 +68,8 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     file: FileId,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
-    file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
-    file_dag: Option<&dyn crate::application::file_dag::interface::DagExecution>,
+
+    file_dag: &dyn crate::application::file_dag::interface::DagExecution,
     executor: &super::executor::ScopedExecutor<'_>,
     semantic: Option<&dyn SemanticLookup>,
 ) -> Result<Vec<Table>, RulesError> {
@@ -105,7 +93,6 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
     } else {
         tables.partials.clone()
     };
-    install(&tables.shared, classes, &mut workspace.pool.made, rule);
     let refuse = |reason: &dyn std::fmt::Display| failed(&id_at(setting.ids, rule), reason);
     let number = RuleNumber(u32::try_from(rule.0).unwrap_or(u32::MAX));
     let pool = &mut workspace.pool;
@@ -158,7 +145,6 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
                 pool,
                 &mut tables.pool,
                 &classes.classes,
-                file_program,
                 rule.0,
                 file_dag,
                 executor,

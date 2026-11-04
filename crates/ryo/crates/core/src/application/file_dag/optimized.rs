@@ -1,183 +1,164 @@
-//! Existing physical algorithms are implementations selected by the common engine.
-//! They borrow application-owned rule state; no primitive gains scheduler/cache access.
-use super::execution::CommonOperatorEngine;
-use crate::application::file_dag::executor::StepMaterialization;
-use crate::application::file_dag::pipeline::{
-    types::compact::value::CompactInput,
-    types::{LoweredTree, Stepper},
+//! Physical regions selected and invoked by the one application scheduler.
+//! Native positions and fused columns are algorithms, never alternate graph owners.
+use super::{
+    execution::{CommonOperatorEngine, PrimitiveSemanticsBridge},
+    service::GraphInputs,
 };
-use crate::domain::column_kernel::types::KernelStrategy;
-use crate::domain::fragment::{service as fragment, types::FragmentRun};
-use crate::domain::lowering::types::Counting;
-use crate::domain::operating::{
-    errors::OperatingError,
-    types::{Emit, OperatorContext, Room},
+use crate::domain::{
+    lowering::types::Counting,
+    operating::{
+        errors::OperatingError,
+        types::{Emit, OperatorContext},
+    },
 };
-use crate::domain::operator::{contract::types::OperatorContract, types::StepPlace};
-use crate::domain::replay::{
-    service::scan,
-    types::{Collect, Pipe},
-};
-use crate::domain::table_model::{service::reset, types::Rows};
-use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::StepId;
+use std::sync::Arc;
 
-impl CommonOperatorEngine<'_> {
-    pub(crate) fn stream_step<'a, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut Stepper<'a, 'f>,
-        id: StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError>
-    where
-        'f: 'a,
-    {
-        if let LoweredTree::Tree(tree) = stepper.lowered
-            && (stepper
-                .layout
-                .lowering
-                .shapes
-                .get(id.0)
-                .is_some_and(Option::is_some)
-                || stepper.layout.lowering.counting.get(id.0) == Some(&Counting::Counts))
-        {
-            if contract.kind == ryo_values::domain::plans::types::OperationKind::Join {
-                let mut output =
-                    super::execution::output::State::take(&mut room.scratch, &mut room.memo);
-                let result = output.run(emit, |emit| {
-                    self.lowered_step(stepper, id, tree, context, emit)
-                });
-                output.restore(&mut room.scratch, &mut room.memo);
-                return result;
-            }
-            return self.lowered_step(stepper, id, tree, context, emit);
-        }
-        if stepper.counting == Counting::DoesNotCount
-            && let Some(rows) = CompactInput::new(stepper).selected(id, context)?
-        {
-            let mut buffer = stepper.spare.pop().unwrap_or_default();
-            let result = scan(&rows, &mut buffer, context, emit);
-            stepper.spare.push(buffer);
-            return result;
-        }
-        let owner = std::rc::Rc::clone(&stepper.relation_owner);
-        self.stream(&owner, contract, stepper, context, room, emit)
-    }
-    fn lowered_step<'a, 'f>(
-        &self,
-        stepper: &mut Stepper<'a, 'f>,
-        id: StepPlace,
-        tree: crate::domain::table_cells::types::TreeRows<'f>,
-        context: &mut OperatorContext<'_>,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError>
-    where
-        'f: 'a,
-    {
-        let semantics = super::execution::PrimitiveSemanticsBridge {
-            port: self.operators,
+/// Prepare immutable index requirements once with the request, before it is
+/// shared by file/project scopes. No population, cache, or row lives here.
+pub(crate) fn prepare(
+    graph: &mut crate::domain::file_program::types::RequestGraph,
+    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+) {
+    for node in &mut graph.nodes {
+        let Some(chain) = node
+            .region
+            .as_mut()
+            .and_then(|region| region.column.as_mut())
+        else {
+            continue;
         };
-        let owner = std::rc::Rc::clone(&stepper.relation_owner);
-        let mut derived = super::derived::owner::raw_scope::RawScope::new(owner);
-        let mut run = FragmentRun {
-            derived: &mut derived,
-            plan: stepper.plan,
-            lowering: &stepper.layout.lowering,
-            tree,
-            room: &mut *stepper.made,
-            classes: stepper.classes,
+        let schemas = [crate::domain::operation_schema::types::InputSchema {
+            kinds: ryo_relations::domain::relations::service::kinds(chain.right),
+            tree: None,
+        }];
+        let request = crate::domain::derived_views::types::ViewRequest::Equality {
+            columns: chain.right_on.clone(),
         };
-        let step = StepId(u32::try_from(id.0).map_err(|_| OperatingError::NotRun)?);
-        if stepper.counting == Counting::DoesNotCount {
-            return if fragment::counts(&run, step) == Counting::Counts {
-                fragment::emit_counts(&semantics, &mut run, step, context, emit)
-            } else {
-                fragment::make(&semantics, &mut run, step, context)?;
-                fragment::emit(&mut run, step, context, emit)
-            };
-        }
-        let mut made = 0;
-        let mut counting = Pipe(|each: &mut OperatorContext<'_>, row: &[Value]| {
-            made += 1;
-            emit.row(each, row)
-        });
-        let result = if fragment::counts(&run, step) == Counting::Counts {
-            fragment::emit_counts(&semantics, &mut run, step, context, &mut counting)
-        } else {
-            fragment::make(&semantics, &mut run, step, context)
-                .and_then(|()| fragment::emit(&mut run, step, context, &mut counting))
-        };
-        crate::application::file_dag::pipeline::service::feed(
-            stepper,
-            id,
-            crate::domain::operating::types::InputPlace(0),
-            ryo_values::domain::rows::types::RowCount(made),
-        );
-        result
-    }
-    pub(crate) fn keep_step<'a, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut Stepper<'a, 'f>,
-        id: StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        target: &mut Table,
-    ) -> Result<StepMaterialization, OperatingError>
-    where
-        'f: 'a,
-    {
-        if stepper.counting == Counting::DoesNotCount
-            && let Some(Rows::Selected(rows)) = CompactInput::new(stepper).selected(id, context)?
+        if let Ok(index) = super::derived::prepare::view(Arc::clone(&semantic), &request, &schemas)
+            && index.metadata.is_ok()
         {
-            return Ok(StepMaterialization::Selected(rows.selection));
+            chain.index = Some(Arc::new(index));
         }
-        if stepper.kernel_strategy == KernelStrategy::Column
-            && stepper.counting == Counting::DoesNotCount
-            && let Some(chain) = stepper
-                .kernel
-                .and_then(|program| program.0.get(id.0))
-                .and_then(Option::as_ref)
-            && column::execute(
-                &super::execution::PrimitiveSemanticsBridge {
-                    port: self.operators,
-                },
-                chain,
-                stepper.read,
-                stepper.selected,
-                stepper.partial,
-                stepper.relation_owner.as_ref(),
-                stepper.dag_shared,
-                context,
-                target,
-                stepper
-                    .layout
-                    .kinds
-                    .get(id.0)
-                    .ok_or(OperatingError::NotRun)?,
-                stepper.kernel_counts,
-            )?
-        {
-            return Ok(StepMaterialization::Materialized);
-        }
-        reset(
-            target,
-            stepper
-                .layout
-                .kinds
-                .get(id.0)
-                .ok_or(OperatingError::NotRun)?,
-        );
-        self.stream_step(contract, stepper, id, context, room, &mut Collect(target))?;
-        Ok(StepMaterialization::Materialized)
     }
 }
 
+/// All eligibility decisions precede output. Refusal/errors propagate; there is
+/// no partial-output fallback into a second algorithm.
+pub(super) fn stream_region(
+    engine: &CommonOperatorEngine<'_>,
+    feed: &mut GraphInputs<'_, '_>,
+    context: &mut OperatorContext<'_>,
+    room: &mut crate::domain::operating::types::Room,
+    emit: &mut dyn Emit,
+) -> Result<bool, OperatingError> {
+    let mut output = super::execution::output::State::take(&mut room.scratch, &mut room.memo);
+    let mut executed = false;
+    let result = output.run(emit, |emit| {
+        executed = stream_region_inner(engine, feed, context, emit)?;
+        Ok(())
+    });
+    output.restore(&mut room.scratch, &mut room.memo);
+    result.map(|()| executed)
+}
+fn stream_region_inner(
+    engine: &CommonOperatorEngine<'_>,
+    feed: &mut GraphInputs<'_, '_>,
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+) -> Result<bool, OperatingError> {
+    let Some(region) = feed.region() else {
+        return Ok(false);
+    };
+    let index = region.step.0 as usize;
+    let (native, classes, picked) = feed.native_binding();
+    if native == crate::domain::operator::types::TreeSteps::Lowered
+        && (region
+            .layout
+            .lowering
+            .shapes
+            .get(index)
+            .is_some_and(Option::is_some)
+            || region.layout.lowering.counting.get(index) == Some(&Counting::Counts))
+    {
+        let crate::domain::table_model::types::Rows::Tree(tree) =
+            (feed.reader())(ryo_relations::domain::relations::types::Relation::SyntaxTree)?
+        else {
+            return Ok(false);
+        };
+        let mut positions = crate::domain::positions::types::LoweredRoom::default();
+        positions.ready.resize(
+            region.plan.steps.len(),
+            crate::domain::positions::types::Readiness::NotMade,
+        );
+        positions
+            .made
+            .resize_with(region.plan.steps.len(), Default::default);
+        positions.picked = picked;
+        let mut derived = super::derived::owner::raw_scope::RawScope::new(feed.owner());
+        let mut run = crate::domain::fragment::types::FragmentRun {
+            derived: &mut derived,
+            plan: &region.plan,
+            lowering: &region.layout.lowering,
+            tree: crate::domain::table_cells::types::TreeRows {
+                form: crate::domain::table_cells::types::TreeForm::Elements,
+                ..tree
+            },
+            room: &mut positions,
+            classes: &classes.classes,
+        };
+        let semantics = PrimitiveSemanticsBridge {
+            port: engine.operators,
+        };
+        if crate::domain::fragment::service::counts(&run, region.step) == Counting::Counts {
+            crate::domain::fragment::service::emit_counts(
+                &semantics,
+                &mut run,
+                region.step,
+                context,
+                emit,
+            )?;
+        } else {
+            crate::domain::fragment::service::make(&semantics, &mut run, region.step, context)?;
+            crate::domain::fragment::service::emit(&mut run, region.step, context, emit)?;
+        }
+        return Ok(true);
+    }
+    if feed.column_enabled()
+        && let Some(chain) = &region.column
+    {
+        let publication = feed.original_publication(region.rule, chain.left_step, context)?;
+        let owner = feed.owner();
+        let mut table = ryo_values::domain::rows::types::Table::default();
+        let mut counts = crate::domain::column_kernel::types::KernelCounts::default();
+        if column::execute_publication(
+            &PrimitiveSemanticsBridge {
+                port: engine.operators,
+            },
+            chain,
+            &|relation| (feed.reader())(relation),
+            &owner,
+            &publication,
+            context,
+            &mut table,
+            region
+                .layout
+                .kinds
+                .get(index)
+                .ok_or(OperatingError::NotRun)?,
+            &mut counts,
+        )? {
+            feed.column_counts(counts);
+            crate::domain::replay::service::scan(
+                &crate::domain::table_model::types::Rows::Computed(&table),
+                &mut Vec::new(),
+                context,
+                emit,
+            )?;
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
 pub(crate) mod column;
 pub(crate) mod join;
 pub(crate) mod ready;
-
-use ryo_values::domain::rows::types::Table;

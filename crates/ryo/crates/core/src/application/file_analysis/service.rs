@@ -391,7 +391,6 @@ impl FileAnalysis {
             &mut tables.pool,
             &visit.setting.operators,
         );
-        let graph_enabled = true;
         let graph = &visit.setting.graph;
         // Preserve path scope, but keep syntax-gated rules out of the shared element walk when this provider did not accept the file.
         let acceptance = syntax_acceptance(&tables.elements);
@@ -417,8 +416,7 @@ impl FileAnalysis {
                     .is_none_or(|column| column.0.len() <= u32::MAX as usize)
             {
                 selectable.push(*relation);
-                if graph_enabled
-                    && crate::domain::table_cells::service::native_form(*relation).is_none()
+                if crate::domain::table_cells::service::native_form(*relation).is_none()
                     && crate::domain::table_model::service::complete_for_reuse(
                         *relation,
                         &crate::domain::table_model::types::Rows::Stored(view),
@@ -430,23 +428,27 @@ impl FileAnalysis {
                 }
             }
         }
-        if graph_enabled
-            && tables.language.is_some()
-            && facts.resident_stability() == ResidentStability::Stable
-        {
+        if tables.language.is_some() && facts.resident_stability() == ResidentStability::Stable {
             for &(relation, form) in crate::domain::table_cells::service::native_relations() {
                 let admitted = crate::domain::table_model::service::complete_for_reuse(
                     relation,
-                    &crate::domain::table_model::types::Rows::Tree(crate::domain::table_cells::types::TreeRows {
-                        elements: &tables.elements, file, form,
-                    }),
-                    &physical_partials, true,
+                    &crate::domain::table_model::types::Rows::Tree(
+                        crate::domain::table_cells::types::TreeRows {
+                            elements: &tables.elements,
+                            file,
+                            form,
+                        },
+                    ),
+                    &physical_partials,
+                    true,
                 );
                 tracing::trace!(target: "ryo::diagnostic::file_program", event = "native_relation_admission",
                     file = file.0, relation = ?relation, admitted,
                     acceptance = ?acceptance, incomplete_syntax = has_incomplete_syntax(&tables.elements),
                     physically_partial = physical_partials.iter().any(|partial| partial.relation == relation));
-                if admitted && !complete.contains(&relation) { complete.push(relation); }
+                if admitted && !complete.contains(&relation) {
+                    complete.push(relation);
+                }
             }
             tracing::trace!(target: "ryo::diagnostic::file_program", event = "complete_relations",
                 complete = ?complete);
@@ -455,8 +457,10 @@ impl FileAnalysis {
         // retention only; every class keeps the same executor and semantics.
         let stable = facts.resident_stability() == ResidentStability::Stable;
         let scope = crate::application::file_dag::scope::ExecutionScope::new(
-            std::sync::Arc::clone(graph), crate::application::file_dag::scope::ScopePhase::File(file),
-            stable, visit.setting.executor,
+            std::sync::Arc::clone(graph),
+            crate::application::file_dag::scope::ScopePhase::File(file),
+            stable,
+            visit.setting.executor,
         )?;
         let owner = std::rc::Rc::clone(scope.owner());
         let executor = scope.executor();
@@ -477,29 +481,35 @@ impl FileAnalysis {
                 crate::application::file_dag::types::FileDagExecution::new_for_schedule(
                     &schedule,
                     std::rc::Rc::clone(&owner),
+                    scope.completion(
+                        RuleIndex(0),
+                        crate::application::file_dag::scope::ScopePartials::File {
+                            evaluation: if matches!(
+                                visit.setting.answering,
+                                crate::domain::render::types::Answering::Rows(_)
+                            ) {
+                                &[]
+                            } else {
+                                &physical_partials
+                            },
+                            publication: &physical_partials,
+                        },
+                    )?,
                 );
             if self.execution.node_result_reuse
                 == ryo_values::domain::runs::types::NodeResultReuse::Disabled
             {
                 execution.limit = 0;
             }
-            Some(std::cell::RefCell::new(execution))
+            std::cell::RefCell::new(execution)
         };
-        executor.prepare_resources(
+        file_dag.borrow().prepare_generation_resources(
             Self::resource_generation_enabled(tables, facts.as_ref()),
             active_wanted.as_ref(),
             &physical_partials,
             &selectable,
             visit.setting.plans,
             &tables.pool,
-            |index| {
-                governs_rule(tables, RuleIndex(index)) == Governing::Governs
-                    && !skipped
-                        .as_ref()
-                        .and_then(|skipped| skipped.get(index))
-                        .copied()
-                        .unwrap_or(false)
-            },
         );
 
         // The steps of the rules that select from the elements are decided in one pass over them.
@@ -516,17 +526,7 @@ impl FileAnalysis {
             ),
             ..crate::domain::shared_walk::types::SharedClasses::default()
         };
-        let residual_mask = file_dag.as_ref().map(|dag| {
-            let dag = dag.borrow();
-            let mut mask = tables.mask.clone();
-            for (rule, active) in dag.active.iter().enumerate() {
-                if *active && dag.graph.cuts[rule].iter().any(Option::is_some) {
-                    unplace(&mut mask, RuleNumber(rule as u32));
-                }
-            }
-            mask
-        });
-        {
+        let classes = {
             let mut native_scratch =
                 crate::domain::table_scratch::types::OperatorScratch::default();
             let Tables {
@@ -538,13 +538,14 @@ impl FileAnalysis {
                 pool,
                 ..
             } = &mut *tables;
-            walk(
+            crate::application::file_dag::types::FileDagExecution::prepare_native(
+                &file_dag,
                 shared,
                 Walking {
                     plans: visit.setting.plans,
                     bindings: visit.setting.bindings,
                     paths: visit.setting.paths,
-                    mask: residual_mask.as_ref().unwrap_or(mask),
+                    mask,
                     file,
                     elements,
                     symbols,
@@ -553,8 +554,11 @@ impl FileAnalysis {
                     room: &mut classes,
                     steps: pool.unlowered,
                 },
-            );
-        }
+                pool.kernel_strategy,
+                pool.counting,
+                executor,
+            )?
+        };
         if let Some(scoped_mask) = scoped_mask {
             tables.mask = scoped_mask;
         }
@@ -568,13 +572,13 @@ impl FileAnalysis {
             visit,
             file,
             skipped.as_deref(),
-            None,
-            file_dag.as_ref(),
+            &file_dag,
             &executor,
             &classes,
             semantic,
         );
-        if let Some(dag) = &file_dag {
+        {
+            let dag = &file_dag;
             tables.current_observations = dag.borrow().observation_snapshot();
             if let Some(root) = &tables.current_observations {
                 tables.observations.push(
@@ -588,7 +592,8 @@ impl FileAnalysis {
         if let Some(started) = rules_started {
             tracing::trace!(target: "ryo::diagnostic::execution", phase = "rules_and_frontiers", file = file.0, elapsed_ns = started.elapsed().as_nanos() as u64, success = evaluated.is_ok());
         }
-        if let Some(dag) = &file_dag {
+        {
+            let dag = &file_dag;
             let dag = dag.borrow();
             tracing::trace!(target: "ryo::diagnostic::file_program", event = "dag_file",
                 file = file.0, demands = dag.demands, hits = dag.hits,
@@ -600,7 +605,8 @@ impl FileAnalysis {
                 required_releases=dag.required_releases,
                 required_metadata_bytes=dag.required_metadata_bytes());
         }
-        if let Some(dag) = &file_dag {
+        {
+            let dag = &file_dag;
             dag.borrow().report_resources(file);
         }
 
@@ -608,7 +614,8 @@ impl FileAnalysis {
         let settle_started = execution_diagnostics.then(Instant::now);
         evaluated?;
         settle_file(tables, visit.setting.answering);
-        if let Some(dag) = file_dag.as_ref() {
+        {
+            let dag = &file_dag;
             dag.borrow_mut().release_population();
         }
         facts.release()?;
@@ -625,10 +632,8 @@ impl FileAnalysis {
         visit: &FileVisit<'_>,
         file: FileId,
         skipped: Option<&[bool]>,
-        mut file_program: Option<&mut crate::domain::file_program::types::FileProgram>,
-        file_dag: Option<
-            &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
-        >,
+
+        file_dag: &std::cell::RefCell<crate::application::file_dag::types::FileDagExecution>,
         executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
         classes: &crate::domain::shared_walk::types::SharedClasses,
         semantic: &super::semantic::SemanticState,
@@ -638,7 +643,8 @@ impl FileAnalysis {
             visit.setting.plans.len(),
         ) {
             if governs_rule(tables, rule) == Governing::DoesNotGovern {
-                if let Some(dag) = file_dag {
+                {
+                    let dag = file_dag;
                     dag.borrow_mut().skip_observation_rule(rule.0);
                 }
                 continue;
@@ -648,7 +654,8 @@ impl FileAnalysis {
                 .copied()
                 .unwrap_or(false)
             {
-                if let Some(dag) = file_dag {
+                {
+                    let dag = file_dag;
                     dag.borrow_mut().skip_observation_rule(rule.0);
                 }
                 continue;
@@ -696,10 +703,7 @@ impl FileAnalysis {
                     }
                 },
                 classes,
-                file_program.as_deref_mut(),
-                file_dag.map::<&dyn crate::application::file_dag::interface::DagExecution, _>(
-                    |dag| dag,
-                ),
+                file_dag,
                 executor,
                 Some(semantic),
             );
@@ -737,10 +741,8 @@ impl FileAnalysis {
                             path: path.clone(),
                             message: crate::domain::coverage::types::Message(reason.into()),
                         });
-                    if let Some(program) = file_program.as_deref_mut() {
-                        program.finish_rule(rule.0);
-                    }
-                    if let Some(dag) = file_dag {
+                    {
+                        let dag = file_dag;
                         dag.borrow_mut().finish_rule(rule.0);
                     }
                     continue;
@@ -762,10 +764,8 @@ impl FileAnalysis {
                             message: crate::domain::coverage::types::Message(reason.into()),
                         });
                     semantic.mark_incomplete();
-                    if let Some(program) = file_program.as_deref_mut() {
-                        program.finish_rule(rule.0);
-                    }
-                    if let Some(dag) = file_dag {
+                    {
+                        let dag = file_dag;
                         dag.borrow_mut().finish_rule(rule.0);
                     }
                     continue;
@@ -793,10 +793,8 @@ impl FileAnalysis {
                     capture_frontier(tables, visit.setting.answering, bucket);
                 }
             }
-            if let Some(program) = file_program.as_deref_mut() {
-                program.finish_rule(rule.0);
-            }
-            if let Some(dag) = file_dag {
+            {
+                let dag = file_dag;
                 dag.borrow_mut().finish_rule(rule.0);
             }
         }

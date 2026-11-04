@@ -61,6 +61,9 @@ fn number_origins(
     before: usize,
 ) -> Option<Vec<StoredNumberOrigin>> {
     match input {
+        // A named publication needs an explicit admitted-number lineage proof;
+        // relation metadata is not authority for arbitrary producer values.
+        Input::BoundObservation(_) => None,
         Input::Relation(relation) => (kinds(relation).get(column.0 as usize)
             == Some(&CellKind::Number))
         .then_some(vec![StoredNumberOrigin { relation, column }]),

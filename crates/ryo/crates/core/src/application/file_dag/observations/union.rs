@@ -13,7 +13,7 @@ use crate::domain::{
     replay::{service::scan, types::Collect},
     table_model::{
         service::{kinds_of, reset},
-        types::{RowCount, Rows, Table},
+        types::Rows,
     },
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -121,3 +121,5 @@ impl<'a, 'f: 'a> Feed<'a> for PublicationUnion<'a, 'f> {
         Ok(Rows::Computed(into))
     }
 }
+
+use ryo_values::domain::rows::types::{RowCount, Table};

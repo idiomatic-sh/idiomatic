@@ -90,6 +90,26 @@ impl super::types::FileDagExecution {
             self.relations.derived.relation_eligible(relation),
         )
     }
+    pub(crate) fn prepare_generation_resources(
+        &self,
+        enabled: bool,
+        wanted: &[ryo_relations::domain::relations::types::Relation],
+        partial: &[crate::domain::coverage::types::Partial],
+        selectable: &[ryo_relations::domain::relations::types::Relation],
+        plans: &[ryo_values::domain::plans::types::Plan],
+        pool: &crate::domain::operator::types::PreparedPool,
+    ) {
+        prepare_resources(
+            &self.relations,
+            enabled,
+            wanted,
+            partial,
+            selectable,
+            plans,
+            pool,
+            |index| self.active.get(index).copied().unwrap_or(false),
+        );
+    }
     #[cfg(test)]
     pub(crate) fn prepare_resources(
         &self,
@@ -114,30 +134,6 @@ impl super::types::FileDagExecution {
     }
     pub(crate) fn report_resources(&self, file: ryo_relations::domain::relations::types::FileId) {
         self.relations.derived.report(file);
-    }
-}
-
-impl super::executor::ScopedExecutor<'_> {
-    pub(crate) fn prepare_resources(
-        &self,
-        enabled: bool,
-        wanted: &[ryo_relations::domain::relations::types::Relation],
-        partial: &[crate::domain::coverage::types::Partial],
-        selectable: &[ryo_relations::domain::relations::types::Relation],
-        plans: &[ryo_values::domain::plans::types::Plan],
-        pool: &crate::domain::operator::types::PreparedPool,
-        active: impl Fn(usize) -> bool + Copy,
-    ) {
-        prepare_resources(
-            self.owner(),
-            enabled,
-            wanted,
-            partial,
-            selectable,
-            plans,
-            pool,
-            active,
-        );
     }
 }
 

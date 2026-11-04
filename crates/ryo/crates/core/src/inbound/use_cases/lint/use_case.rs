@@ -371,9 +371,7 @@ impl LintUseCaseImpl {
             &crate::domain::repository::service::catalog_schema().0,
         ));
         // What the host declares is digested once: each rule's digest combines its own with it.
-        let hosted = self
-            .digest
-            .digest(DigestBytes(&configuration(&[], &lines(hosted)).0));
+        let hosted = self.digest.digest(DigestBytes(&hosted_identity(hosted).0));
         let node_reuse_policy = (self.file_analysis.execution().node_result_reuse
             == ryo_values::domain::runs::types::NodeResultReuse::Enabled)
             .then(|| self.digest.digest(DigestBytes(b"ryo-node-result-reuse-v1")));
@@ -1475,9 +1473,13 @@ impl LintUseCase for LintUseCaseImpl {
                 .map_err(crate::application::rule_compilation::errors::RuleCompilationError::from)?
             }
         };
-        let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared_observations(
-            &plans, &operators, observation_request,
-        ));
+        let mut graph = crate::domain::file_program::service::compile_prepared_observations(
+            &plans,
+            &operators,
+            observation_request,
+        );
+        crate::application::file_dag::optimized::prepare(&mut graph, executor.derived_port());
+        let graph = std::sync::Arc::new(graph);
         let mut setting = VisitSetting {
             graph: std::sync::Arc::clone(&graph),
             source_language: request.source_language.as_ref(),
@@ -1620,3 +1622,5 @@ where
     records.sort();
     records.dedup();
 }
+
+use crate::application::file_dag::executor::PrimitiveExecutor;

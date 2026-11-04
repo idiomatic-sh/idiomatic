@@ -12,9 +12,12 @@ use super::{
     relations::{RelationOwner, RelationResult},
     service::GraphInputs,
 };
-pub(crate) enum StepMaterialization {
-    Materialized,
-    Selected(std::sync::Arc<crate::domain::table_model::types::StoredSelection>),
+/// A common-owner declaration of the source and canonical outputs of one
+/// shared native physical batch. It carries no dependency scheduler or cache.
+pub(crate) struct NativeClassBatch<'a> {
+    pub graph: &'a crate::domain::file_program::types::RequestGraph,
+    pub input: ryo_relations::domain::relations::types::Relation,
+    pub outputs: Vec<crate::domain::file_program::types::NodeId>,
 }
 pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
     /// Required invocation boundary: custom executors must explicitly preserve
@@ -30,6 +33,16 @@ pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
         room: &mut Room,
     ) -> Result<super::ordered_existence::StrategyOutcome, OperatingError>;
 
+    /// Required even for custom executors: native precomputation cannot bypass
+    /// refusal/observation by running before the ordinary node entry.
+    fn native_classes(
+        &self,
+        owner: &Rc<RelationOwner>,
+        declaration: &NativeClassBatch<'_>,
+        shared: &mut crate::domain::shared_walk::types::MergedWalk,
+        walking: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError>;
+
     fn derived_port(&self) -> Arc<dyn crate::outbound::derived::interface::DerivedPort>;
 
     fn stream(
@@ -41,6 +54,19 @@ pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
         room: &mut Room,
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError>;
+    /// Required graph-owned streaming/physical invocation; no Stepper can enter
+    /// this interface. Custom executors explicitly retain refusal/observation.
+    fn stream_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut GraphInputs<'_, '_>,
+        owner: &Rc<RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError>;
+
     fn collect(
         &self,
         owner: &Rc<RelationOwner>,
@@ -61,7 +87,13 @@ pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
         feed: &mut GraphInputs<'_, '_>,
         owner: &Rc<RelationOwner>,
         context: &mut OperatorContext<'_>,
+        room: &mut Room,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        if feed.project_phase() {
+            return feed.collect_with(owner, context, |inputs, context, out| {
+                self.collect(owner, contract, inputs, context, out)
+            });
+        }
         let mut table = Table::default();
         crate::domain::table_model::service::reset(
             &mut table,
@@ -72,49 +104,10 @@ pub(crate) trait PrimitiveExecutor: std::fmt::Debug + Sync {
             contract,
             feed,
             context,
-            &mut Room::default(),
+            room,
             &mut crate::domain::replay::types::Collect(&mut table),
         )?;
         owner.computed(table)
-    }
-
-    fn stream_step<'a, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'a, 'f>,
-        id: crate::domain::operator::types::StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError>
-    where
-        'f: 'a,
-    {
-        let owner = Rc::clone(&stepper.relation_owner);
-        self.stream(&owner, contract, stepper, context, room, emit)
-    }
-    fn keep_step<'a, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'a, 'f>,
-        _id: crate::domain::operator::types::StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        target: &mut Table,
-    ) -> Result<StepMaterialization, OperatingError>
-    where
-        'f: 'a,
-    {
-        let owner = Rc::clone(&stepper.relation_owner);
-        self.stream(
-            &owner,
-            contract,
-            stepper,
-            context,
-            room,
-            &mut crate::domain::replay::types::Collect(target),
-        )?;
-        Ok(StepMaterialization::Materialized)
     }
 }
 
@@ -153,11 +146,29 @@ impl<'a> ScopedExecutor<'a> {
         context: &mut OperatorContext<'_>,
         room: &mut Room,
     ) -> Result<super::ordered_existence::StrategyOutcome, OperatingError> {
-        self.executor.ordered_existence(&self.owner, shape, source, rows, output_kinds, context, room)
+        self.executor.ordered_existence(
+            &self.owner,
+            shape,
+            source,
+            rows,
+            output_kinds,
+            context,
+            room,
+        )
+    }
+    pub(super) fn native_classes(
+        &self,
+        declaration: &NativeClassBatch<'_>,
+        shared: &mut crate::domain::shared_walk::types::MergedWalk,
+        walking: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        self.executor
+            .native_classes(&self.owner, declaration, shared, walking)
     }
     pub(crate) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
     }
+    #[cfg(test)]
     pub(crate) fn derived_port(&self) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {
         self.owner.derived.semantic_port()
     }
@@ -172,8 +183,33 @@ impl<'a> ScopedExecutor<'a> {
         if !Rc::ptr_eq(&self.owner, &feed.relation_owner()) {
             return Err(OperatingError::NotRead);
         }
-        self.executor.stream(&self.owner, contract, feed, context, room, emit)
+        self.executor
+            .stream(&self.owner, contract, feed, context, room, emit)
     }
+    pub(crate) fn stream_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut GraphInputs<'_, '_>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        if !Rc::ptr_eq(&self.owner, &feed.relation_owner()) {
+            return Err(OperatingError::NotRead);
+        }
+        self.executor.stream_representation(
+            contract,
+            physical,
+            feed,
+            &self.owner,
+            context,
+            room,
+            emit,
+        )
+    }
+
+    #[cfg(test)]
     pub(crate) fn collect(
         &self,
         contract: &OperatorContract,
@@ -190,47 +226,12 @@ impl<'a> ScopedExecutor<'a> {
         physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
         feed: &mut GraphInputs<'_, '_>,
         context: &mut OperatorContext<'_>,
+        room: &mut Room,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
         if !Rc::ptr_eq(&self.owner, &feed.relation_owner()) {
             return Err(OperatingError::NotRead);
         }
         self.executor
-            .keep_representation(contract, physical, feed, &self.owner, context)
-    }
-    pub(crate) fn stream_step<'b, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'b, 'f>,
-        id: crate::domain::operator::types::StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError>
-    where
-        'f: 'b,
-    {
-        if !Rc::ptr_eq(&self.owner, &stepper.relation_owner) {
-            return Err(OperatingError::NotRead);
-        }
-        self.executor
-            .stream_step(contract, stepper, id, context, room, emit)
-    }
-    pub(crate) fn keep_step<'b, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'b, 'f>,
-        id: crate::domain::operator::types::StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        target: &mut Table,
-    ) -> Result<StepMaterialization, OperatingError>
-    where
-        'f: 'b,
-    {
-        if !Rc::ptr_eq(&self.owner, &stepper.relation_owner) {
-            return Err(OperatingError::NotRead);
-        }
-        self.executor
-            .keep_step(contract, stepper, id, context, room, target)
+            .keep_representation(contract, physical, feed, &self.owner, context, room)
     }
 }

@@ -499,7 +499,37 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
         context: &mut OperatorContext<'_>,
         room: &mut Room,
     ) -> Result<super::ordered_existence::StrategyOutcome, OperatingError> {
-        super::ordered_existence::evaluate(owner, self.operators, shape, source, rows, output_kinds, context, room)
+        super::ordered_existence::evaluate(
+            owner,
+            self.operators,
+            shape,
+            source,
+            rows,
+            output_kinds,
+            context,
+            room,
+        )
+    }
+
+    fn native_classes(
+        &self,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
+        declaration: &super::executor::NativeClassBatch<'_>,
+        shared: &mut crate::domain::shared_walk::types::MergedWalk,
+        walking: crate::domain::shared_walk::types::Walking<'_>,
+    ) -> Result<(), OperatingError> {
+        if !std::sync::Arc::ptr_eq(&self.derived, owner.derived.semantic_port_ref())
+            || declaration.input != ryo_relations::domain::relations::types::Relation::SyntaxTree
+            || declaration.outputs.iter().any(|id| {
+                declaration.graph.nodes.get(id.0).is_none_or(|node| {
+                    node.contract.kind != ryo_values::domain::plans::types::OperationKind::Select
+                })
+            })
+        {
+            return Err(OperatingError::WrongOperation);
+        }
+        crate::domain::shared_walk::service::walk(shared, walking);
+        Ok(())
     }
 
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
@@ -517,6 +547,33 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
     ) -> Result<(), OperatingError> {
         CommonOperatorEngine::stream(self, owner, contract, feed, context, room, emit)
     }
+    fn stream_representation(
+        &self,
+        contract: &OperatorContract,
+        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
+        feed: &mut super::service::GraphInputs<'_, '_>,
+        owner: &std::rc::Rc<super::relations::RelationOwner>,
+        context: &mut OperatorContext<'_>,
+        room: &mut Room,
+        emit: &mut dyn Emit,
+    ) -> Result<(), OperatingError> {
+        if super::optimized::stream_region(self, feed, context, room, emit)? {
+            return Ok(());
+        }
+        if physical.alias.is_some() || physical.selector.is_some() {
+            let publication =
+                self.keep_representation(contract, physical, feed, owner, context, room)?;
+            let rows = owner.resolve(publication.as_ref(), feed.reader())?;
+            return crate::domain::replay::service::scan(
+                &rows,
+                &mut room.scratch.row,
+                context,
+                emit,
+            );
+        }
+        self.stream(owner, contract, feed, context, room, emit)
+    }
+
     fn collect(
         &self,
         owner: &std::rc::Rc<super::relations::RelationOwner>,
@@ -527,34 +584,6 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
     ) -> Result<(), OperatingError> {
         CommonOperatorEngine::collect(self, owner, contract, inputs, context, out)
     }
-    fn stream_step<'a, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'a, 'f>,
-        id: crate::domain::operator::types::StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError>
-    where
-        'f: 'a,
-    {
-        CommonOperatorEngine::stream_step(self, contract, stepper, id, context, room, emit)
-    }
-    fn keep_step<'a, 'f>(
-        &self,
-        contract: &OperatorContract,
-        stepper: &mut crate::application::file_dag::pipeline::types::Stepper<'a, 'f>,
-        id: crate::domain::operator::types::StepPlace,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        target: &mut Table,
-    ) -> Result<crate::application::file_dag::executor::StepMaterialization, OperatingError>
-    where
-        'f: 'a,
-    {
-        CommonOperatorEngine::keep_step(self, contract, stepper, id, context, room, target)
-    }
 
     fn keep_representation(
         &self,
@@ -563,8 +592,11 @@ impl crate::application::file_dag::executor::PrimitiveExecutor for CommonOperato
         feed: &mut super::service::GraphInputs<'_, '_>,
         owner: &std::rc::Rc<super::relations::RelationOwner>,
         context: &mut OperatorContext<'_>,
+        room: &mut Room,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
-        CommonOperatorEngine::keep_representation(self, contract, physical, feed, owner, context)
+        CommonOperatorEngine::keep_representation(
+            self, contract, physical, feed, owner, context, room,
+        )
     }
 }
 
@@ -579,7 +611,13 @@ impl CommonOperatorEngine<'_> {
         feed: &mut super::service::GraphInputs<'_, '_>,
         owner: &std::rc::Rc<super::relations::RelationOwner>,
         context: &mut OperatorContext<'_>,
+        room: &mut Room,
     ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
+        if feed.project_phase() {
+            return feed.collect_with(owner, context, |inputs, context, out| {
+                self.collect(owner, contract, inputs, context, out)
+            });
+        }
         if let Some(which) = physical.alias.filter(|_| owner.stable()) {
             let result = feed.publication(which, context)?;
             feed.inspect_publication(result.as_ref(), owner)?;
@@ -595,14 +633,17 @@ impl CommonOperatorEngine<'_> {
             &mut table,
             &contract.collected_kinds.as_ref().map_err(Clone::clone)?,
         );
-        self.stream(
-            owner,
-            contract,
-            feed,
-            context,
-            &mut Room::default(),
-            &mut Collect(&mut table),
-        )?;
+        if !super::optimized::stream_region(self, feed, context, room, &mut Collect(&mut table))? {
+            self.stream(
+                owner,
+                contract,
+                feed,
+                context,
+                room,
+                &mut Collect(&mut table),
+            )?;
+        }
+
         owner.computed(table)
     }
 }

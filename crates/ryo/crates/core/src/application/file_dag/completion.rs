@@ -37,44 +37,149 @@ pub(crate) enum CoverageState {
 /// Not publicly constructible. This certifies execution completed, independently
 /// of whether the input coverage is Complete or Partial.
 #[derive(Debug)]
-pub(crate) struct CompletedRows(Table);
-impl CompletedRows {
-    pub(crate) fn into_table(self) -> Table {
+pub(crate) struct CompletedRows<T = Table>(T);
+impl<T> CompletedRows<T> {
+    pub(crate) fn into_payload(self) -> T {
         self.0
     }
 }
 #[derive(Debug)]
-pub(crate) enum NodeCompletion {
+pub(crate) enum NodeCompletion<T = Table> {
     /// Deferred original failure: other independent roots retain their own state.
     Failed(OperatingError),
     Available {
-        rows: CompletedRows,
+        rows: CompletedRows<T>,
         coverage: CoverageState,
     },
     Unavailable(UnavailableCompletion),
 }
 
-#[derive(Clone, Copy)]
-enum CompletionBehavior<'a> {
-    BlockBeforeRun(&'a [Partial]),
-    DropAfterCollect(&'a Partials),
+#[derive(Clone)]
+enum CompletionBehavior {
+    BlockBeforeRun(std::sync::Arc<[Partial]>),
+    DropAfterCollect(std::sync::Arc<Partials>),
 }
 /// No Default: the scope's actual partiality source must be supplied.
-pub(crate) struct CompletionPolicy<'a> {
+#[derive(Clone)]
+pub(crate) struct CompletionPolicy {
     scope: ScopeIdentity,
-    behavior: CompletionBehavior<'a>,
+    behavior: CompletionBehavior,
+    /// Publication readiness is physical evidence, independent of Rows-mode
+    /// evaluation relaxation or diagnostic-only absence requirements.
+    publication: CompletionBehavior,
 }
-impl<'a> CompletionPolicy<'a> {
-    pub(crate) fn file(rule: RuleIndex, file: FileId, partials: &'a [Partial]) -> Self {
+impl CompletionPolicy {
+    #[cfg(test)]
+    pub(crate) fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
+        Self::file_inputs(rule, file, partials, partials)
+    }
+    #[cfg(test)]
+    pub(crate) fn project(rule: RuleIndex, partials: &Partials) -> Self {
+        Self::project_inputs(rule, partials, partials)
+    }
+    pub(super) fn file_inputs(
+        rule: RuleIndex,
+        file: FileId,
+        evaluation: &[Partial],
+        publication: &[Partial],
+    ) -> Self {
         Self {
             scope: ScopeIdentity::File { rule, file },
-            behavior: CompletionBehavior::BlockBeforeRun(partials),
+            behavior: CompletionBehavior::BlockBeforeRun(evaluation.into()),
+            publication: CompletionBehavior::BlockBeforeRun(publication.into()),
         }
     }
-    pub(crate) fn project(rule: RuleIndex, partials: &'a Partials) -> Self {
+    pub(super) fn project_inputs(
+        rule: RuleIndex,
+        evaluation: &Partials,
+        publication: &Partials,
+    ) -> Self {
         Self {
             scope: ScopeIdentity::Project { rule },
-            behavior: CompletionBehavior::DropAfterCollect(partials),
+            behavior: CompletionBehavior::DropAfterCollect(std::sync::Arc::new(evaluation.clone())),
+            publication: CompletionBehavior::DropAfterCollect(std::sync::Arc::new(
+                publication.clone(),
+            )),
+        }
+    }
+    pub(super) fn observation_ready(&self, reads: &[RelationRead]) -> bool {
+        match &self.publication {
+            CompletionBehavior::BlockBeforeRun(partials) => {
+                blocked(reads, partials) == Blocking::Free
+            }
+            CompletionBehavior::DropAfterCollect(partials) => files_for(partials, reads).is_empty(),
+        }
+    }
+    pub(super) fn for_rule(&self, rule: RuleIndex) -> Self {
+        let scope = match self.scope {
+            ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },
+            ScopeIdentity::Project { .. } => ScopeIdentity::Project { rule },
+        };
+        Self {
+            scope,
+            behavior: self.behavior.clone(),
+            publication: self.publication.clone(),
+        }
+    }
+    /// The common scheduler checks this BEFORE demanding any semantic input.
+    pub(super) fn before(&self, needs: &[RelationRead]) -> Result<(), OperatingError> {
+        if let CompletionBehavior::BlockBeforeRun(partials) = &self.behavior
+            && blocked(needs, partials) == Blocking::Blocked
+        {
+            let unavailable = UnavailableCompletion {
+                scope: self.scope,
+                reason: UnavailableReason::AbsenceBlockedByPartial,
+            };
+            return Err(OperatingError::SemanticIncomplete {
+                reason: format!("{unavailable:?}"),
+            });
+        }
+        Ok(())
+    }
+    /// Scope filtering follows successful semantic evaluation and publication
+    /// staging. A failure never becomes an empty/filtered successful node.
+    pub(super) fn finish<'f>(
+        &self,
+        operation: &Operation,
+        needs: &[RelationRead],
+        probed_kinds: &[CellKind],
+        publication: Result<super::relations::PublishedInput, OperatingError>,
+        owner: &super::relations::RelationOwner,
+        read: &dyn Fn(
+            ryo_relations::domain::relations::types::Relation,
+        )
+            -> Result<crate::domain::table_model::types::Rows<'f>, OperatingError>,
+    ) -> NodeCompletion<super::relations::PublishedInput> {
+        let publication = match publication {
+            Ok(value) => value,
+            Err(error) => return NodeCompletion::Failed(error),
+        };
+        let CompletionBehavior::DropAfterCollect(partials) = &self.behavior else {
+            return NodeCompletion::Available {
+                rows: CompletedRows(publication),
+                coverage: CoverageState::Complete,
+            };
+        };
+        let uncertain = files_for(partials, needs);
+        if uncertain.is_empty() {
+            return NodeCompletion::Available {
+                rows: CompletedRows(publication),
+                coverage: CoverageState::Complete,
+            };
+        }
+        let result = (|| {
+            let rows = owner.resolve(publication.as_ref(), read)?;
+            let mut table = Table::default();
+            crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());
+            drop_uncertain(operation, probed_kinds, &mut table, &uncertain);
+            owner.computed(table)
+        })();
+        match result {
+            Ok(publication) => NodeCompletion::Available {
+                rows: CompletedRows(publication),
+                coverage: CoverageState::Partial { files: uncertain },
+            },
+            Err(error) => NodeCompletion::Failed(error),
         }
     }
     pub(crate) fn missing_frontier(&self, input: Input) -> NodeCompletion {
@@ -85,6 +190,7 @@ impl<'a> CompletionPolicy<'a> {
     }
     /// File blocking precedes evaluation; project filtering follows SUCCESSFUL
     /// collection. In particular a project error is not swallowed by partiality.
+    #[cfg(test)]
     pub(crate) fn evaluate(
         &self,
         operation: &Operation,
@@ -92,7 +198,7 @@ impl<'a> CompletionPolicy<'a> {
         probed_kinds: &[CellKind],
         evaluate: impl FnOnce() -> Result<Table, OperatingError>,
     ) -> NodeCompletion {
-        if let CompletionBehavior::BlockBeforeRun(partials) = self.behavior
+        if let CompletionBehavior::BlockBeforeRun(partials) = &self.behavior
             && blocked(needs, partials) == Blocking::Blocked
         {
             return NodeCompletion::Unavailable(UnavailableCompletion {
@@ -105,7 +211,7 @@ impl<'a> CompletionPolicy<'a> {
             Ok(table) => table,
             Err(error) => return NodeCompletion::Failed(error),
         };
-        let coverage = match self.behavior {
+        let coverage = match &self.behavior {
             CompletionBehavior::BlockBeforeRun(_) => CoverageState::Complete,
             CompletionBehavior::DropAfterCollect(partials) => {
                 let uncertain = files_for(partials, needs);

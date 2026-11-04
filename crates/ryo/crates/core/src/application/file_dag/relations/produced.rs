@@ -13,8 +13,7 @@ use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use std::sync::Arc;
 
 /// Fields are visible only to the producer and its private owner, not primitive items.
-pub(crate) struct ProducedSelection<'f> {
-    pub(super) rows: ryo_relations::domain::relations::types::ColumnsView<'f>,
+pub(crate) struct ProducedSelection {
     pub(super) source: PublishedInput,
     pub(super) selection: Arc<StoredSelection>,
     pub(super) resources: [Option<crate::application::file_dag::derived::view::AcquiredView>; 2],
@@ -24,7 +23,7 @@ pub(super) fn select<'f>(
     program: &Arc<Selector>,
     read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
     context: &mut OperatorContext<'_>,
-) -> Result<Option<ProducedSelection<'f>>, OperatingError> {
+) -> Result<Option<ProducedSelection>, OperatingError> {
     if !owner.stable() {
         return Ok(None);
     }
@@ -68,7 +67,6 @@ pub(super) fn select<'f>(
         return Ok(None);
     };
     Ok(Some(ProducedSelection {
-        rows: *columns,
         source,
         selection: selected.rows.selection,
         resources: selected.resources,

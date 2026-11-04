@@ -14,7 +14,19 @@ pub(crate) trait DagExecution {
         &self,
         rule: usize,
     ) -> Result<(), crate::domain::operating::errors::OperatingError>;
-    fn owned(&self, rule: usize, step: usize) -> Option<NodeId>;
+    /// Resolve every declared program root; absence is a deferred plan failure, never a scheduler choice.
+    fn root(
+        &self,
+        rule: usize,
+        step: usize,
+    ) -> Result<NodeId, crate::domain::operating::errors::OperatingError>;
+    fn counts(
+        &self,
+        rule: usize,
+    ) -> Result<
+        Vec<crate::domain::operator::types::RowsFed>,
+        crate::domain::operating::errors::OperatingError,
+    >;
     /// Preserve the independent root's original refusal without erasing a completed Emit.
     fn refuse_observation(
         &self,

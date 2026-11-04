@@ -17,15 +17,14 @@ use std::{
     collections::HashMap,
     sync::{Arc, OnceLock},
 };
+mod external;
 mod accounting;
 mod admission;
-mod external;
 mod handle;
 pub(crate) use handle::{PublishedInput, RetainedPublication};
 mod identity;
 mod produced;
 mod selected_access;
-mod selected_delivery;
 pub(super) use {admission::AdmittedInput, produced::ProducedSelection};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -49,8 +48,8 @@ enum RelationBody {
 }
 mod packed;
 pub(crate) use packed::PackedPublication;
-mod record;
 mod number;
+mod record;
 pub(crate) use record::RelationResult;
 
 struct SourceViews {
@@ -80,16 +79,32 @@ impl RelationOwner {
         views: usize,
         semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     ) -> Self {
-        Self::with_limits(stable, views,
-            views.saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()), semantic)
+        Self::with_limits(
+            stable,
+            views,
+            views.saturating_mul(ryo_derived::domain::contract::types::DerivedKind::ALL.len()),
+            semantic,
+        )
     }
     #[cfg(test)]
-    pub(in crate::application) fn new(stable: bool, semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>) -> Self {
+    pub(in crate::application) fn new(
+        stable: bool,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
         Self::for_scope(super::scope::ScopePermit::fixture(), stable, 1024, semantic)
     }
     #[cfg(test)]
-    pub(in crate::application) fn for_request(stable: bool, views: usize, semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>) -> Self {
-        Self::for_scope(super::scope::ScopePermit::fixture(), stable, views, semantic)
+    pub(in crate::application) fn for_request(
+        stable: bool,
+        views: usize,
+        semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+    ) -> Self {
+        Self::for_scope(
+            super::scope::ScopePermit::fixture(),
+            stable,
+            views,
+            semantic,
+        )
     }
     fn with_limits(
         stable: bool,
@@ -182,7 +197,7 @@ impl RelationOwner {
     }
     pub(super) fn publish_selection(
         &self,
-        produced: ProducedSelection<'_>,
+        produced: ProducedSelection,
     ) -> Result<PublishedInput, OperatingError> {
         let ProducedSelection {
             source,
@@ -215,7 +230,7 @@ impl RelationOwner {
         program: &Arc<crate::domain::stored_selection::types::Selector>,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
-    ) -> Result<Option<ProducedSelection<'f>>, OperatingError> {
+    ) -> Result<Option<ProducedSelection>, OperatingError> {
         produced::select(self, program, read, context)
     }
     /// Explicitly ends the immutable resident-population lease before release or refill.

@@ -5,12 +5,40 @@ use std::sync::Arc;
 
 /// Application owns one immutable physical file generation's execution state.
 pub(crate) struct FileDagExecution {
+    pub(super) counting: crate::domain::lowering::types::Counting,
+    pub(super) fed: Vec<crate::domain::operator::types::RowsFed>,
+    pub(super) fed_rule: Vec<crate::domain::operator::types::RowsFed>,
+    pub(super) fed_touched: Vec<crate::domain::file_program::types::NodeId>,
+    pub(super) native_steps: crate::domain::operator::types::TreeSteps,
+    pub(super) kernel_counts: crate::domain::column_kernel::types::KernelCounts,
+    pub(super) kernel_strategy: crate::domain::column_kernel::types::KernelStrategy,
+    pub(super) classes: std::sync::Arc<crate::domain::shared_walk::types::SharedClasses>,
+    pub(super) class_of: Vec<Vec<Option<crate::domain::positions::types::ClassPlace>>>,
+    pub(super) coverage: Vec<Option<super::completion::CoverageState>>,
+    pub(super) completion: super::completion::CompletionPolicy,
+    pub(super) rooms: std::rc::Rc<super::invocation::rooms::InvocationRooms>,
     /// Actual named-root pins on this file generation, absent for ordinary requests.
     pub(super) observations: Option<super::observations::FileObservations>,
     pub graph: Arc<RequestGraph>,
+    pub(super) phase: ryo_values::domain::plans::types::StepScope,
+    /// Phase-boundary publications/failures belong to this same owner. A
+    /// missing producer is never evaluated in the consumer's phase/context.
+    pub(super) provided: std::collections::HashMap<
+        crate::domain::file_program::types::NodeId,
+        Result<super::relations::PublishedInput, crate::domain::operating::errors::OperatingError>,
+    >,
+    pub(super) provided_observations: std::collections::HashMap<
+        crate::domain::file_program::types::ObservationGraphInputId,
+        Result<super::relations::PublishedInput, crate::domain::operating::errors::OperatingError>,
+    >,
+    pub(super) hosted: std::collections::HashMap<
+        crate::domain::file_program::types::NodeId,
+        super::relations::PublishedInput,
+    >,
     pub(super) relations: Rc<RelationOwner>,
-    /// A complete rule is admitted as a unit; partial rules use the residual executor.
+    /// Applicable rules use this scheduler regardless of completeness.
     pub active: Vec<bool>,
+    pub(super) reusable: Vec<bool>,
     /// Root and dependency consumers, not occurrences in individual rule plans.
     pub remaining: Vec<usize>,
     /// Optional cross-rule retained results, subject to the existing cache allowance.

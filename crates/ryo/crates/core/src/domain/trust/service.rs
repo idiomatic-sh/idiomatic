@@ -248,6 +248,7 @@ fn relation_reads(relation: Relation) -> StepReads {
 /// The reads whose absence of rows each step trusts: for an antijoin or a difference, those its right input has; for a count or a
 /// digest of a group, those it groups. Empty for a step that only passes on the rows it is given.
 #[must_use]
+#[cfg(test)]
 pub(crate) fn needs_of(plan: &Plan) -> Vec<Vec<RelationRead>> {
     needs_from(plan, &uses_of(plan))
 }

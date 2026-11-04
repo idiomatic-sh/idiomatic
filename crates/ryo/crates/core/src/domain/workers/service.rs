@@ -9,7 +9,7 @@ use super::types::{
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::types::{LineStarts, RuleNumber};
 use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::{PlanIdentity, PreparedPool, RowsFed, TreeSteps};
+use crate::domain::operator::types::{PreparedPool, RowsFed, TreeSteps};
 use crate::domain::placement::service::{governed, governs, place};
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
@@ -46,8 +46,10 @@ pub(crate) fn tables_for(
             matchers: std::sync::Arc::new(
                 crate::domain::matching::types::prepared::value::PreparedMatchers::new(plans),
             ),
-            layouts: Vec::with_capacity(plans.len()),
-            fed: Vec::with_capacity(plans.len()),
+            fed: plans
+                .iter()
+                .map(|plan| vec![RowsFed::default(); plan.steps.len()])
+                .collect(),
             unlowered,
             counting,
             ..PreparedPool::default()
@@ -124,17 +126,9 @@ pub(crate) fn gathering(plans: &[Plan]) -> WorkersMet {
 
 /// Takes what one worker made into what the workers made together.
 pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables, plans: &[Plan]) {
-    for (layout, fed) in tables.pool.layouts.iter().zip(&tables.pool.fed) {
-        let Some(rule) = plans
-            .iter()
-            .position(|plan| PlanIdentity(std::ptr::from_ref(plan).addr()) == layout.plan)
-        else {
-            continue;
-        };
-        if let Some(slots) = met.fed.get_mut(rule) {
-            for (slot, more) in slots.iter_mut().zip(fed) {
-                add_fed(slot, more);
-            }
+    for (slots, fed) in met.fed.iter_mut().zip(&tables.pool.fed) {
+        for (slot, more) in slots.iter_mut().zip(fed) {
+            add_fed(slot, more);
         }
     }
     met.read.0 += tables.reads.0;

@@ -10,6 +10,8 @@ pub(in crate::application) struct ActivatedSchedule {
     pub(super) governing: Vec<bool>,
     pub(super) complete: [bool; RELATIONS],
     pub(in crate::application::file_dag) active: Vec<bool>,
+    /// Complete schema/population eligibility controls retention, never scheduling.
+    pub(in crate::application::file_dag) reusable: Vec<bool>,
     pub(in crate::application::file_dag) remaining: Vec<usize>,
 }
 

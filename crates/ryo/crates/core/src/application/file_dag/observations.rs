@@ -80,6 +80,11 @@ impl FileObservations {
 impl FileDagExecution {
     /// This boundary runs under the producer's own context, after its actual root evaluation.
     pub(super) fn publish_observed_node(&mut self, node: NodeId, table: &PublishedInput) {
+        let complete = self
+            .graph
+            .nodes
+            .get(node.0)
+            .is_some_and(|node| self.completion.observation_ready(&node.publication_reads));
         let (Some(graph), Some(state)) = (&self.graph.observations, &mut self.observations) else {
             return;
         };
@@ -96,11 +101,20 @@ impl FileDagExecution {
                 .get_mut(producer)
                 .expect("prepared producer has publication slots");
             for output in outputs {
-                *roots
+                let slot = roots
                     .get_mut(output.0 as usize)
-                    .expect("prepared publication output index") =
-                    RootPublication::Complete(table.clone());
-                state.readiness[producer][output.0 as usize] = RootReadiness::Complete;
+                    .expect("prepared publication output index");
+                if complete {
+                    *slot = RootPublication::Complete(table.clone());
+                    state.readiness[producer][output.0 as usize] = RootReadiness::Complete;
+                } else {
+                    *slot = RootPublication::Unavailable;
+                    state.readiness[producer][output.0 as usize] = RootReadiness::Unknown(
+                        ryo_values::domain::observations::types::ObservationReason(
+                            "producer physical inputs are incomplete".into(),
+                        ),
+                    );
+                }
             }
         }
     }
@@ -116,71 +130,80 @@ impl FileDagExecution {
             .ok_or_else(unavailable)
     }
     /// Missing publication is Unknown: this method never invokes a producer operation.
-    pub(crate) fn observed_input<'f>(
-        &mut self,
+    pub(super) fn observed_scoped<'f>(
+        execution: &dyn super::service::ScopeState,
         slot: ObservationSlot,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
         executor: &ScopedExecutor<'_>,
         context: &mut OperatorContext<'_>,
     ) -> Result<PublishedInput, OperatingError> {
-        let graph = Arc::clone(&self.graph);
-        let named = graph.observations.as_ref().ok_or_else(unavailable)?;
-        let (position, binding) = named
-            .bindings
-            .get(slot.rule)
-            .and_then(|inputs| {
-                inputs
-                    .iter()
-                    .enumerate()
-                    .find(|(_, input)| input.input.input == slot.input)
-            })
-            .ok_or_else(unavailable)?;
-        let state = self.observations.as_ref().ok_or_else(unavailable)?;
-        if let Some(Some(table)) = state
-            .bindings
-            .get(slot.rule)
-            .and_then(|inputs| inputs.get(position))
-        {
-            return Ok(table.clone());
-        }
-        let mut sources = Vec::with_capacity(binding.input.producers.len());
-        for producer in &binding.input.producers {
-            let ResolvedObservationProducer::Output { rule, output } = producer else {
-                return Err(unavailable());
-            };
-            match state
-                .roots
-                .get(rule.0)
-                .and_then(|outputs| outputs.get(output.0 as usize))
+        let (graph, position, sources, kinds, contract) = {
+            let scope = execution.state();
+            let graph = Arc::clone(&scope.graph);
+            let named = graph.observations.as_ref().ok_or_else(unavailable)?;
+            if let Some(at) = named.slots.iter().position(|each| *each == slot)
+                && let Some(provided) = scope
+                    .provided_observations
+                    .get(&crate::domain::file_program::types::ObservationGraphInputId(at))
             {
-                Some(RootPublication::Complete(table)) => sources.push(table.clone()),
-                Some(RootPublication::Pending | RootPublication::Unavailable) | None => {
+                return provided.clone();
+            }
+            let (position, binding) = named
+                .bindings
+                .get(slot.rule)
+                .and_then(|inputs| {
+                    inputs
+                        .iter()
+                        .enumerate()
+                        .find(|(_, input)| input.input.input == slot.input)
+                })
+                .ok_or_else(unavailable)?;
+            let state = scope.observations.as_ref().ok_or_else(unavailable)?;
+            if let Some(Some(table)) = state
+                .bindings
+                .get(slot.rule)
+                .and_then(|inputs| inputs.get(position))
+            {
+                return Ok(table.clone());
+            }
+            let mut sources = Vec::with_capacity(binding.input.producers.len());
+            for producer in &binding.input.producers {
+                let ResolvedObservationProducer::Output { rule, output } = producer else {
                     return Err(unavailable());
+                };
+                match state
+                    .roots
+                    .get(rule.0)
+                    .and_then(|outputs| outputs.get(output.0 as usize))
+                {
+                    Some(RootPublication::Complete(table)) => sources.push(table.clone()),
+                    Some(RootPublication::Pending | RootPublication::Unavailable) | None => {
+                        return Err(unavailable());
+                    }
                 }
             }
-        }
-        if !std::rc::Rc::ptr_eq(&self.relations, executor.owner()) { return Err(OperatingError::NotRead); }
-        let kinds = binding
-            .input
-            .schema
-            .columns
-            .iter()
-            .map(|column| column.kind)
-            .collect::<Vec<_>>();
-        let result = union::combine(
-            &sources,
-            &kinds,
-            binding.union.as_ref().map_err(Clone::clone)?,
-            read,
-            executor,
-            context,
-        )?;
-        let state = self.observations.as_mut().ok_or_else(unavailable)?;
+            if !std::rc::Rc::ptr_eq(&scope.relations, executor.owner()) {
+                return Err(OperatingError::NotRead);
+            }
+            let kinds = binding
+                .input
+                .schema
+                .columns
+                .iter()
+                .map(|column| column.kind)
+                .collect::<Vec<_>>();
+            let contract = Arc::clone(binding.union.as_ref().map_err(Clone::clone)?);
+            (graph, position, sources, kinds, contract)
+        };
+        let result = union::combine(&sources, &kinds, &contract, read, executor, context)?;
+        let mut scope = execution.state_mut();
+        let state = scope.observations.as_mut().ok_or_else(unavailable)?;
         *state
             .bindings
             .get_mut(slot.rule)
             .and_then(|inputs| inputs.get_mut(position))
             .ok_or_else(unavailable)? = Some(result.clone());
+        drop(graph);
         Ok(result)
     }
     /// Applicability is not a complete empty producer.

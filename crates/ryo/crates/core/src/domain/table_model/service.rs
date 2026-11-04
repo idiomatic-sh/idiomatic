@@ -78,6 +78,7 @@ pub(crate) fn push_row(table: &mut Table, row: &[Value]) {
 }
 
 /// Makes `into` a copy of `from`, keeping the room `into` has.
+#[cfg(test)]
 pub(crate) fn copy_table(from: &Table, into: &mut Table) {
     reset(into, &from.kinds);
     into.cells.extend_from_slice(&from.cells);

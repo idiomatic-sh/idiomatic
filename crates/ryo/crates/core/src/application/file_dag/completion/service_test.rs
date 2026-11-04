@@ -88,7 +88,7 @@ fn project_filters_after_success_and_retains_partial_coverage() {
             files: vec![Some(FileId(0))]
         }
     );
-    let rows = rows.into_table();
+    let rows = rows.into_payload();
     assert_eq!(rows.count, RowCount(1));
     assert_eq!(rows.cells, [Value::File(FileId(1))]);
 }

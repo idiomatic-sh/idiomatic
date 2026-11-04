@@ -25,20 +25,15 @@ impl ActivationCache {
             return Arc::clone(entry);
         }
         self.entry = None;
-        let active = graph
-            .cuts
+        let active = self.governing.clone();
+        let reusable = graph
+            .nodes
             .iter()
-            .enumerate()
-            .map(|(rule, cuts)| {
-                self.governing[rule]
-                    && cuts.iter().flatten().all(|node| {
-                        graph.nodes[node.0].schema_valid
-                            && graph.nodes[node.0].relations.iter().all(|relation| {
-                                eligibility[ryo_relations::domain::relations::service::number_of(
-                                    *relation,
-                                )
-                                .0]
-                            })
+            .map(|node| {
+                node.schema_valid
+                    && node.relations.iter().all(|relation| {
+                        eligibility
+                            [ryo_relations::domain::relations::service::number_of(*relation).0]
                     })
             })
             .collect::<Vec<_>>();
@@ -71,6 +66,7 @@ impl ActivationCache {
             governing: self.governing.clone(),
             complete: eligibility,
             active,
+            reusable,
             remaining,
         });
         self.entry = Some(Arc::clone(&entry));

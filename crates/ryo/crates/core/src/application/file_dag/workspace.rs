@@ -353,9 +353,7 @@ impl InvocationWorkspace {
             .unwrap_or(super::feed::InputOrigin::External)
         {
             super::feed::InputOrigin::Relation(relation) => owner.admit_relation(relation, rows),
-            super::feed::InputOrigin::External | super::feed::InputOrigin::Temporary => {
-                owner.admit_external(rows)
-            }
+            super::feed::InputOrigin::External => owner.admit_external(rows),
             super::feed::InputOrigin::Internal => Err(OperatingError::NotRun),
         }
     }

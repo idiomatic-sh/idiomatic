@@ -83,8 +83,10 @@ impl CrossFile {
         let scope = crate::application::file_dag::scope::ExecutionScope::new(
             std::sync::Arc::clone(&crossing.graph),
             crate::application::file_dag::scope::ScopePhase::Project,
-            false, crossing.executor,
-        ).map_err(|error| failed(&todo.id, &error))?;
+            false,
+            crossing.executor,
+        )
+        .map_err(|error| failed(&todo.id, &error))?;
         #[cfg(feature = "diagnostic-row-progress")]
         let _project_progress =
             crate::application::file_dag::route_counts::FileScope::begin(usize::MAX);
@@ -114,8 +116,14 @@ impl CrossFile {
                 }
             }
         }
-        let evaluated =
-            cross_rule_with_inputs(crossing, &scope, todo, frontier.rows, &frontier.refused, cross)?;
+        let evaluated = cross_rule_with_inputs(
+            crossing,
+            &scope,
+            todo,
+            frontier.rows,
+            &frontier.refused,
+            cross,
+        )?;
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
         let roots = evaluated.roots;
         let mut unknowns = if let Some(error) = &roots.emit_error {
@@ -180,7 +188,7 @@ impl CrossFile {
         crossing: &CrossingInput<'_>,
         todo: &Todo,
         plan: &ryo_values::domain::plans::types::Plan,
-        table: Option<crate::domain::table_model::types::Table>,
+        table: Option<ryo_values::domain::rows::types::Table>,
         cross: &mut Symbols,
     ) -> Result<Option<Rendered>, RulesError> {
         let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
@@ -196,9 +204,6 @@ impl CrossFile {
                         .first()
                         .and_then(|first| file_in(crossing.files, first.file))
                     else {
-                        continue;
-                    };
-                    let CorpusInput::Available(entry) = entry else {
                         continue;
                     };
                     if self.corpus.read(entry, &mut bytes).is_ok() {

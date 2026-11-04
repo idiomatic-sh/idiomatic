@@ -406,3 +406,5 @@ impl crate::domain::operator::contract::views::ClosureParts
         }
     }
 }
+
+pub(super) mod rooms;

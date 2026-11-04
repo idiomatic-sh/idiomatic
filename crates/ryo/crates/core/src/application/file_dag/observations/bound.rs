@@ -4,7 +4,7 @@ use crate::application::file_dag::executor::ScopedExecutor;
 use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operator::contract::types::OperatorContract,
-    table_model::{service::materialize, types::Table},
+    table_model::service::materialize,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::CellKind;
@@ -55,3 +55,5 @@ pub(crate) fn combine(
     materialize(&rows, &mut table, &mut Vec::new());
     Ok(table)
 }
+
+use ryo_values::domain::rows::types::Table;

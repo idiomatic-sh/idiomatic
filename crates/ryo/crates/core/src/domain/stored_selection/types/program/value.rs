@@ -1,6 +1,6 @@
 //! Derivation of ordered stored predicates and physical output maps from a compiled plan.
 
-use crate::domain::stored_selection::types::{PreparedPlan, SelectionPlanId, Selector};
+use crate::domain::stored_selection::types::{PreparedPlan, Selector};
 use crate::domain::table_model::types::ParameterBinding;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_values::domain::plan_parts::types::{
@@ -34,10 +34,7 @@ impl<'a> SelectionProgram<'a> {
                 .map(Arc::new);
             steps.push(selector);
         }
-        PreparedPlan {
-            identity: SelectionPlanId(std::ptr::from_ref(self.plan).addr()),
-            steps,
-        }
+        PreparedPlan { steps }
     }
 
     /// Compose the input map without changing its predicates, bags or physical order.

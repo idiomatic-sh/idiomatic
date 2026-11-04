@@ -67,7 +67,7 @@ pub(crate) struct ObservedRoot {
     /// Resolved position in the producer's compiled named-root list.
     pub output: ryo_values::domain::observations::types::ObservationIndex,
     /// Present only for a complete, admitted output; unavailable never means empty.
-    pub table: Option<crate::domain::table_model::types::Table>,
+    pub table: Option<ryo_values::domain::rows::types::Table>,
     /// Actual producer readiness independent of diagnostic Emit.
     pub readiness: ryo_values::domain::observations::types::ProducerReadiness,
 }
@@ -77,7 +77,7 @@ pub(crate) struct PhaseRoots {
     /// Emit refusal does not erase an independent successfully produced named root.
     pub emit_error: Option<crate::domain::operating::errors::OperatingError>,
     /// Present only if Emit belongs to this execution phase.
-    pub emit: Option<crate::domain::table_model::types::Table>,
+    pub emit: Option<ryo_values::domain::rows::types::Table>,
     /// Only roots explicitly retained by request demand linking.
     pub observations: Vec<ObservedRoot>,
 }

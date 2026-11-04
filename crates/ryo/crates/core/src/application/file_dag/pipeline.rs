@@ -4,7 +4,11 @@
 //! step reads and is not cheap to make again.
 
 pub(crate) mod service;
-pub(crate) mod types;
+// Historical compact transport cases remain registered while their fixtures
+// migrate to the same required graph/executor API; no old evaluator is retained.
+#[cfg(test)]
+#[path = "pipeline/types/compact/value_test.rs"]
+mod compact_transport_test;
 
 #[cfg(test)]
 pub(crate) mod service_test;

@@ -14,8 +14,27 @@ pub(crate) enum NodeInput {
     Observation(ObservationGraphInputId),
 }
 
+/// A closed native/column physical region, compiled once from original typed
+/// coordinates. It has no evaluator, cache, scheduler or generation data.
+#[derive(Debug)]
+pub(crate) struct PhysicalRegion {
+    pub plan: Arc<ryo_values::domain::plans::types::Plan>,
+    pub layout: Arc<crate::domain::operator::types::PlanLayout>,
+    pub rule: usize,
+    pub step: ryo_values::domain::plan_parts::types::StepId,
+    pub column: Option<crate::domain::column_kernel::types::Chain>,
+}
 #[derive(Debug)]
 pub(crate) struct Node {
+    pub publication_reads: Vec<crate::domain::trust::types::RelationRead>,
+    pub region: Option<PhysicalRegion>,
+    pub needs: Result<
+        Vec<crate::domain::trust::types::RelationRead>,
+        crate::domain::operating::errors::OperatingError,
+    >,
+    pub phase: ryo_values::domain::plans::types::StepScope,
+    /// Declared transport preserves lazy refusal order independently of cache hits.
+    pub input_supply: Vec<crate::domain::operating::types::Supply>,
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
     pub physical:
         crate::domain::table_model::collections::representations::publication::PreparedPhysical,
@@ -31,35 +50,26 @@ pub(crate) struct Node {
 
 #[derive(Debug)]
 pub(crate) struct RequestGraph {
+    /// Every original step, including terminal and project steps. Invalid
+    /// references are deferred faults, never a choice of another scheduler.
+    pub program_nodes: Vec<Vec<Result<NodeId, crate::domain::operating::errors::OperatingError>>>,
     /// Reviewed alternatives indexed by their replaced Select producer.
-    pub ordered_existence: Vec<Option<crate::domain::ordered_existence::types::ResolvedAlternative>>,
+    pub ordered_existence:
+        Vec<Option<crate::domain::ordered_existence::types::ResolvedAlternative>>,
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
     pub derived_sources: Vec<bool>,
-    pub plans: Vec<usize>,
     pub nodes: Vec<Node>,
     /// Only internal kept cuts may own a file-local result. Other entries are None.
     pub cuts: Vec<Vec<Option<NodeId>>>,
     /// Unique eligible nodes consumed by each rule, prepared once per request.
-    pub consumers: Vec<Vec<NodeId>>,
     /// Graph outputs consumed by residual operations, in original step order.
     pub boundaries: Vec<Vec<(usize, NodeId)>>,
     /// Parent-before-child rule-local live-edge counts, compiled once per request.
     pub rule_liveness: Vec<Vec<(NodeId, usize)>>,
 }
 
-/// One physical file generation; no table escapes this value or enters a global cache.
-#[derive(Debug)]
-pub(crate) struct FileProgram {
-    pub graph: Arc<RequestGraph>,
-    pub remaining: Vec<usize>,
-    pub entries: Vec<(NodeId, Arc<Table>)>,
-    pub shared_executions: u64,
-    pub peak_retained_cells: usize,
-}
-
-use ryo_values::domain::rows::types::Table;
 /// Ordinary requests need no named-root traversal allocation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum RuleSchedule {

@@ -1,14 +1,6 @@
 //! Explicit demanded source/external admission, never an internal-publication fallback.
 use super::*;
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn lookup_source(
-        &self,
-        relation: Relation,
-    ) -> Option<PublishedInput> {
-        let sources = self.sources.borrow();
-        let source = sources.get(&relation)?;
-        source.views.get(&source.population).cloned()
-    }
     pub(in crate::application::file_dag) fn admit_relation<'a>(
         &self,
         relation: Relation,

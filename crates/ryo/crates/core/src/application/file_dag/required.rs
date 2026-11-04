@@ -12,10 +12,16 @@ impl FileDagExecution {
             return Ok(());
         }
         self.clear_required();
+        for node in self.fed_touched.drain(..) {
+            self.fed_rule[node.0] = Default::default();
+        }
         if !self.active.get(rule).copied().unwrap_or(false) {
             return Ok(());
         }
         self.current_rule = Some(rule);
+        self.completion = self
+            .completion
+            .for_rule(crate::domain::coverage::types::RuleIndex(rule));
         let graph = (self.graph).clone();
         // Immutable bookkeeping is request-prepared; only these touched slots
         // and dynamic successful cuts change for one physical file/rule.

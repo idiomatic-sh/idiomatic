@@ -5,10 +5,10 @@ use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::types::RowsFed;
 use crate::domain::table_model::{
-    service::{copy_table, count_of, kinds_of},
+    service::{count_of, kinds_of},
     types::{Frontier, Rows},
 };
-use crate::domain::trust::service::{files_for, needs_of};
+use crate::domain::trust::service::files_for;
 use ryo_values::domain::plan_parts::{service::step_in, types::Input};
 use ryo_values::domain::plans::{
     service::{inputs_of, named, step_scope},
@@ -17,7 +17,9 @@ use ryo_values::domain::plans::{
 
 /// Whatever an operator refuses, or `NotRun`/`NotRead` when a step reads what nothing provides.
 pub(crate) fn evaluate_cross_roots_with_executor(
-    completion: &super::completion::CompletionPolicy<'_>,
+    completion: &super::completion::CompletionPolicy,
+    scope: &super::scope::ExecutionScope<'_>,
+    rule: usize,
     plan: &Plan,
     frontier: Vec<Frontier>,
     refused: &[crate::domain::crossing::types::RefusedFrontier],
@@ -25,275 +27,191 @@ pub(crate) fn evaluate_cross_roots_with_executor(
     observation_partials: &Partials,
     context: &mut OperatorContext<'_>,
     fed: &mut [RowsFed],
-    hosted: &[Table],
+    hosted: Vec<Table>,
     executor: &super::executor::ScopedExecutor<'_>,
     operators: &[std::sync::Arc<OperatorContract>],
 ) -> Result<crate::domain::crossing::types::PhaseRoots, OperatingError> {
-    let needs = crate::domain::trust::service::needs_of_contracts(plan, operators)?;
-    let publication_reads = (!plan.observations.is_empty())
-        .then(|| crate::domain::trust::service::physical_reads(plan));
-    let mut computed: Vec<Table> = vec![Table::default(); plan.steps.len()];
-    // The step that reads each step last: when it is done, the rows of the step it read are not kept.
-    let mut last: Vec<Option<usize>> = vec![None; plan.steps.len()];
-    for (index, step) in plan.steps.iter().enumerate() {
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Step(id) = input
-                && let Some(slot) = last.get_mut(usize::try_from(id.0).unwrap_or(usize::MAX))
-            {
-                *slot = Some(index);
-            }
-        }
-    }
-    let emitted_step = usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX);
-    let observed_steps: Vec<_> = plan
-        .observations
-        .iter()
-        .filter_map(|output| {
-            if output.scope != StepScope::CrossFile {
-                return None;
-            }
-            let Input::Step(step) = output.source else {
-                return None;
-            };
-            usize::try_from(step.0).ok()
-        })
-        .collect();
-    let mut failures: Option<Vec<Option<OperatingError>>> = (!plan.observations.is_empty()
-        || !plan.observation_inputs.is_empty())
-    .then(|| vec![None; plan.steps.len()]);
-    for (index, step) in plan.steps.iter().enumerate() {
-        if step.scope == StepScope::PerFile {
-            continue;
-        }
-        #[cfg(feature = "diagnostic-row-progress")]
-        let _row_progress_step = {
-            let guard = super::route_counts::step(index);
-            super::route_counts::node_description(&step.operation);
-            guard
-        };
-        let result = (|| -> Result<(), OperatingError> {
-            for input in named(&inputs_of(&step.operation)) {
-                if let Some(fault) = refused.iter().find(|fault| fault.input == *input) {
-                    return Err(fault.error.clone());
-                }
-                if let Input::Step(id) = input
-                    && let Some(Some(error)) = failures
-                        .as_ref()
-                        .and_then(|failures| failures.get(usize::try_from(id.0).ok()?))
-                {
-                    return Err(error.clone());
-                }
-            }
-            let (before, rest) = computed.split_at_mut(index);
-            let out = rest.first_mut().ok_or(OperatingError::NotRun)?;
-            let inputs = inputs_of(&step.operation);
-            let mut rows = std::array::from_fn::<_, 3, _>(|_| Rows::Computed(&NOTHING));
-            for (slot, input) in rows.iter_mut().zip(named(&inputs)) {
-                let handed_over = frontier
-                    .iter()
-                    .find(|each| each.input == *input)
-                    .map(|each| &each.table);
-                *slot = match (input, handed_over) {
-                    (_, Some(table)) => Rows::Computed(table),
-                    (Input::Step(id), None) => match step_scope(plan, *id) {
-                        Some(StepScope::CrossFile) => {
-                            Rows::Computed(step_in(before, *id).ok_or(OperatingError::NotRun)?)
-                        }
-                        Some(StepScope::PerFile) | None => return Err(OperatingError::NotRun),
-                    },
-                    (Input::Relation(_), None) | (Input::BoundObservation(_), None) => {
-                        let super::completion::NodeCompletion::Unavailable(_provenance) =
-                            completion.missing_frontier(*input)
-                        else {
-                            return Err(OperatingError::WrongOperation);
-                        };
-                        return Err(OperatingError::FrontierUnavailable { input: *input });
-                    }
-                };
-            }
-            // Hosted is supplied as an explicit request source to its registered evaluator.
-            let hosted_source = if let Operation::Hosted { relation } = &step.operation {
-                Some(Rows::Computed(
-                    hosted
-                        .get(relation.0 as usize)
-                        .ok_or(OperatingError::NotRun)?,
-                ))
-            } else {
-                None
-            };
-            let source_rows = hosted_source.into_iter().collect::<Vec<_>>();
-            let used = if source_rows.is_empty() {
-                rows.get(..inputs.used.0).unwrap_or_default()
-            } else {
-                &source_rows
-            };
-            #[cfg(feature = "diagnostic-row-progress")]
-            for (which, input) in used.iter().enumerate() {
-                super::route_counts::input_cardinality(which, count_of(input).0);
-            }
-            if let Some(slot) = fed.get_mut(index) {
-                for (counted, each) in slot.0.iter_mut().zip(used) {
-                    *counted =
-                        counted.saturating_add(u64::try_from(count_of(each).0).unwrap_or(u64::MAX));
-                }
-            }
-            let probed = match &step.operation {
-                Operation::Antijoin { .. } | Operation::Difference { .. } => rows.get(1),
-                Operation::Select { .. }
-                | Operation::Project { .. }
-                | Operation::Extend { .. }
-                | Operation::Join { .. }
-                | Operation::Union { .. }
-                | Operation::Intersection { .. }
-                | Operation::GroupCount { .. }
-                | Operation::Replace { .. }
-                | Operation::SourceMatches { .. }
-                | Operation::RenderSyntax { .. }
-                | Operation::FitsRendered { .. }
-                | Operation::SpanBounds { .. }
-                | Operation::SpanBetween { .. }
-                | Operation::OrderedMatch { .. }
-                | Operation::OrderedDfs { .. }
-                | Operation::GroupDigest { .. }
-                | Operation::Capture { .. }
-                | Operation::Rank { .. }
-                | Operation::Words { .. }
-                | Operation::Axis { .. }
-                | Operation::Closure { .. }
-                | Operation::Cycles { .. }
-                | Operation::Rows { .. }
-                | Operation::Hosted { .. } => rows.first(),
-            };
-            match completion.evaluate(
-                &step.operation,
-                needs.get(index).map_or(&[][..], Vec::as_slice),
-                probed.map_or(&[][..], kinds_of),
-                || {
-                    let mut staged = Table::default();
-                    executor.collect(
-                        operators.get(index).ok_or(OperatingError::NotRun)?,
-                        used,
-                        context,
-                        &mut staged,
-                    )?;
-                    Ok(staged)
-                },
-            ) {
-                super::completion::NodeCompletion::Available {
-                    rows,
-                    coverage: _coverage,
-                } => *out = rows.into_table(),
-                super::completion::NodeCompletion::Failed(error) => return Err(error),
-                super::completion::NodeCompletion::Unavailable(reason) => {
-                    return Err(OperatingError::SemanticIncomplete {
-                        reason: format!("scope input unavailable: {reason:?}"),
-                    });
-                }
-            }
-            Ok(())
-        })();
-        if let Err(error) = result {
-            if plan.observations.is_empty() && plan.observation_inputs.is_empty() {
-                // Preserve the legacy absent-relation diagnostic path. Named outputs
-                // never interpret an unobserved input as a complete empty publication.
-                if error == OperatingError::NotRead
-                    && named(&inputs_of(&step.operation)).iter().any(|input| {
-                        matches!(input, Input::Relation(_))
-                            && !frontier.iter().any(|entry| entry.input == *input)
-                    })
-                {
-                    return Ok(crate::domain::crossing::types::PhaseRoots {
-                        emit_error: None,
-                        emit: Some(Table::default()),
-                        observations: Vec::new(),
-                    });
-                }
-                return Err(error);
-            }
-            if let Some(failures) = &mut failures {
-                failures[index] = Some(error);
-            }
-        }
-        for (place, reader) in last.iter().enumerate() {
-            if *reader == Some(index)
-                && place != emitted_step
-                && !observed_steps.contains(&place)
-                && let Some(table) = computed.get_mut(place)
-            {
-                *table = Table::default();
-            }
-        }
-    }
-    let emit_error = (step_scope(plan, plan.emit.step) == Some(StepScope::CrossFile))
-        .then(|| {
-            failures
-                .as_ref()
-                .and_then(|failures| failures.get(emitted_step))
-                .and_then(Option::as_ref)
-                .cloned()
-        })
-        .flatten();
-    let emit = match step_scope(plan, plan.emit.step) {
-        Some(StepScope::CrossFile) if emit_error.is_none() => Some(std::mem::take(
-            computed
-                .get_mut(emitted_step)
-                .ok_or(OperatingError::NotRun)?,
-        )),
-        Some(StepScope::CrossFile | StepScope::PerFile) => None,
-        None => return Err(OperatingError::NotRun),
+    use super::interface::DagExecution;
+    use crate::domain::file_program::types::NodeId;
+    use std::cell::RefCell;
+    use std::sync::Arc;
+    // This adapter installs phase sources and declares roots. It owns no step
+    // schedule, computed-table array, or independent last-consumer algorithm.
+    let graph = Arc::clone(scope.graph());
+    let schedule = super::activation::types::ActivationCache::default().activate(
+        &graph,
+        |index| index == rule,
+        &[],
+    );
+    let mut state = super::types::FileDagExecution::new_for_schedule(
+        &schedule,
+        std::rc::Rc::clone(scope.owner()),
+        completion.clone(),
+    );
+    state.phase = StepScope::CrossFile;
+    state.counting = crate::domain::lowering::types::Counting::Counts;
+    let resolve = |step: usize| -> Result<NodeId, OperatingError> {
+        graph
+            .program_nodes
+            .get(rule)
+            .and_then(|nodes| nodes.get(step))
+            .cloned()
+            .unwrap_or(Err(OperatingError::NotRun))
     };
-    let mut observations = Vec::with_capacity(observed_steps.len());
-    for (index, observed) in plan.observations.iter().enumerate() {
-        if observed.scope != StepScope::CrossFile {
+    // A handed-over failure is an owned input outcome, not a signal to run a
+    // file producer again using project bindings.
+    for fault in refused {
+        if let Input::Step(step) = fault.input {
+            state
+                .provided
+                .insert(resolve(step.0 as usize)?, Err(fault.error.clone()));
+        }
+    }
+    let mut relation_tables = Vec::new();
+    for input in frontier {
+        match input.input {
+            Input::Relation(relation) => relation_tables.push((relation, input.table)),
+            Input::Step(step) => {
+                let publication = scope.owner().computed(input.table)?;
+                state
+                    .provided
+                    .insert(resolve(step.0 as usize)?, Ok(publication));
+            }
+            Input::BoundObservation(binding) => {
+                let observations = graph.observations.as_ref().ok_or(OperatingError::NotRun)?;
+                let at = observations
+                    .slots
+                    .iter()
+                    .position(|slot| slot.rule == rule && slot.input == binding)
+                    .ok_or(OperatingError::NotRun)?;
+                let id = crate::domain::file_program::types::ObservationGraphInputId(at);
+                let publication = scope.owner().computed(input.table)?;
+                state.provided_observations.insert(id, Ok(publication));
+            }
+        }
+    }
+    let request_sources = hosted
+        .into_iter()
+        .map(|table| scope.owner().computed(table))
+        .collect::<Result<Vec<_>, _>>()?;
+    for (index, step) in plan.steps.iter().enumerate() {
+        if let Operation::Hosted { relation } = &step.operation {
+            let publication = request_sources
+                .get(relation.0 as usize)
+                .ok_or(OperatingError::NotRun)?
+                .clone();
+            state.hosted.insert(resolve(index)?, publication);
+        }
+    }
+    let read = |relation| -> Result<Rows<'_>, OperatingError> {
+        if let Some(fault) = refused
+            .iter()
+            .find(|fault| fault.input == Input::Relation(relation))
+        {
+            return Err(fault.error.clone());
+        }
+        relation_tables
+            .iter()
+            .find(|(source, _)| *source == relation)
+            .map(|(_, table)| Rows::Computed(table))
+            .ok_or_else(
+                || match completion.missing_frontier(Input::Relation(relation)) {
+                    super::completion::NodeCompletion::Unavailable(unavailable) => {
+                        match unavailable.reason {
+                            super::completion::UnavailableReason::MissingFrontier { input } => {
+                                OperatingError::FrontierUnavailable { input }
+                            }
+                            super::completion::UnavailableReason::AbsenceBlockedByPartial => {
+                                OperatingError::WrongOperation
+                            }
+                        }
+                    }
+                    _ => OperatingError::WrongOperation,
+                },
+            )
+    };
+    let state = RefCell::new(state);
+    state.begin_rule(rule)?;
+    let publication_reads = crate::domain::trust::service::physical_reads(plan);
+    let mut outputs = Vec::new();
+    let mut emit = None;
+    let mut emit_error = None;
+    let mut demand = |step: usize| -> Result<Table, OperatingError> {
+        let publication = state.demand(resolve(step)?, &read, executor, context)?;
+        let rows = scope.owner().resolve(publication.as_ref(), &read)?;
+        let mut table = Table::default();
+        crate::domain::table_model::service::materialize(
+            &rows,
+            &mut table,
+            &mut context.scratch.row,
+        );
+        Ok(table)
+    };
+    // Root order is orchestration only: the common owner schedules all actual
+    // dependencies and preserves each independent root's original failure.
+    for (index, output) in plan.observations.iter().enumerate() {
+        if output.scope != StepScope::CrossFile {
             continue;
         }
-        let Input::Step(step) = observed.source else {
+        let Input::Step(step) = output.source else {
             return Err(OperatingError::NotRun);
         };
-        let at = usize::try_from(step.0).map_err(|_| OperatingError::NotRun)?;
-        let root_reads = publication_reads
-            .as_ref()
-            .and_then(|reads| reads.get(at))
-            .ok_or(OperatingError::NotRun)?;
-        let uncertain = files_for(observation_partials, root_reads);
-        let failure = failures
-            .as_ref()
-            .and_then(|failures| failures.get(at))
-            .and_then(Option::as_ref);
-        let complete = uncertain.is_empty() && failure.is_none();
-        // Readiness is decided before copying any potentially large unpublishable table.
-        let table = if complete {
-            Some(if at == emitted_step {
-                emit.as_ref().cloned().ok_or(OperatingError::NotRun)?
-            } else {
-                computed.get(at).cloned().ok_or(OperatingError::NotRun)?
-            })
+        let result = demand(step.0 as usize);
+        let uncertain = files_for(
+            observation_partials,
+            publication_reads
+                .get(step.0 as usize)
+                .ok_or(OperatingError::NotRun)?,
+        );
+        let readiness = match &result {
+            Ok(_) if uncertain.is_empty() => {
+                ryo_values::domain::observations::types::ProducerReadiness::Complete
+            }
+            _ => ryo_values::domain::observations::types::ProducerReadiness::Unknown(
+                ryo_values::domain::observations::types::ObservationReason(
+                    result.as_ref().err().map_or_else(
+                        || "producer dependencies are incomplete".into(),
+                        |error| error.to_string().into(),
+                    ),
+                ),
+            ),
+        };
+        let table = if uncertain.is_empty() {
+            result.as_ref().ok().cloned()
         } else {
             None
         };
-        observations.push(crate::domain::crossing::types::ObservedRoot {
+        if step == plan.emit.step {
+            match result {
+                Ok(table) => emit = Some(table),
+                Err(error) => emit_error = Some(error),
+            }
+        }
+        outputs.push(crate::domain::crossing::types::ObservedRoot {
             output: ryo_values::domain::observations::types::ObservationIndex(
                 u32::try_from(index).map_err(|_| OperatingError::NotRun)?,
             ),
             table,
-            readiness: if complete {
-                ryo_values::domain::observations::types::ProducerReadiness::Complete
-            } else {
-                ryo_values::domain::observations::types::ProducerReadiness::Unknown(
-                    ryo_values::domain::observations::types::ObservationReason(
-                        failure.map_or_else(
-                            || "producer dependencies are incomplete".into(),
-                            |error| error.to_string().into(),
-                        ),
-                    ),
-                )
-            },
+            readiness,
         });
     }
+    if step_scope(plan, plan.emit.step) == Some(StepScope::CrossFile)
+        && emit.is_none()
+        && emit_error.is_none()
+    {
+        match demand(plan.emit.step.0 as usize) {
+            Ok(table) => emit = Some(table),
+            Err(error) => emit_error = Some(error),
+        }
+    }
+    for (target, counted) in fed.iter_mut().zip(state.counts(rule)?) {
+        *target = counted;
+    }
+    state.borrow_mut().finish_rule(rule);
     Ok(crate::domain::crossing::types::PhaseRoots {
         emit,
         emit_error,
-        observations,
+        observations: outputs,
     })
 }
 
@@ -384,11 +302,4 @@ pub(crate) fn evaluate_cross(
     )
 }
 
-/// What a step that reads nothing reads.
-static NOTHING: Table = Table {
-    kinds: Vec::new(),
-    cells: Vec::new(),
-    count: RowCount(0),
-};
-
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::rows::types::Table;

@@ -63,28 +63,48 @@ impl<'a> ExecutionScope<'a> {
     pub(crate) fn graph(&self) -> &Arc<RequestGraph> {
         &self.graph
     }
-    pub(crate) fn phase(&self) -> ScopePhase {
-        self.phase
-    }
 }
 
 pub(crate) enum ScopePartials<'a> {
-    File(&'a [crate::domain::coverage::types::Partial]),
-    Project(&'a crate::domain::coverage::types::Partials),
+    File {
+        evaluation: &'a [crate::domain::coverage::types::Partial],
+        publication: &'a [crate::domain::coverage::types::Partial],
+    },
+    Project {
+        evaluation: &'a crate::domain::coverage::types::Partials,
+        publication: &'a crate::domain::coverage::types::Partials,
+    },
 }
 impl ExecutionScope<'_> {
     pub(crate) fn completion<'a>(
         &self,
         rule: crate::domain::coverage::types::RuleIndex,
         partials: ScopePartials<'a>,
-    ) -> Result<super::completion::CompletionPolicy<'a>, OperatingError> {
+    ) -> Result<super::completion::CompletionPolicy, OperatingError> {
         match (self.phase, partials) {
-            (ScopePhase::File(file), ScopePartials::File(partials)) => Ok(
-                super::completion::CompletionPolicy::file(rule, file, partials),
-            ),
-            (ScopePhase::Project, ScopePartials::Project(partials)) => {
-                Ok(super::completion::CompletionPolicy::project(rule, partials))
-            }
+            (
+                ScopePhase::File(file),
+                ScopePartials::File {
+                    evaluation,
+                    publication,
+                },
+            ) => Ok(super::completion::CompletionPolicy::file_inputs(
+                rule,
+                file,
+                evaluation,
+                publication,
+            )),
+            (
+                ScopePhase::Project,
+                ScopePartials::Project {
+                    evaluation,
+                    publication,
+                },
+            ) => Ok(super::completion::CompletionPolicy::project_inputs(
+                rule,
+                evaluation,
+                publication,
+            )),
             _ => Err(OperatingError::WrongOperation),
         }
     }

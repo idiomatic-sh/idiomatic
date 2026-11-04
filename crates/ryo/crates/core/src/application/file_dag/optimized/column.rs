@@ -26,6 +26,7 @@ use std::sync::Arc;
 /// Prepare one immutable equality requirement per admitted physical chain.
 /// Invalid optional metadata leaves the ordinary executor in charge.
 #[must_use]
+#[cfg(test)]
 pub(crate) fn compile(
     plan: &Plan,
     layout: &PlanLayout,
@@ -54,6 +55,7 @@ pub(crate) fn compile(
 
 /// Preserve the old fast-path admission and fallback order. A refusal leaves
 /// the target empty and returns false so the common engine evaluates the step.
+#[cfg(test)]
 pub(crate) fn execute(
     semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
     chain: &Chain,
@@ -70,7 +72,37 @@ pub(crate) fn execute(
     if !partial.is_empty() {
         return Ok(false);
     }
-    let Some(selection) = selected.get(chain.left_step).and_then(Option::as_ref) else {
+    let Some(publication) = publications
+        .get(chain.left_step)
+        .and_then(std::cell::OnceCell::get)
+    else {
+        return Ok(false);
+    };
+    execute_publication(
+        semantics,
+        chain,
+        read,
+        owner,
+        publication,
+        context,
+        target,
+        kinds,
+        counts,
+    )
+}
+
+pub(super) fn execute_publication(
+    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
+    chain: &Chain,
+    read: &dyn Reading<'_>,
+    owner: &crate::application::file_dag::relations::RelationOwner,
+    publication: &crate::application::file_dag::relations::PublishedInput,
+    context: &mut OperatorContext<'_>,
+    target: &mut Table,
+    kinds: &[CellKind],
+    counts: &mut KernelCounts,
+) -> Result<bool, OperatingError> {
+    let Some(selection) = owner.selected_descriptor(publication.as_ref())? else {
         return Ok(false);
     };
     let Rows::Stored(right_source) = read.rows(chain.right)? else {
@@ -112,12 +144,6 @@ pub(crate) fn execute(
     {
         return Ok(false);
     }
-    let Some(publication) = publications
-        .get(chain.left_step)
-        .and_then(std::cell::OnceCell::get)
-    else {
-        return Ok(false);
-    };
     let Some(index_plan) = chain.index.as_ref() else {
         return Ok(false);
     };

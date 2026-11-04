@@ -4,7 +4,6 @@ use super::{
     service::escape,
     types::{Arena, Leaves, Leaving, Retained},
 };
-use crate::domain::table_model::types::Table;
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::symbols::{
     service::{derived_of, hash_in, hash_of, intern_derived, places_of},
@@ -16,6 +15,7 @@ use ryo_relations::domain::{
     },
     terms::types::{NameText, Symbol},
 };
+use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::collections::BTreeMap;
 

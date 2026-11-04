@@ -16,18 +16,10 @@ use ryo_values::domain::plans::types::{Operation, OperationKind};
 /// Mutable tables and operator rooms of one rule invocation, dropped after rendering.
 #[derive(Debug, Default)]
 pub(crate) struct Pool {
-    /// Compact kept outputs for the current rule only; cleared before its generation ends.
-    pub selected: Vec<Option<std::sync::Arc<crate::domain::table_model::types::StoredSelection>>>,
     /// The rows of each step that keeps them.
     pub steps: Vec<Table>,
     /// The rows of each input handed to the cross-file steps.
     pub frontier: Vec<Table>,
-    /// What each step keeps for itself.
-    pub rooms: Vec<Option<Box<Room>>>,
-    /// Rows being read one at a time from a relation, one buffer for each scan at once.
-    pub spare: Vec<Vec<Value>>,
-    /// The rows of the lowered steps of the plan being run, by step, for the file being run.
-    pub made: crate::domain::positions::types::LoweredRoom,
     /// The relations the file being run is read in part: a step that answers from the absence of their rows makes none.
     pub partial: Vec<crate::domain::coverage::types::Partial>,
 }
@@ -37,12 +29,8 @@ pub(crate) struct Pool {
 pub(crate) struct PreparedPool {
     /// Opt-in execution strategy selected once for this request's workers.
     pub kernel_strategy: crate::domain::column_kernel::types::KernelStrategy,
-    /// Immutable fused chains aligned with `layouts` by plan identity.
-    pub kernel_plans: Vec<crate::domain::column_kernel::types::KernelPlan>,
     /// Pure shape declarations only; runtime strategy requires admitted numeric provenance.
     pub ordered_existence: std::sync::Arc<Vec<crate::domain::ordered_existence::types::Program>>,
-    /// Actual successful physical-column work for this worker.
-    pub kernel_counts: crate::domain::column_kernel::types::KernelCounts,
     /// Finite authored literal matcher slots shared by this worker's rule/file invocations.
     pub matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
     /// One exact active vocabulary and immutable literal-kind metadata; replaced on vocabulary change.
@@ -53,8 +41,6 @@ pub(crate) struct PreparedPool {
     /// Immutable request-known derived view capabilities for those exact selector Arcs.
     pub selection_views:
         Option<std::sync::Arc<crate::domain::stored_selection::types::PreparedSelectionViews>>,
-    /// How each plan this pool has run is laid out.
-    pub layouts: Vec<PlanLayout>,
     /// Whether the steps that read only the tree run lowered, or as operators, as they did before they were lowered.
     pub unlowered: TreeSteps,
     /// Whether the rows each step is fed are counted.
@@ -82,17 +68,20 @@ pub(crate) struct RowsFed(pub [u64; 3]);
 #[derive(Debug, Default)]
 pub(crate) struct PlanLayout {
     /// The plan, by where it is: the same plan has the same layout in every file.
+    #[cfg(test)]
     pub plan: PlanIdentity,
     /// Which steps keep their rows in the pool's table of the step: those the plan emits or hands over, and those more than one
     /// step reads that are not cheap to read again.
     pub kept: KeptSteps,
     /// Whether a later operation consumes this result, excluding emit/frontier exports.
+    #[cfg(test)]
     pub consumed: Vec<bool>,
     /// The kinds of the columns each step answers.
     pub kinds: Vec<Vec<CellKind>>,
     /// The steps that run over the positions of the tree, not as operators.
     pub lowering: crate::domain::lowering::types::Lowering,
     /// For each step, the relations whose absence of rows it trusts; empty when it trusts none.
+    #[cfg(test)]
     pub needs: Vec<Vec<crate::domain::trust::types::RelationRead>>,
 }
 
@@ -102,6 +91,7 @@ pub(crate) struct StepPlace(pub usize);
 
 /// How many steps read a step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(test)]
 pub(crate) struct ReadCount(pub usize);
 
 /// A plan, by where it is: the same plan has the same identity in every file.
