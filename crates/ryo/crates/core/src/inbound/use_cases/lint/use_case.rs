@@ -940,7 +940,7 @@ impl LintUseCaseImpl {
             unknown: &unknown.0,
         };
         if matches!(
-            run.observations,
+            run.program.observation_request(),
             crate::domain::file_program::types::ObservationRequest::Bound { .. }
         ) {
             for each in todo {
@@ -955,7 +955,7 @@ impl LintUseCaseImpl {
                         program: std::sync::Arc::clone(&run.program),
                         scheduler: self.scheduler.as_ref(),
                         workers: self.workers,
-                        observations: run.observations,
+                        observations: run.program.observation_request(),
                         first_bucket: run.first_bucket,
                         facts: kept_facts.as_ref(),
                         project: handle.facts.as_ref(),
@@ -1359,7 +1359,7 @@ impl LintUseCase for LintUseCaseImpl {
             symbols: Symbols::default(),
             facts: self.facts.worker()?,
         };
-        let first_bucket = first_buckets(&crate::domain::run_metadata::service::from_plans(plans));
+        let first_bucket = first_buckets(&plans);
         let applicability: Vec<_> = rules.iter().map(|rule| rule.applicability).collect();
         let applicability_can_gate = applicability.len() != plans.len()
             || applicability.iter().any(|policy| {
@@ -1387,7 +1387,6 @@ impl LintUseCase for LintUseCaseImpl {
         let unknown = self.language.unknown_reasons();
         let executor = crate::application::file_dag::execution::CommonOperatorEngine::new(
             self.operators.as_ref(),
-            std::sync::Arc::clone(&self.derived),
         );
         let services = ProgramServices::new(&executor, Arc::clone(&self.derived));
         let program = facade::prepare(
@@ -1401,13 +1400,11 @@ impl LintUseCase for LintUseCaseImpl {
             crate::domain::rules::service::failed(&RuleId("<request>".into()), &error)
         })?;
         let metadata = program.metadata();
-        let observation_request = program.observation_request();
         let mut setting = VisitSetting {
             program: Arc::clone(&program),
             source_language: request.source_language.as_ref(),
             services: &services,
             domain: crate::domain::workers::types::VisitSetting {
-                observations: observation_request,
                 metadata,
                 wanted: &wants.walked,
                 paths: &paths,
@@ -1468,7 +1465,6 @@ impl LintUseCase for LintUseCaseImpl {
         let run = LintRun {
             placed: &placed,
             program: Arc::clone(&program),
-            observations: setting.observations,
             services: &services,
             request: &request,
             rules: &rules,

@@ -81,6 +81,7 @@ impl ProjectRun<'_, '_> {
         let unavailable = |_relation| Err(OperatingError::NotRead);
         let kernels = super::super::kernel_session::KernelSession::new(
             self.services.kernels(),
+            self.program,
             Rc::clone(&self.owner),
             &unavailable,
         );

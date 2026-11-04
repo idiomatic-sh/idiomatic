@@ -62,7 +62,7 @@ pub(crate) fn cross_rule_with_inputs(
         .program
         .observation_reads(todo.rule)
         .map_err(|error| refuse(&error))?;
-    let publication = partials_for_reads(&crossing.domain, todo.rule, &reads);
+    let publication_partials = partials_for_reads(&crossing.domain, todo.rule, &reads);
     let required = facade::required_partitions(
         &crossing.program,
         todo.rule,
@@ -78,7 +78,7 @@ pub(crate) fn cross_rule_with_inputs(
         required,
         facade::ScopePartials::Project {
             evaluation: &evaluation,
-            publication: &publication,
+            publication: &publication_partials,
         },
         facade::ProjectFrontiers {
             ordinary: frontiers,

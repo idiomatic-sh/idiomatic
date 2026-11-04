@@ -128,7 +128,7 @@ pub(crate) fn frontier_flat(
         .get(rule.0)
         .map_or(u32::MAX, |bucket| bucket.0);
     let places = setting
-        .plans
+        .metadata
         .get(rule.0)
         .map_or(0, |plan| plan.frontier.len());
     flat.0.clear();

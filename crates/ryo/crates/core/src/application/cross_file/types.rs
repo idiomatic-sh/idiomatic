@@ -10,8 +10,8 @@ pub(crate) enum PublicationSlot {
 /// Required resources for the existing cross ready batches; no optional owner/fallback executor.
 pub(crate) struct ObservationRun<'a> {
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,
-    pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
-    pub graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
+    pub program: std::sync::Arc<crate::application::file_dag::program::facade::PreparedProgram>,
+    pub services: &'a crate::application::file_dag::program::facade::ProgramServices<'a>,
     pub scheduler: &'a dyn crate::outbound::scheduler::interface::SchedulerPort,
     pub workers: crate::outbound::scheduler::types::WorkerCount,
     pub observations: crate::domain::file_program::types::ObservationRequest<'a>,

@@ -230,7 +230,7 @@ pub(crate) fn buckets_of(
         if rules.is_some_and(|rules| rules.binary_search_by_key(&rule.0, |each| each.0).is_err()) {
             continue;
         }
-        for input in 0..rule.frontier_capture.len() {
+        for input in 0..metadata[place].frontier_capture.len() {
             buckets.push(frontier_bucket(*start, InputNumber(input)));
         }
     }

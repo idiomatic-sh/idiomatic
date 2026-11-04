@@ -92,6 +92,7 @@ impl FileRun<'_, '_> {
         };
         let kernels = super::super::kernel_session::KernelSession::new(
             self.services.kernels(),
+            self.program,
             Rc::clone(&self.owner),
             read,
         );
@@ -204,6 +205,7 @@ impl FileRun<'_, '_> {
             .collect::<Vec<_>>();
         let kernels = super::super::kernel_session::KernelSession::new(
             self.services.kernels(),
+            self.program,
             Rc::clone(&self.owner),
             read,
         );
@@ -331,9 +333,6 @@ fn readiness_of(
     use ryo_values::domain::observations::types::{ObservationReason, ProducerReadiness};
     Some(match outcome {
         RootOutcome::Complete(_) => ProducerReadiness::Complete,
-        RootOutcome::Partial { .. } => ProducerReadiness::Unknown(ObservationReason(
-            "physical source facts are incomplete".into(),
-        )),
         RootOutcome::Skipped(_) => ProducerReadiness::Skipped,
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => {
             ProducerReadiness::Unknown(ObservationReason(error.to_string().into()))
@@ -356,21 +355,8 @@ pub(super) fn outcome_of<'facts>(
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> RootOutcome {
     match result {
-        Ok(InvocationOutcome::Published(input)) => match input.coverage() {
-            Ok(coverage) => match table_of(owner, &input, read) {
-                Ok(table) => match coverage {
-                    crate::application::file_dag::completion::CoverageState::Complete => {
-                        RootOutcome::Complete(table)
-                    }
-                    crate::application::file_dag::completion::CoverageState::Partial { files } => {
-                        RootOutcome::Partial {
-                            table,
-                            affected: files,
-                        }
-                    }
-                },
-                Err(error) => classify(error),
-            },
+        Ok(InvocationOutcome::Published(input)) => match table_of(owner, &input, read) {
+            Ok(table) => RootOutcome::Complete(table),
             Err(error) => classify(error),
         },
         Ok(InvocationOutcome::Forwarded) => RootOutcome::Failed(OperatingError::NotRun),

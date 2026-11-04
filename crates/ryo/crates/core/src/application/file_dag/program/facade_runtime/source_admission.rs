@@ -22,7 +22,6 @@ impl ProjectSources<'_> {
         partition: &Partition,
         context: &mut OperatorContext<'_>,
         owner: &Rc<RelationOwner>,
-        kernels: &dyn KernelInvocation,
     ) -> Option<Result<AdmittedInput, OperatingError>> {
         use crate::{
             application::cross_file::types::FrontierInput,
@@ -65,45 +64,72 @@ impl ProjectSources<'_> {
                 return Some(Err(refused.error.clone()));
             }
         }
-        if let InputSource::Observation(slot) = source {
+        if let InputSource::ObservationMember { slot, member } = source {
             for bound in &mut *self.bound {
-                let Some(words) = bound.as_ref() else {
+                let Some(words) = bound.as_mut() else {
                     continue;
                 };
-                if program.observation_slot(rule, words.input).ok() != Some(slot) {
+                if observation_slot(program, rule, words.input).ok() != Some(slot) {
                     continue;
                 }
-                let words = bound.take().expect("demanded bound input was present");
                 let result = (|| {
-                    let kept = words.words?;
-                    let tables = kept
-                        .iter()
-                        .map(|words| {
-                            crate::domain::table_words::service::decode_complete(
-                                &words.0,
-                                ryo_language::domain::symbols::service::query_places_mut(
-                                    &mut context.symbols,
-                                    self.transport,
-                                )
-                                .map_err(|_| OperatingError::NotRead)?,
-                            )
-                            .map_err(|error| {
-                                OperatingError::ObservationIncomplete {
-                                    reason: error.to_string(),
-                                }
-                            })
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-                    let contract = words.union?;
-                    let publication = super::super::kernel_session::combine_bound(
-                        kernels,
+                    let kept = words.words.as_ref().map_err(Clone::clone)?;
+                    let bytes = kept.get(member).ok_or(OperatingError::NotRun)?;
+                    let table = crate::domain::table_words::service::decode_complete(
+                        &bytes.0,
+                        ryo_language::domain::symbols::service::query_places_mut(
+                            &mut context.symbols,
+                            self.transport,
+                        )
+                        .map_err(|_| OperatingError::NotRead)?,
+                    )
+                    .map_err(|error| {
+                        OperatingError::ObservationIncomplete {
+                            reason: error.to_string(),
+                        }
+                    })?;
+                    if table.kinds != words.kinds {
+                        return Err(OperatingError::ObservationIncomplete {
+                            reason: "named member differs from its declared schema".into(),
+                        });
+                    }
+                    let named = program
+                        .observation_metadata()
+                        .ok_or(OperatingError::NotRun)?;
+                    let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+                    let producer = named
+                        .bindings
+                        .get(declaration.rule)
+                        .and_then(|bindings| bindings.get(declaration.input.0 as usize))
+                        .and_then(|binding| binding.producers.get(member))
+                        .ok_or(OperatingError::NotRun)?;
+                    let crate::domain::file_program::types::ResolvedObservationProducer::Output {
+                        rule: producer_rule,
+                        output,
+                    } = producer
+                    else {
+                        return Err(OperatingError::ObservationIncomplete {
+                            reason: "named producer has no executable query".into(),
+                        });
+                    };
+                    let original = program
+                        .rule_metadata(*producer_rule)?
+                        .observations
+                        .get(output.0 as usize)
+                        .ok_or(OperatingError::NotRun)?
+                        .source
+                        .as_ref()
+                        .map_err(Clone::clone)?;
+                    let publication = owner.computed(table)?;
+                    let producer_input = admit_published(owner, publication, *original, partition)?;
+                    super::super::admission::alias_member(
+                        program,
+                        slot,
+                        member,
+                        &producer_input,
+                        partition,
                         owner,
-                        &tables,
-                        &words.kinds,
-                        &contract,
-                        context,
-                    )?;
-                    admit_published(owner, publication, source, partition)
+                    )
                 })();
                 if let Ok(input) = &result {
                     self.cache.push((source, input.clone()));
@@ -131,7 +157,7 @@ fn admit_published(
     )?;
     AdmittedInput::from_publication(
         Rc::clone(owner),
-        publication,
+        publication.clone(),
         &checked,
         match source {
             crate::domain::executable_program::types::InputSource::Region(id) => {
@@ -167,9 +193,7 @@ impl Inputs for SourceInputs<'_, '_> {
     ) -> Result<AdmittedInput, OperatingError> {
         use crate::domain::executable_program::types::InputSource;
         if let Some(project) = &mut self.project {
-            if let Some(provided) =
-                project.admit(source, partition, context, &self.owner, self.kernels)
-            {
+            if let Some(provided) = project.admit(source, partition, context, &self.owner) {
                 return provided;
             }
         }
@@ -183,12 +207,29 @@ impl Inputs for SourceInputs<'_, '_> {
                 )?;
                 AdmittedInput::from_publication(
                     Rc::clone(&self.owner),
-                    publication,
+                    publication.clone(),
                     &checked,
                     ProducerRoot::Input(source),
                     partition.clone(),
                     Readiness::Complete,
                 )
+            }
+            InputSource::Hosted { rule, relation } => {
+                // The compiler owns the request-source declaration. Admission uses
+                // the immutable prepared snapshot and the current numbered corpus.
+                self.program.rule_metadata(rule)?;
+                let hosted = self
+                    .program
+                    .hosted()
+                    .get(relation.0 as usize)
+                    .ok_or(OperatingError::NotRun)?;
+                let table = crate::domain::hosted::service::table_of_query(
+                    hosted,
+                    crate::domain::hosted::types::NumberedFiles(context.paths),
+                    &mut context.symbols,
+                );
+                let publication = self.owner.computed(table)?;
+                admit_published(&self.owner, publication, source, partition)
             }
             InputSource::Region(id) => {
                 let producer = self
@@ -215,6 +256,43 @@ impl Inputs for SourceInputs<'_, '_> {
                 if let Some(input) = self.observations.get(&slot) {
                     return Ok(input.clone());
                 }
+                let union = *self
+                    .program
+                    .program()
+                    .observation_regions
+                    .get(slot)
+                    .ok_or(OperatingError::NotRun)?
+                    .as_ref()
+                    .map_err(Clone::clone)?;
+                let producer = self
+                    .execution
+                    .program
+                    .regions
+                    .get(union.0)
+                    .ok_or(OperatingError::NotRun)?
+                    .producer;
+                let completion = self.completion.for_rule(producer);
+                let input = match self.execution.invoke(
+                    union,
+                    self,
+                    self.kernels,
+                    &completion,
+                    context,
+                    Delivery::Retain,
+                )? {
+                    InvocationOutcome::Published(input) => input,
+                    InvocationOutcome::Forwarded => return Err(OperatingError::NotRun),
+                };
+                let admitted = super::super::admission::alias_observation(
+                    self.program.program(),
+                    slot,
+                    &input,
+                    &self.owner,
+                )?;
+                self.observations.insert(slot, admitted.clone());
+                Ok(admitted)
+            }
+            InputSource::ObservationMember { slot, member } => {
                 let outputs =
                     self.file_outputs
                         .ok_or_else(|| OperatingError::ObservationIncomplete {
@@ -224,62 +302,40 @@ impl Inputs for SourceInputs<'_, '_> {
                     .program
                     .observation_metadata()
                     .ok_or(OperatingError::NotRun)?;
-                let declared = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
-                if declared.rule != self.rule.0 {
+                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+                if declaration.rule != self.rule.0 {
                     return Err(OperatingError::NotRead);
                 }
-                let binding = named
+                let producer = named
                     .bindings
-                    .get(self.rule.0)
-                    .and_then(|bindings| {
-                        bindings
-                            .iter()
-                            .find(|binding| binding.input == declared.input)
-                    })
+                    .get(declaration.rule)
+                    .and_then(|bindings| bindings.get(declaration.input.0 as usize))
+                    .and_then(|binding| binding.producers.get(member))
                     .ok_or(OperatingError::NotRun)?;
-                let mut tables = Vec::with_capacity(binding.producers.len());
-                for producer in &binding.producers {
-                    let crate::domain::file_program::types::ResolvedObservationProducer::Output {
-                        rule,
-                        output,
-                    } = producer
-                    else {
-                        return Err(OperatingError::ObservationIncomplete {
-                            reason: "named producer has no executable query".into(),
-                        });
-                    };
-                    let admitted = outputs
-                        .get(rule.0)
-                        .and_then(|roots| roots.get(output.0 as usize))
-                        .and_then(|root| root.publication.as_ref())
-                        .ok_or_else(|| OperatingError::ObservationIncomplete {
-                            reason: "named producer root is not complete".into(),
-                        })?;
-                    tables.push(table_of(&self.owner, admitted, self.read)?);
-                }
-                let contract = named
-                    .unions
-                    .get(self.rule.0)
-                    .and_then(|contracts| contracts.get(declared.input.0 as usize))
-                    .ok_or(OperatingError::NotRun)?
-                    .as_ref()
-                    .map_err(Clone::clone)?;
-                let publication = super::super::kernel_session::combine_bound(
-                    self.kernels,
+                let crate::domain::file_program::types::ResolvedObservationProducer::Output {
+                    rule,
+                    output,
+                } = producer
+                else {
+                    return Err(OperatingError::ObservationIncomplete {
+                        reason: "named producer has no executable query".into(),
+                    });
+                };
+                let admitted = outputs
+                    .get(rule.0)
+                    .and_then(|roots| roots.get(output.0 as usize))
+                    .and_then(|root| root.publication.as_ref())
+                    .ok_or_else(|| OperatingError::ObservationIncomplete {
+                        reason: "named producer root is not complete".into(),
+                    })?;
+                super::super::admission::alias_member(
+                    self.program,
+                    slot,
+                    member,
+                    admitted,
+                    partition,
                     &self.owner,
-                    &tables,
-                    &binding
-                        .schema
-                        .columns
-                        .iter()
-                        .map(|column| column.kind)
-                        .collect::<Vec<_>>(),
-                    contract,
-                    context,
-                )?;
-                let admitted = admit_published(&self.owner, publication, source, partition)?;
-                self.observations.insert(slot, admitted.clone());
-                Ok(admitted)
+                )
             }
         }
     }
@@ -357,6 +413,26 @@ pub(super) fn observation_table<'facts>(
         });
     }
     table_of(owner, input, read)
+}
+
+fn observation_slot(
+    program: &PreparedProgram,
+    rule: RuleIndex,
+    input: ryo_values::domain::observations::types::ObservationBindingId,
+) -> Result<usize, OperatingError> {
+    let slots = &program
+        .observation_metadata()
+        .ok_or(OperatingError::NotRun)?
+        .slots;
+    let mut matching = slots
+        .iter()
+        .enumerate()
+        .filter(|(_, slot)| slot.rule == rule.0 && slot.input == input);
+    let (index, _) = matching.next().ok_or(OperatingError::NotRun)?;
+    if matching.next().is_some() {
+        return Err(OperatingError::WrongOperation);
+    }
+    Ok(index)
 }
 
 fn source_for(
