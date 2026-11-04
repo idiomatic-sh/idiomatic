@@ -107,6 +107,19 @@ fn two_inputs() -> Result<Value, OperatingError> {
     )
 }
 
+fn zero_column_inputs() -> Result<Value, OperatingError> {
+    let operation = Operation::Union {
+        left: FROM,
+        right: FROM,
+    };
+    let mut left = Table::default();
+    push_row(&mut left, &[]);
+    push_row(&mut left, &[]);
+    let mut right = Table::default();
+    push_row(&mut right, &[]);
+    compute(&operation, &[&left, &right], &[])
+}
+
 fn one_input() -> Result<Value, OperatingError> {
     let operation = Operation::Union {
         left: FROM,
@@ -130,6 +143,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || two_inputs,
         expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("zero_column_union_keeps_one_distinct_empty_row"),
+        word: Word::Succeeds,
+        input: || zero_column_inputs,
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("repeated_or_alternatives_are_one_finding_in_balanced_or_left_deep_order"),

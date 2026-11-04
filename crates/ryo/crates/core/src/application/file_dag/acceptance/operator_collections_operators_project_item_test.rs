@@ -100,6 +100,15 @@ fn keeps_repeats_when_asked_to() -> Result<Value, OperatingError> {
     )
 }
 
+fn zero_columns(distinct: RepeatedRows) -> Result<Value, OperatingError> {
+    let operation = Operation::Project {
+        from: FROM,
+        columns: vec![],
+        distinct,
+    };
+    compute(&operation, &[&numbers(&[&[1], &[2], &[3]])], &[])
+}
+
 fn projects_a_column_the_input_lacks() -> Result<Value, OperatingError> {
     let operation = Operation::Project {
         from: FROM,
@@ -122,6 +131,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || keeps_repeats_when_asked_to,
         expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("zero_column_projection_keeps_all_three_rows"),
+        word: Word::Succeeds,
+        input: || zero_columns(RepeatedRows::Kept),
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("zero_column_distinct_projection_keeps_one_row"),
+        word: Word::Succeeds,
+        input: || zero_columns(RepeatedRows::Dropped),
+        expect: Expect::Value(1),
     },
     Case {
         name: CaseName("a_missing_column_is_refused"),
