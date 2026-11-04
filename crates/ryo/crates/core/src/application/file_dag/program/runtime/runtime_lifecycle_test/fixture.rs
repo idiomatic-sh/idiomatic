@@ -110,6 +110,11 @@ impl KernelInvocation for RuntimeProbe {
                     Delivery::Retain,
                 );
                 assert!(matches!(result, Err(OperatingError::WrongBinding)));
+                assert_eq!(
+                    scratch.ordered_row,
+                    vec![Value::Number(Integer(100))],
+                    "nested failure must not replace the outer frame"
+                );
                 return Err(InvocationFailure::Semantic(OperatingError::WrongBinding));
             }
             RuntimeProbeMode::NestedFailure { .. } if instruction.producer == RuleIndex(1) => {

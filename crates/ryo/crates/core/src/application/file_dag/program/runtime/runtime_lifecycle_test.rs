@@ -38,16 +38,18 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
         Err(OperatingError::WrongBinding)
     ));
     let slots = execution.slots.borrow();
-    for root in roots {
+    for (at, root) in roots.into_iter().enumerate() {
         let slot = &slots[root.0];
         assert!(matches!(
             slot.state,
             State::Failed(OperatingError::WrongBinding)
         ));
         assert_eq!(
-            slot.scratch[0].ordered_row.len(),
-            1,
-            "both nested scratch frames return to their owners"
+            slot.scratch[0].ordered_row,
+            vec![ryo_relations::domain::relations::types::Value::Number(
+                ryo_relations::domain::relations::types::Integer(100 + at as i64)
+            )],
+            "each nested scratch frame returns to its own root"
         );
     }
     drop(slots);
@@ -155,7 +157,7 @@ fn downstream_error_restores_frame_and_allows_same_scope_retry() {
             &mut context,
             Delivery::Forward(&mut accept)
         ),
-        Ok(InvocationOutcome::Forwarded)
+        Ok(InvocationOutcome::Published(_))
     ));
     assert_eq!(accept.rows.len(), 1);
     assert_eq!(
