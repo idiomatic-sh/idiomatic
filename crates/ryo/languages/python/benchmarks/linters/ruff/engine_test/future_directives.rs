@@ -35,7 +35,7 @@ fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), E
             )
             .run_prepared(WorkerRequest {
                 performance: Default::default(),
-                selected_rules: None,
+                selected_rules: Some(fixture_cohort(&[selected])),
                 rule_observations: None,
                 rule_context: None,
                 project_search_roots: None,

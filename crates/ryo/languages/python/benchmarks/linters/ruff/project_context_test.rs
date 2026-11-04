@@ -53,7 +53,7 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
 fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(vec![case.rule.clone()]),
         rule_observations: None,
         rule_context: None,
         project_search_roots: case.request.project_search_roots.clone(),

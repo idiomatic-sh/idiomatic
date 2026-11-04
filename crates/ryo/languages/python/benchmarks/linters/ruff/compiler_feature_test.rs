@@ -115,7 +115,14 @@ fn check_case(
     )
     .run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(super::fixture_cohort(&[
+            "INPUT",
+            "FLAG",
+            "EAGER",
+            "POSTPONED",
+            "DEFERRED",
+            "UNEVALUATED",
+        ])),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,

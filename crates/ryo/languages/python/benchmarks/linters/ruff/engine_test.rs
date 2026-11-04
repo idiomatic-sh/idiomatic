@@ -172,14 +172,14 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         return projection_cache_query_change(root.path());
     }
     let rules = root.path().join("rules");
-    write_rule_fixtures(&rules, scenario)?;
+    let selected_rules = write_rule_fixtures(&rules, scenario)?;
     let file = input_file(scenario);
     if scenario != EngineScenario::Missing {
         std::fs::write(root.path().join(file), source_for(scenario))?;
     }
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(selected_rules),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -216,7 +216,7 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
     std::fs::write(root.path().join("input.py"), "value = ur\"hello\"\n")?;
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(fixture_cohort(&["ASYNC100", "UP025"])),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -315,7 +315,11 @@ fn source_for(scenario: EngineScenario) -> &'static str {
     }
 }
 
-fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Result<(), Error> {
+fn write_rule_fixtures(
+    rules: &std::path::Path,
+    scenario: EngineScenario,
+) -> Result<Vec<ryo::linter::RuleId>, Error> {
+    let mut selected = fixture_cohort(&["E722"]);
     let root = rules
         .parent()
         .ok_or_else(|| Error::Invalid("rules directory has no root".into()))?;
@@ -342,6 +346,7 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
             std::fs::create_dir_all(parent)?;
             let _copied = std::fs::copy(source.join(path), destination)?;
         }
+        selected.extend(fixture_cohort(&["F821"]));
         let f821 = rules.join("F821");
         std::fs::create_dir_all(&f821)?;
         std::fs::write(
@@ -350,6 +355,7 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
         )?;
     }
     if scenario == EngineScenario::FutureFeatureProjection {
+        selected.extend(fixture_cohort(&["F407"]));
         let f407 = rules.join("F407");
         std::fs::create_dir_all(&f407)?;
         std::fs::write(
@@ -358,6 +364,7 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
         )?;
     }
     if scenario == EngineScenario::LateFutureDirectiveProjection {
+        selected.extend(fixture_cohort(&["F404"]));
         let f404 = rules.join("F404");
         std::fs::create_dir_all(&f404)?;
         std::fs::write(
@@ -366,6 +373,7 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
         )?;
     }
     if scenario == EngineScenario::FrontendRuleCollision {
+        selected.extend(fixture_cohort(&["invalid-syntax"]));
         let invalid_syntax = rules.join("invalid-syntax");
         std::fs::create_dir_all(&invalid_syntax)?;
         std::fs::write(
@@ -373,7 +381,7 @@ fn write_rule_fixtures(rules: &std::path::Path, scenario: EngineScenario) -> Res
             include_str!("rules/E722/query.ryoql"),
         )?;
     }
-    Ok(())
+    Ok(selected)
 }
 
 /// Use the query's declared dependency registry for the preserved-facts integration cases.
@@ -602,7 +610,7 @@ fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding
 
 fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error> {
     let rules = root.join("rules");
-    write_rule_fixtures(&rules, EngineScenario::ProjectionCacheQueryChange)?;
+    let selected_rules = write_rule_fixtures(&rules, EngineScenario::ProjectionCacheQueryChange)?;
     let file = input_file(EngineScenario::ProjectionCacheQueryChange);
     std::fs::write(
         root.join(file),
@@ -610,7 +618,7 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
     )?;
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(selected_rules),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -678,7 +686,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     let languages = ryo::linter::Languages(vec![ryo_python::linked()]);
     let plain = factory::local(languages.clone(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(fixture_cohort(&["fixture"])),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -714,7 +722,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
     );
     let imported = factory::local(languages, None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(fixture_cohort(&["fixture"])),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -823,7 +831,7 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
         )
         .run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: None,
+            selected_rules: Some(fixture_cohort(&["UP017"])),
             rule_observations: None,
             rule_context: None,
             project_search_roots: None,
@@ -962,7 +970,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         let state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
         let inline = inline_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: None,
+            selected_rules: Some(fixture_cohort(&["E722", "F632"])),
             rule_observations: None,
             rule_context: None,
             project_search_roots: None,
@@ -981,7 +989,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
         })?;
         let fragmented = imported_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: None,
+            selected_rules: Some(fixture_cohort(&["E722", "F632"])),
             rule_observations: None,
             rule_context: None,
             project_search_roots: None,
@@ -1065,7 +1073,7 @@ fn assert_single_rule_fragment_equivalence(
             .ok_or_else(|| Error::Invalid(format!("missing imported case for {key:?}")))?;
         let inline = inline_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: None,
+            selected_rules: Some(fixture_cohort(&[rule])),
             rule_observations: None,
             rule_context: None,
             project_search_roots: None,
@@ -1084,7 +1092,7 @@ fn assert_single_rule_fragment_equivalence(
         })?;
         let fragmented = imported_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: None,
+            selected_rules: Some(fixture_cohort(&[rule])),
             rule_observations: None,
             rule_context: None,
             project_search_roots: None,
@@ -1127,7 +1135,7 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
     std::fs::write(root.path().join("false.py"), "value = False\n")?;
     let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(fixture_cohort(&["LIT"])),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -1196,7 +1204,7 @@ fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries(
     std::fs::write(root.path().join("numeric.py"), source)?;
     let report = factory::local(python_310(), None).run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(fixture_cohort(&["EXACT", "STRICT", "SUCCESSOR"])),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -1515,4 +1523,12 @@ fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay
             "excluded Emit does not suppress demanded roots"
         );
     }
+}
+
+/// Explicit fixture diagnostics, independent of whatever query directories happen to exist.
+fn fixture_cohort(names: &[&str]) -> Vec<ryo::linter::RuleId> {
+    names
+        .iter()
+        .map(|name| ryo::linter::RuleId::try_from(*name).unwrap())
+        .collect()
 }
