@@ -14,6 +14,8 @@ const CASES: &[Case<(), u128, ()>] = &[Case {
 fn succeeds() {
     run(CASES, Word::Succeeds, |()| {
         let original = BenchmarkSample {
+            eligibility:
+                crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
             name: SampleName(String::new()),
             measurement: Measurement {
                 wall: std::time::Duration::from_millis(11),

@@ -45,6 +45,7 @@ pub(super) fn measure(
         ComparisonContract::Diagnostics,
     );
     Ok(Pair {
+        eligibility: crate::domain::measurements::types::MeasurementEligibility::Diagnostic,
         reference,
         candidate,
     })
@@ -100,7 +101,7 @@ pub(super) fn measure_certified(
         .map(|file| request.root.join(file.0.as_ref()))
         .collect();
     let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&sources))?;
-    let pair = measure(
+    let mut pair = measure(
         &certificate.coverage,
         reference,
         candidate,
@@ -122,5 +123,13 @@ pub(super) fn measure_certified(
     if suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&sources))? != before {
         return Err(Error::Invalid(super::constants::CHANGED_SOURCE.into()));
     }
+    pair.eligibility = match mode {
+        crate::domain::measurements::types::MeasurementMode::Benchmark { .. } => {
+            crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
+        }
+        crate::domain::measurements::types::MeasurementMode::Diagnostic => {
+            crate::domain::measurements::types::MeasurementEligibility::Diagnostic
+        }
+    };
     Ok(pair)
 }

@@ -53,6 +53,14 @@ pub(super) fn encode(samples: &[BenchmarkSample]) -> Result<Vec<u8>, Error> {
     if samples.is_empty() {
         return Err(Error::Invalid("no measured evidence".into()));
     }
+    if samples.iter().any(|sample| {
+        sample.eligibility
+            != crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
+    }) {
+        return Err(Error::Invalid(
+            "diagnostic observations cannot publish benchmark metrics".into(),
+        ));
+    }
     let mut grouped: BTreeMap<&str, BTreeMap<&str, Vec<f64>>> = BTreeMap::new();
     for sample in samples.iter().map(ObservationSchema::from) {
         if sample.name.is_empty() {

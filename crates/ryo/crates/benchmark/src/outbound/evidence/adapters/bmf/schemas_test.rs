@@ -47,6 +47,8 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
     let samples: Vec<_> = [2, 8, 4, 6]
         .into_iter()
         .map(|millis| BenchmarkSample {
+            eligibility:
+                crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
             name: crate::domain::measurements::types::SampleName(
                 "project/ryo/empty-tool-cache".into(),
             ),

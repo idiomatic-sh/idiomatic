@@ -12,7 +12,9 @@ impl EvidencePort for EvidenceFake {
     fn publish(&self, samples: &[BenchmarkSample]) -> Result<(), Error> {
         if samples.is_empty()
             || samples.iter().any(|sample| {
-                sample.name.0.is_empty()
+                sample.eligibility
+                    != crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
+                    || sample.name.0.is_empty()
                     || matches!(
                         sample.measurement.resources,
                         crate::domain::measurements::types::ResourceObservation::WallOnly

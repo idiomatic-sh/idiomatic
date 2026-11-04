@@ -7,6 +7,18 @@ type Value = crate::domain::suite::types::CaseCount;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("narrowed benchmark launches neither contestant"),
+        word: Word::Refuses,
+        input: || Change::InventoryNarrow,
+        expect: Expect::Error(()),
+    },
+    Case {
+        name: CaseName("complete benchmark executes both contestants"),
+        word: Word::Succeeds,
+        input: || Change::InventoryFull,
+        expect: Expect::Value(crate::domain::suite::types::CaseCount(2)),
+    },
+    Case {
         name: CaseName("execution mode mismatch refuses before launch"),
         word: Word::Refuses,
         input: || Change::Instrumentation,

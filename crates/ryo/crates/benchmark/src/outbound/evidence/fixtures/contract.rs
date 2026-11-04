@@ -14,10 +14,31 @@ type Failure = ();
 /// Independent port observations shared by concrete and fake implementations.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("diagnostic pair cannot publish benchmark metrics"),
+        word: Word::Refuses,
+        input: || {
+            let samples = (CASES[1].input)();
+            let original = samples[0].measurement.clone();
+            crate::domain::measurements::types::pair::value::Pair {
+                eligibility: crate::domain::measurements::types::MeasurementEligibility::Diagnostic,
+                reference: original.clone(),
+                candidate: original,
+            }
+            .samples([
+                crate::domain::measurements::types::SampleName("diagnostic/reference".into()),
+                crate::domain::measurements::types::SampleName("diagnostic/candidate".into()),
+            ])
+            .into()
+        },
+        expect: Expect::Error(()),
+    },
+    Case {
         name: CaseName("complete observation publishes"),
         word: Word::Succeeds,
         input: || {
             vec![BenchmarkSample {
+                eligibility:
+                    crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
                 name: crate::domain::measurements::types::SampleName(
                     "project/contestant/cold".into(),
                 ),
@@ -59,6 +80,8 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             vec![BenchmarkSample {
+                eligibility:
+                    crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
                 name: crate::domain::measurements::types::SampleName(
                     "project/contestant/cold".into(),
                 ),

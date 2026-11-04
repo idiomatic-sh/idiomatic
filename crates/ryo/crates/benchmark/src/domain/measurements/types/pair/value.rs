@@ -15,6 +15,8 @@ use crate::domain::measurements::types::{Measurement, SampleName, sample::value:
 /// ```
 #[derive(Clone, Debug)]
 pub struct Pair {
+    /// Unforgeable publication authority retained from the checked request.
+    pub(crate) eligibility: crate::domain::measurements::types::MeasurementEligibility,
     /// Reference observation retained after finding and source agreement.
     pub(crate) reference: Measurement,
     /// Candidate observation retained after finding and source agreement.
@@ -46,10 +48,12 @@ impl Pair {
         let [reference, candidate] = names;
         [
             BenchmarkSample {
+                eligibility: self.eligibility,
                 name: reference,
                 measurement: self.reference,
             },
             BenchmarkSample {
+                eligibility: self.eligibility,
                 name: candidate,
                 measurement: self.candidate,
             },

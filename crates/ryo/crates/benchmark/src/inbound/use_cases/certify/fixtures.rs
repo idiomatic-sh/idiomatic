@@ -22,6 +22,10 @@ use std::path::PathBuf;
 pub enum Change {
     /// Keep every certified input unchanged.
     None,
+    /// Complete inventory permits both measured contestants.
+    InventoryFull,
+    /// A narrowed certificate never launches a benchmark contestant.
+    InventoryNarrow,
     /// Change the frozen edit workload.
     Patch,
     /// Change the frozen project identity.
@@ -242,7 +246,7 @@ pub fn exercise(
     .expect(constants::FIXTURE_PRECONDITION);
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: None,
+        selected_rules: Some(vec![ryo::linter::RuleId::try_from("A").unwrap()]),
         rule_observations: None,
         rule_context: None,
         project_search_roots: None,
@@ -257,7 +261,7 @@ pub fn exercise(
         state: root.path().join(constants::FIXTURE_STATE_DIRECTORY),
     };
     let changed = match change {
-        Change::None => None,
+        Change::None | Change::InventoryFull | Change::InventoryNarrow => None,
         Change::Patch => Some(workload.join(constants::FIXTURE_PATCH_FILE)),
         Change::Manifest => Some(workload.join(constants::FIXTURE_PROFILE_FILE)),
         Change::Collector => Some(workload.join(constants::FIXTURE_COLLECTOR_FILE)),
@@ -301,7 +305,31 @@ pub fn exercise(
         candidate.clone(),
         execution.clone(),
         suite.clone(),
-        crate::domain::measurements::types::MeasurementMode::Diagnostic,
+        match change {
+            Change::InventoryFull => {
+                crate::domain::measurements::types::MeasurementMode::Benchmark {
+                    inventory: vec![ryo::linter::RuleId::try_from("A").unwrap()],
+                }
+            }
+            Change::InventoryNarrow => {
+                crate::domain::measurements::types::MeasurementMode::Benchmark {
+                    inventory: vec![
+                        ryo::linter::RuleId::try_from("A").unwrap(),
+                        ryo::linter::RuleId::try_from("B").unwrap(),
+                    ],
+                }
+            }
+            Change::None
+            | Change::Patch
+            | Change::Manifest
+            | Change::Collector
+            | Change::Instrumentation
+            | Change::CollectorPin
+            | Change::CollectorPath
+            | Change::Query
+            | Change::Executable
+            | Change::Command => crate::domain::measurements::types::MeasurementMode::Diagnostic,
+        },
     );
     let result = crate::inbound::use_cases::measure::interface::MeasureUseCase::measure(
         &measurement,
@@ -310,7 +338,25 @@ pub fn exercise(
         RunOrder::ReferenceFirst,
     );
     match result {
-        Ok(_) => Ok(certificate.cases()),
+        Ok(pair) => {
+            if matches!(change, Change::InventoryFull) {
+                assert_eq!(
+                    execution
+                        .0
+                        .history
+                        .lock()
+                        .expect(constants::FIXTURE_PRECONDITION)
+                        .len(),
+                    prior + 2,
+                    "complete benchmark must launch both contestants"
+                );
+                assert_eq!(
+                    pair.eligibility,
+                    crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
+                );
+            }
+            Ok(certificate.cases())
+        }
         Err(error) => {
             assert_eq!(
                 prior,
@@ -324,6 +370,10 @@ pub fn exercise(
                 constants::FIXTURE_NO_EARLY_EXECUTION
             );
             let expected = match change {
+                Change::InventoryNarrow => {
+                    "benchmark rule identities differ from declared complete inventory"
+                }
+                Change::InventoryFull => "full inventory must succeed",
                 Change::Command => constants::FIXTURE_EXPECTED_COMMAND_REFUSAL,
                 Change::Instrumentation | Change::CollectorPin | Change::CollectorPath => {
                     constants::FIXTURE_EXPECTED_INSTRUMENTATION_REFUSAL

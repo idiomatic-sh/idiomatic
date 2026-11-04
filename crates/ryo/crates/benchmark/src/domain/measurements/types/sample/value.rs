@@ -22,6 +22,8 @@ use crate::domain::measurements::types::{Measurement, SampleName};
 /// ```
 #[derive(Clone, Debug)]
 pub struct BenchmarkSample {
+    /// Eligibility carried from the issued pair, never supplied by an external caller.
+    pub(crate) eligibility: crate::domain::measurements::types::MeasurementEligibility,
     /// Project, contestant and cache-condition identity assigned to the pair.
     pub(crate) name: SampleName,
     /// Original observation from the certified pair.

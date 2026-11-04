@@ -31,6 +31,8 @@ fn succeeds() {
             },
         };
         let pair = Pair {
+            eligibility:
+                crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
             reference: observation(3),
             candidate: observation(7),
         };
