@@ -35,6 +35,7 @@ use crate::domain::table_words::service::pack_onto;
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::workers::types::{Replaying, Tables};
 use ryo_relations::domain::relations::types::Words;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::records::types::{
     GoverningRules, HandedNotes, Handing, PlacedRule, Record, RuleFrontier,
 };

@@ -989,7 +989,7 @@ impl LintUseCaseImpl {
                     let first = run.first_bucket[each.rule.0];
                     let inputs = crate::application::cross_file::frontiers::prepare(
                         run.program.as_ref(), each.rule, first, kept_facts.as_ref(), handle.facts.as_ref(), &handle.symbols,
-                        &mut cross, crate::application::cross_file::frontiers::PreparationPolicy::Diagnostic,
+                        &mut cross, domain.files.len(), crate::application::cross_file::frontiers::PreparationPolicy::Diagnostic,
                     ).map_err(|error| match error {
                         crate::application::cross_file::frontiers::PreparationError::Facts(error) => LintError::from(error),
                         crate::application::cross_file::frontiers::PreparationError::Metadata(error) => LintError::from(crate::domain::rules::service::failed(&each.id, &error)),

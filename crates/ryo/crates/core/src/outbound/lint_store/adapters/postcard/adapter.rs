@@ -664,8 +664,6 @@ impl ReadStore for PostcardRead {
             super::types::spool::value::validate(held.session, held.length, &row.words)
                 .map_err(|error| unwritable(&error))?;
         }
-        let by_bucket = super::types::frames::value::fresh(&stored.handed.frontier, &kept.staged)
-            .map_err(|error| unwritable(&error))?;
         let old_tables = old
             .as_ref()
             .and_then(|opened| contents(&store.build.0, &opened.contents.0));
@@ -708,6 +706,8 @@ impl ReadStore for PostcardRead {
         {
             return Err(unwritable(&"frontier payload lacks its exact source proof"));
         }
+        let by_bucket = super::types::frames::value::fresh(&stored.handed.frontier, &kept.staged)
+            .map_err(|error| unwritable(&error))?;
         let old_contents = old_tables.map(|each| each.buckets);
         std::fs::create_dir_all(Path::new(&*store.directory.0))
             .map_err(|error| unwritable(&error))?;
