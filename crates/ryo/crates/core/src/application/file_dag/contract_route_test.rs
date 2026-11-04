@@ -15,7 +15,7 @@ use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, OperatorContext, Room},
 };
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::service::registered;
 use crate::domain::operator::{
     contract::types::{OperatorContract, RequestOperators},
@@ -290,7 +290,7 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
         let schemas = case
             .inputs
             .iter()
-            .map(|table| InputSchema {
+            .map(|table| InputShape {
                 kinds: &table.kinds,
                 tree: None,
             })
@@ -507,7 +507,7 @@ fn partial_route(
     let schemas = case
         .inputs
         .iter()
-        .map(|table| InputSchema {
+        .map(|table| InputShape {
             kinds: &table.kinds,
             tree: None,
         })
@@ -641,7 +641,7 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
         super::derived::prepare::operator(
             registered(OperationKind::Select),
             &case.operation,
-            &[InputSchema {
+            &[InputShape {
                 kinds: &case.inputs[0].kinds,
                 tree: None,
             }],

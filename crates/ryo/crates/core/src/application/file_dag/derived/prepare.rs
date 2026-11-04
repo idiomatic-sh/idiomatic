@@ -1,7 +1,7 @@
 //! Standalone application preparation uses the same required declarations as request preparation.
 use crate::domain::{
     operating::errors::OperatingError,
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     operator::{contract::types::OperatorContract, service::PreparationRoute},
     table_model::types::ParameterBinding,
 };
@@ -11,7 +11,7 @@ use ryo_values::domain::plans::types::Operation;
 pub(crate) fn operator(
     item: PreparationRoute,
     operation: &Operation,
-    schemas: &[InputSchema<'_>],
+    schemas: &[InputShape<'_>],
     bindings: &[ParameterBinding],
 ) -> Result<OperatorContract, OperatingError> {
     let mut contract = item.prepare(operation, schemas, bindings)?;
@@ -24,7 +24,7 @@ pub(crate) fn operator(
 pub(in crate::application::file_dag) fn view(
     semantic: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     request: &crate::domain::derived_views::types::ViewRequest,
-    schemas: &[InputSchema<'_>],
+    schemas: &[InputShape<'_>],
 ) -> Result<crate::domain::derived_views::types::DerivedContract, OperatingError> {
     use crate::domain::derived_views::types::{DerivedContract, ViewRequest};
     use ryo_derived::domain::contract::types::ViewRequest as SemanticRequest;

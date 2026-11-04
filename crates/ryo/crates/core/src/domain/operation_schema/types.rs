@@ -8,7 +8,7 @@ pub(crate) mod traversal;
 
 /// Ordered input column kinds and representation, with no payload or source access.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct InputSchema<'a> {
+pub(crate) struct InputShape<'a> {
     /// Column kinds, preserving order, repetition and zero-width inputs.
     pub kinds: &'a [CellKind],
     /// Native syntax representation, absent for resident and computed tables.

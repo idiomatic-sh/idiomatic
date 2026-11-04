@@ -11,12 +11,12 @@ use ryo_values::domain::plan_parts::types::{
 
 /// Immutable binding metadata; it cannot mint symbols or manufacture execution rows.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct BindingSchema<'a> {
+pub(crate) struct BindingShape<'a> {
     /// Configuration values borrowed for schema validation.
     bindings: &'a [ParameterBinding],
 }
 
-impl<'a> BindingSchema<'a> {
+impl<'a> BindingShape<'a> {
     /// Borrow configuration for one schema derivation.
     pub(crate) const fn new(bindings: &'a [ParameterBinding]) -> Self {
         Self { bindings }

@@ -7,7 +7,7 @@ use crate::domain::lowering::service::lower;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operation_schema::service::schema_of;
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 #[cfg(test)]
 use crate::domain::operator::types::{KeptSteps, PlanIdentity, PlanLayout, ReadCount, StepPlace};
 use crate::domain::table_cells::types::TreeForm;
@@ -95,22 +95,22 @@ pub(crate) fn layout_of<'f>(
     let metadata = |relation| {
         // Probe every actual view before exposing only its schema to derivation.
         Ok(match read(relation)? {
-            Rows::Stored(view) => InputSchema {
+            Rows::Stored(view) => InputShape {
                 kinds: view.kinds,
                 tree: None,
             },
-            Rows::Computed(table) => InputSchema {
+            Rows::Computed(table) => InputShape {
                 kinds: &table.kinds,
                 tree: None,
             },
-            Rows::Tree(tree) => InputSchema {
+            Rows::Tree(tree) => InputShape {
                 kinds: ryo_relations::domain::relations::service::kinds(match tree.form {
                     TreeForm::Elements => Relation::SyntaxTree,
                     TreeForm::Edges => Relation::SyntaxChild,
                 }),
                 tree: Some(tree.form),
             },
-            Rows::Compact(table) => InputSchema {
+            Rows::Compact(table) => InputShape {
                 kinds: crate::domain::table_words::service::compact_kinds(table),
                 tree: None,
             },
@@ -187,7 +187,7 @@ pub(crate) fn shape_frontier_kinds(
     // No file supplied this frontier. Use the declared relation representation,
     // as the old empty-tree fallback did, without making any table or elements.
     let metadata = |relation| {
-        Ok(InputSchema {
+        Ok(InputShape {
             kinds: relation_kinds(relation),
             tree: match relation {
                 Relation::SyntaxTree => Some(TreeForm::Elements),
@@ -292,7 +292,7 @@ pub(crate) fn shape_frontier_kinds(
 /// Propagate schemas topologically, with only the caller's metadata/probe boundary.
 fn schema_steps<'a>(
     plan: &Plan,
-    read: &dyn Fn(Relation) -> Result<InputSchema<'a>, OperatingError>,
+    read: &dyn Fn(Relation) -> Result<InputShape<'a>, OperatingError>,
     bindings: &[ParameterBinding],
 ) -> Result<Vec<Vec<CellKind>>, OperatingError> {
     let mut kinds: Vec<Vec<CellKind>> = vec![Vec::new(); plan.steps.len()];
@@ -316,13 +316,13 @@ fn schema_steps<'a>(
             .iter()
             .map(|input| {
                 match input {
-                    Input::Step(source) => Ok(InputSchema {
+                    Input::Step(source) => Ok(InputShape {
                         kinds: kinds
                             .get(usize::try_from(source.0).unwrap_or(usize::MAX))
                             .ok_or(OperatingError::NotRun)?,
                         tree: None,
                     }),
-                    Input::BoundObservation(id) => Ok(InputSchema {
+                    Input::BoundObservation(id) => Ok(InputShape {
                         kinds: bound
                             .get(usize::try_from(id.0).map_err(|_| OperatingError::NotRun)?)
                             .ok_or(OperatingError::NotRun)?,

@@ -1,7 +1,7 @@
 //! Join semantics over engine-acquired typed key/native/adjacency views.
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
@@ -36,7 +36,7 @@ impl OperatorsItem for JoinItem {
     fn prepare(
         &self,
         operation: &Operation,
-        inputs: &[InputSchema<'_>],
+        inputs: &[InputShape<'_>],
         bindings: &[ParameterBinding],
     ) -> Result<OperatorContract, OperatingError> {
         crate::domain::operator::contract::service::prepare_for(

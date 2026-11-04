@@ -281,7 +281,7 @@ fn collected_sparse_left_and_native_ready_routes_use_injected_join() {
 fn prepared(operation: &Operation, rows: &[Rows<'_>]) -> OperatorContract {
     let schemas = rows
         .iter()
-        .map(|rows| InputSchema {
+        .map(|rows| InputShape {
             kinds: kinds_of(rows),
             tree: if let Rows::Tree(tree) = rows {
                 Some(tree.form)

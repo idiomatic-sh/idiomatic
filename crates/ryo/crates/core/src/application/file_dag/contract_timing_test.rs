@@ -2,7 +2,7 @@
 use super::execution::CommonOperatorEngine;
 use crate::domain::features::service::kind_of;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::service::registered;
 use crate::domain::table_model::{errors::TableModelError, types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
@@ -19,7 +19,7 @@ use ryo_values::domain::{
 fn collect(operation: &Operation, tables: &[Table]) -> Result<Table, OperatingError> {
     let schemas = tables
         .iter()
-        .map(|table| InputSchema {
+        .map(|table| InputShape {
             kinds: &table.kinds,
             tree: None,
         })

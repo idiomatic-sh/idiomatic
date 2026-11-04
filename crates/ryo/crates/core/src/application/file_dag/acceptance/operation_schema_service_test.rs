@@ -6,7 +6,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::features::service::{catalog, kind_of};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::service::schema_of;
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
@@ -49,7 +49,7 @@ fn subject(populated: Input) -> Result<Value, Failure> {
         let tables = tables(&operation, symbol, populated);
         let schemas: Vec<_> = tables
             .iter()
-            .map(|table| InputSchema {
+            .map(|table| InputShape {
                 kinds: &table.kinds,
                 tree: None,
             })
@@ -486,11 +486,11 @@ fn demand_join_schema_uses_virtual_partition_source_destination_projection() {
         }),
     };
     let inputs = [
-        InputSchema {
+        InputShape {
             kinds: &[CellKind::Node],
             tree: None,
         },
-        InputSchema {
+        InputShape {
             kinds: &[CellKind::Symbol, CellKind::Node, CellKind::File],
             tree: None,
         },

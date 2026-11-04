@@ -1,7 +1,7 @@
 //! Independent row-order and resource-shape controls for the graph view families.
 use super::*;
 use crate::domain::{
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     stored_graph::types::{GraphIdentity, GraphSource, Orientation, Population},
     table_model::service::push_row,
 };
@@ -33,7 +33,7 @@ fn schema(width: usize) -> Vec<CellKind> {
 fn partition_order_and_one_partition_closure_preserve_independent_expected_rows() {
     let source = table(3, &[&[9, 4, 3], &[9, 2, 4], &[1, 7, 8]]);
     let kinds = schema(3);
-    let schemas = [InputSchema {
+    let schemas = [InputShape {
         kinds: &kinds,
         tree: None,
     }];
@@ -66,7 +66,7 @@ fn partition_order_and_one_partition_closure_preserve_independent_expected_rows(
 
     // The caller supplies one current partition, rather than asking the item to retain all groups.
     let single = table(2, &[&[4, 3], &[2, 4], &[4, 3]]);
-    let one_schema = [InputSchema {
+    let one_schema = [InputShape {
         kinds: &[CellKind::Number, CellKind::Number],
         tree: None,
     }];
@@ -125,7 +125,7 @@ fn partition_order_and_one_partition_closure_preserve_independent_expected_rows(
 #[test]
 fn cycle_and_compact_adjacency_preserve_parallel_edges_and_first_seen_vertices() {
     let source = table(2, &[&[9, 1], &[9, 1], &[1, 9], &[7, 7]]);
-    let schemas = [InputSchema {
+    let schemas = [InputShape {
         kinds: &[CellKind::Number, CellKind::Number],
         tree: None,
     }];
@@ -227,11 +227,11 @@ fn ordered_keys_sort_each_side_and_refuse_duplicate_order_within_a_group() {
     let left = table(2, &[&[5, 20], &[5, 10], &[7, 4]]);
     let right = table(2, &[&[5, 30], &[5, 25], &[7, 5]]);
     let schemas = [
-        InputSchema {
+        InputShape {
             kinds: &[CellKind::Number, CellKind::Number],
             tree: None,
         },
-        InputSchema {
+        InputShape {
             kinds: &[CellKind::Number, CellKind::Number],
             tree: None,
         },

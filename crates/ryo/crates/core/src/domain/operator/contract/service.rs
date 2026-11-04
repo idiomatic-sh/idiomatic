@@ -182,7 +182,7 @@ pub(crate) fn modes(
 pub(crate) fn prepare_for(
     expected: OperationKind,
     operation: &ryo_values::domain::plans::types::Operation,
-    inputs: &[crate::domain::operation_schema::types::InputSchema<'_>],
+    inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
     bindings: &[crate::domain::table_model::types::ParameterBinding],
 ) -> Result<OperatorContract, crate::domain::operating::errors::OperatingError> {
     if crate::domain::features::service::kind_of(operation) != expected {

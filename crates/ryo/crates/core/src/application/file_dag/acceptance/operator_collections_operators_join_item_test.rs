@@ -19,7 +19,7 @@ use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, Supply};
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::collections::operators::join::item::JoinItem;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
@@ -1559,11 +1559,11 @@ fn cached_emit_error_releases_invocation_handle_and_next_generation_uses_new_row
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
     let operation = plan(&[0], &[0], &[(Side::Right, 1)], Vec::new(), &[]);
     let schemas = [
-        InputSchema {
+        InputShape {
             kinds: &left.kinds,
             tree: None,
         },
-        InputSchema {
+        InputShape {
             kinds: NUMBER_PAIR_KINDS,
             tree: None,
         },

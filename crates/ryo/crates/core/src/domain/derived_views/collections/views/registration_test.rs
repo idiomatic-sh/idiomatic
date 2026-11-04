@@ -3,7 +3,7 @@ use super::registration::registered;
 use crate::domain::{
     derived_views::{service::kind, types::*},
     operating::errors::OperatingError,
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     operator::contract::resources::DfsResources,
     stored_selection::types::Selector,
     table_model::types::SelectionIdentity,
@@ -79,11 +79,11 @@ fn every_requested_family_reaches_its_actual_prepared_family() {
             kinds[0] = CellKind::Symbol;
         }
         let schemas = [
-            InputSchema {
+            InputShape {
                 kinds: &kinds,
                 tree: None,
             },
-            InputSchema {
+            InputShape {
                 kinds: &kinds,
                 tree: None,
             },
@@ -135,7 +135,7 @@ fn missing_static_metadata_is_deferred_without_reading_or_building() {
 #[test]
 fn borrowed_positions_preserve_bag_order_and_cannot_change_family() {
     let kinds = [CellKind::Number];
-    let schema = [InputSchema {
+    let schema = [InputShape {
         kinds: &kinds,
         tree: None,
     }];

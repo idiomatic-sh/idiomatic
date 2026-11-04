@@ -3,7 +3,7 @@ use super::*;
 use crate::application::file_dag::derived::indexes;
 use crate::domain::{
     derived_views::types::{MembershipSpace, ViewRequest},
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
     table_model::service::push_row,
 };
@@ -29,7 +29,7 @@ fn plan() -> Arc<DerivedContract> {
             &ViewRequest::PartitionOrder {
                 keys: vec![ColumnIndex(0)],
             },
-            &[InputSchema {
+            &[InputShape {
                 kinds: &[CellKind::Number],
                 tree: None,
             }],
@@ -45,7 +45,7 @@ fn membership_plan() -> Arc<DerivedContract> {
             &ViewRequest::Membership {
                 column: ColumnIndex(0),
             },
-            &[InputSchema {
+            &[InputShape {
                 kinds: &[CellKind::Number],
                 tree: None,
             }],

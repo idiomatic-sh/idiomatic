@@ -7,7 +7,7 @@ use crate::domain::lowering::types::Counting;
 
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Room;
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::collections::operators::interface::OperatorsItem;
 use crate::domain::table_model::types::ParameterBinding;
 use ryo_values::domain::plan_parts::types::Inputs;

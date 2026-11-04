@@ -1,6 +1,6 @@
 //! Request preparation and bounded activation; never rebuild descriptors in a row path.
 use super::*;
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use ryo_relations::domain::relations::types::Relation;
 use std::collections::HashMap;
 
@@ -45,7 +45,7 @@ pub(crate) fn prepare_views_with_schemas<'s>(
                 groups.push((selector).clone());
                 at
             });
-        let schema = [InputSchema {
+        let schema = [InputShape {
             kinds: resolver(selector.relation),
             tree: None,
         }];

@@ -1,6 +1,6 @@
 //! Every primitive declares semantics and evaluates finite engine-prepared inputs.
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
@@ -12,7 +12,7 @@ pub(crate) trait OperatorsItem: Sync {
     fn prepare(
         &self,
         operation: &Operation,
-        inputs: &[InputSchema<'_>],
+        inputs: &[InputShape<'_>],
         bindings: &[ParameterBinding],
     ) -> Result<OperatorContract, OperatingError>;
     fn evaluate(

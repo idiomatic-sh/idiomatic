@@ -1,8 +1,8 @@
 //! The `operation_schema` service: output column algebra with no row values, source bytes or execution storage.
 
-use super::types::InputSchema;
-use super::types::bindings::value::BindingSchema;
-use super::types::traversal::value::TraversalSchema;
+use super::types::InputShape;
+use super::types::bindings::value::BindingShape;
+use super::types::traversal::value::TraversalShape;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{check_columns, column_in};
@@ -15,9 +15,9 @@ use ryo_values::domain::plans::types::Operation;
 
 /// Read one input's metadata in the same input order as execution.
 pub(crate) fn schema_input<'a>(
-    inputs: &[InputSchema<'a>],
+    inputs: &[InputShape<'a>],
     place: InputPlace,
-) -> Result<InputSchema<'a>, OperatingError> {
+) -> Result<InputShape<'a>, OperatingError> {
     inputs
         .get(place.0)
         .copied()
@@ -87,7 +87,7 @@ pub(crate) fn joined(
 /// invalid spans and duplicate order values remain execution's responsibility.
 pub(crate) fn schema_of(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     bindings: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let first = || schema_input(inputs, InputPlace(0));
@@ -96,7 +96,7 @@ pub(crate) fn schema_of(
         Operation::Select { .. } => select_schema(operation, inputs, bindings),
         Operation::Project { .. } => project_schema(operation, inputs, bindings),
         Operation::Extend { values, .. } => {
-            BindingSchema::new(bindings).extended(values, first()?.kinds.to_vec())
+            BindingShape::new(bindings).extended(values, first()?.kinds.to_vec())
         }
         Operation::Join { .. } => join_schema(operation, inputs, bindings),
         Operation::Union { .. } => union_schema(operation, inputs, bindings),
@@ -144,7 +144,7 @@ pub(crate) fn schema_of(
             appended(first()?.kinds, &[*text], CellKind::Symbol)
         }
         Operation::Axis { .. } | Operation::OrderedMatch { .. } | Operation::OrderedDfs { .. } => {
-            TraversalSchema::new(inputs).of(operation, bindings)
+            TraversalShape::new(inputs).of(operation, bindings)
         }
         Operation::Closure {
             keys,
@@ -163,7 +163,7 @@ pub(crate) fn schema_of(
             destination,
             ..
         } => projected(first()?.kinds, &[*source, *destination]),
-        Operation::Rows { parameter, keys } => BindingSchema::new(bindings).rows(*parameter, keys),
+        Operation::Rows { parameter, keys } => BindingShape::new(bindings).rows(*parameter, keys),
         Operation::Hosted { .. } => Ok(schema_input(inputs, InputPlace(0))?.kinds.to_vec()),
         Operation::SpanBetween { start, end, .. } => {
             let input = first()?;
@@ -206,7 +206,7 @@ pub(crate) fn schema_of(
 /// remaining operators are migrated. No row or source payload is read here.
 pub(crate) fn select_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     bindings: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::Select {
@@ -221,13 +221,13 @@ pub(crate) fn select_schema(
     } else {
         projected(input.kinds, kept)?
     };
-    BindingSchema::new(bindings).predicates(comparisons, input.kinds)?;
+    BindingShape::new(bindings).predicates(comparisons, input.kinds)?;
     Ok(answer)
 }
 
 pub(crate) fn project_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     _: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::Project { columns, .. } = operation else {
@@ -238,7 +238,7 @@ pub(crate) fn project_schema(
 
 pub(crate) fn union_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     _: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     if !matches!(operation, Operation::Union { .. }) {
@@ -256,7 +256,7 @@ pub(crate) fn union_schema(
 
 pub(crate) fn source_matches_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     _: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::SourceMatches {
@@ -297,7 +297,7 @@ pub(crate) fn source_matches_schema(
 
 pub(crate) fn span_bounds_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     _: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::SpanBounds { span, .. } = operation else {
@@ -315,7 +315,7 @@ pub(crate) fn span_bounds_schema(
 /// Check join keys and native RHS view before deriving its ordered output projection.
 pub(crate) fn join_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     bindings: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::Join {
@@ -354,7 +354,7 @@ pub(crate) fn join_schema(
         )?;
     }
     check_columns(left.kinds, left_on)?;
-    BindingSchema::new(bindings).predicates(filter, right_kinds)?;
+    BindingShape::new(bindings).predicates(filter, right_kinds)?;
     Ok(answer)
 }
 

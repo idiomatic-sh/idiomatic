@@ -1,7 +1,7 @@
 //! Behavioral controls retained from the former application resource constructors.
 use crate::domain::{
     derived_views::types::*, operating::errors::OperatingError,
-    operation_schema::types::InputSchema, operator::contract::views::BorrowedRows,
+    operation_schema::types::InputShape, operator::contract::views::BorrowedRows,
     table_model::service::push_row,
 };
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -21,7 +21,7 @@ fn prepare_cycles(
             source,
             destination,
         },
-        &[InputSchema {
+        &[InputShape {
             kinds: input.kinds(),
             tree: None,
         }],

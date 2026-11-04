@@ -69,7 +69,7 @@ pub mod domain {
  pub mod plan_parts {pub mod types {#[derive(Clone,Debug)]pub struct Inputs;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct ColumnIndex;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct InputNumber;#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct JoinColumn;#[derive(Clone,Debug)]pub struct LiteralText;#[derive(Clone,Debug)]pub struct Comparison;}}
  pub mod plans {pub mod types {#[derive(Clone,Debug)]pub struct Operation;#[derive(Clone,Copy,Debug,PartialEq,Eq)] __KINDS__}}
  pub mod stored_facts {pub mod types {pub struct ArenaBytes;}}
- pub mod operation_schema {pub mod types {pub struct InputSchema<'a>{pub kinds:&'a[crate::domain::relations::types::CellKind]}}}
+ pub mod operation_schema {pub mod types {pub struct InputShape<'a>{pub kinds:&'a[crate::domain::relations::types::CellKind]}}}
  pub mod stored_selection {pub mod types {#[derive(Debug)]pub struct Selector;#[derive(Debug)]pub struct PreparedPlan;#[derive(Debug)]pub struct PreparedSelectionViews;}}
  pub mod derived_views {pub mod types {#[derive(Clone,Debug,Default)]pub struct DerivedSlots;}}
  pub mod table_model {pub mod errors {pub enum TableModelError{NoSuchColumn{index:u32}}impl From<TableModelError> for crate::domain::operating::errors::OperatingError{fn from(_:TableModelError)->Self{Self::Table}}}pub mod types {#[derive(Clone,Debug)]pub struct ParameterBinding;pub struct Table;pub struct Verdict;}pub mod collections {pub mod representations {#[path=__REPRESENTATION_TYPES__]pub mod types;#[path=__PUBLICATION__]pub mod publication;}}}
@@ -128,7 +128,7 @@ fn primitive_cannot_acquire_scheduler_cache_or_persistent_lifetime_capabilities(
         r#"
 struct Legitimate;
 impl domain::operator::collections::operators::interface::OperatorsItem for Legitimate {
- fn prepare(&self,_operation:&domain::plans::types::Operation,_inputs:&[domain::operation_schema::types::InputSchema<'_>],_bindings:&[domain::table_model::types::ParameterBinding])->Result<domain::operator::contract::types::OperatorContract,domain::operating::errors::OperatingError>{unimplemented!()}
+ fn prepare(&self,_operation:&domain::plans::types::Operation,_inputs:&[domain::operation_schema::types::InputShape<'_>],_bindings:&[domain::table_model::types::ParameterBinding])->Result<domain::operator::contract::types::OperatorContract,domain::operating::errors::OperatingError>{unimplemented!()}
  fn evaluate(&self,_operation:&domain::plans::types::Operation,inputs:domain::operator::contract::types::PreparedInputs<'_>,lease:&mut domain::operator::contract::types::PrimitiveLease<'_>,sink:&mut dyn domain::operator::contract::types::RowSink)->Result<(),domain::operating::errors::OperatingError>{
   if let domain::operator::contract::types::PreparedInputs::Row{row,..}=inputs {sink.row(lease,row)?;}Ok(())
  }

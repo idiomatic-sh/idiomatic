@@ -2,8 +2,8 @@
 
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
 use crate::domain::operation_schema::service::{joined, projected, schema_input};
-use crate::domain::operation_schema::types::InputSchema;
-use crate::domain::operation_schema::types::bindings::value::BindingSchema;
+use crate::domain::operation_schema::types::InputShape;
+use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use crate::domain::table_cells::types::TreeForm;
 use crate::domain::table_model::service::{check_columns, column_in};
 use crate::domain::table_model::types::ParameterBinding;
@@ -13,14 +13,14 @@ use ryo_values::domain::plans::types::Operation;
 
 /// The input schemas of one graph/ordered traversal, with no adjacency or row storage.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TraversalSchema<'a> {
+pub(crate) struct TraversalShape<'a> {
     /// Ordered input metadata, without graph payloads.
-    inputs: &'a [InputSchema<'a>],
+    inputs: &'a [InputShape<'a>],
 }
 
-impl<'a> TraversalSchema<'a> {
+impl<'a> TraversalShape<'a> {
     /// Borrow graph input metadata.
-    pub(crate) const fn new(inputs: &'a [InputSchema<'a>]) -> Self {
+    pub(crate) const fn new(inputs: &'a [InputShape<'a>]) -> Self {
         Self { inputs }
     }
     /// Validate and derive a traversal's output kinds without traversing it.
@@ -63,7 +63,7 @@ impl<'a> TraversalSchema<'a> {
 /// Numeric order and equal key kinds of an ordered match, without indexing rows.
 fn ordered_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::OrderedMatch {
         left_on,
@@ -109,7 +109,7 @@ fn ordered_schema(
 /// An ordered DFS's partition, endpoint and identity columns, without traversal storage.
 fn dfs_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::OrderedDfs {
         root,
@@ -153,7 +153,7 @@ fn dfs_schema(
 /// Preserve native tree projection and computed-edge restrictions using only representation metadata.
 fn axis_schema(
     operation: &Operation,
-    inputs: &[InputSchema<'_>],
+    inputs: &[InputShape<'_>],
     bindings: &[ParameterBinding],
 ) -> Result<Vec<CellKind>, OperatingError> {
     let Operation::Axis {
@@ -183,7 +183,7 @@ fn axis_schema(
             || domain.tree == Some(TreeForm::Elements) && domain_entity == ColumnIndex(0));
     if native {
         check_columns(domain.kinds, &[domain_entity])?;
-        BindingSchema::new(bindings).predicates(domain_filter, domain.kinds)?;
+        BindingShape::new(bindings).predicates(domain_filter, domain.kinds)?;
         if !output.is_empty() {
             return joined(
                 from.kinds,

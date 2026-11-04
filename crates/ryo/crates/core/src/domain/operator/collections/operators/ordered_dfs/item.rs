@@ -17,7 +17,7 @@ impl OperatorsItem for OrderedDfsItem {
     fn prepare(
         &self,
         operation: &Operation,
-        inputs: &[crate::domain::operation_schema::types::InputSchema<'_>],
+        inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
         bindings: &[ParameterBinding],
     ) -> Result<OperatorContract, OperatingError> {
         crate::domain::operator::contract::service::prepare_for(

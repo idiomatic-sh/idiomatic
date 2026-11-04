@@ -34,7 +34,7 @@ fn rust_path(path: &Path) -> String {
 const METHODS: &[(&str, &str)] = &[
     (
         "prepare",
-        "fn prepare(&self, request:&ViewRequest, inputs:&[InputSchema<'_>])->Result<DerivedContract,OperatingError>{service::prepare(service::kind(request),request,inputs)}",
+        "fn prepare(&self, request:&ViewRequest, inputs:&[InputShape<'_>])->Result<DerivedContract,OperatingError>{service::prepare(service::kind(request),request,inputs)}",
     ),
     (
         "build",
@@ -86,7 +86,7 @@ pub mod domain {
   #[derive(Clone,Debug)]pub enum OperatingError {WrongOperation,NotRun,MissingInput{position:usize},NoSuchColumn}
  }}
  pub mod operation_schema {pub mod types {
-  pub struct InputSchema<'a>{pub kinds:&'a[crate::domain::relations::types::CellKind]}
+  pub struct InputShape<'a>{pub kinds:&'a[crate::domain::relations::types::CellKind]}
  }}
  pub mod operator {pub mod contract {
   pub mod graph {
@@ -128,11 +128,11 @@ pub mod domain {
  }
 }
 use domain::derived_views::{types::*,service,collections::views::{interface::DerivedViewsItem,registration::registered}};
-use domain::{operating::errors::OperatingError,operation_schema::types::InputSchema};
+use domain::{operating::errors::OperatingError,operation_schema::types::InputShape};
 pub(crate) struct Legitimate;
 impl DerivedViewsItem for Legitimate {__METHODS__}
 fn legitimate_client(){
- let kinds=[domain::relations::types::CellKind::Number];let inputs=[InputSchema{kinds:&kinds}];
+ let kinds=[domain::relations::types::CellKind::Number];let inputs=[InputShape{kinds:&kinds}];
  let item=registered(DerivedKind::Equality);
  let contract=item.prepare(&ViewRequest::Equality{columns:vec![domain::plan_parts::types::ColumnIndex(0)]},&inputs).unwrap();
  let storage=DerivedStorage::Equality(domain::table_model::types::KeyIndex);

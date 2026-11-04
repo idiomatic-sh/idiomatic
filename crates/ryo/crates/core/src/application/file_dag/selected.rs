@@ -37,7 +37,7 @@ impl<'f> SelectedInput<'f> {
             &ViewRequest::Equality {
                 columns: columns.to_vec(),
             },
-            &[crate::domain::operation_schema::types::InputSchema {
+            &[crate::domain::operation_schema::types::InputShape {
                 kinds: rows.kinds(),
                 tree: None,
             }],

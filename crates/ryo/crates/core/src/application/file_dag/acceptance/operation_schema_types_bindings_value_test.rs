@@ -2,7 +2,7 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operation_schema::types::bindings::value::BindingSchema;
+use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::{
@@ -49,7 +49,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 Operand::Parameter(ParameterId(2)),
                 Operand::Literal(QueryLiteral::Number(Integer(4))),
             ];
-            let result = BindingSchema::new(&bindings).extended(&values, vec![CellKind::Node])?;
+            let result = BindingShape::new(&bindings).extended(&values, vec![CellKind::Node])?;
             assert_eq!(
                 result,
                 [
@@ -70,7 +70,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ];
             for index in 0..3 {
                 assert_eq!(
-                    BindingSchema::new(&bindings)
+                    BindingShape::new(&bindings)
                         .rows(ParameterId(index), &[TableKey("name".into())])?,
                     [CellKind::Symbol]
                 );
@@ -89,20 +89,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             } else {
                 "missing"
             };
-            let kinds = BindingSchema::new(&bindings).rows(
+            let kinds = BindingShape::new(&bindings).rows(
                 ParameterId(0),
                 &[TableKey(key.into()), TableKey(key.into())],
             )?;
             assert_eq!(kinds, [CellKind::Symbol; 2]);
             Ok(kinds.len())
         }
-        Scenario::Unbound => BindingSchema::new(&[])
+        Scenario::Unbound => BindingShape::new(&[])
             .rows(ParameterId(0), &[])
             .map(|result| result.len()),
-        Scenario::WrongScalar => BindingSchema::new(&[ParameterBinding::Texts(Vec::new())])
+        Scenario::WrongScalar => BindingShape::new(&[ParameterBinding::Texts(Vec::new())])
             .extended(&[Operand::Parameter(ParameterId(0))], Vec::new())
             .map(|result| result.len()),
-        Scenario::WrongRows => BindingSchema::new(&[ParameterBinding::Texts(vec![LiteralText(
+        Scenario::WrongRows => BindingShape::new(&[ParameterBinding::Texts(vec![LiteralText(
             "not-table".into(),
         )])])
         .rows(ParameterId(0), &[])
@@ -120,7 +120,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 right,
                 origin: None,
             };
-            BindingSchema::new(&bindings).predicates(&[comparison], &[CellKind::Symbol])?;
+            BindingShape::new(&bindings).predicates(&[comparison], &[CellKind::Symbol])?;
             Ok(1)
         }
     }
@@ -214,7 +214,7 @@ fn refuses() {
 fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     use crate::application::file_dag::cross_execution::compute;
     use crate::domain::operating::types::OperatorContext;
-    use crate::domain::operation_schema::{service::schema_of, types::InputSchema};
+    use crate::domain::operation_schema::{service::schema_of, types::InputShape};
     use crate::domain::table_model::types::Rows;
     use crate::domain::table_scratch::types::OperatorScratch;
     use crate::domain::table_texts::types::SourceView;
@@ -257,7 +257,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         kept: Vec::new(),
     };
     let bindings = [ParameterBinding::Text(LiteralText("[".into()))];
-    let metadata = [InputSchema {
+    let metadata = [InputShape {
         kinds: &kinds,
         tree: None,
     }];

@@ -10,7 +10,7 @@ use super::*;
 use crate::application::file_dag::{relations::RelationOwner, workspace::InvocationWorkspace};
 use crate::domain::{
     coverage::types::Partial,
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
     stored_graph::types::{GraphCounts, GraphWalk, Orientation},
     table_model::{service::kinds_of, types::Rows},
@@ -158,7 +158,7 @@ impl GraphFixture {
             super::super::prepare::view(
                 crate::outbound::derived::factory::test_port(),
                 &request,
-                &[InputSchema {
+                &[InputShape {
                     kinds: kinds_of(rows),
                     tree: None,
                 }],

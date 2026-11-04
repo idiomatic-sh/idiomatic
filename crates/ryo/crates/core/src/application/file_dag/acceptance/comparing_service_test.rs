@@ -171,7 +171,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
     let contract = crate::application::file_dag::derived::prepare::operator(
         &SelectItem,
         &operation,
-        &[crate::domain::operation_schema::types::InputSchema {
+        &[crate::domain::operation_schema::types::InputShape {
             kinds: &[CellKind::Symbol],
             tree: None,
         }],

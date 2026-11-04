@@ -4,7 +4,7 @@ use crate::application::file_dag::derived::owner::ViewContext;
 use crate::domain::{
     derived_views::types::*,
     operating::{errors::OperatingError, types::OperatorContext},
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
     table_model::types::{ParameterBinding, Rows},
 };
@@ -161,7 +161,7 @@ fn use_(
 ) -> PreparedViewUse {
     let schemas = schemas
         .iter()
-        .map(|kinds| InputSchema { kinds, tree: None })
+        .map(|kinds| InputShape { kinds, tree: None })
         .collect::<Vec<_>>();
     PreparedViewUse {
         plan: {

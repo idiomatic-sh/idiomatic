@@ -52,7 +52,7 @@ fn acquired(
         crate::application::file_dag::derived::prepare::view(
             crate::outbound::derived::factory::test_port(),
             &request,
-            &[crate::domain::operation_schema::types::InputSchema {
+            &[crate::domain::operation_schema::types::InputShape {
                 kinds: rows.kinds(),
                 tree: None,
             }],

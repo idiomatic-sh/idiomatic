@@ -4,7 +4,7 @@ use crate::application::file_dag::{execution::CommonOperatorEngine, relations::R
 use crate::domain::{
     coverage::types::Partial,
     operating::types::OperatorContext,
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     operator::{service::registered, types::PreparedPool},
     table_model::{service::kinds_of, types::Rows},
 };
@@ -104,7 +104,7 @@ impl ResourceFixture {
         }
         let schemas = inputs
             .iter()
-            .map(|rows| InputSchema {
+            .map(|rows| InputShape {
                 kinds: kinds_of(rows),
                 tree: if let Rows::Tree(tree) = rows {
                     Some(tree.form)
@@ -242,7 +242,7 @@ impl ResourceFixture {
     ) -> Result<(), OperatingError> {
         let schemas = inputs
             .iter()
-            .map(|rows| InputSchema {
+            .map(|rows| InputShape {
                 kinds: kinds_of(rows),
                 tree: if let Rows::Tree(tree) = rows {
                     Some(tree.form)

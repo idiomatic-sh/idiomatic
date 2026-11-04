@@ -126,7 +126,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     use crate::application::file_dag::derived::owner::ViewContext;
     use crate::domain::{
         derived_views::types::*,
-        operation_schema::types::InputSchema,
+        operation_schema::types::InputShape,
         operator::contract::{types::PredicateProgram, views::BorrowedRows},
         stored_selection::types::Selector,
         table_model::types::{SelectionIdentity, Verdict},
@@ -172,7 +172,7 @@ fn oversized_selection_refuses_retention_without_charging_the_cache() -> Result<
     let plan = Arc::new(crate::application::file_dag::derived::prepare::view(
         crate::outbound::derived::factory::test_port(),
         &ViewRequest::PredicateMatches(selector),
-        &[InputSchema {
+        &[InputShape {
             kinds: &[],
             tree: None,
         }],
@@ -304,7 +304,7 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
 fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> Result<(), Failure> {
     use crate::application::file_dag::{derived::owner::ViewContext, relations::RelationOwner};
     use crate::domain::{
-        derived_views::types::*, operation_schema::types::InputSchema,
+        derived_views::types::*, operation_schema::types::InputShape,
         operator::contract::views::BorrowedRows, table_model::service::push_row,
     };
     use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -316,7 +316,7 @@ fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> R
     for value in [1, 1, 2] {
         push_row(&mut table, &[Cell::Number(Integer(value))]);
     }
-    let schema = [InputSchema {
+    let schema = [InputShape {
         kinds: &table.kinds,
         tree: None,
     }];

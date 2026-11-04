@@ -1,7 +1,7 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
 use super::*;
 use crate::domain::{
-    derived_views::types::*, operation_schema::types::InputSchema, table_model::service::push_row,
+    derived_views::types::*, operation_schema::types::InputShape, table_model::service::push_row,
 };
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
@@ -24,7 +24,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
                 source: ColumnIndex(0),
                 destination: ColumnIndex(1),
             },
-            &[InputSchema {
+            &[InputShape {
                 kinds: &table.kinds,
                 tree: None,
             }],
@@ -88,7 +88,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
             &ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],
             },
-            &[InputSchema {
+            &[InputShape {
                 kinds: &table.kinds,
                 tree: None,
             }],

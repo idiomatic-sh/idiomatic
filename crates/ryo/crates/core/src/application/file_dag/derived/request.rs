@@ -5,7 +5,7 @@ use crate::domain::{
         types::*,
     },
     operating::errors::OperatingError,
-    operation_schema::types::InputSchema,
+    operation_schema::types::InputShape,
     operator::contract::{
         resources::{IndexColumns, ResourceProgram},
         types::OperatorContract,
@@ -253,7 +253,7 @@ impl RequestViews {
         let mut missing = None;
         for position in positions {
             if let Some(kinds) = kinds.get(*position) {
-                schemas.push(InputSchema { kinds, tree: None });
+                schemas.push(InputShape { kinds, tree: None });
             } else {
                 missing = Some(OperatingError::MissingInput {
                     position: *position + 1,
@@ -322,7 +322,7 @@ impl RequestViews {
     fn intern_missing(
         &mut self,
         request: &ViewRequest,
-        schemas: &[InputSchema<'_>],
+        schemas: &[InputShape<'_>],
         error: OperatingError,
     ) -> Result<Arc<DerivedContract>, OperatingError> {
         if let Some(plan) = self.plans.iter().find(|plan| {
@@ -346,7 +346,7 @@ impl RequestViews {
     pub(in crate::application::file_dag) fn intern(
         &mut self,
         request: &ViewRequest,
-        schemas: &[InputSchema<'_>],
+        schemas: &[InputShape<'_>],
     ) -> Result<Arc<DerivedContract>, OperatingError> {
         if let Some(plan) = self.plans.iter().find(|plan| {
             same_request(&plan.request, request)

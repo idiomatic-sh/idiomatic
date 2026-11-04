@@ -118,7 +118,7 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
 fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::derived::owner::{DerivedOwner, PopulationId, ViewContext};
     use crate::domain::{
-        derived_views::types::*, operation_schema::types::InputSchema,
+        derived_views::types::*, operation_schema::types::InputShape,
         operator::contract::views::BorrowedRows, operator::types::PreparedPool,
     };
     use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
@@ -136,7 +136,7 @@ fn owner_routes_count_each_physical_equality_build_once() {
             &ViewRequest::Equality {
                 columns: on.to_vec(),
             },
-            &[InputSchema {
+            &[InputShape {
                 kinds: rows.kinds,
                 tree: None,
             }],

@@ -85,7 +85,7 @@ fn zero_singleton_and_many_producers_share_one_distinct_union_invocation() {
                     .expect("valid publication")
             })
             .collect::<Vec<_>>();
-        let schema = crate::domain::operation_schema::types::InputSchema {
+        let schema = crate::domain::operation_schema::types::InputShape {
             kinds: &[CellKind::Number],
             tree: None,
         };

@@ -72,7 +72,7 @@ impl<'f> PartitionedClosure<'f> {
         owner: Rc<RelationOwner>,
     ) -> Result<Self, OperatingError> {
         input.validate()?;
-        let schema = [crate::domain::operation_schema::types::InputSchema {
+        let schema = [crate::domain::operation_schema::types::InputShape {
             kinds: input.kinds(),
             tree: None,
         }];

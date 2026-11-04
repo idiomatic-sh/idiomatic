@@ -6,7 +6,7 @@ use crate::domain::operating::{
     errors::OperatingError,
     types::{Emit, InputPlace, OperatorContext, Room, SemanticLookup, Supply},
 };
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::{contract::types::OperatorContract, service::registered};
 use crate::domain::replay::types::Pipe;
 
@@ -241,7 +241,7 @@ pub(crate) fn prepare(
 ) -> Result<OperatorContract, OperatingError> {
     let schemas = tables
         .iter()
-        .map(|table| InputSchema {
+        .map(|table| InputShape {
             kinds: &table.kinds,
             tree: None,
         })
@@ -371,7 +371,7 @@ pub(crate) trait TestOperator:
     ) -> Result<(), OperatingError> {
         let schemas = inputs
             .iter()
-            .map(|rows| InputSchema {
+            .map(|rows| InputShape {
                 kinds: crate::domain::table_model::service::kinds_of(rows),
                 tree: match rows {
                     Rows::Tree(tree) => Some(tree.form),
@@ -403,7 +403,7 @@ pub(crate) trait TestOperator:
             .collect::<Result<Vec<_>, _>>()?;
         let schemas = kinds
             .iter()
-            .map(|kinds| InputSchema { kinds, tree: None })
+            .map(|kinds| InputShape { kinds, tree: None })
             .collect::<Vec<_>>();
         let contract =
             super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
@@ -432,7 +432,7 @@ pub(crate) fn stream_with_inputs(
 ) -> Result<(), OperatingError> {
     let schemas = inputs
         .iter()
-        .map(|rows| InputSchema {
+        .map(|rows| InputShape {
             kinds: crate::domain::table_model::service::kinds_of(rows),
             tree: match rows {
                 Rows::Tree(tree) => Some(tree.form),

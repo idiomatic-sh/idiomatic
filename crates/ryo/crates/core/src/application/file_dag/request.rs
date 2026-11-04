@@ -1,7 +1,7 @@
 //! Prepare every operation once for one request, shared by all file workers.
 use crate::domain::features::service::kind_of;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operation_schema::types::InputSchema;
+use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::operator::service::registered;
 use crate::domain::table_cells::types::TreeForm;
@@ -67,11 +67,11 @@ impl RequestOperators {
                     .iter()
                     .map(|input| {
                         Ok(match input {
-                            Input::Relation(relation) => InputSchema {
+                            Input::Relation(relation) => InputShape {
                                 kinds: relation_kinds(*relation),
                                 tree: crate::domain::table_cells::service::native_form(*relation),
                             },
-                            Input::BoundObservation(id) => InputSchema {
+                            Input::BoundObservation(id) => InputShape {
                                 kinds: observed_kinds
                                     .get(
                                         usize::try_from(id.0)
@@ -80,7 +80,7 @@ impl RequestOperators {
                                     .ok_or(OperatingError::NotRun)?,
                                 tree: None,
                             },
-                            Input::Step(id) => InputSchema {
+                            Input::Step(id) => InputShape {
                                 kinds: contracts
                                     .get(id.0 as usize)
                                     .and_then(|contract| contract.schema.as_ref().ok())
@@ -93,7 +93,7 @@ impl RequestOperators {
                 // Hosted is a real request source. Its schema is not a pretend
                 // dependency and no evaluator special-case may bypass registration.
                 if let Operation::Hosted { relation } = &step.operation {
-                    schemas.push(InputSchema {
+                    schemas.push(InputShape {
                         kinds: host_kinds
                             .get(relation.0 as usize)
                             .map_or(&[], Vec::as_slice),

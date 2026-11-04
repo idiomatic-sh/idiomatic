@@ -3,8 +3,8 @@
 use crate::application::file_dag::cross_execution::compute;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
-use crate::domain::operation_schema::types::InputSchema;
-use crate::domain::operation_schema::types::traversal::value::TraversalSchema;
+use crate::domain::operation_schema::types::InputShape;
+use crate::domain::operation_schema::types::traversal::value::TraversalShape;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::{
     errors::TableModelError,
@@ -200,7 +200,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
         };
         let schemas: Vec<_> = rows
             .iter()
-            .map(|row| InputSchema {
+            .map(|row| InputShape {
                 kinds: kinds_of(row),
                 tree: match row {
                     Rows::Tree(tree) => Some(tree.form),
@@ -243,7 +243,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         return native(scenario);
     }
     let kinds = [CellKind::Node, CellKind::Number, CellKind::Number];
-    let mut schemas = [InputSchema {
+    let mut schemas = [InputShape {
         kinds: &kinds,
         tree: None,
     }; 3];
@@ -302,13 +302,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::EndpointKind => operation = dfs(),
         Scenario::MissingInput => {
-            return TraversalSchema::new(&[])
+            return TraversalShape::new(&[])
                 .of(&operation, &[])
                 .map(|kinds| kinds.len());
         }
         Scenario::NativeAxis | Scenario::NativeJoinView => unreachable!(),
     }
-    TraversalSchema::new(&schemas)
+    TraversalShape::new(&schemas)
         .of(&operation, &[])
         .map(|kinds| kinds.len())
 }

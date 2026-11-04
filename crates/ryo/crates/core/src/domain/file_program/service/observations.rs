@@ -312,7 +312,7 @@ pub(crate) fn graph_outputs(
                         .iter()
                         .map(|column| column.kind)
                         .collect::<Vec<_>>();
-                    let schema = crate::domain::operation_schema::types::InputSchema {
+                    let schema = crate::domain::operation_schema::types::InputShape {
                         kinds: &kinds,
                         tree: None,
                     };
