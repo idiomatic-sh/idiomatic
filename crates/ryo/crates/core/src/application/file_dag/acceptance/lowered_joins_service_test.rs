@@ -184,7 +184,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             };
             room.made.push(Positions::default());
             room.ready.push(Readiness::NotMade);
+            let mut derived = crate::application::file_dag::testing::raw_scope()?;
             let mut run = crate::domain::fragment::types::FragmentRun {
+                derived: &mut derived,
                 plan: &plan,
                 lowering: &lowering,
                 tree: rows,

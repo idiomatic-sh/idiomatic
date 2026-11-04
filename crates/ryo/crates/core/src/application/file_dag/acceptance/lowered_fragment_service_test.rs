@@ -98,7 +98,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         made: vec![Positions::default(); plan.steps.len()],
         ..LoweredRoom::default()
     };
+    let mut derived = crate::application::file_dag::testing::raw_scope()?;
     let mut running = FragmentRun {
+        derived: &mut derived,
         plan: &plan,
         lowering: &lowering,
         tree: rows_over(&elements),

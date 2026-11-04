@@ -1027,10 +1027,9 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
     assert_eq!(
         take_resource_setup(),
         Some((false, false)),
-        "parse calls {}, language {:?}, graph {}, unread {}",
+        "parse calls {}, language {:?}, unread {}",
         unstable_language.parses.load(Ordering::Relaxed),
         unstable.tables.language,
-        unstable.tables.pool.file_graph.is_some(),
         unstable.tables.unread.len(),
     );
 

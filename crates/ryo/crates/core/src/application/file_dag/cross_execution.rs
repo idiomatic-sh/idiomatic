@@ -270,6 +270,7 @@ pub(crate) fn evaluate_cross_roots_with_executor(
 /// Legacy diagnostic-only caller of the same execution pass. A per-file Emit is not a cross result.
 #[cfg(test)]
 pub(crate) fn evaluate_cross_with_executor(
+    scope: &super::scope::ExecutionScope<'_>,
     plan: &Plan,
     frontier: Vec<Frontier>,
     partials: &Partials,
@@ -277,19 +278,27 @@ pub(crate) fn evaluate_cross_with_executor(
     fed: &mut [RowsFed],
     hosted: &[Table],
     executor: &super::executor::ScopedExecutor<'_>,
-    operators: &[std::sync::Arc<OperatorContract>],
+    _operators: &[std::sync::Arc<OperatorContract>],
 ) -> Result<Table, OperatingError> {
-    let roots = evaluate_cross_roots_with_executor(
-        plan,
-        frontier,
-        &[],
+    let completion = super::completion::CompletionPolicy::project(
+        crate::domain::coverage::types::RuleIndex(0),
         partials,
+    );
+    let roots = evaluate_cross_roots_with_executor(
+        &completion,
+        scope,
+        0,
+        plan,
+        frontier
+            .into_iter()
+            .map(crate::application::cross_file::types::FrontierInput::Decoded)
+            .collect(),
+        &[],
         partials,
         context,
         fed,
-        hosted,
+        hosted.to_vec(),
         executor,
-        operators,
     )?;
     if let Some(error) = roots.emit_error {
         return Err(error);
@@ -322,8 +331,12 @@ pub(crate) fn compute(
         &schemas,
         context.bindings,
     )?;
-    crate::application::file_dag::execution::CommonOperatorEngine::fixture()
-        .collect(&contract, inputs, context, out)
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::fixture();
+    let owner = std::rc::Rc::new(super::relations::RelationOwner::new(
+        false,
+        engine.derived.clone(),
+    ));
+    engine.collect(&owner, &contract, inputs, context, out)
 }
 
 #[cfg(test)]
@@ -342,14 +355,26 @@ pub(crate) fn evaluate_cross(
         &[],
         crate::outbound::derived::factory::test_port(),
     )?;
+    let graph = std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
+        std::slice::from_ref(plan),
+        &request,
+    ));
+    let engine = crate::application::file_dag::execution::CommonOperatorEngine::fixture();
+    let scope = super::scope::ExecutionScope::new(
+        graph,
+        super::scope::ScopePhase::Project,
+        false,
+        &engine,
+    )?;
     evaluate_cross_with_executor(
+        &scope,
         plan,
         frontier,
         partials,
         context,
         fed,
         hosted,
-        &crate::application::file_dag::execution::CommonOperatorEngine::fixture(),
+        scope.executor(),
         &request.rules[0],
     )
 }

@@ -45,7 +45,7 @@ pub(crate) fn evaluate_rule<'f>(
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
 ) -> Result<Vec<Table>, RulesError> {
-    evaluate_rule_with_graph(tables, setting, rule, file, relations, classes, None)
+    evaluate_rule_with_graph(tables, setting, rule, file, relations, classes)
 }
 
 /// Evaluate one rule with optional successful cut handles from the request graph.
@@ -58,7 +58,33 @@ pub(crate) fn evaluate_rule_with_graph<'f>(
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     classes: &crate::domain::shared_walk::types::SharedClasses,
 ) -> Result<Vec<Table>, RulesError> {
-    evaluate_rule_with_dag(tables, setting, rule, file, relations, classes, None, None)
+    let scope = super::testing::FileScope::new(
+        std::sync::Arc::clone(&setting.graph),
+        setting.executor,
+        |index| index == rule.0,
+        setting.wanted,
+        &[],
+    )?;
+    scope.execution.borrow().prepare_resources(
+        true,
+        setting.wanted,
+        &[],
+        setting.wanted,
+        setting.plans,
+        &tables.pool,
+        |index| index == rule.0,
+    );
+    evaluate_rule_with_dag(
+        tables,
+        setting,
+        rule,
+        file,
+        relations,
+        classes,
+        &scope.execution,
+        scope.scope.executor(),
+        None,
+    )
 }
 
 pub(crate) fn evaluate_rule_with_dag<'f>(

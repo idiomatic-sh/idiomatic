@@ -246,7 +246,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             worker.reads = FilesRead(2);
             worker.arena = ArenaBytes(vec![7]);
             let mut met = gathering(&plans);
-            absorb(&mut met, worker, &plans);
+            absorb(&mut met, worker);
             met.fed[0][0].0[2] * 100 + u64::from(met.read.0) * 10 + count(met.arenas.len())
         }
         Scenario::Order => {

@@ -106,7 +106,14 @@ fn reclaim(fixture: &ResourceFixture, all_payload: bool) -> bool {
     let mut backend = owner.backend.borrow_mut();
     let cache = backend.as_mut().unwrap();
     let cost = if all_payload {
-        let payload = crate::application::file_dag::derived::graph_cache::types::reclamation::value::index_payload(&cache.entries[0]).unwrap();
+        let payload = owner
+            .state
+            .borrow()
+            .entries
+            .values()
+            .find(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some())
+            .expect("retained equality payload")
+            .bytes;
         let metadata = cache.bytes - payload - owner.state.borrow().retained_bytes;
         cache.limit - metadata
     } else {
@@ -182,7 +189,7 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
         panic!("equality");
     };
     assert_eq!(
-        index.rows.len(),
+        index.rows().len(),
         2,
         "outstanding immutable resource remains readable"
     );

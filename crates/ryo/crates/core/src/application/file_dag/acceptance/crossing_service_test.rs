@@ -619,7 +619,10 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 &scope,
                 0,
                 &plan,
-                frontier,
+                frontier
+                    .into_iter()
+                    .map(crate::application::cross_file::types::FrontierInput::Decoded)
+                    .collect(),
                 &[],
                 &partials,
                 &mut context,

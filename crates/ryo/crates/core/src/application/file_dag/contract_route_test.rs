@@ -349,6 +349,7 @@ fn all26_actual_production_routes_invoke_and_emit_through_the_required_executor(
             let dag = scope.execution.borrow();
             assert!(dag.graph.cuts[0][0].is_none());
             evaluate_cross_with_executor(
+                &scope.scope,
                 &plan,
                 vec![],
                 &Partials::default(),
