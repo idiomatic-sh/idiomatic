@@ -98,7 +98,7 @@ impl PositionJoinDriver for TreeMatch<'_, '_, '_, '_> {
         }
         self.pending = TreeCandidate::Exhausted;
         self.counts.found(1, 1);
-        match allows(self.admit, self.tree, Position(self.hit[0]), self.context) {
+        match allows(self.admit, self.tree, Position(self.hit.0[0]), self.context) {
             Ok(verdict) => {
                 self.ready = if verdict == Verdict::Holds {
                     TreeAdmission::Admitted
