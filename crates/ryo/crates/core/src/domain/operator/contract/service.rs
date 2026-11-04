@@ -288,41 +288,6 @@ pub(crate) fn prepare_for(
     let schema = crate::domain::operation_schema::service::schema_of(operation, inputs, bindings);
     let collected_kinds = super::preflight::collected_layout(operation, inputs, &schema);
     use ryo_values::domain::plans::types::Operation;
-    let aggregation = match operation {
-        Operation::GroupCount { keys, distinct, .. } => Some(AggregationProgram::Count {
-            keys: keys.clone(),
-            distinct: *distinct,
-        }),
-        Operation::GroupDigest { keys, over, .. } => Some(AggregationProgram::Digest {
-            keys: keys.clone(),
-            over: *over,
-        }),
-        _ => None,
-    };
-    let set_scope = match operation {
-        Operation::Project {
-            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
-            ..
-        }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. } => SetScope::Invocation,
-        Operation::Join { reach: Some(_), .. } => SetScope::PrimaryRow,
-        _ => SetScope::None,
-    };
-    let set_kinds = match operation {
-        Operation::Join {
-            reach: Some(reach), ..
-        } => crate::domain::operation_schema::service::reach_kinds(
-            inputs.get(1).map_or(&[][..], |input| input.kinds),
-            reach,
-        )
-        .unwrap_or_default(),
-        Operation::Project { columns, .. } => collected_kinds.clone().unwrap_or_else(|_| {
-            vec![ryo_relations::domain::relations::types::CellKind::Number; columns.len()]
-        }),
-        _ => collected_kinds.clone().unwrap_or_default(),
-    };
     let resources = super::resources::prepare(operation);
     let collected_resources = match &resources {
         super::resources::ResourceProgram::Index {
@@ -340,10 +305,6 @@ pub(crate) fn prepare_for(
         derived: Default::default(),
         kind: expected,
         inputs: ryo_values::domain::plans::service::inputs_of(operation),
-        external_source: matches!(
-            operation,
-            ryo_values::domain::plans::types::Operation::Hosted { .. }
-        ),
         input_kinds: inputs.iter().map(|input| input.kinds.to_vec()).collect(),
         streaming,
         collected,
@@ -353,9 +314,6 @@ pub(crate) fn prepare_for(
         resources,
         collected_resources,
         collected_empty: super::preflight::empty_results(operation, inputs),
-        set_scope,
-        aggregation,
-        set_kinds,
         source_gate,
         row_error,
         literal_pattern,

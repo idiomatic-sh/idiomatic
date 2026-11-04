@@ -58,17 +58,6 @@ pub(crate) enum Publication {
     AfterSuccess,
 }
 
-/// Engine-owned lifetime of semantic first-occurrence work.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SetScope {
-    /// No first-occurrence state is required.
-    None,
-    /// Share first-occurrence work for one invocation.
-    Invocation,
-    /// Restart first-occurrence work for each primary row.
-    PrimaryRow,
-}
-
 /// Resource declarations are semantic needs, never primitive-controlled cache policy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ResourceNeeds {
@@ -190,7 +179,6 @@ pub(crate) struct OperatorContract {
     pub kind: OperationKind,
     pub inputs: Inputs,
     pub input_kinds: Vec<Vec<CellKind>>,
-    pub external_source: bool,
     pub streaming: ModeContract,
     pub collected: ModeContract,
     /// Metadata errors remain deferred to the declared execution boundary.
@@ -202,9 +190,6 @@ pub(crate) struct OperatorContract {
     pub resources: super::resources::ResourceProgram,
     pub collected_resources: super::resources::ResourceProgram,
     pub collected_empty: Vec<EmptyResult>,
-    pub set_scope: SetScope,
-    pub aggregation: Option<AggregationProgram>,
-    pub set_kinds: Vec<CellKind>,
     pub source_gate: SourceGate,
     pub row_error: Option<OperatingError>,
     pub literal_pattern: Option<ryo_values::domain::plan_parts::types::LiteralText>,
