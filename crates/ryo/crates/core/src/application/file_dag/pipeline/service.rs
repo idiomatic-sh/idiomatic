@@ -4,13 +4,11 @@ use crate::domain::{
     operator::types::{Pool, PreparedPool},
     table_cells::types::TreeRows,
     table_model::{service::materialize, types::Rows},
-    trust::{service::blocked, types::Blocking},
 };
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::{
     plan_parts::types::Input,
     plans::types::{Plan, StepScope},
-    rows::types::RowCount,
 };
 #[cfg(test)]
 pub(crate) fn evaluate_file<'f>(
@@ -111,32 +109,27 @@ pub(crate) fn evaluate_file_with_executor<'f>(
     context: &mut OperatorContext<'_>,
     pool: &mut Pool,
     prepared: &mut PreparedPool,
-    classes: &[crate::domain::positions::types::Slots],
 
     rule: usize,
     file_dag: &dyn crate::application::file_dag::interface::DagExecution,
     executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
-    operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
-    evaluate_file_inner::<false>(
-        plan, relations, tree, context, pool, prepared, classes, rule, file_dag, executor,
-        operators,
+    evaluate_file_inner(
+        plan, relations, tree, context, pool, prepared, rule, file_dag, executor,
     )
 }
 
-fn evaluate_file_inner<'f, const LEGACY: bool>(
+fn evaluate_file_inner<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
     tree: Option<TreeRows<'f>>,
     context: &mut OperatorContext<'_>,
     pool: &mut Pool,
     prepared: &mut PreparedPool,
-    classes: &[crate::domain::positions::types::Slots],
 
     rule: usize,
     file_dag: &dyn crate::application::file_dag::interface::DagExecution,
     executor: &crate::application::file_dag::executor::ScopedExecutor<'_>,
-    operators: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
 ) -> Result<(), OperatingError> {
     // Rule orchestration declares roots only. Every dependency is demanded by
     // the required graph owner, including non-retainable and incomplete inputs.
@@ -256,5 +249,3 @@ fn evaluate_file_inner<'f, const LEGACY: bool>(
     }
     Ok(())
 }
-
-use ryo_values::domain::rows::types::Table;

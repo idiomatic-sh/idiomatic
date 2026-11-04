@@ -155,7 +155,6 @@ impl CommonOperatorEngine<'_> {
         out: &mut Table,
         workspace: &mut InvocationWorkspace,
     ) -> Result<(), OperatingError> {
-        let provider_inputs = inputs;
         let normalized = physical_fallbacks(inputs, workspace, 0)?;
         let originals = inputs
             .iter()

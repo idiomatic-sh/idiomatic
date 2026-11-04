@@ -1,4 +1,4 @@
-use super::relations::{RelationOwner, RelationResult};
+use super::relations::RelationOwner;
 use crate::domain::file_program::types::RequestGraph;
 use std::rc::Rc;
 use std::sync::Arc;

@@ -27,7 +27,6 @@ use crate::domain::recording::service::{
 };
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use crate::domain::shared_walk::service::walk;
 use crate::domain::shared_walk::types::Walking;
 use crate::domain::table_texts::types::SourceView;
 use crate::domain::table_words::service::pack_onto;

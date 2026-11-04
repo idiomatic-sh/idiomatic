@@ -11,7 +11,6 @@ pub(crate) enum PublicationSlot {
 pub(crate) struct ObservationRun<'a> {
     pub domain: crate::domain::crossing::types::CrossingInput<'a>,
     pub executor: &'a dyn crate::application::file_dag::executor::PrimitiveExecutor,
-    pub operators: std::sync::Arc<crate::domain::operator::contract::types::RequestOperators>,
     pub graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
     pub scheduler: &'a dyn crate::outbound::scheduler::interface::SchedulerPort,
     pub workers: crate::outbound::scheduler::types::WorkerCount,

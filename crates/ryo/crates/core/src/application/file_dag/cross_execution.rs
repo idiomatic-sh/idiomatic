@@ -23,13 +23,11 @@ pub(crate) fn evaluate_cross_roots_with_executor(
     plan: &Plan,
     frontier: Vec<Frontier>,
     refused: &[crate::domain::crossing::types::RefusedFrontier],
-    partials: &Partials,
     observation_partials: &Partials,
     context: &mut OperatorContext<'_>,
     fed: &mut [RowsFed],
     hosted: Vec<Table>,
     executor: &super::executor::ScopedExecutor<'_>,
-    operators: &[std::sync::Arc<OperatorContract>],
 ) -> Result<crate::domain::crossing::types::PhaseRoots, OperatingError> {
     use super::interface::DagExecution;
     use crate::domain::file_program::types::NodeId;

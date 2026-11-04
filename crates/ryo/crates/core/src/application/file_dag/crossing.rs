@@ -126,18 +126,11 @@ pub(crate) fn cross_rule_with_inputs(
             plan,
             frontier,
             refused,
-            &partials,
             &observation_partials,
             &mut context,
             &mut fed,
             hosted,
             executor,
-            crossing
-                .operators
-                .rules
-                .get(rule.0)
-                .ok_or(crate::domain::operating::errors::OperatingError::NotRun)
-                .map_err(|error| refuse(&error))?,
         );
         if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
             tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase = "after_cross_evaluate", owner = "decoded_inputs", caller_inputs_owned = false, decoded_capacity_bytes = 0_usize, success = evaluated.is_ok());

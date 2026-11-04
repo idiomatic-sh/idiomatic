@@ -125,7 +125,7 @@ pub(crate) fn gathering(plans: &[Plan]) -> WorkersMet {
 }
 
 /// Takes what one worker made into what the workers made together.
-pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables, plans: &[Plan]) {
+pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables) {
     for (slots, fed) in met.fed.iter_mut().zip(&tables.pool.fed) {
         for (slot, more) in slots.iter_mut().zip(fed) {
             add_fed(slot, more);

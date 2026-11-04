@@ -103,6 +103,8 @@ type Failure = Refusal;
 /// The refusals the rows tell apart.
 #[derive(Debug, PartialEq, Eq)]
 enum Refusal {
+    /// Preserve the engine execution reason for an unexpected runtime refusal.
+    Execution(String),
     /// Invalid declared observation bindings.
     ObservationBindings,
     /// Required observation publication failed during execution.
@@ -466,6 +468,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         request,
     )
     .map_err(|error| match error {
+        LintError::Execution { reason } => Refusal::Execution(reason),
         LintError::ObservationBindings { .. } => Refusal::ObservationBindings,
         LintError::ObservationExecution { .. } => Refusal::ObservationExecution,
         LintError::SourceLanguage { .. } => Refusal::SourceLanguage,

@@ -137,7 +137,6 @@ impl CrossFile {
                 let crossing = CrossingInput {
                     arenas: publications.arenas(),
                     executor: run.executor,
-                    operators: std::sync::Arc::clone(&run.operators),
                     graph: std::sync::Arc::clone(&run.graph),
                     domain: run.domain.clone(),
                 };

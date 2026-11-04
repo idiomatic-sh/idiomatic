@@ -8,10 +8,7 @@ use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::table_model::types::Rows;
 use std::{rc::Rc, sync::Arc};
 
-use super::{
-    relations::{RelationOwner, RelationResult},
-    service::GraphInputs,
-};
+use super::{relations::RelationOwner, service::GraphInputs};
 /// A common-owner declaration of the source and canonical outputs of one
 /// shared native physical batch. It carries no dependency scheduler or cache.
 pub(crate) struct NativeClassBatch<'a> {

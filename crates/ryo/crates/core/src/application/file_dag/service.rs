@@ -3,12 +3,12 @@ use super::executor::ScopedExecutor;
 use super::interface::DagExecution;
 use super::types::FileDagExecution;
 use crate::application::file_dag::feed::Feed;
-use crate::domain::file_program::types::{NodeId, NodeInput, RequestGraph};
+#[cfg(test)]
+use crate::domain::file_program::types::RequestGraph;
+use crate::domain::file_program::types::{NodeId, NodeInput};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, Supply};
+use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Supply};
 use crate::domain::replay::service::scan;
-use crate::domain::replay::types::Collect;
-use crate::domain::table_model::service::reset;
 use crate::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use std::cell::OnceCell;
@@ -327,7 +327,6 @@ impl FileDagExecution {
             return scan(&rows, &mut Vec::new(), context, emit);
         }
         let node = graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
-        let completion = scope.state().completion.clone();
         let request_source = scope.state().hosted.get(&id).cloned();
         #[cfg(feature = "diagnostic-row-progress")]
         super::route_counts::node_description(&node.operation);

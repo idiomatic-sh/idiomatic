@@ -144,16 +144,9 @@ pub(crate) fn evaluate_rule_with_dag<'f>(
                 &mut context,
                 pool,
                 &mut tables.pool,
-                &classes.classes,
                 rule.0,
                 file_dag,
                 executor,
-                setting
-                    .operators
-                    .rules
-                    .get(rule.0)
-                    .ok_or(crate::domain::operating::errors::OperatingError::NotRun)
-                    .map_err(|error| refuse(&error))?,
             )
             .map_err(|error| match error {
                 crate::domain::operating::errors::OperatingError::ObservationIncomplete {

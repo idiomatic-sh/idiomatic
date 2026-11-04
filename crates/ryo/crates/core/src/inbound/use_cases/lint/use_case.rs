@@ -900,7 +900,7 @@ impl LintUseCaseImpl {
                 return Err(error.into());
             }
             workers.push(state.facts);
-            absorb(&mut met, state.tables, run.plans);
+            absorb(&mut met, state.tables);
         }
         let counted = RowTotal(counted.load(Ordering::Relaxed));
         let total = match run.answering {
@@ -1012,7 +1012,6 @@ impl LintUseCaseImpl {
                     crate::application::cross_file::types::ObservationRun {
                         domain,
                         executor: run.executor,
-                        operators: std::sync::Arc::clone(&run.operators),
                         graph: std::sync::Arc::clone(&run.graph),
                         scheduler: self.scheduler.as_ref(),
                         workers: self.workers,
@@ -1030,7 +1029,6 @@ impl LintUseCaseImpl {
         }
         let crossing = CrossingInput {
             executor: run.executor,
-            operators: std::sync::Arc::clone(&run.operators),
             graph: std::sync::Arc::clone(&run.graph),
             arenas: &*handed.arenas,
             domain,
@@ -1548,7 +1546,6 @@ impl LintUseCase for LintUseCaseImpl {
             graph: std::sync::Arc::clone(&graph),
             observations: setting.observations,
             executor: &executor,
-            operators: std::sync::Arc::clone(&operators),
             request: &request,
             rules: &rules,
             plans: &plans,
