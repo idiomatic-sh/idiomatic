@@ -206,6 +206,7 @@ extras-iff-variant = "0.1.0"
 language-depends-on-ryo-only = "0.1.0"
 language-parts = "0.1.0"
 language-test-entries = "0.1.0"
+program-implementation-boundary = "0.1.0"
 readers-in-items = "0.1.0"
 
 [packages."idiomatic.ryo".specs]

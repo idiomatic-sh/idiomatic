@@ -1,0 +1,135 @@
+description = "Only the executable-program owner and its physical-kernel bridges may depend on execution internals."
+why = "The application program owns admission, publication, restoration, and physical dispatch. A consumer that resolves an internal implementation module directly can bypass that owner. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. The facade and borrowed semantic interfaces remain available. Rust visibility and engine-issued permits separately enforce construction and invocation; unresolved or macro-generated dependencies are outside this source rule."
+
+query = '''
+let paths = capture(from="source-dependency", path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
+let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{implementation}.rs", captures=["target-root", "implementation"]);
+let local = select source as file, span, source-tail, implementation from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let protected = select * from local where glob_any(implementation, "{runtime,admission,kernel_session,restored,request_identity}");
+let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
+let forbidden = select * from outsiders where implementation != "admission" or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
+let program-violations = select file, span from forbidden;
+let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
+let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs}");
+let cache-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
+let local-cache = select source as file, span, source-tail, cache-part from cache-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
+let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
+let foreign-cache = select file, span from raw-cache where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/testing.rs}");
+let dispatch-violations = union(left=program-violations, right=foreign-leases);
+let violations = union(left=dispatch-violations, right=foreign-cache);
+emit violations subject file key(span);
+'''
+
+[diagnostic]
+primary = "span"
+message = "a caller reaches the executable-program implementation"
+help = "Call the application program facade with engine-issued inputs. Keep admission, publication, restoration, and physical dispatch in the program owner; the three physical-kernel bridges may borrow admission permits."
+
+[given]
+include = ["src/**"]
+files.'Cargo.toml' = '''
+[package]
+name = "program_boundary_fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'pub mod application; pub mod domain;'
+files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
+files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived;'
+files.'src/application/file_dag/program.rs' = 'pub mod facade; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity;'
+files.'src/application/file_dag/program/facade.rs' = 'pub fn invoke() {}'
+files.'src/application/file_dag/program/runtime.rs' = 'pub fn execute() {}'
+files.'src/application/file_dag/program/admission.rs' = 'pub struct Permit;'
+files.'src/application/file_dag/program/restored.rs' = 'pub fn restore() {}'
+files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() {}'
+files.'src/application/file_dag/program/request_identity.rs' = 'pub struct RequestId;'
+files.'src/application/file_dag/executor.rs' = 'pub fn bridge() {}'
+files.'src/application/file_dag/execution.rs' = 'pub mod lease;'
+files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() {}'
+files.'src/application/file_dag/derived.rs' = 'pub mod owner;'
+files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases;'
+files.'src/application/file_dag/derived/owner/acquisition.rs' = 'pub fn acquire() {}'
+files.'src/application/file_dag/derived/owner/raw_scope.rs' = 'pub fn make_scope() {}'
+files.'src/application/file_dag/derived/owner/leases.rs' = 'pub fn make_lease() {}'
+files.'src/application/caller.rs' = 'pub fn invoke() {}'
+files.'src/domain.rs' = 'pub mod semantic;'
+files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
+
+[[scenarios]]
+id = "direct-internal-import"
+scenario = "An application peer cannot import the runtime implementation."
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::program::runtime::execute;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "renamed-relative-import"
+scenario = "A relative renamed admission import still resolves to the protected module."
+given.files.'src/application/caller.rs' = 'use super::file_dag::program::admission::Permit as Borrowed;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "qualified-call"
+scenario = "A qualified restoration call without an import is also a dependency."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::restored::restore(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "reexport-escape"
+scenario = "Re-exporting an implementation entrypoint is not an allowed facade."
+given.files.'src/application/caller.rs' = 'pub use crate::application::file_dag::program::kernel_session::dispatch;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-cannot-reach-permit"
+scenario = "A semantic module cannot reach request identity or admission."
+given.files.'src/domain/semantic.rs' = 'use crate::application::file_dag::program::request_identity::RequestId;'
+then.findings = [{ path = "src/domain/semantic.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-dispatch-physical-lease"
+scenario = "An application peer cannot call the raw physical lease dispatcher."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::execution::lease::bridge(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-acquire-cache"
+scenario = "An application peer cannot call the derived cache acquisition implementation."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::derived::owner::acquisition::acquire(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-mint-raw-scope"
+scenario = "An application peer cannot import raw cache scope construction."
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::derived::owner::raw_scope::make_scope;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "facade-is-supported"
+scenario = "A consumer may call the application facade."
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::facade::invoke(); }'
+
+[[scenarios]]
+id = "borrowed-data-is-supported"
+scenario = "The program may use the semantic borrowed-data surface."
+given.files.'src/application/file_dag/program/runtime.rs' = 'pub fn execute() { crate::domain::semantic::read_borrowed(); }'
+
+[[scenarios]]
+id = "owner-internals-are-supported"
+scenario = "The program owner may use internal admission."
+given.files.'src/application/file_dag/program/runtime.rs' = 'use super::admission::Permit;'
+
+[[scenarios]]
+id = "physical-bridge-is-supported"
+scenario = "The physical execution bridge may borrow an admission permit."
+given.files.'src/application/file_dag/execution/lease.rs' = 'use super::super::program::admission::Permit;'
+
+[[scenarios]]
+id = "program-dispatch-is-supported"
+scenario = "The program's kernel session may invoke the physical lease."
+given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::application::file_dag::execution::lease::bridge(); }'
+
+[[scenarios]]
+id = "cache-owner-is-supported"
+scenario = "The cache owner may invoke its own acquisition implementation."
+given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases; pub fn acquire() { acquisition::acquire(); }'
