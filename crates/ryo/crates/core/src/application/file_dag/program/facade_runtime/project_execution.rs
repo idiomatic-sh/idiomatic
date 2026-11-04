@@ -85,7 +85,7 @@ impl ProjectRun<'_, '_> {
             &unavailable,
         );
         let partition = Partition::Project(self.required.clone());
-        let absent = HashMap::new();
+        let mut absent = HashMap::new();
         let mut sources = SourceInputs {
             execution: self.execution,
             completion: completion.clone(),
@@ -130,20 +130,24 @@ impl ProjectRun<'_, '_> {
                 if root.phase != ryo_values::domain::plans::types::StepScope::CrossFile {
                     continue;
                 }
-                let result = root
-                    .source
-                    .clone()
-                    .and_then(|source| sources.admit(source, &partition, context));
+                let result = if completion.observation_ready(&root.reads) {
+                    root.source
+                        .clone()
+                        .and_then(|source| sources.admit(source, &partition, context))
+                } else {
+                    Err(OperatingError::ObservationIncomplete {
+                        reason: "physical source facts are incomplete".into(),
+                    })
+                };
                 observations.push((
                     ryo_values::domain::observations::types::ObservationIndex(
                         u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                     ),
                     match result {
-                        Ok(input) => outcome_of(
-                            Ok(InvocationOutcome::Published(input)),
-                            &self.owner,
-                            &unavailable,
-                        ),
+                        Ok(input) => match observation_table(&self.owner, &input, &unavailable) {
+                            Ok(table) => RootOutcome::Complete(table),
+                            Err(error) => classify(error),
+                        },
                         Err(error) => classify(error),
                     },
                 ));

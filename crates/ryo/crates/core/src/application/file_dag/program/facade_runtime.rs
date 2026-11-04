@@ -90,7 +90,7 @@ pub(crate) fn required_partitions(
 }
 
 mod source_admission;
-use source_admission::{SourceInputs, table_of};
+use source_admission::{SourceInputs, observation_table, table_of};
 
 mod file_execution;
 mod project_execution;

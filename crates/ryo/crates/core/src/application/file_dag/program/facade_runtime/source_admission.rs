@@ -133,7 +133,12 @@ fn admit_published(
         Rc::clone(owner),
         publication,
         &checked,
-        ProducerRoot::Input(source),
+        match source {
+            crate::domain::executable_program::types::InputSource::Region(id) => {
+                ProducerRoot::Region(id)
+            }
+            _ => ProducerRoot::Input(source),
+        },
         partition.clone(),
         Readiness::Complete,
     )
@@ -339,6 +344,19 @@ pub(super) fn table_of<'facts>(
     let mut table = Table::default();
     materialize(&rows, &mut table, &mut Vec::new());
     Ok(table)
+}
+
+pub(super) fn observation_table<'facts>(
+    owner: &Rc<RelationOwner>,
+    input: &AdmittedInput,
+    read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+) -> Result<Table, OperatingError> {
+    if !input.observation_ready()? {
+        return Err(OperatingError::ObservationIncomplete {
+            reason: "producer publication has incomplete physical coverage".into(),
+        });
+    }
+    table_of(owner, input, read)
 }
 
 fn source_for(

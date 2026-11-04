@@ -132,15 +132,21 @@ impl FileRun<'_, '_> {
                 if root.phase != ryo_values::domain::plans::types::StepScope::PerFile {
                     continue;
                 }
-                let result = root.source.clone().and_then(|source| {
-                    sources.admit(
-                        source,
-                        &Partition::File(FileGeneration::from_owner(self.file, &self.owner)),
-                        context,
-                    )
-                });
+                let result = if completion.observation_ready(&root.reads) {
+                    root.source.clone().and_then(|source| {
+                        sources.admit(
+                            source,
+                            &Partition::File(FileGeneration::from_owner(self.file, &self.owner)),
+                            context,
+                        )
+                    })
+                } else {
+                    Err(OperatingError::ObservationIncomplete {
+                        reason: "physical source facts are incomplete".into(),
+                    })
+                };
                 let outcome = match result {
-                    Ok(input) => match table_of(&self.owner, &input, read) {
+                    Ok(input) => match observation_table(&self.owner, &input, read) {
                         Ok(table) => {
                             published.push((index, input));
                             RootOutcome::Complete(table)
