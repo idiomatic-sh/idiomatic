@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::{
     Bits, Integer, Name, NamePlace, PlaceNumber, Value, Words,
 };
 
-use super::types::WordSlice;
+use super::types::{CompactFrame, CompactTable, DecodeMode, WordSlice};
 
 use ryo_values::domain::stored_facts::types::PackedWords;
 
@@ -49,11 +49,6 @@ pub(crate) fn decode_complete(
         places.truncate(before);
         Err(super::errors::WordsDecodeError::Incomplete)
     }
-}
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum DecodeMode {
-    Permissive,
-    Complete,
 }
 fn decode_combined_status(
     packed: &PackedWords,
@@ -209,20 +204,10 @@ pub(crate) fn pack_onto(words: WordSlice<'_>, packed: &mut PackedWords) {
 
 /// The words `packed` holds, read one at a time; nothing for a last word cut short.
 pub(crate) fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ {
-    let mut bytes = packed.0.iter();
-    std::iter::from_fn(move || {
-        let (mut word, mut shift) = (0_u64, 0_u32);
-        for byte in bytes.by_ref() {
-            word |= u64::from(byte & 0x7f)
-                .checked_shl(shift)
-                .unwrap_or_default();
-            if byte & 0x80 == 0 {
-                return Some(Bits(word));
-            }
-            shift += 7;
-        }
-        None
-    })
+    CompactCursor {
+        bytes: &packed.0,
+        offset: 0,
+    }
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -248,4 +233,205 @@ fn canonical_words(packed: &PackedWords) -> bool {
         }
     }
     shift == 0
+}
+
+/// Admit frame boundaries, kinds and names without retaining decoded row cells.
+/// The same byte/value walk as the existing decoder preserves permissive frame
+/// rollback and Complete's all-or-error name rollback. Spelling is checked by
+/// the caller in its existing preparation order, before query execution.
+pub(crate) fn admit_compact(
+    backing: std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords>,
+    places: &mut Vec<NamePlace>,
+    mode: DecodeMode,
+) -> Result<(CompactTable, Vec<Name>), super::errors::WordsDecodeError> {
+    let before = places.len();
+    let mut complete = mode == DecodeMode::Permissive || canonical_words(&backing.0);
+    let mut cursor = CompactCursor {
+        bytes: &backing.0.0,
+        offset: 0,
+    };
+    let mut kinds = Vec::new();
+    let mut frames = Vec::new();
+    let mut names = Vec::new();
+    let mut count = 0_usize;
+    let mut total_cells = 0_usize;
+    while let Some(Bits(columns)) = cursor.next() {
+        let Some(Bits(rows)) = cursor.next() else {
+            complete = false;
+            break;
+        };
+        let kept = places.len();
+        let names_before = names.len();
+        let had_kinds = !kinds.is_empty();
+        let mut readable = true;
+        for column in 0..columns {
+            match decode_kind(&mut cursor) {
+                Some(kind) if !had_kinds => kinds.push(kind),
+                Some(kind) => {
+                    if mode == DecodeMode::Complete && kinds.get(column as usize) != Some(&kind) {
+                        complete = false;
+                    }
+                }
+                None => {
+                    readable = false;
+                    break;
+                }
+            }
+        }
+        if mode == DecodeMode::Complete && kinds.len() != columns as usize {
+            complete = false;
+        }
+        if readable && decode_places(&mut cursor, places).is_none() {
+            readable = false;
+        }
+        let base = PlaceNumber(u32::try_from(kept).unwrap_or(u32::MAX));
+        let start = cursor.offset;
+        let cells = usize::try_from(rows).ok().and_then(|rows| {
+            usize::try_from(columns)
+                .ok()
+                .and_then(|columns| rows.checked_mul(columns))
+        });
+        if cells.is_none() {
+            readable = false;
+        }
+        if readable {
+            for _ in 0..cells.unwrap_or(0) {
+                let Some(value) = decode_value(&mut cursor) else {
+                    readable = false;
+                    break;
+                };
+                if let Value::Name(name) = rebased(value, base) {
+                    // Existing spelling validation ignores source-backed names.
+                    // Do not allocate an occurrence list for those large token populations.
+                    let at = usize::try_from(name.place.0).unwrap_or(usize::MAX);
+                    let relevant =
+                        name.place.0 & ryo_relations::domain::relations::types::CROSS_PLACE != 0
+                            || places.get(at).is_some_and(|place| {
+                                matches!(
+                                    place.origin,
+                                    ryo_relations::domain::relations::types::Origin::Derived(_)
+                                )
+                            });
+                    let key = (name.hash, name.place);
+                    let previous = names
+                        .last()
+                        .map(|previous: &Name| (previous.hash, previous.place));
+                    if relevant && previous != Some(key) {
+                        names.push(name);
+                    }
+                }
+            }
+        }
+        let next_rows = count.checked_add(usize::try_from(rows).unwrap_or(usize::MAX));
+        let next_cells = total_cells.checked_add(cells.unwrap_or(0));
+        if !readable || next_rows.is_none() || next_cells.is_none() {
+            complete = false;
+            places.truncate(kept);
+            names.truncate(names_before);
+            if !had_kinds {
+                kinds.clear();
+            }
+            break;
+        }
+        count = next_rows.unwrap_or(count);
+        total_cells = next_cells.unwrap_or(total_cells);
+        frames.push(CompactFrame {
+            bytes: start..cursor.offset,
+            cells: cells.unwrap_or(0),
+            base,
+        });
+    }
+    if mode == DecodeMode::Complete && !complete {
+        places.truncate(before);
+        return Err(super::errors::WordsDecodeError::Incomplete);
+    }
+    tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase="compact_admission", packed_bytes=backing.0.0.len(), decoded_rows=count, decoded_cells=total_cells, frame_count=frames.len(), spelling_names=names.len(), spelling_capacity_bytes=names.capacity()*size_of::<Name>(), frame_metadata_bytes=frames.capacity()*size_of::<CompactFrame>());
+    Ok((
+        CompactTable {
+            words: backing,
+            kinds,
+            frames,
+            rows: count,
+            cells: total_cells,
+        },
+        names,
+    ))
+}
+
+/// Decode only when the shared invocation owner demands this admitted source.
+/// Offset/name admission is immutable; no source-symbol mutation or remap repeats.
+pub(crate) fn materialize_compact(
+    input: &CompactTable,
+) -> Result<Table, super::errors::WordsDecodeError> {
+    let mut table = Table {
+        kinds: input.kinds.clone(),
+        count: RowCount(input.rows),
+        cells: Vec::with_capacity(input.cells),
+    };
+    for frame in &input.frames {
+        let bytes = input
+            .words
+            .0
+            .0
+            .get(frame.bytes.clone())
+            .ok_or(super::errors::WordsDecodeError::Incomplete)?;
+        let mut cursor = CompactCursor { bytes, offset: 0 };
+        for _ in 0..frame.cells {
+            let value =
+                decode_value(&mut cursor).ok_or(super::errors::WordsDecodeError::Incomplete)?;
+            table.cells.push(rebased(value, frame.base));
+        }
+        if cursor.offset != bytes.len() {
+            return Err(super::errors::WordsDecodeError::Incomplete);
+        }
+    }
+    Ok(table)
+}
+pub(crate) fn compact_kinds(
+    input: &CompactTable,
+) -> &[ryo_relations::domain::relations::types::CellKind] {
+    &input.kinds
+}
+pub(crate) fn compact_rows(input: &CompactTable) -> usize {
+    input.rows
+}
+pub(crate) fn compact_cells(input: &CompactTable) -> usize {
+    input.cells
+}
+
+/// One byte cursor supplies exact immutable frame offsets; no second packed copy.
+struct CompactCursor<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+}
+impl Iterator for CompactCursor<'_> {
+    type Item = Bits;
+    fn next(&mut self) -> Option<Bits> {
+        let (mut word, mut shift) = (0_u64, 0_u32);
+        while let Some(byte) = self.bytes.get(self.offset) {
+            self.offset += 1;
+            word |= u64::from(byte & 0x7f)
+                .checked_shl(shift)
+                .unwrap_or_default();
+            if byte & 0x80 == 0 {
+                return Some(Bits(word));
+            }
+            shift += 7;
+        }
+        None
+    }
+}
+
+/// Only an actually empty admitted source may receive its declared schema.
+pub(crate) fn shape_compact(
+    input: &mut CompactTable,
+    kinds: &[ryo_relations::domain::relations::types::CellKind],
+) -> Result<(), super::errors::WordsDecodeError> {
+    if input.kinds.is_empty() {
+        if input.cells != 0 {
+            return Err(super::errors::WordsDecodeError::Incomplete);
+        }
+        input.kinds.extend_from_slice(kinds);
+    }
+    Ok(())
 }

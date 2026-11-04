@@ -7,11 +7,9 @@ use crate::domain::finish::service::carry;
 use crate::domain::finish::types::{Arenas, Resolving};
 use crate::domain::hosted::service::table_of;
 use crate::domain::hosted::types::NumberedFiles;
-use crate::domain::layout::service::shaped;
 use crate::domain::operating::types::OperatorContext;
 
 use crate::domain::operator::types::RowsFed;
-use crate::domain::spelling::service::check_spellings;
 
 use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::failed;

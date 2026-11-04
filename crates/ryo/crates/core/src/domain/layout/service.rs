@@ -155,12 +155,33 @@ pub(crate) fn layout_of<'f>(
 /// # Errors
 ///
 /// Whatever an operator refuses when the columns of the steps are worked out.
+#[cfg(test)]
 pub(crate) fn shaped(
     plan: &Plan,
     frontier: &mut [Frontier],
     context: &mut OperatorContext<'_>,
 ) -> Result<(), OperatingError> {
-    if frontier.iter().all(|each| !each.table.kinds.is_empty()) {
+    let mut kinds = frontier
+        .iter()
+        .map(|each| (each.input, each.table.kinds.clone()))
+        .collect::<Vec<_>>();
+    shape_frontier_kinds(plan, &mut kinds, context.bindings)?;
+    for (each, (_, kinds)) in frontier.iter_mut().zip(kinds) {
+        each.table.kinds = kinds;
+    }
+    Ok(())
+}
+
+/// Source shaping consumes metadata only; no empty row table stands in for an unloaded source.
+pub(crate) fn shape_frontier_kinds(
+    plan: &Plan,
+    frontier: &mut [(
+        ryo_values::domain::plan_parts::types::Input,
+        Vec<ryo_relations::domain::relations::types::CellKind>,
+    )],
+    bindings: &[crate::domain::table_model::types::ParameterBinding],
+) -> Result<(), OperatingError> {
+    if frontier.iter().all(|each| !each.1.is_empty()) {
         return Ok(());
     }
     // No file supplied this frontier. Use the declared relation representation,
@@ -241,15 +262,15 @@ pub(crate) fn shaped(
             },
         })
     };
-    let kinds = schema_steps(plan, &metadata, context.bindings)?;
+    let kinds = schema_steps(plan, &metadata, bindings)?;
     // Complete all fallible metadata lookup before changing any supplied frontier.
     let filled = frontier
         .iter()
         .map(|each| {
-            if !each.table.kinds.is_empty() {
+            if !each.1.is_empty() {
                 return Ok(None);
             }
-            let kinds = match each.input {
+            let kinds = match each.0 {
                 Input::Relation(relation) => relation_kinds(relation).to_vec(),
                 Input::BoundObservation(id) => bound_kinds(plan, id)?,
                 Input::Step(id) => kinds
@@ -262,7 +283,7 @@ pub(crate) fn shaped(
         .collect::<Result<Vec<_>, OperatingError>>()?;
     for (each, kinds) in frontier.iter_mut().zip(filled) {
         if let Some(kinds) = kinds {
-            each.table.kinds = kinds;
+            each.1 = kinds;
         }
     }
     Ok(())

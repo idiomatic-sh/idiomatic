@@ -18,7 +18,6 @@ use crate::domain::reporting::service::order_found;
 use crate::domain::rules::errors::RulesError;
 use crate::domain::rules::service::failed;
 use crate::domain::table_model::service::cell;
-use crate::domain::table_model::types::Frontier;
 use crate::domain::table_texts::types::SourceView;
 use crate::outbound::corpus::interface::CorpusPort;
 use ryo_language::domain::symbols::service::file_in;
@@ -56,16 +55,13 @@ impl CrossFile {
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
-        frontier: Vec<Frontier>,
+        frontier: super::types::PreparedFrontiers,
         cross: &mut Symbols,
     ) -> Result<Crossed, RulesError> {
         self.evaluate_phase(
             crossing,
             todo,
-            super::types::PreparedFrontiers {
-                rows: frontier,
-                refused: Vec::new(),
-            },
+            frontier,
             cross,
             &[],
             super::types::PublicationSlot::Unused,
@@ -103,7 +99,9 @@ impl CrossFile {
         };
         for input in bound_inputs {
             match super::inputs::observed(crossing, scope.executor(), todo.rule, input, cross) {
-                Ok(input) => frontier.rows.push(input),
+                Ok(input) => frontier
+                    .rows
+                    .push(super::types::FrontierInput::Decoded(input)),
                 Err(error) => {
                     frontier
                         .refused

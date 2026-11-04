@@ -1,0 +1,160 @@
+//! One compact admission operation for diagnostic and observed project phases.
+//! Store reads and name/spelling preparation keep their existing eager order;
+//! row-cell allocation belongs to the shared graph invocation owner.
+use super::types::{FrontierInput, PreparedFrontiers};
+use crate::domain::{
+    crossing::types::RefusedFrontier,
+    frontiers::service::{decode_input, project_input, project_relation},
+    operating::errors::OperatingError,
+    table_model::types::Frontier,
+    table_words::{
+        service::{admit_compact, decode_complete},
+        types::DecodeMode,
+    },
+};
+use crate::outbound::facts::{
+    errors::FactsError,
+    interface::{FactsFinish, FactsWorker},
+};
+use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
+use ryo_values::domain::{
+    plan_parts::types::{Input, InputNumber},
+    plans::types::{Plan, StepScope},
+    stored_facts::types::Bucket,
+};
+
+#[derive(Clone, Copy)]
+pub(crate) enum PreparationPolicy<'a> {
+    Diagnostic,
+    Observations { ready: &'a [bool] },
+}
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum PreparationError {
+    #[error(transparent)]
+    Facts(#[from] FactsError),
+    #[error(transparent)]
+    Metadata(#[from] OperatingError),
+}
+
+pub(crate) fn prepare(
+    plan: &Plan,
+    first: Bucket,
+    facts: &dyn FactsFinish,
+    project: &dyn FactsWorker,
+    project_symbols: &Symbols,
+    symbols: &mut Symbols,
+    policy: PreparationPolicy<'_>,
+) -> Result<PreparedFrontiers, PreparationError> {
+    let mut prepared = PreparedFrontiers {
+        rows: Vec::new(),
+        refused: Vec::new(),
+    };
+    let memory =
+        tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE);
+    for (place, input) in plan.frontier.iter().copied().enumerate() {
+        let _input = memory.then(|| tracing::trace_span!(target:"ryo::diagnostic::lifecycle_memory", "cross_input_memory", input_index=place, input=?input).entered());
+        if let PreparationPolicy::Observations { ready } = policy {
+            if !ready.get(place).copied().ok_or(OperatingError::NotRun)? {
+                prepared.refused.push(RefusedFrontier {
+                    input,
+                    error: OperatingError::ObservationIncomplete {
+                        reason: "a producer feeding this retained frontier is unavailable".into(),
+                    },
+                });
+                continue;
+            }
+        }
+        if let Input::BoundObservation(id) = input {
+            if plan
+                .observation_inputs
+                .get(id.0 as usize)
+                .is_some_and(|schema| schema.scope == StepScope::CrossFile)
+            {
+                continue;
+            }
+        }
+        if let Some(relation) = project_relation(input) {
+            let rows = project.rows(relation)?;
+            prepared.rows.push(FrontierInput::Decoded(project_input(
+                rows,
+                input,
+                project_symbols,
+                symbols,
+            )));
+            continue;
+        }
+        // The original fallible store boundary still executes in frontier order,
+        // before any query root. This POC changes cell lifetime, not I/O errors.
+        let words = facts.kept(crate::domain::reading::service::frontier_bucket(
+            first,
+            InputNumber(place),
+        ))?;
+        if memory {
+            let bytes = crate::domain::recording::types::retention::value::RetainedBytes::packed(&words);
+            tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="cross_input_packed", owner="packed_input", packed_live_bytes=bytes.packed_live, packed_capacity_bytes=bytes.packed_capacity);
+        }
+        let mode = match policy {
+            PreparationPolicy::Diagnostic => DecodeMode::Permissive,
+            PreparationPolicy::Observations { .. } => DecodeMode::Complete,
+        };
+        if matches!(input, Input::Step(_)) {
+            match admit_compact(std::sync::Arc::new(words), places_mut(symbols), mode) {
+                Ok((table, spelling)) => prepared.rows.push(FrontierInput::Compact {
+                    input,
+                    table,
+                    spelling,
+                }),
+                Err(error) => prepared.refused.push(RefusedFrontier {
+                    input,
+                    error: OperatingError::ObservationIncomplete {
+                        reason: error.to_string(),
+                    },
+                }),
+            }
+        } else {
+            // Non-Step borrowed relation/binding sources keep their existing
+            // representation in the bounded POC; no second evaluator exists.
+            match mode {
+                DecodeMode::Permissive => prepared.rows.push(FrontierInput::Decoded(Frontier {
+                    input,
+                    table: decode_input(&words, symbols),
+                })),
+                DecodeMode::Complete => match decode_complete(&words.0, places_mut(symbols)) {
+                    Ok(table) => prepared
+                        .rows
+                        .push(FrontierInput::Decoded(Frontier { input, table })),
+                    Err(error) => prepared.refused.push(RefusedFrontier {
+                        input,
+                        error: OperatingError::ObservationIncomplete {
+                            reason: error.to_string(),
+                        },
+                    }),
+                },
+            }
+        }
+    }
+    if memory {
+        let compact_rows = prepared
+            .rows
+            .iter()
+            .map(|input| match input {
+                FrontierInput::Compact { table, .. } => {
+                    crate::domain::table_words::service::compact_rows(table)
+                }
+                FrontierInput::Decoded(_) => 0,
+            })
+            .sum::<usize>();
+        let spelling_capacity = prepared
+            .rows
+            .iter()
+            .map(|input| match input {
+                FrontierInput::Compact { spelling, .. } => {
+                    spelling.capacity() * size_of::<ryo_relations::domain::relations::types::Name>()
+                }
+                FrontierInput::Decoded(_) => 0,
+            })
+            .sum::<usize>();
+        tracing::trace!(target:"ryo::diagnostic::lifecycle_memory", phase="compact_inputs_prepared", owner="frontier_descriptors", inputs=prepared.rows.len(), compact_rows, spelling_capacity_bytes=spelling_capacity);
+    }
+    Ok(prepared)
+}

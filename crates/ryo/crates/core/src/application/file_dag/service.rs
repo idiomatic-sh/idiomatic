@@ -123,6 +123,10 @@ impl FileDagExecution {
             graph,
             phase: ryo_values::domain::plans::types::StepScope::PerFile,
             provided: std::collections::HashMap::new(),
+            provided_decodes: 0,
+            provided_releases: 0,
+            provided_peak_cells: 0,
+            provided_allocations: Vec::new(),
             provided_observations: std::collections::HashMap::new(),
             hosted: std::collections::HashMap::new(),
             active,
@@ -238,7 +242,7 @@ impl FileDagExecution {
         state.classes = Arc::clone(&classes);
         Ok(classes)
     }
-    fn consumed(&mut self, node: NodeId) {
+    pub(super) fn consumed(&mut self, node: NodeId) {
         if self.remaining[node.0] == 0 {
             return;
         }
@@ -257,9 +261,10 @@ impl FileDagExecution {
             }
             self.releases += 1;
         }
+        self.retire_provided(node);
         // A lazy primitive may never request one branch. Cancel that branch's
         // outgoing consumer edges when it becomes unreachable, not at file end.
-        if self.executions[node.0] == 0 {
+        if self.executions[node.0] == 0 && !self.provided.contains_key(&node) {
             let graph = (self.graph).clone();
             for input in &graph.nodes[node.0].inputs {
                 if let NodeInput::Node(child) = input {
@@ -302,6 +307,32 @@ impl FileDagExecution {
                 self.publish_observed_node(id, &publication);
                 Ok(Some(publication))
             }
+        }
+    }
+    fn retire_provided(&mut self, node: NodeId) {
+        let retired = match self.provided.get(&node) {
+            Some(
+                super::types::ProvidedInput::Live { input, .. }
+                | super::types::ProvidedInput::Compact { input, .. },
+            ) => Some(*input),
+            _ => None,
+        };
+        if let Some(input) = retired {
+            self.provided
+                .insert(node, super::types::ProvidedInput::Retired { input });
+            self.provided_releases += 1;
+            self.observe_provided("provided_retire");
+        }
+    }
+    pub(super) fn retire_unused_sources(&mut self) {
+        let unused = self
+            .provided
+            .keys()
+            .copied()
+            .filter(|node| self.remaining[node.0] == 0)
+            .collect::<Vec<_>>();
+        for node in unused {
+            self.retire_provided(node);
         }
     }
     fn completed_inputs(&mut self, id: NodeId, inputs: &[NodeInput]) -> bool {
@@ -430,6 +461,94 @@ impl FileDagExecution {
             }
         }
     }
+    /// Resolve an admitted compact source outside every scheduler borrow. The
+    /// descriptor and terminal outcome survive retirement; rows are never rebuilt.
+    fn supplied_input(
+        scope: &dyn ScopeState,
+        id: NodeId,
+        executor: &ScopedExecutor<'_>,
+    ) -> Result<Option<super::relations::PublishedInput>, OperatingError> {
+        use super::types::ProvidedInput;
+        let (input, table, relations) = {
+            let mut state = scope.state_mut();
+            if !std::rc::Rc::ptr_eq(&state.relations, executor.owner()) {
+                return Err(OperatingError::NotRead);
+            }
+            if let Some(error) = state.failed.get(id.0).and_then(Option::as_ref) {
+                return Err(error.clone());
+            }
+            match state.provided.get(&id).cloned() {
+                None => return Ok(None),
+                Some(ProvidedInput::Live { publication, .. }) => return Ok(Some(publication)),
+                Some(ProvidedInput::Refused { input, error }) => {
+                    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="provided_refusal",input=?input);
+                    return Err(error);
+                }
+                Some(ProvidedInput::Retired { input }) => {
+                    return Err(OperatingError::RetiredFrontier { input });
+                }
+                Some(ProvidedInput::Materializing { input }) => {
+                    tracing::trace!(target:"ryo::diagnostic::lifecycle_memory",phase="provided_reentry",input=?input);
+                    return Err(OperatingError::WrongOperation);
+                }
+                Some(ProvidedInput::Compact { input, table }) => {
+                    state
+                        .provided
+                        .insert(id, ProvidedInput::Materializing { input });
+                    (input, table, std::rc::Rc::clone(&state.relations))
+                }
+            }
+        };
+        let decoded = crate::domain::table_words::service::materialize_compact(&table)
+            .map_err(|_| OperatingError::ShapeMismatch)
+            .and_then(|table| relations.computed(table));
+        let mut state = scope.state_mut();
+        match decoded {
+            Ok(publication) => {
+                state.provided_decodes += 1;
+                if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE)
+                {
+                    let cells = crate::domain::table_words::service::compact_cells(&table)
+                        * size_of::<Value>();
+                    state
+                        .provided_allocations
+                        .push((Arc::downgrade(publication.record()), cells));
+                    state.observe_provided("provided_acquire");
+                }
+                state.provided.insert(
+                    id,
+                    ProvidedInput::Live {
+                        input,
+                        publication: publication.clone(),
+                    },
+                );
+                Ok(Some(publication))
+            }
+            Err(error) => {
+                state.provided.insert(
+                    id,
+                    ProvidedInput::Refused {
+                        input,
+                        error: error.clone(),
+                    },
+                );
+                Err(error)
+            }
+        }
+    }
+    pub(super) fn observe_provided(&mut self, phase: &'static str) {
+        if !tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
+            return;
+        }
+        let live = self
+            .provided_allocations
+            .iter()
+            .filter(|(allocation, _)| allocation.strong_count() > 0)
+            .map(|(_, cells)| *cells)
+            .sum::<usize>();
+        self.provided_peak_cells = self.provided_peak_cells.max(live);
+        tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner="provided_cell_leases", decoded_live_bytes=live, decoded_peak_live_bytes=self.provided_peak_cells, decodes=self.provided_decodes, releases=self.provided_releases);
+    }
     /// Sole node lifecycle: owner validation, admission, strategy, first error,
     /// dependency release and publication are independent of output delivery.
     fn invoke_node<'f>(
@@ -441,6 +560,59 @@ impl FileDagExecution {
         delivery: &mut NodeDelivery<'_>,
     ) -> Result<NodeOutput, OperatingError> {
         let _node = super::route_counts::node(id.0);
+        let blocked = {
+            let mut state = scope.state_mut();
+            if !std::rc::Rc::ptr_eq(&state.relations, executor.owner()) {
+                return Err(OperatingError::NotRead);
+            }
+            if state
+                .current_rule
+                .is_none_or(|rule| !state.active.get(rule).copied().unwrap_or(false))
+            {
+                return Err(OperatingError::NotRun);
+            }
+            if let Some(error) = state.failed.get(id.0).and_then(Option::as_ref) {
+                return Err(error.clone());
+            }
+            use super::types::ProvidedInput;
+            match state.provided.get(&id) {
+                Some(ProvidedInput::Refused { error, .. }) => return Err(error.clone()),
+                Some(ProvidedInput::Retired { input }) => {
+                    return Err(OperatingError::RetiredFrontier { input: *input });
+                }
+                Some(ProvidedInput::Materializing { .. }) => {
+                    return Err(OperatingError::WrongOperation);
+                }
+                _ => {}
+            }
+            let node = state.graph.nodes.get(id.0).ok_or(OperatingError::NotRun)?;
+            let supplied = state.provided.contains_key(&id);
+            if node.phase != state.phase
+                && !(supplied
+                    && state.phase == ryo_values::domain::plans::types::StepScope::CrossFile
+                    && node.phase == ryo_values::domain::plans::types::StepScope::PerFile)
+            {
+                return Err(OperatingError::NotRun);
+            }
+            if crate::domain::features::service::kind_of(&node.operation) != node.contract.kind {
+                return Err(OperatingError::WrongOperation);
+            }
+            node.needs.as_ref().map_err(Clone::clone)?;
+            let cached = matches!(state.provided.get(&id), Some(ProvidedInput::Live { .. }))
+                || state.required.get(id.0).is_some_and(Option::is_some)
+                || state.ready.get(id.0).is_some_and(Option::is_some);
+            if cached {
+                None
+            } else {
+                state
+                    .partial_node(id)?
+                    .map(|publication| (publication, std::rc::Rc::clone(&state.relations)))
+            }
+        };
+        if let Some((publication, relations)) = blocked {
+            return Self::deliver_publication(delivery, publication, &relations, read, context);
+        }
+        let supplied = Self::supplied_input(scope, id, executor)?;
         let (graph, relations, rooms, cached) = {
             let mut state = scope.state_mut();
             if !std::rc::Rc::ptr_eq(&state.relations, executor.owner()) {
@@ -464,8 +636,8 @@ impl FileDagExecution {
                 node.needs.as_ref().map_err(Clone::clone)?;
             }
             state.demands += 1;
-            let cached = if let Some(provided) = state.provided.get(&id) {
-                Some(provided.clone()?)
+            let cached = if let Some(provided) = supplied {
+                Some(provided)
             } else if let Some(table) = state.required.get(id.0).and_then(Option::as_ref).cloned() {
                 state.hits += 1;
                 state.publish_observed_node(id, &table);

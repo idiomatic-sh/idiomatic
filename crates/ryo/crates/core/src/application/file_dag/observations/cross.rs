@@ -91,13 +91,18 @@ impl<'a> CrossPublications<'a> {
         words: KeptWords,
     ) -> Result<PreparedFrontier, OperatingError> {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-        let _table = crate::domain::table_words::service::decode_complete(
-            &words.0,
+        let backing = std::sync::Arc::new(words);
+        let (metadata, _spelling) = crate::domain::table_words::service::admit_compact(
+            std::sync::Arc::clone(&backing),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
+            crate::domain::table_words::types::DecodeMode::Complete,
         )
         .map_err(|error| OperatingError::ObservationIncomplete {
             reason: error.to_string(),
         })?;
+        drop(metadata);
+        let words =
+            std::sync::Arc::try_unwrap(backing).map_err(|_| OperatingError::WrongOperation)?;
         let mut arenas = Vec::new();
         for place in ryo_language::domain::symbols::service::places_of(&symbols) {
             if let ryo_relations::domain::relations::types::Origin::Derived(worker) = place.origin {

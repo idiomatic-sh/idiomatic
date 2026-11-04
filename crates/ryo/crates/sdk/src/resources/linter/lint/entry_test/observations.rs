@@ -48,6 +48,11 @@ fn later_original_rule_publishes_nonempty_observation_despite_zero_findings() {
         }],
     });
     let request = LintRequest {
+        project_search_scope: super::super::types::ProjectSearchScope::Undeclared,
+        given_project_inventory: super::super::types::GivenProjectInventory {
+            entries: Vec::new(),
+            completeness: super::super::types::ProjectInventoryCompleteness::Partial,
+        },
         source_language: None,
         root: root.path().to_owned(),
         files: Vec::new(),
@@ -203,6 +208,11 @@ emit empty subject path key(path);"#,
             ParameterValue::Text(ParameterText(marker.into())),
         );
         LintRequest {
+            project_search_scope: super::super::types::ProjectSearchScope::Undeclared,
+            given_project_inventory: super::super::types::GivenProjectInventory {
+                entries: Vec::new(),
+                completeness: super::super::types::ProjectInventoryCompleteness::Partial,
+            },
             source_language: None,
             root: root.path().to_owned(),
             files: Vec::new(),
@@ -286,6 +296,11 @@ fn refused_and_true_empty_producers_remain_distinct_on_cold_and_retained_replay(
             exclude: Vec::new(),
         };
         let request = LintRequest {
+            project_search_scope: super::super::types::ProjectSearchScope::Undeclared,
+            given_project_inventory: super::super::types::GivenProjectInventory {
+                entries: Vec::new(),
+                completeness: super::super::types::ProjectInventoryCompleteness::Partial,
+            },
             source_language: None,
             root: root.path().to_owned(),
             files: Vec::new(),
@@ -361,6 +376,11 @@ fn selected_no_query_producer_never_becomes_a_complete_empty_cross_input() {
     );
     let consumer = RuleId::try_from("consumer").unwrap();
     let request = LintRequest {
+        project_search_scope: super::super::types::ProjectSearchScope::Undeclared,
+        given_project_inventory: super::super::types::GivenProjectInventory {
+            entries: Vec::new(),
+            completeness: super::super::types::ProjectInventoryCompleteness::Partial,
+        },
         source_language: None,
         root: root.path().to_owned(),
         files: Vec::new(),
@@ -428,6 +448,11 @@ fn unbound_export_does_not_demand_a_reader_or_change_ordinary_results() {
         Cache::At(store.path().to_owned()),
     );
     let request = |query: &str| LintRequest {
+        project_search_scope: super::super::types::ProjectSearchScope::Undeclared,
+        given_project_inventory: super::super::types::GivenProjectInventory {
+            entries: Vec::new(),
+            completeness: super::super::types::ProjectInventoryCompleteness::Partial,
+        },
         source_language: None,
         root: root.path().to_owned(),
         files: Vec::new(),

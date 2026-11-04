@@ -7,8 +7,8 @@
 use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{
-    answered, handed_of, memory_bucket, memory_enabled, memory_input, memory_rule, observed_arenas,
-    observed_inputs, observed_notes, observed_packed, observed_records, observed_staged,
+    answered, handed_of, memory_enabled, memory_rule, observed_arenas,
+    observed_inputs, observed_notes, observed_records, observed_staged,
     observed_stored, records_of,
 };
 use super::types::{
@@ -26,7 +26,6 @@ use crate::domain::budget::service::{fit, repository_size, within};
 use crate::application::file_dag::settings::CrossingInput;
 use crate::domain::choosing::service::chosen;
 use crate::domain::features::service::{fed_over, work_over};
-use crate::domain::frontiers::service::{decode_input, project_input, project_relation};
 use crate::domain::hosted::service::identity as hosted_identity;
 use crate::domain::keeping::service::{rendered_of, rows_of};
 use crate::domain::kind_check::service::{first_unknown, kinds_asked, unknown_message};
@@ -41,7 +40,7 @@ use crate::domain::reporting::service::report_refused;
 
 use crate::domain::project::service::{project_rules, reads_any, reads_project, with_consulted};
 use crate::domain::project::types::{PlanReads, Projected};
-use crate::domain::reading::service::{buckets_of, first_buckets, frontier_bucket};
+use crate::domain::reading::service::{buckets_of, first_buckets};
 
 use crate::domain::listing::service::every_file;
 use crate::domain::render::constants::{columns_heading, key_heading, path_heading, rule_heading};
@@ -984,30 +983,13 @@ impl LintUseCaseImpl {
                         reason = "a rule to cross is one of the run's rules, and each has its plan and its first bucket; another is a bug that must crash, not a rule that crosses nothing"
                     )]
                     let (first, plan) = (run.first_bucket[each.rule.0], &run.plans[each.rule.0]);
-                    let mut inputs = Vec::new();
-                    observed_inputs("before_cross_prepare", &inputs, &mut cross);
-                    for (place, input) in plan.frontier.iter().enumerate() {
-                        let _memory_input = memory_input(*input, place);
-                        observed_inputs("before_cross_input", &inputs, &mut cross);
-                        // What the project wrote waits in its own handle, not in the buckets of the files.
-                        inputs.push(if let Some(relation) = project_relation(*input) {
-                            let rows = handle.facts.rows(relation)?;
-                            project_input(rows, *input, &handle.symbols, &mut cross)
-                        } else {
-                            let bucket = frontier_bucket(first, InputNumber(place));
-                            let _memory_bucket = memory_bucket(bucket);
-                            // Read through the original fallible boundary before observing or decoding.
-                            let packed = kept_facts.kept(bucket)?;
-                            observed_packed(&packed);
-                            let table = decode_input(&packed, &mut cross);
-                            Frontier {
-                                input: *input,
-                                table,
-                            }
-                        });
-                        observed_inputs("after_cross_input", &inputs, &mut cross);
-                    }
-                    observed_inputs("after_cross_prepare", &inputs, &mut cross);
+                    let inputs = crate::application::cross_file::frontiers::prepare(
+                        plan, first, kept_facts.as_ref(), handle.facts.as_ref(), &handle.symbols,
+                        &mut cross, crate::application::cross_file::frontiers::PreparationPolicy::Diagnostic,
+                    ).map_err(|error| match error {
+                        crate::application::cross_file::frontiers::PreparationError::Facts(error) => LintError::from(error),
+                        crate::application::cross_file::frontiers::PreparationError::Metadata(error) => LintError::from(crate::domain::rules::service::failed(&each.id, &error)),
+                    })?;
                     let result = self.cross_file.evaluate(&crossing, each, inputs, &mut cross);
                     observed_inputs("before_cross_cleanup", &Vec::new(), &mut cross);
                     Ok(result?)
