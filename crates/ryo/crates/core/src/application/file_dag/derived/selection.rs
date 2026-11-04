@@ -44,7 +44,7 @@ use fanout::fanout_candidates;
 use predicate::matches;
 pub(in crate::application::file_dag::derived) use preparation::activate_program;
 pub(in crate::application::file_dag) use preparation::prepare_views_with_schemas;
-pub(in crate::application::file_dag::derived) use preparation::{activate, install_views};
+pub(in crate::application::file_dag::derived) use preparation::install_views;
 #[cfg(test)]
 use ryo_values::domain::plans::types::Plan;
 // One owner bounds the actual shared position allocations and retained predicate entries.
