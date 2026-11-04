@@ -127,6 +127,13 @@ impl Fixture {
         &self,
     ) -> Result<crate::domain::suite::types::certificate::value::Certificate, DiagnosticsError>
     {
+        self.certify_profile(&self.profile)
+    }
+    fn certify_profile(
+        &self,
+        measured_profile: &Path,
+    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, DiagnosticsError>
+    {
         let operation = CertifyUseCaseImpl::new(
             Arc::new(crate::outbound::suite::factory::local()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),
@@ -135,7 +142,7 @@ impl Fixture {
             Arc::new(crate::outbound::inventory::factory::local()),
         );
         operation.certify(
-            &self.profile,
+            measured_profile,
             &self.profile,
             &self.executable,
             &self.executable,
@@ -283,4 +290,35 @@ fn invocation_and_canonical_profile_substitution_refuse_before_launch() {
         assert!(error.contains(expected), "{change}: {error}");
         assert_eq!(*f.execution.launches.lock().unwrap(), 0, "{change}");
     }
+}
+
+#[test]
+fn measured_profile_identity_cannot_be_substituted_via_the_query_directory() {
+    let f = Fixture::new();
+    let foreign = f._root.path().join("measured-foreign");
+    for relative in [
+        "helper.ryoql",
+        "rules/A/query.ryoql",
+        "rules/A/cases.toml",
+        "rules/B/query.ryoql",
+        "rules/B/cases.toml",
+    ] {
+        write(
+            &foreign.join(relative),
+            &std::fs::read_to_string(f.profile.join(relative)).unwrap(),
+        );
+    }
+    let bytes = std::fs::read_to_string(f.profile.join("benchmark.toml")).unwrap();
+    write(
+        &foreign.join("benchmark.toml"),
+        &(bytes + "parser-configuration='different-parser'\n"),
+    );
+    // The selected query directory remains the registered original: authority must
+    // still bind the independently supplied measured profile and its settings.
+    let error = f.certify_profile(&foreign).unwrap_err().to_string();
+    assert!(
+        error.contains("registered authority differs from measured canonical profile"),
+        "{error}"
+    );
+    assert_eq!(*f.execution.launches.lock().unwrap(), 0);
 }
