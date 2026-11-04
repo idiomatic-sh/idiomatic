@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 import type_context from "python/ruff/type-definition-context";
 import deferred_reads from "python/ruff/deferred-type-reads";
@@ -38,4 +39,10 @@ let distinct_members = group-count(from=string_members, keys=["id","file"], coun
 let candidates_join_1 = select l.id as l_id, l.file as l_file, r.span as r_span, r.id as r_id, r.file as r_file from distinct_members as l join nodes as r on l.id = r.id and l.file = r.file;
 let candidates = select l.l_id as id, l.l_file as file, l.r_span as span, s."start-line" as line from candidates_join_1 as l join "source-location" as s on l.l_id = s.id and l.l_file = s.file;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])TC010(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:TC010)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:TC010)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:TC010)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "TC010"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

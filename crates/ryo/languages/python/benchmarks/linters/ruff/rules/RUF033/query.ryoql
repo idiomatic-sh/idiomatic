@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import dataclass_decorators from "python/ruff/dataclass-decorators";
 import suppress from "python/ruff/suppress";
 
@@ -17,4 +18,10 @@ let default_wrappers = select l.method as method, l.wrapper as wrapper, l.file a
 let defaults = select r.child as id, l.file as file from default_wrappers as l join "semantic-child" as r on l.wrapper = r.parent and l.file = r.file where r.field = "defaults" or r.field = "kw-defaults";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from defaults as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*RUF033(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF033)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:RUF033)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF033)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF033"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

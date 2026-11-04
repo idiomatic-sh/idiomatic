@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let imports = select id, file, span from "semantic-syntax" where kind = "import-from" and matches(file, "\.pyi$");
 let future = select occurrence from "static-import" where matches(target, "^\.*__future__\.annotations$");
@@ -5,4 +6,10 @@ let parents = select l.parent as parent from "semantic-child" as l join future a
 let reportable = select l.id as id, l.file as file, l.span as span from imports as l join parents as r on l.id = r.parent;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI044(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI044)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PYI044)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI044)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI044"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

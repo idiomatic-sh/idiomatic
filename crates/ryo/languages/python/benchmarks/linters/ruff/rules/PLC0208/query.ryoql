@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let statement_loops = select id, file from "semantic-syntax" where kind = "for" or kind = "async-for";
 let comprehensions = select id, file from "semantic-syntax" where kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
@@ -16,4 +17,10 @@ let literal_sets = antijoin(left=sets, right=nonliteral_elements, left-on=["id",
 let candidates = antijoin(left=literal_sets, right=duplicate_sets, left-on=["id","file"], right-on=["set_id","file"]);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="(?:^|[^A-Z0-9])PLC0208(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:PLC0208)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PLC0208)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PLC0208)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLC0208"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

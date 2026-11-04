@@ -253,6 +253,31 @@ def reference_discrepancy_self_test() -> None:
                 return
             raise AssertionError('invalid discrepancy was accepted')
         clone = lambda value: json.loads(json.dumps(value))
+        with_context = clone(case)
+        with_context['files']['unselected.py'] = 'pass\n'
+        with_context['requested-files'] = ['case.pyi']
+        source_digest = hashlib.sha256()
+        for filename, text in sorted(with_context['files'].items()):
+            source_digest.update(filename.encode())
+            source_digest.update(b'\x00')
+            source_digest.update(text.encode())
+        with_context['reference-discrepancy']['identity']['source-sha256'] = source_digest.hexdigest()
+        selected_certificate = reference_discrepancies.validate_reference_discrepancy(profile, with_context, 'F821')
+        assert selected_certificate is not None
+        assert selected_certificate['identity']['intended-output-sha256'] == certificate['identity']['intended-output-sha256']
+        assert selected_certificate['identity']['reference-output-sha256'] == certificate['identity']['reference-output-sha256']
+        assert reference_discrepancies.classify_reference_discrepancy(profile, with_context, 'F821', reference, candidate, **kwargs)['intended_behavior_pass']
+        stale_inventory = clone(with_context)
+        stale_identity = stale_inventory['reference-discrepancy']['identity']
+        stale_identity['intended-output-sha256'] = reference_discrepancies.discrepancy_json_hash(reference_discrepancies.discrepancy_output(list(stale_inventory['files']), stale_inventory['expected']))
+        stale_identity['reference-output-sha256'] = reference_discrepancies.discrepancy_json_hash(reference_discrepancies.discrepancy_output(list(stale_inventory['files']), stale_inventory['reference-discrepancy']['expected']))
+        rejected(stale_inventory)
+        mutated_context = clone(with_context)
+        mutated_context['files']['unselected.py'] = 'return\n'
+        rejected(mutated_context)
+        unselected_diagnostic = clone(with_context)
+        unselected_diagnostic['expected'] = [{'rule': 'F821', 'file': 'unselected.py', 'start': 0, 'end': 4}]
+        rejected(unselected_diagnostic)
         changed = clone(case)
         changed['tool-contract-difference'] = clone(changed['reference-discrepancy'])
         rejected(changed)

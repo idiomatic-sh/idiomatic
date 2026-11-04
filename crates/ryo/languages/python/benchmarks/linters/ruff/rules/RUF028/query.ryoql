@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let tree = select id, kind, text, file from "syntax-tree";
 let ids = select id, file from tree;
@@ -146,4 +147,10 @@ let bad = antijoin(left=bad_all, right=trailing_call_skips, left-on=["id","file"
 let distinct_bad = group-count(from=bad, keys=["id","file"], count="reasons", distinct="id");
 let candidates = select l.id as id, l.file as file, r.span as span, r.line as line from distinct_bad as l join directive_places as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="(?:^|[^A-Z0-9])RUF028(?:$|[^A-Z0-9])", range-pattern="(?:^|,)(?:RUF028)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:RUF028)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:RUF028)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "RUF028"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

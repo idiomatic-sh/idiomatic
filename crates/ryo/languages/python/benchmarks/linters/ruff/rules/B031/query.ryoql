@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let edges = select parent, child, field, ordinal, file from "semantic-child";
@@ -132,4 +133,10 @@ let report_ids = union(left=repeated, right=nested_repeat);
 let candidates = select l.id as id, l.file as file, r.span as span from report_ids as l join nodes as r on l.id = r.id and l.file = r.file;
 let locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*B031(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B031)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:B031)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:B031)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "B031"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

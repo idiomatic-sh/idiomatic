@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let imports = select occurrence as id, target, file, span from "static-import" where target = "typing.ByteString" or target = "collections.abc.ByteString";
 let attributes = select id, path, file, span from "qualified-name" where path = "typing.ByteString" or path = "collections.abc.ByteString";
@@ -6,4 +7,10 @@ let import_rows = select id, file, span from imports;
 let locations = union(left=import_rows, right=attribute_rows);
 let with_line = select l.id as id, l.file as file, l.span as span, r."start-line" as line from locations as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=with_line, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*PYI057(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)PYI057(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PYI057)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI057)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI057"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 import literal_members from "python/ruff/literal-members";
 let members = literal_members();
@@ -9,4 +10,10 @@ let reportable = select id, file from unique_repeated;
 let locations = select id, span, "start-line", file from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidates, inline-pattern="PYI062($|[, #])", range-pattern="(?:^|,)PYI062(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PYI062)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI062)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI062"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

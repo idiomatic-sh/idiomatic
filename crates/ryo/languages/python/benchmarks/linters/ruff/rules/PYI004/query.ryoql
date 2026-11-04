@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import version_checks from "python/ruff/version-checks";
 import suppress from "python/ruff/suppress";
 let checks = version_checks();
@@ -12,4 +13,10 @@ let counts = group-count(from=elements, keys=["tuple", "file"], count="count", d
 let candidates = select l.id as id, l.file as file from valid_tuples as l join counts as r on l.tuple = r.tuple and l.file = r.file where r.count > 2;
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI004(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI004)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:PYI004)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI004)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI004"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

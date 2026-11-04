@@ -306,36 +306,63 @@ fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
         ObservationKind, ObservationScope, QueryModuleSource, RyoQlQuery, ValidateRequest,
     };
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff");
-    let modules = [
-        "noqa-line-map",
-        "noqa-locations",
-        "noqa-additional-locations",
-        "suppression-edges",
-    ]
-    .into_iter()
-    .map(|name| {
-        QueryModuleSource::try_new(
-            &format!("python/ruff/{name}"),
-            &std::fs::read_to_string(root.join(format!("fragments/{name}.ryoql"))).unwrap(),
-        )
+    let profile: toml::Value =
+        toml::from_str(&std::fs::read_to_string(root.join("benchmark.toml")).unwrap()).unwrap();
+    let modules = profile["query-modules"]
+        .as_table()
         .unwrap()
-    })
-    .collect::<Vec<_>>();
+        .iter()
+        .map(|(name, path)| {
+            QueryModuleSource::try_new(
+                name,
+                &std::fs::read_to_string(root.join(path.as_str().unwrap())).unwrap(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
     let mut failures = Vec::new();
-    for code in ["RUF100", "S307", "W191", "E501", "SIM300", "ERA001"] {
+    for code in profile["defaults"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(profile["supporting-rules"].as_array().unwrap().iter())
+        .map(|value| value.as_str().unwrap())
+    {
         let text = std::fs::read_to_string(root.join(format!("rules/{code}/query.ryoql"))).unwrap();
         let query =
             RyoQlQuery::with_modules(&format!("test/{code}"), &text, modules.clone()).unwrap();
         let request = ValidateRequest {
             query,
             hosted: if code == "RUF100" {
-                vec![ryo::linter::HostDeclaration {
-                    name: ryo::linter::HostRelationName("config.external".into()),
-                    columns: vec![ryo::linter::HostColumn {
-                        name: ryo::linter::HostColumnName("prefix".into()),
-                        kind: ryo::linter::HostKind::Text,
-                    }],
-                }]
+                vec![
+                    ryo::linter::HostDeclaration {
+                        name: ryo::linter::HostRelationName("config.external".into()),
+                        columns: vec![ryo::linter::HostColumn {
+                            name: ryo::linter::HostColumnName("prefix".into()),
+                            kind: ryo::linter::HostKind::Text,
+                        }],
+                    },
+                    ryo::linter::HostDeclaration {
+                        name: ryo::linter::HostRelationName("config.selected".into()),
+                        columns: vec![ryo::linter::HostColumn {
+                            name: ryo::linter::HostColumnName("code".into()),
+                            kind: ryo::linter::HostKind::Text,
+                        }],
+                    },
+                    ryo::linter::HostDeclaration {
+                        name: ryo::linter::HostRelationName("config.disabled".into()),
+                        columns: vec![
+                            ryo::linter::HostColumn {
+                                name: ryo::linter::HostColumnName("file".into()),
+                                kind: ryo::linter::HostKind::File,
+                            },
+                            ryo::linter::HostColumn {
+                                name: ryo::linter::HostColumnName("code".into()),
+                                kind: ryo::linter::HostKind::Text,
+                            },
+                        ],
+                    },
+                ]
             } else {
                 Vec::new()
             },

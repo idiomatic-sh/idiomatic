@@ -18,6 +18,14 @@ def discrepancy_output(files: list[str], findings: list[dict[str, object]]) -> d
     """Bind exact files and the complete diagnostic multiset, preserving duplicates."""
     return {'files': sorted(files), 'diagnostics': sorted(findings, key=lambda row: (row['rule'], row['file'], row['start'], row['end'])), 'skipped': []}
 
+def selected_case_files(case: dict[str, object]) -> list[str]:
+    """Return the files the contestant actually runs, excluding staged context sources."""
+    supplied = case['files']
+    selected = case.get('requested-files', list(supplied))
+    if not isinstance(supplied, dict) or not isinstance(selected, list) or any(not isinstance(file, str) or file not in supplied for file in selected) or len(selected) != len(set(selected)):
+        raise ValueError('invalid selected discrepancy files')
+    return sorted(selected)
+
 def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], parent_rule: str) -> dict[str, object] | None:
     """Admit two concrete expectations only with pinned independent language evidence.
 
@@ -59,6 +67,8 @@ def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], 
     if source.hexdigest() != identity['source-sha256']:
         raise ValueError('stale discrepancy source identity')
 
+    selected_files = selected_case_files(case)
+
     def expected_rows(rows: object) -> list[dict[str, object]]:
         if not isinstance(rows, list):
             raise ValueError('discrepancy expectation must be an array')
@@ -66,8 +76,8 @@ def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], 
         for row in rows:
             if not isinstance(row, dict) or set(row) != {'rule', 'file', 'start', 'end'}:
                 raise ValueError('full discrepancy expectations require explicit diagnostic identities')
-            if row['file'] not in case['files'] or not isinstance(row['rule'], str) or (not row['rule']):
-                raise ValueError('discrepancy diagnostic outside supplied source')
+            if row['file'] not in selected_files or not isinstance(row['rule'], str) or (not row['rule']):
+                raise ValueError('discrepancy diagnostic outside selected source')
             text = case['files'][row['file']].encode()
             if type(row['start']) is not int or type(row['end']) is not int or (not 0 <= row['start'] <= row['end'] <= len(text)):
                 raise ValueError('invalid discrepancy diagnostic range')
@@ -75,8 +85,8 @@ def validate_reference_discrepancy(profile_root: Path, case: dict[str, object], 
             text[:row['end']].decode()
             normalized.append(dict(row))
         return normalized
-    intended = discrepancy_output(list(case['files']), expected_rows(case['expected']))
-    reference = discrepancy_output(list(case['files']), expected_rows(annotation['expected']))
+    intended = discrepancy_output(selected_files, expected_rows(case['expected']))
+    reference = discrepancy_output(selected_files, expected_rows(annotation['expected']))
     if intended == reference:
         raise ValueError('identical expectations are not a reference discrepancy')
     if discrepancy_json_hash(intended) != identity['intended-output-sha256'] or discrepancy_json_hash(reference) != identity['reference-output-sha256']:
@@ -124,7 +134,7 @@ def classify_reference_discrepancy(profile_root: Path, case: dict[str, object], 
     profile = tomllib.loads((profile_root / 'benchmark.toml').read_text())
     if actual_executable_sha256 not in profile['sha256'] or actual_settings_sha256 != certificate['identity']['settings-sha256']:
         raise ValueError('unapproved executable or stale actual invocation settings')
-    files = sorted(case['files'])
+    files = selected_case_files(case)
     for side, report in (('reference', reference), ('candidate', candidate)):
         if report.get('complete') is not True or report.get('error') is not None or report.get('files') != files or (report.get('skipped') != []) or (not isinstance(report.get('diagnostics'), list)):
             raise ValueError('discrepancy cannot accept an incomplete or failed report')

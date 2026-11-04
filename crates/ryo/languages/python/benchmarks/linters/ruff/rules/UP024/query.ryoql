@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let qualified_aliases = select id, file from "qualified-name" where path = "IOError" or path = "EnvironmentError" or path = "builtins.IOError" or path = "builtins.EnvironmentError" or path = "os.error" or path = "mmap.error" or path = "resource.error" or path = "select.error" or path = "socket.error";
 let windows_catalog = select name, file from "implicit-symbol" where name = "WindowsError" and kind = "platform-builtin";
@@ -35,4 +36,10 @@ let alias_reportable = union(left=alias_reportable_ab,right=alias_reportable_c);
 let reportable = union(left=alias_reportable,right=tuple_reportable);
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations = suppress(candidates=candidate_locations, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*UP024(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP024)(?:,|$)");
-emit violations subject file key(id);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:UP024)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:UP024)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "UP024"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id);

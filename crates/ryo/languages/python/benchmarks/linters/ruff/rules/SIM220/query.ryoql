@@ -1,3 +1,4 @@
+import ruf100_candidate_matches from "python/ruff/noqa-candidate-matches";
 import suppress from "python/ruff/suppress";
 let bool_ops = select id, file, span from "semantic-syntax" where kind = "bool-op";
 let operators = select parent, child from "semantic-child" where field = "op";
@@ -93,4 +94,10 @@ let visible_candidates = suppress(candidates=suppression_candidates, inline-patt
 let hidden_candidates = antijoin(left=suppression_candidates, right=visible_candidates, left-on=["id"], right-on=["id"]);
 let kept_candidates = antijoin(left=candidate_locations, right=hidden_candidates, left-on=["id"], right-on=["id"]);
 let violations = select id, file, span, unary, negated_name, positive_name from kept_candidates;
-emit violations subject file key(id, unary, negated_name, positive_name);
+let ruf100_candidates = select file, span from violations;
+let ruf100_matches = ruf100_candidate_matches(candidates=ruf100_candidates, inline-pattern="^[\s,]*(?:[A-Z]+[0-9]+[\s,]*)*(?:SIM220)(?:$|[\s,#]|[A-Z])", range-pattern="(?:^|,)(?:SIM220)(?:,|$)");
+let ruf100_directives = select directive, file from ruf100_matches where scope = 0 or scope = 1;
+let ruf100_used = extend(from=ruf100_directives, values={code: "SIM220"});
+observe ruf100_used as noqa_matches;
+let ruf100_visible = antijoin(left=violations, right=ruf100_matches, left-on=[file,span], right-on=[file,span]);
+emit ruf100_visible subject file key(id, unary, negated_name, positive_name);
