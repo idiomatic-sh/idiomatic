@@ -321,6 +321,34 @@ fn repeated_cuts_count_one_consumer_per_active_complete_rule() {
 }
 
 #[test]
+fn provenance_admission_keeps_unrelated_internal_streams_lazy() {
+    let mut query = plan();
+    let mut other = query.steps[0].clone();
+    if let Operation::Select { comparisons, .. } = &mut other.operation {
+        comparisons[0].right = Operand::Literal(QueryLiteral::Text(LiteralText("other".into())));
+    }
+    query.steps[1] = other;
+    query.steps.push(PlanStep {
+        operation: Operation::Union {
+            left: Input::Step(StepId(0)),
+            right: Input::Step(StepId(1)),
+        },
+        scope: StepScope::PerFile,
+    });
+    query.emit.step = StepId(2);
+    let graph = graph(&[query]);
+    let union = *graph.program_nodes[0][2].as_ref().expect("compiled union");
+    assert_eq!(
+        graph.nodes[union.0].input_supply,
+        vec![
+            crate::domain::operating::types::Supply::Streamed,
+            crate::domain::operating::types::Supply::Streamed,
+        ],
+        "only inputs named by a prepared derived use gain held provenance"
+    );
+}
+
+#[test]
 fn duplicate_cut_finishes_once_and_releases_only_after_last_rule() {
     let mut query = plan();
     query.steps.insert(1, query.steps[0].clone());

@@ -613,6 +613,14 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         &engine,
     )
     .expect("required execution scope");
+    let joined = *scope.scope.graph().program_nodes[0][root.0 as usize]
+        .as_ref()
+        .expect("compiled join");
+    assert_eq!(
+        scope.scope.graph().nodes[joined.0].input_supply[0],
+        crate::domain::operating::types::Supply::AtHand,
+        "the prepared join needs the left publication identity"
+    );
     let plans = [plan.clone()];
     let bindings = [Vec::new()];
     let mut merged = crate::domain::shared_walk::types::MergedWalk::default();

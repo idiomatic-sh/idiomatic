@@ -196,6 +196,31 @@ fn fingerprint(
     hash.finish()
 }
 
+/// A prepared derived view needs the producer's publication identity. An
+/// internal stream has rows but no held publication to admit at that boundary.
+fn provenance_inputs(
+    contract: &crate::domain::operator::contract::types::OperatorContract,
+    count: usize,
+) -> Vec<bool> {
+    let mut held = vec![false; count];
+    for group in contract
+        .derived
+        .streaming
+        .iter()
+        .chain(&contract.derived.collected)
+        .flatten()
+    {
+        for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
+            for place in &use_.inputs[..usize::from(use_.len)] {
+                if let Some(required) = held.get_mut(*place) {
+                    *required = true;
+                }
+            }
+        }
+    }
+    held
+}
+
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
 #[cfg(test)]
@@ -481,13 +506,16 @@ pub(crate) fn compile_prepared_observations(
         }
     }
     for node in &mut nodes {
+        let needs_publication = provenance_inputs(&node.contract, node.inputs.len());
         node.input_supply = node
             .inputs
             .iter()
-            .map(|input| match input {
+            .enumerate()
+            .map(|(at, input)| match input {
                 NodeInput::Node(child)
                     if node.phase == StepScope::PerFile
                         && resolved_readers[child.0] == 1
+                        && !needs_publication[at]
                         && !canonical_roots[child.0] =>
                 {
                     crate::domain::operating::types::Supply::Streamed
