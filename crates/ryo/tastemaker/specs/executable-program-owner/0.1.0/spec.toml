@@ -19,6 +19,7 @@ templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/partitions_test.rs", description = "Partition behavior controls." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/request_identity.rs", description = "One request's source and generation identity." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/restored.rs", description = "Validated deferred restoration." },
+  { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/selection.rs", description = "Admitted compact selection construction and publication proof." },
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program/runtime.rs", description = "Single owner of dependency scheduling and release." },
 ]
 rules = []
@@ -43,6 +44,7 @@ given.files."src/application/file_dag/program/partitions.rs" = "pub fn partition
 given.files."src/application/file_dag/program/partitions_test.rs" = "#[test] fn partition() {}"
 given.files."src/application/file_dag/program/request_identity.rs" = "pub fn identify() {}"
 given.files."src/application/file_dag/program/restored.rs" = "pub fn restore() {}"
+given.files."src/application/file_dag/program/selection.rs" = "pub fn select() {}"
 given.files."src/application/file_dag/program/runtime.rs" = "pub fn execute() {}"
 
 [[scenarios]]
