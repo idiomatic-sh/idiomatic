@@ -112,14 +112,17 @@ impl KernelInvocation for KernelSession<'_, '_> {
     }
     fn positions(
         &self,
-        region: crate::domain::executable_program::types::RegionId,
-        shape: &std::sync::Arc<crate::domain::lowering::types::LoweredShape>,
         permit: &KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
     {
-        let instruction = &self.prepared.program().regions()[region.0].instructions[0];
+        permit
+            .validate_program(self.prepared.program())
+            .map_err(InvocationFailure::Semantic)?;
+        let instruction = permit.descriptor();
+        let shape = permit.native_shape().map_err(InvocationFailure::Semantic)?;
+        let region = permit.region();
         if self
             .walk
             .is_some_and(|walk| walk.class(self.prepared, instruction).is_some())

@@ -403,6 +403,28 @@ impl<'scope> KernelPermit<'scope> {
             evaluation: self.evaluation,
         })
     }
+    pub(super) fn native_shape(
+        &self,
+    ) -> Result<&Arc<crate::domain::lowering::types::LoweredShape>, OperatingError> {
+        self.program.regions()[self.region.0]
+            .native_positions
+            .as_ref()
+            .ok_or(OperatingError::WrongOperation)
+    }
+    pub(super) fn region(&self) -> RegionId {
+        self.region
+    }
+    pub(super) fn validate_program(
+        &self,
+        program: &crate::domain::executable_program::types::ExecutableProgram,
+    ) -> Result<(), OperatingError> {
+        self.validate_live()?;
+        if std::ptr::eq(self.program, program) {
+            Ok(())
+        } else {
+            Err(OperatingError::WrongOperation)
+        }
+    }
     pub(super) fn descriptor(&self) -> &crate::domain::executable_program::types::Instruction {
         &self.program.regions()[self.region.0].instructions[self.instruction]
     }

@@ -56,8 +56,6 @@ pub(super) trait KernelInvocation {
     ) -> Result<StrategyOutcome, InvocationFailure>;
     fn positions(
         &self,
-        region: RegionId,
-        shape: &Arc<crate::domain::lowering::types::LoweredShape>,
         permit: &super::admission::KernelPermit<'_>,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
@@ -716,12 +714,12 @@ impl ProgramExecution {
                 .instructions
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
-            if let (Some(shape), Delivery::Retain) = (&region.native_positions, &delivery) {
+            if let (Some(_), Delivery::Retain) = (&region.native_positions, &delivery) {
                 if !completion.requires_buffer() {
                     let frame = frames
                         .first_mut()
                         .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
-                    if let Some(produced) = kernels.positions(id, shape, &permit, context, frame)? {
+                    if let Some(produced) = kernels.positions(&permit, context, frame)? {
                         let publication = inputs
                             .publish_positions(
                                 super::admission::ProducerRoot::Region(id),
