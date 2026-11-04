@@ -329,14 +329,12 @@ pub(crate) trait TestOperator:
             .collect::<Vec<_>>();
         let contract =
             super::derived::prepare::operator(self, operation, &schemas, context.bindings)?;
-        CommonOperatorEngine::fixture().stream(
-            &feed.relation_owner(),
-            &contract,
-            feed,
-            context,
-            room,
-            emit,
-        )
+        let owner = feed.relation_owner();
+        let engine = CommonOperatorEngine::new(
+            crate::outbound::operators::factory::test_port(),
+            owner.derived.semantic_port(),
+        );
+        engine.stream(&owner, &contract, feed, context, room, emit)
     }
 }
 impl<T: crate::domain::operator::collections::operators::interface::OperatorsItem + ?Sized>
@@ -365,14 +363,12 @@ pub(crate) fn stream_with_inputs(
         })
         .collect::<Vec<_>>();
     let contract = super::derived::prepare::operator(item, operation, &schemas, context.bindings)?;
-    CommonOperatorEngine::fixture().stream(
-        &feed.relation_owner(),
-        &contract,
-        feed,
-        context,
-        room,
-        emit,
-    )
+    let owner = feed.relation_owner();
+    let engine = CommonOperatorEngine::new(
+        crate::outbound::operators::factory::test_port(),
+        owner.derived.semantic_port(),
+    );
+    engine.stream(&owner, &contract, feed, context, room, emit)
 }
 
 /// Existing borrowed test worlds keep request metadata for their fixture lifetime.

@@ -444,7 +444,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
         plans::types::OperationKind,
     };
     #[derive(Debug)]
-    struct RefuseCount;
+    struct RefuseCount(CommonOperatorEngine<'static>);
     impl PrimitiveExecutor for RefuseCount {
         fn keep_representation(
             &self,
@@ -459,13 +459,13 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             if contract.kind == OperationKind::GroupCount {
                 return Err(OperatingError::NotRun);
             }
-            CommonOperatorEngine::fixture()
+            self.0
                 .keep_representation(contract, physical, feed, owner, context, room)
         }
         fn derived_port(
             &self,
         ) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-            crate::outbound::derived::factory::test_port()
+            self.0.derived_port()
         }
         fn ordered_existence(
             &self,
@@ -478,15 +478,8 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             room: &mut Room,
         ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
         {
-            CommonOperatorEngine::fixture().ordered_existence(
-                owner,
-                shape,
-                source,
-                rows,
-                output_kinds,
-                context,
-                room,
-            )
+            self.0
+                .ordered_existence(owner, shape, source, rows, output_kinds, context, room)
         }
         fn native_classes(
             &self,
@@ -495,7 +488,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             shared: &mut crate::domain::shared_walk::types::MergedWalk,
             walking: crate::domain::shared_walk::types::Walking<'_>,
         ) -> Result<(), OperatingError> {
-            CommonOperatorEngine::fixture().native_classes(owner, declaration, shared, walking)
+            self.0.native_classes(owner, declaration, shared, walking)
         }
         fn stream_representation(
             &self,
@@ -510,7 +503,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             if contract.kind == OperationKind::GroupCount {
                 return Err(OperatingError::NotRun);
             }
-            CommonOperatorEngine::fixture()
+            self.0
                 .stream_representation(contract, physical, feed, owner, context, room, emit)
         }
         fn stream(
@@ -525,7 +518,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             if contract.kind == OperationKind::GroupCount {
                 return Err(OperatingError::NotRun);
             }
-            CommonOperatorEngine::fixture().stream(owner, contract, feed, context, room, emit)
+            self.0.stream(owner, contract, feed, context, room, emit)
         }
         fn collect(
             &self,
@@ -538,7 +531,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             if contract.kind == OperationKind::GroupCount {
                 return Err(OperatingError::NotRun);
             }
-            CommonOperatorEngine::fixture().collect(owner, contract, inputs, context, out)
+            self.0.collect(owner, contract, inputs, context, out)
         }
     }
     for failed_emit in [true, false] {
@@ -599,7 +592,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
                 count: ryo_values::domain::rows::types::RowCount(1),
             },
         }];
-        let executor = RefuseCount;
+        let executor = RefuseCount(CommonOperatorEngine::fixture());
         let scope = crate::application::file_dag::scope::ExecutionScope::new(
             std::sync::Arc::new(crate::domain::file_program::service::compile_prepared(
                 std::slice::from_ref(&plan),

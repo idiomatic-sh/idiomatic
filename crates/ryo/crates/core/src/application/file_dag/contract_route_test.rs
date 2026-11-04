@@ -57,12 +57,24 @@ use ryo_values::domain::{
 };
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct CountingExecutor {
+    engine: CommonOperatorEngine<'static>,
     ordered_calls: std::sync::atomic::AtomicUsize,
     decline_ordered: bool,
     calls: Mutex<Vec<OperationKind>>,
     emitted: Mutex<Vec<(OperationKind, usize)>>,
+}
+impl Default for CountingExecutor {
+    fn default() -> Self {
+        Self {
+            engine: CommonOperatorEngine::fixture(),
+            ordered_calls: std::sync::atomic::AtomicUsize::default(),
+            decline_ordered: false,
+            calls: Mutex::default(),
+            emitted: Mutex::default(),
+        }
+    }
 }
 impl PrimitiveExecutor for CountingExecutor {
     fn keep_representation(
@@ -95,15 +107,8 @@ impl PrimitiveExecutor for CountingExecutor {
         if self.decline_ordered {
             return Ok(crate::application::file_dag::ordered_existence::StrategyOutcome::Declined(crate::application::file_dag::ordered_existence::AdmissionDecline::UnprovenPopulation));
         }
-        crate::application::file_dag::execution::CommonOperatorEngine::fixture().ordered_existence(
-            owner,
-            shape,
-            source,
-            rows,
-            output_kinds,
-            context,
-            room,
-        )
+        self.engine
+            .ordered_existence(owner, shape, source, rows, output_kinds, context, room)
     }
 
     fn native_classes(
@@ -113,7 +118,8 @@ impl PrimitiveExecutor for CountingExecutor {
         shared: &mut crate::domain::shared_walk::types::MergedWalk,
         walking: crate::domain::shared_walk::types::Walking<'_>,
     ) -> Result<(), OperatingError> {
-        CommonOperatorEngine::fixture().native_classes(owner, declaration, shared, walking)
+        self.engine
+            .native_classes(owner, declaration, shared, walking)
     }
     fn stream_representation(
         &self,
@@ -126,7 +132,7 @@ impl PrimitiveExecutor for CountingExecutor {
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
         self.calls.lock().unwrap().push(contract.kind);
-        CommonOperatorEngine::fixture().stream_representation(
+        self.engine.stream_representation(
             contract,
             physical,
             feed,
@@ -140,7 +146,7 @@ impl PrimitiveExecutor for CountingExecutor {
         )
     }
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        crate::outbound::derived::factory::test_port()
+        self.engine.derived_port()
     }
     fn stream(
         &self,
@@ -152,7 +158,7 @@ impl PrimitiveExecutor for CountingExecutor {
         emit: &mut dyn Emit,
     ) -> Result<(), OperatingError> {
         self.calls.lock().unwrap().push(contract.kind);
-        CommonOperatorEngine::fixture().stream(
+        self.engine.stream(
             owner,
             contract,
             feed,
@@ -173,7 +179,7 @@ impl PrimitiveExecutor for CountingExecutor {
         out: &mut Table,
     ) -> Result<(), OperatingError> {
         self.calls.lock().unwrap().push(contract.kind);
-        CommonOperatorEngine::fixture().collect(owner, contract, inputs, context, out)?;
+        self.engine.collect(owner, contract, inputs, context, out)?;
         self.emitted
             .lock()
             .unwrap()
@@ -609,7 +615,9 @@ fn partial_positive_rows_reach_common_engine_but_partial_absence_does_not() {
     );
 }
 #[derive(Debug)]
-struct RejectingExecutor;
+struct RejectingExecutor {
+    port: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
+}
 impl PrimitiveExecutor for RejectingExecutor {
     fn keep_representation(
         &self,
@@ -658,7 +666,7 @@ impl PrimitiveExecutor for RejectingExecutor {
         Err(OperatingError::WrongOperation)
     }
     fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        crate::outbound::derived::factory::test_port()
+        std::sync::Arc::clone(&self.port)
     }
     fn stream(
         &self,
@@ -720,15 +728,16 @@ fn production_route_cannot_bypass_an_injected_executor_refusal() {
         memo: &mut memo,
         scratch: &mut scratch,
     };
+    let port = crate::outbound::derived::factory::test_port();
     let prepared = RequestOperators::prepare_with_schemas(
         std::slice::from_ref(&plan),
         &[vec![]],
         &[],
         &|_| stored_kinds(&case.inputs[0]),
-        crate::outbound::derived::factory::test_port(),
+        std::sync::Arc::clone(&port),
     )
     .unwrap();
-    let executor = RejectingExecutor;
+    let executor = RejectingExecutor { port };
     let scope = crate::application::file_dag::testing::FileScope::new(
         Arc::new(compile_prepared(std::slice::from_ref(&plan), &prepared)),
         &executor,
