@@ -238,7 +238,9 @@ impl ProgramExecution {
                         last.contract.collected_kinds.clone(),
                     )
                     .map_err(InvocationFailure::Semantic)?;
-                return Ok(InvocationOutcome::Published(input.partial()));
+                return Ok(InvocationOutcome::Published(
+                    input.with_coverage(completion.coverage(needs)),
+                ));
             }
             if matches!(delivery, Delivery::Retain) {
                 for instruction in region.instructions.iter().rev() {
@@ -451,7 +453,7 @@ impl ProgramExecution {
                     let published = if completion.observation_ready(needs) {
                         published
                     } else {
-                        published.partial()
+                        published.with_coverage(completion.coverage(needs))
                     };
                     Ok(InvocationOutcome::Published(published))
                 }

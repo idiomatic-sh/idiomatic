@@ -43,7 +43,7 @@ pub(crate) enum ApplicabilityReason {
 #[derive(Clone)]
 pub(super) enum Readiness {
     Complete,
-    Partial,
+    Partial { files: Vec<Option<FileId>> },
     Skipped(ApplicabilityProof),
     Unknown(OperatingError),
 }
@@ -101,13 +101,32 @@ impl AdmittedInput {
     pub(super) fn observation_ready(&self) -> Result<bool, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(true),
-            Readiness::Partial | Readiness::Skipped(_) => Ok(false),
+            Readiness::Partial { .. } | Readiness::Skipped(_) => Ok(false),
             Readiness::Unknown(error) => Err(error.clone()),
         }
     }
 
-    pub(super) fn partial(mut self) -> Self {
-        self.readiness = Readiness::Partial;
+    pub(super) fn coverage(
+        &self,
+    ) -> Result<super::super::completion::CoverageState, OperatingError> {
+        match &self.readiness {
+            Readiness::Complete => Ok(super::super::completion::CoverageState::Complete),
+            Readiness::Partial { files } => Ok(super::super::completion::CoverageState::Partial {
+                files: files.clone(),
+            }),
+            Readiness::Unknown(error) => Err(error.clone()),
+            Readiness::Skipped(_) => Err(OperatingError::ObservationIncomplete {
+                reason: "producer partition was skipped".into(),
+            }),
+        }
+    }
+    pub(super) fn with_coverage(
+        mut self,
+        coverage: super::super::completion::CoverageState,
+    ) -> Self {
+        if let super::super::completion::CoverageState::Partial { files } = coverage {
+            self.readiness = Readiness::Partial { files };
+        }
         self
     }
 
@@ -144,7 +163,7 @@ impl AdmittedInput {
             return Err(OperatingError::NotRead);
         }
         match &self.readiness {
-            Readiness::Complete | Readiness::Partial => Ok(&self.publication),
+            Readiness::Complete | Readiness::Partial { .. } => Ok(&self.publication),
             Readiness::Skipped(_) => Err(OperatingError::ObservationIncomplete {
                 reason: "admitted producer partition is skipped, not complete".into(),
             }),

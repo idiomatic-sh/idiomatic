@@ -108,6 +108,27 @@ impl CompletionPolicy {
             )),
         }
     }
+    pub(super) fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
+        let files = match &self.publication {
+            CompletionBehavior::BlockBeforeRun(partials)
+                if blocked(reads, partials) == Blocking::Blocked =>
+            {
+                match self.scope {
+                    ScopeIdentity::File { file, .. } => vec![Some(file)],
+                    ScopeIdentity::Project { .. } => {
+                        unreachable!("file completion policy has a file scope")
+                    }
+                }
+            }
+            CompletionBehavior::BlockBeforeRun(_) => Vec::new(),
+            CompletionBehavior::DropAfterCollect(partials) => files_for(partials, reads),
+        };
+        if files.is_empty() {
+            CoverageState::Complete
+        } else {
+            CoverageState::Partial { files }
+        }
+    }
     pub(super) fn observation_ready(&self, reads: &[RelationRead]) -> bool {
         match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials) => {
