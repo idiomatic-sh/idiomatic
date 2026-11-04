@@ -4,6 +4,7 @@
 use crate::domain::{
     column_kernel::types::Chain,
     coverage::types::RuleIndex,
+    derived_views::types::ViewRequest,
     executable_program::types::{HeldJoinOrder, RegionId},
     file_program::types::{NodeId, RequestGraph},
 };
@@ -155,8 +156,20 @@ impl ColumnCandidates {
                 else {
                     continue;
                 };
+                let primary = &equality.primary;
+                if primary.len != 1
+                    || primary.inputs[0] != 1
+                    || primary.relations[0] != Some(chain.right)
+                    || primary.plan.kind != DerivedKind::Equality
+                    || !matches!(
+                        &primary.plan.request,
+                        ViewRequest::Equality { columns } if columns == &chain.right_on
+                    )
+                {
+                    continue;
+                }
                 let mut chain = chain.clone();
-                chain.index = Some(Arc::clone(&equality.primary.plan));
+                chain.index = Some(Arc::clone(&primary.plan));
                 let order = if join_node.native_join_right_first {
                     HeldJoinOrder::RightBeforeLeft
                 } else {
