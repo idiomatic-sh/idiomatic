@@ -189,12 +189,23 @@ fn plan(comparing: u32, frontier: usize) -> Plan {
 }
 
 fn worker(plans: &[Plan]) -> Tables {
-    tables_for(
+    let metadata = crate::domain::run_metadata::service::from_plans(plans);
+    let matchers = std::sync::Arc::new(
+        crate::domain::matching::types::prepared::value::PreparedMatchers::new(plans),
+    );
+    let mut tables = tables_for(
         WorkerNumber(0),
-        plans,
+        &metadata,
+        matchers,
         TreeSteps::Lowered,
         Counting::DoesNotCount,
-    )
+    );
+    let scopes = plans
+        .iter()
+        .map(|_| crate::domain::placement::types::RuleScope::default())
+        .collect::<Vec<_>>();
+    tables.mask = crate::domain::placement::service::decide(&scopes).always;
+    tables
 }
 
 fn placed() -> PlacedScopes {

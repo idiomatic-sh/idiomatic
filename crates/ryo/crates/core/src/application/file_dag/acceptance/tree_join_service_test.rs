@@ -103,13 +103,28 @@ fn found(
     view: &[ColumnIndex],
 ) -> Option<Finding> {
     let semantics = crate::outbound::derived::factory::test_port();
+    let native = ryo_relations::domain::relations::service::kinds(match form {
+        TreeForm::Elements => ryo_relations::domain::relations::types::Relation::SyntaxTree,
+        TreeForm::Edges => ryo_relations::domain::relations::types::Relation::SyntaxChild,
+    });
+    let mut left = vec![
+        CellKind::Node;
+        left_on
+            .iter()
+            .map(|column| column.0 as usize + 1)
+            .max()
+            .unwrap_or(0)
+    ];
+    for (left_column, right_column) in left_on.iter().zip(right_on) {
+        left[left_column.0 as usize] = native[source_column(view, *right_column).0 as usize];
+    }
     let prepared = semantics.prepare(
         ViewRequest::NativeLookup {
             left_on: left_on.to_vec(),
             right_on: right_on.to_vec(),
             view: view.to_vec(),
         },
-        vec![],
+        vec![left, native.to_vec()],
     );
     let form = match form {
         TreeForm::Elements => NativeForm::Elements,

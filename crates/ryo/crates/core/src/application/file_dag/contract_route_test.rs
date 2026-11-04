@@ -620,75 +620,18 @@ struct RejectingExecutor {
     port: std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>,
 }
 impl PrimitiveExecutor for RejectingExecutor {
-    fn keep_representation(
+    fn execute(
         &self,
-        _: &OperatorContract,
-        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
-        _: &mut GraphInputs<'_, '_>,
-        _: &Rc<RelationOwner>,
-        _: &mut OperatorContext<'_>,
-        _: &mut Room,
-    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
-        Err(OperatingError::WrongOperation)
-    }
-    fn ordered_existence(
-        &self,
-        _owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-        shape: &crate::domain::ordered_existence::types::ResolvedShape,
-        source: &crate::application::file_dag::relations::PublishedInput,
-        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
-        output_kinds: &[ryo_relations::domain::relations::types::CellKind],
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
-    {
-        Err(OperatingError::WrongOperation)
-    }
-
-    fn native_classes(
-        &self,
-        _: &Rc<RelationOwner>,
-        _: &NativeClassBatch<'_>,
-        _: &mut crate::domain::shared_walk::types::MergedWalk,
-        _: crate::domain::shared_walk::types::Walking<'_>,
-    ) -> Result<(), OperatingError> {
-        Err(OperatingError::WrongOperation)
-    }
-    fn stream_representation(
-        &self,
-        _: &OperatorContract,
-        _: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
-        _: &mut GraphInputs<'_, '_>,
-        _: &Rc<RelationOwner>,
-        _: &mut OperatorContext<'_>,
-        _: &mut Room,
-        _: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        Err(OperatingError::WrongOperation)
-    }
-    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        std::sync::Arc::clone(&self.port)
-    }
-    fn stream(
-        &self,
-        _owner: &Rc<RelationOwner>,
-        _: &OperatorContract,
-        _: &mut dyn Feed<'_>,
-        _: &mut OperatorContext<'_>,
-        _: &mut Room,
-        _: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        Err(OperatingError::WrongOperation)
-    }
-    fn collect(
-        &self,
-        _owner: &Rc<RelationOwner>,
-        _: &OperatorContract,
-        _: &[Rows<'_>],
-        _: &mut OperatorContext<'_>,
-        _: &mut Table,
-    ) -> Result<(), OperatingError> {
-        Err(OperatingError::WrongOperation)
+        _call: crate::application::file_dag::executor::KernelCall<'_, '_, '_>,
+    ) -> Result<
+        crate::application::file_dag::executor::KernelAnswer,
+        crate::application::file_dag::executor::KernelFault,
+    > {
+        Err(
+            crate::application::file_dag::executor::KernelFault::Refused(
+                OperatingError::WrongOperation,
+            ),
+        )
     }
 }
 #[test]

@@ -458,92 +458,27 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     #[derive(Debug)]
     struct RefuseCount(CommonOperatorEngine<'static>);
     impl PrimitiveExecutor for RefuseCount {
-        fn keep_representation(
+        fn execute(
             &self,
-            contract: &OperatorContract,
-            physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
-            feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
-            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-            context: &mut OperatorContext<'_>,
-            room: &mut Room,
-        ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError>
-        {
-            if contract.kind == OperationKind::GroupCount {
-                return Err(OperatingError::NotRun);
+            call: crate::application::file_dag::executor::KernelCall<'_, '_, '_>,
+        ) -> Result<
+            crate::application::file_dag::executor::KernelAnswer,
+            crate::application::file_dag::executor::KernelFault,
+        > {
+            if matches!(
+                &call,
+                crate::application::file_dag::executor::KernelCall::Registered {
+                    operation: Operation::GroupCount { .. },
+                    ..
+                }
+            ) {
+                return Err(
+                    crate::application::file_dag::executor::KernelFault::Refused(
+                        OperatingError::NotRun,
+                    ),
+                );
             }
-            self.0
-                .keep_representation(contract, physical, feed, owner, context, room)
-        }
-        fn derived_port(
-            &self,
-        ) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-            self.0.derived_port()
-        }
-        fn ordered_existence(
-            &self,
-            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-            shape: &crate::domain::ordered_existence::types::ResolvedShape,
-            source: &crate::application::file_dag::relations::PublishedInput,
-            rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
-            output_kinds: &[CellKind],
-            context: &mut OperatorContext<'_>,
-            room: &mut Room,
-        ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
-        {
-            self.0
-                .ordered_existence(owner, shape, source, rows, output_kinds, context, room)
-        }
-        fn native_classes(
-            &self,
-            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-            declaration: &crate::application::file_dag::executor::NativeClassBatch<'_>,
-            shared: &mut crate::domain::shared_walk::types::MergedWalk,
-            walking: crate::domain::shared_walk::types::Walking<'_>,
-        ) -> Result<(), OperatingError> {
-            self.0.native_classes(owner, declaration, shared, walking)
-        }
-        fn stream_representation(
-            &self,
-            contract: &OperatorContract,
-            physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
-            feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
-            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-            context: &mut OperatorContext<'_>,
-            room: &mut Room,
-            emit: &mut dyn crate::domain::operating::types::Emit,
-        ) -> Result<(), OperatingError> {
-            if contract.kind == OperationKind::GroupCount {
-                return Err(OperatingError::NotRun);
-            }
-            self.0
-                .stream_representation(contract, physical, feed, owner, context, room, emit)
-        }
-        fn stream(
-            &self,
-            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-            contract: &OperatorContract,
-            feed: &mut dyn Feed<'_>,
-            context: &mut OperatorContext<'_>,
-            room: &mut Room,
-            emit: &mut dyn crate::domain::operating::types::Emit,
-        ) -> Result<(), OperatingError> {
-            if contract.kind == OperationKind::GroupCount {
-                return Err(OperatingError::NotRun);
-            }
-            self.0.stream(owner, contract, feed, context, room, emit)
-        }
-        fn collect(
-            &self,
-            owner: &std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-            contract: &OperatorContract,
-            inputs: &[Rows<'_>],
-            context: &mut OperatorContext<'_>,
-            out: &mut Table,
-        ) -> Result<(), OperatingError> {
-            if contract.kind == OperationKind::GroupCount {
-                return Err(OperatingError::NotRun);
-            }
-            self.0.collect(owner, contract, inputs, context, out)
+            self.0.execute(call)
         }
     }
     for failed_emit in [true, false] {

@@ -39,89 +39,20 @@ impl Default for Counted {
     }
 }
 impl PrimitiveExecutor for Counted {
-    fn native_classes(
+    fn execute(
         &self,
-        owner: &std::rc::Rc<RelationOwner>,
-        declaration: &crate::application::file_dag::executor::NativeClassBatch<'_>,
-        shared: &mut crate::domain::shared_walk::types::MergedWalk,
-        walking: crate::domain::shared_walk::types::Walking<'_>,
-    ) -> Result<(), OperatingError> {
-        self.engine
-            .native_classes(owner, declaration, shared, walking)
-    }
-    fn stream_representation(
-        &self,
-        contract: &OperatorContract,
-        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
-        feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
-        owner: &std::rc::Rc<RelationOwner>,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        self.calls.fetch_add(1, Ordering::Relaxed);
-        self.engine
-            .stream_representation(contract, physical, feed, owner, context, room, emit)
-    }
-    fn keep_representation(
-        &self,
-        contract: &OperatorContract,
-        physical: &crate::domain::table_model::collections::representations::publication::PreparedPhysical,
-        feed: &mut crate::application::file_dag::service::GraphInputs<'_, '_>,
-        owner: &std::rc::Rc<RelationOwner>,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-    ) -> Result<crate::application::file_dag::relations::PublishedInput, OperatingError> {
-        self.calls.fetch_add(1, Ordering::Relaxed);
-        self.engine
-            .keep_representation(contract, physical, feed, owner, context, room)
-    }
-    fn ordered_existence(
-        &self,
-        owner: &std::rc::Rc<RelationOwner>,
-        shape: &crate::domain::ordered_existence::types::ResolvedShape,
-        source: &crate::application::file_dag::relations::PublishedInput,
-        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
-        output_kinds: &[CellKind],
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-    ) -> Result<crate::application::file_dag::ordered_existence::StrategyOutcome, OperatingError>
-    {
-        PrimitiveExecutor::ordered_existence(
-            &self.engine,
-            owner,
-            shape,
-            source,
-            rows,
-            output_kinds,
-            context,
-            room,
-        )
-    }
-    fn derived_port(&self) -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        self.engine.derived_port()
-    }
-    fn stream(
-        &self,
-        owner: &std::rc::Rc<RelationOwner>,
-        contract: &OperatorContract,
-        feed: &mut dyn Feed<'_>,
-        context: &mut OperatorContext<'_>,
-        room: &mut Room,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        self.calls.fetch_add(1, Ordering::Relaxed);
-        PrimitiveExecutor::stream(&self.engine, owner, contract, feed, context, room, emit)
-    }
-    fn collect(
-        &self,
-        owner: &std::rc::Rc<RelationOwner>,
-        contract: &OperatorContract,
-        inputs: &[Rows<'_>],
-        context: &mut OperatorContext<'_>,
-        out: &mut Table,
-    ) -> Result<(), OperatingError> {
-        PrimitiveExecutor::collect(&self.engine, owner, contract, inputs, context, out)
+        call: crate::application::file_dag::executor::KernelCall<'_, '_, '_>,
+    ) -> Result<
+        crate::application::file_dag::executor::KernelAnswer,
+        crate::application::file_dag::executor::KernelFault,
+    > {
+        if matches!(
+            &call,
+            crate::application::file_dag::executor::KernelCall::Registered { .. }
+        ) {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+        }
+        self.engine.execute(call)
     }
 }
 #[test]
