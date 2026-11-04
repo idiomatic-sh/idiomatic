@@ -1391,7 +1391,7 @@ impl LintUseCase for LintUseCaseImpl {
         let executor = crate::application::file_dag::execution::CommonOperatorEngine::new(
             self.operators.as_ref(),
         );
-        let services = ProgramServices::new(&executor, Arc::clone(&self.derived));
+        let services = ProgramServices::new(&executor, Arc::clone(&self.derived), &listing.files);
         let rule_digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let program = facade::prepare(
             compiled,

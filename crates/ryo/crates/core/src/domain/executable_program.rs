@@ -4,3 +4,5 @@ pub(crate) mod service;
 pub(crate) mod kernel;
 
 mod observed;
+
+pub(crate) mod physical;

@@ -69,6 +69,7 @@ pub(crate) fn cross_rule_with_inputs(
         crossing.files,
         crossing.covered,
         crossing.skipped,
+        crossing.services,
     )
     .map_err(|error| refuse(&error))?;
     evaluate_cross_roots(

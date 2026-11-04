@@ -24,6 +24,9 @@ pub(crate) fn open_file<'a, 'service>(
     demanded: &[bool],
     services: &'a ProgramServices<'service>,
 ) -> Result<FileRun<'a, 'service>, OperatingError> {
+    if !services.request.contains(file) {
+        return Err(OperatingError::NotRead);
+    }
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }

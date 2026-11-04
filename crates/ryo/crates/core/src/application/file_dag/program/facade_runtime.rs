@@ -38,6 +38,7 @@ use ryo_values::domain::{
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 pub(crate) struct ProgramServices<'service> {
+    request: Arc<super::request_identity::RequestIdentity>,
     kernels: &'service dyn super::super::executor::PrimitiveExecutor,
     derived: Arc<dyn DerivedPort>,
 }
@@ -45,8 +46,13 @@ impl<'service> ProgramServices<'service> {
     pub(crate) fn new(
         kernels: &'service dyn super::super::executor::PrimitiveExecutor,
         derived: Arc<dyn DerivedPort>,
+        corpus: &[ryo_values::domain::files::types::CorpusInput],
     ) -> Self {
-        Self { kernels, derived }
+        Self {
+            kernels,
+            derived,
+            request: Arc::new(super::request_identity::RequestIdentity::new(corpus)),
+        }
     }
     pub(super) fn kernels(&self) -> &'service dyn super::super::executor::PrimitiveExecutor {
         self.kernels
@@ -58,6 +64,7 @@ impl<'service> ProgramServices<'service> {
 
 /// A named project phase and its bound inputs must use the very same owner.
 pub(crate) struct PublicationScope {
+    request: Arc<super::request_identity::RequestIdentity>,
     program: Arc<crate::domain::executable_program::types::ExecutableProgram>,
     owner: Rc<RelationOwner>,
     execution: std::cell::OnceCell<ProgramExecution>,
@@ -71,6 +78,28 @@ impl PublicationScope {
     }
     pub(in crate::application::file_dag) fn owner(&self) -> &Rc<RelationOwner> {
         &self.owner
+    }
+    pub(super) fn validate_partitions(
+        &self,
+        required: &RequiredPartitions,
+    ) -> Result<(), OperatingError> {
+        if self.request.as_ref() == required.request.as_ref() {
+            Ok(())
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    }
+    pub(super) fn validate_request(
+        &self,
+        services: &ProgramServices<'_>,
+        required: &RequiredPartitions,
+    ) -> Result<(), OperatingError> {
+        if self.request.as_ref() != services.request.as_ref()
+            || self.request.as_ref() != required.request.as_ref()
+        {
+            return Err(OperatingError::NotRead);
+        }
+        Ok(())
     }
     pub(super) fn validate_query(
         &self,
@@ -107,6 +136,7 @@ pub(crate) fn publication_owner(
     services: &ProgramServices<'_>,
 ) -> Result<PublicationScope, OperatingError> {
     Ok(PublicationScope {
+        request: Arc::clone(&services.request),
         program: Arc::clone(program.program()),
         owner: open_program_owner(program.program(), Arc::clone(services.derived())),
         execution: std::cell::OnceCell::new(),
@@ -122,9 +152,10 @@ pub(crate) fn required_partitions(
     files: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[Covered],
     skipped: &[Skipped],
+    services: &ProgramServices<'_>,
 ) -> Result<RequiredPartitions, OperatingError> {
     program.rule_metadata(rule)?;
-    RequiredPartitions::from_request(files, covered, skipped)
+    RequiredPartitions::from_request(&services.request, files, covered, skipped)
 }
 
 mod source_admission;

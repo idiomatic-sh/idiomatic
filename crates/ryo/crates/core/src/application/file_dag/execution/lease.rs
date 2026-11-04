@@ -155,6 +155,10 @@ pub(in crate::application::file_dag) fn evaluate(
         port: operators,
         permit,
         failure: &semantic_failure,
+        binding: crate::domain::executable_program::physical::PhysicalBinding {
+            native_join: resources.inputs.native_join.is_some(),
+            source_len: context.source.0.len(),
+        },
     };
     let mut lease = PrimitiveLease::new(
         views,

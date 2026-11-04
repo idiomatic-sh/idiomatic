@@ -18,6 +18,7 @@ pub(super) struct FileGeneration {
 }
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct RequiredPartitions {
+    pub(super) request: Arc<super::request_identity::RequestIdentity>,
     pub(super) files: Box<[FileId]>,
     pub(super) covered: Box<[crate::domain::coverage::types::Covered]>,
     pub(super) skipped: Box<[ryo_values::domain::runs::types::Skipped]>,
@@ -220,6 +221,8 @@ pub(crate) struct KernelPermit<'scope> {
     region: RegionId,
     instruction: usize,
     generation: &'scope Arc<()>,
+    owner: &'scope RelationOwner,
+    ordered: bool,
 }
 impl<'scope> KernelPermit<'scope> {
     fn code(
@@ -260,6 +263,8 @@ impl<'scope> KernelPermit<'scope> {
             region,
             instruction: 0,
             generation: &execution.generation,
+            owner: &execution.owner,
+            ordered: false,
         })
     }
     pub(super) fn ordered(
@@ -278,6 +283,8 @@ impl<'scope> KernelPermit<'scope> {
             region,
             instruction: 0,
             generation: &execution.generation,
+            owner: &execution.owner,
+            ordered: true,
         })
     }
     /// A continuation borrows the already admitted invocation; no refcount,
@@ -295,6 +302,34 @@ impl<'scope> KernelPermit<'scope> {
             region: self.region,
             instruction: at,
             generation: self.generation,
+            owner: self.owner,
+            ordered: self.ordered,
+        })
+    }
+    pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
+        &'call self,
+        binding: &crate::domain::executable_program::physical::PhysicalBinding,
+        meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
+    ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
+        if !self.owner.matches_generation(self.generation) {
+            return Err(OperatingError::NotRead);
+        }
+        use crate::domain::executable_program::physical::{self, PhysicalRoute};
+        let route = if self.ordered {
+            PhysicalRoute::Ordered(
+                self.program.regions()[self.region.0]
+                    .ordered_existence
+                    .as_ref()
+                    .ok_or(OperatingError::WrongOperation)?,
+            )
+        } else {
+            PhysicalRoute::Registered
+        };
+        let authority = physical::authorize(self.operation(), route, binding, &meaning)?;
+        Ok(PermittedPhysical {
+            permit: self,
+            meaning,
+            authority,
         })
     }
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
@@ -309,10 +344,14 @@ impl<'scope> KernelPermit<'scope> {
 
 impl RequiredPartitions {
     pub(in crate::application::file_dag::program) fn from_request(
+        request: &Arc<super::request_identity::RequestIdentity>,
         files: &[ryo_values::domain::files::types::CorpusInput],
         covered: &[crate::domain::coverage::types::Covered],
         skipped: &[ryo_values::domain::runs::types::Skipped],
     ) -> Result<Self, OperatingError> {
+        if !request.matches_corpus(files) {
+            return Err(OperatingError::NotRead);
+        }
         let mut ids = Vec::with_capacity(files.len());
         for (at, _) in files.iter().enumerate() {
             ids.push(FileId(
@@ -326,6 +365,7 @@ impl RequiredPartitions {
             return Err(OperatingError::NotRead);
         }
         Ok(Self {
+            request: Arc::clone(request),
             files: ids.into_boxed_slice(),
             covered: covered.to_vec().into_boxed_slice(),
             skipped: skipped.to_vec().into_boxed_slice(),
@@ -465,5 +505,30 @@ impl ApplicabilityProof {
             file: FileGeneration::from_owner(file, owner),
             reason,
         }
+    }
+}
+
+/// The request and its validated authority cannot be separated or rewritten.
+pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
+    permit: &'permit KernelPermit<'scope>,
+    meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
+    authority: crate::domain::executable_program::physical::PhysicalAuthorization,
+}
+impl PermittedPhysical<'_, '_, '_> {
+    pub(in crate::application::file_dag) fn dispatch(
+        self,
+        port: &dyn crate::outbound::operators::interface::OperatorsPort,
+    ) -> Result<
+        ryo_operators::domain::contract::types::OperatorAnswer,
+        super::super::executor::KernelFault,
+    > {
+        if !self.permit.owner.matches_generation(self.permit.generation) {
+            return Err(super::super::executor::KernelFault::Refused(
+                OperatingError::NotRead,
+            ));
+        }
+        let _authority = self.authority;
+        port.operators(self.meaning)
+            .map_err(super::super::executor::KernelFault::Portable)
     }
 }

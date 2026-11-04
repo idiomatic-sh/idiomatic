@@ -86,6 +86,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
             port: self.kernels,
             permit,
             failure: &failure,
+            binding: crate::domain::executable_program::physical::PhysicalBinding {
+                native_join: false,
+                source_len: context.source.0.len(),
+            },
         };
         let result = crate::application::file_dag::ordered_existence::evaluate(
             &semantics,

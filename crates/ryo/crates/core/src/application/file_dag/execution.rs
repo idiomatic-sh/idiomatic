@@ -39,17 +39,16 @@ impl PrimitiveExecutor for CommonOperatorEngine<'_> {
                 .map_err(KernelFault::Refused)?;
                 Ok(KernelAnswer::Complete)
             }
-            KernelCall::Physical { permit: _, meaning } => self
-                .operators
-                .operators(meaning)
-                .map(KernelAnswer::Physical)
-                .map_err(KernelFault::Portable),
+            KernelCall::Physical { request } => {
+                request.dispatch(self.operators).map(KernelAnswer::Physical)
+            }
         }
     }
 }
 pub(super) struct PrimitiveSemanticsBridge<'a, 'invocation> {
     pub(super) port: &'a dyn PrimitiveExecutor,
     pub(super) permit: &'a super::program::admission::KernelPermit<'invocation>,
+    pub(super) binding: crate::domain::executable_program::physical::PhysicalBinding,
     pub(super) failure: &'a std::sync::OnceLock<crate::domain::operating::errors::OperatingError>,
 }
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_, '_> {
@@ -65,10 +64,14 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_, '_> {
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
         use ryo_operators::domain::contract::types::PortableOperatorFault;
-        match self.port.execute(KernelCall::Physical {
-            permit: self.permit,
-            meaning,
-        }) {
+        let request = match self.permit.physical(&self.binding, meaning) {
+            Ok(request) => request,
+            Err(error) => {
+                let _first = self.failure.set(error);
+                return Err(PortableOperatorFault::Interrupted);
+            }
+        };
+        match self.port.execute(KernelCall::Physical { request }) {
             Ok(KernelAnswer::Physical(answer)) => Ok(answer),
             Ok(KernelAnswer::Complete) => Err(PortableOperatorFault::ShapeMismatch),
             Err(KernelFault::Portable(error)) => Err(error),

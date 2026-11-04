@@ -4,7 +4,7 @@ use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::types::{PreparedInputs, PrimitiveLease, RowSink},
 };
-use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
+use ryo_operators::domain::contract::types::{OperatorAnswer, PortableOperatorFault};
 use ryo_values::domain::plans::types::Operation;
 
 pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
@@ -16,8 +16,7 @@ pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
         output: &'call mut dyn RowSink,
     },
     Physical {
-        permit: &'call super::program::admission::KernelPermit<'invocation>,
-        meaning: OperatorCall<'resources>,
+        request: super::program::admission::PermittedPhysical<'call, 'resources, 'invocation>,
     },
 }
 pub(crate) enum KernelAnswer {

@@ -30,6 +30,7 @@ pub(crate) fn open_project<'a, 'service>(
         return Err(OperatingError::WrongOperation);
     }
     let scope = frontiers.publication;
+    scope.validate_request(services, &required)?;
     let transport = scope.claim_symbols(symbols)?;
     let owner = Rc::clone(scope.owner());
     if let Some(existing) = scope.execution.get() {

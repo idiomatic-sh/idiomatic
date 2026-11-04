@@ -45,6 +45,21 @@ pub(in crate::application) fn validate_restored_frontier(
     if !Arc::ptr_eq(prepared.program(), scope.program()) {
         return Err(OperatingError::NotRead);
     }
+    scope.validate_partitions(required)?;
+    let rule_id = prepared.rule_id(producer)?;
+    for source in &payload.sources {
+        let path = required
+            .request
+            .path(source.file)
+            .ok_or(OperatingError::NotRead)?;
+        if required
+            .skipped
+            .iter()
+            .any(|skipped| &skipped.rule == rule_id && &skipped.path == path)
+        {
+            return Err(OperatingError::ObservationIncomplete { reason: "restored semantic frame belongs to a currently syntax-rejected producer partition".into() });
+        }
+    }
     let coverage = crate::application::cross_file::frontiers::validate_bucket(
         prepared, producer, input.0, first, bucket, required, &payload,
     )?;
@@ -110,6 +125,10 @@ pub(in crate::application) fn validate_restored_frontier(
     })
 }
 impl ValidatedFrontier {
+    pub(in crate::application) fn coverage(&self) -> &CoverageState {
+        &self.coverage
+    }
+
     pub(in crate::application) fn words(&self) -> &KeptWords {
         &self.payload.words
     }
