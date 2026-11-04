@@ -12,8 +12,6 @@ use crate::domain::operation_schema::types::InputSchema;
 use crate::domain::operator::types::{KeptSteps, PlanIdentity, PlanLayout, ReadCount, StepPlace};
 use crate::domain::table_cells::types::TreeForm;
 use crate::domain::table_model::types::{Frontier, ParameterBinding, Rows};
-#[cfg(test)]
-use crate::domain::trust::service::needs_of;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::{inputs_of, named};
@@ -67,7 +65,7 @@ pub(crate) fn layout_of<'f>(
 ) -> Result<PlanLayout, OperatingError> {
     let emitted = usize::try_from(plan.emit.step.0).unwrap_or(usize::MAX);
     // A step keeps its rows when it is the one emitted, is handed to the cross-file steps, or is read by more than one step.
-    let (kept, consumed): (Vec<bool>, Vec<bool>) = plan
+    let kept: Vec<bool> = plan
         .steps
         .iter()
         .enumerate()
@@ -88,12 +86,9 @@ pub(crate) fn layout_of<'f>(
                     })
                     .count();
             let reads = reads_of(plan, StepPlace(id)).0;
-            (
-                step.scope != StepScope::CrossFile && (exported != 0 || handed != 0 || reads > 1),
-                reads > handed + exported,
-            )
+            step.scope != StepScope::CrossFile && (exported != 0 || handed != 0 || reads > 1)
         })
-        .unzip();
+        .collect();
     // Layout reads provider availability and column metadata only. No operator is run.
     let _span =
         tracing::trace_span!(target: "ryo::diagnostic::layout", "schema", plan = index.0).entered();
@@ -143,12 +138,9 @@ pub(crate) fn layout_of<'f>(
             payload_rows = 0, metadata_only = true, "plan layout");
     }
     Ok(PlanLayout {
-        plan: index,
         kept: KeptSteps(kept),
-        consumed,
         kinds,
         lowering: lower(plan),
-        needs: needs_of(plan),
     })
 }
 

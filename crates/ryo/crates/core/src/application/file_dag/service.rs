@@ -1447,27 +1447,6 @@ impl FileDagExecution {
         self.overlap_bytes = 0;
         self.relations.release_population();
     }
-    #[cfg(test)]
-    pub(crate) fn demand<'f>(
-        &mut self,
-        node: NodeId,
-        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
-        context: &mut OperatorContext<'_>,
-    ) -> Result<Arc<Table>, OperatingError> {
-        let owner = std::rc::Rc::clone(&self.relations);
-        let engine = super::execution::CommonOperatorEngine::new(
-            crate::outbound::operators::factory::test_port(),
-            owner.derived.semantic_port(),
-        );
-        let executor = super::executor::ScopedExecutor::new(&engine, std::rc::Rc::clone(&owner))?;
-        let scope = std::cell::RefCell::new(self);
-        let result =
-            super::interface::DagExecution::demand(&scope, node, read, &executor, context)?;
-        let rows = owner.resolve(result.as_ref(), read)?;
-        let mut table = Table::default();
-        crate::domain::table_model::service::materialize(&rows, &mut table, &mut Vec::new());
-        Ok(Arc::new(table))
-    }
 }
 
 #[cfg(test)]

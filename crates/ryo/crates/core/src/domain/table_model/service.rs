@@ -77,14 +77,6 @@ pub(crate) fn push_row(table: &mut Table, row: &[Value]) {
     table.count = RowCount(table.count.0 + 1);
 }
 
-/// Makes `into` a copy of `from`, keeping the room `into` has.
-#[cfg(test)]
-pub(crate) fn copy_table(from: &Table, into: &mut Table) {
-    reset(into, &from.kinds);
-    into.cells.extend_from_slice(&from.cells);
-    into.count = from.count;
-}
-
 /// What each column of the rows holds.
 #[must_use]
 pub(crate) fn kinds_of<'a>(rows: &'a Rows<'_>) -> &'a [CellKind] {

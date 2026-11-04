@@ -1,95 +1,20 @@
 //! Application-owned admission and acquisition for the fused column kernel.
 //! The domain kernel receives only a prepared index and borrowed semantic inputs.
 
-use crate::application::file_dag::derived::indexes;
 use crate::domain::column_kernel::{
     service as kernel,
-    types::{Chain, KernelCounts, KernelPlan},
+    types::{Chain, KernelCounts},
 };
-use crate::domain::coverage::types::Partial;
-use crate::domain::derived_views::types::ViewRequest;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
-use crate::domain::operation_schema::types::InputSchema;
-use crate::domain::operator::types::PlanLayout;
 use crate::domain::table_dedup::service::distinct;
 use crate::domain::table_model::{
     reading::Reading,
     service::{column_in, rectangular, reset},
-    types::{Rows, SelectedRows, StoredSelection},
+    types::Rows,
 };
-use ryo_derived::domain::contract::types::DerivedKind;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::{service::kinds as relation_kinds, types::CellKind};
-use ryo_values::domain::plans::types::Plan;
 use std::sync::Arc;
-
-/// Prepare one immutable equality requirement per admitted physical chain.
-/// Invalid optional metadata leaves the ordinary executor in charge.
-#[must_use]
-#[cfg(test)]
-pub(crate) fn compile(
-    plan: &Plan,
-    layout: &PlanLayout,
-    semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
-) -> KernelPlan {
-    let mut prepared = kernel::compile(plan, layout);
-    for chain in prepared.0.iter_mut().flatten() {
-        let schema = [InputSchema {
-            kinds: relation_kinds(chain.right),
-            tree: None,
-        }];
-        let request = ViewRequest::Equality {
-            columns: chain.right_on.clone(),
-        };
-        if let Ok(index) = crate::application::file_dag::derived::prepare::view(
-            Arc::clone(&semantic),
-            &request,
-            &schema,
-        ) && index.metadata.is_ok()
-        {
-            chain.index = Some(Arc::new(index));
-        }
-    }
-    prepared
-}
-
-/// Preserve the old fast-path admission and fallback order. A refusal leaves
-/// the target empty and returns false so the common engine evaluates the step.
-#[cfg(test)]
-pub(crate) fn execute(
-    semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
-    chain: &Chain,
-    read: &dyn Reading<'_>,
-    selected: &[Option<Arc<StoredSelection>>],
-    partial: &[Partial],
-    owner: &crate::application::file_dag::relations::RelationOwner,
-    publications: &[std::cell::OnceCell<crate::application::file_dag::relations::PublishedInput>],
-    context: &mut OperatorContext<'_>,
-    target: &mut Table,
-    kinds: &[CellKind],
-    counts: &mut KernelCounts,
-) -> Result<bool, OperatingError> {
-    if !partial.is_empty() {
-        return Ok(false);
-    }
-    let Some(publication) = publications
-        .get(chain.left_step)
-        .and_then(std::cell::OnceCell::get)
-    else {
-        return Ok(false);
-    };
-    execute_publication(
-        semantics,
-        chain,
-        read,
-        owner,
-        publication,
-        context,
-        target,
-        kinds,
-        counts,
-    )
-}
 
 pub(super) fn execute_publication(
     semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,

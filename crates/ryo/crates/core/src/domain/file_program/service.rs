@@ -250,17 +250,9 @@ pub(crate) fn compile_prepared_observations(
             .ok()
             .map(|kinds| {
                 Arc::new(crate::domain::operator::types::PlanLayout {
-                    #[cfg(test)]
-                    plan: crate::domain::operator::types::PlanIdentity(
-                        Arc::as_ptr(&physical_plan).addr(),
-                    ),
                     kept: crate::domain::operator::types::KeptSteps(kept.clone()),
-                    #[cfg(test)]
-                    consumed: vec![false; plan.steps.len()],
                     kinds,
                     lowering: crate::domain::lowering::service::lower(plan),
-                    #[cfg(test)]
-                    needs: needs.clone().unwrap_or_default(),
                 })
             });
         let columns = layout

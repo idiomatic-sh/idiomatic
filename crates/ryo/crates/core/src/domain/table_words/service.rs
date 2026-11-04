@@ -365,36 +365,6 @@ pub(crate) fn admit_compact(
     ))
 }
 
-/// Decode only when the shared invocation owner demands this admitted source.
-/// Offset/name admission is immutable; no source-symbol mutation or remap repeats.
-#[cfg(test)]
-pub(crate) fn materialize_compact(
-    input: &CompactTable,
-) -> Result<Table, super::errors::WordsDecodeError> {
-    let mut table = Table {
-        kinds: input.kinds.clone(),
-        count: RowCount(input.rows),
-        cells: Vec::with_capacity(input.cells),
-    };
-    for frame in &input.frames {
-        let bytes = input
-            .words
-            .0
-            .0
-            .get(frame.bytes.clone())
-            .ok_or(super::errors::WordsDecodeError::Incomplete)?;
-        let mut cursor = CompactCursor { bytes, offset: 0 };
-        for _ in 0..frame.cells {
-            let value =
-                decode_value(&mut cursor).ok_or(super::errors::WordsDecodeError::Incomplete)?;
-            table.cells.push(rebased(value, frame.base));
-        }
-        if cursor.offset != bytes.len() {
-            return Err(super::errors::WordsDecodeError::Incomplete);
-        }
-    }
-    Ok(table)
-}
 pub(crate) fn compact_kinds(
     input: &CompactTable,
 ) -> &[ryo_relations::domain::relations::types::CellKind] {

@@ -67,22 +67,13 @@ pub(crate) struct RowsFed(pub [u64; 3]);
 /// How a plan is laid out for the worker that runs it: which steps keep their rows in a table, and what columns each step answers.
 #[derive(Debug, Default)]
 pub(crate) struct PlanLayout {
-    /// The plan, by where it is: the same plan has the same layout in every file.
-    #[cfg(test)]
-    pub plan: PlanIdentity,
     /// Which steps keep their rows in the pool's table of the step: those the plan emits or hands over, and those more than one
     /// step reads that are not cheap to read again.
     pub kept: KeptSteps,
-    /// Whether a later operation consumes this result, excluding emit/frontier exports.
-    #[cfg(test)]
-    pub consumed: Vec<bool>,
     /// The kinds of the columns each step answers.
     pub kinds: Vec<Vec<CellKind>>,
     /// The steps that run over the positions of the tree, not as operators.
     pub lowering: crate::domain::lowering::types::Lowering,
-    /// For each step, the relations whose absence of rows it trusts; empty when it trusts none.
-    #[cfg(test)]
-    pub needs: Vec<Vec<crate::domain::trust::types::RelationRead>>,
 }
 
 /// A step of a plan, by its place among the plan's steps.

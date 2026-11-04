@@ -26,23 +26,6 @@ pub(crate) fn evaluate_file<'f>(
 }
 
 #[cfg(test)]
-pub(crate) fn evaluate_file_with_graph<'f>(
-    plan: &Plan,
-    relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
-    tree: Option<TreeRows<'f>>,
-    context: &mut OperatorContext<'_>,
-    pool: &mut Pool,
-    prepared: &mut PreparedPool,
-    classes: &[crate::domain::positions::types::Slots],
-
-    rule: usize,
-) -> Result<(), OperatingError> {
-    evaluate_file_with_fixture(
-        plan, relations, tree, context, pool, prepared, classes, rule, None,
-    )
-}
-
-#[cfg(test)]
 pub(crate) fn evaluate_file_with_dag<'f>(
     plan: &Plan,
     relations: &dyn Fn(Relation) -> Option<ColumnsView<'f>>,
