@@ -14,7 +14,7 @@ use ryo_values::domain::{
 use std::cell::Cell;
 
 fn named() -> PreparedRequest {
-    let mut authored = authored_request(2);
+    let mut authored = authored_request(3);
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("node".into()),
         kind: CellKind::Node,
@@ -37,14 +37,61 @@ fn named() -> PreparedRequest {
             right: Input::BoundObservation(ObservationBindingId(0)),
         },
     }];
-    // This direct root is an Observation source, rather than a Region source.
-    authored.plans[1].observations = vec![PlanObservation {
-        name: ObservationName("forwarded".into()),
-        source: Input::BoundObservation(ObservationBindingId(0)),
-        columns: columns.clone(),
-        scope: StepScope::PerFile,
+    // The linker retains exports only when another rule reads them, and its
+    // canonical export contract uses Step roots. Keep the per-file union as a
+    // real export; a separately demanded cross-file step reads the bound input
+    // directly, making that Observation source an actual file frontier.
+    authored.plans[1].steps.push(PlanStep {
+        scope: StepScope::CrossFile,
+        operation: Operation::Union {
+            left: Input::BoundObservation(ObservationBindingId(0)),
+            right: Input::BoundObservation(ObservationBindingId(0)),
+        },
+    });
+    authored.plans[1].observations = vec![
+        PlanObservation {
+            name: ObservationName("forwarded".into()),
+            source: Input::Step(StepId(0)),
+            columns: columns.clone(),
+            scope: StepScope::PerFile,
+        },
+        PlanObservation {
+            name: ObservationName("projected".into()),
+            source: Input::Step(StepId(1)),
+            columns: columns.clone(),
+            scope: StepScope::CrossFile,
+        },
+    ];
+    authored.plans[2].observation_inputs = vec![
+        BoundObservationInput {
+            name: ObservationBindingName("forwarded".into()),
+            columns: columns.clone(),
+            scope: StepScope::PerFile,
+        },
+        BoundObservationInput {
+            name: ObservationBindingName("projected".into()),
+            columns: columns.clone(),
+            scope: StepScope::CrossFile,
+        },
+    ];
+    authored.plans[2].steps = vec![PlanStep {
+        scope: StepScope::CrossFile,
+        operation: Operation::Union {
+            left: Input::BoundObservation(ObservationBindingId(0)),
+            right: Input::BoundObservation(ObservationBindingId(1)),
+        },
     }];
-    authored.plans[1].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
+    authored.rules[2].observations = ["forwarded", "projected"]
+        .into_iter()
+        .map(|name| ObservationBinding {
+            name: ObservationBindingName(name.into()),
+            columns: columns.clone(),
+            producers: vec![ObservationProducer::Output {
+                rule: authored.rules[1].id.clone(),
+                output: ObservationName(name.into()),
+            }],
+        })
+        .collect();
     authored.rules[1].observations = vec![ObservationBinding {
         name: ObservationBindingName("nodes".into()),
         columns,
@@ -65,6 +112,11 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
         let program = engine
             .prepare(named())
             .expect("named producer, alias and union");
+        assert_eq!(
+            program.frontiers(RuleIndex(1)).unwrap(),
+            &[Input::BoundObservation(ObservationBindingId(0))]
+        );
+        assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
         let corpus = corpus();
         let request = engine.begin(&program, &corpus);
         let table = source();
@@ -76,11 +128,12 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
         };
         let elements = Elements::default();
         let mut symbols = Symbols::default();
-        let intents = [FileRuleIntent::Run {
+        let run = FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::Required,
             capture: CaptureIntent::DiagnosticAndObservations,
-        }; 2];
+        };
+        let intents = [run, run, FileRuleIntent::Undemanded];
         let mut file = request
             .open_file(
                 FileInput {
@@ -115,7 +168,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             assert_eq!(table.cells, expected);
             assert_eq!(output.observations.len(), 1);
             let RootOutcome::Complete(observed) = &output.observations[0].1 else {
-                panic!("complete direct observation")
+                panic!("complete named union observation")
             };
             assert_eq!(observed.cells, expected);
         }
@@ -153,6 +206,7 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
         let decoded =
             decode_complete(&captured.words, &mut Vec::new()).expect("valid publication words");
         assert_eq!(decoded.count, RowCount(1));
+        assert_eq!(decoded.cells, expected);
         file.commit_frontier(RuleIndex(1), captures[0].input)
             .unwrap();
         assert_eq!(
@@ -174,6 +228,11 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
 fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retry() {
     let engine = engine();
     let program = engine.prepare(named()).unwrap();
+    assert_eq!(
+        program.frontiers(RuleIndex(1)).unwrap(),
+        &[Input::BoundObservation(ObservationBindingId(0))]
+    );
+    assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
     let corpus = corpus();
     let request = engine.begin(&program, &corpus);
     let read = |_| panic!("refused member cannot acquire a relation");
@@ -186,6 +245,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
             observations: ObservationDemand::Required,
             capture: CaptureIntent::DiagnosticAndObservations,
         },
+        FileRuleIntent::Undemanded,
     ];
     let mut file = request
         .open_file(
@@ -214,6 +274,7 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         first.emit,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
     ));
+    assert_eq!(first.observations.len(), 1);
     assert!(matches!(
         first.observations[0].1,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
@@ -222,6 +283,11 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
     let second = file.rule(RuleIndex(1), roots, &mut symbols).unwrap();
     assert!(matches!(
         second.emit,
+        RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
+    ));
+    assert_eq!(second.observations.len(), 1);
+    assert!(matches!(
+        second.observations[0].1,
         RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
     ));
     assert_eq!(
