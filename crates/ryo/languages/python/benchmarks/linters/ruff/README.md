@@ -1,6 +1,8 @@
 # Ruff benchmark
 
-**Complete milestone: 413 PASS / 0 FAIL / 413 pinned Ruff 0.16.5 defaults.** The [source-bound full-run receipts](results/integrated-3ff-full413-2026-11-04/README.md) bind frozen `3ffb75b3`, sealed worker and all11,185 cases. [Remote QA and Rust performance runner](https://github.com/idiomatic-sh/idiomatic/actions/runs/41850986212) targets the earlier public checkpoint and has independent status. Later cross-file scope/edit correction `cb5200df` and paired contract review remain separately gated. Broader core fixture ownership proof, memory and subsecond performance remain open. Historical [406/413 failure receipts](results/integrated-a402-full413-2026-11-04/README.md) remain unchanged.
+**Historical milestone: 413 PASS / 0 FAIL on frozen `3ffb75b3`; this is not the current engine result.** The [source-bound full-run receipts](results/integrated-3ff-full413-2026-11-04/README.md) bind frozen `3ffb75b3`, sealed worker and all11,185 cases. [Remote QA and Rust performance runner](https://github.com/idiomatic-sh/idiomatic/actions/runs/41850986212) targets the earlier public checkpoint and has independent status. Later cross-file scope/edit correction `cb5200df` and paired contract review remain separately gated. Broader core fixture ownership proof, memory and subsecond performance remain open. Historical [406/413 failure receipts](results/integrated-a402-full413-2026-11-04/README.md) remain unchanged.
+
+**Current engine:** full run185 recorded 411 PASS / 2 FAIL. On `f0738752d`, targeted run195 passes RUF100 (27/27 cases); B008 still fails its 120-second aggregate timeout. A new full 413-rule pass and full-Django performance acceptance remain unproven. See the [contract evidence](../../../../../docs/contracts/README.md).
 
 Run the current inventory from this directory with the shared runner:
 
