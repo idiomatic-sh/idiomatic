@@ -35,6 +35,9 @@ mod verify_cases;
 #[path = "../src/inbound/use_cases/verify_reference_cases/acceptance.rs"]
 mod verify_reference_cases;
 
+#[path = "../src/inbound/use_cases/validate_case_receipts/acceptance.rs"]
+mod validate_case_receipts;
+
 /// Stateless world: each acceptance step constructs independently owned boundaries.
 #[derive(Debug, Default, cucumber::World)]
 struct Behavior;

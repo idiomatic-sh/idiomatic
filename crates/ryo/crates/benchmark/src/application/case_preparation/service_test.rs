@@ -138,6 +138,19 @@ fn decoded_source_admission_preserves_report_and_given_scope() {
         cases.cases[0].comparison,
         ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
     );
+    // The same formerly-schema refusal belongs to mandatory case-source admission.
+    std::fs::write(&path, "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{file='case.py',start=0,end=1}]").unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let refusal = service::cases(&suite, &root.path().join("rules"), scratch.path())
+        .expect_err("full report cannot inherit identity");
+    assert!(
+        matches!(refusal, ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message) if message == "full-report expectations require explicit rule identities")
+    );
+    assert_eq!(
+        std::fs::read_dir(scratch.path()).unwrap().count(),
+        0,
+        "admission refuses before source materialization"
+    );
     let case = "[[cases]]\nname='sibling'\ncomparison='full'\nrequested-files=['main.py']\nproject-search-roots=['']\nfiles={'main.py'='import localmod', 'localmod.py'='value=1'}\ngiven-project-inventory={completeness='partial', entries=[{path='localmod.py', state='file'}]}\nexpected=[]\n";
     std::fs::write(&path, case).unwrap();
     let cases = suite

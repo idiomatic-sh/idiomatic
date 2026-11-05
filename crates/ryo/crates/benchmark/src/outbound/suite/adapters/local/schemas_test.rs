@@ -59,10 +59,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("full report refuses inherited rule identity"),
-        word: Word::Refuses,
+        name: CaseName("full report retains inherited identity for policy admission"),
+        word: Word::Succeeds,
         input: || "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{file='case.py',start=0,end=1}]",
-        expect: Expect::Error("invalid report envelope"),
+        expect: Expect::Value(true),
     },
     Case {
         name: CaseName("comparison scope rejects unknown modes"),
@@ -133,8 +133,17 @@ fn refuses() {
 /// Decode and validate the same envelope used by the suite adapter.
 fn report_subject(text: Input) -> Result<Value, Failure> {
     let cases = super::cases(text).map_err(|_refusal| "invalid report envelope")?;
+    let case = cases.cases.first().expect("one decoded case");
+    let identity_preserved = match (&case.expected[0].identity, text.contains("rule=")) {
+        (ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(rule), true) => {
+            rule.as_ref() == "invalid-syntax"
+        }
+        (ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent, false) => true,
+        _ => false,
+    };
     Ok(
-        matches!(cases.cases.first(), Some(case) if case.comparison == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full),
+        case.comparison == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
+            && identity_preserved,
     )
 }
 
