@@ -164,7 +164,7 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
     request.finish();
 }
 
-fn named_request() -> PreparedRequest {
+pub(crate) fn named_request() -> PreparedRequest {
     use ryo_values::domain::observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
         ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,

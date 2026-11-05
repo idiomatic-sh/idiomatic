@@ -9,11 +9,32 @@ pub(super) struct RequestIdentity {
     generation: Arc<()>,
     available: std::collections::BTreeMap<
         ryo_language::domain::files::types::FilePath,
-        ryo_relations::domain::relations::types::FileId,
+        Option<ryo_relations::domain::relations::types::FileId>,
     >,
 }
 impl RequestIdentity {
     pub(super) fn new(corpus: &[CorpusInput]) -> Self {
+        // Path-based applicability cannot distinguish duplicate corpus entries.
+        // Retain ambiguity explicitly so no duplicate can discharge transport.
+        let mut available = std::collections::BTreeMap::new();
+        for (at, input) in corpus.iter().enumerate() {
+            let path = match input {
+                CorpusInput::Available(entry) | CorpusInput::ReadFailed { entry, .. } => {
+                    &entry.path
+                }
+                CorpusInput::Unreadable { path, .. } => path,
+            };
+            let file = match input {
+                CorpusInput::Available(_) => u32::try_from(at)
+                    .ok()
+                    .map(ryo_relations::domain::relations::types::FileId),
+                _ => None,
+            };
+            available
+                .entry(path.clone())
+                .and_modify(|entry| *entry = None)
+                .or_insert(file);
+        }
         Self {
             corpus: corpus.to_vec().into_boxed_slice(),
             paths: corpus
@@ -26,26 +47,14 @@ impl RequestIdentity {
                 })
                 .collect(),
             generation: Arc::new(()),
-            available: corpus
-                .iter()
-                .enumerate()
-                .filter_map(|(at, input)| {
-                    let CorpusInput::Available(entry) = input else {
-                        return None;
-                    };
-                    Some((
-                        entry.path.clone(),
-                        ryo_relations::domain::relations::types::FileId(u32::try_from(at).ok()?),
-                    ))
-                })
-                .collect(),
+            available,
         }
     }
     pub(super) fn available_file(
         &self,
         path: &ryo_language::domain::files::types::FilePath,
     ) -> Option<ryo_relations::domain::relations::types::FileId> {
-        self.available.get(path).copied()
+        self.available.get(path).copied().flatten()
     }
     pub(super) fn paths(&self) -> &[ryo_language::domain::files::types::FilePath] {
         &self.paths
