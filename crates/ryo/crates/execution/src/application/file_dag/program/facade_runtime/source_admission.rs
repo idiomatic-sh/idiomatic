@@ -396,6 +396,41 @@ impl Inputs for SourceInputs<'_, '_> {
                 self.observations.insert(slot, admitted.clone());
                 Ok(admitted)
             }
+            InputSource::EmptyObservation(slot) => {
+                let named = self
+                    .program
+                    .observation_metadata()
+                    .ok_or(OperatingError::NotRun)?;
+                let declaration = named.slots.get(slot).ok_or(OperatingError::NotRun)?;
+                if declaration.rule != self.rule.0 {
+                    return Err(OperatingError::NotRead);
+                }
+                let binding = named
+                    .bindings
+                    .get(declaration.rule)
+                    .and_then(|bindings| bindings.get(declaration.input.0 as usize))
+                    .ok_or(OperatingError::NotRun)?;
+                if !binding.producers.is_empty() {
+                    return Err(OperatingError::NotRead);
+                }
+                let actual_partition = self
+                    .execution
+                    .source_partition(ProducerRoot::Input(source))?;
+                actual_partition.require_supply(partition)?;
+                let publication = self
+                    .owner
+                    .computed(ryo_values::domain::rows::types::Table {
+                        kinds: binding
+                            .schema
+                            .columns
+                            .iter()
+                            .map(|column| column.kind)
+                            .collect(),
+                        count: ryo_values::domain::rows::types::RowCount(0),
+                        cells: vec![],
+                    })?;
+                admit_published(&self.owner, publication, source, &actual_partition)
+            }
             InputSource::ObservationMember { slot, member } => {
                 let outputs =
                     self.file_outputs

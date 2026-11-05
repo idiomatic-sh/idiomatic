@@ -242,6 +242,38 @@ fn stale_output_and_missing_queries_refuse_instead_of_becoming_invariant() {
         Err(OperatingError::ObservationIncomplete { .. })
     ));
 }
+fn closed_empty_bindings_preserve_schema_and_phase_but_not_mismatches() {
+    for (phase, expected) in [
+        (StepScope::PerFile, PartitionRequirement::CurrentFile),
+        (StepScope::CrossFile, PartitionRequirement::Project),
+    ] {
+        let (mut consumer, plan, mut binding) = observed(phase);
+        consumer.observations[0].producers.clear();
+        binding.producers.clear();
+        let sources = SourcePartitions::new(
+            &[consumer.clone()],
+            &[Ok(&plan)],
+            &[vec![]],
+            &[],
+            &[vec![binding.clone()]],
+        )
+        .unwrap();
+        assert_eq!(
+            sources.observation(RuleIndex(0), ObservationBindingId(0)),
+            Ok(expected)
+        );
+        consumer.observations.clear();
+        let sources =
+            SourcePartitions::new(&[consumer], &[Ok(&plan)], &[vec![]], &[], &[vec![binding]])
+                .unwrap();
+        assert_eq!(
+            sources.observation(RuleIndex(0), ObservationBindingId(0)),
+            Err(OperatingError::ObservationIncomplete {
+                reason: "observation has no authored consumer declaration".into()
+            })
+        );
+    }
+}
 fn failed_producer_preserves_exact_error_on_demand() {
     let (consumer, plan, binding) = observed(StepScope::PerFile);
     let sources = SourcePartitions::new(
@@ -296,6 +328,12 @@ type Input = fn();
 type Value = ();
 type Failure = std::convert::Infallible;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("closed_empty_bindings_preserve_schema_and_phase_but_not_mismatches"),
+        word: Word::Succeeds,
+        input: || closed_empty_bindings_preserve_schema_and_phase_but_not_mismatches,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("catalog_is_closed_and_uses_actual_provider_origins"),
         word: Word::Succeeds,

@@ -25,6 +25,8 @@ pub(crate) enum InputSource {
     },
     Region(RegionId),
     Observation(usize),
+    /// An explicitly declared, closed observation with no producers.
+    EmptyObservation(usize),
     /// One exact producer of a request-qualified named input.
     ObservationMember {
         slot: usize,
@@ -158,6 +160,12 @@ impl ExecutableProgram {
             InputSource::Hosted { rule, relation } => {
                 self.regions.iter().flat_map(|region| region.instructions.iter())
                     .find(|instruction| instruction.producer == rule && matches!(instruction.operation, Operation::Hosted { relation: actual } if actual == relation))
+                    .map(|instruction| instruction.partition).ok_or(OperatingError::NotRead)
+            }
+            InputSource::EmptyObservation(slot) => {
+                let root = self.observation_regions.get(slot)
+                    .ok_or(OperatingError::NotRead)?.as_ref().map_err(Clone::clone)?;
+                self.regions.get(root.0).and_then(|region| region.instructions.last())
                     .map(|instruction| instruction.partition).ok_or(OperatingError::NotRead)
             }
             _ => Err(OperatingError::NotRead),

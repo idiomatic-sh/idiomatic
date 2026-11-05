@@ -11,7 +11,6 @@ pub(crate) enum PartitionRefusal {
     UndeclaredInput,
     MissingConsumer,
     ConsumerMismatch,
-    MissingProducer,
     MissingQuery,
     MissingRule,
     MissingOutput,

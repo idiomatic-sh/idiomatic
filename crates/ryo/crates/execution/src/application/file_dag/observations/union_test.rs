@@ -92,7 +92,7 @@ fn singleton_and_many_producers_preserve_distinct_union_order_through_one_prepar
     }
 }
 #[test]
-fn zero_producers_refuse_instead_of_fabricating_an_admitted_empty_population() {
+fn zero_producers_preserve_the_declared_project_phase_in_file_scope() {
     exercise(&[], None);
 }
 fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
@@ -260,7 +260,9 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
     } else {
         assert!(matches!(
             outcome.emit,
-            RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
+            RootOutcome::Deferred {
+                phase: StepScope::CrossFile
+            }
         ));
     }
     file.finish().unwrap();

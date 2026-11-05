@@ -106,7 +106,9 @@ pub(in crate::application) fn validate_restored_frontier(
                 .map_err(Clone::clone)?
                 .clone()
         }
-        InputSource::Hosted { .. } | InputSource::ObservationMember { .. } => {
+        InputSource::Hosted { .. }
+        | InputSource::ObservationMember { .. }
+        | InputSource::EmptyObservation(_) => {
             return Err(OperatingError::WrongOperation);
         }
     };

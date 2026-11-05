@@ -8,7 +8,6 @@ impl std::fmt::Display for PartitionRefusal {
             Self::UndeclaredInput => "observation input ordinal is undeclared",
             Self::MissingConsumer => "observation has no authored consumer declaration",
             Self::ConsumerMismatch => "observation does not match its actual consumer declaration",
-            Self::MissingProducer => "observation has no declared producer",
             Self::MissingQuery => "observation producer has no executable query",
             Self::MissingRule => "observation producer rule is missing",
             Self::MissingOutput => "observation producer output ordinal is undeclared",

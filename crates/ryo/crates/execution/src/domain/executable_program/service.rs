@@ -390,7 +390,8 @@ pub(crate) fn compile(
                 }
                 InputSource::Relation(_)
                 | InputSource::Hosted { .. }
-                | InputSource::ObservationMember { .. } => {}
+                | InputSource::ObservationMember { .. }
+                | InputSource::EmptyObservation(_) => {}
             }
         }
         if let Some(ordered) = &region.ordered_existence {

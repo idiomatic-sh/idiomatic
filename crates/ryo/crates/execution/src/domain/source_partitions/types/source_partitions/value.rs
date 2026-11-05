@@ -155,9 +155,11 @@ fn observation_partition(
         return Err(incomplete(PartitionRefusal::ConsumerMismatch));
     }
     if binding.producers.is_empty() {
-        return Err(incomplete(PartitionRefusal::MissingProducer));
+        return Ok(match schema.scope {
+            StepScope::PerFile => PartitionRequirement::CurrentFile,
+            StepScope::CrossFile => PartitionRequirement::Project,
+        });
     }
-    let mut required = None;
     for (producer, authored) in binding.producers.iter().zip(&declaration.producers) {
         let ResolvedObservationProducer::Output { rule, output } = producer else {
             return Err(incomplete(PartitionRefusal::MissingQuery));
@@ -208,13 +210,11 @@ fn observation_partition(
         {
             return Err(incomplete(PartitionRefusal::PhaseMismatch));
         }
-        let partition = match schema.scope {
-            StepScope::PerFile => PartitionRequirement::CurrentFile,
-            StepScope::CrossFile => PartitionRequirement::Project,
-        };
-        required = Some(partition);
     }
-    required.ok_or_else(|| incomplete(PartitionRefusal::MissingProducer))
+    Ok(match schema.scope {
+        StepScope::PerFile => PartitionRequirement::CurrentFile,
+        StepScope::CrossFile => PartitionRequirement::Project,
+    })
 }
 /// Exhaustive over the owned catalog: adding a relation requires choosing its producer.
 /// Tree and engine populations are read for one file; manifest populations are read

@@ -24,6 +24,8 @@ use ryo_values::domain::{
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(test)]
+mod declared_empty;
 mod source_facts;
 use self::source_facts::{CapturedFacts, ProjectFacts};
 

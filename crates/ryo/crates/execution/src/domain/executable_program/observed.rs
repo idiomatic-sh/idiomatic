@@ -28,14 +28,16 @@ pub(super) fn compile_unions(
             let partition = partitions.observation(rule, declaration.input)?;
             let contract = binding.union.as_ref().map_err(Clone::clone)?;
             let used = binding.input.producers.len();
-            if used == 0 {
-                return Err(OperatingError::ObservationIncomplete {
-                    reason: "named input has no admitted producer population".into(),
-                });
-            }
-            let mut level: Vec<_> = (0..used)
-                .map(|member| InputSource::ObservationMember { slot, member })
-                .collect();
+            // Empty is authoritative only after the actual declaration and its
+            // schema/phase have passed ProducerPartitions validation above.
+            // It still runs the ordinary typed union and publication path.
+            let mut level: Vec<_> = if used == 0 {
+                vec![InputSource::EmptyObservation(slot); 2]
+            } else {
+                (0..used)
+                    .map(|member| InputSource::ObservationMember { slot, member })
+                    .collect()
+            };
             if level.len() == 1 {
                 level.push(level[0]);
             }
