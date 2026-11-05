@@ -463,3 +463,96 @@ fn a_collected_frontier_does_not_consume_a_forwarded_diagnostics_error_prefix() 
         request.finish();
     }
 }
+
+#[test]
+fn identical_join_diagnostics_keep_opposite_declared_modes_in_both_invocation_orders() {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    let (engine, _) = engine();
+    let mut authored = authored_request(2);
+    authored.plans[0].steps = vec![
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::Kind("absent-kind")),
+                kept: vec![],
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::BadRegex),
+                kept: vec![],
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Join {
+                left: Input::Step(StepId(0)),
+                right: Input::Step(StepId(1)),
+                left_on: vec![ColumnIndex(0)],
+                right_on: vec![ColumnIndex(0)],
+                output: vec![JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(0),
+                }],
+                filter: vec![],
+                view: vec![],
+                reach: None,
+            },
+        },
+    ];
+    authored.plans[0].emit.step = StepId(2);
+    authored.plans[1] = authored.plans[0].clone();
+    let program = engine
+        .prepare(authored)
+        .expect("identical authored Join plans");
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let intents = [
+        FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Forwarded,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        },
+        FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        },
+    ];
+    for invocation_order in [[RuleIndex(0), RuleIndex(1)], [RuleIndex(1), RuleIndex(0)]] {
+        let (elements, mut symbols) = tree(FileId(0), b"abc");
+        let mut file = request
+            .open_file(
+                input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+                &mut symbols,
+            )
+            .expect("fresh file owner with opposite diagnostic modes");
+        for rule in invocation_order {
+            if rule == RuleIndex(0) {
+                let mut rows = Vec::new();
+                let emission = file
+                    .emit_rows(rule, &mut symbols, &mut |row| {
+                        rows.push(row.to_vec());
+                        Ok(())
+                    })
+                    .expect("forwarded Join skips the failing RHS after its empty left");
+                assert!(matches!(emission, RowEmission::Complete));
+                assert!(
+                    rows.is_empty(),
+                    "forwarded empty Join has no diagnostic rows"
+                );
+            } else {
+                failed(
+                    file.rule(rule, demand(), &mut symbols)
+                        .expect("collected diagnostic outcome"),
+                    regex_error("["),
+                );
+            }
+        }
+        file.finish().expect("release both diagnostic terminals");
+    }
+    request.finish();
+}
