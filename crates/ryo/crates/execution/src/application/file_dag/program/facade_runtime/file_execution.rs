@@ -7,6 +7,12 @@ pub(super) struct FileRoot {
     pub(super) publication: Option<AdmittedInput>,
     pub(super) skipped: Option<ApplicabilityProof>,
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FileRuleState {
+    Pending,
+    Active,
+    Skipped,
+}
 pub(crate) struct FileRun<'a> {
     program: &'a Arc<PreparedProgram>,
     services: Arc<ProgramServices>,
@@ -15,6 +21,7 @@ pub(crate) struct FileRun<'a> {
     file: FileId,
     partials: ScopePartials<'a>,
     roots: Vec<Vec<FileRoot>>,
+    rule_states: Vec<FileRuleState>,
     observed: HashMap<usize, AdmittedInput>,
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
@@ -85,6 +92,7 @@ pub(crate) fn open_file<'a>(
         file,
         partials,
         roots,
+        rule_states: vec![FileRuleState::Pending; program.rule_count()],
         observed: HashMap::new(),
         walk: super::super::native_walk::FileWalk::new(file, demanded),
         context: super::super::context::RunContext::file(
@@ -93,13 +101,41 @@ pub(crate) fn open_file<'a>(
     })
 }
 impl FileRun<'_> {
+    fn activate_rule(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
+        let state = self
+            .rule_states
+            .get_mut(rule.0)
+            .ok_or(OperatingError::NotRun)?;
+        if *state == FileRuleState::Skipped {
+            return Err(OperatingError::NotRun);
+        }
+        *state = FileRuleState::Active;
+        Ok(())
+    }
     pub(crate) fn skip_rule(
         &mut self,
         rule: RuleIndex,
         reason: ApplicabilityReason,
     ) -> Result<(), OperatingError> {
+        let state = self
+            .rule_states
+            .get_mut(rule.0)
+            .ok_or(OperatingError::NotRun)?;
+        if *state != FileRuleState::Pending {
+            return Err(OperatingError::NotRun);
+        }
+        let readers = &self
+            .program
+            .program()
+            .rules()
+            .get(rule.0)
+            .ok_or(OperatingError::NotRun)?
+            .root_readers;
+        let roots = self.roots.get_mut(rule.0).ok_or(OperatingError::NotRun)?;
+        self.execution.cancel_roots(readers)?;
+        *state = FileRuleState::Skipped;
         let proof = ApplicabilityProof::for_file(rule, self.file, reason, &self.owner);
-        for root in self.roots.get_mut(rule.0).ok_or(OperatingError::NotRun)? {
+        for root in roots {
             root.readiness =
                 Some(ryo_values::domain::observations::types::ProducerReadiness::Skipped);
             root.publication = None;
@@ -114,6 +150,7 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
+        self.activate_rule(rule)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,
@@ -225,6 +262,7 @@ impl FileRun<'_> {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
+        self.activate_rule(rule)?;
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let completion = match &self.partials {
@@ -526,6 +564,7 @@ impl FileRun<'_> {
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
     ) -> Result<super::super::facade::RowEmission, OperatingError> {
+        self.activate_rule(rule)?;
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,

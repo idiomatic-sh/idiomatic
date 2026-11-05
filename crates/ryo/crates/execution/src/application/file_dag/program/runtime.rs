@@ -13,6 +13,10 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::Value;
 use std::{cell::RefCell, sync::Arc};
 
+enum Retirement<'a> {
+    Consumer(RegionId),
+    Roots(&'a [RegionId]),
+}
 pub(super) enum Delivery<'a> {
     Retain,
     Forward(&'a mut dyn Emit),
@@ -379,7 +383,7 @@ impl ProgramExecution {
     /// A prepared consumer obligation can finish once. The whole transitive
     /// cancellation is preflighted before any slot, count or lease changes.
     fn release_inputs(&self, consumer: RegionId) -> Result<(), OperatingError> {
-        let result = self.release_inputs_checked(consumer);
+        let result = self.retire(Retirement::Consumer(consumer));
         if let Err(error) = &result {
             self.cleanup_failure
                 .borrow_mut()
@@ -387,20 +391,28 @@ impl ProgramExecution {
         }
         result
     }
-    fn release_inputs_checked(&self, consumer: RegionId) -> Result<(), OperatingError> {
+    pub(super) fn cancel_roots(&self, roots: &[RegionId]) -> Result<(), OperatingError> {
+        self.retire(Retirement::Roots(roots))
+    }
+    fn retire(&self, retirement: Retirement<'_>) -> Result<(), OperatingError> {
         let mut work = self.retirement.borrow_mut();
         work.reset();
         let mut slots = self.slots.borrow_mut();
-        let consumer_slot = slots.get(consumer.0).ok_or(OperatingError::NotRun)?;
-        if consumer_slot.dependencies_consumed {
-            return Err(OperatingError::NotRun);
+        match retirement {
+            Retirement::Consumer(consumer) => {
+                let slot = slots.get(consumer.0).ok_or(OperatingError::NotRun)?;
+                if slot.dependencies_consumed {
+                    return Err(OperatingError::NotRun);
+                }
+                work.pending.extend(
+                    self.program.regions()[consumer.0]
+                        .dependencies
+                        .iter()
+                        .copied(),
+                );
+            }
+            Retirement::Roots(roots) => work.pending.extend(roots.iter().copied()),
         }
-        work.pending.extend(
-            self.program.regions()[consumer.0]
-                .dependencies
-                .iter()
-                .copied(),
-        );
         let planned = (|| {
             while let Some(id) = work.pending.pop() {
                 let slot = slots.get(id.0).ok_or(OperatingError::NotRun)?;
@@ -432,6 +444,10 @@ impl ProgramExecution {
             }
             Ok(Some(blocker)) => {
                 work.reset();
+                let Retirement::Consumer(consumer) = retirement else {
+                    // File-level cancellation cannot race an active invocation.
+                    return Err(OperatingError::NotRun);
+                };
                 if slots[consumer.0].waiting_on.is_none() {
                     slots[consumer.0].waiting_on = Some(blocker);
                     work.waiters.entry(blocker).or_default().push(consumer);
@@ -440,8 +456,10 @@ impl ProgramExecution {
             }
             Ok(None) => {}
         }
-        slots[consumer.0].dependencies_consumed = true;
-        slots[consumer.0].waiting_on = None;
+        if let Retirement::Consumer(consumer) = retirement {
+            slots[consumer.0].dependencies_consumed = true;
+            slots[consumer.0].waiting_on = None;
+        }
         for at in 0..work.touched.len() {
             let id = work.touched[at];
             let slot = &mut slots[id.0];

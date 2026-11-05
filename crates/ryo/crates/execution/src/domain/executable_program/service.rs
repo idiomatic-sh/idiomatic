@@ -370,7 +370,25 @@ pub(crate) fn compile(
             InputSource::Region(region) => Ok(region),
             _ => Err(OperatingError::WrongOperation),
         });
+        let root_readers = emit
+            .iter()
+            .copied()
+            .chain(
+                plan.frontier
+                    .iter()
+                    .chain(plan.observations.iter().map(|output| &output.source))
+                    .filter_map(|input| match input {
+                        Input::Step(_) => match from(input) {
+                            Ok(InputSource::Region(id)) => Some(id),
+                            _ => None,
+                        },
+                        _ => None,
+                    }),
+            )
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
         rules.push(RuleProgram {
+            root_readers,
             emit,
             frontier: plan
                 .frontier
@@ -414,7 +432,8 @@ pub(crate) fn compile(
         }
         region.dependencies = dependencies.into_boxed_slice();
     }
-    for rule in &rules {
+    for rule in &mut rules {
+        let mut root_readers = rule.root_readers.to_vec();
         for source in rule
             .frontier
             .iter()
@@ -423,9 +442,13 @@ pub(crate) fn compile(
             if let InputSource::Observation(slot) = source {
                 if let Some(count) = named_readers.get_mut(*slot) {
                     *count += 1;
+                    if let Some(Ok(root)) = observation_regions.get(*slot) {
+                        root_readers.push(*root);
+                    }
                 }
             }
         }
+        rule.root_readers = root_readers.into_boxed_slice();
     }
     for (slot, root) in observation_regions.iter().enumerate() {
         if let Ok(root) = root {

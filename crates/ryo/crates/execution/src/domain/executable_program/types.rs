@@ -120,6 +120,8 @@ pub(crate) struct Origin {
 }
 #[derive(Debug)]
 pub(crate) struct RuleProgram {
+    /// External root-reader obligations, including repeated aliases.
+    pub root_readers: Box<[RegionId]>,
     pub original_steps: Box<[Result<Origin, OperatingError>]>,
     pub emit: Result<RegionId, OperatingError>,
     pub frontier: Box<[Result<InputSource, OperatingError>]>,
