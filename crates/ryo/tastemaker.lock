@@ -224,7 +224,6 @@ provider-imports = "0.1.0"
 [packages."idiomatic.ryo".templates]
 executable-lowering = "0.1.0"
 executable-program-part = "0.1.0"
-fragment-oracle-part = "0.1.0"
 native-position-operation = "0.1.0"
 program-runtime-proof = "0.1.0"
 selection-evaluation = "0.1.0"

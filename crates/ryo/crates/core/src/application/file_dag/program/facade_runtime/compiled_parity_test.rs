@@ -1,4 +1,4 @@
-//! The original lowered select and count cases through the prepared file program.
+//! Select, count and refusal cases through the prepared file program.
 
 use crate::application::{
     file_dag::{
