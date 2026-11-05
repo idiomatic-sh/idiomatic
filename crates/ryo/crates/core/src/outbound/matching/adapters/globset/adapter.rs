@@ -1,51 +1,44 @@
-//! The matching port, implemented with globset: every glob goes into one set, so a path is
-//! matched against all of them in one pass.
+//! Maps the injected engine port to the independent matching semantic contract.
 
 use std::sync::Arc;
 
-use globset::{GlobBuilder, GlobSetBuilder};
+use ryo_execution::inbound::use_cases::execution::types::matching::{MatchingError, MatchingPort};
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError as SemanticError;
+use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
 
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError;
-use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
-use ryo_values::domain::files::types::Glob;
-use ryo_values::domain::files::types::{GlobsMatcher, Hits, MatchCandidate};
-
-/// The globset matching adapter.
+/// Adapts semantic results into the engine's caller-owned matcher handle.
 #[derive(Debug)]
 pub(crate) struct MatchingGlobsetAdapter;
 
 impl MatchingPort for MatchingGlobsetAdapter {
     fn compile(&self, globs: &[Glob]) -> Result<GlobsMatcher, MatchingError> {
-        let mut builder = GlobSetBuilder::new();
-        let added = globs.iter().try_fold(&mut builder, |builder, glob| {
-            let compiled = GlobBuilder::new(&glob.0)
-                .literal_separator(true)
-                .build()
-                .map_err(|error| MatchingError::BadGlob {
-                    glob: glob.0.to_string(),
-                    reason: error.to_string(),
-                })?;
-            Ok::<&mut GlobSetBuilder, MatchingError>(builder.add(compiled))
-        })?;
-        let set = added.build().map_err(|error| MatchingError::BadGlob {
-            glob: String::new(),
-            reason: error.to_string(),
-        })?;
+        let authored: Vec<&str> = globs.iter().map(|glob| glob.0.as_ref()).collect();
+        let compiled = MatchingUseCaseImpl::new()
+            .compile_globs(&authored)
+            .map_err(matching_error)?;
         Ok(GlobsMatcher {
             matches: Arc::new(move |path: MatchCandidate<'_>, hits: &mut Hits| {
-                set.matches_into(path.0, &mut hits.0);
+                MatchingUseCaseImpl::new().match_globs(&compiled, std::path::Path::new(path.0), &mut hits.0);
             }),
         })
     }
 
     fn parse(&self, glob: &Glob) -> Result<(), MatchingError> {
-        GlobBuilder::new(&glob.0)
-            .literal_separator(true)
-            .build()
-            .map(|_| ())
-            .map_err(|error| MatchingError::BadGlob {
-                glob: glob.0.to_string(),
-                reason: error.to_string(),
-            })
+        MatchingUseCaseImpl::new()
+            .parse_glob(&glob.0)
+            .map_err(matching_error)
+    }
+}
+
+/// Only glob requests enter this port; preserve the semantic refusal verbatim.
+fn matching_error(error: SemanticError) -> MatchingError {
+    match error {
+        SemanticError::BadGlob { glob, reason } => MatchingError::BadGlob { glob, reason },
+        SemanticError::InvalidRegex { reason } => MatchingError::BadGlob {
+            glob: String::new(),
+            reason,
+        },
     }
 }

@@ -64,24 +64,3 @@ fn compile(pattern: TextView<'_>, compiled: &mut Patterns) -> Result<(), Operati
     }
     Ok(())
 }
-
-/// Pure literal replacement; the caller owns matcher acquisition and scratch lifetime.
-pub(crate) fn replace_compiled(
-    regex: &Regex,
-    text: &str,
-    replacement: &str,
-    output: &mut String,
-) -> Result<(), OperatingError> {
-    output.clear();
-    let mut end = 0;
-    for found in regex.find_iter(text) {
-        output.push_str(
-            text.get(end..found.start())
-                .ok_or(OperatingError::ShapeMismatch)?,
-        );
-        output.push_str(replacement);
-        end = found.end();
-    }
-    output.push_str(text.get(end..).ok_or(OperatingError::ShapeMismatch)?);
-    Ok(())
-}

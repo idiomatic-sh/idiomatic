@@ -1,0 +1,33 @@
+[package]
+name = "idiomatic-sh-ryo-matching"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Pure regex and glob matching semantics"
+autobenches = false
+
+[lib]
+name = "ryo_matching"
+
+[dependencies]
+regex-automata.workspace = true
+globset.workspace = true
+thiserror.workspace = true
+
+[features]
+fixtures = []
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[lints]
+workspace = true
