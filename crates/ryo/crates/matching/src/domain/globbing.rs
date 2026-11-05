@@ -1,4 +1,4 @@
-//! The `core` domain's `globbing` concept: whether a glob matches a text.
+//! Text-glob semantics, including compilation and exact interpreter fallback.
 
 pub(crate) mod constants;
 pub(crate) mod service;

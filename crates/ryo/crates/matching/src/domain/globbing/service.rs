@@ -5,10 +5,9 @@
 
 use super::constants::DIRECTORY_STARS;
 use super::types::{
-    Alternated, Byte, ClassBounds, ClassClose, CompiledGlobs, GlobIndex, GlobMatch, GlobPiece,
-    GlobText, Letter, Negation, Ruling, Subject,
+    Alternated, Byte, ClassBounds, ClassClose, ClassMembership, GlobIndex, GlobMatch, GlobPiece,
+    GlobText, Letter, Negation, Ruling, Subject, TextGlobProgram,
 };
-use crate::domain::table_model::types::SetMembership;
 
 /// How long the three pieces of a pattern are together.
 fn joined_len(pattern: Alternated<'_>) -> GlobIndex {
@@ -78,7 +77,7 @@ fn class_close(pattern: Alternated<'_>, open: GlobIndex) -> Option<ClassClose> {
 }
 
 /// Whether `found` is a member of the class between `open` and `close`: its single characters and its ranges `a-z`.
-fn in_class(pattern: Alternated<'_>, bounds: ClassBounds, found: Letter) -> SetMembership {
+fn in_class(pattern: Alternated<'_>, bounds: ClassBounds, found: Letter) -> ClassMembership {
     let ClassBounds {
         open: GlobIndex(open),
         close: GlobIndex(close),
@@ -100,9 +99,9 @@ fn in_class(pattern: Alternated<'_>, bounds: ClassBounds, found: Letter) -> SetM
         }
     }
     if member == negated {
-        SetMembership::Out
+        ClassMembership::Out
     } else {
-        SetMembership::In
+        ClassMembership::In
     }
 }
 
@@ -163,7 +162,7 @@ fn matches_plain(pattern: Alternated<'_>, text: Subject<'_>) -> GlobMatch {
                     close: GlobIndex(close),
                     negation,
                 };
-                if in_class(pattern, bounds, Letter(found)) == SetMembership::In {
+                if in_class(pattern, bounds, Letter(found)) == ClassMembership::In {
                     at = close + 1;
                     here += found.len_utf8();
                     continue;
@@ -345,21 +344,21 @@ pub(crate) fn matches(pattern: GlobText<'_>, text: Subject<'_>) -> GlobMatch {
 /// ASCII literals and ordinary stars are equivalent even for Unicode subjects. Question
 /// marks, classes, escapes and directory stars have additional character or path semantics.
 #[must_use]
-pub(crate) fn compile(patterns: &[GlobText<'_>]) -> CompiledGlobs {
+pub(crate) fn compile(patterns: &[GlobText<'_>]) -> TextGlobProgram {
     let mut expressions = Vec::with_capacity(patterns.len());
     for pattern in patterns {
         if !pattern.0.is_ascii()
             || pattern.0.contains(['?', '[', '\\'])
             || pattern.0.contains(DIRECTORY_STARS.0)
         {
-            return CompiledGlobs::Interpreted;
+            return interpreted(patterns);
         }
         let Ok(glob) = globset::GlobBuilder::new(pattern.0)
             .literal_separator(false)
             .empty_alternates(true)
             .build()
         else {
-            return CompiledGlobs::Interpreted;
+            return interpreted(patterns);
         };
         expressions.push(glob.regex().to_owned());
     }
@@ -375,18 +374,31 @@ pub(crate) fn compile(patterns: &[GlobText<'_>]) -> CompiledGlobs {
         .syntax(syntax)
         .configure(config)
         .build_many(&expressions)
-        .map_or(CompiledGlobs::Interpreted, CompiledGlobs::Ready)
+        .map_or_else(|_| interpreted(patterns), TextGlobProgram::Ready)
 }
 
-/// Matches compiled patterns against the raw text, without path normalization or filename shortcuts.
+/// Keep authored patterns only when the exact compiler optimization is unavailable.
+fn interpreted(patterns: &[GlobText<'_>]) -> TextGlobProgram {
+    TextGlobProgram::Interpreted(
+        patterns
+            .iter()
+            .map(|pattern| Box::from(pattern.0))
+            .collect(),
+    )
+}
+
+/// Match raw text using the strategy selected during semantic compilation.
 #[must_use]
-pub(crate) fn matches_compiled(compiled: &CompiledGlobs, text: Subject<'_>) -> Option<GlobMatch> {
-    let CompiledGlobs::Ready(matcher) = compiled else {
-        return None;
+pub(crate) fn matches_compiled(compiled: &TextGlobProgram, text: Subject<'_>) -> GlobMatch {
+    let matched = match compiled {
+        TextGlobProgram::Ready(matcher) => matcher.is_match(text.0.as_bytes()),
+        TextGlobProgram::Interpreted(patterns) => patterns
+            .iter()
+            .any(|pattern| matches(GlobText(pattern), text) == GlobMatch::Matches),
     };
-    Some(if matcher.is_match(text.0.as_bytes()) {
+    if matched {
         GlobMatch::Matches
     } else {
         GlobMatch::Differs
-    })
+    }
 }

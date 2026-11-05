@@ -1,8 +1,8 @@
 //! Pure matching orchestration without cache ownership or engine dependencies.
 
+use super::compiled::{CompiledGlobs, CompiledRegex, CompiledTextGlobs};
 use super::errors::MatchingError;
 use super::interface::MatchingUseCase;
-use super::compiled::{CompiledGlobs, CompiledRegex};
 use crate::domain::matching::service;
 
 /// Executes matching semantics using only values supplied by the caller.
@@ -28,13 +28,51 @@ impl MatchingUseCase for MatchingUseCaseImpl {
         service::matches_regex(&regex.regex, text)
     }
 
-    fn visit_regex_matches(&self, regex: &CompiledRegex, text: &str, each: &mut dyn FnMut(std::ops::Range<usize>) -> std::ops::ControlFlow<()>) -> std::ops::ControlFlow<()> {
+    fn visit_regex_matches(
+        &self,
+        regex: &CompiledRegex,
+        text: &str,
+        each: &mut dyn FnMut(std::ops::Range<usize>) -> std::ops::ControlFlow<()>,
+    ) -> std::ops::ControlFlow<()> {
         service::visit_regex_matches(&regex.regex, text, each)
     }
 
-    fn visit_regex_captures(&self, regex: &CompiledRegex, text: &str, name: &str, each: &mut dyn FnMut(std::ops::Range<usize>, std::ops::Range<usize>) -> std::ops::ControlFlow<()>) -> Result<std::ops::ControlFlow<()>, MatchingError> {
+    fn visit_regex_captures(
+        &self,
+        regex: &CompiledRegex,
+        text: &str,
+        name: &str,
+        each: &mut dyn FnMut(
+            std::ops::Range<usize>,
+            std::ops::Range<usize>,
+        ) -> std::ops::ControlFlow<()>,
+    ) -> Result<std::ops::ControlFlow<()>, MatchingError> {
         service::visit_regex_captures(&regex.regex, text, name, each)
             .map_err(|reason| MatchingError::InvalidRegex { reason })
+    }
+
+    fn compile_text_globs(&self, patterns: &[&str]) -> CompiledTextGlobs {
+        let borrowed: Vec<_> = patterns
+            .iter()
+            .map(|pattern| crate::domain::globbing::types::GlobText(pattern))
+            .collect();
+        CompiledTextGlobs {
+            program: crate::domain::globbing::service::compile(&borrowed),
+        }
+    }
+
+    fn matches_text_globs(&self, globs: &CompiledTextGlobs, text: &str) -> bool {
+        crate::domain::globbing::service::matches_compiled(
+            &globs.program,
+            crate::domain::globbing::types::Subject(text),
+        ) == crate::domain::globbing::types::GlobMatch::Matches
+    }
+
+    fn matches_text_glob(&self, pattern: &str, text: &str) -> bool {
+        crate::domain::globbing::service::matches(
+            crate::domain::globbing::types::GlobText(pattern),
+            crate::domain::globbing::types::Subject(text),
+        ) == crate::domain::globbing::types::GlobMatch::Matches
     }
 
     fn compile_globs(&self, globs: &[&str]) -> Result<CompiledGlobs, MatchingError> {
@@ -45,7 +83,8 @@ impl MatchingUseCase for MatchingUseCaseImpl {
 
     fn parse_glob(&self, glob: &str) -> Result<(), MatchingError> {
         service::parse_glob(glob).map_err(|reason| MatchingError::BadGlob {
-            glob: glob.to_owned(), reason,
+            glob: glob.to_owned(),
+            reason,
         })
     }
 

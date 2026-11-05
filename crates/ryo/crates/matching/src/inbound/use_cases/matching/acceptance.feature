@@ -13,6 +13,9 @@ Feature: matching
         | regex-positive | match |
         | regex-negative | no match |
         | glob-separator | 1 |
+        | text-star-crosses-separator | match |
+        | text-question-negative | no match |
+        | text-malformed-brace-literal | match |
 
     @refuses
     Scenario Outline: Invalid patterns retain their semantic refusal

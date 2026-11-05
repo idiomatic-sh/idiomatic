@@ -1,9 +1,12 @@
 //! Finite authored pattern slots with demand-driven thread-safe compilation.
 
-use crate::domain::globbing::types::{CompiledGlobs, GlobText};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_texts::types::RegexPattern;
-use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
+use ryo_matching::inbound::use_cases::matching::{
+    compiled::{CompiledRegex, CompiledTextGlobs},
+    interface::MatchingUseCase,
+    use_case::MatchingUseCaseImpl,
+};
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
 #[cfg(test)]
@@ -26,7 +29,7 @@ enum PreparedPattern {
     /// Invalid expressions retain the same refusal, raised only at an actual match/replacement.
     Regex(OnceLock<Result<CompiledRegex, OperatingError>>),
     /// Unsupported glob compilation retains the interpreter outcome for subsequent invocations.
-    Glob(OnceLock<CompiledGlobs>),
+    Glob(OnceLock<CompiledTextGlobs>),
 }
 
 impl PreparedMatchers {
@@ -97,7 +100,7 @@ impl PreparedMatchers {
     }
 
     /// Read an exact authored glob slot only after resolving an actual text subject.
-    pub(crate) fn glob(&self, test: Test, pattern: &str) -> Option<&CompiledGlobs> {
+    pub(crate) fn glob(&self, test: Test, pattern: &str) -> Option<&CompiledTextGlobs> {
         let PreparedPattern::Glob(slot) = self.slots.get(&test)?.get(pattern)? else {
             return None;
         };
@@ -106,7 +109,7 @@ impl PreparedMatchers {
             let _previous = self
                 .builds
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            crate::domain::globbing::service::compile(&[GlobText(pattern)])
+            MatchingUseCaseImpl::new().compile_text_globs(&[pattern])
         }))
     }
 }

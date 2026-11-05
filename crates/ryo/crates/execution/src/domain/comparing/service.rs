@@ -12,8 +12,6 @@ use crate::domain::comparing::collections::comparisons::interface::ComparisonsIt
 use crate::domain::comparing::collections::comparisons::membership::item::MembershipItem;
 use crate::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use crate::domain::functions::types::MadeText;
-use crate::domain::globbing::service::{compile, matches_compiled};
-use crate::domain::globbing::types::{CompiledGlobs, GlobMatch, GlobText, Subject};
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operands::service::resolve;
 use crate::domain::operating::errors::OperatingError;
@@ -25,6 +23,9 @@ use crate::domain::table_scratch::types::{
     SubjectHash, SubjectTag, VerdictKey,
 };
 use crate::domain::table_texts::types::{Datum, Texts};
+use ryo_matching::inbound::use_cases::matching::{
+    compiled::CompiledTextGlobs, interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+};
 use ryo_values::domain::plan_parts::service::columns_of;
 use ryo_values::domain::plan_parts::types::{Comparison, Operand, QueryLiteral, Test};
 use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in};
@@ -79,7 +80,7 @@ pub(crate) fn evaluate_comparison(
     bindings: &[ParameterBinding],
     texts: &Texts<'_>,
     prepared: Option<&PreparedMatchers>,
-    compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledGlobs>,
+    compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledTextGlobs>,
     regexes: &mut crate::domain::table_scratch::types::Patterns,
 ) -> Result<Verdict, OperatingError> {
     let (mut left_made, mut right_made) = (MadeText::default(), MadeText::default());
@@ -120,7 +121,7 @@ fn compiled_glob(
     left: &Datum<'_>,
     right: &Datum<'_>,
     prepared: Option<&PreparedMatchers>,
-    compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledGlobs>,
+    compiled: &mut hashbrown::HashMap<ComparisonSlot, CompiledTextGlobs>,
 ) -> Option<Verdict> {
     let Datum::Text(text) = left else {
         return None;
@@ -129,12 +130,11 @@ fn compiled_glob(
         (prepared, &comparison.right)
         && let Some(ready) = prepared.glob(comparison.test, &pattern.0)
     {
-        return matches_compiled(ready, Subject(text.0)).map(|matched| {
-            if (matched == GlobMatch::Matches) == (comparison.test == Test::GlobAny) {
-                Verdict::Holds
-            } else {
-                Verdict::Fails
-            }
+        let matched = MatchingUseCaseImpl::new().matches_text_globs(ready, text.0);
+        return Some(if matched == (comparison.test == Test::GlobAny) {
+            Verdict::Holds
+        } else {
+            Verdict::Fails
         });
     }
     if !columns_of(&comparison.right).is_empty() {
@@ -142,25 +142,23 @@ fn compiled_glob(
     }
     let key = ComparisonSlot(std::ptr::from_ref(comparison).addr());
     let ready = compiled.entry(key).or_insert_with(|| match right {
-        Datum::Text(pattern) => compile(&[GlobText(pattern.0)]),
-        Datum::Texts(patterns) => compile(
+        Datum::Text(pattern) => MatchingUseCaseImpl::new().compile_text_globs(&[pattern.0]),
+        Datum::Texts(patterns) => MatchingUseCaseImpl::new().compile_text_globs(
             &patterns
                 .iter()
-                .map(|pattern| GlobText(&pattern.0))
+                .map(|pattern| pattern.0.as_ref())
                 .collect::<Vec<_>>(),
         ),
         Datum::Unlocated | Datum::Number(_) | Datum::Flag(_) | Datum::Numbers(_) => {
-            CompiledGlobs::Interpreted
+            CompiledTextGlobs::default()
         }
     });
-    let matched = matches_compiled(ready, Subject(text.0))?;
-    Some(
-        if (matched == GlobMatch::Matches) == (comparison.test == Test::GlobAny) {
-            Verdict::Holds
-        } else {
-            Verdict::Fails
-        },
-    )
+    let matched = MatchingUseCaseImpl::new().matches_text_globs(ready, text.0);
+    Some(if matched == (comparison.test == Test::GlobAny) {
+        Verdict::Holds
+    } else {
+        Verdict::Fails
+    })
 }
 
 /// What the verdict of a glob is kept under when it asks of one name or of one file's path something that does not depend on the

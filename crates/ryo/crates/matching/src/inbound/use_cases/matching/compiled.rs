@@ -11,3 +11,18 @@ pub struct CompiledRegex {
 pub struct CompiledGlobs {
     pub(crate) set: globset::GlobSet,
 }
+
+/// Compiled text-glob semantics with private exact-compiler or interpreter strategy.
+/// Engine owners retain this value; it contains no cache key, permit or scheduling authority.
+#[derive(Debug)]
+pub struct CompiledTextGlobs {
+    pub(crate) program: crate::domain::globbing::types::TextGlobProgram,
+}
+
+impl Default for CompiledTextGlobs {
+    fn default() -> Self {
+        Self {
+            program: crate::domain::globbing::types::TextGlobProgram::Interpreted(Vec::new()),
+        }
+    }
+}

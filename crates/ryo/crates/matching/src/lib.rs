@@ -19,6 +19,11 @@
 //! let compiled = MatchingUseCaseImpl::new().compile_regex("ok").unwrap();
 //! let _ = compiled.regex;
 //! ```
+//! ```compile_fail,E0616
+//! use ryo_matching::inbound::use_cases::matching::{interface::MatchingUseCase, use_case::MatchingUseCaseImpl};
+//! let compiled = MatchingUseCaseImpl::new().compile_text_globs(&["a?c"]);
+//! let _ = compiled.program;
+//! ```
 //! ```
 //! use ryo_matching::inbound::use_cases::matching::{interface::MatchingUseCase, use_case::MatchingUseCaseImpl};
 //! let matching = MatchingUseCaseImpl::new();

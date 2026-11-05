@@ -85,9 +85,16 @@ pub(crate) enum GlobMatch {
 
 /// A set of patterns made ready for repeated text comparisons.
 #[derive(Debug)]
-pub(crate) enum CompiledGlobs {
+pub(crate) enum TextGlobProgram {
     /// The library has exactly the text matcher semantics for these patterns.
     Ready(regex_automata::meta::Regex),
     /// These patterns retain the interpreter's character, escape or directory semantics.
-    Interpreted,
+    Interpreted(Vec<Box<str>>),
+}
+
+/// Whether a character belongs to a class.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ClassMembership {
+    In,
+    Out,
 }

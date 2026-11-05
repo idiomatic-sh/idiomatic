@@ -283,8 +283,10 @@ pub(crate) struct SelectScratch {
     pub verdicts: hashbrown::HashMap<VerdictKey, Verdict>,
 
     /// Fixed glob operands made ready once for each comparison, for this run's bindings.
-    pub compiled_globs:
-        hashbrown::HashMap<ComparisonSlot, crate::domain::globbing::types::CompiledGlobs>,
+    pub compiled_globs: hashbrown::HashMap<
+        ComparisonSlot,
+        ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs,
+    >,
 
     /// Compiled regular expressions reused across rows, bounded by the matching service.
     pub compiled_regexes: Patterns,

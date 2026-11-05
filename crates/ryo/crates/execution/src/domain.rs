@@ -5,7 +5,6 @@ pub(crate) mod derived_views;
 pub(crate) mod executable_program;
 pub(crate) mod features;
 pub(crate) mod file_program;
-pub(crate) mod globbing;
 pub(crate) mod kind_check;
 pub(crate) mod kind_sets;
 pub(crate) mod layout;
@@ -31,7 +30,7 @@ pub(crate) mod table_model;
 pub(crate) mod table_reach;
 pub(crate) mod table_scratch;
 pub(crate) mod table_texts;
-pub(crate) mod table_words;
+
 pub(crate) mod tree_join;
 pub(crate) mod trust;
 pub(crate) mod walks;

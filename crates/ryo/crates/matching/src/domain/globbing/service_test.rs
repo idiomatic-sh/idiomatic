@@ -1,7 +1,7 @@
 //! The `globbing` service's cases, on values alone.
 
 use super::service::{compile, matches, matches_compiled};
-use super::types::{GlobMatch, GlobText, Subject};
+use super::types::{GlobMatch, GlobText, Subject, TextGlobProgram};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// A glob and the text it is matched against.
@@ -160,9 +160,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((glob, text): Input) -> Value {
     let interpreted = matches(GlobText(glob), Subject(text));
-    if let Some(compiled) = matches_compiled(&compile(&[GlobText(glob)]), Subject(text)) {
-        assert_eq!(compiled, interpreted);
-    }
+    let compiled = matches_compiled(&compile(&[GlobText(glob)]), Subject(text));
+    assert_eq!(compiled, interpreted);
     interpreted
 }
 
@@ -173,12 +172,14 @@ fn succeeds() {
     // must decline it rather than panic or change the interpreter's answer.
     let deep = format!("{}a{}", "{".repeat(300), "}".repeat(300));
     assert_eq!(matches(GlobText(&deep), Subject("a")), GlobMatch::Matches);
+    let prepared = compile(&[GlobText(&deep)]);
+    assert!(matches!(&prepared, TextGlobProgram::Interpreted(_)));
     assert_eq!(
-        matches_compiled(&compile(&[GlobText(&deep)]), Subject("a")),
-        None
+        matches_compiled(&prepared, Subject("a")),
+        GlobMatch::Matches
     );
     assert_eq!(
         matches_compiled(&compile(&[]), Subject("anything")),
-        Some(GlobMatch::Differs)
+        GlobMatch::Differs
     );
 }
