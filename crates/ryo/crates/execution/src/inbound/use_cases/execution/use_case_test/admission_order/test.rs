@@ -290,7 +290,7 @@ fn child_failure_and_resources_first() {
 }
 fn stored_prefix_keeps_static_error_order_and_source_identity() {
     use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-    use ryo_values::domain::table_words::service::to_bits;
+    use ryo_relations::domain::relations::service::to_bits;
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("prefix"));
     let table = population(Relation::Function, false, symbol);
