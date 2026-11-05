@@ -101,7 +101,7 @@ pub(crate) fn prepare(
             let rows = project.rows(relation)?;
             prepared.rows.push(FrontierInput::Decoded {
                 frontier: project_input(rows, input, project_symbols, symbols),
-                coverage: crate::application::file_dag::completion::CoverageState::Complete,
+                coverage: crate::domain::completion::types::CoverageState::Complete,
             });
             continue;
         }
@@ -201,7 +201,7 @@ pub(crate) fn validate_bucket(
     bucket: Bucket,
     required: &crate::application::file_dag::program::facade::RequiredPartitions,
     payload: &crate::outbound::facts::types::KeptBucket,
-) -> Result<crate::application::file_dag::completion::CoverageState, OperatingError> {
+) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
     let refuse = || OperatingError::ObservationIncomplete {
         reason: "frontier source proof does not match the prepared program".into(),
@@ -253,9 +253,9 @@ pub(crate) fn validate_bucket(
     affected.sort_unstable();
     affected.dedup();
     Ok(if affected.is_empty() {
-        crate::application::file_dag::completion::CoverageState::Complete
+        crate::domain::completion::types::CoverageState::Complete
     } else {
-        crate::application::file_dag::completion::CoverageState::Partial { files: affected }
+        crate::domain::completion::types::CoverageState::Partial { files: affected }
     })
 }
 

@@ -47,13 +47,13 @@ pub struct PreparedFrontiers {
 pub(crate) enum FrontierInput {
     Decoded {
         frontier: crate::domain::table_model::types::Frontier,
-        coverage: crate::application::file_dag::completion::CoverageState,
+        coverage: crate::domain::completion::types::CoverageState,
     },
     Compact {
         input: ryo_values::domain::plan_parts::types::Input,
         table: ryo_values::domain::table_words::types::CompactTable,
         spelling: Vec<ryo_relations::domain::relations::types::Name>,
-        coverage: crate::application::file_dag::completion::CoverageState,
+        coverage: crate::domain::completion::types::CoverageState,
     },
 }
 

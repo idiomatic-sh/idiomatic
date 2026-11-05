@@ -229,8 +229,8 @@ fn subject(case: Input) -> Result<Value, Failure> {
     let admitted = result?;
     assert_eq!(reads.get(), 1);
     match admitted.coverage()? {
-        crate::application::file_dag::completion::CoverageState::Complete => Ok("complete"),
-        crate::application::file_dag::completion::CoverageState::Partial { files } => {
+        crate::domain::completion::types::CoverageState::Complete => Ok("complete"),
+        crate::domain::completion::types::CoverageState::Partial { files } => {
             assert_eq!(files, vec![Some(FileId(0))]);
             Ok("partial")
         }

@@ -49,3 +49,5 @@ pub(crate) mod text_gate;
 pub(crate) mod tree_walk;
 
 pub(crate) mod spelling;
+
+pub(crate) mod completion;

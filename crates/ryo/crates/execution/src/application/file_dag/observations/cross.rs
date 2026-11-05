@@ -1,4 +1,5 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
+use crate::domain::completion::types::CoverageState;
 use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, PublicationSlot};
 use crate::application::file_dag::program::facade::{ObservationMetadata, OutputRoot};
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
@@ -526,7 +527,7 @@ pub(crate) fn restore_frontiers(
     use ryo_values::domain::stored_facts::types::Bucket;
 
     use crate::application::file_dag::{
-        completion::CoverageState,
+
         observations::cross::{PreparedFrontier, frontier_readiness},
     };
     let metadata = program

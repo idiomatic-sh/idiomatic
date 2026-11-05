@@ -13,32 +13,7 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ScopeIdentity {
-    File { rule: RuleIndex, file: FileId },
-    Project { rule: RuleIndex },
-}
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum CoverageState {
-    Complete,
-    Partial { files: Vec<Option<FileId>> },
-}
-impl CoverageState {
-    /// Physical uncertainty is monotone across contributing populations and the current region.
-    pub(in crate::application::file_dag) fn merge(self, other: Self) -> Self {
-        match (self, other) {
-            (Self::Complete, coverage) | (coverage, Self::Complete) => coverage,
-            (Self::Partial { mut files }, Self::Partial { files: added }) => {
-                for file in added {
-                    if !files.contains(&file) {
-                        files.push(file);
-                    }
-                }
-                Self::Partial { files }
-            }
-        }
-    }
-}
+use super::super::{CoverageState, ScopeIdentity};
 #[derive(Clone, PartialEq, Eq)]
 enum CompletionBehavior {
     BlockBeforeRun(std::sync::Arc<[Partial]>),
@@ -62,7 +37,7 @@ impl CompletionPolicy {
     pub(crate) fn project(rule: RuleIndex, partials: &Partials) -> Self {
         Self::project_inputs(rule, partials, partials)
     }
-    pub(super) fn file_inputs(
+    pub(crate) fn file_inputs(
         rule: RuleIndex,
         file: FileId,
         evaluation: &[Partial],
@@ -74,7 +49,7 @@ impl CompletionPolicy {
             publication: CompletionBehavior::BlockBeforeRun(publication.into()),
         }
     }
-    pub(super) fn project_inputs(
+    pub(crate) fn project_inputs(
         rule: RuleIndex,
         evaluation: &Partials,
         publication: &Partials,
@@ -87,7 +62,7 @@ impl CompletionPolicy {
             )),
         }
     }
-    pub(super) fn blocked_coverage(&self) -> CoverageState {
+    pub(crate) fn blocked_coverage(&self) -> CoverageState {
         match self.scope {
             ScopeIdentity::File { file, .. } => CoverageState::Partial {
                 files: vec![Some(file)],
@@ -95,7 +70,7 @@ impl CompletionPolicy {
             ScopeIdentity::Project { .. } => CoverageState::Partial { files: vec![None] },
         }
     }
-    pub(super) fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
+    pub(crate) fn coverage(&self, reads: &[RelationRead]) -> CoverageState {
         let files = match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials)
                 if blocked(reads, partials) == Blocking::Blocked =>
@@ -116,7 +91,7 @@ impl CompletionPolicy {
             CoverageState::Partial { files }
         }
     }
-    pub(super) fn observation_ready(&self, reads: &[RelationRead]) -> bool {
+    pub(crate) fn observation_ready(&self, reads: &[RelationRead]) -> bool {
         match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials) => {
                 blocked(reads, partials) == Blocking::Free
@@ -124,10 +99,10 @@ impl CompletionPolicy {
             CompletionBehavior::DropAfterCollect(partials) => files_for(partials, reads).is_empty(),
         }
     }
-    pub(super) fn requires_buffer(&self) -> bool {
+    pub(crate) fn requires_buffer(&self) -> bool {
         matches!(self.behavior, CompletionBehavior::DropAfterCollect(_))
     }
-    pub(super) fn filter_rows(
+    pub(crate) fn filter_rows(
         &self,
         operation: &Operation,
         needs: &[RelationRead],
@@ -139,7 +114,7 @@ impl CompletionPolicy {
             drop_uncertain(operation, &kinds, rows, &uncertain);
         }
     }
-    pub(super) fn allows_region(&self, needs: &[RelationRead]) -> bool {
+    pub(crate) fn allows_region(&self, needs: &[RelationRead]) -> bool {
         match &self.behavior {
             CompletionBehavior::BlockBeforeRun(partials) => {
                 blocked(needs, partials) == Blocking::Free
@@ -147,7 +122,7 @@ impl CompletionPolicy {
             CompletionBehavior::DropAfterCollect(_) => true,
         }
     }
-    pub(super) fn for_rule(&self, rule: RuleIndex) -> Self {
+    pub(crate) fn for_rule(&self, rule: RuleIndex) -> Self {
         let scope = match self.scope {
             ScopeIdentity::File { file, .. } => ScopeIdentity::File { rule, file },
             ScopeIdentity::Project { .. } => ScopeIdentity::Project { rule },
@@ -159,7 +134,3 @@ impl CompletionPolicy {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "completion/service_test.rs"]
-mod tests;

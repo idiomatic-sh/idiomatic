@@ -142,19 +142,19 @@ impl AdmittedInput {
 
     pub(super) fn coverage(
         &self,
-    ) -> Result<super::super::completion::CoverageState, OperatingError> {
+    ) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
         match &self.readiness {
-            Readiness::Complete => Ok(super::super::completion::CoverageState::Complete),
-            Readiness::Partial { files } => Ok(super::super::completion::CoverageState::Partial {
+            Readiness::Complete => Ok(crate::domain::completion::types::CoverageState::Complete),
+            Readiness::Partial { files } => Ok(crate::domain::completion::types::CoverageState::Partial {
                 files: files.clone(),
             }),
         }
     }
     pub(super) fn with_coverage(
         mut self,
-        coverage: super::super::completion::CoverageState,
+        coverage: crate::domain::completion::types::CoverageState,
     ) -> Self {
-        if let super::super::completion::CoverageState::Partial { mut files } = coverage {
+        if let crate::domain::completion::types::CoverageState::Partial { mut files } = coverage {
             match &mut self.readiness {
                 Readiness::Complete => self.readiness = Readiness::Partial { files },
                 Readiness::Partial { files: existing } => {

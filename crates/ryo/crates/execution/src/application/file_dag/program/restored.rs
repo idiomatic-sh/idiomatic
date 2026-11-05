@@ -6,7 +6,7 @@ use super::{
     facade_runtime::PublicationScope,
 };
 use crate::{
-    application::file_dag::completion::CoverageState,
+    domain::completion::types::CoverageState,
     domain::{
         coverage::types::RuleIndex,
         executable_program::types::{ExecutableProgram, InputSource},

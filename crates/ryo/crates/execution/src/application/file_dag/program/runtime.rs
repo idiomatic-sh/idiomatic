@@ -141,7 +141,7 @@ struct Slot {
     remaining: usize,
     dependencies_consumed: bool,
     waiting_on: Option<RegionId>,
-    completion: Option<crate::application::file_dag::completion::CompletionPolicy>,
+    completion: Option<crate::domain::completion::types::completion_policy::value::CompletionPolicy>,
 }
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
 /// reader counts occurs until the entire cancellation cascade validates.
@@ -521,7 +521,7 @@ impl ProgramExecution {
         id: RegionId,
         inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
-        completion: &crate::application::file_dag::completion::CompletionPolicy,
+        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
         delivery: Delivery<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
@@ -1008,16 +1008,16 @@ impl ProgramExecution {
                     .map_err(InvocationFailure::Semantic)?;
                     let inherited = match inherited {
                         super::admission::Readiness::Complete => {
-                            crate::application::file_dag::completion::CoverageState::Complete
+                            crate::domain::completion::types::CoverageState::Complete
                         }
                         super::admission::Readiness::Partial { files } => {
-                            crate::application::file_dag::completion::CoverageState::Partial {
+                            crate::domain::completion::types::CoverageState::Partial {
                                 files,
                             }
                         }
                     };
                     Ok(InvocationOutcome::Forwarded(
-                        inherited.merge(completion.coverage(needs)),
+                        crate::domain::completion::service::merge_coverage(inherited, completion.coverage(needs)),
                     ))
                 }
                 delivery => {
@@ -1232,7 +1232,7 @@ impl Emit for GuardedOutput<'_> {
 }
 pub(super) enum InvocationOutcome {
     Published(AdmittedInput),
-    Forwarded(crate::application::file_dag::completion::CoverageState),
+    Forwarded(crate::domain::completion::types::CoverageState),
 }
 enum Terminal {
     Retry,

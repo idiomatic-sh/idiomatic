@@ -1,11 +1,16 @@
-use super::*;
+use super::value::*;
+use crate::domain::completion::types::CoverageState;
 use crate::domain::coverage::types::{FilePartial, Lacking};
-use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
+use crate::domain::coverage::types::{Partial, Partials, RuleIndex};
+use crate::domain::trust::types::RelationRead;
+use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input},
     rows::types::RowCount,
     stored_facts::types::PartialCause,
 };
+use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 fn partial() -> Partial {
     Partial {
         relation: Relation::SourceLocation,
@@ -28,7 +33,6 @@ fn needs() -> Vec<RelationRead> {
         kinds: vec![],
     }]
 }
-#[test]
 fn evaluation_refusal_cannot_become_complete_when_publication_inputs_are_complete() {
     let evaluation = [partial()];
     let policy = CompletionPolicy::file_inputs(RuleIndex(3), FileId(0), &evaluation, &[]);
@@ -42,7 +46,6 @@ fn evaluation_refusal_cannot_become_complete_when_publication_inputs_are_complet
     );
 }
 
-#[test]
 fn project_filter_preserves_other_files_and_exact_physical_coverage() {
     let partials = Partials {
         entries: vec![FilePartial {
@@ -54,11 +57,11 @@ fn project_filter_preserves_other_files_and_exact_physical_coverage() {
     let policy = CompletionPolicy::project_inputs(RuleIndex(4), &partials, &partials);
     let mut table = Table {
         kinds: vec![CellKind::File],
-        cells: vec![Value::File(FileId(0)), Value::File(FileId(1))],
+        cells: vec![Cell::File(FileId(0)), Cell::File(FileId(1))],
         count: RowCount(2),
     };
     policy.filter_rows(&anti(), &needs(), &mut table);
-    assert_eq!(table.cells, vec![Value::File(FileId(1))]);
+    assert_eq!(table.cells, vec![Cell::File(FileId(1))]);
     assert_eq!(table.count, RowCount(1));
     assert_eq!(
         policy.coverage(&needs()),
@@ -66,4 +69,31 @@ fn project_filter_preserves_other_files_and_exact_physical_coverage() {
             files: vec![Some(FileId(0))]
         }
     );
+}
+
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+type Input = fn();
+type Value = ();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("evaluation_refusal_preserves_partial_coverage"),
+        word: Word::Succeeds,
+        input: || evaluation_refusal_cannot_become_complete_when_publication_inputs_are_complete,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("project_filter_preserves_physical_coverage"),
+        word: Word::Succeeds,
+        input: || project_filter_preserves_other_files_and_exact_physical_coverage,
+        expect: Expect::Value(()),
+    },
+];
+fn subject(case: Input) -> Result<Value, Failure> {
+    case();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

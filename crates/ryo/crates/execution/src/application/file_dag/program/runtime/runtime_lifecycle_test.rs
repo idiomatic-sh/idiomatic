@@ -2,7 +2,7 @@
 use super::*;
 mod fixture;
 mod owner_inputs;
-use crate::application::file_dag::completion::CompletionPolicy;
+use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::{coverage::types::RuleIndex, table_scratch::types::OperatorScratch};
 use fixture::{EvaluationCount, Reentry, RuntimeProbe, RuntimeProbeMode, Sink, SinkMode, context};
 use owner_inputs::{CompiledCase, TestInputs, compiled};

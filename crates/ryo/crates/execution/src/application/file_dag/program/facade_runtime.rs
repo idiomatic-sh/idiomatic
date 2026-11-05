@@ -21,7 +21,7 @@ use ryo_values::domain::{
 };
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 use {
-    crate::application::file_dag::completion::CompletionPolicy,
+    crate::domain::completion::types::completion_policy::value::CompletionPolicy,
     crate::application::file_dag::relations::PublishedInput,
     crate::application::file_dag::relations::RelationOwner,
     crate::application::file_dag::scope::ScopePartials,

@@ -334,7 +334,7 @@ impl FileRun<'_> {
                     &Partition::File(FileGeneration::from_owner(file, &self.owner)),
                     context,
                 )?;
-                let coverage = file_frontier_coverage(admitted.coverage()?, file)?;
+                let coverage = crate::domain::completion::service::file_frontier_coverage(admitted.coverage()?, file)?;
                 let mut table = table_of(&self.owner, &admitted, read)?;
                 let before = places.len();
                 crate::domain::finish::service::escape(
@@ -477,37 +477,6 @@ impl FileRun<'_> {
     }
 }
 
-fn file_frontier_coverage(
-    coverage: crate::application::file_dag::completion::CoverageState,
-    file: FileId,
-) -> Result<ryo_values::domain::records::types::FrontierCoverage, OperatingError> {
-    use ryo_values::domain::records::types::{FrontierAffected, FrontierCoverage};
-    match coverage {
-        crate::application::file_dag::completion::CoverageState::Complete => {
-            Ok(FrontierCoverage::Complete)
-        }
-        crate::application::file_dag::completion::CoverageState::Partial { files } => {
-            let mut affected = files
-                .into_iter()
-                .map(|cause| match cause {
-                    None => Ok(FrontierAffected::Repository),
-                    Some(at) if at == file => Ok(FrontierAffected::CurrentFile),
-                    Some(_) => Err(OperatingError::ObservationIncomplete {
-                        reason: "file frontier carries a foreign physical partition".into(),
-                    }),
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            affected.sort_unstable();
-            affected.dedup();
-            if affected.is_empty() {
-                return Err(OperatingError::ObservationIncomplete {
-                    reason: "partial frontier has no affected physical partition".into(),
-                });
-            }
-            Ok(FrontierCoverage::Partial(affected))
-        }
-    }
-}
 fn readiness_of(
     outcome: &RootOutcome,
 ) -> Option<ryo_values::domain::observations::types::ProducerReadiness> {
@@ -542,10 +511,10 @@ pub(super) fn outcome_of<'facts>(
     match result {
         Ok(InvocationOutcome::Published(input)) => match table_of(owner, &input, read) {
             Ok(table) => match input.coverage() {
-                Ok(crate::application::file_dag::completion::CoverageState::Complete) => {
+                Ok(crate::domain::completion::types::CoverageState::Complete) => {
                     RootOutcome::Complete(table)
                 }
-                Ok(crate::application::file_dag::completion::CoverageState::Partial { files }) => {
+                Ok(crate::domain::completion::types::CoverageState::Partial { files }) => {
                     RootOutcome::Partial {
                         table,
                         affected: files,
@@ -648,10 +617,10 @@ impl FileRun<'_> {
             InvocationOutcome::Forwarded(coverage) => coverage,
         };
         Ok(match coverage {
-            crate::application::file_dag::completion::CoverageState::Complete => {
+            crate::domain::completion::types::CoverageState::Complete => {
                 super::super::facade::RowEmission::Complete
             }
-            crate::application::file_dag::completion::CoverageState::Partial { files } => {
+            crate::domain::completion::types::CoverageState::Partial { files } => {
                 super::super::facade::RowEmission::Partial { affected: files }
             }
         })
