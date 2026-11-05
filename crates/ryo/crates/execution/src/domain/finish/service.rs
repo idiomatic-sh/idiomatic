@@ -130,8 +130,8 @@ fn normalize_frame(
                 .0
                 .len()
                 .checked_add(bytes.len())
-                .and_then(|end| u32::try_from(end).ok())
                 .ok_or(PublicationReason::EndUnrepresentable)?;
+            let end = u32::try_from(end).map_err(|_| PublicationReason::EndUnrepresentable)?;
             arena.0.extend_from_slice(bytes);
             place.origin = Origin::Derived(leaving.worker);
             place.start = Offset(start);
