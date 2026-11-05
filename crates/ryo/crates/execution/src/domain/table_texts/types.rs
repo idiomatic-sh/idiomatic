@@ -52,3 +52,5 @@ pub(crate) struct Texts<'a> {
     /// The text each worker made, by worker number: where a name that has left its file keeps its text.
     pub arenas: &'a [ArenaBytes],
 }
+
+use ryo_values::domain::files::types::SourceView;

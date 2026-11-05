@@ -44,3 +44,75 @@ fn empty_request_can_begin_and_finish_without_acquiring_inputs() {
     let run = engine.begin(&prepared, &[]);
     super::interface::ExecutionRequest::finish(run);
 }
+
+#[test]
+fn file_owner_reuses_only_recognized_stable_sources() {
+    use super::interface::{ExecutionRequest, FileExecution};
+    use ryo_values::domain::files::types::{
+        CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
+    };
+    let engine = ExecutionUseCaseImpl::new(
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
+    let prepared = engine
+        .prepare(PreparedRequest {
+            plans: vec![],
+            bindings: vec![],
+            rules: vec![],
+            digests: vec![],
+            hosted: vec![],
+            observations: ObservationIdentity::Independent,
+        })
+        .expect("valid empty program");
+    let corpus = vec![CorpusInput::Available(CorpusEntry {
+        path: ryo_language::domain::files::types::FilePath("empty.py".into()),
+        executable: ExecutablePermission::Unknown,
+        size: FileSize(0),
+        modified: Nanoseconds(0),
+    })];
+    let request = engine.begin(&prepared, &corpus);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let read = |_| Err(OperatingError::NotRead);
+    for (language, resident_stability, expected) in [
+        (
+            SourceLanguage::Recognized,
+            facts::ResidentStability::Stable,
+            true,
+        ),
+        (
+            SourceLanguage::Recognized,
+            facts::ResidentStability::Unstable,
+            false,
+        ),
+        (
+            SourceLanguage::Unrecognized,
+            facts::ResidentStability::Stable,
+            false,
+        ),
+    ] {
+        let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+        let file = request
+            .open_file(
+                FileInput {
+                    language,
+                    resident_stability,
+                    file: ryo_relations::domain::relations::types::FileId(0),
+                    evaluation: &[],
+                    publication: &[],
+                    demanded: &[],
+                    source: &[],
+                    elements: &elements,
+                    read: &read,
+                    semantic: None,
+                    kinds: None,
+                },
+                &mut symbols,
+            )
+            .expect("normal inbound file owner");
+        assert_eq!(file.inner.source_reuse_eligible(), expected);
+        file.finish().expect("finish file owner");
+    }
+}

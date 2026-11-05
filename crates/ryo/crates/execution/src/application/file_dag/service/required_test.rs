@@ -113,7 +113,7 @@ fn wide_diamond_required_prefix_runs_once_with_zero_or_small_optional_budget() {
             prepared_kinds: None,
             bindings: &[],
             symbols: (&mut symbols).into(),
-            source: crate::domain::table_texts::types::SourceView(b""),
+            source: ryo_values::domain::files::types::SourceView(b""),
             paths: &[],
             arenas: &[],
             memo: &mut memo,

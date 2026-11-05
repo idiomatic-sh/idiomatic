@@ -6,7 +6,7 @@ use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
-    table_model::types::{Rows},
+    table_model::types::Rows,
 };
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
@@ -95,7 +95,7 @@ fn context<'a>(
         prepared_matchers: None,
         bindings: &[] as &[ParameterBinding],
         symbols: symbols.into(),
-        source: crate::domain::table_texts::types::SourceView(&[]),
+        source: ryo_values::domain::files::types::SourceView(&[]),
         paths: &[],
         arenas: &[],
         memo,
@@ -353,4 +353,4 @@ fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     ))
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

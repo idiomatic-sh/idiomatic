@@ -464,3 +464,10 @@ pub(super) fn outcome_of<'facts>(
 
 #[cfg(test)]
 mod distinct_integration_test;
+
+#[cfg(test)]
+impl FileRun<'_> {
+    pub(crate) fn source_reuse_eligible(&self) -> bool {
+        self.owner.stable()
+    }
+}

@@ -189,7 +189,7 @@ pub(super) enum ViewInputs<'a, 's> {
     Text(&'a crate::domain::table_texts::types::Texts<'a>),
     Dfs {
         symbols: &'a mut ryo_language::domain::symbols::types::QuerySymbols<'s>,
-        source: crate::domain::table_texts::types::SourceView<'a>,
+        source: ryo_values::domain::files::types::SourceView<'a>,
         paths: &'a [ryo_language::domain::files::types::FilePath],
         arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     },

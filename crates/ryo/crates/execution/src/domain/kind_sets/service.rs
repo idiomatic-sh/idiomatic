@@ -240,7 +240,7 @@ pub(crate) fn named_kinds(scratch: &KindScratch) -> Option<&[KindBits]> {
 fn vocabulary_names(
     elements: &ryo_language::domain::elements::types::Elements,
     symbols: &ryo_language::domain::symbols::types::Symbols,
-    source: crate::domain::table_texts::types::SourceView<'_>,
+    source: ryo_values::domain::files::types::SourceView<'_>,
 ) -> Vec<Option<Box<str>>> {
     kind_names(elements)
         .iter()
@@ -260,7 +260,7 @@ pub(crate) fn prepare_vocabulary(
     previous: &mut Option<std::sync::Arc<PreparedVocabulary>>,
     elements: &ryo_language::domain::elements::types::Elements,
     symbols: &ryo_language::domain::symbols::types::Symbols,
-    source: crate::domain::table_texts::types::SourceView<'_>,
+    source: ryo_values::domain::files::types::SourceView<'_>,
 ) -> Option<std::sync::Arc<PreparedVocabulary>> {
     if kind_names(elements).is_empty() {
         return None;

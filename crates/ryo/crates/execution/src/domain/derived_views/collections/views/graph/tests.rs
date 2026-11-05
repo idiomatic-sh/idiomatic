@@ -245,7 +245,7 @@ fn ordered_keys_sort_each_side_and_refuse_duplicate_order_within_a_group() {
     let symbols = Symbols::default();
     let texts = crate::domain::table_texts::types::Texts {
         symbols: &symbols,
-        source: crate::domain::table_texts::types::SourceView(&[]),
+        source: ryo_values::domain::files::types::SourceView(&[]),
         paths: &[],
         arenas: &[],
     };
