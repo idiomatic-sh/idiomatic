@@ -170,12 +170,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
         let instruction = permit.descriptor();
         let shape = permit.native_shape().map_err(InvocationFailure::Semantic)?;
         let region = permit.region();
-        if self
-            .walk
-            .is_some_and(|walk| walk.class(self.prepared, instruction).is_some())
-        {
-            return Ok(None);
-        }
         let mut rebound = OperatorContext {
             phase: context.phase,
             semantic: context.semantic,
@@ -240,16 +234,81 @@ impl KernelInvocation for KernelSession<'_, '_> {
             sources.push(publication.clone());
             rows.push(actual);
         }
-        let result = crate::domain::native_positions::rows::evaluate(
-            &semantics,
-            &mut derived,
-            permit.operation(),
-            &rows,
-            shape,
-            &mut rebound,
-            &mut scratch.positions,
-            &workspace.work,
-        );
+        let shared_class = self.walk.and_then(|walk| {
+            walk.class(self.prepared, instruction)
+                .map(|class| (walk, class))
+        });
+        let result = if let Some((walk, class)) = shared_class {
+            // The shared pass already owns this head's predicate work. Preserve
+            // its actual tree coordinates instead of materializing rows and
+            // making every downstream native operator decline.
+            let [Rows::Tree(tree)] = rows.as_slice() else {
+                return Ok(None);
+            };
+            let ryo_values::domain::plans::types::Operation::Select {
+                from: ryo_values::domain::plan_parts::types::Input::Relation(relation),
+                ..
+            } = permit.operation()
+            else {
+                return Err(InvocationFailure::Semantic(OperatingError::WrongOperation));
+            };
+            if shape.width.0 != 1 || shape.columns.iter().any(|column| column.slot.0 != 0) {
+                return Err(InvocationFailure::Semantic(OperatingError::ShapeMismatch));
+            }
+            let Some(batch) = walk
+                .prepare(
+                    self.prepared,
+                    permit,
+                    *relation,
+                    &rows[0],
+                    &mut rebound,
+                    self.kernels,
+                )
+                .map_err(InvocationFailure::Semantic)?
+            else {
+                return Ok(None);
+            };
+            let Some(selected) = batch.class(class) else {
+                return Ok(None);
+            };
+            workspace.work.found(0, batch.visits(class).0);
+            selected
+                .completion
+                .clone()
+                .map_err(InvocationFailure::Semantic)?;
+            let offset = u32::from(tree.form == crate::domain::table_cells::types::TreeForm::Edges);
+            let end = ryo_language::domain::elements::service::real_count(tree.elements).0;
+            let slots = selected
+                .positions
+                .0
+                .iter()
+                .map(|row| {
+                    row.checked_add(offset)
+                        .filter(|position| {
+                            usize::try_from(*position).is_ok_and(|position| position < end)
+                        })
+                        .ok_or(OperatingError::ShapeMismatch)
+                })
+                .collect::<Result<Vec<_>, _>>();
+            // No cached Ref crosses publication or any reentrant delivery.
+            slots.map(|slots| {
+                Some(crate::domain::positions::types::Positions {
+                    width: crate::domain::lowering::types::RowWidth(1),
+                    slots: crate::domain::positions::types::Slots(slots),
+                })
+            })
+        } else {
+            crate::domain::native_positions::rows::evaluate(
+                &semantics,
+                &mut derived,
+                permit.operation(),
+                &rows,
+                shape,
+                &mut rebound,
+                &mut scratch.positions,
+                &workspace.work,
+            )
+        };
         let Some(positions) = failure
             .into_inner()
             .map_or(result, Err)
@@ -257,10 +316,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
         else {
             return Ok(None);
         };
-        #[cfg(test)]
-        {
-            workspace.observation.native_positions += 1;
-        }
         let source = sources
             .first()
             .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
@@ -274,7 +329,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 ),
             )
             .map_err(InvocationFailure::Semantic)?;
-        crate::application::file_dag::relations::positioned::publish(
+        let publication = crate::application::file_dag::relations::positioned::publish(
             &self.owner,
             source,
             &admitted,
@@ -288,8 +343,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
                     .map_err(InvocationFailure::Semantic)?,
             ),
         )
-        .map(Some)
-        .map_err(InvocationFailure::Semantic)
+        .map_err(InvocationFailure::Semantic)?;
+        #[cfg(test)]
+        {
+            workspace.observation.native_positions += 1;
+        }
+        Ok(Some(publication))
     }
     fn selected(
         &self,
@@ -421,7 +480,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
         else {
             return Err(InvocationFailure::Semantic(OperatingError::WrongOperation));
         };
-        counts.join.found(1, count_of(&right_rows).0 as u64);
         let failure = std::sync::OnceLock::new();
         let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
             port: self.kernels,
@@ -449,6 +507,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
             &mut measured,
         );
         counts.join.found(0, measured.covered_rows);
+        counts.join.found(1, measured.joined_hits);
         counts.filter.found(0, measured.joined_hits);
         counts.project.found(0, measured.filtered_rows);
         if let Some(error) = failure.get() {

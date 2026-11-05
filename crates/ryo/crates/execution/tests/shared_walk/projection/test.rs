@@ -253,3 +253,173 @@ fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
     file.finish().unwrap();
     request.finish();
 }
+
+#[test]
+fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
+    use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+    use ryo_operators::inbound::use_cases::operators::{
+        interface::{
+            JoinInput, OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
+        },
+        use_case::OperatorsUseCaseImpl,
+    };
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    #[derive(Debug)]
+    struct ObservedJoin {
+        calls: AtomicUsize,
+        refuse: bool,
+    }
+    impl OperatorsUseCase for ObservedJoin {
+        fn operators(
+            &self,
+            call: OperatorCall<'_>,
+        ) -> Result<OperatorAnswer, PortableOperatorFault> {
+            if matches!(
+                &call,
+                OperatorCall::EqualityJoin {
+                    input: JoinInput::Positions { .. }
+                }
+            ) {
+                self.calls.fetch_add(1, Ordering::Relaxed);
+                if self.refuse {
+                    return Err(PortableOperatorFault::ShapeMismatch);
+                }
+            }
+            OperatorsUseCaseImpl::new().operators(call)
+        }
+    }
+    for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
+        for (empty, refuse) in [(false, false), (true, false), (false, true)] {
+            let semantics = Arc::new(ObservedJoin {
+                calls: AtomicUsize::new(0),
+                refuse,
+            });
+            let engine = ExecutionUseCaseImpl::new(
+                semantics.clone(),
+                Arc::new(
+                    ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
+                ),
+            );
+            let mut authored = authored_request(1);
+            let comparisons = if empty {
+                // Comparing one node cell with itself is a total false predicate.
+                vec![compared(
+                    Test::NotEqual,
+                    0,
+                    ryo_values::domain::plan_parts::types::Operand::Column(ColumnIndex(0)),
+                )]
+            } else {
+                vec![]
+            };
+            let column = if relation == Relation::SyntaxTree {
+                0
+            } else {
+                1
+            };
+            authored.plans[0].steps = vec![
+                PlanStep {
+                    scope: StepScope::PerFile,
+                    operation: Operation::Select {
+                        from: Input::Relation(relation),
+                        comparisons,
+                        kept: vec![ColumnIndex(column), ColumnIndex(column)],
+                    },
+                },
+                PlanStep {
+                    scope: StepScope::PerFile,
+                    operation: Operation::Join {
+                        left: Input::Step(StepId(0)),
+                        right: Input::Step(StepId(0)),
+                        left_on: vec![ColumnIndex(0)],
+                        right_on: vec![ColumnIndex(0)],
+                        output: vec![
+                            JoinColumn {
+                                side: Side::Left,
+                                column: ColumnIndex(0),
+                            },
+                            JoinColumn {
+                                side: Side::Right,
+                                column: ColumnIndex(1),
+                            },
+                        ],
+                        filter: vec![],
+                        view: vec![],
+                        reach: None,
+                    },
+                },
+            ];
+            authored.plans[0].emit.step = StepId(1);
+            let program = engine.prepare(authored).unwrap();
+            let corpus = corpus();
+            let request = engine.begin(&program, &corpus);
+            let (elements, mut symbols) = tree(FileId(0), b"abc");
+            let intents = [FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::Disabled,
+            }];
+            let mut file = request
+                .open_file(
+                    input(FileId(0), b"abc", &elements, &intents, &no_catalog),
+                    &mut symbols,
+                )
+                .unwrap();
+            let first = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+            if refuse {
+                assert!(matches!(
+                    first.emit,
+                    RootOutcome::Failed(OperatingError::ShapeMismatch)
+                ));
+            } else {
+                let start = u32::from(relation == Relation::SyntaxChild);
+                let expected = if empty {
+                    vec![]
+                } else {
+                    (start..4)
+                        .flat_map(|position| {
+                            [Value::Node(node_id(FileId(0), Position(position))); 2]
+                        })
+                        .collect()
+                };
+                assert_eq!(complete(first).cells, expected);
+            }
+            assert_eq!(semantics.calls.load(Ordering::Relaxed), usize::from(!empty));
+            let walks = file.walk_counts();
+            assert_eq!(walks.passes.0, 1);
+            assert_eq!(
+                walks.source_rows.0,
+                if relation == Relation::SyntaxTree {
+                    4
+                } else {
+                    3
+                }
+            );
+            let replay = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+            if refuse {
+                assert!(matches!(
+                    replay.emit,
+                    RootOutcome::Failed(OperatingError::ShapeMismatch)
+                ));
+            } else {
+                assert_eq!(
+                    complete(replay).count.0,
+                    if empty {
+                        0
+                    } else if relation == Relation::SyntaxTree {
+                        4
+                    } else {
+                        3
+                    }
+                );
+            }
+            assert_eq!(file.walk_counts(), walks);
+            assert_eq!(semantics.calls.load(Ordering::Relaxed), usize::from(!empty));
+            file.finish().unwrap();
+            request.finish();
+        }
+    }
+}
