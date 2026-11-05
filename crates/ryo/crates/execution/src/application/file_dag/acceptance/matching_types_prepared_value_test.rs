@@ -35,7 +35,7 @@ fn select(test: Test, pattern: &str) -> Operation {
 
 /// Put an operation into a finite compiled plan without evaluating its patterns.
 fn plan(operation: Operation) -> Plan {
-    let mut plan = crate::application::file_dag::pipeline::service_test::plan();
+    let mut plan = crate::domain::stored_selection::fixtures::plan();
     plan.steps.truncate(1);
     plan.steps[0].operation = operation;
     plan.emit.step = ryo_values::domain::plan_parts::types::StepId(0);

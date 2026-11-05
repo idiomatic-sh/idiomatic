@@ -1,6 +1,6 @@
 //! Independent descriptor derivation cases; no relation rows or symbol table is available.
 
-use crate::application::file_dag::pipeline::service_test::plan;
+use crate::domain::stored_selection::fixtures::plan;
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{

@@ -23,3 +23,48 @@ pub(crate) fn program(value: i64) -> Arc<Selector> {
         distinct: false,
     })
 }
+
+/// A canonical Function name selection followed by a distinct file projection.
+/// This only constructs metadata; providers and execution owners are absent.
+pub(crate) fn plan() -> ryo_values::domain::plans::types::Plan {
+    use ryo_values::domain::{
+        plan_parts::types::{Input, LiteralText, QueryLiteral, RepeatedRows, StepId},
+        plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    };
+    Plan {
+        parameters: vec![],
+        observation_inputs: vec![],
+        observations: vec![],
+        comparison_origins: vec![],
+        frontier: vec![],
+        steps: vec![
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Select {
+                    from: Input::Relation(Relation::Function),
+                    comparisons: vec![Comparison {
+                        test: Test::Equal,
+                        left: Operand::Column(ColumnIndex(1)),
+                        right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
+                        origin: None,
+                    }],
+                    kept: vec![],
+                },
+            },
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Project {
+                    from: Input::Step(StepId(0)),
+                    columns: vec![ColumnIndex(2)],
+                    distinct: RepeatedRows::Dropped,
+                },
+            },
+        ],
+        emit: Emit {
+            step: StepId(1),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
+    }
+}

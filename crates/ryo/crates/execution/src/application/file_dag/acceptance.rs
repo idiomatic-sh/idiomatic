@@ -36,7 +36,6 @@ pub(crate) mod operator_contract_test;
 pub(crate) mod operator_service_test;
 pub(crate) mod stored_graph_service_test;
 pub(crate) mod stored_selection_service_test;
-pub(crate) mod stored_selection_types_program_value_test;
 pub(crate) mod table_scratch_service_test;
 pub(crate) mod tree_join_collections_strategies_span_index_item_test;
 pub(crate) mod tree_join_service_test;
