@@ -443,6 +443,11 @@ impl Inputs for SourceInputs<'_, '_> {
                         admitted?
                     }
                 };
+                if !admitted.observation_ready()? {
+                    return Err(OperatingError::ObservationIncomplete {
+                        reason: "producer publication has incomplete physical coverage".into(),
+                    });
+                }
                 super::super::admission::alias_member(
                     self.program,
                     slot,
