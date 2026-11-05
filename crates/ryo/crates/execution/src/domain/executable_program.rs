@@ -12,3 +12,6 @@ pub(crate) mod column;
 pub(crate) mod selection;
 
 pub(crate) mod native;
+
+#[cfg(test)]
+mod service_test;

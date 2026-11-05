@@ -159,3 +159,6 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         request.finish();
     }
 }
+
+#[cfg(test)]
+mod axis_test;
