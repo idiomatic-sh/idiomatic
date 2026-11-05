@@ -725,7 +725,16 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         plan_parts::types::RepeatedRows, stored_facts::types::Bucket,
         table_words::service::decode_complete,
     };
-    for representation in ["symbol", "source_name", "cross_name"] {
+    for representation in [
+        "symbol",
+        "source_name",
+        "cross_name",
+        "inherited",
+        "missing_range",
+        "wrong_hash",
+        "other_worker",
+        "valid_then_missing",
+    ] {
         let engine = engine();
         let mut input = authored_request(1);
         input.plans[0].steps.push(PlanStep {
@@ -753,10 +762,15 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         let expected_hash = hash_in(&symbols, symbol).expect("interned hash");
         let mut table = source();
         table.cells[1] = match representation {
-            "source_name" => {
+            "source_name" | "inherited" | "missing_range" | "wrong_hash" | "other_worker"
+            | "valid_then_missing" => {
                 ryo_language::domain::symbols::service::places_mut(&mut symbols).push(
                     ryo_relations::domain::relations::types::NamePlace {
-                        origin: Origin::Source,
+                        origin: match representation {
+                            "source_name" | "valid_then_missing" => Origin::Source,
+                            "other_worker" => Origin::Derived(WorkerNumber(1)),
+                            _ => Origin::Derived(WorkerNumber(0)),
+                        },
                         file: FileId(0),
                         start: Offset(0),
                         end: Offset(3),
@@ -773,6 +787,15 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
             ),
             _ => Value::Symbol(symbol),
         };
+        if representation == "valid_then_missing" {
+            let mut second = table.cells.clone();
+            second[1] = Value::Name(ryo_relations::domain::relations::types::Name {
+                hash: expected_hash,
+                place: ryo_relations::domain::relations::types::PlaceNumber(1),
+            });
+            table.cells.extend(second);
+            table.count = RowCount(2);
+        }
         let read = |relation| {
             assert_eq!(relation, Relation::Function);
             Ok(SourceRows::Computed(&table))
@@ -796,7 +819,12 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                 &mut symbols,
             )
             .expect("open actual public file owner");
-        let mut arena = Vec::new();
+        let initial_arena = match representation {
+            "inherited" | "other_worker" => b"abc".to_vec(),
+            "wrong_hash" => b"xyz".to_vec(),
+            _ => Vec::new(),
+        };
+        let mut arena = initial_arena.clone();
         let sentinel = ryo_relations::domain::relations::types::NamePlace {
             origin: Origin::Source,
             file: FileId(99),
@@ -820,12 +848,22 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                 )
                 .expect("capture actual frontier");
             assert_eq!(captures.len(), 1);
-            let capture = captures
-                .into_iter()
-                .next()
-                .unwrap()
-                .outcome
-                .expect("complete frontier");
+            let outcome = captures.into_iter().next().unwrap().outcome;
+            if matches!(
+                representation,
+                "missing_range" | "wrong_hash" | "other_worker" | "valid_then_missing"
+            ) {
+                assert!(
+                    matches!(outcome, Err(OperatingError::ObservationIncomplete { .. })),
+                    "{representation} must refuse on attempt {ordinal}"
+                );
+                assert_eq!(
+                    arena, initial_arena,
+                    "failed capture retains no appended bytes"
+                );
+                continue;
+            }
+            let capture = outcome.expect("complete frontier");
             let mut decoded_places = Vec::new();
             let decoded =
                 decode_complete(&capture.words, &mut decoded_places).expect("complete frame");

@@ -51,6 +51,19 @@ pub(crate) fn escape_frame(
     leaving: Leaving<'_>,
     arena: Arena<'_>,
 ) -> Result<Vec<NamePlace>, super::types::PublicationReason> {
+    let start = arena.0.len();
+    let result = normalize_frame(table, leaving, Arena(&mut *arena.0));
+    if result.is_err() {
+        arena.0.truncate(start);
+    }
+    result
+}
+
+fn normalize_frame(
+    table: &mut Table,
+    leaving: Leaving<'_>,
+    arena: Arena<'_>,
+) -> Result<Vec<NamePlace>, super::types::PublicationReason> {
     use super::types::PublicationReason;
     use ryo_language::domain::symbols::service::{derived_of, hash_of, places_of};
     use ryo_relations::domain::relations::types::{CROSS_FILE, CROSS_PLACE, PlaceNumber};
@@ -93,7 +106,19 @@ pub(crate) fn escape_frame(
                     .get(range)
                     .ok_or(PublicationReason::LocalRangeMissing)?,
             ),
-            Origin::Derived(_) => None,
+            Origin::Derived(origin) => {
+                if origin != leaving.worker {
+                    return Err(PublicationReason::InheritedArenaUnrepresentable);
+                }
+                let bytes = arena
+                    .0
+                    .get(range)
+                    .ok_or(PublicationReason::InheritedRangeMissing)?;
+                if hash_of(ByteSlice(bytes)) != name.hash || std::str::from_utf8(bytes).is_err() {
+                    return Err(PublicationReason::InheritedTextMismatch);
+                }
+                None
+            }
         };
         if let Some(bytes) = local {
             if hash_of(ByteSlice(bytes)) != name.hash {
