@@ -2,8 +2,8 @@
 
 use super::errors::MatchingError;
 use super::fixtures::contract::{MatchingInput, MatchingValue, answer};
-type Input = MatchingInput;
-type Value = MatchingValue;
+type Input = (MatchingInput, MatchingValue);
+type Value = ();
 use super::use_case::MatchingUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -13,37 +13,67 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("text_glob_crosses_separator"),
         word: Word::Succeeds,
-        input: || Input::TextGlob("src/*.rs", "src/a/b.rs"),
-        expect: Expect::Value(Value::Match(true)),
+        input: || {
+            (
+                MatchingInput::TextGlob("src/*.rs", "src/a/b.rs"),
+                MatchingValue::Match(true),
+            )
+        },
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("text_glob_keeps_unicode_question_semantics"),
         word: Word::Succeeds,
-        input: || Input::TextGlob("a?c", "aéc"),
-        expect: Expect::Value(Value::Match(true)),
+        input: || {
+            (
+                MatchingInput::TextGlob("a?c", "aéc"),
+                MatchingValue::Match(true),
+            )
+        },
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("text_glob_negative"),
         word: Word::Succeeds,
-        input: || Input::TextGlob("a?c", "aééc"),
-        expect: Expect::Value(Value::Match(false)),
+        input: || {
+            (
+                MatchingInput::TextGlob("a?c", "aééc"),
+                MatchingValue::Match(false),
+            )
+        },
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("text_glob_literal_malformed_syntax"),
         word: Word::Succeeds,
-        input: || Input::TextGlob("{a", "{a"),
-        expect: Expect::Value(Value::Match(true)),
+        input: || {
+            (
+                MatchingInput::TextGlob("{a", "{a"),
+                MatchingValue::Match(true),
+            )
+        },
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("regex_match"),
         word: Word::Succeeds,
-        input: || Input::Regex("^ok$", "ok"),
-        expect: Expect::Value(Value::Match(true)),
+        input: || {
+            (
+                MatchingInput::Regex("^ok$", "ok"),
+                MatchingValue::Match(true),
+            )
+        },
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("regex_refusal"),
         word: Word::Refuses,
-        input: || Input::Regex("[", "text"),
+        input: || {
+            (
+                MatchingInput::Regex("[", "text"),
+                MatchingValue::Match(false),
+            )
+        },
         expect: Expect::Refusal(|error| {
             crate::cases::selects(
                 matches!(error, MatchingError::InvalidRegex { reason } if !reason.is_empty()),
@@ -53,13 +83,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("glob_path_semantics"),
         word: Word::Succeeds,
-        input: || Input::Globs(&["*.rs", "**/*.rs"], "src/main.rs"),
-        expect: Expect::Value(Value::Hits(vec![1])),
+        input: || {
+            (
+                MatchingInput::Globs(&["*.rs", "**/*.rs"], "src/main.rs"),
+                MatchingValue::Hits(vec![1]),
+            )
+        },
+        expect: Expect::Value(()),
     },
     Case {
         name: CaseName("glob_refusal"),
         word: Word::Refuses,
-        input: || Input::Parse("["),
+        input: || (MatchingInput::Parse("["), MatchingValue::Match(false)),
         expect: Expect::Refusal(|error| {
             crate::cases::selects(
                 matches!(error, MatchingError::BadGlob { glob, reason } if glob == "[" && !reason.is_empty()),
@@ -68,10 +103,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn subject(input: Input) -> Result<Value, Failure> {
+fn subject((input, expected): Input) -> Result<Value, Failure> {
     let matching = MatchingUseCaseImpl::new();
     super::fixtures::contract::check(&matching);
-    answer(&matching, input)
+    let actual = answer(&matching, input)?;
+    assert_eq!(actual, expected);
+    Ok(())
 }
 
 #[test]
