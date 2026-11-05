@@ -1,9 +1,10 @@
 //! Project declared configuration data into existing SDK hosted inputs and exact rule exclusions.
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::WorkerRequest};
 use ryo::linter::{
     Cell, Glob, HostColumn, HostColumnName, HostKind, HostRelation, HostRelationName, HostRow,
     HostText, Rule, RuleId,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Data only: the common engine still owns matching, scheduling, storage and lifetime.

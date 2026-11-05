@@ -1,14 +1,13 @@
 //! Verification-only raw capture; measured runs keep their existing allocation path.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::{Measurement, ProcessOutput},
-    suite::types::PreparedCase,
-};
 use crate::outbound::{
     execution::interface::ExecutionPort,
     linter::interface::LinterPort,
     suite::{interface::SuitePort, types::ArtifactPath},
 };
+use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
 
 /// Raw process bytes exist independently of whether a report could be decoded.
@@ -25,8 +24,8 @@ pub(super) struct Outcome {
 fn prepare(
     suite: &dyn SuitePort,
     linter: &dyn LinterPort,
-    request: &crate::domain::suite::types::RunRequest,
-) -> Result<crate::domain::measurements::types::Invocation, Error> {
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+) -> Result<ryo_benchmark_contracts::domain::measurements::types::Invocation, Error> {
     crate::domain::suite::service::validate_selected_rules(request.selected_rules.as_deref())?;
     configuration(linter, request)?;
     suite.validate_file_metadata(request)?;
@@ -40,7 +39,7 @@ pub(super) fn candidate(
     suite: &dyn SuitePort,
     linter: &dyn LinterPort,
     execution: &dyn ExecutionPort,
-    request: &crate::domain::suite::types::RunRequest,
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
 ) -> Result<Measurement, Error> {
     let invocation = prepare(suite, linter, request)?;
     super::service::finish(linter, request, execution.run(invocation)?)
@@ -156,7 +155,7 @@ mod input_metadata_test;
 /// One shared configuration admission boundary for both contestants and measured/verification calls.
 pub(super) fn configuration(
     linter: &dyn LinterPort,
-    request: &crate::domain::suite::types::RunRequest,
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
 ) -> Result<(), Error> {
     if let Some(context) = &request.rule_context {
         crate::domain::suite::rule_context::check(context, &request.files)?;
@@ -165,7 +164,7 @@ pub(super) fn configuration(
             request.selected_rules.as_deref(),
         )?;
         if linter.rule_configuration()
-            != crate::domain::suite::types::RuleConfigurationSupport::Explicit
+            != ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
         {
             return Err(Error::Invalid(
                 "contestant does not implement the declared rule configuration contract".into(),

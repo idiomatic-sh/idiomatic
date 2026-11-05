@@ -1,7 +1,10 @@
 //! Independent diagnostic and execution evidence; unknown metadata is never a clean execution.
-use crate::domain::diagnostics::types::{
-    Comparison, ComparisonContract, Difference, ExecutionMetadata, ReportComparison, RunReport,
-};
+use ryo_benchmark_contracts::domain::reports::types::Comparison;
+use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
+use ryo_benchmark_contracts::domain::reports::types::Difference;
+use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
+use ryo_benchmark_contracts::domain::reports::types::ReportComparison;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 
 /// Validate explicitly complete candidate execution without inferring skipped work from diagnostics.
 ///

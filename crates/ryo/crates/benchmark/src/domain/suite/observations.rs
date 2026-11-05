@@ -1,39 +1,5 @@
 //! Canonical authored declarations shared by invocation identity and durable case receipts.
-use super::types::RuleObservationDeclarations;
-
-/// JSON records the authored data, with no inferred producers or exported diagnostics.
-pub(crate) fn value(declarations: &RuleObservationDeclarations) -> serde_json::Value {
-    use ryo::linter::{ObservationKind, ObservationProducer};
-    let entries = declarations
-        .iter()
-        .map(|(rule, bindings)| {
-            let bindings: Vec<_> = bindings.iter().map(|binding| {
-            let columns: Vec<_> = binding.columns.iter().map(|column| serde_json::json!({
-                "name": column.name.0,
-                "kind": match column.kind {
-                    ObservationKind::Node => "node",
-                    ObservationKind::Symbol => "symbol",
-                    ObservationKind::File => "file",
-                    ObservationKind::Span => "span",
-                    ObservationKind::Number => "number",
-                    ObservationKind::Flag => "flag",
-                },
-            })).collect();
-            let producers: Vec<_> = binding.producers.iter().map(|producer| match producer {
-                ObservationProducer::Output { rule, output } => serde_json::json!({
-                    "kind": "output", "rule": rule.as_ref(), "output": output.0,
-                }),
-                ObservationProducer::NoQuery { rule } => serde_json::json!({
-                    "kind": "no-query", "rule": rule.as_ref(),
-                }),
-            }).collect();
-            serde_json::json!({"name": binding.name.0, "columns": columns, "producers": producers})
-        }).collect();
-            (rule.to_string(), serde_json::Value::Array(bindings))
-        })
-        .collect();
-    serde_json::Value::Object(entries)
-}
+use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 
 /// Executable dependency closure. NoQuery is knowledge, not an executable definition.
 pub(crate) fn closure<'a>(
@@ -61,10 +27,10 @@ pub(crate) fn closure<'a>(
 pub(crate) fn project_profile(
     declarations: &RuleObservationDeclarations,
     selected: &[ryo::linter::RuleId],
-    policy: super::types::ObservationSelectionPolicy,
+    policy: ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy,
 ) -> RuleObservationDeclarations {
     if !selected.iter().any(|id| declarations.contains_key(id)) {
-        return RuleObservationDeclarations::new();
+        return RuleObservationDeclarations::default();
     }
     let selected: std::collections::BTreeSet<_> = selected.iter().collect();
     let mut pending: Vec<ryo::linter::RuleId> = selected
@@ -72,7 +38,7 @@ pub(crate) fn project_profile(
         .filter(|id| declarations.contains_key(**id))
         .map(|id| (**id).clone())
         .collect();
-    let mut resolved = RuleObservationDeclarations::new();
+    let mut resolved = RuleObservationDeclarations::default();
     while let Some(id) = pending.pop() {
         if resolved.contains_key(&id) {
             continue;
@@ -81,7 +47,9 @@ pub(crate) fn project_profile(
             continue;
         };
         let mut bindings = authored.clone();
-        if policy == super::types::ObservationSelectionPolicy::Selected {
+        if policy
+            == ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Selected
+        {
             for binding in &mut bindings {
                 binding.producers.retain(|producer| match producer {
                     ryo::linter::ObservationProducer::Output { rule, .. }

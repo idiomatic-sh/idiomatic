@@ -1,11 +1,14 @@
 //! Pure validation shared by artifact auditing and case execution.
-use super::types::{Cases, audit::value::Audit};
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
+use crate::domain::suite::types::audit::value::Audit;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Cases;
 use std::path::{Component, Path};
 
 /// Materialized source identity includes context files, independently of requested diagnostics.
 #[must_use]
-pub fn materialized_sources(request: &super::types::RunRequest) -> Vec<std::path::PathBuf> {
+pub fn materialized_sources(
+    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+) -> Vec<std::path::PathBuf> {
     request
         .staged_sources
         .as_deref()
@@ -24,7 +27,10 @@ pub fn materialized_sources(request: &super::types::RunRequest) -> Vec<std::path
 
 /// Only explicit default definitions own case evidence; supporting definitions supply executable queries.
 #[must_use]
-pub fn owns_cases(tool: &super::types::Tool, rule: &ryo::linter::RuleId) -> bool {
+pub fn owns_cases(
+    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    rule: &ryo::linter::RuleId,
+) -> bool {
     tool.defaults.contains(rule)
 }
 
@@ -56,7 +62,10 @@ pub fn require_complete(audit: &Audit) -> Result<(), Error> {
 ///
 /// # Errors
 /// Refuses an empty implementation subset, invalid deferrals or unaccounted defaults.
-pub fn require_accounted(audit: &Audit, tool: &super::types::Tool) -> Result<(), Error> {
+pub fn require_accounted(
+    audit: &Audit,
+    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+) -> Result<(), Error> {
     if audit.implemented.is_empty() {
         return Err(Error::Invalid(super::constants::EMPTY_SUBSET.into()));
     }
@@ -105,11 +114,11 @@ pub fn relative_path(path: impl AsRef<Path>) -> Result<(), Error> {
 /// Full-report cases are positive only when they contain the enclosing rule's finding; unrelated diagnostics do not change polarity.
 /// Refuses missing positive or negative expectations and invalid case sources.
 pub fn validate_cases(rule: &ryo::linter::RuleId, cases: &Cases) -> Result<(), Error> {
-    let has_rule_finding = |case: &super::types::Case| {
+    let has_rule_finding = |case: &ryo_benchmark_contracts::domain::workloads::types::Case| {
         match case.comparison {
-        super::types::CaseComparison::Rule => !case.expected.is_empty(),
-        super::types::CaseComparison::Full => case.expected.iter().any(|finding| {
-            matches!(&finding.identity, super::types::ExpectedRule::Explicit(found) if found == rule)
+        ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule => !case.expected.is_empty(),
+        ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full => case.expected.iter().any(|finding| {
+            matches!(&finding.identity, ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(found) if found == rule)
         }),
     }
     };
@@ -197,7 +206,8 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             }
         }
         if case.reference_discrepancy.is_some()
-            && case.comparison != super::types::CaseComparison::Full
+            && case.comparison
+                != ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
         {
             return Err(Error::Invalid(
                 "reference discrepancies require full comparison".into(),
@@ -208,8 +218,12 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                 .iter()
                 .flat_map(|item| &item.expected),
         ) {
-            if case.comparison == super::types::CaseComparison::Full
-                && matches!(expected.identity, super::types::ExpectedRule::Parent)
+            if case.comparison
+                == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
+                && matches!(
+                    expected.identity,
+                    ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent
+                )
             {
                 return Err(Error::Invalid(
                     super::constants::MISSING_DIAGNOSTIC_IDENTITY.into(),
@@ -245,7 +259,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
 /// application preparation must independently validate the physical context before execution.
 #[must_use]
 pub fn declares_missing(
-    manifest: &super::types::ContextManifest,
+    manifest: &ryo_benchmark_contracts::domain::context::types::ContextManifest,
     file: &ryo::linter::RelativePath,
 ) -> bool {
     context_missing(&manifest.logical_root, &manifest.missing, file)
@@ -287,4 +301,44 @@ pub fn validate_selected_rules(rules: Option<&[ryo::linter::RuleId]>) -> Result<
         }
     }
     Ok(())
+}
+
+/// Bind raw artifact observations to the exact declared inventory before issuing an audit.
+/// # Errors
+/// Refuses duplicate, overlapping, missing or undeclared identities.
+pub(crate) fn audited(
+    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    observed: ryo_benchmark_contracts::domain::reports::types::AuthoredInventory,
+) -> Result<crate::domain::suite::types::audit::value::Audit, Error> {
+    let defaults = tool
+        .defaults
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    let implemented = observed
+        .implemented
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    let missing = observed
+        .missing
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    if defaults.is_empty()
+        || defaults.len() != tool.defaults.len()
+        || implemented.len() != observed.implemented.len()
+        || missing.len() != observed.missing.len()
+        || !implemented.is_disjoint(&missing)
+        || implemented
+            .union(&missing)
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+            != defaults
+    {
+        return Err(Error::Invalid(
+            "artifact observations do not partition the declared default inventory".into(),
+        ));
+    }
+    Ok(crate::domain::suite::types::audit::value::Audit {
+        implemented: observed.implemented,
+        missing: observed.missing,
+    })
 }

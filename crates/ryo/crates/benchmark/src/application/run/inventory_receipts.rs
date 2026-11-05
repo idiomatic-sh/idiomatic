@@ -167,7 +167,7 @@ pub(super) fn validate_with_artifacts(
             return Err("registered project inputs digest differs".into());
         }
         let declared = if case["expectation_contract"].is_null() {
-            crate::domain::diagnostics::types::ComparisonContract::Diagnostics
+            ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics
         } else {
             super::inventory_execution::contract(&case["expectation_contract"])?
         };
@@ -185,7 +185,9 @@ pub(super) fn validate_with_artifacts(
             return Err("unknown discrepancy authority".into());
         }
         let process = !certificate["process"].is_null();
-        if process && declared != crate::domain::diagnostics::types::ComparisonContract::Diagnostics
+        if process
+            && declared
+                != ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics
         {
             return Err("process expectation cannot satisfy complete-report accounting".into());
         }

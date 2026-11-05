@@ -3,9 +3,10 @@ use super::{
     constants,
     types::{GitArguments, GitInput, GitOutput},
 };
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{AppliedPatch, CommitRevision, TrackedFiles};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Project;
 use std::{
     fs,
     io::Write as _,

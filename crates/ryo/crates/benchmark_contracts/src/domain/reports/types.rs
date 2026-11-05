@@ -1,5 +1,7 @@
 //! Canonical findings use relative paths and UTF-8 byte offsets.
-use ryo::linter::{RelativePath, RuleId};
+use crate::domain::context::types::ProjectContextReceipt;
+use ryo::linter::RelativePath;
+use ryo::linter::RuleId;
 
 /// One normalized finding. Duplicate values remain significant.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -32,8 +34,7 @@ pub struct RunReport {
 }
 
 /// What a report's producer can establish about per-rule execution.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "availability", rename_all = "kebab-case", deny_unknown_fields)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum ExecutionMetadata {
     /// A legacy or undeclared format provides no capability evidence.
     #[default]
@@ -48,8 +49,7 @@ pub enum ExecutionMetadata {
 }
 
 /// Agreement for one independently comparable report dimension.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Comparison {
     /// Both sides expose equivalent evidence.
     Exact,
@@ -60,7 +60,7 @@ pub enum Comparison {
 }
 
 /// Finding parity and execution parity are separate claims.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ReportComparison {
     /// Exact diagnostic multisets and submitted files.
     pub diagnostics: Comparison,
@@ -69,8 +69,7 @@ pub struct ReportComparison {
 }
 
 /// The evidence a caller requires before accepting paired observations.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComparisonContract {
     /// All diagnostics and submitted files; execution evidence may remain explicitly incomparable.
     Diagnostics,
@@ -89,22 +88,6 @@ pub struct RuleCoverage {
     pub skipped: usize,
     /// Pairs unavailable because the engine returned unknown or unread state.
     pub unknown_or_unread: usize,
-}
-
-/// The context actually used by one candidate invocation.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProjectContextReceipt {
-    /// Explicit candidate isolation mode.
-    pub mode: crate::domain::suite::types::ProjectContextMode,
-    /// Run root's stable position within the materialized snapshot.
-    pub logical_root: std::path::PathBuf,
-    /// Actual physical run directory supplied to both tools.
-    pub actual_root: std::path::PathBuf,
-    /// Hash of declared files, physically validated observed absences and logical root.
-    pub manifest_hash: crate::domain::suite::types::ArtifactDigest,
-    /// Every observed dependency, including those retained by warm reuse.
-    pub dependencies:
-        std::collections::BTreeMap<std::path::PathBuf, Option<ryo::linter::DependencyFingerprint>>,
 }
 
 /// Sorted finding multisets retained when comparison does not agree.
@@ -126,3 +109,12 @@ pub struct SourceByteOffset(
     /// Zero-based UTF-8 byte position within the source.
     pub usize,
 );
+
+/// External artifact observations, not an audit or a parity certificate.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthoredInventory {
+    /// Declared default IDs with a query and validated case envelope.
+    pub implemented: Vec<RuleId>,
+    /// Declared default IDs whose query is absent.
+    pub missing: Vec<RuleId>,
+}

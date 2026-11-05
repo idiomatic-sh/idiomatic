@@ -1,10 +1,9 @@
 //! A low-footprint collector launches and observes the actual contestant.
 use super::{constants, schemas, settings::ExecutionTimedSettings};
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::{Invocation, ProcessOutput},
-};
 use crate::outbound::execution::interface::ExecutionPort;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::{
     io::Write as _,
@@ -24,10 +23,10 @@ impl ExecutionTimedAdapter {
     }
 }
 impl ExecutionPort for ExecutionTimedAdapter {
-    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
-        use crate::domain::measurements::types::{
-            CollectorDigest, CollectorProfile, ExecutionProfile,
-        };
+    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        use ryo_benchmark_contracts::domain::measurements::types::CollectorDigest;
+        use ryo_benchmark_contracts::domain::measurements::types::CollectorProfile;
+        use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
         ExecutionProfile::Isolated(CollectorProfile {
             executable: self.settings.executable.clone(),
             digest: CollectorDigest(self.settings.digest.0.clone()),
@@ -64,8 +63,8 @@ impl ExecutionPort for ExecutionTimedAdapter {
                 String::from_utf8_lossy(&output.stderr)
             )));
         }
-        schemas::observation(&crate::domain::measurements::types::CapturedBytes(
-            output.stdout,
-        ))?
+        schemas::observation(
+            &ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(output.stdout),
+        )?
     }
 }

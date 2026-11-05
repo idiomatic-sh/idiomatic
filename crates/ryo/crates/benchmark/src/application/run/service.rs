@@ -1,9 +1,10 @@
 //! Preparation and decoding are deliberately outside the measured interval.
-use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
-use crate::domain::measurements::types::Measurement;
-use crate::domain::suite::types::RunRequest;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
+use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 
 /// Prepare a measurement request with no declared file observations, then validate decoded coverage.
 /// Observation-bearing verification uses the suite-owned `case_execution::prepare` boundary.
@@ -33,7 +34,7 @@ pub fn run(
 pub(super) fn finish(
     linter: &dyn LinterPort,
     request: &RunRequest,
-    output: crate::domain::measurements::types::ProcessOutput,
+    output: ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
 ) -> Result<Measurement, Error> {
     let wall = output.wall;
     let resources = output.resources;
@@ -88,7 +89,8 @@ pub fn verify(
     execution: &dyn ExecutionPort,
     rules: &Path,
     scratch: &Path,
-) -> Result<crate::domain::suite::types::CaseCount, Error> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
+{
     verify_shard(
         suite,
         reference,
@@ -136,12 +138,12 @@ struct Selection {
     /// Number of cases before partitioning.
     global_count: usize,
     /// Cases admitted to this invocation, preserving deterministic order.
-    selected_cases: Vec<crate::domain::suite::types::PreparedCase>,
+    selected_cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
 }
 
 /// Select an exact, nonempty subset only after the complete inventory is loaded.
 fn select_cases(
-    mut cases: Vec<crate::domain::suite::types::PreparedCase>,
+    mut cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
     selection: CaseSelection<'_>,
 ) -> Result<Selection, Error> {
     cases.sort_by(|left, right| (&left.rule, &left.name).cmp(&(&right.rule, &right.name)));
@@ -191,7 +193,8 @@ pub fn verify_shard(
     rules: &Path,
     scratch: &Path,
     selection: CaseSelection<'_>,
-) -> Result<crate::domain::suite::types::CaseCount, Error> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
+{
     let mut cases = suite.cases(
         crate::outbound::suite::types::ArtifactPath(rules),
         crate::outbound::suite::types::ArtifactPath(scratch),
@@ -272,7 +275,9 @@ pub fn verify_shard(
                         )
                         .map_err(|error| Error::Invalid(error.into()))?;
                     }
-                    if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
+                    if case.comparison
+                        == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule
+                    {
                         result.report.diagnostics.retain(|finding| {
                             finding.rule == case.rule
                                 || finding.rule.as_ref()
@@ -346,7 +351,7 @@ pub fn verify_shard(
             count <= global_count,
             "selected cases must belong to the audited inventory"
         );
-        Ok(crate::domain::suite::types::CaseCount(count))
+        Ok(ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(count))
     } else {
         Err(Error::Invalid(format!(
             "{count} cases checked; failures:\n{}",
@@ -369,7 +374,7 @@ pub fn verify_reference_cases(
     execution: &dyn ExecutionPort,
     rules: &Path,
     scratch: &Path,
-) -> Result<crate::domain::suite::types::ReferenceCaseCount, Error> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
     let mut cases = suite.cases(
         crate::outbound::suite::types::ArtifactPath(rules),
         crate::outbound::suite::types::ArtifactPath(scratch),
@@ -412,7 +417,9 @@ pub fn verify_reference_cases(
                     failures.push(format!("{}/{} reference: {message}", case.rule, case.name));
                     continue;
                 }
-                if case.comparison == crate::domain::suite::types::CaseComparison::Rule {
+                if case.comparison
+                    == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule
+                {
                     result.report.diagnostics.retain(|finding| {
                         finding.rule == case.rule
                             || finding.rule.as_ref()
@@ -471,7 +478,7 @@ pub fn verify_reference_cases(
         }
     }
     if failures.is_empty() {
-        Ok(crate::domain::suite::types::ReferenceCaseCount(count))
+        Ok(ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount(count))
     } else {
         Err(Error::Invalid(format!(
             "{count} reference-only cases checked; failures:\n{}",
@@ -491,7 +498,8 @@ pub fn verify_accounted(
     execution: &dyn ExecutionPort,
     profile: &Path,
     scratch: &Path,
-) -> Result<crate::domain::suite::types::CaseCount, Error> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
+{
     verify_accounted_shard(
         suite,
         reference,
@@ -515,10 +523,11 @@ pub fn verify_accounted_shard(
     profile: &Path,
     scratch: &Path,
     selection: CaseSelection<'_>,
-) -> Result<crate::domain::suite::types::CaseCount, Error> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, Error>
+{
     let path = crate::outbound::suite::types::ArtifactPath(profile);
     let tool = suite.profile(path)?;
-    let audit = suite.audit(path, &tool)?;
+    let audit = audit(suite, profile, &tool)?;
     crate::domain::suite::service::require_accounted(&audit, &tool)?;
     verify_shard(
         suite,
@@ -533,7 +542,7 @@ pub fn verify_accounted_shard(
 
 /// Serialize an exact diagnostic multiset without changing order or dropping duplicates.
 pub(super) fn finding_values(
-    findings: &[crate::domain::diagnostics::types::BenchmarkFinding],
+    findings: &[ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding],
 ) -> Vec<serde_json::Value> {
     findings
         .iter()
@@ -549,3 +558,15 @@ pub(super) fn finding_values(
 #[cfg(test)]
 #[path = "shard_tests.rs"]
 mod shard_tests;
+
+/// Read raw suite observations and issue only an exact inventory-bound audit.
+/// # Errors
+/// Propagates artifact failures and refuses inconsistent observed identities.
+pub fn audit(
+    suite: &dyn crate::outbound::suite::interface::SuitePort,
+    directory: &std::path::Path,
+    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+) -> Result<crate::domain::suite::types::audit::value::Audit, Error> {
+    let observed = suite.audit(crate::outbound::suite::types::ArtifactPath(directory), tool)?;
+    crate::domain::suite::service::audited(tool, observed)
+}

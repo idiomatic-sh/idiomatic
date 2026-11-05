@@ -1,23 +1,20 @@
 //! The fake of the `evidence` port: publication acceptance without external effects.
 use super::super::interface::EvidencePort;
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::sample::value::BenchmarkSample,
-};
+use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// A deterministic publication stand-in for application tests.
 #[derive(Debug, Clone, Copy)]
 pub struct EvidenceFake;
 impl EvidencePort for EvidenceFake {
-    fn publish(&self, samples: &[BenchmarkSample]) -> Result<(), Error> {
+    fn publish(&self, samples: &[PublicationSample<'_>]) -> Result<(), Error> {
         if samples.is_empty()
             || samples.iter().any(|sample| {
-                sample.eligibility
-                    != crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
+                !sample.complete_inventory
                     || sample.name.0.is_empty()
                     || matches!(
                         sample.measurement.resources,
-                        crate::domain::measurements::types::ResourceObservation::WallOnly
+                        ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly
                     )
             })
         {

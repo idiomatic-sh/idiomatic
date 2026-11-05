@@ -1,12 +1,13 @@
 //! Private wire forms preserve native OS strings and exact resource units.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::{
-        CapturedBytes, Invocation, ProcessExitCode, ProcessOutput, ResidentBytes,
-        ResourceObservation, Resources,
-    },
-};
 use crate::outbound::collection::types::CollectorMessage;
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::{Deserialize, Serialize};
 use std::{ffi::OsString, time::Duration};
 #[derive(Serialize, Deserialize)]

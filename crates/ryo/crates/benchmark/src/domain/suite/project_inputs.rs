@@ -1,8 +1,8 @@
 //! Canonical identity for optional project namespace inputs used by both contestants.
-use super::types::ArtifactDigest;
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
 };
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use sha2::{Digest as _, Sha256};
 
 /// Explicit project context only; legacy undeclared/partial-empty cases retain no new digest.

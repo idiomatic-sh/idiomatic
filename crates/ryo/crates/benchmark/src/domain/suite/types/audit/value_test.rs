@@ -55,3 +55,28 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+#[test]
+fn exact_selected_authored_and_missing_inventory_preserves_sorted_unselected_defaults() {
+    let audit = Audit {
+        implemented: vec!["E722".try_into().unwrap(), "F704".try_into().unwrap()],
+        missing: vec!["F401".try_into().unwrap()],
+    };
+    let selected = audit.select(&["E722".try_into().unwrap()]).unwrap();
+    assert_eq!(
+        selected
+            .implemented
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        ["E722"]
+    );
+    assert_eq!(
+        selected
+            .missing
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        ["F401", "F704"]
+    );
+}

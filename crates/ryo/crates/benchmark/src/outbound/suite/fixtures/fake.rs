@@ -1,11 +1,11 @@
 //! Empty in-memory suite preserves the distinction between defaults and implementations.
-use crate::domain::suite::types::ArtifactDigest;
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::types::{Suite, Tool, audit::value::Audit},
-};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
+use ryo_benchmark_contracts::domain::workloads::types::Suite;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
 #[expect(
     clippy::partial_pub_fields,
     clippy::field_scoped_visibility_modifiers,
@@ -21,7 +21,7 @@ pub struct SuiteFake {
     /// The projects available from this deterministic artifact source.
     pub(crate) projects: Option<Suite>,
     /// Independent cases already materialized by the fixture.
-    pub prepared: Vec<crate::domain::suite::types::PreparedCase>,
+    pub prepared: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
     /// Explicit digest observations supplied by evidence-admission orchestration tests.
     pub(crate) artifact_digests: std::collections::BTreeMap<std::path::PathBuf, ArtifactDigest>,
     /// Whether this fixture has independently validated its declared source and evidence inputs.
@@ -32,7 +32,7 @@ pub struct SuiteFake {
 impl SuitePort for SuiteFake {
     fn validate_file_metadata(
         &self,
-        request: &crate::domain::suite::types::RunRequest,
+        request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error> {
         crate::outbound::suite::factory::local().validate_file_metadata(request)
     }
@@ -101,7 +101,7 @@ impl SuitePort for SuiteFake {
         &self,
         _: ArtifactPath<'_>,
         _: ArtifactPath<'_>,
-    ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
+    ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error> {
         if self.prepared.is_empty() {
             Err(Error::Invalid("no executable rule cases".into()))
         } else {
@@ -116,7 +116,7 @@ impl SuitePort for SuiteFake {
         _: ArtifactPath<'_>,
         _: &[ryo::linter::RelativePath],
         _: &[std::path::PathBuf],
-    ) -> Result<crate::domain::suite::types::ContextManifest, Error> {
+    ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error> {
         Err(Error::Invalid(
             "fixture has no observed disk context".into(),
         ))
@@ -125,8 +125,8 @@ impl SuitePort for SuiteFake {
         &self,
         _: ArtifactPath<'_>,
         _: ArtifactPath<'_>,
-        _: &Audit,
-        _: crate::domain::suite::types::StagePurpose,
+        _: &[ryo::linter::RuleId],
+        _: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
@@ -162,7 +162,7 @@ impl SuitePort for SuiteFake {
         }
     }
 
-    fn audit(&self, _: ArtifactPath<'_>, tool: &Tool) -> Result<Audit, Error> {
+    fn audit(&self, _: ArtifactPath<'_>, tool: &Tool) -> Result<AuthoredInventory, Error> {
         if tool.defaults.is_empty() {
             return Err(Error::Invalid(
                 "empty or duplicated default rule inventory".into(),
@@ -173,7 +173,7 @@ impl SuitePort for SuiteFake {
             .iter()
             .cloned()
             .partition(|rule| self.prepared.iter().any(|case| &case.rule == rule));
-        Ok(Audit {
+        Ok(AuthoredInventory {
             implemented,
             missing,
         })

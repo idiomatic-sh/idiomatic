@@ -1,10 +1,12 @@
 //! Real verification capture, boundary archive loading, and strict offline comparison.
 use super::*;
-use crate::domain::{diagnostics::types::*, measurements::types::*, suite::types::*};
 use crate::outbound::{
     execution::interface::ExecutionPort, inventory::interface::InventoryPort as _,
     suite::interface::SuitePort as _,
 };
+use ryo_benchmark_contracts::domain::measurements::types::*;
+use ryo_benchmark_contracts::domain::reports::types::*;
+use ryo_benchmark_contracts::domain::workloads::types::*;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 mod fixtures;
@@ -22,7 +24,7 @@ impl ExecutionPort for Observer {
     fn run(
         &self,
         invocation: Invocation,
-    ) -> Result<ProcessOutput, crate::domain::diagnostics::errors::DiagnosticsError> {
+    ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
         self.0.run(invocation)
     }
 }

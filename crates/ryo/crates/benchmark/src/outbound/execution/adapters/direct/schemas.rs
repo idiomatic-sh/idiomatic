@@ -1,7 +1,6 @@
 //! Checked conversion of the collector's typed per-child resource record.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::Resources,
-};
+use ryo_benchmark_contracts::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Per-child clocks and peak resident bytes returned by pinned `wait4`.
 struct ResourcesSchema(
     /// Native resource record collected for exactly one waited child.
@@ -16,7 +15,9 @@ impl TryFrom<ResourcesSchema> for Resources {
             .ok_or_else(|| Error::Invalid(super::constants::CPU.into()))?;
         Ok(Resources {
             cpu,
-            peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(record.maxrss),
+            peak_rss_bytes: ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(
+                record.maxrss,
+            ),
         })
     }
 }

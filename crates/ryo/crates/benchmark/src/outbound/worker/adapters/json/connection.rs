@@ -1,7 +1,7 @@
 //! The externally supplied output stream and its synchronization lifetime.
 use super::constants::{OUTPUT_LOCK_POISONED, RESPONSE_TERMINATOR};
 use super::types::WorkerResponseBytes;
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{io::Write, sync::Mutex};
 
 /// Owns the stream opened by the process composition; it never buffers reports across calls.

@@ -1,6 +1,6 @@
 //! Parse the child's request transport without putting large JSON in argv.
 use super::constants;
-use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::PathBuf;
 
 /// Text supplied as one executable command argument.

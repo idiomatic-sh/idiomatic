@@ -1,8 +1,6 @@
 //! Asymptote owns the ratchet; this port publishes only observed samples.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::sample::value::BenchmarkSample,
-};
+use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// Publication boundary for complete, correctness-gated observations.
 pub trait EvidencePort {
@@ -10,5 +8,5 @@ pub trait EvidencePort {
     ///
     /// # Errors
     /// Returns encoding, validation, stream-write or flush failures.
-    fn publish(&self, samples: &[BenchmarkSample]) -> Result<(), Error>;
+    fn publish(&self, samples: &[PublicationSample<'_>]) -> Result<(), Error>;
 }

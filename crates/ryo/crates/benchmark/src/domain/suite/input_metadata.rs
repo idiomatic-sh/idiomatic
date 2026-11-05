@@ -1,7 +1,7 @@
 //! Pure identity of declared file observations, separate from unchanged source-byte framing.
-use super::types::ArtifactDigest;
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use ryo::linter::RelativePath;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 
@@ -32,7 +32,7 @@ pub fn digest(
 
 /// A required observation must be explicit for every declared source, even for negative cases.
 pub fn require(
-    requirement: Option<super::types::FileObservation>,
+    requirement: Option<ryo_benchmark_contracts::domain::workloads::types::FileObservation>,
     files: &[RelativePath],
     metadata: Option<&BTreeMap<RelativePath, bool>>,
 ) -> Result<(), Error> {

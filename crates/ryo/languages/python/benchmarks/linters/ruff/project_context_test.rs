@@ -1,13 +1,15 @@
 //! Real local-adapter project context and retained-cache lifecycle checks.
 use super::PreparedEngine as _;
-use ryo_benchmark::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::types::{ContextManifest, PreparedCase, ProjectContextMode, WorkerRequest, WorkerState},
-};
 use ryo_benchmark::outbound::{
     engine::factory,
     suite::{interface::SuitePort as _, types::ArtifactPath},
 };
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::requests::types::WorkerState;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -78,9 +80,11 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
         state: WorkerState::Retained(cache.to_owned()),
     }
 }
-fn content_hash(bytes: &[u8]) -> ryo_benchmark::domain::suite::types::ArtifactDigest {
+fn content_hash(
+    bytes: &[u8],
+) -> ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest {
     use sha2::Digest as _;
-    ryo_benchmark::domain::suite::types::ArtifactDigest(format!(
+    ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(
         "{:x}",
         sha2::Sha256::digest(bytes)
     ))

@@ -1,7 +1,8 @@
 //! Wire reports preserve the canonical fields and reject unknown or malformed input.
 use super::decode_report;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::types::{BenchmarkFinding, RunReport};
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 type Input = &'static [u8];
 type Value = bool;
 type Failure = ();
@@ -64,20 +65,20 @@ fn subject(bytes: Input) -> Result<Value, Failure> {
             report
                 == RunReport {
                     execution_metadata:
-                        crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+                        ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                     project_context: None,
                     diagnostics: vec![BenchmarkFinding {
                         rule: ryo::linter::RuleId::try_from("R1").expect("fixture rule"),
                         file: ryo::linter::RelativePath("input".into()),
-                        start: crate::domain::diagnostics::types::SourceByteOffset(2),
-                        end: crate::domain::diagnostics::types::SourceByteOffset(7),
+                        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(2),
+                        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(7),
                     }],
                     files: vec![
                         ryo::linter::RelativePath("input".into()),
                         ryo::linter::RelativePath("clean".into()),
                     ],
                     skipped: Vec::new(),
-                    coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                    coverage: Some(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
                         selected: 2,
                         evaluated: 2,
                         skipped: 0,

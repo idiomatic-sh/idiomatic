@@ -1,12 +1,13 @@
 //! Ruff owns its invocation and requested-source IO; schemas normalize its process response.
 use super::{constants, schemas, settings::LinterRuffSettings};
 use ryo::linter::{RelativePath, RuleId, SourceText};
-use ryo_benchmark::domain::measurements::types::{Invocation, ProcessOutput};
-use ryo_benchmark::domain::{
-    diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
-    suite::{service::relative_path, types::RunRequest},
-};
+use ryo_benchmark::domain::suite::service::relative_path;
 use ryo_benchmark::outbound::linter::interface::LinterPort;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -21,8 +22,10 @@ pub(crate) struct LinterRuffAdapter {
     target_version: String,
 }
 impl LinterPort for LinterRuffAdapter {
-    fn rule_configuration(&self) -> ryo_benchmark::domain::suite::types::RuleConfigurationSupport {
-        ryo_benchmark::domain::suite::types::RuleConfigurationSupport::Explicit
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         if request.files.is_empty() {

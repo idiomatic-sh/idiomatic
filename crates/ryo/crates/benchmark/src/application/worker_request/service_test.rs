@@ -1,9 +1,11 @@
 //! Selected missing inputs are prepared once before the SDK adapter receives the request.
 use super::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::suite::types::{
-    ArtifactDigest, ContextManifest, ProjectContextMode, WorkerRequest, WorkerState,
-};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -113,12 +115,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             prepared.selected_missing.len()
         })
         .map_err(|error| match error {
-            crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)
+            ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
                 if message == "context source seal differs from requested inventory" =>
             {
                 "context source seal differs from requested inventory"
             }
-            crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)
+            ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
                 if message == "worker context mode requires a matching explicit manifest" =>
             {
                 "worker context mode requires a matching explicit manifest"
@@ -136,10 +138,11 @@ fn refuses() {
 }
 
 fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread() {
-    use crate::domain::suite::types::{
-        CaseContext, ProjectContextMode, WorkerRequest, WorkerState,
-    };
     use crate::outbound::engine::interface::EnginePort as _;
+    use ryo_benchmark_contracts::domain::context::types::CaseContext;
+    use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+    use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+    use ryo_benchmark_contracts::domain::requests::types::WorkerState;
     let scratch = tempfile::tempdir().unwrap();
     let rules = scratch.path().join("rules");
     std::fs::create_dir_all(rules.join("R1")).unwrap();

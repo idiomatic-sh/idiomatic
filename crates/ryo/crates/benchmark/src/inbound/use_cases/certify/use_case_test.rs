@@ -3,7 +3,7 @@ use super::fixtures::{Change, exercise};
 use super::use_case::CertifyUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = Change;
-type Value = crate::domain::suite::types::CaseCount;
+type Value = ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -16,7 +16,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("complete benchmark executes both contestants"),
         word: Word::Succeeds,
         input: || Change::InventoryFull,
-        expect: Expect::Value(crate::domain::suite::types::CaseCount(2)),
+        expect: Expect::Value(
+            ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
+        ),
     },
     Case {
         name: CaseName("execution mode mismatch refuses before launch"),
@@ -40,7 +42,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unchanged certified workload measures"),
         word: Word::Succeeds,
         input: || Change::None,
-        expect: Expect::Value(crate::domain::suite::types::CaseCount(2)),
+        expect: Expect::Value(
+            ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
+        ),
     },
     Case {
         name: CaseName("patch mutation refuses measurement"),

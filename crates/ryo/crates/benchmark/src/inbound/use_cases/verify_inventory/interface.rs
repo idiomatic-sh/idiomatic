@@ -1,5 +1,5 @@
 //! One complete inventory operation, with strict all-rule success.
-use crate::domain::diagnostics::errors::DiagnosticsError;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// Verify all declared defaults and preserve their outcomes.
 pub trait VerifyInventoryUseCase {
@@ -7,9 +7,5 @@ pub trait VerifyInventoryUseCase {
     ///
     /// # Errors
     /// Refuses malformed registrations or failed artifact persistence.
-    fn verify_inventory(
-        &self,
-        registration: &Path,
-        output: &Path,
-    ) -> Result<bool, DiagnosticsError>;
+    fn verify_inventory(&self, registration: &Path, output: &Path) -> Result<bool, ReportsError>;
 }

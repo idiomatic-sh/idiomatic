@@ -1,5 +1,5 @@
 //! One explicit shared parser target at the benchmark composition boundary.
-use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_python::settings::PythonTargetVersion;
 
 /// The reference CLI spelling and linked parser mode for one canonical identity.

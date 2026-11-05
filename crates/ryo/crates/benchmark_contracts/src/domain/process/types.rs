@@ -1,5 +1,5 @@
 //! Immutable templates and independently archived process observations.
-use crate::domain::suite::types::ArtifactDigest;
+use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use std::path::PathBuf;
 
 /// Encoding of an authoritative declared-input path within an output stream.
@@ -58,7 +58,7 @@ pub struct ProcessFailure {
 #[derive(Clone, Debug)]
 pub enum ReferenceExpectation {
     /// Existing complete diagnostics expectation.
-    Diagnostics(crate::domain::diagnostics::types::RunReport),
+    Diagnostics(crate::domain::reports::types::RunReport),
     /// A separate process observation, never an empty diagnostic report.
     ProcessFailure(ProcessFailure),
 }
@@ -71,7 +71,11 @@ pub struct ReceiptAudit {
     /// Exact identities that independently passed the shared validator.
     pub verified: Vec<(String, String)>,
     /// Metadata contracts independently recomputed by this verifier, never echoed from pass flags.
-    pub metadata_verified: Vec<(String, String, super::super::types::ArtifactDigest)>,
+    pub metadata_verified: Vec<(
+        String,
+        String,
+        crate::domain::artifacts::types::digest::value::ArtifactDigest,
+    )>,
     /// Strict failures, never skipped successes.
     pub errors: Vec<String>,
     /// Raw report equality, excluding process observations.

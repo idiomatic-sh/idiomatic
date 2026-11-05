@@ -1,10 +1,10 @@
 //! Actual local-adapter checks of canonical module features and annotation evaluation positions.
 use super::PreparedEngine as _;
-use ryo_benchmark::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::types::{ProjectContextMode, WorkerRequest, WorkerState},
-};
 use ryo_benchmark::outbound::engine::factory;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::requests::types::WorkerState;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -198,9 +198,9 @@ fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> R
 #[test]
 fn declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source()
 -> Result<(), Error> {
-    use ryo_benchmark::domain::suite::types::{
-        PreparedRuleContext, RuleConfiguration, RuleContextTables,
-    };
+    use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
+    use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
+    use ryo_benchmark_contracts::domain::context::types::RuleContextTables;
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
     let corpus = root.path().join("corpus");

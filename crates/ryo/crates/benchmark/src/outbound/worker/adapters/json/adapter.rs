@@ -1,8 +1,9 @@
 //! The worker port, implemented with an immutable request and injected output connection.
 use super::{connection::WorkerJsonConnection, schemas};
-use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
-use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::worker::interface::WorkerPort;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::{ffi::OsString, io::Write};
 
 #[derive(Debug)]

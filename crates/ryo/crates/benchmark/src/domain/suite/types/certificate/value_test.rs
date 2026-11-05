@@ -1,8 +1,9 @@
 //! Proves one value's behaviour.
 use super::value::Certificate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::suite::types::{RunRequest, audit::value::Audit};
+use crate::domain::suite::types::audit::value::Audit;
 use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort as _};
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 const CASES: &[Case<(), (bool, usize), ()>] = &[Case {
     name: CaseName("evidence exposes only its content identity and verified count"),
     word: Word::Succeeds,
@@ -30,18 +31,21 @@ fn subject(_: ()) -> Result<(bool, usize), ()> {
     };
     let profile = LinterFake::default().prepare(&request).unwrap();
     let certificate = Certificate {
-        case_source: crate::domain::suite::types::CertificationCases::Profile,
+        case_source: ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile,
         coverage: Audit {
             implemented: vec![ryo::linter::RuleId::try_from("A").unwrap()],
             missing: vec![],
         },
         paths: vec![],
-        fingerprint: crate::domain::suite::types::ArtifactDigest("sealed".into()),
+        fingerprint:
+            ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+                "sealed".into(),
+            ),
         contestants: ["first".into(), "second".into()],
         probe: request,
         profiles: [profile.clone(), profile],
-        execution: crate::domain::measurements::types::ExecutionProfile::Wall,
-        cases: crate::domain::suite::types::CaseCount(2),
+        execution: ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall,
+        cases: ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
     };
     Ok((
         certificate.fingerprint().0 == "sealed",

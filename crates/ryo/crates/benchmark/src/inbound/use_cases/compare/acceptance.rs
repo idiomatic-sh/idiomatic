@@ -4,10 +4,11 @@
     reason = "acceptance assertions must fail the scenario on unexpected success or refusal"
 )]
 use cucumber::then;
-use ryo_benchmark::domain::diagnostics::types::{BenchmarkFinding, RunReport};
 use ryo_benchmark::inbound::use_cases::compare::{
     interface::CompareUseCase as _, use_case::CompareUseCaseImpl,
 };
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 /// Build the same two findings in opposite traversal orders.
 fn reports() -> (RunReport, RunReport) {
     let fixture = ryo_benchmark::outbound::worker::fixtures::data::report();
@@ -16,24 +17,27 @@ fn reports() -> (RunReport, RunReport) {
         .first()
         .expect("fixture finding")
         .clone();
-    first.start = ryo_benchmark::domain::diagnostics::types::SourceByteOffset(0);
-    first.end = ryo_benchmark::domain::diagnostics::types::SourceByteOffset(1);
+    first.start = ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0);
+    first.end = ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1);
     let second = BenchmarkFinding {
-        start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(2),
-        end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(3),
+        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(2),
+        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(3),
         ..first.clone()
     };
     let reference = RunReport {
-        execution_metadata: ryo_benchmark::domain::diagnostics::types::ExecutionMetadata::Complete,
+        execution_metadata:
+            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
         project_context: None,
         files: fixture.files,
         skipped: Vec::new(),
-        coverage: Some(ryo_benchmark::domain::diagnostics::types::RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
-        }),
+        coverage: Some(
+            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: 1,
+                evaluated: 1,
+                skipped: 0,
+                unknown_or_unread: 0,
+            },
+        ),
         diagnostics: vec![first, second],
     };
     let mut candidate = reference.clone();

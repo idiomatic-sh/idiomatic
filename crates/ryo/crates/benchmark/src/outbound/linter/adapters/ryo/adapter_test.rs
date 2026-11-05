@@ -1,10 +1,10 @@
 //! The concrete ryo implementation executes the complete shared contract.
 use super::adapter::LinterRyoAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::suite::types::RunRequest;
 use crate::outbound::linter::fixtures::contract::check;
 use crate::outbound::linter::interface::LinterPort as _;
 use ryo::linter::RelativePath;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::collections::BTreeMap;
 type Input = ();
 type Value = ();
@@ -22,10 +22,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 fn subject(_: Input) -> Result<Value, Failure> {
     check(&LinterRyoAdapter {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         rule_observations: Default::default(),
         defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
-        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         executable: "fixture".into(),
         rules: "rules".into(),
         query_modules: BTreeMap::default(),
@@ -63,10 +64,11 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     };
     let adapter = LinterRyoAdapter {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         rule_observations: Default::default(),
         defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
-        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         executable: "candidate".into(),
         rules: "rules".into(),
         query_modules: BTreeMap::new(),
@@ -145,7 +147,7 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
     let original = declarations("matched λ\t\\source");
     let mut adapter = LinterRyoAdapter {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         rule_observations: original.clone(),
         defaults: vec![consumer.clone(), producer.clone()],
         project_context_mode: Default::default(),
@@ -156,7 +158,8 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         parser_configuration: None,
         source_language: None,
     };
-    use crate::domain::suite::types::ObservationSelectionPolicy::{Declared, Selected};
+    use ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared;
+    use ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Selected;
     for (index, (policy, explicit)) in [
         (Declared, None),
         (Declared, Some(declarations("different"))),

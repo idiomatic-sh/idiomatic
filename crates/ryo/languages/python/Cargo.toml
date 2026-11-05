@@ -34,6 +34,7 @@ unicode-properties = { version = "=0.1.4", default-features = false, features = 
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.2" }
 
 [dev-dependencies]
+ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../crates/benchmark_contracts", version = "0.1.2" }
 sha2.workspace = true
 ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark", features = ["fixtures"] }
 serde_json.workspace = true

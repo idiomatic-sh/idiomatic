@@ -9,7 +9,7 @@ pub fn ryo(
     rule_applicability: std::collections::BTreeMap<String, String>,
     parser_configuration: Option<String>,
     defaults: Vec<ryo::linter::RuleId>,
-    rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
+    rule_observations: ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     ryo_context(
         executable,
@@ -18,9 +18,9 @@ pub fn ryo(
         rule_applicability,
         parser_configuration,
         None,
-        crate::domain::suite::types::ProjectContextMode::Isolated,
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
         defaults,
-        crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+        ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         rule_observations,
     )
 }
@@ -34,10 +34,10 @@ pub fn ryo_context(
     rule_applicability: std::collections::BTreeMap<String, String>,
     parser_configuration: Option<String>,
     source_language: Option<String>,
-    project_context_mode: crate::domain::suite::types::ProjectContextMode,
+    project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
     defaults: Vec<ryo::linter::RuleId>,
-    rule_observation_selection: crate::domain::suite::types::ObservationSelectionPolicy,
-    rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
+    rule_observation_selection: ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy,
+    rule_observations: ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     LinterRyoAdapter {
         rule_observation_selection,

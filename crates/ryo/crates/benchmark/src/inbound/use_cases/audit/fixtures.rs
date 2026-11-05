@@ -1,6 +1,6 @@
 //! Independent artifact construction shared by acceptance proofs.
-use crate::domain::suite::types::Tool;
-use crate::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
+use crate::inbound::use_cases::audit::interface::AuditUseCase as _;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
 /// Produce the acceptance fixture through the real artifact boundary.
 ///
 /// # Panics
@@ -38,12 +38,13 @@ expected = []
     }
     let tool = Tool {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
-        rule_observations: std::collections::BTreeMap::new(),
+        rule_observations: Default::default(),
         rule_context: None,
         file_observation: None,
-        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec![String::new().into()],
@@ -56,7 +57,9 @@ expected = []
         project_search_roots: None,
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     };
-    crate::outbound::suite::factory::local()
-        .audit(ArtifactPath(directory.path()), &tool)
-        .expect("audited fixture")
+    crate::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(std::sync::Arc::new(
+        crate::outbound::suite::factory::local(),
+    ))
+    .audit(directory.path(), &tool)
+    .expect("audited fixture")
 }

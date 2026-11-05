@@ -1,9 +1,8 @@
 //! The offline path reuses actual artifact loading and native receipt comparison.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::{process::types::ReceiptAudit, types::inventory::Inventory},
-};
+use crate::domain::suite::types::inventory::Inventory;
 use crate::outbound::inventory::types::{CapturedObservation, Registration};
+use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Validate every registered case, retaining valid pairs for resume while reporting every failure.
@@ -82,10 +81,16 @@ pub fn validate(
                     audit.metadata_verified.push((
                         key.0.clone(),
                         key.1.clone(),
-                        crate::domain::suite::types::ArtifactDigest(digest.to_owned()),
+                        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+                            digest.to_owned(),
+                        ),
                     ));
                 }
-                if documented > 0 && case["reference_discrepancy"]["basis"] == "tool-contract-difference" { audit.tool_contract_differences.push(key.clone()); }
+                if documented > 0
+                    && case["reference_discrepancy"]["basis"] == "tool-contract-difference"
+                {
+                    audit.tool_contract_differences.push(key.clone());
+                }
                 audit.verified.push(key);
                 audit.raw_exact += raw;
                 audit.documented_discrepancies += documented;

@@ -1,14 +1,16 @@
 //! Built collector regression: resources belong to the actual child, not its large parent.
+use ryo_benchmark::cases::Case;
+use ryo_benchmark::cases::CaseName;
+use ryo_benchmark::cases::Expect;
+use ryo_benchmark::cases::Word;
+use ryo_benchmark::cases::run;
+use ryo_benchmark::outbound::execution;
 use ryo_benchmark::outbound::execution::fixtures::contract::check as check_contract;
-use ryo_benchmark::{
-    cases::{Case, CaseName, Expect, Word, run},
-    domain::{
-        diagnostics::errors::DiagnosticsError,
-        measurements::types::{Invocation, ResourceObservation},
-        suite::types::ArtifactDigest,
-    },
-    outbound::execution::{self, interface::ExecutionPort as _},
-};
+use ryo_benchmark::outbound::execution::interface::ExecutionPort as _;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use sha2::{Digest as _, Sha256};
 use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, Debug)]
@@ -80,7 +82,7 @@ fn check(probe: Probe) -> Result<(), Box<dyn std::error::Error>> {
     };
     if matches!(probe, Probe::ChangedCollector) {
         assert!(
-            matches!(execution.run(invocation), Err(DiagnosticsError::Invalid(_))),
+            matches!(execution.run(invocation), Err(ReportsError::Invalid(_))),
             "changed collector digest must refuse execution"
         );
         return Ok(());

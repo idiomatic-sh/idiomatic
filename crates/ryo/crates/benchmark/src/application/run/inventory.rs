@@ -1,8 +1,5 @@
 //! Enumerate every registered default, invoke the existing verifier, and retain every result.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::Invocation,
-    suite::types::inventory::Inventory,
-};
+use crate::domain::suite::types::inventory::Inventory;
 use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::{
@@ -10,6 +7,8 @@ use crate::outbound::{
         types::{CASE_RECEIPTS_ARGUMENT, Registration, Row, Summary},
     },
 };
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::Path,

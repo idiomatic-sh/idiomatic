@@ -1,13 +1,13 @@
 //! Every evidence destination accepts complete samples and refuses incomplete publication.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
-    diagnostics::types::RunReport,
-    measurements::types::{Measurement, Resources, sample::value::BenchmarkSample},
-};
 use crate::outbound::evidence::interface::EvidencePort;
+use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::measurements::types::{PublicationSample, SampleName};
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use std::time::Duration;
 
-type Input = Vec<BenchmarkSample>;
+type Input = Vec<SampleInput>;
 type Value = ();
 type Failure = ();
 
@@ -19,16 +19,11 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             let samples = (CASES[1].input)();
             let original = samples[0].measurement.clone();
-            crate::domain::measurements::types::pair::value::Pair {
-                eligibility: crate::domain::measurements::types::MeasurementEligibility::Diagnostic,
-                reference: original.clone(),
-                candidate: original,
-            }
-            .samples([
-                crate::domain::measurements::types::SampleName("diagnostic/reference".into()),
-                crate::domain::measurements::types::SampleName("diagnostic/candidate".into()),
-            ])
-            .into()
+            vec![SampleInput {
+                complete_inventory: false,
+                name: SampleName("diagnostic/reference".into()),
+                measurement: original,
+            }]
         },
         expect: Expect::Error(()),
     },
@@ -36,26 +31,25 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("complete observation publishes"),
         word: Word::Succeeds,
         input: || {
-            vec![BenchmarkSample {
-                eligibility:
-                    crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
-                name: crate::domain::measurements::types::SampleName(
+            vec![SampleInput {
+                complete_inventory:true,
+                name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
                     "project/contestant/cold".into(),
                 ),
                 measurement: Measurement {
                     wall: Duration::from_millis(5),
-                    resources: crate::domain::measurements::types::ResourceObservation::Collected(
+                    resources: ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(
                         Resources {
                             cpu: Duration::from_millis(4),
-                            peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(4096),
+                            peak_rss_bytes: ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(4096),
                         },
                     ),
                     report: RunReport {
                         execution_metadata:
-                            crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+                            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                         project_context: None,
                         skipped: Vec::new(),
-                        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                        coverage: Some(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
                             selected: 1,
                             evaluated: 1,
                             skipped: 0,
@@ -79,21 +73,20 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing resources are refused"),
         word: Word::Refuses,
         input: || {
-            vec![BenchmarkSample {
-                eligibility:
-                    crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
-                name: crate::domain::measurements::types::SampleName(
+            vec![SampleInput {
+                complete_inventory:true,
+                name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
                     "project/contestant/cold".into(),
                 ),
                 measurement: Measurement {
                     wall: Duration::from_millis(5),
-                    resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
+                    resources: ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
                     report: RunReport {
                         execution_metadata:
-                            crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+                            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                         project_context: None,
                         skipped: Vec::new(),
-                        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
+                        coverage: Some(ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
                             selected: 1,
                             evaluated: 1,
                             skipped: 0,
@@ -113,11 +106,33 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 /// Panics if the destination violates the publication contract.
 pub fn check(adapter: &impl EvidencePort) {
-    let subject = |samples: Vec<BenchmarkSample>| {
+    let subject = |samples: Vec<SampleInput>| {
         adapter
-            .publish(&samples)
+            .publish(
+                &samples
+                    .iter()
+                    .map(SampleInput::publication)
+                    .collect::<Vec<_>>(),
+            )
             .map_err(|_invalid_boundary_value| ())
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
+}
+
+/// Owned test data, not a certification or measurement proof.
+#[derive(Clone)]
+pub struct SampleInput {
+    complete_inventory: bool,
+    name: SampleName,
+    measurement: Measurement,
+}
+impl SampleInput {
+    fn publication(&self) -> PublicationSample<'_> {
+        PublicationSample {
+            complete_inventory: self.complete_inventory,
+            name: &self.name,
+            measurement: &self.measurement,
+        }
+    }
 }

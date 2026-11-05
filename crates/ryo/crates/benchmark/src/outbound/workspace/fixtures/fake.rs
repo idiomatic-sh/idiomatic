@@ -1,7 +1,8 @@
 //! In-memory workspace lifecycle for orchestration tests.
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{AppliedPatch, CommitRevision, TrackedFiles};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Project;
 use std::path::{Path, PathBuf};
 #[derive(Clone, Copy, Debug)]
 /// Deterministic workspace substitute for orchestration and contract tests.

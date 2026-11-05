@@ -1,8 +1,9 @@
 //! Missing implementations remain visible and an empty selection is not coverage.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
 #[derive(Clone, Copy, Debug)]
 /// Artifact operations exercised against missing inputs as well as valid inventories.
 pub enum Operation {
@@ -122,12 +123,13 @@ pub fn check(adapter: &impl SuitePort) {
         let selected = !matches!(operation, Operation::Empty);
         let tool = Tool {
             rule_observation_selection:
-                crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+                ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
             supporting_rules: Vec::new(),
-            rule_observations: std::collections::BTreeMap::new(),
+            rule_observations: Default::default(),
             rule_context: None,
             file_observation: None,
-            project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
+            project_context_mode:
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
             tool: "fixture".into(),
             version: "1".into(),
             sha256: vec![String::new().into()],
@@ -164,8 +166,8 @@ pub fn check(adapter: &impl SuitePort) {
                     .stage(
                         ArtifactPath(&missing),
                         ArtifactPath(&destination),
-                        &audit,
-                        crate::domain::suite::types::StagePurpose::Certification,
+                        &audit.implemented,
+                        ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
                     )
                     .map(|()| (0, 0))
             }

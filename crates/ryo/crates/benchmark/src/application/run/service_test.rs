@@ -1,17 +1,15 @@
 //! Neither contestant can certify a case by silently dropping its expected finding.
 use super::service::{verify, verify_reference_cases};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
-    diagnostics::{
-        errors::DiagnosticsError as Error,
-        types::{BenchmarkFinding, RunReport},
-    },
-    suite::types::{PreparedCase, RunRequest},
-};
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
     suite::fixtures::fake::SuiteFake,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
 
 #[derive(Clone, Copy)]
@@ -209,7 +207,7 @@ fn reference_only_accepts_exact_full_report_multiplicity_without_candidate() {
         );
         return;
     };
-    case.comparison = crate::domain::suite::types::CaseComparison::Full;
+    case.comparison = ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
     case.expected.diagnostics = vec![finding.clone(), finding.clone()];
     let reference = LinterFake {
         diagnostics: vec![finding.clone(), finding],
@@ -241,14 +239,14 @@ fn reference_only_preserves_frontend_findings_in_rule_comparison() {
             BenchmarkFinding {
                 rule: "E722".try_into().unwrap(),
                 file: ryo::linter::RelativePath("case.py".into()),
-                start: crate::domain::diagnostics::types::SourceByteOffset(0),
-                end: crate::domain::diagnostics::types::SourceByteOffset(6),
+                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(6),
             },
             BenchmarkFinding {
                 rule: "F401".try_into().unwrap(),
                 file: ryo::linter::RelativePath("case.py".into()),
-                start: crate::domain::diagnostics::types::SourceByteOffset(20),
-                end: crate::domain::diagnostics::types::SourceByteOffset(24),
+                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(20),
+                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(24),
             },
         ],
         ..Default::default()
@@ -289,7 +287,7 @@ fn reference_only_rejects_wrong_byte_end_offset() {
         );
         return;
     };
-    case.comparison = crate::domain::suite::types::CaseComparison::Full;
+    case.comparison = ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
     let Some(expected) = case.expected.diagnostics.first_mut() else {
         assert_eq!(
             case.expected.diagnostics.len(),
@@ -298,7 +296,7 @@ fn reference_only_rejects_wrong_byte_end_offset() {
         );
         return;
     };
-    expected.end = crate::domain::diagnostics::types::SourceByteOffset(7);
+    expected.end = ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(7);
     let reference = LinterFake {
         diagnostics: vec![finding],
         ..Default::default()
@@ -332,7 +330,7 @@ fn reference_only_rejects_missing_duplicate_and_unexpected_empty_case_finding() 
             );
             return;
         };
-        case.comparison = crate::domain::suite::types::CaseComparison::Full;
+        case.comparison = ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
         case.expected.diagnostics = vec![finding.clone(); expected_count];
         let actual = if expected_count == 0 {
             vec![finding]
@@ -408,12 +406,15 @@ fn history_len(execution: &ExecutionFake) -> Option<usize> {
     execution.history.lock().ok().map(|history| history.len())
 }
 
-use crate::domain::measurements::types::{Invocation, ProcessOutput};
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 struct Empty;
 impl LinterPort for Empty {
-    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
-        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
@@ -425,32 +426,36 @@ impl LinterPort for Empty {
     }
     fn decode(&self, _: &RunRequest, _: ProcessOutput) -> Result<RunReport, Error> {
         Ok(RunReport {
-            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+            execution_metadata:
+                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context: None,
             skipped: Vec::new(),
-            coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-                selected: 1,
-                evaluated: 1,
-                skipped: 0,
-                unknown_or_unread: 0,
-            }),
+            coverage: Some(
+                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                    selected: 1,
+                    evaluated: 1,
+                    skipped: 0,
+                    unknown_or_unread: 0,
+                },
+            ),
             diagnostics: vec![],
             files: vec![],
         })
     }
 }
 impl ExecutionPort for Empty {
-    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
-        crate::domain::measurements::types::ExecutionProfile::Wall
+    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
     }
     fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
         Ok(ProcessOutput {
             signal: None,
-            status: crate::domain::measurements::types::ProcessExitCode(0),
-            stdout: crate::domain::measurements::types::CapturedBytes(vec![]),
-            stderr: crate::domain::measurements::types::CapturedBytes(vec![]),
+            status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(0),
+            stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(vec![]),
+            stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(vec![]),
             wall: std::time::Duration::ZERO,
-            resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
+            resources:
+                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
         })
     }
 }
@@ -471,8 +476,8 @@ fn report_scope(
                 .try_into()
                 .expect("frontend diagnostic identity"),
             file: ryo::linter::RelativePath("case.py".into()),
-            start: crate::domain::diagnostics::types::SourceByteOffset(9),
-            end: crate::domain::diagnostics::types::SourceByteOffset(19),
+            start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(9),
+            end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(19),
         };
         reference.diagnostics.push(frontend.clone());
         if !matches!(scenario, Scenario::MissingFrontend) {
@@ -482,8 +487,8 @@ fn report_scope(
             let unrelated = BenchmarkFinding {
                 rule: "F401".try_into().expect("unrelated lint identity"),
                 file: ryo::linter::RelativePath("case.py".into()),
-                start: crate::domain::diagnostics::types::SourceByteOffset(20),
-                end: crate::domain::diagnostics::types::SourceByteOffset(24),
+                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(20),
+                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(24),
             };
             reference.diagnostics.push(unrelated.clone());
             candidate.diagnostics.push(unrelated);
@@ -493,7 +498,8 @@ fn report_scope(
                 .prepared
                 .first_mut()
                 .expect("authored case")
-                .comparison = crate::domain::suite::types::CaseComparison::Full;
+                .comparison =
+                ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
         }
         suite
             .prepared
@@ -510,14 +516,14 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
     let expected = BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from("E722").unwrap(),
         file: ryo::linter::RelativePath("case.py".into()),
-        start: crate::domain::diagnostics::types::SourceByteOffset(0),
-        end: crate::domain::diagnostics::types::SourceByteOffset(6),
+        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(6),
     };
     let mut suite = SuiteFake::default();
     if !matches!(scenario, Scenario::NoCases) {
         suite.prepared.push(PreparedCase {
             reference_discrepancy: None,
-            comparison: crate::domain::suite::types::CaseComparison::Rule,
+            comparison: ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule,
             rule: ryo::linter::RuleId::try_from("E722").unwrap(),
             name: "positive".into(),
             request: RunRequest {
@@ -535,28 +541,32 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
                 state: "cache".into(),
             },
             expected: RunReport {
-                execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+                execution_metadata:
+                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                 project_context: None,
                 files: vec![ryo::linter::RelativePath("case.py".into())],
                 skipped: Vec::new(),
-                coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-                    selected: 1,
-                    evaluated: 1,
-                    skipped: 0,
-                    unknown_or_unread: 0,
-                }),
+                coverage: Some(
+                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                        selected: 1,
+                        evaluated: 1,
+                        skipped: 0,
+                        unknown_or_unread: 0,
+                    },
+                ),
                 diagnostics: vec![expected.clone()],
             },
         });
     }
-    suite.profile = Some(crate::domain::suite::types::Tool {
+    suite.profile = Some(ryo_benchmark_contracts::domain::workloads::types::Tool {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
-        rule_observations: std::collections::BTreeMap::new(),
+        rule_observations: Default::default(),
         rule_context: None,
         file_observation: None,
-        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec!["pin".into()],
@@ -575,33 +585,40 @@ fn prepared(scenario: Scenario) -> (SuiteFake, BenchmarkFinding) {
 /// Candidate fixture exposes complete execution accounting independently of its findings.
 struct CoveredCandidate(LinterFake);
 impl LinterPort for CoveredCandidate {
-    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
-        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         LinterPort::prepare(&self.0, request)
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
         let mut report = LinterPort::decode(&self.0, request, output)?;
-        report.coverage = Some(crate::domain::diagnostics::types::RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
-        });
+        report.coverage = Some(
+            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: 1,
+                evaluated: 1,
+                skipped: 0,
+                unknown_or_unread: 0,
+            },
+        );
         Ok(report)
     }
 }
 
 /// Explicit fake-port evidence lets orchestration tests distinguish reference and candidate contracts.
 fn discrepancy_suite() -> SuiteFake {
-    use crate::domain::suite::types::{
-        ArtifactDigest, DiscrepancyEvidence, DiscrepancyEvidenceKind, PreparedReferenceDiscrepancy,
-        ProjectContextMode, ReferenceDiscrepancyIdentity, Tool,
-    };
+    use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+    use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+    use ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy;
+    use ryo_benchmark_contracts::domain::workloads::types::ReferenceDiscrepancyIdentity;
+    use ryo_benchmark_contracts::domain::workloads::types::Tool;
+    use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence;
+    use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidenceKind;
     let (mut suite, _) = prepared(Scenario::Agreement);
     let case = suite.prepared.first_mut().expect("authored case");
-    case.comparison = crate::domain::suite::types::CaseComparison::Full;
+    case.comparison = ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full;
     case.request.root = "/case".into();
     let mut reference = case.expected.clone();
     reference.diagnostics.clear();
@@ -613,7 +630,7 @@ fn discrepancy_suite() -> SuiteFake {
         "performance": crate::outbound::worker::schemas::OptionsSchema::from(case.request.performance),
     }));
     case.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
-        basis: crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
+        basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
         identity: ReferenceDiscrepancyIdentity {
             file_metadata_sha256: None,
             tool: "fixture".into(),
@@ -625,9 +642,10 @@ fn discrepancy_suite() -> SuiteFake {
             intended_output_sha256: super::discrepancy::output_digest(&case.expected),
             reference_output_sha256: super::discrepancy::output_digest(&reference),
         },
-        expected: crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(
-            reference,
-        ),
+        expected:
+            ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(
+                reference,
+            ),
         reason: "independent language contract differs from the pinned reference".into(),
         evidence: vec![DiscrepancyEvidence::Language {
             path: "evidence.json".into(),
@@ -640,9 +658,9 @@ fn discrepancy_suite() -> SuiteFake {
     });
     suite.profile = Some(Tool {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
-        rule_observations: std::collections::BTreeMap::new(),
+        rule_observations: Default::default(),
         rule_context: None,
         file_observation: None,
         project_context_mode: ProjectContextMode::Isolated,
@@ -806,13 +824,16 @@ fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidat
         drift: bool,
     }
     impl LinterPort for DriftingReference {
-        fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
-            crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+        fn rule_configuration(
+            &self,
+        ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+            ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
         }
         fn prepare(
             &self,
             request: &RunRequest,
-        ) -> Result<crate::domain::measurements::types::Invocation, Error> {
+        ) -> Result<ryo_benchmark_contracts::domain::measurements::types::Invocation, Error>
+        {
             let calls = self.calls.get() + 1;
             self.calls.set(calls);
             if calls == 2 && self.drift {
@@ -826,7 +847,7 @@ fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidat
         fn decode(
             &self,
             request: &RunRequest,
-            output: crate::domain::measurements::types::ProcessOutput,
+            output: ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
         ) -> Result<RunReport, Error> {
             LinterFake::default().decode(request, output)
         }
@@ -843,8 +864,9 @@ fn production_pair_rechecks_metadata_when_reference_changes_mode_before_candidat
             let (mut suite, _) = prepared(Scenario::Agreement);
             let profile = suite.profile.as_mut().unwrap();
             profile.defaults.truncate(1);
-            profile.file_observation =
-                Some(crate::domain::suite::types::FileObservation::PosixExecutable);
+            profile.file_observation = Some(
+                ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
+            );
             let case = &mut suite.prepared[0];
             case.name = "first".into();
             case.expected.diagnostics.clear();

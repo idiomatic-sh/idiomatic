@@ -1,7 +1,8 @@
 //! Context validation and receipts reject unsealed filesystem state.
 use super::adapter::*;
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::suite::types::{CaseContext, ContextManifest};
+use ryo_benchmark_contracts::domain::context::types::CaseContext;
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{collections::BTreeMap, path::Path};
 fn fixture(root: &Path) -> Result<ContextManifest, Error> {
     materialize(

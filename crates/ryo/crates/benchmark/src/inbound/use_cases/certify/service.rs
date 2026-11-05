@@ -1,14 +1,11 @@
 //! A complete disposition inventory is distinct from verified subset coverage.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::{
-        service::require_accounted,
-        types::{audit::value::Audit, certificate::value::Certificate},
-    },
-};
+use crate::domain::suite::service::require_accounted;
+use crate::domain::suite::types::audit::value::Audit;
+use crate::domain::suite::types::certificate::value::Certificate;
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// Execute independent cases, then seal the unchanged artifacts and both executable bytes.
@@ -28,19 +25,16 @@ pub(super) fn certify(
     candidate_executable: &Path,
     selected_rules: &Path,
     scratch: &Path,
-    scope: crate::domain::suite::types::BenchmarkCoverage,
-    case_source: &crate::domain::suite::types::CertificationCases,
+    scope: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
+    case_source: &ryo_benchmark_contracts::domain::requests::types::CertificationCases,
 ) -> Result<Certificate, Error> {
     let tool = suite.profile(crate::outbound::suite::types::ArtifactPath(directory))?;
     suite.verify_tool(
         crate::outbound::suite::types::ArtifactPath(reference_executable),
         &tool,
     )?;
-    let audit = suite.audit(
-        crate::outbound::suite::types::ArtifactPath(directory),
-        &tool,
-    )?;
-    if scope == crate::domain::suite::types::BenchmarkCoverage::Accounted {
+    let audit = crate::application::run::service::audit(suite, directory, &tool)?;
+    if scope == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted {
         require_accounted(&audit, &tool)?;
     }
     if audit.implemented.is_empty() {
@@ -60,16 +54,17 @@ pub(super) fn certify(
         contestants[0].clone(),
         contestants[1].clone(),
     ];
-    if let crate::domain::measurements::types::ExecutionProfile::Isolated(collector) =
-        &execution_profile
+    if let ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Isolated(
+        collector,
+    ) = &execution_profile
     {
         paths.push(collector.executable.clone());
     }
     let prepared_cases = match case_source {
-        crate::domain::suite::types::CertificationCases::Profile => {
+        ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile => {
             super::case_inventory::PreparedCases::Profile
         }
-        crate::domain::suite::types::CertificationCases::Registered {
+        ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
             registration,
             output,
         } => {
@@ -91,7 +86,7 @@ pub(super) fn certify(
         }
     };
     let before = suite.fingerprint(crate::outbound::suite::types::ArtifactSet(&paths))?;
-    let probe = crate::domain::suite::types::RunRequest {
+    let probe = ryo_benchmark_contracts::domain::requests::types::RunRequest {
         performance: Default::default(),
         selected_rules: None,
         rule_observations: None,
@@ -126,7 +121,10 @@ pub(super) fn certify(
     if before != after || execution.profile() != execution_profile {
         return Err(Error::Invalid(super::constants::CHANGED_EVIDENCE.into()));
     }
-    if let crate::domain::suite::types::CertificationCases::Registered { output, .. } = case_source
+    if let ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
+        output,
+        ..
+    } = case_source
     {
         paths.push(output.clone());
     }

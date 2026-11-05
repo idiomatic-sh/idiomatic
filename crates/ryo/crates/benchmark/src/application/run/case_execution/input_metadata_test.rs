@@ -1,16 +1,20 @@
 //! The shared preparation boundary rejects physical drift before linter preparation.
 use super::*;
-use crate::domain::{
-    diagnostics::types::{ExecutionMetadata, RunReport},
-    measurements::types::{Invocation, ProcessOutput},
-    suite::types::{CaseComparison, PreparedCase, RunRequest},
-};
 use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort};
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::{cell::Cell, collections::BTreeMap};
 struct ObservedPrepare(Cell<usize>);
 impl LinterPort for ObservedPrepare {
-    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
-        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, _: &RunRequest) -> Result<Invocation, Error> {
         self.0.set(self.0.get() + 1);
@@ -111,7 +115,7 @@ fn metadata_drift_blocks_each_attempt_before_prepare_with_a_live_positive_contro
 
 #[test]
 fn declared_missing_primary_is_reverified_before_both_contestants_prepare() {
-    use crate::domain::suite::types::CaseContext;
+    use ryo_benchmark_contracts::domain::context::types::CaseContext;
     let scratch = tempfile::tempdir().unwrap();
     let boundary = scratch.path().join("snapshot");
     let sources = [(

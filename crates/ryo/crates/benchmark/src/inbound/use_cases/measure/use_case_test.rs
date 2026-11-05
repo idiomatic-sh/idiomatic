@@ -1,14 +1,14 @@
 //! Both orderings preserve the gate and execute the requested contestant first.
 use super::service::measure;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
-    diagnostics::{errors::DiagnosticsError as Error, types::BenchmarkFinding},
-    measurements::types::RunOrder,
-    suite::types::{RunRequest, audit::value::Audit},
-};
+use crate::domain::suite::types::audit::value::Audit;
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
 };
+use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 type Input = (bool, bool, RunOrder);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Contestant {
@@ -81,8 +81,8 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
             vec![BenchmarkFinding {
                 rule: ryo::linter::RuleId::try_from("fixture").unwrap(),
                 file: ryo::linter::RelativePath("input.txt".into()),
-                start: crate::domain::diagnostics::types::SourceByteOffset(0),
-                end: crate::domain::diagnostics::types::SourceByteOffset(1),
+                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1),
             }]
         } else {
             Vec::new()

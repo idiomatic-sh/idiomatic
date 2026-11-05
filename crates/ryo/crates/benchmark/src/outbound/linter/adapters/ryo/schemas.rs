@@ -1,9 +1,8 @@
 //! JSON exists only at the child-process boundary.
-use crate::domain::diagnostics::{
-    errors::DiagnosticsError as Error,
-    types::{BenchmarkFinding, RunReport},
-};
-use crate::domain::suite::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -59,7 +58,7 @@ struct RyoWorkerRequestSchema {
 struct RyoReportSchema {
     /// Missing legacy capability remains unknown and is refused for candidate evidence.
     #[serde(default)]
-    execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata,
+    execution_metadata: crate::outbound::worker::schemas::ExecutionMetadataSchema,
     #[serde(default)]
     /// Actual dependency observations returned by the candidate.
     project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
@@ -119,11 +118,11 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
             rule_context: request
                 .rule_context
                 .as_ref()
-                .map(crate::domain::suite::rule_context::prepared_value),
+                .map(crate::outbound::worker::schemas::prepared_value),
             rule_observations: request
                 .rule_observations
                 .as_ref()
-                .map(crate::domain::suite::observations::value),
+                .map(crate::outbound::worker::schemas::observation_declarations_value),
             project_context_mode: request.project_context_mode.into(),
             context_manifest: request.context_manifest.map(Into::into),
             root: request.root,
@@ -145,8 +144,10 @@ impl From<WorkerRequest> for RyoWorkerRequestSchema {
                 .map(|path| path.0.into_string())
                 .collect(),
             cache: match request.state {
-                crate::domain::suite::types::WorkerState::Fresh => None,
-                crate::domain::suite::types::WorkerState::Retained(path) => Some(path),
+                ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh => None,
+                ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
+                    Some(path)
+                }
             },
         }
     }
@@ -155,7 +156,7 @@ impl TryFrom<RyoReportSchema> for RunReport {
     type Error = Error;
     fn try_from(wire: RyoReportSchema) -> Result<Self, Self::Error> {
         let report = Self {
-            execution_metadata: wire.execution_metadata,
+            execution_metadata: wire.execution_metadata.into(),
             project_context: wire.project_context.map(Into::into),
             files: wire
                 .files
@@ -182,7 +183,7 @@ impl TryFrom<RyoReportSchema> for RunReport {
                 })
                 .collect::<Result<_, Error>>()?,
             coverage: wire.coverage.map(|coverage| {
-                crate::domain::diagnostics::types::RuleCoverage {
+                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
                     selected: coverage.selected,
                     evaluated: coverage.evaluated,
                     skipped: coverage.skipped,
@@ -197,8 +198,12 @@ impl TryFrom<RyoReportSchema> for RunReport {
                         rule: ryo::linter::RuleId::try_from(finding.rule.as_str())
                             .map_err(|error| Error::Invalid(error.to_string()))?,
                         file: ryo::linter::RelativePath(finding.file.into_boxed_str()),
-                        start: crate::domain::diagnostics::types::SourceByteOffset(finding.start),
-                        end: crate::domain::diagnostics::types::SourceByteOffset(finding.end),
+                        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+                            finding.start,
+                        ),
+                        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+                            finding.end,
+                        ),
                     })
                 })
                 .collect::<Result<_, Error>>()?,

@@ -1,7 +1,7 @@
 //! Exact normalized comparison has no external dependencies.
 use super::interface::CompareUseCase;
-use crate::domain::diagnostics::types::Difference;
-use crate::domain::diagnostics::types::RunReport;
+use ryo_benchmark_contracts::domain::reports::types::Difference;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 /// Compare exact finding multisets and submitted-file coverage.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CompareUseCaseImpl;
@@ -17,8 +17,8 @@ impl CompareUseCase for CompareUseCaseImpl {
         &self,
         reference: &RunReport,
         candidate: &RunReport,
-        contract: crate::domain::diagnostics::types::ComparisonContract,
-    ) -> Result<crate::domain::diagnostics::types::ReportComparison, Difference> {
+        contract: ryo_benchmark_contracts::domain::reports::types::ComparisonContract,
+    ) -> Result<ryo_benchmark_contracts::domain::reports::types::ReportComparison, Difference> {
         crate::domain::diagnostics::service::compare_with_contract(reference, candidate, contract)
     }
 

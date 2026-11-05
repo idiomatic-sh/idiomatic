@@ -4,17 +4,18 @@
     reason = "fixture setup and fake state are test preconditions; a panic fails the unit or acceptance proof that calls this module"
 )]
 use super::constants;
-use crate::domain::{
-    diagnostics::{
-        errors::DiagnosticsError as Error,
-        types::{BenchmarkFinding, RunReport},
-    },
-    measurements::types::{
-        CollectorDigest, CollectorProfile, ExecutionProfile, Invocation, ProcessOutput, RunOrder,
-    },
-    suite::types::{BenchmarkCoverage, RunRequest},
-};
 use crate::outbound::linter::interface::LinterPort;
+use ryo_benchmark_contracts::domain::measurements::types::CollectorDigest;
+use ryo_benchmark_contracts::domain::measurements::types::CollectorProfile;
+use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use sha2::{Digest as _, Sha256};
 use std::path::PathBuf;
 #[derive(Clone, Copy, Debug)]
@@ -54,8 +55,10 @@ struct Contestant {
     arguments: Vec<std::ffi::OsString>,
 }
 impl LinterPort for Contestant {
-    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
-        crate::domain::suite::types::RuleConfigurationSupport::Unsupported
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
@@ -76,21 +79,24 @@ impl LinterPort for Contestant {
                     rule: ryo::linter::RuleId::try_from(constants::FIXTURE_RULE_ID)
                         .expect(constants::FIXTURE_PRECONDITION),
                     file: file.clone(),
-                    start: crate::domain::diagnostics::types::SourceByteOffset(0),
-                    end: crate::domain::diagnostics::types::SourceByteOffset(1),
+                    start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+                    end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1),
                 })
             })
             .collect();
         Ok(RunReport {
-            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+            execution_metadata:
+                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context: None,
             skipped: Vec::new(),
-            coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-                selected: request.files.len(),
-                evaluated: request.files.len(),
-                skipped: 0,
-                unknown_or_unread: 0,
-            }),
+            coverage: Some(
+                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                    selected: request.files.len(),
+                    evaluated: request.files.len(),
+                    skipped: 0,
+                    unknown_or_unread: 0,
+                },
+            ),
             files: request.files.clone(),
             diagnostics,
         })
@@ -113,12 +119,14 @@ impl crate::outbound::execution::interface::ExecutionPort for Observations {
         invocation.executable = constants::FIXTURE_FAKE_PROGRAM.into();
         let mut output =
             crate::outbound::execution::interface::ExecutionPort::run(&self.0, invocation)?;
-        output.resources = crate::domain::measurements::types::ResourceObservation::Collected(
-            crate::domain::measurements::types::Resources {
-                cpu: std::time::Duration::from_millis(1),
-                peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(4096),
-            },
-        );
+        output.resources =
+            ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(
+                ryo_benchmark_contracts::domain::measurements::types::Resources {
+                    cpu: std::time::Duration::from_millis(1),
+                    peak_rss_bytes:
+                        ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(4096),
+                },
+            );
         Ok(output)
     }
 }
@@ -149,7 +157,7 @@ pub fn exercise(
         std::sync::Arc<dyn crate::outbound::execution::interface::ExecutionPort>,
         std::sync::Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
     ) -> super::use_case::CertifyUseCaseImpl,
-) -> Result<crate::domain::suite::types::CaseCount, ()> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, ()> {
     let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
     let directory = root.path().join(constants::FIXTURE_PROFILE_DIRECTORY);
     let rules = directory.join(constants::FIXTURE_RULE_DIRECTORY_NAME);
@@ -232,7 +240,7 @@ pub fn exercise(
         &rules,
         &root.path().join(constants::FIXTURE_CASE_DIRECTORY),
         BenchmarkCoverage::Accounted,
-        &crate::domain::suite::types::CertificationCases::Profile,
+        &ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile,
     )
     .expect(constants::FIXTURE_PRECONDITION);
     assert!(
@@ -310,12 +318,12 @@ pub fn exercise(
         suite.clone(),
         match change {
             Change::InventoryFull => {
-                crate::domain::measurements::types::MeasurementMode::Benchmark {
+                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
                     inventory: vec![ryo::linter::RuleId::try_from("A").unwrap()],
                 }
             }
             Change::InventoryNarrow => {
-                crate::domain::measurements::types::MeasurementMode::Benchmark {
+                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
                     inventory: vec![
                         ryo::linter::RuleId::try_from("A").unwrap(),
                         ryo::linter::RuleId::try_from("B").unwrap(),
@@ -331,7 +339,9 @@ pub fn exercise(
             | Change::CollectorPath
             | Change::Query
             | Change::Executable
-            | Change::Command => crate::domain::measurements::types::MeasurementMode::Diagnostic,
+            | Change::Command => {
+                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Diagnostic
+            }
         },
     );
     let result = crate::inbound::use_cases::measure::interface::MeasureUseCase::measure(
@@ -359,7 +369,7 @@ pub fn exercise(
                 );
             }
             if matches!(change, Change::None | Change::InventoryFull) {
-                use crate::outbound::evidence::interface::EvidencePort as _;
+                use crate::inbound::use_cases::publish::interface::PublishUseCase as _;
                 let full = matches!(change, Change::InventoryFull);
                 assert_eq!(
                     pair.eligibility,
@@ -370,12 +380,20 @@ pub fn exercise(
                     }
                 );
                 let samples = pair.samples([
-                    crate::domain::measurements::types::SampleName("fixture/reference/cold".into()),
-                    crate::domain::measurements::types::SampleName("fixture/candidate/cold".into()),
+                    ryo_benchmark_contracts::domain::measurements::types::SampleName(
+                        "fixture/reference/cold".into(),
+                    ),
+                    ryo_benchmark_contracts::domain::measurements::types::SampleName(
+                        "fixture/candidate/cold".into(),
+                    ),
                 ]);
                 let publication =
-                    crate::outbound::evidence::factory::bmf(Box::new(Vec::<u8>::new()))
-                        .publish(&samples);
+                    crate::inbound::use_cases::publish::use_case::PublishUseCaseImpl::new(
+                        std::sync::Arc::new(crate::outbound::evidence::factory::bmf(Box::new(
+                            Vec::<u8>::new(),
+                        ))),
+                    )
+                    .publish(&samples);
                 if full {
                     publication.expect("complete measured inventory publishes");
                 } else {

@@ -1,5 +1,5 @@
 //! Complete rule inventories never turn missing or unrun work into success.
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeSet;
 
 /// One independently identified rule's verification outcome.

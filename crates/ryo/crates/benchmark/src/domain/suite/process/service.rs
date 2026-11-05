@@ -1,5 +1,6 @@
 //! Byte-exact path substitution; no regular expressions or inferred normalization.
-use super::types::{OutputPart, PathEncoding};
+use ryo_benchmark_contracts::domain::process::types::OutputPart;
+use ryo_benchmark_contracts::domain::process::types::PathEncoding;
 use std::path::{Component, Path, PathBuf};
 
 /// Expand only declared input paths from an absolute UTF8 request root.

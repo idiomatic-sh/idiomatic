@@ -1,6 +1,7 @@
 //! The child process receives a typed request and publishes a typed report.
-use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
-use crate::domain::suite::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 
 /// The worker's process-boundary transport, independently injected from its engine.
 pub trait WorkerPort {

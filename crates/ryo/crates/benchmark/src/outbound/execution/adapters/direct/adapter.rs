@@ -1,20 +1,20 @@
 //! Direct Linux `wait4` observes the exact child started by `std::process::Command`.
 #[cfg(target_os = "linux")]
 use super::{constants, schemas};
-#[cfg(target_os = "linux")]
-use crate::domain::measurements::types::{CapturedBytes, ResourceObservation};
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::{Invocation, ProcessOutput},
-};
 use crate::outbound::execution::interface::ExecutionPort;
+#[cfg(target_os = "linux")]
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 #[derive(Debug)]
 /// Collects resources for one directly owned child on Linux.
 pub(crate) struct ExecutionDirectAdapter;
 impl ExecutionPort for ExecutionDirectAdapter {
-    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
-        crate::domain::measurements::types::ExecutionProfile::Direct
+    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Direct
     }
     #[cfg(target_os = "linux")]
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {

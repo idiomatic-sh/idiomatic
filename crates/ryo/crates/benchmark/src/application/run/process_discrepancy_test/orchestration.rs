@@ -13,7 +13,7 @@ impl ExecutionPort for PairExecution {
     fn run(
         &self,
         invocation: Invocation,
-    ) -> Result<ProcessOutput, crate::domain::diagnostics::errors::DiagnosticsError> {
+    ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
         let status = if invocation.arguments.iter().any(|arg| arg == "candidate") {
             0
         } else {

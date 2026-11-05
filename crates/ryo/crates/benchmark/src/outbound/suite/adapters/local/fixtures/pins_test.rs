@@ -87,8 +87,9 @@ const CASES: &[PinCase] = &[
     reason = "fixed executable pin fixtures must be created before testing verification"
 )]
 fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result<(), Failure> {
-    use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
     use crate::outbound::suite::interface::SuitePort as _;
+    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+    use ryo_benchmark_contracts::domain::workloads::types::Tool;
     let directory = tempfile::tempdir().expect("tool directory");
     // Parallel process tests can fork while a temporary executable is still open for writing.
     // Execute immutable repository bytes; only non-executable refusal cases need a new file.
@@ -106,12 +107,13 @@ fn verify_pin((sha256, version, fixture): (&[&str], &str, PinFixture)) -> Result
     };
     let tool = Tool {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
-        rule_observations: std::collections::BTreeMap::new(),
+        rule_observations: Default::default(),
         rule_context: None,
         file_observation: None,
-        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: version.into(),
         sha256: sha256.iter().map(|value| (*value).into()).collect(),

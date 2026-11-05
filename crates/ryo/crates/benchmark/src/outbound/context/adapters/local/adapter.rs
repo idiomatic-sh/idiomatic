@@ -1,8 +1,10 @@
 //! Materialize and validate explicitly sealed project context at the filesystem boundary.
-use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::ProjectContextReceipt};
-use crate::domain::suite::types::{
-    ArtifactDigest, CaseContext, ContextManifest, ProjectContextMode,
-};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::types::CaseContext;
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};

@@ -19,8 +19,12 @@ pub struct Audit {
 impl Audit {
     /// Number of default rules with an authored query and valid case envelope.
     #[must_use]
-    pub fn authored_count(&self) -> crate::domain::suite::types::RuleCount {
-        crate::domain::suite::types::RuleCount(self.implemented.len())
+    pub fn authored_count(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount {
+        ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount(
+            self.implemented.len(),
+        )
     }
     /// Authored subset; these rules still require executable correctness cases.
     #[must_use]
@@ -34,14 +38,14 @@ impl Audit {
     pub fn select(
         &self,
         rules: &[ryo::linter::RuleId],
-    ) -> Result<Self, crate::domain::diagnostics::errors::DiagnosticsError> {
+    ) -> Result<Self, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
         let selected: std::collections::BTreeSet<_> = rules.iter().cloned().collect();
         if selected.is_empty()
             || selected.len() != rules.len()
             || selected.iter().any(|rule| !self.implemented.contains(rule))
         {
             return Err(
-                crate::domain::diagnostics::errors::DiagnosticsError::Invalid(
+                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
                     crate::domain::suite::constants::INVALID_SELECTION.into(),
                 ),
             );

@@ -1,11 +1,11 @@
 //! Serialized request files avoid shell interpretation and OS argument-size limits.
-use crate::domain::measurements::types::{Invocation, ProcessOutput};
-use crate::domain::suite::types::WorkerRequest;
-use crate::domain::{
-    diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
-    suite::types::RunRequest,
-};
 use crate::outbound::linter::interface::LinterPort;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::path::PathBuf;
 #[derive(Debug)]
 /// Constructs explicit candidate invocations and validates their reports.
@@ -13,10 +13,12 @@ pub(crate) struct LinterRyoAdapter {
     /// Frozen default cohort; supporting query definitions are not implicitly enabled.
     pub defaults: Vec<ryo::linter::RuleId>,
     /// Explicit profile declarations; supporting definitions alone never bind a consumer.
-    pub rule_observation_selection: crate::domain::suite::types::ObservationSelectionPolicy,
-    pub rule_observations: crate::domain::suite::types::RuleObservationDeclarations,
+    pub rule_observation_selection:
+        ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy,
+    pub rule_observations:
+        ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
     /// Explicit isolation contract selected by the frozen profile.
-    pub project_context_mode: crate::domain::suite::types::ProjectContextMode,
+    pub project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
     /// Pinned candidate executable.
     pub executable: PathBuf,
     /// Frozen directory of selected rule queries.
@@ -31,8 +33,10 @@ pub(crate) struct LinterRyoAdapter {
     pub source_language: Option<String>,
 }
 impl LinterPort for LinterRyoAdapter {
-    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport {
-        crate::domain::suite::types::RuleConfigurationSupport::Explicit
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let selected_rules = request
@@ -63,7 +67,7 @@ impl LinterPort for LinterRyoAdapter {
             parser_configuration: self.parser_configuration.clone(),
             source_language: self.source_language.clone(),
             files: request.files.clone(),
-            state: crate::domain::suite::types::WorkerState::Retained(
+            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
                 request.state.join(super::constants::CACHE),
             ),
         };
@@ -112,9 +116,13 @@ impl LinterPort for LinterRyoAdapter {
             &request.context_manifest,
             &report.project_context,
         ) {
-            (crate::domain::suite::types::ProjectContextMode::Isolated, None, None) => {}
             (
-                crate::domain::suite::types::ProjectContextMode::ListedDisk,
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
+                None,
+                None,
+            ) => {}
+            (
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
                 Some(manifest),
                 Some(receipt),
             ) => crate::outbound::context::adapters::local::adapter::verify_receipt(

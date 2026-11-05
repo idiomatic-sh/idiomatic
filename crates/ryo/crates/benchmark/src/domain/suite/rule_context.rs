@@ -1,6 +1,8 @@
 //! Declared linter configuration data; matching remains with the tool/query and ordinary SDK scope rules.
-use super::types::{PreparedRuleContext, RuleConfiguration, RuleContextDeclaration};
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
+use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
+use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
+use ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// Resolve an explicit override against the profile declaration without guessing table names or defaults.
 pub fn resolve(
@@ -35,37 +37,6 @@ pub fn resolve(
             }))
         }
     }
-}
-
-/// Retain exactly the authored values in reference/candidate receipt identity.
-pub(crate) fn configuration_value(configuration: &RuleConfiguration) -> serde_json::Value {
-    let disabled: serde_json::Map<_, _> = configuration
-        .disabled_rules
-        .iter()
-        .map(|(path, rules)| {
-            (
-                path.0.to_string(),
-                serde_json::json!(rules.iter().map(ToString::to_string).collect::<Vec<_>>()),
-            )
-        })
-        .collect();
-    serde_json::json!({"external-prefixes": configuration.external_prefixes, "disabled-rules": disabled})
-}
-
-/// Profile declarations and per-case data remain distinct identity inputs.
-pub(crate) fn declaration_value(declaration: &RuleContextDeclaration) -> serde_json::Value {
-    serde_json::json!({
-        "tables": {"selected": declaration.tables.selected, "disabled": declaration.tables.disabled, "external": declaration.tables.external},
-        "defaults": configuration_value(&declaration.defaults),
-    })
-}
-
-/// Transport a materialized declaration with the same canonical data encoding used by receipts.
-pub(crate) fn prepared_value(prepared: &PreparedRuleContext) -> serde_json::Value {
-    serde_json::json!({
-        "tables": {"selected": prepared.tables.selected, "disabled": prepared.tables.disabled, "external": prepared.tables.external},
-        "configuration": configuration_value(&prepared.configuration),
-    })
 }
 
 /// Validate declarative addresses against the actual request, without doing path-pattern matching.

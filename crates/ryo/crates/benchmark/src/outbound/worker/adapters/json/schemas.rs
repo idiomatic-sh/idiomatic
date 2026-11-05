@@ -1,7 +1,7 @@
 //! Private wire shapes; neither canonical values nor callers depend on serde.
 use super::types::WorkerResponseBytes;
-use crate::domain::diagnostics::types::RunReport;
-use crate::domain::suite::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use serde::{Deserialize, Serialize};
 use std::{ffi::OsStr, path::PathBuf};
 
@@ -115,8 +115,8 @@ impl TryFrom<RequestSchema> for WorkerRequest {
                 .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
                 .collect(),
             state: request.cache.map_or(
-                crate::domain::suite::types::WorkerState::Fresh,
-                crate::domain::suite::types::WorkerState::Retained,
+                ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+                ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained,
             ),
         })
     }
@@ -125,7 +125,7 @@ impl TryFrom<RequestSchema> for WorkerRequest {
 /// Candidate findings and exact covered file set.
 struct ReportSchema<'a> {
     /// Explicit producer capability; older reports cannot silently acquire completeness.
-    execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata,
+    execution_metadata: crate::outbound::worker::schemas::ExecutionMetadataSchema,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Actual dependency observations returned by the candidate.
     project_context: Option<crate::outbound::context::adapters::local::schemas::ReceiptSchema>,
@@ -182,7 +182,7 @@ pub(super) fn request(payload: &OsStr) -> Result<WorkerRequest, WorkerSchemaErro
 /// Serialize findings and complete input coverage without deduplication.
 pub(super) fn report(report: &RunReport) -> Result<WorkerResponseBytes, WorkerSchemaError> {
     let wire = ReportSchema {
-        execution_metadata: report.execution_metadata.clone(),
+        execution_metadata: (&report.execution_metadata).into(),
         project_context: report.project_context.clone().map(Into::into),
         files: report.files.iter().map(|path| path.0.as_ref()).collect(),
         diagnostics: report
@@ -253,7 +253,10 @@ enum ObservationProducerSchema {
 /// Convert checked identities while leaving actual producer/schema validation to request compilation.
 fn observation_declarations(
     declarations: std::collections::BTreeMap<String, Vec<ObservationBindingSchema>>,
-) -> Result<crate::domain::suite::types::RuleObservationDeclarations, String> {
+) -> Result<
+    ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+    String,
+>{
     use ryo::linter::{
         ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
         ObservationKind, ObservationName, ObservationProducer, RuleId,
@@ -328,7 +331,9 @@ struct RuleConfigurationSchema {
     #[serde(rename = "disabled-rules")]
     disabled_rules: std::collections::BTreeMap<String, Vec<String>>,
 }
-impl From<RuleContextTablesSchema> for crate::domain::suite::types::RuleContextTables {
+impl From<RuleContextTablesSchema>
+    for ryo_benchmark_contracts::domain::context::types::RuleContextTables
+{
     fn from(value: RuleContextTablesSchema) -> Self {
         Self {
             selected: value.selected,
@@ -337,7 +342,9 @@ impl From<RuleContextTablesSchema> for crate::domain::suite::types::RuleContextT
         }
     }
 }
-impl TryFrom<RuleConfigurationSchema> for crate::domain::suite::types::RuleConfiguration {
+impl TryFrom<RuleConfigurationSchema>
+    for ryo_benchmark_contracts::domain::context::types::RuleConfiguration
+{
     type Error = String;
     fn try_from(value: RuleConfigurationSchema) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -368,7 +375,9 @@ struct PreparedRuleContextSchema {
     tables: RuleContextTablesSchema,
     configuration: RuleConfigurationSchema,
 }
-impl TryFrom<PreparedRuleContextSchema> for crate::domain::suite::types::PreparedRuleContext {
+impl TryFrom<PreparedRuleContextSchema>
+    for ryo_benchmark_contracts::domain::context::types::PreparedRuleContext
+{
     type Error = String;
     fn try_from(value: PreparedRuleContextSchema) -> Result<Self, Self::Error> {
         Ok(Self {

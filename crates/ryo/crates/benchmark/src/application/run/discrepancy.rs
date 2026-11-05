@@ -1,12 +1,14 @@
 //! Admit independently evidenced reference disagreements without relaxing either contract.
-use crate::domain::diagnostics::{
-    errors::DiagnosticsError as Error, service::compare_diagnostics as compare, types::RunReport,
-};
-use crate::domain::suite::types::{ArtifactDigest, CaseComparison, PreparedCase};
+use crate::domain::diagnostics::service::compare_diagnostics as compare;
 use crate::outbound::{
     linter::interface::LinterPort,
     suite::{interface::SuitePort, types::ArtifactPath},
 };
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use sha2::Digest as _;
 use std::path::Path;
 
@@ -64,12 +66,14 @@ fn convert(
     wire: crate::outbound::suite::types::discrepancy::ReferenceDiscrepancyWire,
     authority: crate::outbound::suite::types::discrepancy::DiscrepancyBasisWire,
     case: &PreparedCase,
-) -> Result<crate::domain::suite::types::PreparedReferenceDiscrepancy, Error> {
-    use crate::domain::suite::types::{
-        DiscrepancyBasis, DiscrepancyEvidence, DiscrepancyEvidenceKind,
-        PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity,
-    };
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy, Error>
+{
     use crate::outbound::suite::types::discrepancy::{DiscrepancyBasisWire, EvidenceWire};
+    use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+    use ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy;
+    use ryo_benchmark_contracts::domain::workloads::types::ReferenceDiscrepancyIdentity;
+    use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence;
+    use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidenceKind;
     let basis = match authority {
         DiscrepancyBasisWire::LanguageDefect => DiscrepancyBasis::LanguageDefect,
         DiscrepancyBasisWire::ToolContract => DiscrepancyBasis::ToolContract,
@@ -92,13 +96,17 @@ fn convert(
                     "invalid reference expectation source/range".into(),
                 ));
             }
-            Ok(crate::domain::diagnostics::types::BenchmarkFinding {
-                rule: ryo::linter::RuleId::try_from(row.rule.as_str())
-                    .map_err(|error| Error::Invalid(error.to_string()))?,
-                file,
-                start: crate::domain::diagnostics::types::SourceByteOffset(row.start),
-                end: crate::domain::diagnostics::types::SourceByteOffset(row.end),
-            })
+            Ok(
+                ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
+                    rule: ryo::linter::RuleId::try_from(row.rule.as_str())
+                        .map_err(|error| Error::Invalid(error.to_string()))?,
+                    file,
+                    start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+                        row.start,
+                    ),
+                    end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(row.end),
+                },
+            )
         })
         .collect::<Result<_, Error>>()?;
     expected.diagnostics.sort();
@@ -152,12 +160,12 @@ fn convert(
         basis,
         expected: match process {
             Some(process) => {
-                crate::domain::suite::process::types::ReferenceExpectation::ProcessFailure(
+                ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::ProcessFailure(
                     super::process_discrepancy::convert(process)?,
                 )
             }
             None => {
-                crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(expected)
+                ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(expected)
             }
         },
         evidence,
@@ -178,7 +186,7 @@ fn convert(
 
 /// Preserve the strict intended contract unless an independently pinned reference differs.
 pub(super) fn reference_expected(case: &PreparedCase) -> Result<&RunReport, Error> {
-    use crate::domain::suite::process::types::ReferenceExpectation;
+    use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
     match case
         .reference_discrepancy
         .as_ref()
@@ -275,7 +283,7 @@ pub(super) fn validate(
         return Ok(None);
     };
     if case.comparison != CaseComparison::Full
-        || matches!(&item.expected, crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(report) if compare(&case.expected, report).is_ok())
+        || matches!(&item.expected, ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(report) if compare(&case.expected, report).is_ok())
         || item.reason.trim().is_empty()
         || item.evidence.is_empty()
     {
@@ -308,10 +316,10 @@ pub(super) fn validate(
                 EvidenceArtifact, EvidenceRequirement,
             };
             let requirement = match row {
-                crate::domain::suite::types::DiscrepancyEvidence::Language { .. } => {
+                ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::Language { .. } => {
                     EvidenceRequirement::Language
                 }
-                crate::domain::suite::types::DiscrepancyEvidence::PublicToolContract {
+                ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::PublicToolContract {
                     source_revision,
                     source_path,
                     ..
@@ -319,7 +327,7 @@ pub(super) fn validate(
                     source_revision: source_revision.clone(),
                     source_path: source_path.clone(),
                 },
-                crate::domain::suite::types::DiscrepancyEvidence::PriorWorkerRun {
+                ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::PriorWorkerRun {
                     worker_sha256,
                     control_source_sha256,
                     control_query_sha256,
@@ -344,8 +352,8 @@ pub(super) fn validate(
     for row in &item.evidence {
         match (item.basis, row) {
             (
-                crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
-                crate::domain::suite::types::DiscrepancyEvidence::Language {
+                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
+                ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::Language {
                     language_version,
                     target_configuration,
                     version_rationale,
@@ -363,9 +371,9 @@ pub(super) fn validate(
                 }
             }
             (
-                crate::domain::suite::types::DiscrepancyBasis::ToolContract,
-                crate::domain::suite::types::DiscrepancyEvidence::PublicToolContract { .. }
-                | crate::domain::suite::types::DiscrepancyEvidence::PriorWorkerRun { .. },
+                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract,
+                ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::PublicToolContract { .. }
+                | ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::PriorWorkerRun { .. },
             ) => {}
             _ => {
                 return Err(Error::Invalid(
@@ -420,7 +428,7 @@ pub(super) fn validate(
         )?;
     }
     let mut validation = serde_json::json!({
-        "discrepancy_basis": match item.basis { crate::domain::suite::types::DiscrepancyBasis::LanguageDefect => "language-defect", crate::domain::suite::types::DiscrepancyBasis::ToolContract => "tool-contract-difference" },
+        "discrepancy_basis": match item.basis { ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect => "language-defect", ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract => "tool-contract-difference" },
         "process_observation_group_sha256": super::process_discrepancy::expected(case).map(|process|super::process_discrepancy::group_digest(process,&actual_executable.0)).transpose()?.map(|value|value.0),
         "reference_expectation_kind": if super::process_discrepancy::expected(case).is_some() { "process-failure" } else { "diagnostics" },
         "settings_sha256": settings.0,
@@ -438,8 +446,8 @@ pub(super) fn validate(
 
 /// Approved native binaries may differ from the binary used in the original observation.
 fn validate_pins(
-    identity: &crate::domain::suite::types::ReferenceDiscrepancyIdentity,
-    profile: &crate::domain::suite::types::Tool,
+    identity: &ryo_benchmark_contracts::domain::workloads::types::ReferenceDiscrepancyIdentity,
+    profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
     actual: &ArtifactDigest,
     profile_digest: &ArtifactDigest,
 ) -> Result<(), Error> {
@@ -463,9 +471,9 @@ mod tests;
 
 /// Distinct canonical identity for reports versus process templates.
 fn reference_digest(
-    expected: &crate::domain::suite::process::types::ReferenceExpectation,
+    expected: &ryo_benchmark_contracts::domain::process::types::ReferenceExpectation,
 ) -> ArtifactDigest {
-    use crate::domain::suite::process::types::ReferenceExpectation;
+    use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
     match expected {
         ReferenceExpectation::Diagnostics(report) => output_digest(report),
         ReferenceExpectation::ProcessFailure(process) => {

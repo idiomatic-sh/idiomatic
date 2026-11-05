@@ -3,12 +3,15 @@
     clippy::field_scoped_visibility_modifiers,
     reason = "crate-scoped fields let checked workflows issue evidence while preventing external callers from constructing certified values"
 )]
-use crate::domain::measurements::types::{Measurement, SampleName, sample::value::BenchmarkSample};
+use crate::domain::measurements::types::sample::value::BenchmarkSample;
+use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 
 /// Reference and candidate observations retained under the explicit diagnostics comparison contract.
 ///
 /// ```compile_fail
-/// use ryo_benchmark::domain::measurements::types::{Measurement, pair::value::Pair};
+/// use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+/// use ryo_benchmark::domain::measurements::types::pair::value::Pair;
 /// fn forge(reference: Measurement, candidate: Measurement) -> Pair {
 ///     Pair { reference, candidate }
 /// }
@@ -26,7 +29,7 @@ pub struct Pair {
 impl Pair {
     /// Read the independent evidence dimensions; diagnostic certification is not a full execution-parity claim.
     #[must_use]
-    pub fn comparison(&self) -> crate::domain::diagnostics::types::ReportComparison {
+    pub fn comparison(&self) -> ryo_benchmark_contracts::domain::reports::types::ReportComparison {
         crate::domain::diagnostics::service::compare_dimensions(
             &self.reference.report,
             &self.candidate.report,

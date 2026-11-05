@@ -31,3 +31,5 @@ mod process_discrepancy_test;
 mod input_metadata;
 
 pub(crate) mod registered_context;
+
+pub(crate) mod publication;

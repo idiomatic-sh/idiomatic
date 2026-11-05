@@ -1,6 +1,6 @@
 //! Compare independently declared diagnostic and execution evidence.
-use crate::domain::diagnostics::types::Difference;
-use crate::domain::diagnostics::types::RunReport;
+use ryo_benchmark_contracts::domain::reports::types::Difference;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 /// Apply explicit contracts to finding, submitted-file and execution evidence.
 pub trait CompareUseCase {
     /// Require equal findings, submitted inputs and explicitly complete execution metadata.
@@ -18,6 +18,6 @@ pub trait CompareUseCase {
         &self,
         reference: &RunReport,
         candidate: &RunReport,
-        contract: crate::domain::diagnostics::types::ComparisonContract,
-    ) -> Result<crate::domain::diagnostics::types::ReportComparison, Difference>;
+        contract: ryo_benchmark_contracts::domain::reports::types::ComparisonContract,
+    ) -> Result<ryo_benchmark_contracts::domain::reports::types::ReportComparison, Difference>;
 }

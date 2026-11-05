@@ -1,10 +1,9 @@
 //! JSON conversions delegate validation to adjacent schemas.
 use super::schemas;
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::{Invocation, ProcessOutput},
-};
 use crate::outbound::collection::{interface::CollectionPort, types::CollectorMessage};
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 #[derive(Debug)]
 /// Validates collector wire messages independently of process execution.
 pub(crate) struct CollectionJsonAdapter;

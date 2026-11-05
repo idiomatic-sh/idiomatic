@@ -1,6 +1,6 @@
 //! Application-owned result of classifying one complete worker request.
-use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::types::PreparedMissingInputs;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 
 /// The request and its sealed missing-input decision remain paired until dispatch.
 pub struct PreparedRequest {

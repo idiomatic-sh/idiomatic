@@ -1,13 +1,10 @@
 //! Private Ruff wire data, decoded without IO into canonical benchmark reports.
 use ryo::linter::{RelativePath, RuleId, SourceText};
-use ryo_benchmark::domain::{
-    diagnostics::{
-        errors::DiagnosticsError as Error,
-        types::{BenchmarkFinding, RunReport},
-    },
-    measurements::types::ProcessOutput,
-    suite::types::RunRequest,
-};
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -164,13 +161,13 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             diagnostics.push(BenchmarkFinding {
                 rule,
                 file: RelativePath(file.into()),
-                start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(start),
-                end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(end),
+                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(start),
+                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(end),
             });
         }
         Ok(RunReport {
             execution_metadata:
-                ryo_benchmark::domain::diagnostics::types::ExecutionMetadata::Unavailable {
+                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
                     reason: "Ruff JSON findings format has no rule/file execution accounting"
                         .into(),
                 },
@@ -234,7 +231,7 @@ pub(super) fn offset(source: &str, row: usize, column: usize) -> Result<usize, E
 /// Serialize declared configuration into Ruff's documented inline TOML overrides.
 /// Exact absolute patterns preserve the shared exact-file contract instead of Ruff's basename shortcut.
 pub(super) fn configuration_arguments(
-    configuration: &ryo_benchmark::domain::suite::types::RuleConfiguration,
+    configuration: &ryo_benchmark_contracts::domain::context::types::RuleConfiguration,
     root: &Path,
 ) -> Result<Vec<std::ffi::OsString>, Error> {
     let strings = |values: Vec<String>| {

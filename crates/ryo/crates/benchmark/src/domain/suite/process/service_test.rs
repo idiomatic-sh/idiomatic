@@ -1,8 +1,7 @@
 //! Legitimate path substitution and independent byte-preservation negatives.
-use super::{
-    service::expand,
-    types::{OutputPart as Part, PathEncoding as Encoding},
-};
+use super::service::expand;
+use ryo_benchmark_contracts::domain::process::types::OutputPart as Part;
+use ryo_benchmark_contracts::domain::process::types::PathEncoding as Encoding;
 use std::path::{Path, PathBuf};
 #[cfg(unix)]
 #[test]

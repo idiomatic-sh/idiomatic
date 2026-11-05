@@ -1,9 +1,11 @@
 //! Classify the sealed primary inventory once before the outbound SDK execution boundary.
 use super::{constants, types::PreparedRequest};
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::suite::service::{context_input_path, declares_missing};
-use crate::domain::suite::types::{ProjectContextMode, WorkerRequest};
+use crate::domain::suite::service::context_input_path;
+use crate::domain::suite::service::declares_missing;
 use crate::outbound::engine::types::PreparedMissingInputs;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeSet;
 
 /// Prepare a complete inventory, keeping declared missing paths distinct from readable files.

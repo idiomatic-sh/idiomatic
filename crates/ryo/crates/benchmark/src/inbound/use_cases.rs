@@ -13,3 +13,5 @@ pub mod verify_inventory;
 
 /// Recheck one explicit receipt file through the shared policy.
 pub mod validate_case_receipts;
+
+pub mod publish;

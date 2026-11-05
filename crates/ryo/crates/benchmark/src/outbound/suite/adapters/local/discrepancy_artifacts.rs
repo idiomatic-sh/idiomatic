@@ -26,7 +26,7 @@ fn relative(path: &Path) -> Result<(), ArtifactError> {
 /// Read raw optional reference expectations; interpretation belongs to application orchestration.
 pub(super) fn case_reference_wires(
     profile: &Path,
-    tool: &crate::domain::suite::types::Tool,
+    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
 ) -> Result<Vec<CaseReferenceWire>, ArtifactError> {
     let mut result = Vec::new();
     for entry in std::fs::read_dir(profile.join("rules"))? {

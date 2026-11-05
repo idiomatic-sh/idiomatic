@@ -1,10 +1,11 @@
 //! Stable scalar observations written through the executable's supplied writer.
 use super::constants;
-use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
-use ryo_benchmark::domain::measurements::types::{RunOrder, sample::value::BenchmarkSample};
+use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
+use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Format per-rule multiplicities explicitly, without debug representations of nominal types.
 pub(super) fn diagnostic_counts(
-    report: &ryo_benchmark::domain::diagnostics::types::RunReport,
+    report: &ryo_benchmark_contracts::domain::reports::types::RunReport,
 ) -> FindingCounts<'_> {
     let mut counts = std::collections::BTreeMap::new();
     for diagnostic in &report.diagnostics {
@@ -22,7 +23,7 @@ pub(super) fn observe_sample(
     sample: &BenchmarkSample,
     order: RunOrder,
 ) -> Result<(), Error> {
-    use ryo_benchmark::domain::measurements::types::ResourceObservation;
+    use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
     let order = match order {
         RunOrder::ReferenceFirst => constants::REFERENCE_FIRST,
         RunOrder::CandidateFirst => constants::CANDIDATE_FIRST,

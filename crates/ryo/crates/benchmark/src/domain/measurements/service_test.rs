@@ -1,8 +1,8 @@
 //! Declared identity equality, never just equal rule counts, gates benchmarks.
 use super::service::require_inventory;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::measurements::types::MeasurementMode;
 use ryo::linter::RuleId;
+use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
 type Input = (MeasurementMode, Vec<RuleId>, Option<Vec<RuleId>>);
 fn ids(names: &[&str]) -> Vec<RuleId> {
     names

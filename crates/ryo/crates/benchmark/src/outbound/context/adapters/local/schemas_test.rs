@@ -1,9 +1,9 @@
 //! Worker schema round trips preserve context identity and opaque dependency fingerprints.
 use super::schemas::{ManifestSchema, ModeSchema, ReceiptSchema};
-use crate::domain::{
-    diagnostics::types::ProjectContextReceipt,
-    suite::types::{ArtifactDigest, ContextManifest, ProjectContextMode},
-};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use std::{collections::BTreeMap, path::PathBuf};
 #[test]
 fn manifests_and_receipts_round_trip_without_synthesizing_missing_paths() {

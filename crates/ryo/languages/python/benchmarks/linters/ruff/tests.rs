@@ -22,9 +22,9 @@ pub(crate) enum BoundaryFailure {
 }
 
 pub(crate) fn failure(
-    error: ryo_benchmark::domain::diagnostics::errors::DiagnosticsError,
+    error: ryo_benchmark_contracts::domain::reports::errors::ReportsError,
 ) -> BoundaryFailure {
-    use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
+    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
     match error {
         Error::Invalid(_) => BoundaryFailure::Invalid,
         Error::Io(error) => BoundaryFailure::Io(error.kind()),
@@ -51,6 +51,5 @@ fn worker_modes_are_explicit_and_keep_diagnostics_out_of_timed_run() {
     );
     assert_eq!(tracing_for_command("diagnostic-unknown"), None);
 }
-
 
 mod host_policy;

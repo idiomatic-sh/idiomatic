@@ -1,7 +1,8 @@
 //! Authored project cases reach the SDK through the real suite and prepared worker boundaries.
 use super::*;
-use ryo_benchmark::domain::suite::types::{ProjectContextMode, WorkerState};
 use ryo_benchmark::outbound::suite::{factory as suite, types::ArtifactPath};
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeSet;
 
 #[test]

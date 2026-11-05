@@ -1,10 +1,9 @@
 //! Convert one verification outcome into a durable boundary-owned observation.
 use super::service::finding_values;
-use crate::domain::{
-    diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
-    suite::types::PreparedCase,
-};
 use crate::outbound::suite::interface::SuitePort;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
 
 /// Append one complete side record while preserving the unprojected report and source identity.
@@ -96,7 +95,7 @@ pub(super) fn write(
     let mut record = serde_json::json!({
         "observation_schema": "benchmark-case/v2",
         "expectation_contract": "diagnostics",
-        "execution_metadata": report.map(|report| &report.execution_metadata),
+        "execution_metadata": report.map(|report| crate::outbound::worker::schemas::ExecutionMetadataSchema::from(&report.execution_metadata)),
         "rule": case.rule.as_ref(),
         "name": case.name.to_string(),
         "side": side,
@@ -118,8 +117,8 @@ pub(super) fn write(
         "project_context": report.and_then(|report| report.project_context.clone()).map(crate::outbound::context::adapters::local::schemas::ReceiptSchema::from),
         "expected": expected,
         "reference_expected": super::discrepancy::reference_expected(case).ok().map(|report| finding_values(&report.diagnostics)),
-        "documented_reference_discrepancy": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == crate::domain::suite::types::DiscrepancyBasis::LanguageDefect),
-        "documented_tool_contract_difference": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == crate::domain::suite::types::DiscrepancyBasis::ToolContract),
+        "documented_reference_discrepancy": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect),
+        "documented_tool_contract_difference": case.reference_discrepancy.as_ref().is_some_and(|item| item.basis == ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::ToolContract),
         "discrepancy_validation": validation,
         "raw_parity_matches_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
         "diagnostics_match_intended": report.map(|actual| super::discrepancy::matches_intended(case, actual)),
@@ -130,10 +129,11 @@ pub(super) fn write(
         "complete": true,
     });
     if let Some(context) = &case.request.rule_context {
-        record["rule_context"] = crate::domain::suite::rule_context::prepared_value(context);
+        record["rule_context"] = crate::outbound::worker::schemas::prepared_value(context);
     }
     if let Some(declarations) = &case.request.rule_observations {
-        record["rule_observations"] = crate::domain::suite::observations::value(declarations);
+        record["rule_observations"] =
+            crate::outbound::worker::schemas::observation_declarations_value(declarations);
     }
     if let Some(selected) = &case.request.selected_rules {
         record["selected_rules"] =

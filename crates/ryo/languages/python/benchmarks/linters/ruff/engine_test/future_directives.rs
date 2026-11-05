@@ -41,7 +41,7 @@ fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), E
                 project_search_roots: None,
                 given_project_inventory: Default::default(),
                 project_context_mode:
-                    ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+                    ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
                 context_manifest: None,
                 root: root.path().to_owned(),
                 rules,
@@ -50,7 +50,7 @@ fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), E
                 parser_configuration: Some("python-target=3.15".to_owned()),
                 source_language: None,
                 files: vec![ryo::linter::RelativePath("input.py".into())],
-                state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+                state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
             })?;
             assert_eq!(report.files, [ryo::linter::RelativePath("input.py".into())]);
             assert_eq!(report.diagnostics.len(), 1 + usize::from(generic));

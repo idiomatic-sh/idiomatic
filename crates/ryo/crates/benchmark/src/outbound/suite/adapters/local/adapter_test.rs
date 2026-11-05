@@ -1,7 +1,6 @@
 //! The concrete local implementation executes the complete shared contract.
 use super::adapter::SuiteLocalAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::suite::types::audit::value::Audit;
 use crate::outbound::suite::fixtures::contract::check;
 use crate::outbound::suite::interface::SuitePort as _;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
@@ -39,7 +38,7 @@ fn subject(selected: Input) -> Result<Value, Failure> {
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
     assert!(
-        matches!(SuiteLocalAdapter::new(None).digest(ArtifactPath(directory.path())), Err(crate::domain::diagnostics::errors::DiagnosticsError::Invalid(message)) if message == "executable digest requires a regular file")
+        matches!(SuiteLocalAdapter::new(None).digest(ArtifactPath(directory.path())), Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)) if message == "executable digest requires a regular file")
     );
     let destination = tempfile::tempdir().expect("snapshot parent");
     selected_snapshot(directory.path(), destination.path());
@@ -107,39 +106,14 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
         std::fs::write(root.join("query.ryoql"), rule).expect("query");
         std::fs::write(root.join("cases.toml"), "cases = []\n").expect("cases");
     }
-    let inventory = Audit {
-        implemented: vec![
-            "E722".try_into().expect("rule identifier"),
-            "F704".try_into().expect("rule identifier"),
-        ],
-        missing: vec!["F401".try_into().expect("rule identifier")],
-    };
-    let selected = inventory
-        .select(&["E722".try_into().expect("rule identifier")])
-        .expect("explicit subset");
-    assert_eq!(
-        selected
-            .implemented
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>(),
-        ["E722"]
-    );
-    assert_eq!(
-        selected
-            .missing
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>(),
-        ["F401", "F704"]
-    );
+    let selected = vec![ryo::linter::RuleId::try_from("E722").expect("rule identifier")];
     let snapshot = destination.join("profile");
     SuiteLocalAdapter::new(None)
         .stage(
             ArtifactPath(directory),
             ArtifactPath(&snapshot),
             &selected,
-            crate::domain::suite::types::StagePurpose::Certification,
+            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
         )
         .expect("staged subset");
     let children: Vec<_> = std::fs::read_dir(snapshot.join("rules"))
@@ -212,14 +186,15 @@ expected = []
 "#,
     )
     .expect("oracle cases");
-    let tool = crate::domain::suite::types::Tool {
+    let tool = ryo_benchmark_contracts::domain::workloads::types::Tool {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
-        rule_observations: std::collections::BTreeMap::new(),
+        rule_observations: Default::default(),
         rule_context: None,
         file_observation: None,
-        project_context_mode: crate::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec!["pin".into()],
@@ -353,8 +328,8 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
         .stage(
             ArtifactPath(&source),
             ArtifactPath(&staged),
-            &audit,
-            crate::domain::suite::types::StagePurpose::Certification,
+            &audit.implemented,
+            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
         )
         .expect("evidence staged");
     let materialized = adapter
@@ -495,8 +470,8 @@ expected = []
         .stage(
             ArtifactPath(root),
             ArtifactPath(&snapshot),
-            &audited,
-            crate::domain::suite::types::StagePurpose::Certification,
+            &audited.implemented,
+            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
         )
         .unwrap();
     assert_eq!(

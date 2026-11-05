@@ -1,14 +1,13 @@
 //! Receive, engine and response failures stop the pipeline at the failed boundary.
 use super::{interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
-    diagnostics::{errors::DiagnosticsError as Error, types::RunReport},
-    suite::types::WorkerRequest,
-};
 use crate::outbound::{
     engine::interface::EnginePort,
     worker::fixtures::{data::request, fake::WorkerFake},
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -99,16 +98,19 @@ impl EnginePort for Engine {
             return Err(Error::Invalid("fixture engine failure".into()));
         }
         Ok(RunReport {
-            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+            execution_metadata:
+                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context: None,
             files: request.files,
             skipped: Vec::new(),
-            coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-                selected: 1,
-                evaluated: 1,
-                skipped: 0,
-                unknown_or_unread: 0,
-            }),
+            coverage: Some(
+                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                    selected: 1,
+                    evaluated: 1,
+                    skipped: 0,
+                    unknown_or_unread: 0,
+                },
+            ),
             diagnostics: Vec::new(),
         })
     }
@@ -133,16 +135,19 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         responded: transport.respond_calls(),
         published: transport.reports()
             == [RunReport {
-                execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+                execution_metadata:
+                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                 project_context: None,
                 files: request().files,
                 skipped: Vec::new(),
-                coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-                    selected: 1,
-                    evaluated: 1,
-                    skipped: 0,
-                    unknown_or_unread: 0,
-                }),
+                coverage: Some(
+                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                        selected: 1,
+                        evaluated: 1,
+                        skipped: 0,
+                        unknown_or_unread: 0,
+                    },
+                ),
                 diagnostics: Vec::new(),
             }],
     };

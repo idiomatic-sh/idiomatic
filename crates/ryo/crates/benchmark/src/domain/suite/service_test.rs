@@ -1,11 +1,15 @@
 //! Coverage gates require the entire pinned default inventory.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::suite::service::{require_complete, validate_cases};
+use crate::domain::suite::service::require_complete;
+use crate::domain::suite::service::validate_cases;
 use crate::domain::suite::types::audit::value::Audit;
-use crate::domain::suite::types::{
-    BenchmarkCaseName, Case as SuiteCase, CaseComparison, Cases, Expected, ExpectedRule,
-};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Case as SuiteCase;
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
+use ryo_benchmark_contracts::domain::workloads::types::Cases;
+use ryo_benchmark_contracts::domain::workloads::types::Expected;
+use ryo_benchmark_contracts::domain::workloads::types::ExpectedRule;
+use ryo_benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
 type Input = Audit;
 type Value = ();
 #[derive(Debug, PartialEq, Eq)]
@@ -77,8 +81,8 @@ fn full_report_case_polarity_is_relative_to_the_enclosing_rule() {
     let expected = |identity| Expected {
         identity: ExpectedRule::Explicit(identity),
         file: file.clone(),
-        start: crate::domain::diagnostics::types::SourceByteOffset(0),
-        end: crate::domain::diagnostics::types::SourceByteOffset(1),
+        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1),
     };
     let source =
         || std::collections::BTreeMap::from([(file.clone(), ryo::linter::SourceText("x".into()))]);
@@ -138,9 +142,9 @@ type Failure = Refusal;
 
 #[test]
 fn requested_missing_inputs_require_a_real_absence_contract_and_only_origin_spans() {
-    use crate::domain::diagnostics::types::SourceByteOffset;
     use crate::domain::suite::service::validate_case_sources;
-    use crate::domain::suite::types::CaseContext;
+    use ryo_benchmark_contracts::domain::context::types::CaseContext;
+    use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
     let readable = ryo::linter::RelativePath("companion.py".into());
     let missing = ryo::linter::RelativePath("missing.py".into());
     let case = SuiteCase {
@@ -272,3 +276,5 @@ fn explicit_selection_requires_real_nonempty_unique_rule_ids() {
     assert!(validate_selected_rules(Some(&[])).is_err());
     assert!(validate_selected_rules(Some(&[rule.clone(), rule])).is_err());
 }
+
+mod audit_boundary_test;

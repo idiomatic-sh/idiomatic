@@ -1,12 +1,13 @@
 //! Correctness gates each measured sample, including cache and edited runs.
 use crate::application::run::service::run;
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::domain::diagnostics::service::compare_with_contract;
-use crate::domain::diagnostics::types::ComparisonContract;
-use crate::domain::measurements::types::{RunOrder, pair::value::Pair};
+use crate::domain::measurements::types::pair::value::Pair;
 use crate::domain::suite::service::require_complete;
-use crate::domain::suite::types::RunRequest;
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
+use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 
 /// Execute both contestants, requiring all diagnostic findings and valid candidate execution; report incomparable reference metadata.
 pub(super) fn measure(
@@ -56,7 +57,7 @@ use crate::domain::suite::types::audit::value::Audit;
 /// Measure only the exact case-certified subset and immutable source bytes.
 pub(super) fn measure_certified(
     certificate: &crate::domain::suite::types::certificate::value::Certificate,
-    mode: &crate::domain::measurements::types::MeasurementMode,
+    mode: &ryo_benchmark_contracts::domain::measurements::types::MeasurementMode,
     suite: &dyn crate::outbound::suite::interface::SuitePort,
     reference: &dyn LinterPort,
     candidate: &dyn LinterPort,
@@ -124,10 +125,10 @@ pub(super) fn measure_certified(
         return Err(Error::Invalid(super::constants::CHANGED_SOURCE.into()));
     }
     pair.eligibility = match mode {
-        crate::domain::measurements::types::MeasurementMode::Benchmark { .. } => {
-            crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
-        }
-        crate::domain::measurements::types::MeasurementMode::Diagnostic => {
+        ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
+            ..
+        } => crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
+        ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Diagnostic => {
             crate::domain::measurements::types::MeasurementEligibility::Diagnostic
         }
     };

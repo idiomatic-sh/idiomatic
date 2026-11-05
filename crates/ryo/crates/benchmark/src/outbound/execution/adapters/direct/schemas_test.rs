@@ -1,7 +1,7 @@
 //! Independent collector records preserve byte units and refuse duration overflow.
 use super::ResourcesSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::measurements::types::Resources;
 use std::time::Duration;
 type Input = wait4::ResourceUsage;
 type Value = Resources;
@@ -17,7 +17,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Resources {
             cpu: Duration::from_millis(200),
-            peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(12345),
+            peak_rss_bytes: ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(
+                12345,
+            ),
         }),
     },
     Case {

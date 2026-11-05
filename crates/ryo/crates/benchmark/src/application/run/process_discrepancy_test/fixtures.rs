@@ -1,10 +1,10 @@
 //! Small real-file fixtures; only child execution is substituted, not artifact or comparison policy.
 use super::*;
-use crate::domain::suite::process::types::ReferenceExpectation;
 use crate::outbound::{
     inventory::types::{CapturedObservation, Registration},
     suite::{fixtures::fake::SuiteFake, types::ArtifactPath},
 };
+use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
 use sha2::Digest as _;
 use std::path::PathBuf;
 
@@ -41,9 +41,9 @@ impl Fixture {
         let receipt = source.join("cases.jsonl");
         let profile = Tool {
             rule_observation_selection:
-                crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+                ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
             supporting_rules: Vec::new(),
-            rule_observations: std::collections::BTreeMap::new(),
+            rule_observations: Default::default(),
             rule_context: None,
             file_observation: None,
             project_context_mode: ProjectContextMode::Isolated,
@@ -176,7 +176,8 @@ impl Fixture {
             "reference_expectation_kind":"process-failure","process_observation_group_sha256":process_discrepancy::group_digest(&process,&"a".repeat(64)).unwrap().0,
         });
         prepared.reference_discrepancy = Some(PreparedReferenceDiscrepancy {
-            basis: crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
+            basis:
+                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
             expected: ReferenceExpectation::ProcessFailure(process),
             identity: identity.clone(),
             evidence: vec![],
@@ -263,7 +264,7 @@ impl ExecutionPort for Streams {
     fn run(
         &self,
         _: Invocation,
-    ) -> Result<ProcessOutput, crate::domain::diagnostics::errors::DiagnosticsError> {
+    ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
         Ok(ProcessOutput {
             status: ProcessExitCode(2),
             signal: None,

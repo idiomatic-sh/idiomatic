@@ -136,7 +136,7 @@ fn report_subject(text: Input) -> Result<Value, Failure> {
     crate::domain::suite::service::validate_case_sources(&cases)
         .map_err(|_refusal| "invalid report envelope")?;
     Ok(
-        matches!(cases.cases.first(), Some(case) if case.comparison == crate::domain::suite::types::CaseComparison::Full),
+        matches!(cases.cases.first(), Some(case) if case.comparison == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full),
     )
 }
 
@@ -147,13 +147,13 @@ fn explicit_context_mode_defaults_and_unknown_modes_are_checked() {
         super::tool(base)
             .expect("legacy profile")
             .project_context_mode,
-        crate::domain::suite::types::ProjectContextMode::Isolated
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated
     );
     assert_eq!(
         super::tool(&format!("{base}project-context-mode='listed-disk'\n"))
             .expect("explicit context")
             .project_context_mode,
-        crate::domain::suite::types::ProjectContextMode::ListedDisk
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk
     );
     let _verified_1 = super::tool(&format!("{base}project-context-mode='implicit-disk'\n"))
         .expect_err("expected refusal");

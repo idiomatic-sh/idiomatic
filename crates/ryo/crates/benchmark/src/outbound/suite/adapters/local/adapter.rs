@@ -1,18 +1,21 @@
 //! Validate pins, cases and rule coverage before running contestants.
 use super::{constants, discrepancy_artifacts};
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::suite::service::{relative_path, validate_case_sources, validate_cases};
-use crate::domain::suite::types::ArtifactDigest;
-use crate::domain::suite::types::audit::value::Audit;
-use crate::domain::suite::types::{Cases, Tool};
+use crate::domain::suite::service::relative_path;
+use crate::domain::suite::service::validate_case_sources;
+use crate::domain::suite::service::validate_cases;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
+use ryo_benchmark_contracts::domain::workloads::types::Cases;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
 
 /// Validate default dispositions and require independent sources for every authored query.
-fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
+fn audit(directory: &Path, tool: &Tool) -> Result<AuthoredInventory, Error> {
     validate_query_modules(directory, &tool.query_modules)?;
     let defaults: BTreeSet<_> = tool.defaults.iter().cloned().collect();
     if defaults.is_empty() || defaults.len() != tool.defaults.len() {
@@ -78,7 +81,7 @@ fn audit(directory: &Path, tool: &Tool) -> Result<Audit, Error> {
             "declared supporting query is missing".into(),
         ));
     }
-    Ok(Audit {
+    Ok(AuthoredInventory {
         missing: defaults.difference(&implemented).cloned().collect(),
         implemented: implemented.into_iter().collect(),
     })
@@ -160,7 +163,7 @@ impl SuiteLocalAdapter {
 impl SuitePort for SuiteLocalAdapter {
     fn validate_file_metadata(
         &self,
-        request: &crate::domain::suite::types::RunRequest,
+        request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error> {
         super::input_metadata::validate(request)
     }
@@ -221,7 +224,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(rules): ArtifactPath<'_>,
         ArtifactPath(scratch): ArtifactPath<'_>,
-    ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
+    ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error> {
         prepare_cases(rules, scratch)
     }
     fn seal_context(
@@ -229,7 +232,7 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(root): ArtifactPath<'_>,
         sources: &[ryo::linter::RelativePath],
         tracked: &[std::path::PathBuf],
-    ) -> Result<crate::domain::suite::types::ContextManifest, Error> {
+    ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error> {
         crate::outbound::context::adapters::local::adapter::seal_existing(root, sources, tracked)
     }
     #[expect(
@@ -270,29 +273,28 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
         ArtifactPath(destination): ArtifactPath<'_>,
-        audit: &Audit,
-        purpose: crate::domain::suite::types::StagePurpose,
+        authored: &[ryo::linter::RuleId],
+        purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
         let tool = super::schemas::tool(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)?;
         validate_query_modules(directory, &tool.query_modules)?;
-        let mut definitions: BTreeSet<_> = audit
-            .implemented
+        let mut definitions: BTreeSet<_> = authored
             .iter()
             .cloned()
             .chain(tool.supporting_rules.iter().cloned())
             .collect();
         let defaults = crate::domain::suite::observations::project_profile(
             &tool.rule_observations,
-            &audit.implemented,
+            authored,
             tool.rule_observation_selection,
         );
         definitions.extend(crate::domain::suite::observations::closure(
-            audit.implemented.iter().cloned(),
+            authored.iter().cloned(),
             |id| defaults.get(id).map(Vec::as_slice),
         ));
-        for owner in &audit.implemented {
+        for owner in authored {
             let cases = super::schemas::cases(&std::fs::read_to_string(
                 directory
                     .join(constants::RULES)
@@ -300,7 +302,7 @@ impl SuitePort for SuiteLocalAdapter {
                     .join(constants::CASES),
             )?)?;
             for case in cases.cases {
-                let selected = case.selected_rules.as_deref().unwrap_or(&audit.implemented);
+                let selected = case.selected_rules.as_deref().unwrap_or(authored);
                 let profile_declarations = crate::domain::suite::observations::project_profile(
                     &tool.rule_observations,
                     selected,
@@ -318,7 +320,7 @@ impl SuitePort for SuiteLocalAdapter {
         }
         std::fs::create_dir(destination)?;
         let original = std::fs::read_to_string(directory.join(constants::MANIFEST))?;
-        let narrowed = tool.defaults != audit.implemented;
+        let narrowed = tool.defaults != authored;
         let manifest = if narrowed {
             let mut value: toml::Value = toml::from_str(&original)?;
             let table = value
@@ -327,8 +329,7 @@ impl SuitePort for SuiteLocalAdapter {
             table.insert(
                 "defaults".into(),
                 toml::Value::Array(
-                    audit
-                        .implemented
+                    authored
                         .iter()
                         .map(|id| toml::Value::String(id.to_string()))
                         .collect(),
@@ -339,7 +340,7 @@ impl SuitePort for SuiteLocalAdapter {
                 toml::Value::Array(
                     definitions
                         .iter()
-                        .filter(|id| !audit.implemented.contains(id))
+                        .filter(|id| !authored.contains(id))
                         .map(|id| toml::Value::String(id.to_string()))
                         .collect(),
                 ),
@@ -365,7 +366,7 @@ impl SuitePort for SuiteLocalAdapter {
             let source = directory.join(relative);
             std::fs::write(target, std::fs::read(source)?)?;
         }
-        for rule in &audit.implemented {
+        for rule in authored {
             relative_path(rule.to_string())?;
             let target = destination.join(constants::RULES).join(rule.to_string());
             std::fs::create_dir(&target)?;
@@ -385,7 +386,9 @@ impl SuitePort for SuiteLocalAdapter {
                         .join(constants::CASES),
                 )?,
             )?;
-            if purpose == crate::domain::suite::types::StagePurpose::Certification {
+            if purpose
+                == ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification
+            {
                 super::discrepancy_artifacts::copy_evidence(
                     directory,
                     destination,
@@ -393,10 +396,7 @@ impl SuitePort for SuiteLocalAdapter {
                 )?;
             }
         }
-        for rule in definitions
-            .iter()
-            .filter(|id| !audit.implemented.contains(id))
-        {
+        for rule in definitions.iter().filter(|id| !authored.contains(id)) {
             let target = destination.join(constants::RULES).join(rule.to_string());
             std::fs::create_dir(&target)?;
             std::fs::write(
@@ -426,7 +426,7 @@ impl SuitePort for SuiteLocalAdapter {
     fn projects(
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
-    ) -> Result<crate::domain::suite::types::Suite, Error> {
+    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Suite, Error> {
         super::schemas::suite(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)
@@ -443,7 +443,7 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
         tool: &Tool,
-    ) -> Result<Audit, Error> {
+    ) -> Result<AuthoredInventory, Error> {
         audit(directory, tool)
     }
 }
@@ -474,13 +474,14 @@ fn fingerprint_path(path: &Path, hasher: &mut Sha256) -> Result<(), Error> {
     Ok(())
 }
 
-use crate::domain::diagnostics::types::RunReport;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 /// Materialize validated independent sources into isolated per-case directories.
 fn prepare_cases(
     rules: &Path,
     scratch: &Path,
-) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error> {
-    use crate::domain::suite::types::{PreparedCase, RunRequest};
+) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error> {
+    use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+    use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
     let mut prepared = Vec::new();
     let profile = rules
         .parent()
@@ -492,7 +493,7 @@ fn prepare_cases(
         Err(error) => return Err(error.into()),
     };
     let context_mode = profile.as_ref().map_or(
-        crate::domain::suite::types::ProjectContextMode::Isolated,
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
         |tool| tool.project_context_mode,
     );
     for entry in std::fs::read_dir(rules)? {
@@ -547,7 +548,8 @@ fn prepare_cases(
                     "complete Given project inventory requires declared search roots".into(),
                 ));
             }
-            if context_mode == crate::domain::suite::types::ProjectContextMode::ListedDisk
+            if context_mode
+                == ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk
                 && (!given_project_inventory.entries.is_empty()
                     || given_project_inventory.completeness
                         != ryo::linter::ProjectInventoryCompleteness::Partial)
@@ -558,16 +560,20 @@ fn prepare_cases(
             }
             let boundary = scratch.join(rule.to_string()).join(index.to_string());
             let context_manifest = match (context_mode, &case.context) {
-                (crate::domain::suite::types::ProjectContextMode::Isolated, None) => None,
-                (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(context)) => {
-                    Some(
-                        crate::outbound::context::adapters::local::adapter::materialize(
-                            &boundary,
-                            context,
-                            &case.files,
-                        )?,
-                    )
-                }
+                (
+                    ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
+                    None,
+                ) => None,
+                (
+                    ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
+                    Some(context),
+                ) => Some(
+                    crate::outbound::context::adapters::local::adapter::materialize(
+                        &boundary,
+                        context,
+                        &case.files,
+                    )?,
+                ),
                 _ => {
                     return Err(Error::Invalid(
                         "case context must agree with explicit profile context mode".into(),
@@ -677,29 +683,35 @@ fn prepare_cases(
 fn expected_report(
     rule: &ryo::linter::RuleId,
     files: Vec<ryo::linter::RelativePath>,
-    expected: Vec<crate::domain::suite::types::Expected>,
+    expected: Vec<ryo_benchmark_contracts::domain::workloads::types::Expected>,
 ) -> RunReport {
-    let mut report = RunReport {
-        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Unknown,
-        project_context: None,
-        files,
-        skipped: Vec::new(),
-        coverage: None,
-        diagnostics: expected
-            .into_iter()
-            .map(
-                |finding| crate::domain::diagnostics::types::BenchmarkFinding {
+    let mut report =
+        RunReport {
+            execution_metadata:
+                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
+            project_context: None,
+            files,
+            skipped: Vec::new(),
+            coverage: None,
+            diagnostics: expected
+                .into_iter()
+                .map(|finding| {
+                    ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
                     rule: match finding.identity {
-                        crate::domain::suite::types::ExpectedRule::Parent => rule.clone(),
-                        crate::domain::suite::types::ExpectedRule::Explicit(value) => value,
+                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent => {
+                            rule.clone()
+                        }
+                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(
+                            value,
+                        ) => value,
                     },
                     file: finding.file,
                     start: finding.start,
                     end: finding.end,
-                },
-            )
-            .collect(),
-    };
+                }
+                })
+                .collect(),
+        };
     report.diagnostics.sort();
     report
 }

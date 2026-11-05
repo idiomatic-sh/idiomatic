@@ -1,12 +1,16 @@
 //! Linter integrations bind commands to decoding; execution stays shared.
-use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
-use crate::domain::measurements::types::{Invocation, ProcessOutput};
-use crate::domain::suite::types::RunRequest;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 
 /// Bind one linter invocation to its canonical result decoding.
 pub trait LinterPort {
     /// Whether this concrete adapter honors the shared explicit rule configuration contract.
-    fn rule_configuration(&self) -> crate::domain::suite::types::RuleConfigurationSupport;
+    fn rule_configuration(
+        &self,
+    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport;
     /// Construct an invocation over the exact supplied input set.
     ///
     /// # Errors

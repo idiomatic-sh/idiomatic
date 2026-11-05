@@ -1,12 +1,11 @@
 //! Real SDK evidence for missing files, unread or partial inputs and typed findings.
 use super::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark::domain::{
-    diagnostics::{errors::DiagnosticsError as Error, types::BenchmarkFinding},
-    suite::types::WorkerRequest,
-};
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 use ryo_benchmark::outbound::suite::interface::SuitePort as _;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
 /// Reuse the production worker preparation boundary before exercising the SDK adapter.
@@ -14,13 +13,13 @@ trait PreparedEngine: EnginePort {
     fn run_prepared(
         &self,
         request: WorkerRequest,
-    ) -> Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error>;
+    ) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error>;
 }
 impl<T: EnginePort + ?Sized> PreparedEngine for T {
     fn run_prepared(
         &self,
         request: WorkerRequest,
-    ) -> Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error> {
+    ) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error> {
         let prepared = ryo_benchmark::application::worker_request::service::prepare(request)?;
         EnginePort::run(self, prepared.request, prepared.missing)
     }
@@ -184,7 +183,8 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
         rules,
@@ -193,7 +193,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
         parser_configuration: None,
         source_language: None,
         files: vec![ryo::linter::RelativePath(file.into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
     let result = run_with_projection(scenario, request);
     check_expected_failure(scenario, &result);
@@ -221,7 +221,8 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
         rules,
@@ -233,7 +234,7 @@ fn rejected_syntax_with_provider_partials_skips_only_accepted_syntax_rules() -> 
         parser_configuration: Some("python-target=3.10".to_owned()),
         source_language: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
     let result = factory::local_with_frontend_diagnostic(
         python_310(),
@@ -491,7 +492,7 @@ fn python_310() -> ryo::linter::Languages {
 fn run_with_projection(
     scenario: EngineScenario,
     request: WorkerRequest,
-) -> Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error> {
+) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error> {
     if scenario == EngineScenario::InvalidSyntaxProjectionDisabled {
         return factory::local(python_310(), None).run_prepared(request);
     }
@@ -525,7 +526,7 @@ emit diagnostics subject file key(id);
 
 fn check_expected_failure(
     scenario: EngineScenario,
-    result: &Result<ryo_benchmark::domain::diagnostics::types::RunReport, Error>,
+    result: &Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error>,
 ) {
     if scenario == EngineScenario::Unread {
         assert!(
@@ -545,7 +546,7 @@ fn check_expected_failure(
 }
 
 fn expected_diagnostics(scenario: EngineScenario) -> Result<Vec<BenchmarkFinding>, Error> {
-    use ryo_benchmark::domain::diagnostics::types::SourceByteOffset as At;
+    use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset as At;
     if matches!(
         scenario,
         EngineScenario::PreservedSemanticSyntaxError
@@ -633,7 +634,8 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         context_manifest: None,
         root: root.to_owned(),
         rules,
@@ -642,7 +644,7 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
         parser_configuration: None,
         source_language: None,
         files: vec![ryo::linter::RelativePath(file.into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
     let rule = ryo::linter::RuleId::try_from("cache-probe")
         .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -664,7 +666,7 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
     let first = run("nonlocal-at-module")?.run_prepared(WorkerRequest {
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
         ),
         ..request.clone()
@@ -672,7 +674,7 @@ fn projection_cache_query_change(root: &std::path::Path) -> Result<Value, Error>
     let second = run("no-such-parser-code")?.run_prepared(WorkerRequest {
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
         ),
         ..request
@@ -701,7 +703,8 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
         rules: rules.clone(),
@@ -710,7 +713,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         parser_configuration: None,
         source_language: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     })?;
 
     let fragments = root.join("fragments");
@@ -737,7 +740,8 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         context_manifest: None,
         root: root.into(),
         rules,
@@ -746,7 +750,7 @@ fn query_module_inline_equivalence(root: &std::path::Path) -> Result<bool, Error
         parser_configuration: None,
         source_language: None,
         files: vec![ryo::linter::RelativePath("input.py".into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     })?;
     Ok(plain == imported)
 }
@@ -795,8 +799,10 @@ fn stage_up017_target_files(
                 file: ryo::linter::RelativePath(
                     format!("up017-target/{}/{}", case.name, finding.file).into(),
                 ),
-                start: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(finding.start),
-                end: ryo_benchmark::domain::diagnostics::types::SourceByteOffset(finding.end),
+                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+                    finding.start,
+                ),
+                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(finding.end),
             });
         }
         for (relative, text) in case.files {
@@ -820,7 +826,7 @@ fn stage_up017_target_files(
 }
 
 fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Error> {
-    use ryo_benchmark::domain::suite::types::WorkerState;
+    use ryo_benchmark_contracts::domain::requests::types::WorkerState;
     let rules = root.join("rules");
     let rule_directory = rules.join("UP017");
     std::fs::create_dir_all(&rule_directory)?;
@@ -846,8 +852,8 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
             rule_context: None,
             project_search_roots: None,
             given_project_inventory: Default::default(),
-            project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
-            ),
+            project_context_mode:
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
             context_manifest: None,
             root: root.to_owned(),
             rules: rules.clone(),
@@ -900,8 +906,8 @@ fn target_configuration_cache_change(root: &std::path::Path) -> Result<bool, Err
 }
 
 fn case_identities(
-    cases: Vec<ryo_benchmark::domain::suite::types::PreparedCase>,
-) -> BTreeMap<(String, String), ryo_benchmark::domain::suite::types::PreparedCase> {
+    cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
+) -> BTreeMap<(String, String), ryo_benchmark_contracts::domain::workloads::types::PreparedCase> {
     cases
         .into_iter()
         .map(|case| ((case.rule.as_ref().to_owned(), case.name.0.clone()), case))
@@ -977,7 +983,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             .get(&key)
             .ok_or_else(|| Error::Invalid(format!("missing imported counterpart for {key:?}")))?;
         write_suppress_module(&imported.request.root)?;
-        let state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
+        let state = ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh;
         let inline = inline_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
             selected_rules: Some(fixture_cohort(&["E722", "F632"])),
@@ -985,8 +991,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             rule_context: None,
             project_search_roots: None,
             given_project_inventory: Default::default(),
-            project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
-            ),
+            project_context_mode:
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
             context_manifest: None,
             root: case.request.root,
             rules: inline_rules.clone(),
@@ -1004,8 +1010,8 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             rule_context: None,
             project_search_roots: None,
             given_project_inventory: Default::default(),
-            project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
-            ),
+            project_context_mode:
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
             context_manifest: None,
             root: imported.request.root.clone(),
             rules: imported_rules.clone(),
@@ -1014,7 +1020,7 @@ fn shared_suppression_fragment_matches_the_historical_inline_queries() -> Result
             parser_configuration: None,
             source_language: None,
             files: imported.request.files.clone(),
-            state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
         })?;
         assert_eq!(
             inline, fragmented,
@@ -1088,8 +1094,8 @@ fn assert_single_rule_fragment_equivalence(
             rule_context: None,
             project_search_roots: None,
             given_project_inventory: Default::default(),
-            project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
-            ),
+            project_context_mode:
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
             context_manifest: None,
             root: case.request.root,
             rules: inline_parent.to_path_buf(),
@@ -1098,7 +1104,7 @@ fn assert_single_rule_fragment_equivalence(
             parser_configuration: None,
             source_language: None,
             files: case.request.files,
-            state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
         })?;
         let fragmented = imported_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
@@ -1107,8 +1113,8 @@ fn assert_single_rule_fragment_equivalence(
             rule_context: None,
             project_search_roots: None,
             given_project_inventory: Default::default(),
-            project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(
-            ),
+            project_context_mode:
+                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
             context_manifest: None,
             root: imported_case.request.root.clone(),
             rules: imported_parent.to_path_buf(),
@@ -1117,7 +1123,7 @@ fn assert_single_rule_fragment_equivalence(
             parser_configuration: None,
             source_language: None,
             files: imported_case.request.files.clone(),
-            state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
         })?;
         assert_eq!(inline, fragmented, "single-rule mismatch for {key:?}");
     }
@@ -1150,7 +1156,8 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
         rules,
@@ -1162,7 +1169,7 @@ fn literal_properties_reach_engine_queries_for_true_and_false_boolean_nodes() ->
             .into_iter()
             .map(|path| ryo::linter::RelativePath(path.into()))
             .collect(),
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     })?;
     assert_eq!(report.files.len(), 2, "both files must be completely read");
     assert!(
@@ -1219,7 +1226,8 @@ fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries(
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
-        project_context_mode: ryo_benchmark::domain::suite::types::ProjectContextMode::default(),
+        project_context_mode:
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         context_manifest: None,
         root: root.path().to_owned(),
         rules,
@@ -1228,7 +1236,7 @@ fn decoded_numeric_payloads_and_strict_greater_composition_reach_engine_queries(
         parser_configuration: None,
         source_language: None,
         files: vec![ryo::linter::RelativePath("numeric.py".into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Fresh,
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     })?;
     assert_eq!(
         report.files,
@@ -1308,26 +1316,29 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
     let request = WorkerRequest {
         performance: Default::default(),
         selected_rules: Some(vec![consumer.clone()]),
-        rule_observations: Some(BTreeMap::from([(
-            consumer.clone(),
-            vec![ObservationBinding {
-                name: ObservationBindingName("published".into()),
-                columns: vec![
-                    ObservationColumn {
-                        name: ObservationColumnName("path".into()),
-                        kind: ObservationKind::File,
-                    },
-                    ObservationColumn {
-                        name: ObservationColumnName("span".into()),
-                        kind: ObservationKind::Span,
-                    },
-                ],
-                producers: vec![ObservationProducer::Output {
-                    rule: producer,
-                    output: ObservationName("used".into()),
+        rule_observations: Some(
+            BTreeMap::from([(
+                consumer.clone(),
+                vec![ObservationBinding {
+                    name: ObservationBindingName("published".into()),
+                    columns: vec![
+                        ObservationColumn {
+                            name: ObservationColumnName("path".into()),
+                            kind: ObservationKind::File,
+                        },
+                        ObservationColumn {
+                            name: ObservationColumnName("span".into()),
+                            kind: ObservationKind::Span,
+                        },
+                    ],
+                    producers: vec![ObservationProducer::Output {
+                        rule: producer,
+                        output: ObservationName("used".into()),
+                    }],
                 }],
-            }],
-        )])),
+            )])
+            .into(),
+        ),
         rule_context: None,
         project_search_roots: None,
         given_project_inventory: Default::default(),
@@ -1340,7 +1351,7 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
         parser_configuration: Some("python-target=3.10".into()),
         source_language: None,
         files: vec![ryo::linter::RelativePath("case.py".into())],
-        state: ryo_benchmark::domain::suite::types::WorkerState::Retained(
+        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.path().join("cache"),
         ),
     };
@@ -1352,7 +1363,7 @@ fn selected_consumer_keeps_unselected_producer_without_its_diagnostics() -> Resu
     }
     let mut missing = request;
     std::fs::remove_file(missing.rules.join("PRODUCER/query.ryoql"))?;
-    missing.state = ryo_benchmark::domain::suite::types::WorkerState::Fresh;
+    missing.state = ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh;
     assert!(
         engine.run_prepared(missing).is_err(),
         "missing bound producer cannot become empty"

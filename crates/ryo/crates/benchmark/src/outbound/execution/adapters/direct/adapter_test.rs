@@ -20,16 +20,16 @@ fn subject(_: Input) -> Result<Value, Failure> {
     check(&crate::outbound::execution::factory::direct());
     #[cfg(not(target_os = "linux"))]
     {
-        use crate::domain::diagnostics::errors::DiagnosticsError;
-        use crate::domain::measurements::types::Invocation;
         use crate::outbound::execution::interface::ExecutionPort as _;
+        use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+        use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
         let outcome = crate::outbound::execution::factory::direct().run(Invocation {
             executable: "sh".into(),
             arguments: Vec::new(),
             environment: std::collections::BTreeMap::default(),
             directory: ".".into(),
         });
-        assert!(matches!(outcome, Err(DiagnosticsError::Io(error))
+        assert!(matches!(outcome, Err(ReportsError::Io(error))
             if error.kind() == std::io::ErrorKind::Unsupported));
     }
     Ok(())
@@ -43,8 +43,9 @@ fn succeeds() {
 #[cfg(target_os = "linux")]
 #[test]
 fn signaled_child_retains_native_resources() -> Result<(), Box<dyn std::error::Error>> {
-    use crate::domain::measurements::types::{Invocation, ResourceObservation};
     use crate::outbound::execution::interface::ExecutionPort as _;
+    use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+    use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
     let output = crate::outbound::execution::factory::direct().run(Invocation {
         executable: "/bin/sh".into(),
         arguments: vec!["-c".into(), "printf partial; kill -TERM $$".into()],

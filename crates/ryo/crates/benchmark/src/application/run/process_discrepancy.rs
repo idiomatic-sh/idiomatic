@@ -1,14 +1,14 @@
 //! Convert explicit process wire contracts; actual matching remains shared and byte-exact.
 use super::discrepancy::digest;
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::process::types::{
-        OutputPart, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
-    },
-};
 use crate::outbound::suite::types::process::{
     OutputPartWire, PathEncodingWire, ProcessArtifactWire, ProcessFailureWire,
 };
+use ryo_benchmark_contracts::domain::process::types::OutputPart;
+use ryo_benchmark_contracts::domain::process::types::PathEncoding;
+use ryo_benchmark_contracts::domain::process::types::ProcessArtifact;
+use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
+use ryo_benchmark_contracts::domain::process::types::ProcessObservation;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 fn artifact(value: ProcessArtifactWire) -> Result<ProcessArtifact, Error> {
     crate::domain::suite::service::relative_path(&value.path)?;
@@ -69,7 +69,7 @@ pub(super) fn convert(value: ProcessFailureWire) -> Result<ProcessFailure, Error
 /// Hash the exact template contract, without temporary physical roots.
 pub(super) fn output_digest(
     process: &ProcessFailure,
-) -> crate::domain::suite::types::ArtifactDigest {
+) -> ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest {
     let encode = |parts: &[OutputPart]| {
         parts.iter().map(|part| match part {
         OutputPart::Literal(value) => serde_json::json!({"kind":"literal", "value":value}),
@@ -83,22 +83,24 @@ pub(super) fn output_digest(
 
 /// Closed expectation lookup; a process failure is never a diagnostic report.
 pub(super) fn expected(
-    case: &crate::domain::suite::types::PreparedCase,
+    case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
 ) -> Option<&ProcessFailure> {
     match case
         .reference_discrepancy
         .as_ref()
         .map(|item| &item.expected)
     {
-        Some(crate::domain::suite::process::types::ReferenceExpectation::ProcessFailure(
-            process,
-        )) => Some(process),
+        Some(
+            ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::ProcessFailure(
+                process,
+            ),
+        ) => Some(process),
         _ => None,
     }
 }
 /// Require a completed numeric failure and every declared byte; no adapter error is itself evidence.
 pub(super) fn matches(
-    case: &crate::domain::suite::types::PreparedCase,
+    case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
     capture: &super::case_execution::Capture,
     validation: &serde_json::Value,
     suite: &dyn crate::outbound::suite::interface::SuitePort,
@@ -175,10 +177,10 @@ pub(super) fn matches(
 pub(super) fn validate_archives(
     suite: &dyn crate::outbound::suite::interface::SuitePort,
     profile_root: &std::path::Path,
-    profile: &crate::domain::suite::types::Tool,
-    case: &crate::domain::suite::types::PreparedCase,
-    identity: &crate::domain::suite::types::ReferenceDiscrepancyIdentity,
-    actual: &crate::domain::suite::types::ArtifactDigest,
+    profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+    identity: &ryo_benchmark_contracts::domain::workloads::types::ReferenceDiscrepancyIdentity,
+    actual: &ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
 ) -> Result<(), Error> {
     use crate::outbound::suite::types::{ArtifactPath, discrepancy::EvidenceArtifact};
     let process =
@@ -210,7 +212,8 @@ pub(super) fn validate_archives(
             artifacts.push(EvidenceArtifact {
                 path: artifact.path.clone(),
                 sha256: artifact.sha256.0.clone(),
-                requirement: crate::outbound::suite::types::discrepancy::EvidenceRequirement::Language,
+                requirement:
+                    crate::outbound::suite::types::discrepancy::EvidenceRequirement::Language,
             });
         }
     }
@@ -291,7 +294,7 @@ pub(super) fn validate_archives(
             metadata["environment"].clone(),
         )
         .map_err(|error| Error::Invalid(error.to_string()))?;
-        let invocation = crate::domain::measurements::types::Invocation {
+        let invocation = ryo_benchmark_contracts::domain::measurements::types::Invocation {
             executable: std::path::PathBuf::new(),
             arguments: arguments.into_iter().map(Into::into).collect(),
             environment: environment
@@ -323,7 +326,8 @@ pub(super) fn validate_archives(
 pub(super) fn group_digest(
     process: &ProcessFailure,
     executable: &str,
-) -> Result<crate::domain::suite::types::ArtifactDigest, Error> {
+) -> Result<ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest, Error>
+{
     let mut groups = std::collections::BTreeMap::<&str, usize>::new();
     let mut artifacts = std::collections::BTreeSet::new();
     for observation in &process.observations {

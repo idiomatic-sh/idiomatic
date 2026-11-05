@@ -1,9 +1,8 @@
 //! Stable optional input identity, distinct truth states and required-observation admission.
-use super::{
-    input_metadata::{digest, require},
-    types::FileObservation,
-};
+use super::input_metadata::digest;
+use super::input_metadata::require;
 use ryo::linter::RelativePath;
+use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
 use std::collections::BTreeMap;
 
 #[test]

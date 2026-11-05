@@ -18,7 +18,7 @@ pub fn process() -> impl super::interface::ExecutionPort {
 #[cfg(not(test))]
 pub fn timed(
     executable: std::path::PathBuf,
-    digest: crate::domain::suite::types::ArtifactDigest,
+    digest: ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
 ) -> impl super::interface::ExecutionPort {
     super::adapters::timed::adapter::ExecutionTimedAdapter::new(
         super::adapters::timed::settings::ExecutionTimedSettings { executable, digest },

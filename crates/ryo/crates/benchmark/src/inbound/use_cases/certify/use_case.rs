@@ -1,11 +1,10 @@
 //! Certification owns the workflow over suite, linter and execution contracts.
 use super::interface::CertifyUseCase;
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, suite::types::certificate::value::Certificate,
-};
+use crate::domain::suite::types::certificate::value::Certificate;
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Arc;
 /// Establish independent correctness evidence for the selected execution profile.
 pub struct CertifyUseCaseImpl {
@@ -46,8 +45,8 @@ impl CertifyUseCase for CertifyUseCaseImpl {
         candidate_executable: &std::path::Path,
         selected_rules: &std::path::Path,
         scratch: &std::path::Path,
-        scope: crate::domain::suite::types::BenchmarkCoverage,
-        cases: &crate::domain::suite::types::CertificationCases,
+        scope: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
+        cases: &ryo_benchmark_contracts::domain::requests::types::CertificationCases,
     ) -> Result<Certificate, Error> {
         super::service::certify(
             self.suite.as_ref(),

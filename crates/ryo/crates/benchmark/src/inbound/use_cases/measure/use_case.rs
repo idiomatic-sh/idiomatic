@@ -1,17 +1,19 @@
 //! Both contestants use the same execution implementation.
 use super::interface::MeasureUseCase;
-use crate::domain::measurements::types::{RunOrder, pair::value::Pair};
+use crate::domain::measurements::types::pair::value::Pair;
 use crate::domain::suite::types::certificate::value::Certificate;
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::RunRequest};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::{execution::interface::ExecutionPort, linter::interface::LinterPort};
+use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::sync::Arc;
 /// Release paired process observations only after the correctness gate succeeds.
 pub struct MeasureUseCaseImpl {
     /// Pinned reference tool preparation and decoding boundary.
     reference: Arc<dyn LinterPort>,
     /// Required workload meaning, independent of timing/collector choices.
-    mode: crate::domain::measurements::types::MeasurementMode,
+    mode: ryo_benchmark_contracts::domain::measurements::types::MeasurementMode,
     /// Candidate tool preparation and decoding boundary.
     candidate: Arc<dyn LinterPort>,
     /// Process launch and resource observation boundary.
@@ -27,7 +29,7 @@ impl MeasureUseCaseImpl {
         candidate: Arc<dyn LinterPort>,
         execution: Arc<dyn ExecutionPort>,
         suite: Arc<dyn SuitePort>,
-        mode: crate::domain::measurements::types::MeasurementMode,
+        mode: ryo_benchmark_contracts::domain::measurements::types::MeasurementMode,
     ) -> Self {
         Self {
             reference,

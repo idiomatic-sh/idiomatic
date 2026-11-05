@@ -1,5 +1,6 @@
 //! Private TOML DTOs map to canonical benchmark values at this boundary.
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -302,7 +303,13 @@ impl TryFrom<ToolSchema> for types::Tool {
 /// Expand grouped capabilities while rejecting duplicate rule membership.
 fn dispositions(
     groups: BTreeMap<String, Vec<String>>,
-) -> Result<BTreeMap<ryo::linter::RuleId, types::CapabilityName>, Error> {
+) -> Result<
+    BTreeMap<
+        ryo::linter::RuleId,
+        ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName,
+    >,
+    Error,
+> {
     let mut rules = BTreeMap::new();
     for (capability, members) in groups {
         if capability.is_empty()
@@ -317,7 +324,7 @@ fn dispositions(
         }
         for value in members {
             if rules
-                .insert(rule(&value)?, types::CapabilityName(capability.clone()))
+                .insert(rule(&value)?, ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(capability.clone()))
                 .is_some()
             {
                 return Err(Error::Invalid(
@@ -451,10 +458,10 @@ impl TryFrom<CasesSchema> for types::Cases {
                                         None => types::ExpectedRule::Parent,
                                     },
                                     file: ryo::linter::RelativePath(expected.file.into_boxed_str()),
-                                    start: crate::domain::diagnostics::types::SourceByteOffset(
+                                    start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
                                         expected.start,
                                     ),
-                                    end: crate::domain::diagnostics::types::SourceByteOffset(
+                                    end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
                                         expected.end,
                                     ),
                                 })
@@ -493,7 +500,7 @@ enum ContextBytes {
     /// Exact bytes, including malformed UTF-8 controls.
     Bytes(Vec<u8>),
 }
-impl From<CaseContextSchema> for types::CaseContext {
+impl From<CaseContextSchema> for ryo_benchmark_contracts::domain::context::types::CaseContext {
     fn from(value: CaseContextSchema) -> Self {
         Self {
             logical_root: value.logical_root,
@@ -585,7 +592,10 @@ enum ObservationProducerSchema {
 /// Convert checked identities while leaving actual producer/schema validation to request compilation.
 fn observation_declarations(
     declarations: std::collections::BTreeMap<String, Vec<ObservationBindingSchema>>,
-) -> Result<crate::domain::suite::types::RuleObservationDeclarations, String> {
+) -> Result<
+    ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+    String,
+>{
     use ryo::linter::{
         ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
         ObservationKind, ObservationName, ObservationProducer, RuleId,
@@ -660,7 +670,9 @@ struct RuleConfigurationSchema {
     #[serde(rename = "disabled-rules")]
     disabled_rules: std::collections::BTreeMap<String, Vec<String>>,
 }
-impl From<RuleContextTablesSchema> for crate::domain::suite::types::RuleContextTables {
+impl From<RuleContextTablesSchema>
+    for ryo_benchmark_contracts::domain::context::ryo_benchmark_contracts::domain::context::types::RuleContextTables
+{
     fn from(value: RuleContextTablesSchema) -> Self {
         Self {
             selected: value.selected,
@@ -669,7 +681,9 @@ impl From<RuleContextTablesSchema> for crate::domain::suite::types::RuleContextT
         }
     }
 }
-impl TryFrom<RuleConfigurationSchema> for crate::domain::suite::types::RuleConfiguration {
+impl TryFrom<RuleConfigurationSchema>
+    for ryo_benchmark_contracts::domain::context::ryo_benchmark_contracts::domain::context::types::RuleConfiguration
+{
     type Error = String;
     fn try_from(value: RuleConfigurationSchema) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -700,7 +714,9 @@ struct RuleContextDeclarationSchema {
     tables: RuleContextTablesSchema,
     defaults: RuleConfigurationSchema,
 }
-impl TryFrom<RuleContextDeclarationSchema> for crate::domain::suite::types::RuleContextDeclaration {
+impl TryFrom<RuleContextDeclarationSchema>
+    for ryo_benchmark_contracts::domain::context::ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration
+{
     type Error = String;
     fn try_from(value: RuleContextDeclarationSchema) -> Result<Self, Self::Error> {
         Ok(Self {

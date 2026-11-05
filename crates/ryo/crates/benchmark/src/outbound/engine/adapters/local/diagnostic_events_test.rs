@@ -26,7 +26,7 @@ fn diagnostic_subscriber_writes_readable_jsonl_events() -> Result<(), Box<dyn st
     let path = directory.path().join("events.jsonl");
     let dispatch = tracing::Dispatch::new(subscriber(
         &path,
-        crate::domain::suite::types::DiagnosticOptions {
+        ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
             execution: true,
             steps: true,
             ..Default::default()
@@ -55,7 +55,7 @@ fn diagnostic_subscriber_records_step_events_with_nested_context()
     let path = directory.path().join("events.jsonl");
     let dispatch = tracing::Dispatch::new(subscriber(
         &path,
-        crate::domain::suite::types::DiagnosticOptions {
+        ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
             execution: true,
             steps: true,
             ..Default::default()
@@ -129,7 +129,7 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
         let path = directory.path().join(format!("{level}.jsonl"));
         let dispatch = tracing::Dispatch::new(super::subscriber(
             &path,
-            crate::domain::suite::types::DiagnosticOptions {
+            ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
                 execution: level == tracing_subscriber::filter::LevelFilter::TRACE,
                 ..Default::default()
             },
@@ -184,7 +184,7 @@ fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
     let path = directory.path().join("lifecycle.jsonl");
     let dispatch = tracing::Dispatch::new(super::subscriber(
         &path,
-        crate::domain::suite::types::DiagnosticOptions {
+        ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
             execution: true,
             lifecycle_memory: true,
             ..Default::default()
@@ -216,7 +216,7 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
         let path = directory.path().join("routes.jsonl");
         let dispatch = tracing::Dispatch::new(super::subscriber(
             &path,
-            crate::domain::suite::types::DiagnosticOptions {
+            ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
                 resource_routes: enabled,
                 ..Default::default()
             },

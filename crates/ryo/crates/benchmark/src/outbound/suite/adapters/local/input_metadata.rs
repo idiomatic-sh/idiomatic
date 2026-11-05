@@ -1,5 +1,6 @@
 //! Physical observation and staging, confined to the suite's filesystem edge.
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::RunRequest};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::path::Path;
 
 #[cfg(unix)]

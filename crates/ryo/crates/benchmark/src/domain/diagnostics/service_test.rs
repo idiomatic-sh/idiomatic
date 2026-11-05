@@ -1,7 +1,7 @@
 //! Exact diagnostic multisets and submitted-file sets determine agreement.
 use super::service::compare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::types::RunReport;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 type Input = (RunReport, RunReport);
 type Value = ();
 type Failure = ();
@@ -27,11 +27,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn duplicate() -> Input {
     let (mut reference, mut candidate) = matching();
-    let finding = crate::domain::diagnostics::types::BenchmarkFinding {
+    let finding = ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from("A").expect("fixture rule"),
         file: ryo::linter::RelativePath("input.txt".into()),
-        start: crate::domain::diagnostics::types::SourceByteOffset(0),
-        end: crate::domain::diagnostics::types::SourceByteOffset(1),
+        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1),
     };
     reference.diagnostics = vec![finding.clone()];
     candidate.diagnostics = vec![finding.clone(), finding];
@@ -39,16 +39,19 @@ fn duplicate() -> Input {
 }
 fn matching() -> Input {
     let report = RunReport {
-        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+        execution_metadata:
+            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
         project_context: None,
         files: vec![ryo::linter::RelativePath("input.txt".into())],
         skipped: Vec::new(),
-        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
-        }),
+        coverage: Some(
+            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: 1,
+                evaluated: 1,
+                skipped: 0,
+                unknown_or_unread: 0,
+            },
+        ),
         diagnostics: Vec::new(),
     };
     (report.clone(), report)
@@ -77,7 +80,9 @@ fn refuses() {
 #[test]
 fn unavailable_or_missing_reference_metadata_is_incomparable_not_known_zero() {
     use super::service::{compare_dimensions, compare_with_contract};
-    use super::types::{Comparison, ComparisonContract, ExecutionMetadata};
+    use ryo_benchmark_contracts::domain::reports::types::Comparison;
+    use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
+    use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
     for capability in [
         ExecutionMetadata::Unknown,
         ExecutionMetadata::Unavailable {
@@ -103,7 +108,8 @@ fn unavailable_or_missing_reference_metadata_is_incomparable_not_known_zero() {
 #[test]
 fn unavailable_reference_never_waives_candidate_execution_requirements() {
     use super::service::compare_with_contract;
-    use super::types::{ComparisonContract, ExecutionMetadata};
+    use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
+    use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
     let (mut reference, valid) = matching();
     reference.execution_metadata = ExecutionMetadata::Unavailable {
         reason: "findings-only".into(),
@@ -145,7 +151,8 @@ fn unavailable_reference_never_waives_candidate_execution_requirements() {
 #[test]
 fn known_execution_difference_fails_even_when_diagnostic_multisets_match() {
     use super::service::{compare_dimensions, compare_with_contract};
-    use super::types::{Comparison, ComparisonContract};
+    use ryo_benchmark_contracts::domain::reports::types::Comparison;
+    use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
     let (reference, mut candidate) = matching();
     candidate.skipped.push(ryo::linter::Skipped {
         rule: ryo::linter::RuleId::try_from("A").expect("fixture rule"),

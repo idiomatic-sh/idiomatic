@@ -1,11 +1,6 @@
 //! Query loading, compilation and SDK startup occur inside the measured child.
 use super::constants;
-use crate::domain::diagnostics::{
-    errors::DiagnosticsError as Error,
-    types::{BenchmarkFinding, RunReport},
-};
 use crate::domain::suite::service::relative_path;
-use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::factory::FrontendDiagnosticProjection;
 use crate::outbound::engine::types::PreparedMissingInputs;
 use ryo::linter::{
@@ -13,6 +8,10 @@ use ryo::linter::{
     RuleApplicability, RuleId, Slot, SourceText, WorkerPool, Workers,
 };
 use ryo::query::RyoQlQuery;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::path::Path;
@@ -65,7 +64,9 @@ impl EngineLocalAdapter {
         registry: &BTreeMap<String, std::path::PathBuf>,
         applicability_by_rule: &BTreeMap<String, String>,
         frontend_diagnostic: Option<FrontendDiagnosticProjection>,
-        declarations: Option<&crate::domain::suite::types::RuleObservationDeclarations>,
+        declarations: Option<
+            &ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+        >,
     ) -> Result<BTreeMap<RuleId, Rule>, Error> {
         let modules = query_modules(directory, registry)?;
         let mut rules = BTreeMap::new();
@@ -254,14 +255,16 @@ impl EnginePort for EngineLocalAdapter {
         let (sources, accepted) = source_inputs(&request, &selected_missing)?;
         let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
         let cache = match request.state {
-            crate::domain::suite::types::WorkerState::Fresh => Cache::None,
-            crate::domain::suite::types::WorkerState::Retained(path) => Cache::At(path),
+            ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh => Cache::None,
+            ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
+                Cache::At(path)
+            }
         };
         let (corpus, beside) = match request.project_context_mode {
-            crate::domain::suite::types::ProjectContextMode::Isolated => {
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated => {
                 (Corpus::Given(sources), vec![])
             }
-            crate::domain::suite::types::ProjectContextMode::ListedDisk => {
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk => {
                 (Corpus::Listed(request.files.clone()), sources)
             }
         };
@@ -324,18 +327,21 @@ impl EnginePort for EngineLocalAdapter {
             .transpose()?;
         let diagnostics = diagnostic_findings(report.findings)?;
         Ok(RunReport {
-            execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+            execution_metadata:
+                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context,
             diagnostics,
             skipped: report.skipped,
-            coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-                selected: selected_pairs,
-                evaluated: selected_pairs.checked_sub(skips_count).ok_or_else(|| {
-                    Error::Invalid("skipped rule pairs exceed the configured selection".into())
-                })?,
-                skipped: skips_count,
-                unknown_or_unread: 0,
-            }),
+            coverage: Some(
+                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                    selected: selected_pairs,
+                    evaluated: selected_pairs.checked_sub(skips_count).ok_or_else(|| {
+                        Error::Invalid("skipped rule pairs exceed the configured selection".into())
+                    })?,
+                    skipped: skips_count,
+                    unknown_or_unread: 0,
+                },
+            ),
             files: accepted.into_iter().collect(),
         })
     }
@@ -385,8 +391,11 @@ fn query_modules(
 /// Require the declared context mode and exact source inventory before initializing the SDK.
 fn validate_context(request: &WorkerRequest) -> Result<(), Error> {
     match (request.project_context_mode, &request.context_manifest) {
-        (crate::domain::suite::types::ProjectContextMode::Isolated, None) => {}
-        (crate::domain::suite::types::ProjectContextMode::ListedDisk, Some(manifest)) => {
+        (ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated, None) => {}
+        (
+            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
+            Some(manifest),
+        ) => {
             crate::outbound::context::adapters::local::adapter::validate(manifest, &request.root)?;
         }
         _ => {
@@ -461,10 +470,10 @@ fn diagnostic_findings(findings: Vec<linter::Finding>) -> Result<Vec<BenchmarkFi
         diagnostics.push(BenchmarkFinding {
             rule: finding.rule,
             file,
-            start: crate::domain::diagnostics::types::SourceByteOffset(
+            start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
                 usize::try_from(span.start.0).map_err(|error| Error::Invalid(error.to_string()))?,
             ),
-            end: crate::domain::diagnostics::types::SourceByteOffset(
+            end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
                 usize::try_from(span.end.0).map_err(|error| Error::Invalid(error.to_string()))?,
             ),
         });

@@ -1,7 +1,7 @@
 //! Boundary and validation failures never turn into empty reports.
 /// Errors always prevent a correctness or performance result.
 #[derive(Debug, thiserror::Error)]
-pub enum DiagnosticsError {
+pub enum ReportsError {
     /// A benchmark input, tool result or comparison violates its required contract.
     #[error("{0}")]
     Invalid(String),

@@ -52,7 +52,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     || request.files == [ryo::linter::RelativePath("source.py".into())])
                 && matches!(
                     request.state,
-                    crate::domain::suite::types::WorkerState::Fresh
+                    ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh
                 )
         })
         .map_err(|error| match error {

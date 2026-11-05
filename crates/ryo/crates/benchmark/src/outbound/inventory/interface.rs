@@ -1,5 +1,8 @@
 //! Injected inventory artifact boundary; no domain or application imports.
-use super::types::{CapturedObservation, Registration, Row, Summary};
+use super::types::CapturedObservation;
+use super::types::Registration;
+use super::types::Row;
+use super::types::Summary;
 use std::path::Path;
 
 /// Read registrations and persist exact inventory observations.

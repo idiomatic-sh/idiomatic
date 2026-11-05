@@ -1,8 +1,10 @@
 //! Registered certification retains independent artifact namespaces and refuses changed authority.
 use super::{interface::CertifyUseCase as _, use_case::CertifyUseCaseImpl};
-use crate::domain::suite::types::{BenchmarkCoverage, CertificationCases};
-use crate::domain::{diagnostics::errors::DiagnosticsError, measurements::types::*};
 use crate::outbound::execution::interface::ExecutionPort;
+use ryo_benchmark_contracts::domain::measurements::types::*;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use ryo_benchmark_contracts::domain::requests::types::CertificationCases;
 use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
 use std::{
@@ -20,7 +22,7 @@ impl ExecutionPort for Native {
     fn profile(&self) -> ExecutionProfile {
         ExecutionProfile::Wall
     }
-    fn run(&self, request: Invocation) -> Result<ProcessOutput, DiagnosticsError> {
+    fn run(&self, request: Invocation) -> Result<ProcessOutput, ReportsError> {
         *self.launches.lock().unwrap() += 1;
         assert_eq!(request.executable, self.worker);
         assert_eq!(request.arguments[1], self.reference.as_os_str());
@@ -139,23 +141,20 @@ impl Fixture {
     }
     fn certify(
         &self,
-    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, DiagnosticsError>
-    {
+    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
         self.certify_profile(&self.profile)
     }
     fn certify_profile(
         &self,
         measured_profile: &Path,
-    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, DiagnosticsError>
-    {
+    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
         self.certify_profile_rules(measured_profile, &self.profile.join("rules"))
     }
     fn certify_profile_rules(
         &self,
         measured_profile: &Path,
         selected_rules: &Path,
-    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, DiagnosticsError>
-    {
+    ) -> Result<crate::domain::suite::types::certificate::value::Certificate, ReportsError> {
         let operation = CertifyUseCaseImpl::new(
             Arc::new(crate::outbound::suite::factory::local()),
             Arc::new(crate::outbound::linter::fixtures::fake::LinterFake::default()),

@@ -1,12 +1,9 @@
 //! The isolated process composes protocol validation with direct child execution.
 use super::interface::CollectUseCase;
-use crate::{
-    domain::diagnostics::errors::DiagnosticsError,
-    outbound::{
-        collection::{interface::CollectionPort, types::CollectorMessage},
-        execution::interface::ExecutionPort,
-    },
-};
+use crate::outbound::collection::interface::CollectionPort;
+use crate::outbound::collection::types::CollectorMessage;
+use crate::outbound::execution::interface::ExecutionPort;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::sync::Arc;
 /// Collector operation with explicit boundaries.
 pub struct CollectUseCaseImpl {
@@ -29,7 +26,7 @@ impl std::fmt::Debug for CollectUseCaseImpl {
     }
 }
 impl CollectUseCase for CollectUseCaseImpl {
-    fn collect(&self, request: &CollectorMessage) -> Result<CollectorMessage, DiagnosticsError> {
+    fn collect(&self, request: &CollectorMessage) -> Result<CollectorMessage, ReportsError> {
         let invocation = self.codec.invocation(request)?;
         self.codec.response(self.execution.run(invocation))
     }

@@ -3,13 +3,14 @@ use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use super::constants;
 use super::diagnostic_protocol::WorkerTracing;
 use super::request_input::{BenchmarkArgument, worker_input};
-use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
-use ryo_benchmark::domain::suite::types::CaseCount;
-use ryo_benchmark::domain::suite::types::Tool;
+use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
 use ryo_benchmark::outbound::suite::{interface::SuitePort, types::ArtifactPath};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{path::PathBuf, sync::Arc};
 
 /// Execute one explicit child request, optionally writing a separately labelled trace.
@@ -148,7 +149,10 @@ pub(super) fn verify_cases(
     let source_language = tool.source_language.clone();
     let project_context_mode = tool.project_context_mode;
     suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
-    let audit = suite_source.audit(ArtifactPath(&source), &tool)?;
+    let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
+        Arc::clone(&suite_source),
+    )
+    .audit(&source, &tool)?;
     ryo_benchmark::domain::suite::service::require_accounted(&audit, &tool)?;
     tool.defaults = audit.authored().to_vec();
     let candidate_defaults = tool.defaults.clone();
@@ -161,8 +165,8 @@ pub(super) fn verify_cases(
     suite_source.stage(
         ArtifactPath(&source),
         ArtifactPath(&profile),
-        &audit,
-        ryo_benchmark::domain::suite::types::StagePurpose::Certification,
+        audit.authored(),
+        ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
     )?;
     let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
         std::env::current_exe()?,
@@ -211,7 +215,7 @@ fn parse_shard(value: &str) -> Result<ryo_benchmark::application::run::service::
 /// Validate authored fixture expectations against Ruff without loading a Ryo candidate.
 pub(super) fn verify_reference_cases(
     mut args: impl Iterator<Item = BenchmarkArgument>,
-) -> Result<ryo_benchmark::domain::suite::types::ReferenceCaseCount, Error> {
+) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, Error>{
     let suite_source = ryo_benchmark::outbound::suite::factory::local();
     let execution = ryo_benchmark::outbound::execution::factory::process();
     let executable = PathBuf::from(
@@ -287,7 +291,7 @@ pub(super) struct CollectorIdentity {
     /// Frozen native collector path.
     pub executable: PathBuf,
     /// Digest computed from the copied bytes.
-    pub digest: ryo_benchmark::domain::suite::types::ArtifactDigest,
+    pub digest: ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
 }
 
 /// Compose the isolated collector and expose its exact identity in observations.
@@ -308,11 +312,14 @@ pub(super) fn timed(
 
 /// Report authored coverage while refusing unaccounted shipped defaults.
 pub(super) fn audit(
-    suite_source: &dyn SuitePort,
+    suite_source: &Arc<dyn SuitePort>,
     output: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
     let tool = suite_source.profile(ArtifactPath(&directory()))?;
-    let result = suite_source.audit(ArtifactPath(&directory()), &tool)?;
+    let result = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
+        Arc::clone(suite_source),
+    )
+    .audit(&directory(), &tool)?;
     writeln!(
         output,
         "{} {}: {} queries authored / {} shipped defaults (not a parity certificate)",
@@ -327,17 +334,17 @@ pub(super) fn audit(
 /// Select the declared generic corpus mode and delegate all observation to the shared suite boundary.
 pub(super) fn seal_context(
     suite: &dyn ryo_benchmark::outbound::suite::interface::SuitePort,
-    mode: ryo_benchmark::domain::suite::types::ProjectContextMode,
+    mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
     root: &std::path::Path,
     files: &[ryo::linter::RelativePath],
     tracked: &[std::path::PathBuf],
 ) -> Result<
-    Option<ryo_benchmark::domain::suite::types::ContextManifest>,
-    ryo_benchmark::domain::diagnostics::errors::DiagnosticsError,
+    Option<ryo_benchmark_contracts::domain::context::types::ContextManifest>,
+    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
 > {
     match mode {
-        ryo_benchmark::domain::suite::types::ProjectContextMode::Isolated => Ok(None),
-        ryo_benchmark::domain::suite::types::ProjectContextMode::ListedDisk => suite
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated => Ok(None),
+        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk => suite
             .seal_context(
                 ryo_benchmark::outbound::suite::types::ArtifactPath(root),
                 files,

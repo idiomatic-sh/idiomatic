@@ -1,7 +1,8 @@
 //! Execute the candidate through the public SDK.
 use super::types::PreparedMissingInputs;
-use crate::domain::diagnostics::{errors::DiagnosticsError as Error, types::RunReport};
-use crate::domain::suite::types::WorkerRequest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 /// Execute candidate rules through the public SDK.
 pub trait EnginePort {
     /// Evaluate a worker request and return its complete canonical report.

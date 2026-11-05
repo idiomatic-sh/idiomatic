@@ -1,10 +1,12 @@
 //! Decode native execution evidence into the existing typed comparison contract.
 use serde_json::Value;
 
-use crate::domain::diagnostics::{
-    service::compare_with_contract,
-    types::{Comparison, ComparisonContract, ExecutionMetadata, RuleCoverage, RunReport},
-};
+use crate::domain::diagnostics::service::compare_with_contract;
+use ryo_benchmark_contracts::domain::reports::types::Comparison;
+use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
+use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
+use ryo_benchmark_contracts::domain::reports::types::RuleCoverage;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 
 pub(super) fn contract(value: &Value) -> Result<ComparisonContract, String> {
     match value.as_str() {
@@ -15,8 +17,10 @@ pub(super) fn contract(value: &Value) -> Result<ComparisonContract, String> {
 }
 
 fn report(row: &Value) -> Result<RunReport, String> {
-    let metadata: ExecutionMetadata = serde_json::from_value(row["execution_metadata"].clone())
-        .map_err(|_| "missing or malformed execution capability")?;
+    let metadata: crate::outbound::worker::schemas::ExecutionMetadataSchema =
+        serde_json::from_value(row["execution_metadata"].clone())
+            .map_err(|_| "missing or malformed execution capability")?;
+    let metadata: ExecutionMetadata = metadata.into();
     if matches!(metadata, ExecutionMetadata::Unknown)
         || matches!(&metadata, ExecutionMetadata::Unavailable { reason } if reason.trim().is_empty())
     {

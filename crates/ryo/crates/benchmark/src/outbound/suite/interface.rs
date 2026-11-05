@@ -1,17 +1,18 @@
 //! Load and validate the suite's external artifacts.
-use super::types::{ArtifactPath, ArtifactSet};
-use crate::domain::suite::types::audit::value::Audit;
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::types::{ArtifactDigest, Suite, Tool},
-};
+use super::types::ArtifactPath;
+use super::types::ArtifactSet;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
+use ryo_benchmark_contracts::domain::workloads::types::Suite;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
 /// Read external suite artifacts and audit their authored default coverage.
 pub trait SuitePort {
     /// Reverify declared physical observations before each contestant prepares its input.
     /// Legacy adapters may handle unspecified metadata; they cannot certify explicit observations.
     fn validate_file_metadata(
         &self,
-        request: &crate::domain::suite::types::RunRequest,
+        request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error> {
         if request.file_metadata.is_some() {
             Err(Error::Invalid(
@@ -139,7 +140,7 @@ pub trait SuitePort {
         root: ArtifactPath<'_>,
         sources: &[ryo::linter::RelativePath],
         tracked: &[std::path::PathBuf],
-    ) -> Result<crate::domain::suite::types::ContextManifest, Error>;
+    ) -> Result<ryo_benchmark_contracts::domain::context::types::ContextManifest, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors
@@ -149,8 +150,8 @@ pub trait SuitePort {
         &self,
         directory: ArtifactPath<'_>,
         destination: ArtifactPath<'_>,
-        audit: &Audit,
-        purpose: crate::domain::suite::types::StagePurpose,
+        authored: &[ryo::linter::RuleId],
+        purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error>;
     /// Materialize the snapshot's independent case sources without executing contestants.
     ///
@@ -161,12 +162,12 @@ pub trait SuitePort {
         &self,
         rules: ArtifactPath<'_>,
         scratch: ArtifactPath<'_>,
-    ) -> Result<Vec<crate::domain::suite::types::PreparedCase>, Error>;
+    ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, Error>;
 
     /// Validate authored queries and cases against the pinned default inventory.
     ///
     /// # Errors
     ///
     /// Returns an error for invalid artifacts, unsupported rule identities or unreadable inputs.
-    fn audit(&self, directory: ArtifactPath<'_>, tool: &Tool) -> Result<Audit, Error>;
+    fn audit(&self, directory: ArtifactPath<'_>, tool: &Tool) -> Result<AuthoredInventory, Error>;
 }

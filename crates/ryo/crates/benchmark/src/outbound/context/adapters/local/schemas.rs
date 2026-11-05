@@ -1,8 +1,8 @@
 //! Explicit context wire values shared by the two worker schemas.
-use crate::domain::{
-    diagnostics::types::ProjectContextReceipt,
-    suite::types::{ArtifactDigest, ContextManifest, ProjectContextMode},
-};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
 

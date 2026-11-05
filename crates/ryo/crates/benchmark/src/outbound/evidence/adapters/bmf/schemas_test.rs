@@ -1,10 +1,10 @@
 //! Independent BMF expectations cover aggregation and absent observations.
 use super as schemas;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
-    diagnostics::types::RunReport,
-    measurements::types::{Measurement, Resources, sample::value::BenchmarkSample},
-};
+use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::measurements::types::{PublicationSample, SampleName};
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use std::time::Duration;
 
 #[derive(Clone, Copy)]
@@ -46,20 +46,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
     let samples: Vec<_> = [2, 8, 4, 6]
         .into_iter()
-        .map(|millis| BenchmarkSample {
-            eligibility:
-                crate::domain::measurements::types::MeasurementEligibility::CompleteInventory,
-            name: crate::domain::measurements::types::SampleName(
+        .map(|millis| SampleInput {
+            complete_inventory:true,
+            name: ryo_benchmark_contracts::domain::measurements::types::SampleName(
                 "project/ryo/empty-tool-cache".into(),
             ),
             measurement: Measurement {
                 wall: Duration::from_millis(millis),
                 resources: if matches!(scenario, Scenario::Absent) {
-                    crate::domain::measurements::types::ResourceObservation::WallOnly
+                    ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly
                 } else {
-                    crate::domain::measurements::types::ResourceObservation::Collected(Resources {
+                    ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(Resources {
                         cpu: Duration::from_millis(millis * 2),
-                        peak_rss_bytes: crate::domain::measurements::types::ResidentBytes(
+                        peak_rss_bytes: ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(
                             if matches!(scenario, Scenario::InexactResident) {
                                 super::super::constants::MAX_EXACT_RESIDENT + 1
                             } else {
@@ -70,7 +69,7 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
                 },
                 report: RunReport {
                     execution_metadata:
-                        crate::domain::diagnostics::types::ExecutionMetadata::Unknown,
+                        ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
                     project_context: None,
                     skipped: Vec::new(),
                     coverage: None,
@@ -80,23 +79,29 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
             },
         })
         .collect();
-    let bytes = schemas::encode(&samples).map_err(|error| {
-        use crate::domain::diagnostics::errors::DiagnosticsError;
+    let bytes = schemas::encode(
+        &samples
+            .iter()
+            .map(SampleInput::publication)
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|error| {
+        use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
         match error {
-            DiagnosticsError::Invalid(message)
+            ReportsError::Invalid(message)
                 if message == super::super::constants::INEXACT_RESIDENT =>
             {
                 Failure::Inexact
             }
-            DiagnosticsError::Invalid(message)
+            ReportsError::Invalid(message)
                 if message == super::super::constants::MISSING_RESOURCES =>
             {
                 Failure::Absent
             }
-            DiagnosticsError::Invalid(_)
-            | DiagnosticsError::Io(_)
-            | DiagnosticsError::Json(_)
-            | DiagnosticsError::Toml(_) => Failure::Unexpected,
+            ReportsError::Invalid(_)
+            | ReportsError::Io(_)
+            | ReportsError::Json(_)
+            | ReportsError::Toml(_) => Failure::Unexpected,
         }
     })?;
     let actual: serde_json::Value = serde_json::from_slice(&bytes).expect("BMF JSON");
@@ -115,4 +120,21 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// Owned test data, not a certification or measurement proof.
+#[derive(Clone)]
+struct SampleInput {
+    complete_inventory: bool,
+    name: SampleName,
+    measurement: Measurement,
+}
+impl SampleInput {
+    fn publication(&self) -> PublicationSample<'_> {
+        PublicationSample {
+            complete_inventory: self.complete_inventory,
+            name: &self.name,
+            measurement: &self.measurement,
+        }
+    }
 }

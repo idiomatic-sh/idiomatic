@@ -1,7 +1,9 @@
 //! Read-only access preserves the issued observation when cloned.
 use super::value::BenchmarkSample;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::measurements::types::{Measurement, ResourceObservation, SampleName};
+use ryo_benchmark_contracts::domain::measurements::types::Measurement;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::measurements::types::SampleName;
 
 const CASES: &[Case<(), u128, ()>] = &[Case {
     name: CaseName("cloning retains the original observation"),
@@ -20,22 +22,28 @@ fn succeeds() {
             measurement: Measurement {
                 wall: std::time::Duration::from_millis(11),
                 resources: ResourceObservation::WallOnly,
-                report: crate::domain::diagnostics::types::RunReport {
+                report: ryo_benchmark_contracts::domain::reports::types::RunReport {
                     execution_metadata:
-                        crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+                        ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                     project_context: None,
                     files: vec![],
                     skipped: Vec::new(),
-                    coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-                        selected: 1,
-                        evaluated: 1,
-                        skipped: 0,
-                        unknown_or_unread: 0,
-                    }),
+                    coverage: Some(
+                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: 1,
+                            evaluated: 1,
+                            skipped: 0,
+                            unknown_or_unread: 0,
+                        },
+                    ),
                     diagnostics: vec![],
                 },
             },
         };
+        let projected = original.publication();
+        assert!(projected.complete_inventory);
+        assert!(std::ptr::eq(projected.measurement, original.measurement()));
+        assert!(std::ptr::eq(projected.name, original.name()));
         let cloned = original.clone();
         assert_eq!(cloned.name(), original.name());
         Ok(cloned.measurement().wall.as_millis())

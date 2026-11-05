@@ -1,34 +1,38 @@
 //! Independent output contracts and native executable portability remain strict.
 use super::*;
-use crate::domain::suite::types::{
-    PreparedReferenceDiscrepancy, ProjectContextMode, ReferenceDiscrepancyIdentity, RunRequest,
-    Tool,
-};
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy;
+use ryo_benchmark_contracts::domain::workloads::types::ReferenceDiscrepancyIdentity;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
 
 /// Minimal distinct intended/reference outputs with complete input coverage.
 fn case() -> PreparedCase {
     let report = RunReport {
-        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+        execution_metadata:
+            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
         project_context: None,
         diagnostics: Vec::new(),
         skipped: Vec::new(),
-        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
-        }),
+        coverage: Some(
+            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: 1,
+                evaluated: 1,
+                skipped: 0,
+                unknown_or_unread: 0,
+            },
+        ),
         files: vec![ryo::linter::RelativePath("case.py".into())],
     };
     let mut reference = report.clone();
-    reference
-        .diagnostics
-        .push(crate::domain::diagnostics::types::BenchmarkFinding {
+    reference.diagnostics.push(
+        ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
             rule: ryo::linter::RuleId::try_from("F821").expect("valid ID"),
             file: report.files[0].clone(),
-            start: crate::domain::diagnostics::types::SourceByteOffset(0),
-            end: crate::domain::diagnostics::types::SourceByteOffset(1),
-        });
+            start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+            end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1),
+        },
+    );
     PreparedCase {
         comparison: CaseComparison::Full,
         rule: ryo::linter::RuleId::try_from("F821").expect("valid ID"),
@@ -49,10 +53,12 @@ fn case() -> PreparedCase {
         },
         expected: report,
         reference_discrepancy: Some(PreparedReferenceDiscrepancy {
-            basis: crate::domain::suite::types::DiscrepancyBasis::LanguageDefect,
-            expected: crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(
-                reference,
-            ),
+            basis:
+                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
+            expected:
+                ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(
+                    reference,
+                ),
             identity: identity(),
             evidence: Vec::new(),
             reason: "independent language contract".into(),
@@ -108,9 +114,9 @@ fn approved_platform_digest_can_differ_from_observed_evidence_binary() {
     let identity = identity();
     let profile = Tool {
         rule_observation_selection:
-            crate::domain::suite::types::ObservationSelectionPolicy::Declared,
+            ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
-        rule_observations: std::collections::BTreeMap::new(),
+        rule_observations: Default::default(),
         rule_context: None,
         file_observation: None,
         project_context_mode: ProjectContextMode::Isolated,
@@ -167,19 +173,21 @@ fn unknown_missing_and_inconsistent_accounting_never_admit_discrepancies() {
         complete(&case, &report, true).is_err(),
         "candidate accounting is mandatory"
     );
-    report.coverage = Some(crate::domain::diagnostics::types::RuleCoverage {
-        selected: 1,
-        evaluated: 1,
-        skipped: 0,
-        unknown_or_unread: 0,
-    });
+    report.coverage = Some(
+        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+            selected: 1,
+            evaluated: 1,
+            skipped: 0,
+            unknown_or_unread: 0,
+        },
+    );
     assert!(
         complete(&case, &report, true).is_ok(),
         "complete candidate is admissible"
     );
     for unavailable in [
-        crate::domain::diagnostics::types::ExecutionMetadata::Unknown,
-        crate::domain::diagnostics::types::ExecutionMetadata::Unavailable {
+        ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
+        ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
             reason: "not observed".into(),
         },
     ] {
@@ -189,7 +197,8 @@ fn unknown_missing_and_inconsistent_accounting_never_admit_discrepancies() {
             "candidate capability must be explicitly complete"
         );
     }
-    report.execution_metadata = crate::domain::diagnostics::types::ExecutionMetadata::Complete;
+    report.execution_metadata =
+        ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete;
     report
         .coverage
         .as_mut()
@@ -219,9 +228,10 @@ fn missing_evidence_rule_projection_and_vacuous_outputs_fail_before_execution() 
     case.reference_discrepancy
         .as_mut()
         .expect("discrepancy")
-        .expected = crate::domain::suite::process::types::ReferenceExpectation::Diagnostics(
-        case.expected.clone(),
-    );
+        .expected =
+        ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(
+            case.expected.clone(),
+        );
     assert!(
         validate(&suite, &reference, Path::new("rules"), &case).is_err(),
         "identical outputs are not a discrepancy"
@@ -248,11 +258,11 @@ fn canonical_unicode_multisets_match_the_python_certificate_encoding() {
         ryo::linter::RelativePath("雪/é.py".into()),
         ryo::linter::RelativePath("z.py".into()),
     ];
-    let finding = crate::domain::diagnostics::types::BenchmarkFinding {
+    let finding = ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from("F821").expect("valid ID"),
         file: report.files[0].clone(),
-        start: crate::domain::diagnostics::types::SourceByteOffset(2),
-        end: crate::domain::diagnostics::types::SourceByteOffset(7),
+        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(2),
+        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(7),
     };
     report.diagnostics = vec![finding.clone(), finding];
     assert_eq!(

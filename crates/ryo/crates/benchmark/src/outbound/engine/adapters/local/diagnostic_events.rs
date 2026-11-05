@@ -54,7 +54,7 @@ impl DiagnosticEventWriter {
 /// Build the filtered JSONL subscriber used by an explicit diagnostic worker.
 pub(super) fn subscriber(
     path: &Path,
-    options: crate::domain::suite::types::DiagnosticOptions,
+    options: ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
     let aggregate_level = if options.execution && !options.lifecycle_memory {
         tracing_subscriber::filter::LevelFilter::TRACE

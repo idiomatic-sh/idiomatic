@@ -1,10 +1,9 @@
 //! Thin composition of external registration with the shared inventory loop.
 use super::interface::VerifyInventoryUseCase;
-use crate::{
-    application::run::inventory,
-    domain::diagnostics::errors::DiagnosticsError,
-    outbound::{execution::interface::ExecutionPort, inventory::interface::InventoryPort},
-};
+use crate::application::run::inventory;
+use crate::outbound::execution::interface::ExecutionPort;
+use crate::outbound::inventory::interface::InventoryPort;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::{path::Path, sync::Arc};
 /// The composition chooses the existing process adapter and its deadline.
 pub struct VerifyInventoryUseCaseImpl {
@@ -25,15 +24,11 @@ impl std::fmt::Debug for VerifyInventoryUseCaseImpl {
     }
 }
 impl VerifyInventoryUseCase for VerifyInventoryUseCaseImpl {
-    fn verify_inventory(
-        &self,
-        registration: &Path,
-        output: &Path,
-    ) -> Result<bool, DiagnosticsError> {
+    fn verify_inventory(&self, registration: &Path, output: &Path) -> Result<bool, ReportsError> {
         let registration = self
             .store
             .load(registration)
-            .map_err(DiagnosticsError::Invalid)?;
+            .map_err(ReportsError::Invalid)?;
         inventory::verify(
             &registration,
             output,

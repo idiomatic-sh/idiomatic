@@ -1,7 +1,7 @@
 //! The worker orchestrates transport and SDK evaluation without reading wire data.
 use super::interface::RunRyoUseCase;
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
 use crate::outbound::{engine::interface::EnginePort, worker::interface::WorkerPort};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Arc;
 /// Handles one child-process request through independently injected boundaries.
 pub struct RunRyoUseCaseImpl {

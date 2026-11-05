@@ -1,8 +1,6 @@
 //! Only this boundary knows the BMF field and metric names.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::sample::value::BenchmarkSample,
-};
+use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -28,20 +26,20 @@ struct ObservationSchema<'a> {
     /// Target process peak resident bytes, absent without collection.
     resident: Option<u64>,
 }
-impl<'a> From<&'a BenchmarkSample> for ObservationSchema<'a> {
-    fn from(sample: &'a BenchmarkSample) -> Self {
+impl<'a> From<&'a PublicationSample<'_>> for ObservationSchema<'a> {
+    fn from(sample: &'a PublicationSample<'_>) -> Self {
         Self {
             name: &sample.name.0,
             wall: sample.measurement.wall.as_secs_f64() * 1000.0,
             cpu: match sample.measurement.resources {
-                crate::domain::measurements::types::ResourceObservation::WallOnly => None,
-                crate::domain::measurements::types::ResourceObservation::Collected(resources) => {
+                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly => None,
+                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(resources) => {
                     Some(resources.cpu.as_secs_f64() * 1000.0)
                 }
             },
             resident: match sample.measurement.resources {
-                crate::domain::measurements::types::ResourceObservation::WallOnly => None,
-                crate::domain::measurements::types::ResourceObservation::Collected(resources) => {
+                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly => None,
+                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(resources) => {
                     Some(resources.peak_rss_bytes.0)
                 }
             },
@@ -49,14 +47,11 @@ impl<'a> From<&'a BenchmarkSample> for ObservationSchema<'a> {
     }
 }
 /// Serialize exact resource samples into grouped median and extrema metrics.
-pub(super) fn encode(samples: &[BenchmarkSample]) -> Result<Vec<u8>, Error> {
+pub(super) fn encode(samples: &[PublicationSample<'_>]) -> Result<Vec<u8>, Error> {
     if samples.is_empty() {
         return Err(Error::Invalid("no measured evidence".into()));
     }
-    if samples.iter().any(|sample| {
-        sample.eligibility
-            != crate::domain::measurements::types::MeasurementEligibility::CompleteInventory
-    }) {
+    if samples.iter().any(|sample| !sample.complete_inventory) {
         return Err(Error::Invalid(
             "diagnostic observations cannot publish benchmark metrics".into(),
         ));

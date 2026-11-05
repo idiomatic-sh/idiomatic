@@ -1,15 +1,14 @@
 //! Shared reference invocation identity; captures and offline replay use the same path encoding.
 use super::discrepancy::json_digest;
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    suite::types::{ArtifactDigest, PreparedCase},
-};
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 
 /// Normalize explicitly supplied invocation paths while preserving flags and environment overrides.
 pub(super) fn invocation_settings(
-    invocation: &crate::domain::measurements::types::Invocation,
+    invocation: &ryo_benchmark_contracts::domain::measurements::types::Invocation,
     case: &PreparedCase,
-    profile: &crate::domain::suite::types::Tool,
+    profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
 ) -> Result<ArtifactDigest, Error> {
     Ok(json_digest(&normalized_invocation(
         invocation, case, profile,
@@ -17,9 +16,9 @@ pub(super) fn invocation_settings(
 }
 
 pub(super) fn normalized_invocation(
-    invocation: &crate::domain::measurements::types::Invocation,
+    invocation: &ryo_benchmark_contracts::domain::measurements::types::Invocation,
     case: &PreparedCase,
-    profile: &crate::domain::suite::types::Tool,
+    profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
 ) -> Result<serde_json::Value, Error> {
     let normalize = |value: &std::ffi::OsStr| -> Result<String, Error> {
         let value = value
@@ -52,10 +51,10 @@ pub(super) fn normalized_invocation(
     .map_err(|error| Error::Invalid(error.to_string()))?;
     if let Some(declaration) = &profile.rule_context {
         settings["rule_context_declaration"] =
-            crate::domain::suite::rule_context::declaration_value(declaration);
+            crate::outbound::worker::schemas::declaration_value(declaration);
     }
     if let Some(context) = &case.request.rule_context {
-        settings["rule_context"] = crate::domain::suite::rule_context::prepared_value(context);
+        settings["rule_context"] = crate::outbound::worker::schemas::prepared_value(context);
     }
     if !profile.rule_observations.is_empty() {
         let declarations = crate::domain::suite::observations::project_profile(
@@ -68,11 +67,12 @@ pub(super) fn normalized_invocation(
         );
         if !declarations.is_empty() {
             settings["rule_observations"] =
-                crate::domain::suite::observations::value(&declarations);
+                crate::outbound::worker::schemas::observation_declarations_value(&declarations);
         }
     }
     if let Some(declarations) = &case.request.rule_observations {
-        settings["rule_observations"] = crate::domain::suite::observations::value(declarations);
+        settings["rule_observations"] =
+            crate::outbound::worker::schemas::observation_declarations_value(declarations);
     }
     if let Some(selected) = &case.request.selected_rules {
         let selected: std::collections::BTreeSet<_> =

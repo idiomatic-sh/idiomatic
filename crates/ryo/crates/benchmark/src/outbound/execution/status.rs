@@ -1,7 +1,6 @@
 //! Preserve signal identity without interpreting Windows exit codes as signals.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::ProcessExitCode,
-};
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Decode the OS status; a negative compatibility status is accompanied by an explicit signal.
 pub(super) fn decode(
     status: std::process::ExitStatus,

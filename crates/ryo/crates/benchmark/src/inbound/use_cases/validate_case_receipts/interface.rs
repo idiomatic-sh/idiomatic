@@ -1,5 +1,6 @@
 //! Offline checks share the same policy as fresh inventory execution.
-use crate::domain::{diagnostics::errors::DiagnosticsError, suite::process::types::ReceiptAudit};
+use ryo_benchmark_contracts::domain::process::types::ReceiptAudit;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// Validate one explicit receipt file, including shard-specific raw artifacts.
 pub trait ValidateCaseReceiptsUseCase {
@@ -11,5 +12,5 @@ pub trait ValidateCaseReceiptsUseCase {
         &self,
         registration: &Path,
         receipt: &Path,
-    ) -> Result<ReceiptAudit, DiagnosticsError>;
+    ) -> Result<ReceiptAudit, ReportsError>;
 }

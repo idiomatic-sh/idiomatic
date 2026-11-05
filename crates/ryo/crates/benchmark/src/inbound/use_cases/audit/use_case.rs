@@ -1,8 +1,9 @@
 //! Audit delegates external artifact validation to its suite boundary.
 use super::interface::AuditUseCase;
 use crate::domain::suite::types::audit::value::Audit;
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Tool};
 use crate::outbound::suite::interface::SuitePort;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Tool;
 use std::{path::Path, sync::Arc};
 /// Audit benchmark artifacts against a pinned default profile.
 pub struct AuditUseCaseImpl {
@@ -18,8 +19,7 @@ impl AuditUseCaseImpl {
 }
 impl AuditUseCase for AuditUseCaseImpl {
     fn audit(&self, directory: &Path, tool: &Tool) -> Result<Audit, Error> {
-        self.suite
-            .audit(crate::outbound::suite::types::ArtifactPath(directory), tool)
+        crate::application::run::service::audit(self.suite.as_ref(), directory, tool)
     }
 }
 

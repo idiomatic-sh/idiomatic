@@ -3,11 +3,11 @@
     clippy::expect_used,
     reason = "missing benchmark prerequisites must fail visibly"
 )]
-use ryo_benchmark::domain::measurements::types::Invocation;
 use ryo_benchmark::outbound::execution::{
     factory::{direct, process, timed},
     interface::ExecutionPort as _,
 };
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 /// Construct the same explicit child workload for each execution adapter.
 fn invocation() -> Invocation {
     Invocation {
@@ -43,10 +43,11 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
         .parent()
         .expect("profile directory")
         .join("ryo-benchmark-collector");
-    let digest = ryo_benchmark::domain::suite::types::ArtifactDigest(format!(
-        "{:x}",
-        Sha256::digest(std::fs::read(&executable).expect("collector bytes"))
-    ));
+    let digest =
+        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(
+            "{:x}",
+            Sha256::digest(std::fs::read(&executable).expect("collector bytes"))
+        ));
     let adapter = timed(executable, digest);
     let input = invocation();
     bencher.bench_local(|| {
@@ -61,7 +62,7 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
         assert!(
             matches!(
                 output.resources,
-                ryo_benchmark::domain::measurements::types::ResourceObservation::Collected(_)
+                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(_)
             ),
             "instrumented workload must supply actual child resources"
         );

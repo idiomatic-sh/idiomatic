@@ -1,4 +1,5 @@
 //! Python composition provides its linked language only at this outer edge.
+use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
 mod commands;
 mod constants;
 mod diagnostic_protocol;
@@ -6,10 +7,8 @@ mod output;
 mod request_input;
 mod targets;
 use ryo_benchmark::application::run::service::run as execute;
-use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
-use ryo_benchmark::domain::measurements::types::{RunOrder, sample::value::BenchmarkSample};
+use ryo_benchmark::domain::measurements::types::sample::value::BenchmarkSample;
 use ryo_benchmark::domain::suite::service::require_accounted;
-use ryo_benchmark::domain::suite::types::{BenchmarkCoverage, RunRequest, Suite};
 use ryo_benchmark::inbound::use_cases::certify::{
     interface::CertifyUseCase as _, use_case::CertifyUseCaseImpl,
 };
@@ -19,9 +18,14 @@ use ryo_benchmark::inbound::use_cases::compare::{
 use ryo_benchmark::inbound::use_cases::measure::{
     interface::MeasureUseCase as _, use_case::MeasureUseCaseImpl,
 };
-use ryo_benchmark::outbound::evidence::interface::EvidencePort as _;
+use ryo_benchmark::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactSet};
 use ryo_benchmark::outbound::workspace::interface::WorkspacePort as _;
+use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::Suite;
 use std::{path::PathBuf, sync::Arc};
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
 #[expect(
@@ -89,7 +93,11 @@ pub(crate) fn run(
             let mut tool = suite_source.profile(ArtifactPath(&commands::directory()))?;
             suite_source.verify_tool(ArtifactPath(&executable), &tool)?;
             let declared_inventory = tool.defaults.clone();
-            let mut audit = suite_source.audit(ArtifactPath(&commands::directory()), &tool)?;
+            let mut audit =
+                ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
+                    Arc::clone(&suite_source),
+                )
+                .audit(&commands::directory(), &tool)?;
             let authored_total = audit.authored_count();
             let selection_or_inventory = args.next();
             let scope = if matches!(
@@ -102,7 +110,7 @@ pub(crate) fn run(
             };
             let case_source = if scope == BenchmarkCoverage::Accounted {
                 let input=selection_or_inventory.as_deref().and_then(|s|s.strip_prefix("--case-inventory=")).filter(|s|!s.is_empty()).ok_or_else(||Error::Invalid("canonical benchmark requires explicit registered --case-inventory=PATH".into()))?;
-                ryo_benchmark::domain::suite::types::CertificationCases::Registered {
+                ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
                     registration: std::path::PathBuf::from(input).canonicalize()?,
                     output: tempfile::Builder::new()
                         .prefix("registered-case-results-")
@@ -119,7 +127,7 @@ pub(crate) fn run(
                             .map_err(|e| Error::Invalid(e.to_string()))?,
                     )?;
                 }
-                ryo_benchmark::domain::suite::types::CertificationCases::Profile
+                ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile
             };
             if args.next().is_some() {
                 return Err(Error::Invalid("unexpected measurement argument".into()));
@@ -128,11 +136,11 @@ pub(crate) fn run(
                 require_accounted(&audit, &tool)?;
             }
             let measurement_mode = if scope == BenchmarkCoverage::Accounted {
-                ryo_benchmark::domain::measurements::types::MeasurementMode::Benchmark {
+                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
                     inventory: declared_inventory,
                 }
             } else {
-                ryo_benchmark::domain::measurements::types::MeasurementMode::Diagnostic
+                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Diagnostic
             };
             ryo_benchmark::domain::measurements::service::require_inventory(
                 &measurement_mode,
@@ -163,8 +171,8 @@ pub(crate) fn run(
             suite_source.stage(
                 ArtifactPath(&commands::directory()),
                 ArtifactPath(&selected_profile),
-                &audit,
-                ryo_benchmark::domain::suite::types::StagePurpose::Execution,
+                audit.authored(),
+                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Execution,
             )?;
             let frozen_workload = selected_scratch.join(constants::WORKLOAD_DIRECTORY);
             suite_source.stage_projects(
@@ -234,8 +242,9 @@ pub(crate) fn run(
                 Arc::<_>::clone(&suite_source),
                 measurement_mode,
             );
-            let evidence =
-                ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout()));
+            let evidence: Arc<dyn EvidencePort> = Arc::new(
+                ryo_benchmark::outbound::evidence::factory::bmf(Box::new(std::io::stdout())),
+            );
             let mut samples = Vec::new();
             let mut failures = Vec::new();
             for project in suite.projects {
@@ -450,10 +459,9 @@ pub(crate) fn run(
                             let contestants =
                                 [constants::REFERENCE_NAME, constants::CANDIDATE_NAME];
                             let named = pair.samples(contestants.map(|contestant| {
-                                ryo_benchmark::domain::measurements::types::SampleName(format!(
-                                    "{}/{contestant}/{condition}",
-                                    project.name
-                                ))
+                                ryo_benchmark_contracts::domain::measurements::types::SampleName(
+                                    format!("{}/{contestant}/{condition}", project.name),
+                                )
                             }));
                             for (contestant, sample) in contestants.into_iter().zip(named) {
                                 let observed_counts =
@@ -484,7 +492,11 @@ pub(crate) fn run(
             }
             // The evidence boundary refuses an empty observation set; never bypass that guard.
             if scope == BenchmarkCoverage::Accounted {
-                evidence.publish(&samples)?;
+                use ryo_benchmark::inbound::use_cases::publish::interface::PublishUseCase as _;
+                ryo_benchmark::inbound::use_cases::publish::use_case::PublishUseCaseImpl::new(
+                    Arc::clone(&evidence),
+                )
+                .publish(&samples)?;
             } else {
                 writeln!(
                     observations,
@@ -499,7 +511,7 @@ pub(crate) fn run(
                 )))
             }
         }
-        Some(constants::AUDIT) => commands::audit(suite_source.as_ref(), output),
+        Some(constants::AUDIT) => commands::audit(&suite_source, output),
         Some(constants::VERIFY_TOOL) => {
             let executable = PathBuf::from(
                 args.next()

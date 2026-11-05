@@ -1,7 +1,6 @@
 //! Issue a sealed certificate for an exact independently verified workload.
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, suite::types::certificate::value::Certificate,
-};
+use crate::domain::suite::types::certificate::value::Certificate;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Establish case evidence and bind its complete execution inputs.
 pub trait CertifyUseCase {
     /// Refuse inconsistent or changing evidence before any benchmark observation.
@@ -20,7 +19,7 @@ pub trait CertifyUseCase {
         candidate_executable: &std::path::Path,
         selected_rules: &std::path::Path,
         scratch: &std::path::Path,
-        scope: crate::domain::suite::types::BenchmarkCoverage,
-        cases: &crate::domain::suite::types::CertificationCases,
+        scope: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
+        cases: &ryo_benchmark_contracts::domain::requests::types::CertificationCases,
     ) -> Result<Certificate, Error>;
 }

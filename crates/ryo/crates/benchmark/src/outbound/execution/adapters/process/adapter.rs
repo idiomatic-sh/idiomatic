@@ -1,9 +1,10 @@
 //! Child startup, tool work, serialization and waiting are inside wall time.
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::measurements::types::{
-    CapturedBytes, Invocation, ProcessOutput, ResourceObservation,
-};
 use crate::outbound::execution::interface::ExecutionPort;
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{
     io::{Read as _, Seek as _},
     process::{Command, Stdio},
@@ -21,8 +22,8 @@ impl ExecutionPort for ExecutionProcessAdapter {
         self.timeout.is_none()
     }
 
-    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
-        crate::domain::measurements::types::ExecutionProfile::Wall
+    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let start = Instant::now();
@@ -86,7 +87,7 @@ impl ExecutionPort for ExecutionProcessAdapter {
                     .as_bytes(),
                 );
                 (
-                    crate::domain::measurements::types::ProcessExitCode(124),
+                    ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(124),
                     None,
                     out,
                     err,

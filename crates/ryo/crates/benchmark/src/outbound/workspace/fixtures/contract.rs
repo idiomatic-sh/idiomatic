@@ -1,8 +1,9 @@
 //! Pinned workspace preparation and edit lifecycle are shared across adapters.
 use super::driver::git;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::Project};
 use crate::outbound::workspace::interface::WorkspacePort;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types::Project;
 use std::fs;
 /// Whether to request the immutable commit or a mutable revision.
 type Input = bool;

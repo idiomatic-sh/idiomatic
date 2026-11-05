@@ -1,11 +1,13 @@
 //! Two unrelated providers exercise the same inventory behavior and native receipt contract.
 use super::*;
-use crate::domain::measurements::types::{
-    CapturedBytes, ExecutionProfile, ProcessExitCode, ProcessOutput, ResourceObservation,
-};
 use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
 };
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
 use serde_json::json;
 use std::{path::PathBuf, sync::Mutex, time::Duration};
 

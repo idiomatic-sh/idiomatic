@@ -1,17 +1,18 @@
 //! Invalid requests never launch; child failures are encoded rather than mistaken for codec failure.
 use super::{interface::CollectUseCase as _, use_case::CollectUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error,
-    measurements::types::{
-        CapturedBytes, Invocation, ProcessExitCode, ProcessOutput, ResidentBytes,
-        ResourceObservation, Resources,
-    },
-};
 use crate::outbound::{
     collection::{self, interface::CollectionPort as _, types::CollectorMessage},
     execution::interface::ExecutionPort,
 };
+use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
+use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::measurements::types::Resources;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{
     sync::{
         Arc,
@@ -53,8 +54,8 @@ struct Execution {
     operation: Operation,
 }
 impl ExecutionPort for Execution {
-    fn profile(&self) -> crate::domain::measurements::types::ExecutionProfile {
-        crate::domain::measurements::types::ExecutionProfile::Wall
+    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
     }
     fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
         let _before = self.calls.fetch_add(1, Ordering::SeqCst);

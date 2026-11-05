@@ -1,8 +1,8 @@
 //! Execution preserves exit status and both streams; launch failure is distinct.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::measurements::types::Invocation;
 use crate::outbound::execution::interface::ExecutionPort;
+use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::PathBuf;
 /// Execution requests and independently materialized launch failures.
 #[derive(Debug)]
@@ -291,11 +291,12 @@ pub fn check(adapter: &impl ExecutionPort) {
 /// Check profile stability, resource mode, and independently specified output streams.
 fn observe(
     adapter: &impl ExecutionPort,
-    profile: &crate::domain::measurements::types::ExecutionProfile,
-    output: &crate::domain::measurements::types::ProcessOutput,
+    profile: &ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile,
+    output: &ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
     large: bool,
 ) -> Value {
-    use crate::domain::measurements::types::{ExecutionProfile, ResourceObservation};
+    use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
+    use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
     assert_eq!(
         adapter.profile(),
         *profile,

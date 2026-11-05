@@ -1,8 +1,9 @@
 //! Every linter prepares the requested workspace and refuses operational failure.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::measurements::types::ProcessOutput;
-use crate::domain::{diagnostics::errors::DiagnosticsError as Error, suite::types::RunRequest};
 use crate::outbound::linter::interface::LinterPort;
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, Debug)]
 /// Operations covered by the shared linter contract.
@@ -60,7 +61,8 @@ pub fn check(adapter: &impl LinterPort) {
         state: temporary.path().join("state"),
         files: vec![ryo::linter::RelativePath("input.txt".into())],
     };
-    let subject = |input| match input {
+    let subject = |input| {
+        match input {
         Input::Prepare => adapter
             .prepare(&request)
             .map(|call| call.directory == request.root)
@@ -69,17 +71,18 @@ pub fn check(adapter: &impl LinterPort) {
             &request,
             ProcessOutput {
                 signal: None,
-                status: crate::domain::measurements::types::ProcessExitCode(2),
-                stdout: crate::domain::measurements::types::CapturedBytes(Vec::new()),
-                stderr: crate::domain::measurements::types::CapturedBytes(Vec::new()),
+                status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
+                stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
+                stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
                 wall: Duration::ZERO,
-                resources: crate::domain::measurements::types::ResourceObservation::WallOnly,
+                resources: ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
             },
         ) {
             Err(Error::Invalid(_)) => Err(Failure::Operational),
             Err(_) => Err(Failure::Unexpected),
             Ok(_) => Ok(false),
         },
+    }
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);

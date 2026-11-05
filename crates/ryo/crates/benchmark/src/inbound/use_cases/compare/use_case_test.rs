@@ -1,8 +1,8 @@
 //! Exact diagnostic multisets and submitted-file sets determine agreement.
 use super::{interface::CompareUseCase as _, use_case::CompareUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::types::Difference;
-use crate::domain::diagnostics::types::RunReport;
+use ryo_benchmark_contracts::domain::reports::types::Difference;
+use ryo_benchmark_contracts::domain::reports::types::RunReport;
 type Input = (RunReport, RunReport);
 type Value = ();
 type Failure = Difference;
@@ -27,16 +27,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn matching() -> Input {
     let report = RunReport {
-        execution_metadata: crate::domain::diagnostics::types::ExecutionMetadata::Complete,
+        execution_metadata:
+            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
         project_context: None,
         files: vec![ryo::linter::RelativePath("input.txt".into())],
         skipped: Vec::new(),
-        coverage: Some(crate::domain::diagnostics::types::RuleCoverage {
-            selected: 1,
-            evaluated: 1,
-            skipped: 0,
-            unknown_or_unread: 0,
-        }),
+        coverage: Some(
+            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: 1,
+                evaluated: 1,
+                skipped: 0,
+                unknown_or_unread: 0,
+            },
+        ),
         diagnostics: Vec::new(),
     };
     (report.clone(), report)

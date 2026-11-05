@@ -1,5 +1,5 @@
 //! Explicit identity of the isolated resource collector.
-use crate::domain::suite::types::ArtifactDigest;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use std::path::PathBuf;
 /// Executable bytes pinned by the benchmark certificate.
 #[derive(Clone, Debug)]

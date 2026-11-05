@@ -1,9 +1,5 @@
 //! Independent parent and child endpoints agree on the wire protocol and stream failures propagate.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::{
-    diagnostics::errors::DiagnosticsError as Error, measurements::types::ProcessOutput,
-    suite::types::RunRequest,
-};
 use crate::outbound::{
     linter::{factory, interface::LinterPort as _},
     worker::{
@@ -11,6 +7,9 @@ use crate::outbound::{
         interface::WorkerPort as _,
     },
 };
+use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::{
     io::{self, Write},
     sync::{Arc, Mutex},
@@ -200,7 +199,9 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 );
                 assert_eq!(
                     received.state,
-                    crate::domain::suite::types::WorkerState::Retained(request.state.join("ryo"))
+                    ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
+                        request.state.join("ryo")
+                    )
                 );
                 child.respond(&expected_report).map_err(classify)?;
             }
@@ -212,14 +213,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                     &request,
                     ProcessOutput {
                         signal: None,
-                        status: crate::domain::measurements::types::ProcessExitCode(0),
-                        stdout: crate::domain::measurements::types::CapturedBytes(
+                        status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(0),
+                        stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(
                             capture.bytes.clone(),
                         ),
-                        stderr: crate::domain::measurements::types::CapturedBytes(Vec::new()),
+                        stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
                         wall: Duration::ZERO,
                         resources:
-                            crate::domain::measurements::types::ResourceObservation::WallOnly,
+                            ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
                     },
                 )
                 .map_err(classify)?;

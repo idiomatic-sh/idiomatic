@@ -1,8 +1,8 @@
 //! An engine refuses a corpus with no candidate rules rather than reporting success.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::diagnostics::errors::DiagnosticsError as Error;
-use crate::domain::suite::types::WorkerRequest;
 use crate::outbound::engine::interface::EnginePort;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 /// No variable input: this contract probes one fixed malformed request.
 type Input = ();
 /// Successful completion has no payload.
@@ -43,7 +43,7 @@ pub fn check(adapter: &impl EnginePort) {
                     rule_context: None,
                     project_search_roots: None,
                     given_project_inventory: Default::default(),
-                    project_context_mode: crate::domain::suite::types::ProjectContextMode::default(
+                    project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(
                     ),
                     context_manifest: None,
                     root: temporary.path().into(),
@@ -53,7 +53,7 @@ pub fn check(adapter: &impl EnginePort) {
                     parser_configuration: None,
                     source_language: None,
                     files: vec![ryo::linter::RelativePath("input.txt".into())],
-                    state: crate::domain::suite::types::WorkerState::Fresh,
+                    state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
                 },
                 crate::outbound::engine::types::PreparedMissingInputs {
                     selected_missing: std::collections::BTreeSet::new(),

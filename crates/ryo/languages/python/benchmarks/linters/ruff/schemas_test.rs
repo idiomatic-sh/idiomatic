@@ -1,6 +1,6 @@
 //! Scalar columns, byte offsets and line-ending boundaries.
 use super::schemas::offset;
-use ryo_benchmark::domain::diagnostics::errors::DiagnosticsError as Error;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 #[derive(Debug, PartialEq, Eq)]
 enum BoundaryFailure {
@@ -104,10 +104,12 @@ fn refuses() {
 #[test]
 fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
     use ryo::linter::{RelativePath, RuleId};
-    use ryo_benchmark::domain::{
-        measurements::types::{CapturedBytes, ProcessExitCode, ProcessOutput, ResourceObservation},
-        suite::types::{ContextManifest, RunRequest},
-    };
+    use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+    use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+    use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+    use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+    use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+    use ryo_benchmark_contracts::domain::requests::types::RunRequest;
     let root = std::path::PathBuf::from("/snapshot/project");
     let file = RelativePath("missing.py".into());
     let request = RunRequest {
@@ -162,7 +164,7 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() {
 
 #[test]
 fn rule_configuration_arguments_round_trip_as_toml_including_control_characters() {
-    use ryo_benchmark::domain::suite::types::RuleConfiguration;
+    use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
     let configuration = RuleConfiguration {
         external_prefixes: vec!["V\u{7f}\n\"".into(), "é\\".into()],
         disabled_rules: std::collections::BTreeMap::from([(

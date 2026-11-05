@@ -1,0 +1,30 @@
+[package]
+name = "idiomatic-sh-ryo-benchmark-contracts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+description = "Shared typed data for benchmark boundaries, without benchmark workflow authority"
+publish = false
+
+autobenches = false
+
+[lib]
+name = "ryo_benchmark_contracts"
+
+[dependencies]
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.2" }
+thiserror.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.2", features = ["fixtures"] }
+serde_json.workspace = true
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true
