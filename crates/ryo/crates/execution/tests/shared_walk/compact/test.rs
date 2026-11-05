@@ -229,8 +229,8 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                 assert_eq!(captures.len(), 1);
                 assert_eq!(
                     reads.get(),
-                    before_delivery + 1,
-                    "explicit capture reacquires the selected publication's exact backing once"
+                    before_delivery + usize::from(stored),
+                    "capture reborrows Stored selection backing once; Computed backing is already owned"
                 );
                 assert_eq!(
                     file.readiness_counts(),
@@ -247,7 +247,10 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                 "delivery must not re-execute dependencies"
             );
             assert_eq!(file.walk_counts(), walks);
-            assert_eq!(reads.get(), reads_after_run + escaped.len());
+            assert_eq!(
+                reads.get(),
+                reads_after_run + escaped.len() * usize::from(stored)
+            );
             file.finish().unwrap();
             // The actual encoded publication must survive its file execution owner.
             for frontier in escaped {
