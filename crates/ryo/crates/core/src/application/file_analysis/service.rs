@@ -611,7 +611,7 @@ impl FileAnalysis {
                 )?;
                 run.commit_frontier(rule, capture.input)?;
                 if visit.setting.keeping == Keeping::Keeps
-                    && visit.setting.answering == Answering::Findings
+                    && *visit.setting.answering == Answering::Findings
                 {
                     tables
                         .captured

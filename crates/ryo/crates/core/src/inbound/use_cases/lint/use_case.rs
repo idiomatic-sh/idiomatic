@@ -242,7 +242,7 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         ids: &[RuleId],
     ) -> Result<Wanting, LintError> {
-        let placement = MetadataUseCaseImpl::new().decide(&scopes_of(rules));
+        let placement = MetadataUseCaseImpl.decide(&scopes_of(rules));
         let matcher = self.matching.compile(&placement.globs).map_err(
             |MatchingError::BadGlob { glob, reason }| LintError::Rule {
                 id: owner_of(&placement, &Glob(glob.into()), ids)
@@ -742,26 +742,20 @@ impl LintUseCaseImpl {
             .plans()
             .iter()
             .zip(compiled.bindings())
-            .all(|(plan, bound)| {
-                MetadataUseCaseImpl::new()
-                    .kinds_asked(plan, bound)
-                    .is_empty()
-            })
+            .all(|(plan, bound)| MetadataUseCaseImpl.kinds_asked(plan, bound).is_empty())
         {
             return Ok(compiled);
         }
         let vocabularies = self.language.kind_vocabularies();
-        if let Some(unknown) = MetadataUseCaseImpl::new().first_unknown(
-            compiled.plans(),
-            compiled.bindings(),
-            &vocabularies,
-        ) {
+        if let Some(unknown) =
+            MetadataUseCaseImpl.first_unknown(compiled.plans(), compiled.bindings(), &vocabularies)
+        {
             return Err(LintError::UnknownKind {
                 id: rules
                     .get(unknown.rule.0)
                     .map(|rule| rule.id.0.to_string())
                     .unwrap_or_default(),
-                reason: MetadataUseCaseImpl::new()
+                reason: MetadataUseCaseImpl
                     .unknown_kind_message(&unknown.word, &vocabularies)
                     .0
                     .into(),
@@ -1076,7 +1070,7 @@ impl LintUseCaseImpl {
     /// What the report says each feature of the rules was fed, when the run counts the rows.
     fn features_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<FeatureFed> {
         match self.counting {
-            Counting::Counts => MetadataUseCaseImpl::new()
+            Counting::Counts => MetadataUseCaseImpl
                 .fed_over(run.metadata, fed)
                 .into_iter()
                 .map(FeatureFed::from)
@@ -1088,7 +1082,7 @@ impl LintUseCaseImpl {
     /// What the report says each step of each rule was fed, when the run counts the rows.
     fn work_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<RuleWork> {
         match self.counting {
-            Counting::Counts => MetadataUseCaseImpl::new()
+            Counting::Counts => MetadataUseCaseImpl
                 .work_over(run.metadata, fed)
                 .into_iter()
                 .zip(run.rules)
@@ -1142,7 +1136,7 @@ impl LintUseCaseImpl {
             .chain(now.unlisted.iter().cloned())
             .collect();
         now.unknowns =
-            MetadataUseCaseImpl::new().project_unknowns(&now.partials, &named, run.needs, run.ids);
+            MetadataUseCaseImpl.project_unknowns(&now.partials, &named, run.needs, run.ids);
         Ok(now)
     }
 
@@ -1357,7 +1351,7 @@ impl LintUseCase for LintUseCaseImpl {
             });
         let needs: Vec<Needs> = plans
             .iter()
-            .map(|plan| MetadataUseCaseImpl::new().scoped_needs(plan))
+            .map(|plan| MetadataUseCaseImpl.scoped_needs(plan))
             .collect();
         let resolved = self.resolution(&manifests, &plans, &request.session)?;
         let stored_rules = self.stored_rules(
