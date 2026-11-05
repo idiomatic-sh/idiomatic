@@ -6,7 +6,6 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::closure::item::ClosureItem;
 use crate::domain::stored_graph::types::traversal::value::GraphTraversal;
 use crate::domain::stored_graph::types::{GraphIdentity, GraphWalk, Orientation, Population};
-use crate::domain::table_model::service::{push_row, row_in};
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, CompactGraph, DerivedInputs, ViewRequest,
@@ -17,6 +16,7 @@ use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
+use {ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::service::row_in};
 
 /// Numeric synthetic graph rows, independent of any frontend.
 fn table(rows: &[&[i64]], width: usize) -> Table {

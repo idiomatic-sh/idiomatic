@@ -1,131 +1,230 @@
-//! Multiplicity and invocation count are independent of zero/one/many producer grouping.
-use super::union::combine;
+//! Named producer populations use the actual prepared union and common file scheduler.
 use crate::application::file_dag::{
     execution::CommonOperatorEngine,
-    executor::{PrimitiveExecutor, ScopedExecutor},
-    feed::Feed,
-    relations::RelationOwner,
+    program::{
+        facade::{self, EmitDemand, ObservationDemand, RootOutcome, RuleDemand},
+        facade_runtime::{ProgramServices, open_file},
+    },
+    scope::ScopePartials,
 };
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
-use ryo_values::domain::rows::types::Table;
+use crate::domain::{
+    coverage::types::RuleIndex,
+    operating::errors::OperatingError,
+    prepared_request::{service::assemble, types::ObservationIdentity},
+    table_model::types::Rows,
+};
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value};
 use ryo_values::domain::{
-    plan_parts::types::{Input, StepId},
-    plans::types::{Operation, OperationKind},
-    rows::types::RowCount,
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
+    observations::types::{
+        BoundObservationSchema, ObservationBinding, ObservationBindingId, ObservationBindingName,
+        ObservationColumn, ObservationColumnName, ObservationName, ObservationProducer,
+        ObservationReadinessLayout, PlanObservation,
+    },
+    plan_parts::types::{ColumnIndex, HostedNumber, Input, StepId},
+    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    records::types::Cell,
+    rule_requests::types::{RuleParameters, RuleSpec},
+    runs::types::{RuleApplicability, RuleId},
+    stored_facts::types::Digest,
 };
-use std::sync::atomic::{AtomicUsize, Ordering};
-use {
-    crate::domain::operating::errors::OperatingError, crate::domain::operating::types::Emit,
-    crate::domain::operating::types::OperatorContext, crate::domain::operating::types::Room,
-    crate::domain::operator::contract::types::OperatorContract,
-    crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch,
-    ryo_values::domain::files::types::SourceView,
-};
-#[derive(Debug)]
-struct Counted {
-    calls: AtomicUsize,
-    engine: CommonOperatorEngine,
+use std::{collections::BTreeMap, sync::Arc};
+fn columns() -> Vec<ObservationColumn> {
+    vec![ObservationColumn {
+        name: ObservationColumnName("value".into()),
+        kind: CellKind::Number,
+    }]
 }
-impl Default for Counted {
-    fn default() -> Self {
-        Self {
-            calls: AtomicUsize::default(),
-            engine: CommonOperatorEngine::fixture(),
-        }
+fn rule(index: usize) -> RuleSpec {
+    RuleSpec {
+        id: RuleId(format!("union-{index}").into()),
+        query: QueryBundle {
+            root: QueryDocumentSource {
+                id: QuerySourceId(format!("union-{index}").into()),
+                text: "".into(),
+            },
+            modules: BTreeMap::new(),
+        },
+        applicability: RuleApplicability::Always,
+        given: vec![],
+        observations: vec![],
+        spelled: RuleParameters("".into()),
+        include: vec![],
+        exclude: vec![],
     }
 }
-impl PrimitiveExecutor for Counted {
-    fn execute(
-        &self,
-        call: crate::application::file_dag::executor::KernelCall<'_, '_, '_>,
-    ) -> Result<
-        crate::application::file_dag::executor::KernelAnswer,
-        crate::application::file_dag::executor::KernelFault,
-    > {
-        if matches!(
-            &call,
-            crate::application::file_dag::executor::KernelCall::Registered { .. }
-        ) {
-            self.calls.fetch_add(1, Ordering::Relaxed);
-        }
-        self.engine.execute(call)
+fn plan(operation: Operation) -> Plan {
+    Plan {
+        observation_inputs: vec![],
+        observations: vec![],
+        parameters: vec![],
+        steps: vec![PlanStep {
+            scope: StepScope::PerFile,
+            operation,
+        }],
+        frontier: vec![],
+        comparison_origins: vec![],
+        emit: Emit {
+            step: StepId(0),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
     }
 }
 #[test]
-fn zero_singleton_and_many_producers_share_one_distinct_union_invocation() {
+fn singleton_and_many_producers_preserve_distinct_union_order_through_one_prepared_root() {
     let cases: &[(&[&[i64]], &[i64])] = &[
-        (&[], &[]),
         (&[&[]], &[]),
         (&[&[1, 1, 2]], &[1, 2]),
         (&[&[1, 1, 2], &[]], &[1, 2]),
         (&[&[], &[1, 1, 2]], &[1, 2]),
         (&[&[1, 2], &[2, 3], &[1, 3]], &[1, 2, 3]),
     ];
-    for (given, expected) in cases {
-        let counted = Counted::default();
-        let owner = std::rc::Rc::new(RelationOwner::new(true, counted.derived_port()));
-        let executor = ScopedExecutor::new(&counted, std::rc::Rc::clone(&owner))
-            .expect("the scoped owner uses the same derived port");
-        let sources = given
-            .iter()
-            .map(|rows| {
-                owner
-                    .computed(Table {
-                        kinds: vec![CellKind::Number],
-                        cells: rows
-                            .iter()
-                            .map(|number| Value::Number(Integer(*number)))
-                            .collect(),
-                        count: RowCount(rows.len()),
-                    })
-                    .expect("valid publication")
-            })
-            .collect::<Vec<_>>();
-        let schema = crate::domain::operation_schema::types::InputShape {
-            kinds: &[CellKind::Number],
-            tree: None,
-        };
-        let contract = crate::domain::operator::contract::service::prepare_for(
-            OperationKind::Union,
-            &Operation::Union {
-                left: Input::Step(StepId(0)),
-                right: Input::Step(StepId(1)),
+    for &(given, expected) in cases {
+        exercise(given, Some(expected));
+    }
+}
+#[test]
+fn zero_producers_refuse_instead_of_fabricating_an_admitted_empty_population() {
+    exercise(&[], None);
+}
+fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
+    let consumer = given.len();
+    let mut rules = (0..=consumer).map(rule).collect::<Vec<_>>();
+    let mut plans = (0..consumer)
+        .map(|index| {
+            let mut plan = plan(Operation::Hosted {
+                relation: HostedNumber(index as u32),
+            });
+            plan.observations.push(PlanObservation {
+                name: ObservationName("values".into()),
+                source: Input::Step(StepId(0)),
+                columns: columns(),
+                scope: StepScope::PerFile,
+            });
+            plan
+        })
+        .collect::<Vec<_>>();
+    let producers = (0..consumer)
+        .map(|index| ObservationProducer::Output {
+            rule: rules[index].id.clone(),
+            output: ObservationName("values".into()),
+        })
+        .collect();
+    rules[consumer].observations.push(ObservationBinding {
+        name: ObservationBindingName("values".into()),
+        columns: columns(),
+        producers,
+    });
+    let mut consumer_plan = plan(Operation::Select {
+        from: Input::BoundObservation(ObservationBindingId(0)),
+        comparisons: vec![],
+        kept: vec![],
+    });
+    consumer_plan
+        .observation_inputs
+        .push(BoundObservationSchema {
+            name: ObservationBindingName("values".into()),
+            columns: columns(),
+            scope: if consumer == 0 {
+                StepScope::CrossFile
+            } else {
+                StepScope::PerFile
             },
-            &[schema, schema],
-            &[],
-        )
-        .expect("typed union");
-        let mut symbols = Symbols::default();
-        let mut scratch = OperatorScratch::default();
-        let mut memo = Vec::new();
-        let mut context = OperatorContext {
-            semantic: None,
-            prepared_matchers: None,
-            prepared_kinds: None,
-            bindings: &[],
-            symbols: (&mut symbols).into(),
-            source: SourceView(&[]),
-            paths: &[],
-            arenas: &[],
-            memo: &mut memo,
-            scratch: &mut scratch,
-        };
-        let read = |_| Err(OperatingError::NotRead);
-        let published = combine(
-            &sources,
-            &[CellKind::Number],
-            &contract,
+        });
+    plans.push(consumer_plan);
+    let compiled =
+        assemble(plans, vec![vec![]; rules.len()], &rules).expect("actual named request assembly");
+    let hosted = given
+        .iter()
+        .enumerate()
+        .map(|(index, rows)| HostRelation {
+            name: HostName(format!("host-{index}").into()),
+            columns: vec![HostColumn {
+                name: HostColumnName("value".into()),
+                kind: HostKind::Number,
+            }],
+            rows: rows
+                .iter()
+                .map(|number| HostRow(vec![Cell::Number(Integer(*number))]))
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    let derived = crate::application::file_dag::testing::program_derived_port();
+    let prepared = facade::prepare(
+        compiled,
+        &rules,
+        &vec![Digest([0; 16]); rules.len()],
+        &hosted,
+        Arc::clone(&derived),
+        ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16]))),
+    )
+    .expect("prepared named request");
+    let services = Arc::new(ProgramServices::new(
+        Arc::new(CommonOperatorEngine::new(
+            crate::outbound::operators::factory::test_port(),
+        )),
+        derived,
+        &[CorpusInput::Available(CorpusEntry {
+            executable: ExecutablePermission::Unknown,
+            path: FilePath("named-union.py".into()),
+            size: FileSize(0),
+            modified: Nanoseconds(0),
+        })],
+    ));
+    let mut symbols = Symbols::default();
+    let mut file = open_file(
+        &prepared,
+        FileId(0),
+        ScopePartials::File {
+            evaluation: &[],
+            publication: &[],
+        },
+        &vec![true; rules.len()],
+        services,
+        b"",
+        true,
+        &mut symbols,
+        None,
+        None,
+    )
+    .unwrap();
+    let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
+    for index in 0..consumer {
+        let outcome = file
+            .rule(
+                RuleIndex(index),
+                RuleDemand {
+                    emit: EmitDemand::Disabled,
+                    observations: ObservationDemand::Required,
+                },
+                &read,
+                &mut symbols,
+            )
+            .unwrap();
+        assert!(
+            matches!(outcome.observations[0].1, RootOutcome::Complete(_)),
+            "the actual producer publishes its named root"
+        );
+    }
+    let outcome = file
+        .rule(
+            RuleIndex(consumer),
+            RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
             &read,
-            &executor,
-            &mut context,
+            &mut symbols,
         )
-        .expect("one union pass");
-        let Rows::Computed(table) = owner
-            .resolve(published.as_ref(), &read)
-            .expect("published output")
-        else {
-            panic!("union output is computed");
+        .unwrap();
+    if let Some(expected) = expected {
+        let RootOutcome::Complete(table) = outcome.emit else {
+            panic!("all complete producers must supply the named union")
         };
         assert_eq!(
             table.cells,
@@ -137,9 +236,15 @@ fn zero_singleton_and_many_producers_share_one_distinct_union_invocation() {
         );
         assert_eq!(table.count.0, expected.len());
         assert_eq!(
-            counted.calls.load(Ordering::Relaxed),
+            file.observation_routes(0).unwrap().registered_calls,
             1,
-            "one engine-owned distinct state for {given:?}"
+            "the prepared union root is evaluated once"
         );
+    } else {
+        assert!(matches!(
+            outcome.emit,
+            RootOutcome::Unknown(OperatingError::ObservationIncomplete { .. })
+        ));
     }
+    file.finish().unwrap();
 }

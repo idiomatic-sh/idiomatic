@@ -11,7 +11,7 @@ use ryo_relations::domain::relations::types::{FileId, Flag, KindBits, Offset, Po
 use ryo_relations::domain::terms::types::NameText;
 
 use super::service::{count, in_tree, row, value};
-use super::types::{Keeps, Keys, LoweredRoom, Positions, Readiness, Slots};
+use super::types::{Keeps, Keys, Positions, Slots};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::types::{
     Counting, ElementPart, LoweredColumn, LoweredShape, Lowering, RowPosition, RowWidth,
@@ -79,21 +79,6 @@ pub(crate) fn lowering_of(fields: &[ElementPart]) -> Lowering {
             })
             .collect(),
         counting: vec![Counting::DoesNotCount; fields.len()],
-    }
-}
-
-/// A room where each step has made these rows of one position.
-pub(crate) fn room_of(steps: &[&[u32]]) -> LoweredRoom {
-    LoweredRoom {
-        made: steps
-            .iter()
-            .map(|slots| Positions {
-                width: RowWidth(1),
-                slots: Slots(slots.to_vec()),
-            })
-            .collect(),
-        ready: vec![Readiness::Made; steps.len()],
-        ..LoweredRoom::default()
     }
 }
 

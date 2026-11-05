@@ -49,6 +49,12 @@ impl DerivedOwner {
     }
 
     pub(in crate::application::file_dag) fn report(&self, file: FileId) {
+        tracing::trace!(target: "ryo::diagnostic::resource_routes", event = "owner_footprint", file = file.0,
+            required_bytes = self.working_bytes(), peak_required_bytes = self.peak_working_bytes(),
+            retained_bytes = self.retained_bytes(), required_backend_bytes = self.required_backend_overlap(),
+            peak_required_views = self.peak_required_views(), owned_bytes = self.owned_bytes(),
+            metadata_bytes = self.metadata_bytes(), released_entries = self.state.borrow().released_entries);
+
         if let Some(indexes) = self.backend.borrow().as_ref() {
             let state = self.state.borrow();
             tracing::trace!(target: "ryo::diagnostic::graph", event = "file_graphs", file = file.0,

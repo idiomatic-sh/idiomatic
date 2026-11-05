@@ -10,11 +10,11 @@ use ryo_relations::domain::relations::types::{
 
 use super::types::{CompactFrame, CompactTable, DecodeMode, WordSlice};
 
-use ryo_values::domain::stored_facts::types::PackedWords;
+use crate::domain::stored_facts::types::PackedWords;
 
 /// Writes a table as words, so it can wait in a bucket of the store: its widths, its row count,
 /// its kinds, and its cells.
-pub(crate) fn encode_table(table: &Table, places: &[NamePlace], out: &mut Words) {
+pub fn encode_table(table: &Table, places: &[NamePlace], out: &mut Words) {
     out.0.extend([
         u64::try_from(table.kinds.len()).unwrap_or(0),
         u64::try_from(table.count.0).unwrap_or(0),
@@ -32,12 +32,12 @@ pub(crate) fn encode_table(table: &Table, places: &[NamePlace], out: &mut Words)
 /// and the places of their names added to `places`, the names of each table numbered after those of the tables before it. A table
 /// that cannot be read to its end is left out, and so are those after it.
 #[must_use]
-pub(crate) fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>) -> Table {
+pub fn decode_combined(packed: &PackedWords, places: &mut Vec<NamePlace>) -> Table {
     decode_combined_status(packed, places, DecodeMode::Permissive).0
 }
 /// The same decoder with an explicit completion proof for required named publications.
 /// Refusal rolls back this call's name-place additions; legacy permissive callers are unchanged.
-pub(crate) fn decode_complete(
+pub fn decode_complete(
     packed: &PackedWords,
     places: &mut Vec<NamePlace>,
 ) -> Result<Table, super::errors::WordsDecodeError> {
@@ -131,8 +131,7 @@ fn observed_decode(
     places: &Vec<NamePlace>,
 ) {
     if tracing::enabled!(target: "ryo::diagnostic::lifecycle_memory", tracing::Level::TRACE) {
-        let bytes =
-            ryo_values::domain::records::types::retention::value::RetainedBytes::table(table);
+        let bytes = crate::domain::records::types::retention::value::RetainedBytes::table(table);
         let place_width = size_of::<NamePlace>();
         tracing::trace!(target: "ryo::diagnostic::lifecycle_memory", phase, owner = "decoding_input",
             packed_live_bytes = packed.0.len(), packed_capacity_bytes = packed.0.capacity(),
@@ -161,7 +160,7 @@ fn rebased(value: Value, base: PlaceNumber) -> Value {
 
 /// The words packed seven bits to a byte, the high bit saying another byte follows.
 #[must_use]
-pub(crate) fn pack(words: WordSlice<'_>) -> PackedWords {
+pub fn pack(words: WordSlice<'_>) -> PackedWords {
     // Capacity overflow uses the same standard Vec refusal as an unrepresentable allocation;
     // never wrap a size or silently truncate encoded data.
     let exact = encoded_size(words).unwrap_or(usize::MAX);
@@ -172,7 +171,7 @@ pub(crate) fn pack(words: WordSlice<'_>) -> PackedWords {
 
 /// Exact encoded payload size, checked before any allocation.
 #[must_use]
-pub(crate) fn encoded_size(words: WordSlice<'_>) -> Option<usize> {
+pub fn encoded_size(words: WordSlice<'_>) -> Option<usize> {
     words
         .0
         .iter()
@@ -181,7 +180,7 @@ pub(crate) fn encoded_size(words: WordSlice<'_>) -> Option<usize> {
 
 /// Add one varint's exact width without permitting the total to wrap.
 #[must_use]
-pub(crate) fn with_encoded_word(total: usize, mut word: u64) -> Option<usize> {
+pub fn with_encoded_word(total: usize, mut word: u64) -> Option<usize> {
     let mut width = 1_usize;
     while word >= 0x80 {
         width += 1;
@@ -191,7 +190,7 @@ pub(crate) fn with_encoded_word(total: usize, mut word: u64) -> Option<usize> {
 }
 
 /// The words packed as `pack` packs them, written after what `packed` holds: packed words run together are the words of each.
-pub(crate) fn pack_onto(words: WordSlice<'_>, packed: &mut PackedWords) {
+pub fn pack_onto(words: WordSlice<'_>, packed: &mut PackedWords) {
     let packed = &mut packed.0;
     for word in words.0 {
         let mut rest = *word;
@@ -204,14 +203,14 @@ pub(crate) fn pack_onto(words: WordSlice<'_>, packed: &mut PackedWords) {
 }
 
 /// The words `packed` holds, read one at a time; nothing for a last word cut short.
-pub(crate) fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ {
+pub fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ {
     CompactCursor {
         bytes: &packed.0,
         offset: 0,
     }
 }
 
-use ryo_values::domain::rows::types::{RowCount, Table};
+use crate::domain::rows::types::{RowCount, Table};
 /// Existing pack() emits minimal u64 varints. A required frame refuses a cut word,
 /// overflow or alternate spelling rather than letting unpacked() silently shorten it.
 fn canonical_words(packed: &PackedWords) -> bool {
@@ -243,7 +242,7 @@ fn canonical_bytes(bytes: &[u8]) -> bool {
 /// A worker's source range must contain one whole table frame. This walks the
 /// same value codec without retaining decoded cells or row offsets, so moving
 /// a byte across adjacent source ranges cannot reassign another file's rows.
-pub(crate) fn single_table_frame(bytes: &[u8]) -> bool {
+pub fn single_table_frame(bytes: &[u8]) -> bool {
     if !canonical_bytes(bytes) {
         return false;
     }
@@ -275,8 +274,8 @@ pub(crate) fn single_table_frame(bytes: &[u8]) -> bool {
 /// The same byte/value walk as the existing decoder preserves permissive frame
 /// rollback and Complete's all-or-error name rollback. Spelling is checked by
 /// the caller in its existing preparation order, before query execution.
-pub(crate) fn admit_compact(
-    backing: std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords>,
+pub fn admit_compact(
+    backing: std::sync::Arc<crate::domain::stored_facts::types::KeptWords>,
     places: &mut Vec<NamePlace>,
     mode: DecodeMode,
 ) -> Result<(CompactTable, Vec<Name>), super::errors::WordsDecodeError> {
@@ -401,15 +400,13 @@ pub(crate) fn admit_compact(
     ))
 }
 
-pub(crate) fn compact_kinds(
-    input: &CompactTable,
-) -> &[ryo_relations::domain::relations::types::CellKind] {
+pub fn compact_kinds(input: &CompactTable) -> &[ryo_relations::domain::relations::types::CellKind] {
     &input.kinds
 }
-pub(crate) fn compact_rows(input: &CompactTable) -> usize {
+pub fn compact_rows(input: &CompactTable) -> usize {
     input.rows
 }
-pub(crate) fn compact_cells(input: &CompactTable) -> usize {
+pub fn compact_cells(input: &CompactTable) -> usize {
     input.cells
 }
 
@@ -437,7 +434,7 @@ impl Iterator for CompactCursor<'_> {
 }
 
 /// Only an actually empty admitted source may receive its declared schema.
-pub(crate) fn shape_compact(
+pub fn shape_compact(
     input: &mut CompactTable,
     kinds: &[ryo_relations::domain::relations::types::CellKind],
 ) -> Result<(), super::errors::WordsDecodeError> {
@@ -488,7 +485,7 @@ fn compact_values(
     }
     Some(())
 }
-pub(crate) fn compact_read<'a>(
+pub fn compact_read<'a>(
     input: &CompactTable,
     row: usize,
     scratch: &'a mut [Value],
@@ -501,7 +498,7 @@ pub(crate) fn compact_read<'a>(
     })?;
     Some(&scratch[..input.kinds.len()])
 }
-pub(crate) fn compact_cell(input: &CompactTable, row: usize, column: usize) -> Option<Value> {
+pub fn compact_cell(input: &CompactTable, row: usize, column: usize) -> Option<Value> {
     if column >= input.kinds.len() {
         return None;
     }
@@ -510,7 +507,7 @@ pub(crate) fn compact_cell(input: &CompactTable, row: usize, column: usize) -> O
     found
 }
 /// Admission validated every encoded cell once; this is a metadata-only shape check.
-pub(crate) fn compact_rectangular(input: &CompactTable) -> bool {
+pub fn compact_rectangular(input: &CompactTable) -> bool {
     input.rows.checked_mul(input.kinds.len()) == Some(input.cells)
         && input.frames.iter().all(|frame| {
             frame.bytes.start <= frame.bytes.end && frame.bytes.end <= input.words.0.0.len()
@@ -522,12 +519,12 @@ pub(crate) fn compact_rectangular(input: &CompactTable) -> bool {
             == Some(input.cells)
         && (input.kinds.is_empty() || input.row_offsets.len() == input.rows)
 }
-pub(crate) fn compact_backing(
+pub fn compact_backing(
     input: &CompactTable,
-) -> &std::sync::Arc<ryo_values::domain::stored_facts::types::KeptWords> {
+) -> &std::sync::Arc<crate::domain::stored_facts::types::KeptWords> {
     &input.words
 }
-pub(crate) fn compact_metadata_bytes(input: &CompactTable) -> usize {
+pub fn compact_metadata_bytes(input: &CompactTable) -> usize {
     size_of::<CompactTable>()
         + 2 * size_of::<usize>()
         + input.frames.capacity() * size_of::<CompactFrame>()
@@ -535,7 +532,7 @@ pub(crate) fn compact_metadata_bytes(input: &CompactTable) -> usize {
         + input.row_offsets.capacity() * size_of::<usize>()
 }
 
-pub(crate) fn compact_storage(input: &CompactTable) -> [(usize, usize); 2] {
+pub fn compact_storage(input: &CompactTable) -> [(usize, usize); 2] {
     [
         (input.words.0.0.as_ptr() as usize, input.words.0.0.len()),
         (input.row_offsets.as_ptr() as usize, input.row_offsets.len()),

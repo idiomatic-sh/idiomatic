@@ -2,15 +2,11 @@
 //! Only the application retains selection metadata; primitives receive borrowed typed rows.
 
 use super::derived::view::AcquiredView;
-use crate::domain::operating::{
-    errors::OperatingError,
-    types::{Emit, OperatorContext},
-};
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::table_model::types::SelectedRows;
 use ryo_derived::domain::contract::types::KeyIndex;
-use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// One complete selected population and an index over only its declared key cells.
 /// The source remains borrowed from this physical file; metadata is an Arc clone.
@@ -19,47 +15,6 @@ pub(crate) struct SelectedInput<'f> {
     index: AcquiredView,
 }
 impl<'f> SelectedInput<'f> {
-    #[cfg(test)]
-    pub(crate) fn prepare(
-        original: &SelectedRows<'f>,
-        columns: &[ColumnIndex],
-    ) -> Result<Self, OperatingError> {
-        use crate::domain::derived_views::types::*;
-        let rows = BorrowedRows::Selected {
-            source: original.source,
-            positions: &original.selection.rows,
-            columns: &original.selection.columns,
-            kinds: &original.selection.kinds,
-        };
-        rows.validate()?;
-        let plan = std::sync::Arc::new(super::derived::prepare::view(
-            crate::outbound::derived::factory::test_port(),
-            &ViewRequest::Equality {
-                columns: columns.to_vec(),
-            },
-            &[crate::domain::operation_schema::types::InputShape {
-                kinds: rows.kinds(),
-                tree: None,
-            }],
-        )?);
-        let owner = super::relations::RelationOwner::new(
-            false,
-            crate::outbound::derived::factory::test_port(),
-        );
-        let supplied = crate::domain::table_model::types::Rows::Selected(original.clone());
-        let publication = owner.source(original.selection.relation, &supplied)?;
-        let proof = owner.admit(publication.as_ref(), rows)?;
-        let (population, _) = proof.identity(&owner)?;
-        let index = owner.derived.acquire_stored(
-            &plan,
-            &[population],
-            Default::default(),
-            DerivedInputs::Rows(&[proof.rows()]),
-            &mut DerivedScratch::default(),
-            None,
-        )?;
-        Self::from_derived(original, index)
-    }
     pub(super) fn from_derived(
         original: &SelectedRows<'f>,
         index: AcquiredView,
@@ -104,32 +59,6 @@ impl<'f> SelectedInput<'f> {
             columns: self.columns(),
             index: self.index(),
         }
-    }
-
-    /// Join one left row with matching compact positions in their original bag order.
-    /// Only output cells are decoded; no full RHS row or table is materialized.
-    pub(crate) fn emit_join(
-        &self,
-        semantics: &dyn crate::domain::operator::contract::types::PrimitiveSemantics,
-        left_on: &[ColumnIndex],
-        output: &[JoinColumn],
-        left: &[Value],
-        key: &mut Vec<Value>,
-        answer: &mut Vec<Value>,
-        context: &mut OperatorContext<'_>,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        super::equality_join::indexed(
-            semantics,
-            self.view(),
-            left,
-            left_on,
-            output,
-            key,
-            answer,
-            context,
-            emit,
-        )
     }
 }
 

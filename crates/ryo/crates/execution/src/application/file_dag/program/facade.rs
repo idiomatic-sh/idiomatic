@@ -120,18 +120,14 @@ pub struct ProjectRuleOutcome {
 pub(super) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,
-    pub kinds: Box<[CellKind]>,
     pub reads: Box<[RelationRead]>,
 }
 pub(super) struct RuleMetadata {
     pub emit: Emit,
-    pub emit_reads: Result<Box<[RelationRead]>, OperatingError>,
     pub emit_root: Result<RegionId, OperatingError>,
-    pub emit_phase: Result<StepScope, OperatingError>,
     pub frontiers: Box<[Input]>,
     pub observations: Box<[RootMetadata]>,
     pub observation_frontiers: Box<[bool]>,
-    pub step_count: usize,
     pub semantic_needed: bool,
     pub frontier_dependencies: Result<
         Vec<Vec<ryo_values::domain::observations::types::ObservationBindingId>>,
@@ -149,18 +145,14 @@ pub(in crate::application) struct OutputMetadata {
     pub consumers: Vec<usize>,
 }
 pub(crate) struct ObservationMetadata {
-    pub layout: ObservationReadinessLayout,
-    pub slots: Box<[ObservationSlot]>,
-    pub frontiers: Box<[ObservedFrontierRoot]>,
-    pub bindings: Vec<Vec<ResolvedObservationBinding>>,
-    pub consumers: Vec<Vec<Vec<usize>>>,
-    pub outputs: Vec<Vec<OutputMetadata>>,
-    pub unions: Vec<
-        Vec<
-            Result<Arc<crate::domain::operator::contract::types::OperatorContract>, OperatingError>,
-        >,
-    >,
-    pub retire: Vec<Vec<crate::domain::file_program::types::ObservationRetirement>>,
+    pub(in crate::application) layout: ObservationReadinessLayout,
+    pub(in crate::application) slots: Box<[ObservationSlot]>,
+    pub(in crate::application) frontiers: Box<[ObservedFrontierRoot]>,
+    pub(in crate::application) bindings: Vec<Vec<ResolvedObservationBinding>>,
+    pub(in crate::application) consumers: Vec<Vec<Vec<usize>>>,
+    pub(in crate::application) outputs: Vec<Vec<OutputMetadata>>,
+    pub(in crate::application) retire:
+        Vec<Vec<crate::domain::file_program::types::ObservationRetirement>>,
 }
 /// Immutable executable state has no RequestGraph, Plan, layout or old executor.
 pub(crate) struct PreparedProgram {
@@ -329,20 +321,7 @@ impl PreparedProgram {
     pub(crate) fn metadata(&self) -> &[ryo_values::domain::run_metadata::types::RuleMetadata] {
         &self.semantic_metadata
     }
-    pub(crate) fn observation_request(
-        &self,
-    ) -> crate::domain::file_program::types::ObservationRequest<'_> {
-        match (&self.observations, &self.schedule) {
-            (Some(named), RuleSchedule::Dependencies { batches, .. }) => {
-                crate::domain::file_program::types::ObservationRequest::Bound {
-                    layout: named.layout,
-                    batches,
-                    bindings: &named.bindings,
-                }
-            }
-            _ => crate::domain::file_program::types::ObservationRequest::Independent,
-        }
-    }
+
     pub(crate) fn replay_closure(
         &self,
         again: ryo_values::domain::stores::types::Reuse,
@@ -519,7 +498,6 @@ pub(crate) fn prepare(
                     crate::domain::file_program::types::GraphObservationRoot::CrossFile => OutputRoot::CrossFile,
                     crate::domain::file_program::types::GraphObservationRoot::Unavailable => OutputRoot::Unavailable }, consumers: output.consumers.clone(),
             }).collect()).collect(),
-            unions: named.bindings.iter().map(|bindings| bindings.iter().map(|binding| binding.union.clone()).collect()).collect(),
             retire: named.retire.clone(),
             consumers: named
                 .outputs
@@ -589,7 +567,6 @@ pub(crate) fn prepare(
             .map(|output| RootMetadata {
                 source: source(&program, named.as_ref(), rule, output.source),
                 phase: output.scope,
-                kinds: output.columns.iter().map(|column| column.kind).collect(),
                 reads: match output.source {
                     Input::Step(step) => reads.get(step.0 as usize).cloned().unwrap_or_default(),
                     Input::Relation(relation) => vec![RelationRead {
@@ -603,26 +580,15 @@ pub(crate) fn prepare(
             .collect();
         metadata.push(RuleMetadata {
             emit: plan.emit.clone(),
-            emit_reads: reads
-                .get(plan.emit.step.0 as usize)
-                .cloned()
-                .map(Vec::into_boxed_slice)
-                .ok_or(OperatingError::NotRun),
             emit_root: program
                 .rules()
                 .get(rule)
                 .ok_or(OperatingError::NotRun)?
                 .emit
                 .clone(),
-            emit_phase: plan
-                .steps
-                .get(plan.emit.step.0 as usize)
-                .map(|step| step.scope)
-                .ok_or(OperatingError::NotRun),
             frontiers: plan.frontier.clone().into_boxed_slice(),
             observations: outputs,
             observation_frontiers: observation_frontiers[rule].clone().into_boxed_slice(),
-            step_count: plan.steps.len(),
             frontier_dependencies:
                 crate::domain::file_program::service::observations::frontier_dependencies(plan)
                     .map_err(|error| OperatingError::ObservationIncomplete {

@@ -188,7 +188,7 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
         ..Table::default()
     };
     for at in 0..32 {
-        crate::domain::table_model::service::push_row(
+        ryo_values::domain::rows::service::push_row(
             &mut edges,
             &[
                 Value::Number(Integer(at)),
@@ -197,7 +197,7 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
             ],
         );
     }
-    crate::domain::table_model::service::push_row(
+    ryo_values::domain::rows::service::push_row(
         &mut edges,
         &[
             Value::Number(Integer(100)),

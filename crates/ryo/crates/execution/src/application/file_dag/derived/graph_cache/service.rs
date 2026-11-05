@@ -1,82 +1,9 @@
 //! Complete compact graph/domain acquisition under one unchanged per-file byte allowance.
 
 use crate::application::file_dag::derived::backend::CacheBackend;
-use crate::domain::operator::types::PreparedPool;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
 
 /// Root and nearest answers cannot silently grow into a retained all-pairs closure.
 pub(crate) const MEMO_LIMIT: usize = 2 * 1024 * 1024;
-
-/// Enable graph access only for an active physically eligible per-file consumer.
-pub(in crate::application::file_dag::derived) fn reserve(
-    cache: &mut CacheBackend,
-    plans: &[Plan],
-    pool: &PreparedPool,
-    active: impl Fn(usize) -> bool,
-) {
-    let requested = plans
-        .iter()
-        .enumerate()
-        .filter(|(rule, _)| active(*rule))
-        .any(|(rule, plan)| {
-            let prepared = pool.selection_plans.get(rule);
-            plan.steps
-                .iter()
-                .filter(|step| step.scope == StepScope::PerFile)
-                .any(|step| {
-                    let edges = match &step.operation {
-                        Operation::Join {
-                            right,
-                            reach: Some(_),
-                            ..
-                        } => *right,
-                        Operation::Axis { edges, .. } => *edges,
-                        Operation::Select { .. }
-                        | Operation::Project { .. }
-                        | Operation::Extend { .. }
-                        | Operation::Join { .. }
-                        | Operation::Union { .. }
-                        | Operation::Intersection { .. }
-                        | Operation::Difference { .. }
-                        | Operation::Antijoin { .. }
-                        | Operation::GroupCount { .. }
-                        | Operation::GroupDigest { .. }
-                        | Operation::Capture { .. }
-                        | Operation::Rank { .. }
-                        | Operation::Replace { .. }
-                        | Operation::OrderedMatch { .. }
-                        | Operation::Words { .. }
-                        | Operation::Closure { .. }
-                        | Operation::OrderedDfs { .. }
-                        | Operation::Cycles { .. }
-                        | Operation::Rows { .. }
-                        | Operation::Hosted { .. }
-                        | Operation::SpanBounds { .. }
-                        | Operation::SourceMatches { .. }
-                        | Operation::RenderSyntax { .. }
-                        | Operation::FitsRendered { .. }
-                        | Operation::SpanBetween { .. } => return false,
-                    };
-                    let relation = match edges {
-                        Input::BoundObservation(_) => None,
-                        Input::Relation(relation) => Some(relation),
-                        Input::Step(id) => prepared
-                            .and_then(|plan| plan.steps.get(id.0 as usize))
-                            .and_then(Option::as_ref)
-                            .map(|selector| selector.relation),
-                    };
-                    relation.is_some_and(|relation| {
-                        !matches!(relation, Relation::SyntaxTree | Relation::SyntaxChild)
-                            && cache.eligible.contains(&relation)
-                    })
-                })
-        });
-    if requested {
-        cache.graph_enabled = true;
-    }
-}
 
 /// Replacement metadata is allocated separately, so refusal never grows retained capacity.
 pub(crate) fn slot<T>(entries: &Vec<T>) -> Option<(Option<Vec<T>>, usize)> {

@@ -43,7 +43,7 @@ pub(crate) enum Rows<'a> {
     /// The rows of an earlier step.
     Computed(&'a Table),
     /// Admitted immutable cross-file rows read without whole-population cell allocation.
-    Compact(&'a crate::domain::table_words::types::CompactTable),
+    Compact(&'a ryo_values::domain::table_words::types::CompactTable),
 }
 
 /// Geometry and positions are borrowed from the same generation-owned publication.

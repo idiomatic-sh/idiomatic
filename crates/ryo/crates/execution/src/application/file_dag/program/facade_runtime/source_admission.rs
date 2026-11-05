@@ -263,7 +263,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     Delivery::Retain,
                 )? {
                     InvocationOutcome::Published(input) => Ok(input),
-                    InvocationOutcome::Forwarded => Err(OperatingError::NotRun),
+                    InvocationOutcome::Forwarded(_) => Err(OperatingError::NotRun),
                 }
             }
             InputSource::Observation(slot) => {
@@ -296,7 +296,7 @@ impl Inputs for SourceInputs<'_, '_> {
                     Delivery::Retain,
                 )? {
                     InvocationOutcome::Published(input) => input,
-                    InvocationOutcome::Forwarded => return Err(OperatingError::NotRun),
+                    InvocationOutcome::Forwarded(_) => return Err(OperatingError::NotRun),
                 };
                 let admitted = super::super::admission::alias_observation(
                     self.program.program(),

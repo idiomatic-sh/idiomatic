@@ -162,21 +162,19 @@ fn collected_computed_stored_selected_and_generic_routes_use_injected_join() {
         ],
     );
     let mut words = ryo_relations::domain::relations::types::Words::default();
-    crate::domain::table_words::service::encode_table(&right, &[], &mut words);
-    let (compact, names) = crate::domain::table_words::service::admit_compact(
+    ryo_values::domain::table_words::service::encode_table(&right, &[], &mut words);
+    let (compact, names) = ryo_values::domain::table_words::service::admit_compact(
         Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
-            crate::domain::table_words::service::pack(
-                crate::domain::table_words::types::WordSlice(&words.0),
+            ryo_values::domain::table_words::service::pack(
+                ryo_values::domain::table_words::types::WordSlice(&words.0),
             ),
         )),
         &mut Vec::new(),
-        crate::domain::table_words::types::DecodeMode::Complete,
+        ryo_values::domain::table_words::types::DecodeMode::Complete,
     )
     .unwrap();
     assert!(names.is_empty());
-    assert!(crate::domain::table_words::service::compact_rectangular(
-        &compact
-    ));
+    assert!(ryo_values::domain::table_words::service::compact_rectangular(&compact));
     let columns = [fact_column(&[7, 7]), fact_column(&[1, 2])];
     let stored = ColumnsView {
         kinds: NUMBER_PAIR_KINDS,

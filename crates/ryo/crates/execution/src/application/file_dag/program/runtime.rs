@@ -125,6 +125,10 @@ pub(super) struct RetryCheckpoint {
     pub(super) dependencies: DependencyCheckpoint,
 }
 struct Slot {
+    #[cfg(test)]
+    native_positions: usize,
+    #[cfg(test)]
+    registered_calls: usize,
     state: State,
     scratch: Vec<KernelScratch>,
     fed: Box<[crate::domain::operator::types::RowsFed]>,
@@ -172,6 +176,10 @@ impl ProgramExecution {
             .regions()
             .iter()
             .map(|region| Slot {
+                #[cfg(test)]
+                native_positions: 0,
+                #[cfg(test)]
+                registered_calls: 0,
                 state: State::Dormant,
                 scratch: Vec::new(),
                 fed: vec![
@@ -223,6 +231,41 @@ impl ProgramExecution {
             }
         }
         Ok(())
+    }
+    /// Observes completed dispatches even after the real retirement drops invocation scratch.
+    #[cfg(test)]
+    pub(super) fn route_observation(
+        &self,
+        rule: crate::domain::coverage::types::RuleIndex,
+        step: ryo_values::domain::plan_parts::types::StepId,
+    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+        let origin = self
+            .program
+            .rules()
+            .get(rule.0)
+            .and_then(|rule| rule.original_steps.get(step.0 as usize))
+            .ok_or(OperatingError::NotRun)?
+            .as_ref()
+            .map_err(Clone::clone)?;
+        let region = self
+            .program
+            .logical_regions()
+            .get(origin.logical.0)
+            .ok_or(OperatingError::NotRun)?;
+        self.region_observation(*region)
+    }
+    #[cfg(test)]
+    pub(super) fn region_observation(
+        &self,
+        region: RegionId,
+    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+        let slots = self.slots.borrow();
+        let slot = slots.get(region.0).ok_or(OperatingError::NotRun)?;
+        Ok(crate::domain::operating::types::ExecutionObservation {
+            native_positions: slot.native_positions,
+            registered_calls: slot.registered_calls,
+            ..Default::default()
+        })
     }
     #[cfg(test)]
     pub(super) fn retry_checkpoint(&self, id: RegionId) -> Result<RetryCheckpoint, OperatingError> {
@@ -403,6 +446,9 @@ impl ProgramExecution {
                 slot.dependencies_consumed = true;
                 slot.waiting_on = None;
                 let old = std::mem::replace(&mut slot.state, State::Retired);
+                if matches!(old, State::Published(_)) {
+                    self.owner.release_derived_producer(id);
+                }
                 work.retired.push((old, std::mem::take(&mut slot.scratch)));
             }
         }
@@ -457,6 +503,7 @@ impl ProgramExecution {
         context: &mut OperatorContext<'_>,
         delivery: Delivery<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
+        let _node_origin = crate::application::file_dag::route_counts::node(id.0);
         self.cleanup_status()?;
         let region = self
             .program
@@ -484,7 +531,7 @@ impl ProgramExecution {
                         Delivery::Retain => Ok(InvocationOutcome::Published(input)),
                         Delivery::Forward(output) => {
                             inputs.replay(&input, context, output)?;
-                            Ok(InvocationOutcome::Forwarded)
+                            Ok(InvocationOutcome::Forwarded(input.coverage()?))
                         }
                     };
                 }
@@ -572,7 +619,7 @@ impl ProgramExecution {
                     .last()
                     .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
                 let mut rows = ryo_values::domain::rows::types::Table::default();
-                crate::domain::table_model::service::reset(
+                ryo_values::domain::rows::service::reset(
                     &mut rows,
                     last.contract
                         .collected_kinds
@@ -867,11 +914,29 @@ impl ProgramExecution {
                         return Err(InvocationFailure::Delivery(error));
                     }
                     result?;
-                    Ok(InvocationOutcome::Forwarded)
+                    let inherited = super::admission::contributor_readiness(
+                        &self.partition,
+                        &admitted,
+                        &self.owner,
+                    )
+                    .map_err(InvocationFailure::Semantic)?;
+                    let inherited = match inherited {
+                        super::admission::Readiness::Complete => {
+                            crate::application::file_dag::completion::CoverageState::Complete
+                        }
+                        super::admission::Readiness::Partial { files } => {
+                            crate::application::file_dag::completion::CoverageState::Partial {
+                                files,
+                            }
+                        }
+                    };
+                    Ok(InvocationOutcome::Forwarded(
+                        inherited.merge(completion.coverage(needs)),
+                    ))
                 }
                 delivery => {
                     let mut rows = ryo_values::domain::rows::types::Table::default();
-                    crate::domain::table_model::service::reset(
+                    ryo_values::domain::rows::service::reset(
                         &mut rows,
                         last.contract
                             .collected_kinds
@@ -971,10 +1036,10 @@ impl ProgramExecution {
                 self.release_inputs(id)?;
                 Ok(InvocationOutcome::Published(input))
             }
-            Ok(InvocationOutcome::Forwarded) => {
+            Ok(InvocationOutcome::Forwarded(coverage)) => {
                 cleanup.terminal = Terminal::Forwarded;
                 self.release_inputs(id)?;
-                Ok(InvocationOutcome::Forwarded)
+                Ok(InvocationOutcome::Forwarded(coverage))
             }
             Err(InvocationFailure::Semantic(error)) => {
                 cleanup.terminal = Terminal::Failed(error.clone());
@@ -1076,7 +1141,7 @@ impl Emit for GuardedOutput<'_> {
 }
 pub(super) enum InvocationOutcome {
     Published(AdmittedInput),
-    Forwarded,
+    Forwarded(crate::application::file_dag::completion::CoverageState),
 }
 enum Terminal {
     Retry,
@@ -1095,8 +1160,15 @@ impl Drop for Invocation<'_> {
         let mut slots = self.execution.slots.borrow_mut();
         if let Some(slot) = slots.get_mut(self.id.0) {
             slot.scratch = self.scratch.take().unwrap_or_default();
-            for (fed, scratch) in slot.fed.iter_mut().zip(&slot.scratch) {
-                if let Some(workspace) = &scratch.workspace {
+            for (fed, scratch) in slot.fed.iter_mut().zip(&mut slot.scratch) {
+                if let Some(workspace) = &mut scratch.workspace {
+                    #[cfg(test)]
+                    {
+                        slot.native_positions +=
+                            std::mem::take(&mut workspace.observation.native_positions);
+                        slot.registered_calls +=
+                            std::mem::take(&mut workspace.observation.registered_calls);
+                    }
                     for (total, delta) in fed.0.iter_mut().zip(workspace.work.take()) {
                         *total = total.saturating_add(delta);
                     }
@@ -1104,7 +1176,19 @@ impl Drop for Invocation<'_> {
             }
             slot.state = match &self.terminal {
                 Terminal::Retry => State::Dormant,
-                Terminal::Published(input) => State::Published(input.clone()),
+                Terminal::Published(input) => match input.publication(&self.execution.owner) {
+                    Ok(publication) => {
+                        self.execution.owner.pin_derived(publication.as_ref());
+                        State::Published(input.clone())
+                    }
+                    Err(error) => {
+                        self.execution
+                            .cleanup_failure
+                            .borrow_mut()
+                            .get_or_insert(error.clone());
+                        State::Failed(error)
+                    }
+                },
                 Terminal::Forwarded => State::Forwarded,
                 Terminal::Failed(error) => State::Failed(error.clone()),
             };

@@ -1,12 +1,13 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
 use super::*;
-use crate::domain::{
-    derived_views::types::*, operation_schema::types::InputShape, table_model::service::push_row,
-};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
+use {
+    crate::domain::derived_views::types::*, crate::domain::operation_schema::types::InputShape,
+    ryo_values::domain::rows::service::push_row,
+};
 #[test]
 fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage() {
     let mut table = Table {

@@ -5,7 +5,6 @@ use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::replace::item::ReplaceItem;
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::service::datum;
@@ -15,6 +14,7 @@ use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell}
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, LiteralText};
 use ryo_values::domain::plans::types::{Operation, QueryOperator};
+use ryo_values::domain::rows::service::push_row;
 use {
     crate::domain::table_texts::types::Datum, crate::domain::table_texts::types::Texts,
     ryo_values::domain::files::types::SourceView,

@@ -19,10 +19,10 @@ use {
     ryo_values::domain::runs::types::RuleNumber,
 };
 
-use crate::domain::table_words::service::{decode_combined, encode_table, pack, unpacked};
-use crate::domain::table_words::types::WordSlice;
 use ryo_values::domain::records::types::RenderedText;
 use ryo_values::domain::records::types::{RowEnds, RowsTextAt, TextRange};
+use ryo_values::domain::table_words::service::{decode_combined, encode_table, pack, unpacked};
+use ryo_values::domain::table_words::types::WordSlice;
 
 use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::Glob;

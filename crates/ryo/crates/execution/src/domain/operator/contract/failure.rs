@@ -4,9 +4,6 @@ use crate::domain::operating::errors::OperatingError;
 #[derive(Default)]
 pub(crate) struct FailureLatch(Option<OperatingError>);
 impl FailureLatch {
-    pub(crate) fn error(&self) -> Option<&OperatingError> {
-        self.0.as_ref()
-    }
     pub(crate) fn failed(&self) -> bool {
         self.0.is_some()
     }

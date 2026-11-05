@@ -5,13 +5,13 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::table_words::service::{pack, unpacked};
-use crate::domain::table_words::types::WordSlice;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
 use ryo_execution::inbound::use_cases::execution::types::facts::WordsToKeep;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
+use ryo_values::domain::table_words::service::{pack, unpacked};
+use ryo_values::domain::table_words::types::WordSlice;
 
 static FRONTIER_PROOF: std::sync::LazyLock<ryo_values::domain::records::types::FrontierProof> =
     std::sync::LazyLock::new(|| ryo_values::domain::records::types::FrontierProof {

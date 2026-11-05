@@ -18,7 +18,6 @@ use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plans::types::{Feature, Operation, OperationKind};
 use {crate::domain::features::service::catalog, ryo_values::domain::plans::service::kind_of};
 
-use crate::domain::table_model::service::push_row;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
     CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell,
@@ -28,6 +27,7 @@ use ryo_values::domain::plan_parts::types::{
     CapturePattern, ColumnIndex, Direction, FlagState, HostedNumber, Input as Source, JoinColumn,
     LiteralText, Operand, ParameterId, QueryLiteral, RepeatedRows, Side, TableKey, WholeNumber,
 };
+use ryo_values::domain::rows::service::push_row;
 
 /// A genuine populated/empty evaluator comparison across every current operator.
 type Input = bool;

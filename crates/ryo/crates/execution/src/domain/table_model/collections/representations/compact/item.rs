@@ -22,8 +22,8 @@ impl RepresentationsItem for CompactItem {
         Ok(RelationContract {
             input,
             kind: RepresentationKind::Compact,
-            kinds: crate::domain::table_words::service::compact_kinds(table),
-            rows: crate::domain::table_words::service::compact_rows(table),
+            kinds: ryo_values::domain::table_words::service::compact_kinds(table),
+            rows: ryo_values::domain::table_words::service::compact_rows(table),
             metadata: Ok(()),
         })
     }
@@ -34,7 +34,7 @@ impl RepresentationsItem for CompactItem {
         if contract.kinds != contract.input.kinds() {
             return Err(OperatingError::ShapeMismatch);
         }
-        if !crate::domain::table_words::service::compact_rectangular(table) {
+        if !ryo_values::domain::table_words::service::compact_rectangular(table) {
             return Err(OperatingError::ShapeMismatch);
         }
         Ok(PhysicalShape::Complete)
@@ -48,12 +48,13 @@ impl RepresentationsItem for CompactItem {
         let RepresentationInput::Compact(table) = input else {
             return Err(OperatingError::WrongOperation);
         };
-        if row.0 >= crate::domain::table_words::service::compact_rows(table)
-            || column.0 as usize >= crate::domain::table_words::service::compact_kinds(table).len()
+        if row.0 >= ryo_values::domain::table_words::service::compact_rows(table)
+            || column.0 as usize
+                >= ryo_values::domain::table_words::service::compact_kinds(table).len()
         {
             return Ok(CellRead::MissingPhysical);
         }
-        crate::domain::table_words::service::compact_cell(table, row.0, column.0 as usize)
+        ryo_values::domain::table_words::service::compact_cell(table, row.0, column.0 as usize)
             .map(CellRead::Value)
             .ok_or(OperatingError::ShapeMismatch)
     }
@@ -66,10 +67,10 @@ impl RepresentationsItem for CompactItem {
         let RepresentationInput::Compact(table) = input else {
             return Err(OperatingError::WrongOperation);
         };
-        if row.0 >= crate::domain::table_words::service::compact_rows(table) {
+        if row.0 >= ryo_values::domain::table_words::service::compact_rows(table) {
             return Ok(RowRead::MissingPhysical);
         }
-        crate::domain::table_words::service::compact_read(table, row.0, _decode)
+        ryo_values::domain::table_words::service::compact_read(table, row.0, _decode)
             .map(RowRead::Decoded)
             .ok_or(OperatingError::ShapeMismatch)
     }

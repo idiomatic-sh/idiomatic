@@ -1,470 +1,420 @@
-//! The `layout` service's cases, on the plans of the `pipeline`'s cases.
+//! Schema, publication and refusal controls through production request preparation.
 
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CellKind, Relation};
-
-use crate::application::file_dag::pipeline::service_test::{
-    KINDS, SOURCE, counting_plan, functions, plan,
+use crate::application::file_dag::program::facade;
+use crate::domain::{
+    file_program::{
+        service::compile_prepared_observations,
+        types::{NodeInput, ObservationRequest, RuleSchedule},
+    },
+    operating::errors::OperatingError,
+    operator::contract::types::RequestOperators,
+    prepared_request::types::{Compiled, ObservationIdentity},
 };
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::layout::service::{layout_of, reads_of, shaped};
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::OperatorContext;
-use crate::domain::operator::types::{PlanIdentity, StepPlace};
-use crate::domain::table_model::types::Rows;
-use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_relations::domain::relations::types::ColumnsView;
-use ryo_values::domain::files::types::SourceView;
-
-/// What a row of the cases does.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// Lays out a plan whose last step is emitted.
-    LaysOutAnEmittingPlan,
-    /// Lays out a plan whose first step is handed to the cross-file steps.
-    LaysOutAHandingPlan,
-    /// Counts the steps that read each step of a plan.
-    CountsReads,
-    /// Lays out a plan over a relation nothing provides.
-    LaysOutWithoutTheRelation,
-    /// Stored selection, extension and graph layout must leave execution storage untouched.
-    MetadataOnly,
-    /// A refusal keeps its original relation probe order.
-    ProbeOrder,
-    /// A native graph's frontier still has kinds when no file populated it.
-    EmptyNativeFrontier,
-}
-
-/// What a row of the cases does.
-type Input = Scenario;
-/// The steps that keep their rows, times ten, plus the columns of the widest step, or the reads counted.
-type Value = usize;
-type Failure = OperatingError;
-
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    match scenario {
-        Scenario::MetadataOnly => return metadata_only(),
-        Scenario::ProbeOrder => return probe_order(),
-        Scenario::EmptyNativeFrontier => return native_frontier(),
-        _ => {}
-    }
-    let mut symbols = Symbols::default();
-    let columns = functions(&mut symbols);
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(SOURCE),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut OperatorScratch::default(),
-    };
-    let provided = |relation: Relation| {
-        if relation == Relation::Function {
-            Ok(Rows::Stored(ColumnsView {
-                kinds: KINDS,
-                columns: &columns,
-            }))
-        } else {
-            Err(OperatingError::NotRead)
-        }
-    };
-    let nothing = |_: Relation| Err(OperatingError::NotRead);
-    match scenario {
-        Scenario::LaysOutAnEmittingPlan | Scenario::LaysOutAHandingPlan => {
-            let plan = if matches!(scenario, Scenario::LaysOutAnEmittingPlan) {
-                plan()
-            } else {
-                counting_plan()
-            };
-            let layout = layout_of(&plan, PlanIdentity(0), &provided, &mut context)?;
-            let kept = layout.kept.0.iter().filter(|kept| **kept).count();
-            Ok(kept * 10 + layout.kinds.iter().map(Vec::len).max().unwrap_or(0))
-        }
-        Scenario::CountsReads => {
-            let plan = plan();
-            Ok(reads_of(&plan, StepPlace(0)).0 * 10 + reads_of(&plan, StepPlace(1)).0)
-        }
-        Scenario::LaysOutWithoutTheRelation => {
-            layout_of(&plan(), PlanIdentity(0), &nothing, &mut context)
-                .map(|layout| layout.kinds.len())
-        }
-        Scenario::MetadataOnly | Scenario::ProbeOrder | Scenario::EmptyNativeFrontier => {
-            unreachable!()
-        }
-    }
-}
-
-/// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("layout_never_reads_stored_payload_or_mutates_execution_room"),
-        word: Word::Succeeds,
-        input: || Scenario::MetadataOnly,
-        expect: Expect::Value(7),
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, Integer, Relation, Value},
+};
+use ryo_values::domain::{
+    plan_parts::types::{
+        ColumnIndex, Direction, Input, JoinColumn, LiteralText, Operand, QueryLiteral,
+        RepeatedRows, Side, StepId,
     },
-    Case {
-        name: CaseName("provider_refusal_preserves_left_then_right_probe_order"),
-        word: Word::Succeeds,
-        input: || Scenario::ProbeOrder,
-        expect: Expect::Value(2),
-    },
-    Case {
-        name: CaseName("empty_frontier_preserves_native_deep_walk_schema"),
-        word: Word::Succeeds,
-        input: || Scenario::EmptyNativeFrontier,
-        expect: Expect::Value(6),
-    },
-    Case {
-        name: CaseName("only_the_emitted_step_keeps_its_rows_when_each_is_read_once"),
-        word: Word::Succeeds,
-        input: || Scenario::LaysOutAnEmittingPlan,
-        expect: Expect::Value(12),
-    },
-    Case {
-        name: CaseName("the_step_handed_to_the_cross_file_steps_keeps_its_rows"),
-        word: Word::Succeeds,
-        input: || Scenario::LaysOutAHandingPlan,
-        expect: Expect::Value(12),
-    },
-    Case {
-        name: CaseName("a_step_read_by_a_step_and_emitted_is_read_once_each_way"),
-        word: Word::Succeeds,
-        input: || Scenario::CountsReads,
-        expect: Expect::Value(11),
-    },
-    Case {
-        name: CaseName("a_plan_over_a_relation_nobody_read_is_refused"),
-        word: Word::Refuses,
-        input: || Scenario::LaysOutWithoutTheRelation,
-        expect: Expect::Error(OperatingError::NotRead),
-    },
-];
+    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
+    rows::types::{RowCount, Table},
+    rule_requests::types::{RuleParameters, RuleSpec},
+    runs::types::{RuleApplicability, RuleId},
+    stored_facts::types::Digest,
+};
+use std::{collections::BTreeMap, sync::Arc};
 
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}
-
-/// Probe real nonempty Stored views without filtering, interning text or traversing a graph.
-fn metadata_only() -> Result<Value, Failure> {
-    use ryo_language::domain::symbols::service::{derived_of, name_count};
-    use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-    use ryo_values::domain::plan_parts::types::{
-        ColumnIndex, Input as Source, LiteralText, Operand, QueryLiteral, StepId,
-    };
-    use ryo_values::domain::plans::types::{Operation, PlanStep, StepScope};
-    let mut symbols = Symbols::default();
-    let columns = functions(&mut symbols);
-    let names_before = name_count(&symbols);
-    let derived_before = derived_of(&symbols).0.clone();
-    let mut scratch = OperatorScratch::default();
-    let sentinel = Cell::Number(Integer(99));
-    scratch.row.push(sentinel);
-    scratch.other.push(sentinel);
-    scratch.walk_scratch.nearest.0.push(17);
-    scratch.select_scratch.text_ok.0.push(2);
-    let row_before = scratch.row.clone();
-    let other_before = scratch.other.clone();
-    let row_capacity = scratch.row.capacity();
-    let mut memo = vec![crate::domain::operating::types::Memo::Unknown];
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(SOURCE),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let mut plan = plan();
-    plan.steps[1].operation = Operation::Extend {
-        from: Source::Step(StepId(0)),
-        values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(
-            "do-not-intern-layout".into(),
-        )))],
-    };
-    plan.steps.push(PlanStep {
-        operation: Operation::Closure {
-            edges: Source::Relation(Relation::Function),
-            keys: Vec::new(),
-            source: ColumnIndex(0),
-            destination: ColumnIndex(0),
+// Fixtures assemble authored requests only. The production compiler derives every schema,
+// retention boundary, reader count and frontier reference asserted below.
+fn plan(steps: Vec<PlanStep>, frontier: Vec<Input>) -> Plan {
+    Plan {
+        observation_inputs: vec![],
+        observations: vec![],
+        parameters: vec![],
+        emit: Emit {
+            step: StepId(steps.len().saturating_sub(1) as u32),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
         },
+        steps,
+        frontier,
+        comparison_origins: vec![],
+    }
+}
+fn step(operation: Operation) -> PlanStep {
+    PlanStep {
+        operation,
         scope: StepScope::PerFile,
+    }
+}
+fn select(from: Input) -> Operation {
+    Operation::Select {
+        from,
+        comparisons: vec![],
+        kept: vec![],
+    }
+}
+fn native_plan(cross: bool) -> Plan {
+    let mut tail = step(if cross {
+        Operation::GroupCount {
+            from: Input::Step(StepId(0)),
+            keys: vec![ColumnIndex(1)],
+            distinct: None,
+        }
+    } else {
+        Operation::Project {
+            from: Input::Step(StepId(0)),
+            columns: vec![ColumnIndex(0)],
+            distinct: RepeatedRows::Dropped,
+        }
     });
-    plan.emit.subject = ColumnIndex(1);
-    let probes = std::cell::RefCell::new(Vec::new());
-    let provided = |relation| {
-        probes.borrow_mut().push(relation);
-        Ok(Rows::Stored(ColumnsView {
-            kinds: KINDS,
-            columns: &columns,
-        }))
+    if cross {
+        tail.scope = StepScope::CrossFile;
+    }
+    plan(
+        vec![step(select(Input::Relation(Relation::SyntaxTree))), tail],
+        if cross {
+            vec![Input::Step(StepId(0))]
+        } else {
+            vec![]
+        },
+    )
+}
+fn prepared(plan: Plan) -> Result<Arc<facade::PreparedProgram>, OperatingError> {
+    let rule = RuleSpec {
+        id: RuleId("prepared-layout".into()),
+        query: QueryBundle {
+            root: QueryDocumentSource {
+                id: QuerySourceId("prepared-layout".into()),
+                text: "".into(),
+            },
+            modules: BTreeMap::new(),
+        },
+        applicability: RuleApplicability::Always,
+        given: vec![],
+        observations: vec![],
+        spelled: RuleParameters("".into()),
+        include: vec![],
+        exclude: vec![],
     };
-    let layout = layout_of(&plan, PlanIdentity(0), &provided, &mut context)?;
-    assert_eq!(*probes.borrow(), [Relation::Function, Relation::Function]);
-    assert_eq!(name_count(context.symbols.as_ref()), names_before);
-    assert_eq!(derived_of(context.symbols.as_ref()).0, derived_before);
-    assert_eq!(context.source.0, SOURCE);
-    assert_eq!(context.scratch.row, row_before);
-    assert_eq!(context.scratch.row.capacity(), row_capacity);
-    assert_eq!(context.scratch.other, other_before);
-    assert_eq!(context.scratch.walk_scratch.nearest.0, [17]);
-    assert_eq!(context.scratch.select_scratch.text_ok.0, [2]);
-    assert_eq!(context.memo.len(), 1);
+    facade::prepare(
+        Compiled {
+            schedule: RuleSchedule::Independent,
+            observations: vec![vec![]],
+            plans: vec![plan],
+            bindings: vec![vec![]],
+        },
+        &[rule],
+        &[Digest([0; 16])],
+        &[],
+        crate::outbound::derived::factory::test_port(),
+        ObservationIdentity::Independent,
+    )
+}
+
+#[test]
+fn only_the_emitted_native_step_is_a_retention_root_when_each_is_read_once() {
+    let plans = [native_plan(false)];
+    let operators = RequestOperators::prepare(
+        &plans,
+        &[vec![]],
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
+    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
+    let first = graph.program_nodes[0][0].as_ref().unwrap();
+    let layout = &graph.nodes[first.0].regions[0].layout;
+    assert_eq!(layout.kept.0, [false, true]);
     assert_eq!(
         layout.kinds,
         [
-            KINDS.to_vec(),
+            vec![
+                CellKind::Node,
+                CellKind::Symbol,
+                CellKind::Symbol,
+                CellKind::File,
+                CellKind::Span
+            ],
+            vec![CellKind::Node]
+        ]
+    );
+}
+
+#[test]
+fn the_step_handed_to_cross_file_steps_is_a_retention_root() {
+    let plans = [native_plan(true)];
+    let operators = RequestOperators::prepare(
+        &plans,
+        &[vec![]],
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
+    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
+    let first = graph.program_nodes[0][0].as_ref().unwrap();
+    let layout = &graph.nodes[first.0].regions[0].layout;
+    assert_eq!(layout.kept.0, [true, true]);
+    assert_eq!(
+        operators.rules[0][1].schema,
+        Ok(vec![CellKind::Symbol, CellKind::Number])
+    );
+    let request = prepared(plans[0].clone()).unwrap();
+    let program = request.program();
+    assert!(matches!(
+        program.rules()[0].frontier[0],
+        Ok(crate::domain::executable_program::types::InputSource::Region(_))
+    ));
+}
+
+#[test]
+fn a_step_dependency_and_its_terminal_publication_are_counted_once_each() {
+    let request = prepared(native_plan(false)).unwrap();
+    let program = request.program();
+    let origins = &program.rules()[0].original_steps;
+    let first = origins[0].as_ref().unwrap().logical;
+    let last = origins[1].as_ref().unwrap().logical;
+    let first_region = program.logical_regions()[first.0];
+    let last_region = program.logical_regions()[last.0];
+    assert_ne!(
+        first_region, last_region,
+        "distinct projection owns a real input publication"
+    );
+    assert_eq!(program.regions()[first_region.0].consumers, 1);
+    assert_eq!(program.regions()[last_region.0].consumers, 1);
+}
+
+#[test]
+fn metadata_preparation_propagates_select_extend_and_graph_schemas_without_rows() {
+    let plans = [plan(
+        vec![
+            step(select(Input::Relation(Relation::Function))),
+            step(Operation::Extend {
+                from: Input::Step(StepId(0)),
+                values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(
+                    "do-not-intern-layout".into(),
+                )))],
+            }),
+            step(Operation::Closure {
+                edges: Input::Relation(Relation::Function),
+                keys: vec![],
+                source: ColumnIndex(0),
+                destination: ColumnIndex(0),
+            }),
+        ],
+        vec![],
+    )];
+    let operators = RequestOperators::prepare_with_schemas(
+        &plans,
+        &[vec![]],
+        &[],
+        &|_| &[CellKind::Symbol, CellKind::File],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
+    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
+    assert_eq!(operators.preparations, 3);
+    let schemas = graph.program_nodes[0]
+        .iter()
+        .map(|node| {
+            graph.nodes[node.as_ref().unwrap().0]
+                .contract
+                .collected_kinds
+                .clone()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        schemas,
+        [
+            vec![CellKind::Symbol, CellKind::File],
             vec![CellKind::Symbol, CellKind::File, CellKind::Symbol],
             vec![CellKind::Symbol; 2]
         ]
     );
-    Ok(layout.kinds.iter().map(Vec::len).sum())
-}
-
-/// Availability is checked on both inputs in original order before schema algebra.
-fn probe_order() -> Result<Value, Failure> {
-    use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as Source, JoinColumn, Side};
-    use ryo_values::domain::plans::types::Operation;
-    let mut symbols = Symbols::default();
-    let columns = functions(&mut symbols);
-    let mut scratch = OperatorScratch::default();
-    let mut memo = Vec::new();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(SOURCE),
-        paths: &[],
-        arenas: &[],
-        scratch: &mut scratch,
-        memo: &mut memo,
-    };
-    let mut plan = plan();
-    plan.steps.truncate(1);
-    plan.emit.step = ryo_values::domain::plan_parts::types::StepId(0);
-    plan.steps[0].operation = Operation::Join {
-        left: Source::Relation(Relation::Function),
-        right: Source::Relation(Relation::Comment),
-        left_on: Vec::new(),
-        right_on: Vec::new(),
-        output: vec![JoinColumn {
-            side: Side::Left,
-            column: ColumnIndex(0),
-        }],
-        filter: Vec::new(),
-        view: Vec::new(),
-
-        reach: None,
-    };
-    let probes = std::cell::RefCell::new(Vec::new());
-    let provided = |relation| {
-        probes.borrow_mut().push(relation);
-        if relation == Relation::Comment {
-            Err(OperatingError::NotRead)
-        } else {
-            Ok(Rows::Stored(ColumnsView {
-                kinds: KINDS,
-                columns: &columns,
-            }))
-        }
-    };
-    assert!(matches!(
-        layout_of(&plan, PlanIdentity(0), &provided, &mut context),
-        Err(OperatingError::NotRead)
-    ));
-    assert_eq!(*probes.borrow(), [Relation::Function, Relation::Comment]);
-    let count = probes.borrow().len();
-    Ok(count)
-}
-
-/// Empty cross-file handoff uses declared native representation, not a computed graph placeholder.
-fn native_frontier() -> Result<Value, Failure> {
-    use crate::domain::table_model::types::Frontier;
-    use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input as Source, StepId};
-    use ryo_values::domain::plans::types::Operation;
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = Vec::new();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        scratch: &mut scratch,
-        memo: &mut memo,
-    };
-    let mut plan = plan();
-    plan.steps.truncate(1);
-    plan.emit.step = StepId(0);
-    plan.steps[0].operation = Operation::Axis {
-        from: Source::Relation(Relation::SyntaxTree),
-        edges: Source::Relation(Relation::SyntaxChild),
-        domain: Source::Relation(Relation::SyntaxTree),
-        direction: Direction::Deep,
-        id: ColumnIndex(0),
-        parent: ColumnIndex(0),
-        child: ColumnIndex(1),
-        domain_id: ColumnIndex(0),
-        domain_filter: Vec::new(),
-        domain_view: Vec::new(),
-        output: Vec::new(),
-    };
-    let mut frontier = [Frontier {
-        input: Source::Step(StepId(0)),
-        table: Table::default(),
-    }];
-    shaped(&plan, &mut frontier, &mut context)?;
-    let answer = frontier;
-    let expected = ryo_relations::domain::relations::service::kinds(Relation::SyntaxTree);
-    assert_eq!(answer[0].table.kinds[..expected.len()], *expected);
-    assert_eq!(
-        answer[0].table.kinds.last(),
-        Some(&ryo_relations::domain::relations::types::CellKind::Node)
-    );
-    Ok(answer[0].table.kinds.len())
 }
 
 #[test]
-fn owned_frontier_shaping_preserves_native_and_computed_cell_allocations() {
-    use crate::domain::table_model::types::Frontier;
-    use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
-    use ryo_values::domain::plan_parts::types::{Input, StepId};
-    let mut symbols = Symbols::default();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut OperatorScratch::default(),
+fn preparation_keeps_ordered_relation_dependencies_without_probing_availability() {
+    let plans = [plan(
+        vec![step(Operation::Join {
+            left: Input::Relation(Relation::Function),
+            right: Input::Relation(Relation::Comment),
+            left_on: vec![],
+            right_on: vec![],
+            output: vec![JoinColumn {
+                side: Side::Left,
+                column: ColumnIndex(0),
+            }],
+            filter: vec![],
+            view: vec![],
+            reach: None,
+        })],
+        vec![],
+    )];
+    let probes = std::cell::RefCell::new(Vec::new());
+    let metadata = |relation| {
+        probes.borrow_mut().push(relation);
+        &[CellKind::Symbol, CellKind::File][..]
     };
+    let operators = RequestOperators::prepare_with_schemas(
+        &plans,
+        &[vec![]],
+        &[],
+        &metadata,
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
+    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
+    assert_eq!(
+        &probes.borrow()[..2],
+        [Relation::Function, Relation::Comment]
+    );
+    assert_eq!(
+        graph.nodes[0].inputs,
+        [
+            NodeInput::Relation(Relation::Function),
+            NodeInput::Relation(Relation::Comment)
+        ]
+    );
+    // Actual missing-provider refusal is exercised by compiled_parity_test's missing-demanded-right-source case.
+}
+
+#[test]
+fn empty_native_frontier_has_the_deep_walk_schema_before_any_file_is_read() {
+    let plans = [plan(
+        vec![step(Operation::Axis {
+            from: Input::Relation(Relation::SyntaxTree),
+            edges: Input::Relation(Relation::SyntaxChild),
+            domain: Input::Relation(Relation::SyntaxTree),
+            direction: Direction::Deep,
+            id: ColumnIndex(0),
+            parent: ColumnIndex(0),
+            child: ColumnIndex(1),
+            domain_id: ColumnIndex(0),
+            domain_filter: vec![],
+            domain_view: vec![],
+            output: vec![],
+        })],
+        vec![Input::Step(StepId(0))],
+    )];
+    let operators = RequestOperators::prepare(
+        &plans,
+        &[vec![]],
+        &[],
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
+    let graph = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
+    let output = graph.program_nodes[0][0].as_ref().unwrap();
+    assert_eq!(
+        graph.nodes[output.0].contract.collected_kinds,
+        Ok(vec![
+            CellKind::Node,
+            CellKind::Symbol,
+            CellKind::Symbol,
+            CellKind::File,
+            CellKind::Span,
+            CellKind::Node
+        ])
+    );
+}
+
+#[test]
+fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metadata() {
     let mut cells = Vec::with_capacity(97);
     cells.push(Value::Number(Integer(7)));
-    let pointer = cells.as_ptr();
-    let capacity = cells.capacity();
-    let native_kinds =
-        ryo_relations::domain::relations::service::kinds(Relation::SyntaxTree).to_vec();
+    let computed = Table {
+        kinds: vec![CellKind::Number],
+        cells,
+        count: RowCount(1),
+    };
     let mut native_cells = Vec::with_capacity(79);
-    for kind in &native_kinds {
-        native_cells.push(match kind {
-            CellKind::Node => Value::Node(ryo_relations::domain::relations::service::node_id(
-                ryo_relations::domain::relations::types::FileId(0),
-                ryo_relations::domain::relations::types::Position(0),
-            )),
-            CellKind::Symbol => Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
-            CellKind::File => Value::File(ryo_relations::domain::relations::types::FileId(0)),
-            CellKind::Span => Value::Span(ryo_relations::domain::relations::constants::NO_SPAN),
-            CellKind::Number => Value::Number(Integer(0)),
-            CellKind::Flag => Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
-        });
+    native_cells.push(Value::Number(Integer(17)));
+    // Payload bytes are deliberately unrelated to the borrowed schema: preparation cannot inspect them.
+    let native = Table {
+        kinds: kinds(Relation::SyntaxTree).to_vec(),
+        cells: native_cells,
+        count: RowCount(1),
+    };
+    let before = (
+        computed.cells.as_ptr(),
+        computed.cells.capacity(),
+        native.cells.as_ptr(),
+        native.cells.capacity(),
+    );
+    let plans = [plan(
+        vec![
+            step(select(Input::Relation(Relation::Function))),
+            step(select(Input::Relation(Relation::SyntaxTree))),
+            step(select(Input::Relation(Relation::SyntaxChild))),
+        ],
+        vec![],
+    )];
+    let metadata = |relation| match relation {
+        Relation::Function => computed.kinds.as_slice(),
+        Relation::SyntaxTree => native.kinds.as_slice(),
+        _ => kinds(relation),
+    };
+    let operators = RequestOperators::prepare_with_schemas(
+        &plans,
+        &[vec![]],
+        &[],
+        &metadata,
+        crate::outbound::derived::factory::test_port(),
+    )
+    .unwrap();
+    let prepared_kinds = operators.rules[0][1]
+        .collected_kinds
+        .as_ref()
+        .unwrap()
+        .as_ptr();
+    let first = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
+    let again = compile_prepared_observations(&plans, &operators, ObservationRequest::Independent);
+    assert_eq!(computed.cells, [Value::Number(Integer(7))]);
+    assert_eq!(native.cells, [Value::Number(Integer(17))]);
+    assert_eq!(
+        before,
+        (
+            computed.cells.as_ptr(),
+            computed.cells.capacity(),
+            native.cells.as_ptr(),
+            native.cells.capacity()
+        )
+    );
+    assert_eq!(
+        operators.rules[0][1]
+            .collected_kinds
+            .as_ref()
+            .unwrap()
+            .as_ptr(),
+        prepared_kinds
+    );
+    for graph in [first, again] {
+        let output = graph.program_nodes[0][2].as_ref().unwrap();
+        assert_eq!(
+            graph.nodes[output.0].contract.collected_kinds,
+            Ok(kinds(Relation::SyntaxChild).to_vec())
+        );
     }
-    let native_pointer = native_cells.as_ptr();
-    let native_capacity = native_cells.capacity();
-    let mut frontier = vec![
-        Frontier {
-            input: Input::Step(StepId(0)),
-            table: Table {
-                kinds: vec![CellKind::Number],
-                cells,
-                count: RowCount(1),
-            },
-        },
-        Frontier {
-            input: Input::Relation(Relation::SyntaxTree),
-            table: Table {
-                kinds: native_kinds,
-                cells: native_cells,
-                count: RowCount(1),
-            },
-        },
-        Frontier {
-            input: Input::Relation(Relation::SyntaxChild),
-            table: Table::default(),
-        },
-    ];
-    let mut plan = plan();
-    plan.steps.clear();
-    shaped(&plan, &mut frontier, &mut context).expect("derive only the empty native schema");
-    assert_eq!(frontier[0].table.cells.as_ptr(), pointer);
-    assert_eq!(frontier[0].table.cells.capacity(), capacity);
-    assert_eq!(frontier[1].table.cells.as_ptr(), native_pointer);
-    assert_eq!(frontier[1].table.cells.capacity(), native_capacity);
-    assert_eq!(
-        frontier[2].table.kinds,
-        ryo_relations::domain::relations::service::kinds(Relation::SyntaxChild)
-    );
-    let native_kinds = frontier[1].table.kinds.as_ptr();
-    let owned = frontier;
-    let mut moved = owned;
-    shaped(&plan, &mut moved, &mut context).expect("already-shaped fast path");
-    assert_eq!(moved[0].table.cells.as_ptr(), pointer);
-    assert_eq!(moved[0].table.cells.capacity(), capacity);
-    assert_eq!(
-        moved[1].table.kinds.as_ptr(),
-        native_kinds,
-        "fast path must not clone even metadata"
-    );
 }
 
 #[test]
-fn failed_frontier_metadata_lookup_rolls_back_all_empty_schema_fills() {
-    use crate::domain::table_model::types::Frontier;
-    use ryo_values::domain::plan_parts::types::{Input, StepId};
-    let mut symbols = Symbols::default();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b""),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut OperatorScratch::default(),
-    };
-    let mut plan = plan();
-    plan.steps.clear();
-    let mut frontier = vec![
-        Frontier {
-            input: Input::Relation(Relation::Function),
-            table: Table::default(),
-        },
-        Frontier {
-            input: Input::Step(StepId(99)),
-            table: Table::default(),
-        },
-    ];
-    assert_eq!(
-        shaped(&plan, &mut frontier, &mut context),
-        Err(OperatingError::NotRun)
-    );
-    assert!(frontier.iter().all(|each| each.table.kinds.is_empty()));
-    assert!(frontier.iter().all(|each| each.table.cells.is_empty()));
+fn an_invalid_frontier_keeps_the_prior_source_and_its_own_typed_refusal() {
+    let request = prepared(plan(
+        vec![],
+        vec![Input::Relation(Relation::Function), Input::Step(StepId(99))],
+    ))
+    .unwrap();
+    let frontier = &request.program().rules()[0].frontier;
+    assert!(matches!(
+        frontier[0],
+        Ok(crate::domain::executable_program::types::InputSource::Relation(Relation::Function))
+    ));
+    assert_eq!(frontier[1], Err(OperatingError::NotRun));
 }
-
-use ryo_values::domain::rows::types::{RowCount, Table};

@@ -11,7 +11,6 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::extend::item::ExtendItem;
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_relations::domain::relations::types::Integer;
@@ -22,6 +21,7 @@ use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::ParameterId;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::service::push_row;
 
 type Value = usize;
 type Failure = OperatingError;

@@ -246,8 +246,6 @@ pub(crate) struct OperatorScratch {
     pub other: Vec<Value>,
     /// Lazily constructed join work for this invocation.
     pub join_scratch: LazyScratch<JoinScratch>,
-    /// Lazily constructed walk work for this invocation.
-    pub walk_scratch: LazyScratch<WalkScratch>,
     /// Lazily constructed select work for this invocation.
     pub select_scratch: LazyScratch<SelectScratch>,
 }
@@ -255,24 +253,8 @@ pub(crate) struct OperatorScratch {
 /// Mutable join work, allocated only by operators that use it.
 #[derive(Debug, Default)]
 pub(crate) struct JoinScratch {
-    /// The rows already kept, found by what they hold.
-    pub seen: hashbrown::HashTable<RowIndex>,
-
     /// Reused by the engine's prepared Join lookup across rows in this invocation.
     pub key: Vec<Value>,
-}
-
-/// Mutable walk work, allocated only by operators that use it.
-#[derive(Debug, Default)]
-pub(crate) struct WalkScratch {
-    /// Which elements of a tree a domain admits, by their place.
-    pub marks: Marks,
-
-    /// For each element of a tree, its nearest ancestor a walk admits, once it is known.
-    pub nearest: ElementPlaces,
-
-    /// The elements whose nearest ancestor is being found, from the one asked about up.
-    pub climbing: ElementPlaces,
 }
 
 /// Mutable select work, allocated only by operators that use it.

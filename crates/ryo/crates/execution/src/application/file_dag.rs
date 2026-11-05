@@ -1,5 +1,4 @@
 //! Central generation-scoped scheduling, shared graph results and last-use release.
-pub(crate) mod aggregation;
 pub(crate) mod axis_resources;
 pub(crate) mod execution;
 #[cfg(test)]
@@ -35,8 +34,6 @@ pub(crate) mod acceptance;
 pub(crate) mod derived;
 
 pub(crate) mod route_counts;
-
-mod equality_join;
 
 pub(crate) mod observations;
 mod ordered_existence;

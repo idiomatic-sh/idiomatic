@@ -1,6 +1,6 @@
 //! Pure borrowed-value and preparation fixtures; no executor or admission alternative.
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::{CellKind, Value};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::Table;
 /// Composition of the actual portable derived use case for current engine tests.
 pub(crate) fn program_derived_port()
@@ -33,7 +33,7 @@ impl ryo_derived::domain::contract::types::RowCells for CompleteTableRows<'_> {
         row: usize,
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Option<Value> {
-        crate::domain::table_model::service::row_in(
+        ryo_values::domain::rows::service::row_in(
             self.0,
             ryo_values::domain::rows::types::RowIndex(row),
         )?

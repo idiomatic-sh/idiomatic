@@ -46,7 +46,6 @@ pub(crate) enum IndexColumns {
 }
 #[derive(Clone, Debug)]
 pub(crate) struct JoinResources {
-    pub output: Vec<JoinColumn>,
     pub left_on: Vec<ColumnIndex>,
     pub right_on: Vec<ColumnIndex>,
     pub view: Vec<ColumnIndex>,
@@ -102,7 +101,6 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             columns: IndexColumns::Columns(right_on.clone()),
         },
         Operation::Join {
-            output,
             left_on,
             right_on,
             filter,
@@ -110,7 +108,6 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             reach,
             ..
         } => ResourceProgram::Join(JoinResources {
-            output: output.clone(),
             left_on: left_on.clone(),
             right_on: right_on.clone(),
             view: view.clone(),

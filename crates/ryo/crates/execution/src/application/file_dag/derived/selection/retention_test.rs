@@ -307,11 +307,12 @@ fn every_possible_discriminator_column_is_prepared_once() -> Result<(), Failure>
 #[test]
 fn typed_positions_share_the_owner_acquired_buffer_and_refuse_wrong_views() -> Result<(), Failure> {
     use crate::application::file_dag::{derived::owner::ViewContext, relations::RelationOwner};
-    use crate::domain::{
-        derived_views::types::*, operation_schema::types::InputShape,
-        operator::contract::views::BorrowedRows, table_model::service::push_row,
-    };
     use ryo_values::domain::plan_parts::types::ColumnIndex;
+    use {
+        crate::domain::derived_views::types::*, crate::domain::operation_schema::types::InputShape,
+        crate::domain::operator::contract::views::BorrowedRows,
+        ryo_values::domain::rows::service::push_row,
+    };
 
     let mut table = Table {
         kinds: vec![CellKind::Number],

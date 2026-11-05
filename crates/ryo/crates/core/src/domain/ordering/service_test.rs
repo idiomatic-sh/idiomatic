@@ -15,7 +15,7 @@ use crate::domain::render::service::{end_row, key_count, lent_row, render_rows, 
 use crate::domain::render::types::{
     FindingRule, KeyCount, RenderInput, Rendered, RowLayout, RowLimit, RowNumber, RowOrder, Shown,
 };
-use crate::domain::table_model::service::push_row;
+use ryo_values::domain::rows::service::push_row;
 use {
     crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine,
     crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber,

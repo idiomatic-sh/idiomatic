@@ -19,6 +19,7 @@ pub(crate) struct PartitionedClosure<'f> {
     partition_plan: Arc<DerivedContract>,
     closure_plan: Arc<DerivedContract>,
     ordered: AcquiredView,
+    #[cfg(test)]
     ordering_capacity: usize,
     cursor: usize,
     key: Vec<Value>,
@@ -49,6 +50,7 @@ impl<'f> PartitionedClosure<'f> {
         {
             return Err(OperatingError::WrongOperation);
         }
+        #[cfg(test)]
         let ordering_capacity = ordered.partition_order_capacity()?;
         Ok(Self {
             input,
@@ -56,6 +58,7 @@ impl<'f> PartitionedClosure<'f> {
             partition_plan,
             closure_plan,
             ordered,
+            #[cfg(test)]
             ordering_capacity,
             cursor: 0,
             key: Vec::new(),
@@ -175,6 +178,7 @@ impl<'f> PartitionedClosure<'f> {
     }
 
     /// All live Value payload cells owned by this cursor, not only adjacency rows.
+    #[cfg(test)]
     pub(crate) fn working_cells(&self) -> usize {
         self.current.as_ref().map_or(0, |_| {
             let current = self.current();
@@ -183,6 +187,7 @@ impl<'f> PartitionedClosure<'f> {
             + self.scratch.row.len()
     }
     /// Reserved Value buffers; shared ordering remains charged independently.
+    #[cfg(test)]
     pub(crate) fn working_capacity(&self) -> usize {
         self.current.as_ref().map_or(0, |_| {
             let current = self.current();
@@ -191,6 +196,7 @@ impl<'f> PartitionedClosure<'f> {
         }) + self.key.capacity()
             + self.scratch.row.capacity()
     }
+    #[cfg(test)]
     pub(crate) fn ordering_bytes(&self) -> usize {
         let mut bytes = self
             .ordering_capacity

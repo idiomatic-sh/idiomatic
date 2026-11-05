@@ -24,13 +24,13 @@ use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
-fn compact(table: &Table) -> crate::domain::table_words::types::CompactTable {
-    use crate::domain::table_words::{
+fn compact(table: &Table) -> ryo_values::domain::table_words::types::CompactTable {
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::domain::stored_facts::types::KeptWords;
+    use ryo_values::domain::table_words::{
         service,
         types::{DecodeMode, WordSlice},
     };
-    use ryo_relations::domain::relations::types::Words;
-    use ryo_values::domain::stored_facts::types::KeptWords;
     let mut words = Words::default();
     service::encode_table(table, &[], &mut words);
     let (compact, names) = service::admit_compact(

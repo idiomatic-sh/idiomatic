@@ -2,16 +2,6 @@
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.
 use super::types::{FrontierInput, FrontierSource, PreparedFrontiers};
-use crate::domain::{
-    crossing::types::RefusedFrontier,
-    frontiers::service::{decode_input, project_input, project_relation},
-    operating::errors::OperatingError,
-    table_model::types::Frontier,
-    table_words::{
-        service::{admit_compact, decode_complete},
-        types::DecodeMode,
-    },
-};
 use crate::outbound::facts::{
     errors::FactsError,
     interface::{FactsFinish, FactsWorker},
@@ -20,6 +10,16 @@ use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},
     stored_facts::types::Bucket,
+};
+use {
+    crate::domain::crossing::types::RefusedFrontier,
+    crate::domain::frontiers::service::decode_input,
+    crate::domain::frontiers::service::project_input,
+    crate::domain::frontiers::service::project_relation,
+    crate::domain::operating::errors::OperatingError, crate::domain::table_model::types::Frontier,
+    ryo_values::domain::table_words::service::admit_compact,
+    ryo_values::domain::table_words::service::decode_complete,
+    ryo_values::domain::table_words::types::DecodeMode,
 };
 
 #[derive(Clone, Copy)]
@@ -170,7 +170,7 @@ pub(crate) fn prepare(
             .iter()
             .map(|input| match input {
                 FrontierInput::Compact { table, .. } => {
-                    crate::domain::table_words::service::compact_rows(table)
+                    ryo_values::domain::table_words::service::compact_rows(table)
                 }
                 FrontierInput::Decoded { .. } => 0,
             })
@@ -230,7 +230,7 @@ pub(crate) fn validate_bucket(
         }
         let end = at.checked_add(source.length).ok_or_else(refuse)?;
         let frame = payload.words.0.0.get(at..end).ok_or_else(refuse)?;
-        if !crate::domain::table_words::service::single_table_frame(frame) {
+        if !ryo_values::domain::table_words::service::single_table_frame(frame) {
             return Err(refuse());
         }
         at = end;

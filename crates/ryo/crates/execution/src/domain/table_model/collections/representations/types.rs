@@ -35,7 +35,7 @@ pub(crate) enum RepresentationInput<'a> {
     Tree(TreeRows<'a>),
     Positioned(crate::domain::table_model::types::PositionedRows<'a>),
     Computed(&'a Table),
-    Compact(&'a crate::domain::table_words::types::CompactTable),
+    Compact(&'a ryo_values::domain::table_words::types::CompactTable),
 }
 pub(crate) type BulkAccess<'a> = RepresentationInput<'a>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

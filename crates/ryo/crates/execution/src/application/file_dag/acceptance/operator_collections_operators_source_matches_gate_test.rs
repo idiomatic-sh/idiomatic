@@ -1,97 +1,40 @@
-//! Actual common-engine gates must precede demand-driven matcher compilation.
-use super::{held, span};
-use crate::application::file_dag::testing::TestOperator as _;
-use crate::domain::matching::types::prepared::value::PreparedMatchers;
-use crate::domain::operating::{
-    errors::OperatingError,
-    types::{OperatorContext, Room},
-};
-use crate::domain::operator::collections::operators::source_matches::item::SourceMatchesItem;
-use crate::domain::replay::types::Pipe;
-use crate::domain::table_model::{service::push_row, types::Rows};
-use crate::domain::table_scratch::types::OperatorScratch;
+//! Real compiled source/line gates precede deferred matcher compilation.
+use super::span;
+use crate::application::file_dag::acceptance::compiled_span_fixture as compiled;
+use crate::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,
-    types::{CellKind, Integer, Relation, Span, Value},
+    types::{FileId, Integer, Relation, Span},
 };
-use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input, LiteralText, StepId},
-    plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
+    plan_parts::types::{ColumnIndex, Input, LiteralText, Operand, QueryLiteral, StepId},
+    plans::types::Operation,
 };
 fn run(source_span: Option<Span>, line: i64, stream: bool) -> (Result<(), OperatingError>, usize) {
-    let operation = Operation::SourceMatches {
-        from: Input::Relation(Relation::Function),
-        span: ColumnIndex(0),
-        base_line: Some(ColumnIndex(1)),
-        pattern: LiteralText("(".into()),
-        capture: None,
-        capture_text: false,
-        capture_line: false,
-    };
-    let prepared = PreparedMatchers::new(&[Plan {
-        observation_inputs: Vec::new(),
-        observations: Vec::new(),
-        parameters: vec![],
-        steps: vec![PlanStep {
-            operation: operation.clone(),
-            scope: StepScope::PerFile,
-        }],
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
-        frontier: vec![],
-        comparison_origins: vec![],
-    }]);
-    let mut table = Table {
-        kinds: vec![CellKind::Span, CellKind::Number],
-        ..Table::default()
-    };
-    if let Some(span) = source_span {
-        push_row(
-            &mut table,
-            &[Value::Span(span), Value::Number(Integer(line))],
-        );
-    }
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = Vec::new();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: Some(&prepared),
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(b"x"),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let result = if stream {
-        SourceMatchesItem.stream(
-            &operation,
-            &mut held(&table),
-            &mut context,
-            &mut Room::default(),
-            &mut Pipe(|_: &mut OperatorContext<'_>, _: &[Value]| Ok(())),
-        )
-    } else {
-        SourceMatchesItem.compute(
-            &operation,
-            &[Rows::Computed(&table)],
-            &mut context,
-            &mut Table::default(),
-        )
-    };
-    (
-        result,
-        prepared.builds.load(std::sync::atomic::Ordering::Relaxed),
-    )
+    let spans = source_span
+        .into_iter()
+        .map(|span| (FileId(0), span))
+        .collect::<Vec<_>>();
+    let providers = [(Relation::SyntaxTree, compiled::rows(&spans))];
+    let steps = vec![
+        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::step(Operation::Extend {
+            from: Input::Step(StepId(0)),
+            values: vec![Operand::Literal(QueryLiteral::Number(Integer(line)))],
+        }),
+        compiled::step(Operation::SourceMatches {
+            from: Input::Step(StepId(1)),
+            span: ColumnIndex(0),
+            base_line: Some(ColumnIndex(1)),
+            pattern: LiteralText("(".into()),
+            capture: None,
+            capture_text: false,
+            capture_line: false,
+        }),
+    ];
+    let (result, builds) = compiled::run(steps, &providers, b"x", &mut Symbols::default(), stream);
+    (result.map(|_| ()), builds)
 }
 #[test]
 fn malformed_source_and_line_refuse_without_acquiring_bad_regex() {
@@ -111,5 +54,3 @@ fn malformed_source_and_line_refuse_without_acquiring_bad_regex() {
         assert_eq!(builds, 1);
     }
 }
-
-use ryo_values::domain::rows::types::Table;

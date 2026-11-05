@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value 
 use super::service::{drop_uncertain, partial_of};
 use super::types::Recovery;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::table_model::service::push_row;
+use ryo_values::domain::rows::service::push_row;
 
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;

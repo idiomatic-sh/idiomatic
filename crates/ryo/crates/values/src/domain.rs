@@ -18,3 +18,5 @@ pub mod query_bindings;
 pub mod rule_requests;
 
 pub mod run_metadata;
+
+pub mod table_words;

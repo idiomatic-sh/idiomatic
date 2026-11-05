@@ -1,15 +1,16 @@
 //! Required sharing and optional retention are independent ownership decisions.
 use super::*;
 use crate::application::file_dag::derived::indexes;
-use crate::domain::{
-    derived_views::types::{MembershipSpace, ViewRequest},
-    operation_schema::types::InputShape,
-    operator::contract::views::BorrowedRows,
-    table_model::service::push_row,
-};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use {
+    crate::domain::derived_views::types::MembershipSpace,
+    crate::domain::derived_views::types::ViewRequest,
+    crate::domain::operation_schema::types::InputShape,
+    crate::domain::operator::contract::views::BorrowedRows,
+    ryo_values::domain::rows::service::push_row,
+};
 
 fn source() -> Table {
     let mut table = Table {

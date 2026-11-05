@@ -12,8 +12,8 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use {
-    crate::domain::table_model::service::row_in, ryo_values::domain::rows::service::cell,
-    ryo_values::domain::rows::service::column_in,
+    ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in,
+    ryo_values::domain::rows::service::row_in,
 };
 pub(crate) struct OrderedDfsItem;
 impl OperatorsItem for OrderedDfsItem {

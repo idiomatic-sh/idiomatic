@@ -1,16 +1,14 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
 use super::*;
 use crate::domain::derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace};
-use crate::domain::{
-    operator::contract::axis::PreparedAxis,
-    table_model::service::push_row,
-    table_reach::{
-        borrowed::{follow, reach_breadth},
-        types::Walk,
-    },
-};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use std::sync::Arc;
+use {
+    crate::domain::operator::contract::axis::PreparedAxis,
+    crate::domain::table_reach::borrowed::follow,
+    crate::domain::table_reach::borrowed::reach_breadth, crate::domain::table_reach::types::Walk,
+    ryo_values::domain::rows::service::push_row,
+};
 
 fn number(value: i64) -> Value {
     Value::Number(Integer(value))

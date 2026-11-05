@@ -7,7 +7,6 @@ pub(crate) mod features;
 pub(crate) mod file_program;
 pub(crate) mod kind_check;
 pub(crate) mod kind_sets;
-pub(crate) mod layout;
 pub(crate) mod lowering;
 pub(crate) mod matching;
 pub(crate) mod native_positions;

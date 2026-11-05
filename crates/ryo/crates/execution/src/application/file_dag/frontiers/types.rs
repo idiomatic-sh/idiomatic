@@ -9,7 +9,7 @@ pub enum PublicationSlot {
 
 /// Each named member carries its own admission source, never just decoded words.
 #[derive(Clone)]
-pub enum BoundMember {
+pub(crate) enum BoundMember {
     Current(crate::application::file_dag::program::facade::ObservedPublication),
     Restored(crate::application::file_dag::program::facade::ValidatedFrontier),
 }
@@ -18,8 +18,8 @@ pub enum BoundMember {
 /// the member list retains the matching owner evidence in the same payload.
 #[derive(Clone)]
 pub struct BoundInput {
-    pub input: ryo_values::domain::observations::types::ObservationBindingId,
-    pub members: Result<Vec<BoundMember>, crate::domain::operating::errors::OperatingError>,
+    pub(crate) input: ryo_values::domain::observations::types::ObservationBindingId,
+    pub(crate) members: Result<Vec<BoundMember>, crate::domain::operating::errors::OperatingError>,
 }
 
 /// Admission preserves independent input successes and explicit refusal causes.
@@ -51,7 +51,7 @@ pub(crate) enum FrontierInput {
     },
     Compact {
         input: ryo_values::domain::plan_parts::types::Input,
-        table: crate::domain::table_words::types::CompactTable,
+        table: ryo_values::domain::table_words::types::CompactTable,
         spelling: Vec<ryo_relations::domain::relations::types::Name>,
         coverage: crate::application::file_dag::completion::CoverageState,
     },

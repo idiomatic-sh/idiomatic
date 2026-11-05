@@ -66,8 +66,8 @@ pub(crate) fn begin(
     };
     state.seen.clear();
     match kinds {
-        Ok(kinds) => crate::domain::table_model::service::reset(&mut state.rows, kinds),
-        Err(_) => crate::domain::table_model::service::reset(&mut state.rows, &[]),
+        Ok(kinds) => ryo_values::domain::rows::service::reset(&mut state.rows, kinds),
+        Err(_) => ryo_values::domain::rows::service::reset(&mut state.rows, &[]),
     }
     state.schema = kinds.as_ref().map(|_| ()).map_err(Clone::clone);
 }

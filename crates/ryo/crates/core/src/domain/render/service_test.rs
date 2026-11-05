@@ -20,7 +20,7 @@ use super::types::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use crate::domain::table_model::service::push_row;
+use ryo_values::domain::rows::service::push_row;
 use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 
 use crate::domain::value_cells::types::Scene;

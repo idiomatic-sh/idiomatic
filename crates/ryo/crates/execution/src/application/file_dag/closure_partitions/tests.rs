@@ -1,8 +1,8 @@
 use super::PartitionedClosure;
 use crate::domain::operator::contract::views::BorrowedRows;
-use crate::domain::table_model::service::push_row;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::service::push_row;
 
 fn scope() -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
     std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(

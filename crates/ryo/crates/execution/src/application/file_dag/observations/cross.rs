@@ -98,10 +98,10 @@ impl<'a> CrossPublications<'a> {
     ) -> Result<PreparedFrontier, OperatingError> {
         let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
         let backing = std::sync::Arc::new(token.words().clone());
-        let (metadata, _spelling) = crate::domain::table_words::service::admit_compact(
+        let (metadata, _spelling) = ryo_values::domain::table_words::service::admit_compact(
             std::sync::Arc::clone(&backing),
             ryo_language::domain::symbols::service::places_mut(&mut symbols),
-            crate::domain::table_words::types::DecodeMode::Complete,
+            ryo_values::domain::table_words::types::DecodeMode::Complete,
         )
         .map_err(|error| OperatingError::ObservationIncomplete {
             reason: error.to_string(),

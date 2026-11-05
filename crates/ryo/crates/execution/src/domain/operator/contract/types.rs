@@ -544,19 +544,6 @@ pub(crate) struct PreparedPredicates {
     pub kinds: Vec<CellKind>,
 }
 
-/// Finite reduction requirement, bound once; no runtime scheduling choices.
-#[derive(Clone, Debug)]
-pub(crate) enum AggregationProgram {
-    Count {
-        keys: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-        distinct: Option<ryo_values::domain::plan_parts::types::ColumnIndex>,
-    },
-    Digest {
-        keys: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
-        over: ryo_values::domain::plan_parts::types::ColumnIndex,
-    },
-}
-
 /// Binding/effect identity constrains sharing, never engine admission.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ReuseScope {

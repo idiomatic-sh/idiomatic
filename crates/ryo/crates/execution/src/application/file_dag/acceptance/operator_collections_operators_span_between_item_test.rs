@@ -1,22 +1,16 @@
-//! Exact byte offsets, invalid ranges, absence and identical streaming results.
-use crate::application::file_dag::feed::Feed;
-
-use crate::application::file_dag::testing::TestOperator as _;
+//! Exact byte offsets, absence and refusal through actual compiled owner execution.
+use super::compiled_span_fixture as compiled;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, Supply};
-use crate::domain::operator::collections::operators::span_between::item::SpanBetweenItem;
-use crate::domain::replay::types::Pipe;
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Rows;
-use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::constants::NO_SPAN;
-use ryo_relations::domain::relations::types::{CellKind, Offset, Relation, Span, Value};
-use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
-use ryo_values::domain::plans::types::{Operation, QueryOperator};
-
+use ryo_relations::domain::relations::{
+    constants::NO_SPAN,
+    types::{FileId, Offset, Relation, Span, Value},
+};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId},
+    plans::types::{Operation, QueryOperator},
+};
 type Input = (Span, Span, &'static [u8]);
 type Failure = OperatingError;
 const fn span(start: u32, end: u32) -> Span {
@@ -25,127 +19,66 @@ const fn span(start: u32, end: u32) -> Span {
         end: Offset(end),
     }
 }
-
-struct Held<'f>(
-    &'f Table,
-    std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-);
-fn held(table: &Table) -> Held<'_> {
-    Held(
-        table,
-        std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-            true,
-            crate::outbound::derived::factory::test_port(),
-        )),
-    )
-}
-impl<'f> Feed<'f> for Held<'f> {
-    fn relation_owner(
-        &self,
-    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
-        std::rc::Rc::clone(&self.1)
-    }
-    fn origin(
-        &self,
-        which: InputPlace,
-    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
-        crate::application::file_dag::testing::external_origin(which, 1)
-    }
-    fn publication(
-        &self,
-        which: InputPlace,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
-    {
-        crate::application::file_dag::testing::no_publication(which, 1)
-    }
-    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
-        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)?;
-        Ok(&self.0.kinds)
-    }
-    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
-        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)
-    }
-    fn found(&mut self, _: InputPlace, _: RowCount) {}
-    fn stream(
-        &mut self,
-        _: InputPlace,
-        context: &mut OperatorContext<'_>,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        for row in self.0.cells.chunks_exact(2) {
-            emit.row(context, row)?;
-        }
-        Ok(())
-    }
-    fn hold<'t>(
-        &mut self,
-        _: InputPlace,
-        _: &mut OperatorContext<'_>,
-        _: &'t mut Table,
-    ) -> Result<Rows<'t>, OperatingError>
-    where
-        'f: 't,
-    {
-        Ok(Rows::Computed(self.0))
-    }
-}
-
 fn subject((left, right, source): Input) -> Result<Span, Failure> {
-    let mut table = Table {
-        kinds: vec![CellKind::Span, CellKind::Span],
-        ..Table::default()
-    };
-    let row = [Value::Span(left), Value::Span(right)];
-    push_row(&mut table, &row);
-    push_row(&mut table, &row);
-    let operation = Operation::SpanBetween {
-        from: PlanInput::Relation(Relation::Function),
-        start: ColumnIndex(0),
-        end: ColumnIndex(1),
-    };
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(source),
-        paths: &[],
-        arenas: &[],
-        memo: &mut Vec::new(),
-        scratch: &mut scratch,
-    };
-    let mut output = Table::default();
-    let computed = SpanBetweenItem.compute(
-        &operation,
-        &[Rows::Computed(&table)],
-        &mut context,
-        &mut output,
-    );
-    let mut streamed = Vec::new();
-    let streaming = SpanBetweenItem.stream(
-        &operation,
-        &mut held(&table),
-        &mut context,
-        &mut Room::default(),
-        &mut Pipe(|_: &mut OperatorContext<'_>, emitted: &[Value]| {
-            streamed.extend_from_slice(emitted);
-            Ok(())
+    let steps = vec![
+        compiled::select(Relation::SyntaxTree, &[0, 4]),
+        compiled::select(Relation::SemanticSyntax, &[0, 4]),
+        compiled::step(Operation::Join {
+            left: PlanInput::Step(StepId(0)),
+            right: PlanInput::Step(StepId(1)),
+            left_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(0)],
+            output: vec![
+                JoinColumn {
+                    side: Side::Left,
+                    column: ColumnIndex(1),
+                },
+                JoinColumn {
+                    side: Side::Right,
+                    column: ColumnIndex(1),
+                },
+            ],
+            filter: vec![],
+            view: vec![],
+            reach: None,
         }),
+        compiled::step(Operation::SpanBetween {
+            from: PlanInput::Step(StepId(2)),
+            start: ColumnIndex(0),
+            end: ColumnIndex(1),
+        }),
+    ];
+    let providers = [
+        (
+            Relation::SyntaxTree,
+            compiled::rows(&[(FileId(0), left); 2]),
+        ),
+        (
+            Relation::SemanticSyntax,
+            compiled::rows(&[(FileId(0), right); 2]),
+        ),
+    ];
+    let (collected, _) = compiled::run(
+        steps.clone(),
+        &providers,
+        source,
+        &mut Symbols::default(),
+        false,
     );
-    assert_eq!(computed, streaming);
-    computed?;
-    assert_eq!(streamed, output.cells);
+    let (streamed, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), true);
+    assert_eq!(collected, streamed);
+    let output = collected?;
     assert_eq!(output.count.0, 2);
-    assert_eq!(&output.cells[..2], &row);
+    assert_eq!(&output.cells[..2], &[Value::Span(left), Value::Span(right)]);
     let Value::Span(result) = output.cells[2] else {
         panic!("span output required")
     };
+    assert_eq!(
+        &output.cells[3..],
+        &[Value::Span(left), Value::Span(right), Value::Span(result)]
+    );
     Ok(result)
 }
-
 const CASES: &[Case<Input, Span, Failure>] = &[
     Case {
         name: CaseName("suffix_contained_in_boolop"),
@@ -259,5 +192,3 @@ fn contract() {
         QueryOperator::SpanBetween,
     );
 }
-
-use ryo_values::domain::rows::types::{RowCount, Table};

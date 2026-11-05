@@ -68,12 +68,8 @@ fn a_missing_referenced_binding_cannot_be_shared_as_a_value() {
             .iter()
             .all(|class| class.members.len() == 1)
     );
-    assert!(
-        evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4])
-            .into_classes()
-            .iter()
-            .all(Option::is_none)
-    );
+    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
+    assert!((0..prepared.classes().len()).all(|at| batch.class(ClassPlace(at)).is_none()));
 }
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;

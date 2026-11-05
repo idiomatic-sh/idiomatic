@@ -1,7 +1,6 @@
 //! The original producer-name normalization assertions, beside the actual execution-owned implementation.
 use super::service::{carry, escape};
 use super::types::{Arena, Leaves, Leaving, Retained};
-use crate::domain::table_model::service::{push_row, row_in};
 use ryo_language::domain::symbols::{
     service::{derived_of, intern, intern_derived, place_of, places_of},
     types::{ByteSlice, Symbols},
@@ -15,6 +14,7 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::rows::types::{RowIndex, Table},
 };
+use {ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::service::row_in};
 #[derive(Clone, Copy)]
 enum Scenario {
     Escaped,

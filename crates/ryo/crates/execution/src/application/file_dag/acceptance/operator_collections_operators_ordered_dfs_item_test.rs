@@ -4,7 +4,6 @@ use crate::application::file_dag::testing::TestOperator as _;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operator::collections::operators::ordered_dfs::item::OrderedDfsItem;
-use crate::domain::table_model::{service::push_row, types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
@@ -13,6 +12,7 @@ use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as Source},
     plans::types::{Operation, QueryOperator},
 };
+use {crate::domain::table_model::types::Rows, ryo_values::domain::rows::service::push_row};
 type Input = fn() -> Result<usize, OperatingError>;
 type Value = usize;
 type Failure = OperatingError;

@@ -26,10 +26,8 @@ use crate::domain::recording::service::{
     cover, finish_file, frontier_flat, made_ran, moved_words, replay, stored_of,
 };
 use crate::domain::recording::types::{BucketWords, Flat};
-use crate::domain::table_model::service::push_row;
+use ryo_values::domain::rows::service::push_row;
 
-use crate::domain::table_words::service::{encode_table, pack};
-use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::types::{Needs, RelationRead};
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::tables_for;
@@ -39,6 +37,8 @@ use crate::outbound::matching::interface::MatchingPort as _;
 use ryo_values::domain::runs::types::MemoryBytes;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PartialCause;
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::WordSlice;
 
 /// What the last run kept, for a run that uses nothing of it.
 static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores::types::Stored> =

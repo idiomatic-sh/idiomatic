@@ -17,8 +17,6 @@ use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
-use crate::domain::table_groups::types::ValueHash;
-
 /// An application-owned, file-scoped semantic demand port. Operators borrow it;
 /// they never own a provider session or its cache.
 pub trait SemanticLookup: std::fmt::Debug {
@@ -92,20 +90,6 @@ pub(crate) enum Memo {
     Holds,
 }
 
-/// What one step keeps from file to file, which no other step touches: its own room to work in, the rows of its inputs it holds to
-/// read in place (the side a join looks up, what a group counts), and the rows it computes when it is not one that streams.
-#[derive(Debug, Default)]
-pub(crate) struct Room {
-    /// What a `select` has decided about the names of the file.
-    pub memo: Vec<Memo>,
-    /// The room the step reads and sorts rows in.
-    pub scratch: OperatorScratch,
-    /// The rows of each input, when the step holds them.
-    pub held: [Table; 3],
-    /// The rows the step computes whole, to be passed on.
-    pub out: Table,
-}
-
 /// Where the rows of a step go as they are made, one at a time. The context is the one of the step that makes them; the
 /// step that takes them makes its own from it.
 pub(crate) trait Emit {
@@ -175,28 +159,6 @@ pub(crate) enum KindNarrowing {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct MissingColumn(pub usize);
 
-/// A value met in a group, which a count of distinct values counts once.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct GroupValue {
-    /// The group.
-    pub group: GroupNumber,
-    /// The value.
-    pub value: Value,
-}
-
-/// The hash of a value met in a group, for the digest of the group's values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct GroupHash {
-    /// The group.
-    pub group: GroupNumber,
-    /// The hash of the value.
-    pub hash: ValueHash,
-}
-
-/// A group of rows, by its place among the groups in the order they first appear.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) struct GroupNumber(pub u32);
-
 /// Whether the steps run before the files were read, or after: after, the text of the workers is given.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AfterTheFiles {
@@ -209,6 +171,10 @@ pub(crate) enum AfterTheFiles {
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ExecutionObservation {
+    /// Successful real native-position evaluations.
+    pub native_positions: usize,
+    /// Calls to the real registered operator dispatch.
+    pub registered_calls: usize,
     pub regexes: usize,
     pub globs: usize,
     pub owners_initialized: usize,
@@ -238,6 +204,8 @@ impl std::ops::Deref for ExecutionObservationSlot {
     type Target = ExecutionObservation;
     fn deref(&self) -> &Self::Target {
         const ZERO: ExecutionObservation = ExecutionObservation {
+            native_positions: 0,
+            registered_calls: 0,
             regexes: 0,
             globs: 0,
             owners_initialized: 0,

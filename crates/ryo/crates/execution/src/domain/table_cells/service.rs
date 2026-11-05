@@ -152,9 +152,3 @@ pub(crate) fn native_form(
         .iter()
         .find_map(|(native, form)| (*native == relation).then_some(*form))
 }
-
-/// Native relation delivery and per-file admission share this exact catalog.
-pub(crate) fn native_relations()
--> &'static [(ryo_relations::domain::relations::types::Relation, TreeForm)] {
-    super::constants::NATIVE_RELATIONS
-}

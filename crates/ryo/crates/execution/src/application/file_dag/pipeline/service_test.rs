@@ -20,7 +20,6 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::{emitted, pool_for};
 
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
@@ -32,6 +31,7 @@ use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::rows::service::push_row;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

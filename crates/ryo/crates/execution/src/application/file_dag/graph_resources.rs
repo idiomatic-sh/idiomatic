@@ -1,11 +1,12 @@
 //! Behavioral controls retained from the former application resource constructors.
-use crate::domain::{
-    derived_views::types::*, operating::errors::OperatingError,
-    operation_schema::types::InputShape, operator::contract::views::BorrowedRows,
-    table_model::service::push_row,
-};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use {
+    crate::domain::derived_views::types::*, crate::domain::operating::errors::OperatingError,
+    crate::domain::operation_schema::types::InputShape,
+    crate::domain::operator::contract::views::BorrowedRows,
+    ryo_values::domain::rows::service::push_row,
+};
 fn prepare_cycles(
     input: BorrowedRows<'_>,
     source: ColumnIndex,

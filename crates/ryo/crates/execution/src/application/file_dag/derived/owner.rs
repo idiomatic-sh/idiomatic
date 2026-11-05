@@ -134,11 +134,6 @@ impl DerivedOwner {
         Ok(raw_scope::RawScope::for_program(owner, prepared))
     }
 
-    pub(in crate::application::file_dag) fn semantic_port_ref(
-        &self,
-    ) -> &Arc<dyn crate::outbound::derived::interface::DerivedPort> {
-        &self.semantic
-    }
     pub(in crate::application::file_dag) fn semantic_port(
         &self,
     ) -> Arc<dyn crate::outbound::derived::interface::DerivedPort> {

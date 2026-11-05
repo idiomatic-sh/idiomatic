@@ -25,8 +25,8 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::TableModelError;
 use {
     super::service::count_of, super::service::kinds_of, super::service::matching,
-    super::service::push_row, super::service::read_row, super::service::reset,
-    ryo_values::domain::rows::service::cell,
+    super::service::read_row, ryo_values::domain::rows::service::cell,
+    ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::service::reset,
 };
 
 #[test]

@@ -138,7 +138,7 @@ fn inactive_representative_and_single_member_preserve_eligibility() {
             RuleActivity::Inactive,
         ],
     );
-    assert!(with_one.into_classes().iter().all(Option::is_none));
+    assert!((0..prepared.classes().len()).all(|at| with_one.class(ClassPlace(at)).is_none()));
 }
 
 pub(crate) fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
@@ -305,7 +305,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         &[RuleActivity::Active; 4],
         &mut work,
     );
-    assert!(next.into_classes().iter().all(Option::is_none));
+    assert!((0..prepared.classes().len()).all(|at| next.class(ClassPlace(at)).is_none()));
     assert_eq!(
         first.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
         [1, 3]

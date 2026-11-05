@@ -22,10 +22,6 @@ pub(crate) struct Group {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct Hashes(pub Vec<u64>);
 
-/// The hash of the text or the number of a value, for a digest.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct ValueHash(pub u64);
-
 /// The room a count works in.
 #[derive(Debug)]
 pub(crate) struct CountRoom<'a> {

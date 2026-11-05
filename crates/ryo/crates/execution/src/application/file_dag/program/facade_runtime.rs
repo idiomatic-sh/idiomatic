@@ -12,23 +12,6 @@ use super::{
     },
     runtime::{Delivery, InvocationOutcome, KernelInvocation, ProgramExecution},
 };
-use crate::{
-    application::file_dag::{
-        completion::CompletionPolicy,
-        relations::{PublishedInput, RelationOwner},
-        scope::{ScopePartials, open_program_owner},
-    },
-    domain::{
-        coverage::types::{Covered, RuleIndex},
-        operating::{errors::OperatingError, types::OperatorContext},
-        replay::service::scan,
-        table_model::{
-            service::{count_of, materialize, reset},
-            types::Rows,
-        },
-    },
-    outbound::derived::interface::DerivedPort,
-};
 use ryo_relations::domain::relations::types::{FileId, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},
@@ -37,6 +20,19 @@ use ryo_values::domain::{
     stored_facts::types::Bucket,
 };
 use std::{collections::HashMap, rc::Rc, sync::Arc};
+use {
+    crate::application::file_dag::completion::CompletionPolicy,
+    crate::application::file_dag::relations::PublishedInput,
+    crate::application::file_dag::relations::RelationOwner,
+    crate::application::file_dag::scope::ScopePartials,
+    crate::application::file_dag::scope::open_program_owner,
+    crate::domain::coverage::types::Covered, crate::domain::coverage::types::RuleIndex,
+    crate::domain::operating::errors::OperatingError,
+    crate::domain::operating::types::OperatorContext, crate::domain::replay::service::scan,
+    crate::domain::table_model::service::count_of,
+    crate::domain::table_model::service::materialize, crate::domain::table_model::types::Rows,
+    crate::outbound::derived::interface::DerivedPort, ryo_values::domain::rows::service::reset,
+};
 
 pub(crate) struct ProgramServices {
     request: Arc<super::request_identity::RequestIdentity>,

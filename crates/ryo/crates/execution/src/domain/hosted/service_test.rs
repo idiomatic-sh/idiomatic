@@ -2,7 +2,7 @@
 
 use ryo_language::domain::symbols::types::Symbols;
 
-use super::service::{lines, table_of};
+use super::service::{lines, table_of_query};
 use super::types::NumberedFiles;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -55,7 +55,8 @@ fn subject(scenario: Input) -> Value {
         Scenario::Lines => lines(&[relation]).len(),
         Scenario::Rows => {
             let files = [FilePath("a.rs".into()), FilePath("b.rs".into())];
-            table_of(&relation, NumberedFiles(&files), &mut Symbols::default())
+            let mut symbols = Symbols::default();
+            table_of_query(&relation, NumberedFiles(&files), &mut (&mut symbols).into())
                 .count
                 .0
         }

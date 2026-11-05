@@ -1,16 +1,7 @@
 //! Borrow a producer-proven selection after reacquiring its declared source.
 use super::*;
 impl RelationOwner {
-    pub(in crate::application::file_dag) fn selected_descriptor(
-        &self,
-        publication: &RelationResult,
-    ) -> Result<Option<Arc<StoredSelection>>, OperatingError> {
-        self.generation(publication)?;
-        Ok(match &publication.body {
-            RelationBody::Selected { selection, .. } => Some(Arc::clone(selection)),
-            _ => None,
-        })
-    }
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn selected_rows<'f>(
         &self,
         publication: &RelationResult,

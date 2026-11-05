@@ -214,6 +214,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
         else {
             return Ok(None);
         };
+        #[cfg(test)]
+        {
+            workspace.observation.native_positions += 1;
+        }
         let source = sources
             .first()
             .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;

@@ -129,7 +129,7 @@ fn unsupported_semantic_batch_publishes_no_prefix() {
         }
     }
     let mut case = fixture(OperationKind::RenderSyntax);
-    crate::domain::table_model::service::push_row(
+    ryo_values::domain::rows::service::push_row(
         &mut case.inputs[0],
         &[Value::Node(
             ryo_relations::domain::relations::service::node_id(

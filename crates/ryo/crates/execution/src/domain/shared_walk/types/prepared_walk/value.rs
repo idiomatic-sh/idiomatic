@@ -61,10 +61,6 @@ impl NativeBatch {
         self.classes.get(place.0).and_then(Option::as_ref)
     }
 
-    pub(crate) fn into_classes(self) -> Vec<Option<Result<Slots, OperatingError>>> {
-        self.classes
-    }
-
     /// Candidate rows actually offered to a reached class, including its first error row.
     pub(crate) fn visits(&self, place: ClassPlace) -> RowsVisited {
         self.visits[place.0]

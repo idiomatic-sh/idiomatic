@@ -1,149 +1,60 @@
-//! Physical byte spans, bag order, zero-width matches and refusal before row emission.
-use crate::application::file_dag::feed::Feed;
-
-use crate::application::file_dag::testing::TestOperator as _;
+//! Physical occurrence spans and capture rows through actual compiled execution.
+use super::compiled_span_fixture as compiled;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{Emit, InputPlace, OperatorContext, Room, Supply};
-use crate::domain::operator::collections::operators::source_matches::item::SourceMatchesItem;
-use crate::domain::replay::types::Pipe;
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::Rows;
-use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::constants::NO_SPAN;
-use ryo_relations::domain::relations::types::{CellKind, Offset, Relation, Span, Value};
-use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, LiteralText};
-use ryo_values::domain::plans::types::{Operation, QueryOperator};
-
+use ryo_relations::domain::relations::{
+    constants::NO_SPAN,
+    types::{CellKind, FileId, Integer, Offset, Relation, Span, Value},
+};
+use ryo_values::domain::{
+    plan_parts::types::{
+        ColumnIndex, Input as PlanInput, LiteralText, Operand, QueryLiteral, StepId,
+    },
+    plans::types::{Operation, QueryOperator},
+};
 fn span(start: u32, end: u32) -> Span {
     Span {
         start: Offset(start),
         end: Offset(end),
     }
 }
-
-struct Held<'f>(
-    &'f Table,
-    std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
-);
-fn held(table: &Table) -> Held<'_> {
-    Held(
-        table,
-        std::rc::Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-            true,
-            crate::outbound::derived::factory::test_port(),
-        )),
-    )
-}
-impl<'f> Feed<'f> for Held<'f> {
-    fn relation_owner(
-        &self,
-    ) -> std::rc::Rc<crate::application::file_dag::relations::RelationOwner> {
-        std::rc::Rc::clone(&self.1)
-    }
-    fn origin(
-        &self,
-        which: InputPlace,
-    ) -> Result<crate::application::file_dag::feed::InputOrigin, OperatingError> {
-        crate::application::file_dag::testing::external_origin(which, 1)
-    }
-    fn publication(
-        &self,
-        which: InputPlace,
-    ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, OperatingError>
-    {
-        crate::application::file_dag::testing::no_publication(which, 1)
-    }
-    fn kinds(&self, which: InputPlace) -> Result<&[CellKind], OperatingError> {
-        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)?;
-        Ok(&self.0.kinds)
-    }
-    fn streams(&self, which: InputPlace) -> Result<Supply, OperatingError> {
-        crate::application::file_dag::testing::supplied(which, 1, Supply::AtHand)
-    }
-    fn found(&mut self, _: InputPlace, _: RowCount) {}
-    fn stream(
-        &mut self,
-        _: InputPlace,
-        context: &mut OperatorContext<'_>,
-        emit: &mut dyn Emit,
-    ) -> Result<(), OperatingError> {
-        for row in self.0.cells.chunks_exact(self.0.kinds.len()) {
-            emit.row(context, row)?;
-        }
-        Ok(())
-    }
-    fn hold<'t>(
-        &mut self,
-        _: InputPlace,
-        _: &mut OperatorContext<'_>,
-        _: &'t mut Table,
-    ) -> Result<Rows<'t>, OperatingError>
-    where
-        'f: 't,
-    {
-        Ok(Rows::Computed(self.0))
-    }
-}
-
 fn evaluate(
     source: &'static [u8],
     spans: &[Span],
     pattern: &'static str,
 ) -> Result<Vec<Span>, OperatingError> {
-    let mut input = Table {
-        kinds: vec![CellKind::Span],
-        ..Table::default()
-    };
-    for &span in spans {
-        push_row(&mut input, &[Value::Span(span)]);
-    }
-    let operation = Operation::SourceMatches {
-        from: PlanInput::Relation(Relation::Function),
-        span: ColumnIndex(0),
-        base_line: None,
-        pattern: LiteralText(pattern.into()),
-        capture: None,
-        capture_text: false,
-        capture_line: false,
-    };
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = Vec::new();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(source),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let mut output = Table::default();
-    let computed = SourceMatchesItem.compute(
-        &operation,
-        &[Rows::Computed(&input)],
-        &mut context,
-        &mut output,
-    );
-    let mut streamed = Vec::new();
-    let streaming = SourceMatchesItem.stream(
-        &operation,
-        &mut held(&input),
-        &mut context,
-        &mut Room::default(),
-        &mut Pipe(|_: &mut OperatorContext<'_>, row: &[Value]| {
-            streamed.extend_from_slice(row);
-            Ok(())
+    let providers = [(
+        Relation::SyntaxTree,
+        compiled::rows(
+            &spans
+                .iter()
+                .copied()
+                .map(|span| (FileId(0), span))
+                .collect::<Vec<_>>(),
+        ),
+    )];
+    let steps = vec![
+        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::step(Operation::SourceMatches {
+            from: PlanInput::Step(StepId(0)),
+            span: ColumnIndex(0),
+            base_line: None,
+            pattern: LiteralText(pattern.into()),
+            capture: None,
+            capture_text: false,
+            capture_line: false,
         }),
+    ];
+    let (collected, _) = compiled::run(
+        steps.clone(),
+        &providers,
+        source,
+        &mut Symbols::default(),
+        false,
     );
-    assert_eq!(computed, streaming);
-    computed?;
-    assert_eq!(streamed, output.cells);
+    let (streamed, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), true);
+    assert_eq!(collected, streamed);
+    let output = collected?;
     assert_eq!(output.kinds, vec![CellKind::Span, CellKind::Span]);
     Ok(output
         .cells
@@ -154,7 +65,6 @@ fn evaluate(
         })
         .collect())
 }
-
 #[test]
 fn nonzero_offset_utf8_and_repeated_source_text_keep_exact_order_and_bag() {
     assert_eq!(
@@ -208,49 +118,28 @@ fn evaluate_lines(
     base_line: i64,
     pattern: &'static str,
 ) -> Result<Vec<(Span, i64)>, OperatingError> {
-    let mut input = Table {
-        kinds: vec![CellKind::Span, CellKind::Number],
-        ..Table::default()
-    };
-    push_row(
-        &mut input,
-        &[
-            Value::Span(source_span),
-            Value::Number(ryo_relations::domain::relations::types::Integer(base_line)),
-        ],
-    );
-    let operation = Operation::SourceMatches {
-        from: PlanInput::Relation(Relation::Function),
-        span: ColumnIndex(0),
-        base_line: Some(ColumnIndex(1)),
-        pattern: LiteralText(pattern.into()),
-        capture: None,
-        capture_text: false,
-        capture_line: false,
-    };
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = Vec::new();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(source),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let mut output = Table::default();
-    SourceMatchesItem.compute(
-        &operation,
-        &[Rows::Computed(&input)],
-        &mut context,
-        &mut output,
-    )?;
-    Ok(output
+    let providers = [(
+        Relation::SyntaxTree,
+        compiled::rows(&[(FileId(0), source_span)]),
+    )];
+    let steps = vec![
+        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::step(Operation::Extend {
+            from: PlanInput::Step(StepId(0)),
+            values: vec![Operand::Literal(QueryLiteral::Number(Integer(base_line)))],
+        }),
+        compiled::step(Operation::SourceMatches {
+            from: PlanInput::Step(StepId(1)),
+            span: ColumnIndex(0),
+            base_line: Some(ColumnIndex(1)),
+            pattern: LiteralText(pattern.into()),
+            capture: None,
+            capture_text: false,
+            capture_line: false,
+        }),
+    ];
+    let (result, _) = compiled::run(steps, &providers, source, &mut Symbols::default(), false);
+    Ok(result?
         .cells
         .chunks_exact(4)
         .map(|row| match (row[2], row[3]) {
@@ -259,7 +148,6 @@ fn evaluate_lines(
         })
         .collect())
 }
-
 #[test]
 fn optional_line_uses_match_start_and_counts_crlf_and_single_endings_once() {
     assert_eq!(
@@ -295,50 +183,37 @@ fn captured(
     spans: &[Span],
     pattern: &'static str,
 ) -> Result<Vec<(Span, Span, String)>, OperatingError> {
-    use ryo_language::domain::symbols::service::{intern_derived, text_of};
-    use ryo_language::domain::symbols::types::ByteSlice;
+    use ryo_language::domain::symbols::{
+        service::{intern_derived, text_of},
+        types::ByteSlice,
+    };
     use ryo_relations::domain::terms::types::NameText;
-    let mut input = Table {
-        kinds: vec![CellKind::Span],
-        ..Table::default()
-    };
-    for &source_span in spans {
-        push_row(&mut input, &[Value::Span(source_span)]);
-    }
-    let operation = Operation::SourceMatches {
-        from: PlanInput::Relation(Relation::Function),
-        span: ColumnIndex(0),
-        base_line: None,
-        pattern: LiteralText(pattern.into()),
-        capture: Some(LiteralText("piece".into())),
-        capture_text: true,
-        capture_line: false,
-    };
+    let providers = [(
+        Relation::SyntaxTree,
+        compiled::rows(
+            &spans
+                .iter()
+                .copied()
+                .map(|span| (FileId(0), span))
+                .collect::<Vec<_>>(),
+        ),
+    )];
+    let steps = vec![
+        compiled::select(Relation::SyntaxTree, &[4]),
+        compiled::step(Operation::SourceMatches {
+            from: PlanInput::Step(StepId(0)),
+            span: ColumnIndex(0),
+            base_line: None,
+            pattern: LiteralText(pattern.into()),
+            capture: Some(LiteralText("piece".into())),
+            capture_text: true,
+            capture_line: false,
+        }),
+    ];
     let mut symbols = Symbols::default();
-    // Provider comment text is derived before query operators run. Capturing
-    // a source substring must not relabel that existing symbol as source-backed.
     let comment = intern_derived(&mut symbols, ByteSlice(source), NameText(" noqa: W605"));
-    let mut scratch = OperatorScratch::default();
-    let mut memo = Vec::new();
-    let mut context = OperatorContext {
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        bindings: &[],
-        symbols: (&mut symbols).into(),
-        source: SourceView(source),
-        paths: &[],
-        arenas: &[],
-        memo: &mut memo,
-        scratch: &mut scratch,
-    };
-    let mut output = Table::default();
-    SourceMatchesItem.compute(
-        &operation,
-        &[Rows::Computed(&input)],
-        &mut context,
-        &mut output,
-    )?;
+    let (result, _) = compiled::run(steps, &providers, source, &mut symbols, false);
+    let output = result?;
     assert_eq!(
         text_of(&symbols, ByteSlice(source), comment).map(|text| text.0),
         Some(" noqa: W605")
@@ -361,12 +236,17 @@ fn captured(
             else {
                 panic!("typed capture outputs required")
             };
-            let text = text_of(&symbols, ByteSlice(source), symbol).expect("captured symbol");
-            (whole, piece, text.0.to_string())
+            (
+                whole,
+                piece,
+                text_of(&symbols, ByteSlice(source), symbol)
+                    .expect("captured symbol")
+                    .0
+                    .to_string(),
+            )
         })
         .collect())
 }
-
 #[test]
 fn named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches() {
     assert_eq!(
@@ -397,5 +277,3 @@ fn named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches() {
 
 #[path = "operator_collections_operators_source_matches_gate_test.rs"]
 mod gates;
-
-use ryo_values::domain::rows::types::{RowCount, Table};

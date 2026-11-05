@@ -1,10 +1,10 @@
 use super::ordered_positions;
 use crate::domain::operator::contract::views::BorrowedRows;
 use crate::domain::table_groups::service::sort_rows;
-use crate::domain::table_model::service::push_row;
 use ryo_derived::domain::contract::types::{KeyIndex, On};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::service::push_row;
 
 fn table(keys: &[i64]) -> Table {
     let mut table = Table {

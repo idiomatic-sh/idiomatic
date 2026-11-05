@@ -8,14 +8,10 @@ use std::sync::Arc;
 /// Coordinator-local lease. Only the immutable words, never this lease, enter a worker closure.
 #[derive(Clone)]
 pub(crate) struct PackedPublication {
-    words: Arc<KeptWords>,
+    _words: Arc<KeptWords>,
     _lease: Arc<ResourceLease>,
 }
-impl PackedPublication {
-    pub(crate) fn words(&self) -> Arc<KeptWords> {
-        Arc::clone(&self.words)
-    }
-}
+
 impl RelationOwner {
     /// Retain the actual encoded words and every referenced existing arena backing.
     /// This adds no optional cache or admission policy; it is an ordinary required publication lease.
@@ -42,7 +38,7 @@ impl RelationOwner {
         }
         let lease = self.derived.required_lease(&backings)?;
         Ok(PackedPublication {
-            words,
+            _words: words,
             _lease: lease,
         })
     }

@@ -1,10 +1,10 @@
 //! Pre-acquired matching rows and the already-proven total filter of a fused chain.
 use super::*;
 use crate::domain::operator::contract::views::KeyProbe;
-use crate::domain::table_model::service::push_row;
 use ryo_operators::inbound::use_cases::operators::interface::{
     JoinCells, JoinDriver, JoinInterrupted,
 };
+use ryo_values::domain::rows::service::push_row;
 pub(super) struct Left<'a, 'f> {
     pub(super) rows: &'a Rows<'f>,
     pub(super) row: RowIndex,

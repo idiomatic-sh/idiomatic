@@ -1,8 +1,4 @@
 //! All operation classes execute through the production engine in both modes.
-use crate::domain::table_model::{
-    service::push_row,
-    types::{},
-};
 use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
@@ -18,6 +14,7 @@ use ryo_values::domain::plan_parts::types::{
     QueryLiteral, RepeatedRows, Side, TableKey, WholeNumber,
 };
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::rows::service::push_row;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -441,4 +438,4 @@ use expectations::{Expected, Fixture, cells};
 
 use ryo_values::domain::rows::types::Table;
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding,BindingTable,BindingCell};
+use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};

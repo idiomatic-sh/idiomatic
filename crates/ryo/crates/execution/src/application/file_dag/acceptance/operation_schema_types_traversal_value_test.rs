@@ -22,8 +22,8 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::plans::types::Operation;
 use {
-    crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::push_row,
-    crate::domain::table_model::types::Rows, ryo_values::domain::rows::errors::TableModelError,
+    crate::domain::table_model::service::kinds_of, crate::domain::table_model::types::Rows,
+    ryo_values::domain::rows::errors::TableModelError, ryo_values::domain::rows::service::push_row,
 };
 
 /// One native or invalid traversal contract.

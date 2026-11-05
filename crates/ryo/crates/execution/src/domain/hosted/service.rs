@@ -1,17 +1,17 @@
 //! The `hosted` service: free functions over the relations the host declares, with no IO and no ports.
 
-use ryo_language::domain::symbols::service::{intern_derived, query_intern_derived};
+use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::{QuerySymbols, Symbols};
+use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 use ryo_relations::domain::terms::types::NameText;
 
 #[cfg(test)]
 use super::constants::tab;
 use super::types::NumberedFiles;
-use crate::domain::table_model::service::{push_row, reset};
 #[cfg(test)]
 use ryo_values::domain::plan_parts::types::LiteralText as HostedText;
+use {ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::service::reset};
 
 use ryo_values::domain::hosted::service::kind_of;
 use ryo_values::domain::hosted::types::HostRelation;
@@ -45,19 +45,6 @@ pub(crate) fn lines(relations: &[HostRelation]) -> Vec<HostedText> {
         }
     }
     lines
-}
-
-/// The rows of a relation as a table, its text interned in `symbols`. A file is its number among `files`; a row naming a file the run
-/// does not list is no row, as a file that is not there is no file.
-#[must_use]
-pub(crate) fn table_of(
-    relation: &HostRelation,
-    files: NumberedFiles<'_>,
-    symbols: &mut Symbols,
-) -> Table {
-    table_with(relation, files, |text| {
-        intern_derived(symbols, ByteSlice(&[]), NameText(text))
-    })
 }
 
 /// Materialize a declared request source in the query's derived-name pool.

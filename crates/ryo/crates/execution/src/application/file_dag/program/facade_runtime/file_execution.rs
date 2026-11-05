@@ -18,6 +18,7 @@ pub(crate) struct FileRun<'a> {
     observed: HashMap<usize, AdmittedInput>,
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
+    _routes: crate::application::file_dag::route_counts::FileScope,
 }
 pub(crate) fn open_file<'a>(
     program: &'a Arc<PreparedProgram>,
@@ -36,6 +37,11 @@ pub(crate) fn open_file<'a>(
     }
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
+    }
+    let routes = crate::application::file_dag::route_counts::FileScope::begin(file.0 as usize);
+    #[cfg(feature = "diagnostic-row-progress")]
+    if let Some(path) = services.request.path(file) {
+        crate::application::file_dag::route_counts::file_name(&path.0);
     }
     let owner = open_program_owner(
         program.program(),
@@ -71,6 +77,7 @@ pub(crate) fn open_file<'a>(
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(FileRun {
+        _routes: routes,
         program,
         services: Arc::clone(&services),
         execution,
@@ -107,6 +114,11 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
+        let _rule_origin = crate::application::file_dag::route_counts::rule(
+            rule.0,
+            &self.program.rule_id(rule)?.0,
+        );
+        let _consumer_origin = crate::application::file_dag::route_counts::consumer("file_rule");
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;
@@ -286,9 +298,13 @@ impl FileRun<'_> {
                     },
                 );
                 words.0.clear();
-                crate::domain::table_words::service::encode_table(&table, &places[before..], words);
-                let packed = crate::domain::table_words::service::pack(
-                    crate::domain::table_words::types::WordSlice(&words.0),
+                ryo_values::domain::table_words::service::encode_table(
+                    &table,
+                    &places[before..],
+                    words,
+                );
+                let packed = ryo_values::domain::table_words::service::pack(
+                    ryo_values::domain::table_words::types::WordSlice(&words.0),
                 );
                 Ok(CapturedFrontier {
                     input,
@@ -337,8 +353,35 @@ impl FileRun<'_> {
         let readiness = self.observation_snapshot();
         self.roots.clear();
         self.observed.clear();
+        self.owner.derived.report(self.file);
+        let (builds, hits, refusals) = self.owner.derived.counts();
+        tracing::trace!(target: "ryo::diagnostic::resource_routes", file = self.file.0, builds, hits, refusals, event = "file_owner_finish");
         self.execution.finish()?;
         Ok(readiness)
+    }
+    /// Read-only test telemetry from actual common-program dispatch and retirement.
+    #[cfg(test)]
+    pub(crate) fn route_observation(
+        &self,
+        rule: RuleIndex,
+        step: ryo_values::domain::plan_parts::types::StepId,
+    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+        self.execution.route_observation(rule, step)
+    }
+    #[cfg(test)]
+    pub(crate) fn observation_routes(
+        &self,
+        slot: usize,
+    ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
+        let region = self
+            .program
+            .program()
+            .observation_regions()
+            .get(slot)
+            .ok_or(OperatingError::NotRun)?
+            .as_ref()
+            .map_err(Clone::clone)?;
+        self.execution.region_observation(*region)
     }
     pub(crate) fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
         self.execution.logical_counts(rule)
@@ -457,7 +500,7 @@ pub(super) fn outcome_of<'facts>(
             },
             Err(error) => classify(error),
         },
-        Ok(InvocationOutcome::Forwarded) => RootOutcome::Failed(OperatingError::NotRun),
+        Ok(InvocationOutcome::Forwarded(_)) => RootOutcome::Failed(OperatingError::NotRun),
         Err(error) => classify(error),
     }
 }
@@ -469,5 +512,80 @@ mod distinct_integration_test;
 impl FileRun<'_> {
     pub(crate) fn source_reuse_eligible(&self) -> bool {
         self.owner.stable()
+    }
+}
+
+impl FileRun<'_> {
+    /// Stream through the same prepared slot, admission, completion and retry owner.
+    pub(crate) fn emit_rows<'facts>(
+        &mut self,
+        rule: RuleIndex,
+        read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
+        symbols: &mut ryo_language::domain::symbols::types::Symbols,
+        each: &mut dyn FnMut(
+            &[ryo_relations::domain::relations::types::Value],
+        ) -> Result<(), OperatingError>,
+    ) -> Result<crate::application::file_dag::completion::CoverageState, OperatingError> {
+        let _rule_origin = crate::application::file_dag::route_counts::rule(
+            rule.0,
+            &self.program.rule_id(rule)?.0,
+        );
+        let _consumer_origin = crate::application::file_dag::route_counts::consumer("file_stream");
+        let mut context = self.context.borrow(symbols, self.program, rule)?;
+        let context = &mut context;
+        let metadata = self.program.rule_metadata(rule)?;
+        let completion = match &self.partials {
+            ScopePartials::File {
+                evaluation,
+                publication,
+            } => CompletionPolicy::file_inputs(rule, self.file, evaluation, publication),
+            ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
+        };
+        let kernels = super::super::kernel_session::KernelSession::new(
+            self.services.kernels(),
+            self.program,
+            Rc::clone(&self.owner),
+            read,
+            Some(&self.walk),
+        );
+        let mut sources = SourceInputs {
+            execution: &self.execution,
+            completion: completion.clone(),
+            owner: Rc::clone(&self.owner),
+            read,
+            kernels: &kernels,
+            observations: &mut self.observed,
+            file_outputs: Some(&self.roots),
+            program: self.program,
+            rule,
+            project: None,
+        };
+        struct ForwardRows<'a>(
+            &'a mut dyn FnMut(
+                &[ryo_relations::domain::relations::types::Value],
+            ) -> Result<(), OperatingError>,
+        );
+        impl crate::domain::operating::types::Emit for ForwardRows<'_> {
+            fn row(
+                &mut self,
+                _context: &mut OperatorContext<'_>,
+                row: &[ryo_relations::domain::relations::types::Value],
+            ) -> Result<(), OperatingError> {
+                (self.0)(row)
+            }
+        }
+        let id = metadata.emit_root.as_ref().map_err(Clone::clone)?;
+        let mut output = ForwardRows(each);
+        match self.execution.invoke(
+            *id,
+            &mut sources,
+            &kernels,
+            &completion,
+            context,
+            Delivery::Forward(&mut output),
+        )? {
+            InvocationOutcome::Published(input) => input.coverage(),
+            InvocationOutcome::Forwarded(coverage) => Ok(coverage),
+        }
     }
 }

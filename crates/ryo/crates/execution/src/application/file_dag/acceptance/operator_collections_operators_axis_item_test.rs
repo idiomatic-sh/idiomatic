@@ -14,7 +14,6 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::axis::item::AxisItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
@@ -32,6 +31,7 @@ use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::service::push_row;
 
 type Value = usize;
 type Failure = OperatingError;

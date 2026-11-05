@@ -85,21 +85,19 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
         count: RowCount(2),
     };
     let mut words = ryo_relations::domain::relations::types::Words::default();
-    crate::domain::table_words::service::encode_table(&computed, &[], &mut words);
-    let (compact, names) = crate::domain::table_words::service::admit_compact(
+    ryo_values::domain::table_words::service::encode_table(&computed, &[], &mut words);
+    let (compact, names) = ryo_values::domain::table_words::service::admit_compact(
         Arc::new(ryo_values::domain::stored_facts::types::KeptWords(
-            crate::domain::table_words::service::pack(
-                crate::domain::table_words::types::WordSlice(&words.0),
+            ryo_values::domain::table_words::service::pack(
+                ryo_values::domain::table_words::types::WordSlice(&words.0),
             ),
         )),
         &mut Vec::new(),
-        crate::domain::table_words::types::DecodeMode::Complete,
+        ryo_values::domain::table_words::types::DecodeMode::Complete,
     )
     .unwrap();
     assert!(names.is_empty());
-    assert!(crate::domain::table_words::service::compact_rectangular(
-        &compact
-    ));
+    assert!(ryo_values::domain::table_words::service::compact_rectangular(&compact));
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"ab"));
     enter_node(&mut builder, KindBits(0), Offset(0));
@@ -210,12 +208,12 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
 #[test]
 fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
     use crate::application::file_dag::types::ProvidedInput;
-    use crate::domain::table_words::{
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::domain::stored_facts::types::KeptWords;
+    use ryo_values::domain::table_words::{
         service as codec,
         types::{DecodeMode, WordSlice},
     };
-    use ryo_relations::domain::relations::types::Words;
-    use ryo_values::domain::stored_facts::types::KeptWords;
 
     let relation = Relation::LanguageTarget;
     let input = Input::Relation(relation);

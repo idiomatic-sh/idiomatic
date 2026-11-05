@@ -12,7 +12,7 @@ use super::errors::SpellingError;
 use super::service::check_spellings;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 
-use crate::domain::table_model::service::push_row;
+use ryo_values::domain::rows::service::push_row;
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]

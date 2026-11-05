@@ -1,14 +1,18 @@
-//! The `walks` service's cases, over the small tree.
+//! Original walk ordering cases through the production native axis implementation.
 
-use super::service::axis;
+use super::{
+    axis::axis,
+    types::{PositionInput, PositionWork},
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::lowering::types::ElementPart;
+use crate::domain::lowering::types::{
+    ElementPart, LoweredColumn, LoweredShape, RowPosition, RowWidth,
+};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::positions::service_test::{
-    SMALL_SOURCE, SmallTree, lowering_of, room_of, rows_over, small_tree,
-};
-use crate::domain::positions::types::{Slots, Work};
+use crate::domain::operator::contract::types::WorkCounters;
+use crate::domain::positions::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
+use crate::domain::positions::types::{Positions, Slots};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::SourceView;
@@ -63,22 +67,37 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         domain_view: Vec::new(),
         output: Vec::new(),
     };
-    let mut derived = crate::application::file_dag::testing::raw_scope()?;
-    let mut out = Slots::default();
-    axis(
-        &rows,
-        &lowering_of(&[ElementPart::Node]),
+    let source_shape = LoweredShape {
+        width: RowWidth(1),
+        columns: vec![LoweredColumn {
+            slot: RowPosition(0),
+            field: ElementPart::Node,
+        }],
+    };
+    let starts = Positions {
+        width: RowWidth(1),
+        slots: Slots(vec![scenario.from]),
+    };
+    let inputs = [PositionInput {
+        shape: &source_shape,
+        rows: &starts,
+    }];
+    let out = axis(
         &operation,
-        Work {
-            derived: &mut derived,
-            room: &mut room_of(&[&[scenario.from]]),
-            context: &mut context,
+        &rows,
+        &inputs,
+        &LoweredShape {
+            width: RowWidth(2),
+            columns: vec![],
         },
-        &mut out,
+        &mut context,
+        &mut PositionWork::default(),
+        &WorkCounters::default(),
     )?;
     // The answer is leaked: a case compares it with text that lives for the whole run.
     Ok(Box::leak(
-        out.0
+        out.slots
+            .0
             .chunks(2)
             .map(|pair| match pair {
                 [from, to] => format!("{from}>{to}"),

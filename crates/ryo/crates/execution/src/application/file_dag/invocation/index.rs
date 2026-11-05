@@ -85,12 +85,4 @@ impl<'f> IndexResource<'f> {
             }
         }
     }
-    pub(in crate::application::file_dag) fn selected(
-        &self,
-    ) -> Option<&super::super::selected::SelectedInput<'_>> {
-        match self {
-            Self::Selected(selected) => Some(selected),
-            Self::Derived { .. } | Self::Empty { .. } => None,
-        }
-    }
 }

@@ -45,8 +45,6 @@ pub enum ApplicabilityReason {
 pub(super) enum Readiness {
     Complete,
     Partial { files: Vec<Option<FileId>> },
-    Skipped(ApplicabilityProof),
-    Unknown(OperatingError),
 }
 /// Root provenance remains attached even when no rows can be supplied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -134,8 +132,7 @@ impl AdmittedInput {
     pub(super) fn observation_ready(&self) -> Result<bool, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(true),
-            Readiness::Partial { .. } | Readiness::Skipped(_) => Ok(false),
-            Readiness::Unknown(error) => Err(error.clone()),
+            Readiness::Partial { .. } => Ok(false),
         }
     }
 
@@ -146,10 +143,6 @@ impl AdmittedInput {
             Readiness::Complete => Ok(super::super::completion::CoverageState::Complete),
             Readiness::Partial { files } => Ok(super::super::completion::CoverageState::Partial {
                 files: files.clone(),
-            }),
-            Readiness::Unknown(error) => Err(error.clone()),
-            Readiness::Skipped(_) => Err(OperatingError::ObservationIncomplete {
-                reason: "producer partition was skipped".into(),
             }),
         }
     }
@@ -167,7 +160,6 @@ impl AdmittedInput {
                         }
                     }
                 }
-                Readiness::Skipped(_) | Readiness::Unknown(_) => {}
             }
         }
         self
@@ -227,10 +219,6 @@ impl AdmittedInput {
         }
         match &self.readiness {
             Readiness::Complete | Readiness::Partial { .. } => Ok(&self.publication),
-            Readiness::Skipped(_) => Err(OperatingError::ObservationIncomplete {
-                reason: "admitted producer partition is skipped, not complete".into(),
-            }),
-            Readiness::Unknown(error) => Err(error.clone()),
         }
     }
 }
@@ -906,5 +894,19 @@ impl PermittedPhysical<'_, '_, '_> {
         let _authority = self.authority;
         port.operators(self.meaning)
             .map_err(super::super::executor::KernelFault::Portable)
+    }
+}
+
+impl ApplicabilityProof {
+    /// The declared producer for this positive applicability result.
+    pub fn producer(&self) -> RuleIndex {
+        self.producer
+    }
+    /// The file whose generation issued this fact; this cannot mint a new capability.
+    pub fn file(&self) -> FileId {
+        self.file.file
+    }
+    pub fn reason(&self) -> ApplicabilityReason {
+        self.reason
     }
 }

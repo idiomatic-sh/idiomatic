@@ -1,8 +1,8 @@
 //! The `core` domain's `table_words` concept.
 
-pub(crate) mod errors;
-pub(crate) mod service;
-pub(crate) mod types;
+pub mod errors;
+pub mod service;
+pub mod types;
 
 #[cfg(test)]
 mod service_test;

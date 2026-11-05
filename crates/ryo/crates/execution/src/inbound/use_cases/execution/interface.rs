@@ -48,6 +48,14 @@ pub trait ExecutionRequest {
     ) -> Result<ProjectSession<'a>, OperatingError>;
 }
 pub trait FileExecution {
+    fn emit_rows(
+        &mut self,
+        rule: RuleIndex,
+        symbols: &mut Symbols,
+        each: &mut dyn FnMut(
+            &[ryo_relations::domain::relations::types::Value],
+        ) -> Result<(), OperatingError>,
+    ) -> Result<RowEmission, OperatingError>;
     fn finish(self) -> Result<FileFinished, OperatingError>
     where
         Self: Sized;

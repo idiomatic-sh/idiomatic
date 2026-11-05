@@ -23,7 +23,6 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::collections::operators::join::item::JoinItem;
 use crate::domain::operator::contract::types::OperatorContract;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::service::{kinds_of, push_row, row_in};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::domain::files::types::SourceView;
@@ -32,6 +31,10 @@ use ryo_values::domain::plan_parts::types::{
     Side, Test,
 };
 use ryo_values::domain::plans::types::Operation;
+use {
+    crate::domain::table_model::service::kinds_of, ryo_values::domain::rows::service::push_row,
+    ryo_values::domain::rows::service::row_in,
+};
 
 /// How many rows came out, or 1 when every expectation of the scenario held.
 type Value = usize;

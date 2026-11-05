@@ -504,6 +504,15 @@ pub(crate) fn compile_prepared_observations(
             );
         }
     }
+    for (node, alternative) in ordered_existence.iter().enumerate() {
+        if let Some(crate::domain::ordered_existence::types::ResolvedAlternative::Declined(
+            reason,
+        )) = alternative
+        {
+            tracing::trace!(target: "ryo::diagnostic::preparation", node, ?reason,
+                "ordered existence declined after canonical producer binding");
+        }
+    }
     let observations = observations::graph_outputs(plans, &all_mapped, observations);
     let program_nodes = all_mapped
         .iter()

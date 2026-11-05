@@ -1,13 +1,12 @@
 //! Existing grouping semantic accumulator; input driving remains in the common engine.
 use super::*;
-use crate::domain::{
-    table_groups::{
-        service::{count_groups, digest_groups},
-        types::{CountRoom, Hashes},
-    },
-    table_model::service::push_row,
-};
 use ryo_derived::domain::contract::types::On;
+use {
+    crate::domain::table_groups::service::count_groups,
+    crate::domain::table_groups::service::digest_groups,
+    crate::domain::table_groups::types::CountRoom, crate::domain::table_groups::types::Hashes,
+    ryo_values::domain::rows::service::push_row,
+};
 fn materialized(input: BorrowedRows<'_>) -> Table {
     let mut table = Table {
         kinds: input.kinds().to_vec(),

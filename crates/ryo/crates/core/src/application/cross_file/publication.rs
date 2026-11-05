@@ -1,18 +1,17 @@
 //! Normalize demanded phase roots at the existing table codec boundary before Symbols are dropped.
-use crate::domain::{
-    crossing::types::ObservedRoot,
-    finish::publication::escape_cross_publication,
-    table_words::{
-        service::{encode_table, pack},
-        types::WordSlice,
-    },
-};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Origin, Words, WorkerNumber};
 use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
 use ryo_values::domain::{
     observations::types::{ObservationReason, ProducerReadiness},
     stored_facts::types::{ArenaBytes, KeptWords},
+};
+use {
+    crate::domain::crossing::types::ObservedRoot,
+    crate::domain::finish::publication::escape_cross_publication,
+    ryo_values::domain::table_words::service::encode_table,
+    ryo_values::domain::table_words::service::pack,
+    ryo_values::domain::table_words::types::WordSlice,
 };
 
 /// The coordinator reserved `worker`; this closure owns only the new arena, never inherited bytes.

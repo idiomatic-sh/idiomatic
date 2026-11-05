@@ -2,14 +2,12 @@
 //! Distinct state survives repeated left rows and resets after a failed delivery.
 use super::*;
 use crate::application::file_dag::program::runtime::{AttemptCheckpoint, DependencyCheckpoint};
-use crate::application::{
-    file_dag::{execution::CommonOperatorEngine, scope::ScopePartials},
-    rule_compilation::types::{Compiled, ObservationIdentity},
-};
+use crate::application::file_dag::{execution::CommonOperatorEngine, scope::ScopePartials};
 use crate::domain::{
     file_program::types::RuleSchedule,
     operating::types::Emit as RowSink,
     positions::service_test::{SMALL_SOURCE, SmallTree, small_tree},
+    prepared_request::types::{Compiled, ObservationIdentity},
     table_cells::types::{TreeForm, TreeRows},
 };
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
@@ -223,9 +221,11 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
-    let engine = CommonOperatorEngine::new(crate::outbound::operators::factory::test_port());
-    let services = ProgramServices::new(
-        &engine,
+    let engine = Arc::new(CommonOperatorEngine::new(
+        crate::outbound::operators::factory::test_port(),
+    ));
+    let services = Arc::new(ProgramServices::new(
+        engine,
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
@@ -233,7 +233,7 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
             size: FileSize(SMALL_SOURCE.len() as u64),
             modified: Nanoseconds(0),
         })],
-    );
+    ));
     let mut file = open_file(
         &prepared,
         FileId(0),
@@ -242,8 +242,9 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
             publication: &[],
         },
         &[true],
-        &services,
+        services,
         SMALL_SOURCE,
+        true,
         &mut symbols,
         None,
         None,
@@ -334,3 +335,9 @@ fn project_and_union_retry_rebuild_invocation_distinct_after_sink_failure() {
 }
 
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
+
+mod selected_join_test;
+
+mod producer_lifetime_test;
+
+mod replay_test;

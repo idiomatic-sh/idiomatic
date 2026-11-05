@@ -3,7 +3,6 @@
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};
 
 use crate::domain::stored_graph::types::{GraphDomain, GraphWalk, Orientation};
-use crate::domain::table_model::service::push_row;
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, BulkRows, DerivedFault, DerivedInputs, RowCells, ViewRequest,
 };
@@ -12,6 +11,7 @@ use ryo_derived::inbound::use_cases::derived::{
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::service::push_row;
 use std::sync::Arc;
 
 /// The real semantic builder borrows the test's physical source table; this object provides no executor or owner policy.

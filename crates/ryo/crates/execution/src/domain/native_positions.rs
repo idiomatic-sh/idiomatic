@@ -11,3 +11,6 @@ pub(crate) mod types;
 mod axis_test;
 
 pub(crate) mod rows;
+
+#[cfg(test)]
+mod walk_order_test;

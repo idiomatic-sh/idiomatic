@@ -25,7 +25,6 @@ pub(in crate::application::file_dag) struct RawScope {
     prepared: Option<Arc<PreparedDerived>>,
     room: BuildWorkspace,
     working: Option<Working>,
-    finite: bool,
 }
 impl std::fmt::Debug for RawScope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,15 +32,6 @@ impl std::fmt::Debug for RawScope {
     }
 }
 impl RawScope {
-    pub(in crate::application::file_dag) fn new(owner: Rc<RelationOwner>) -> Self {
-        Self {
-            owner,
-            prepared: None,
-            room: BuildWorkspace::default(),
-            working: None,
-            finite: false,
-        }
-    }
     pub(super) fn for_program(
         owner: Rc<RelationOwner>,
         prepared: Option<Arc<PreparedDerived>>,
@@ -51,7 +41,6 @@ impl RawScope {
             prepared,
             room: BuildWorkspace::default(),
             working: None,
-            finite: true,
         }
     }
 }
@@ -64,15 +53,12 @@ impl ScopedDerived for RawScope {
     ) -> Result<(), OperatingError> {
         let port = self.owner.derived.semantic_port();
         let request = ViewRequest::RawKeyOrder { stride };
-        let prepared = match &self.prepared {
-            Some(prepared) if prepared.request() == &request => Arc::clone(prepared),
-            _ if self.finite => return Err(OperatingError::WrongOperation),
-            _ => {
-                let prepared = port.prepare(request, Vec::new());
-                self.prepared = Some(Arc::clone(&prepared));
-                prepared
-            }
-        };
+        let prepared = self
+            .prepared
+            .as_ref()
+            .filter(|prepared| prepared.request() == &request)
+            .cloned()
+            .ok_or(OperatingError::WrongOperation)?;
         let recycled = self.working.take().and_then(Working::recycle);
         let answer = port
             .build(

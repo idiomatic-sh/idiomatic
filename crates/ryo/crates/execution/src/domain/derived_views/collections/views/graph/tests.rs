@@ -1,13 +1,15 @@
 //! Independent row-order and resource-shape controls for the graph view families.
 use super::*;
-use crate::domain::{
-    operation_schema::types::InputShape,
-    stored_graph::types::{GraphIdentity, GraphSource, Orientation, Population},
-    table_model::service::push_row,
-};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use {
+    crate::domain::operation_schema::types::InputShape,
+    crate::domain::stored_graph::types::GraphIdentity,
+    crate::domain::stored_graph::types::GraphSource,
+    crate::domain::stored_graph::types::Orientation,
+    crate::domain::stored_graph::types::Population, ryo_values::domain::rows::service::push_row,
+};
 
 fn number(value: i64) -> Value {
     Value::Number(Integer(value))

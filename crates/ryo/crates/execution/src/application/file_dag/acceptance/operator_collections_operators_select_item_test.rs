@@ -15,7 +15,6 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::select::item::SelectItem;
-use crate::domain::table_model::service::{materialize, push_row};
 use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_relations::domain::relations::types::Integer;
@@ -32,6 +31,9 @@ use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;
+use {
+    crate::domain::table_model::service::materialize, ryo_values::domain::rows::service::push_row,
+};
 
 /// A scenario: what a row computes with the item, answering how many rows came out.
 type Input = fn() -> Result<Value, OperatingError>;

@@ -9,7 +9,6 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::rank::item::RankItem;
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::domain::files::types::SourceView;
@@ -17,6 +16,7 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, ParameterId};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::rows::service::push_row;
 
 type Value = &'static [(&'static str, i64)];
 type Failure = OperatingError;

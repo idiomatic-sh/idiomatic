@@ -214,6 +214,8 @@ pub(in crate::application::file_dag) fn evaluate(
             source_len: context.source.0.len(),
         },
     };
+    #[cfg(test)]
+    let registered_calls = &mut workspace.observation.registered_calls;
     let outcome = with_primitive_context(
         views,
         &mut workspace.primitive,
@@ -223,6 +225,10 @@ pub(in crate::application::file_dag) fn evaluate(
         &workspace.work,
         |context| {
             let request = ExecutableLease::new(permit, context, operation, input, &mut output);
+            #[cfg(test)]
+            {
+                *registered_calls += 1;
+            }
             match operators.execute(KernelCall::Registered { request }) {
                 Ok(KernelAnswer::Complete) => Ok(()),
                 Ok(KernelAnswer::Physical(_) | KernelAnswer::Walk(_)) => {

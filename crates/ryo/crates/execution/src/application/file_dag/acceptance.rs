@@ -9,8 +9,6 @@ pub(crate) mod kind_sets_service_test;
 pub(crate) mod kind_sets_types_vocabulary_value_test;
 pub(crate) mod layout_service_test;
 pub(crate) mod matching_types_prepared_value_test;
-#[cfg(test)]
-pub(crate) mod native_positions_parity_test;
 pub(crate) mod operating_service_test;
 pub(crate) mod operation_schema_service_test;
 pub(crate) mod operation_schema_types_bindings_value_test;
@@ -42,7 +40,6 @@ pub(crate) mod operator_contract_test;
 pub(crate) mod operator_service_test;
 pub(crate) mod reading_service_test;
 pub(crate) mod recording_service_test;
-pub(crate) mod replay_service_test;
 pub(crate) mod stored_graph_service_test;
 pub(crate) mod stored_selection_service_test;
 pub(crate) mod stored_selection_types_program_value_test;
@@ -50,3 +47,5 @@ pub(crate) mod table_scratch_service_test;
 pub(crate) mod tree_join_collections_strategies_span_index_item_test;
 pub(crate) mod tree_join_service_test;
 pub(crate) mod workers_service_test;
+
+pub(crate) mod compiled_span_fixture;

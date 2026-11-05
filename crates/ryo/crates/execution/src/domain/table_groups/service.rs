@@ -11,7 +11,7 @@ use crate::domain::{
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_derived::domain::contract::types::On;
 use ryo_operators::inbound::use_cases::operators::interface::{
-    AggregationPlan, DigestDatum, DigestValues, GroupColumns, GroupOutput, OperatorCall,
+    DigestDatum, DigestValues, GroupColumns, GroupOutput, OperatorCall,
 };
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
@@ -35,21 +35,7 @@ impl GroupOutput for GroupTarget<'_> {
         self.0.sort_unstable_by_key(|group| group.first);
     }
 }
-pub(crate) fn plan(
-    program: &crate::domain::operator::contract::types::AggregationProgram,
-) -> AggregationPlan<'_> {
-    match program {
-        crate::domain::operator::contract::types::AggregationProgram::Count { keys, distinct } => {
-            AggregationPlan::Count {
-                keys,
-                distinct: *distinct,
-            }
-        }
-        crate::domain::operator::contract::types::AggregationProgram::Digest { keys, over } => {
-            AggregationPlan::Digest { keys, over: *over }
-        }
-    }
-}
+
 pub(crate) fn count_groups(
     table: &Table,
     on: On<'_>,

@@ -23,7 +23,7 @@ impl OperatorsPort for TestOperators {
     }
 }
 
-use crate::domain::table_model::service::push_row;
+use ryo_values::domain::rows::service::push_row;
 
 use crate::domain::{positions::service_test::prepared_order, table_model::types::Rows};
 use ryo_derived::domain::contract::types::On;

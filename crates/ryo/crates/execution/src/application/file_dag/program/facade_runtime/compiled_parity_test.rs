@@ -1,22 +1,19 @@
 //! Select, count and refusal cases through the prepared file program.
 
-use crate::application::{
-    file_dag::{
-        execution::CommonOperatorEngine,
-        program::{
-            facade::{self, EmitDemand, ObservationDemand, RootOutcome, RuleDemand},
-            facade_runtime::{ProgramServices, open_file},
-        },
-        scope::ScopePartials,
+use crate::application::file_dag::{
+    execution::CommonOperatorEngine,
+    program::{
+        facade::{self, EmitDemand, ObservationDemand, RootOutcome, RuleDemand},
+        facade_runtime::{ProgramServices, open_file},
     },
-    rule_compilation::types::{Compiled, ObservationIdentity},
+    scope::ScopePartials,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-
     file_program::types::RuleSchedule,
     operating::errors::OperatingError,
     positions::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree},
+    prepared_request::types::{Compiled, ObservationIdentity},
     table_model::types::Rows,
 };
 use ryo_language::domain::files::types::FilePath;
@@ -28,7 +25,7 @@ use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
         ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
-        QueryLiteral, Side, StepId, Test,
+        QueryLiteral, RepeatedRows, Side, StepId, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep, StepScope},
     program::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
@@ -44,6 +41,13 @@ enum Scenario {
     Counted,
     MissingRight,
     OrdinaryFunctionJoin,
+    RowsOfWords,
+    DistinctKinds,
+    KeptKinds,
+    NativeAntijoin,
+    NativeUnion,
+    NativeJoinSteps,
+    NativeJoinTree,
 }
 type Input = Scenario;
 type Value = (usize, &'static str);
@@ -55,6 +59,16 @@ fn plan(scenario: Scenario) -> Plan {
             from: PlanInput::Relation(Relation::SyntaxTree),
             comparisons: if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
                 vec![]
+            } else if matches!(
+                scenario,
+                Scenario::RowsOfWords | Scenario::DistinctKinds | Scenario::KeptKinds
+            ) {
+                vec![Comparison {
+                    test: Test::NotEqual,
+                    left: Operand::Column(ColumnIndex(1)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("file".into()))),
+                    origin: None,
+                }]
             } else {
                 vec![Comparison {
                     test: Test::Equal,
@@ -63,10 +77,46 @@ fn plan(scenario: Scenario) -> Plan {
                     origin: None,
                 }]
             },
-            kept: vec![ColumnIndex(0), ColumnIndex(1)],
+            kept: if matches!(scenario, Scenario::DistinctKinds | Scenario::KeptKinds) {
+                vec![ColumnIndex(1)]
+            } else {
+                vec![ColumnIndex(0), ColumnIndex(1)]
+            },
         },
         scope: StepScope::PerFile,
     }];
+    if matches!(scenario, Scenario::RowsOfWords) {
+        steps.push(PlanStep {
+            operation: Operation::Select {
+                from: PlanInput::Step(StepId(0)),
+                comparisons: vec![Comparison {
+                    test: Test::Equal,
+                    left: Operand::Column(ColumnIndex(1)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("word".into()))),
+                    origin: None,
+                }],
+                kept: vec![ColumnIndex(0)],
+            },
+            scope: StepScope::PerFile,
+        });
+    }
+    if matches!(
+        scenario,
+        Scenario::RowsOfWords | Scenario::DistinctKinds | Scenario::KeptKinds
+    ) {
+        steps.push(PlanStep {
+            operation: Operation::Project {
+                from: PlanInput::Step(StepId((steps.len() - 1) as u32)),
+                columns: vec![ColumnIndex(0)],
+                distinct: if matches!(scenario, Scenario::KeptKinds) {
+                    RepeatedRows::Kept
+                } else {
+                    RepeatedRows::Dropped
+                },
+            },
+            scope: StepScope::PerFile,
+        });
+    }
     if matches!(scenario, Scenario::Counted) {
         steps.push(PlanStep {
             operation: Operation::GroupCount {
@@ -113,6 +163,111 @@ fn plan(scenario: Scenario) -> Plan {
                 reach: None,
             },
         });
+    }
+    if matches!(
+        scenario,
+        Scenario::NativeAntijoin
+            | Scenario::NativeUnion
+            | Scenario::NativeJoinSteps
+            | Scenario::NativeJoinTree
+    ) {
+        let select = |comparisons, kept| PlanStep {
+            operation: Operation::Select {
+                from: PlanInput::Relation(Relation::SyntaxTree),
+                comparisons,
+                kept,
+            },
+            scope: StepScope::PerFile,
+        };
+        let text_is = |column, test, text: &str| Comparison {
+            test,
+            left: Operand::Column(ColumnIndex(column)),
+            right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
+            origin: None,
+        };
+        steps = match scenario {
+            Scenario::NativeAntijoin | Scenario::NativeUnion => vec![
+                select(
+                    vec![text_is(1, Test::NotEqual, "file")],
+                    vec![ColumnIndex(1)],
+                ),
+                select(vec![text_is(1, Test::Equal, "word")], vec![ColumnIndex(1)]),
+                PlanStep {
+                    operation: if matches!(scenario, Scenario::NativeAntijoin) {
+                        Operation::Antijoin {
+                            left: PlanInput::Step(StepId(0)),
+                            right: PlanInput::Step(StepId(1)),
+                            left_on: vec![ColumnIndex(0)],
+                            right_on: vec![ColumnIndex(0)],
+                        }
+                    } else {
+                        Operation::Union {
+                            left: PlanInput::Step(StepId(0)),
+                            right: PlanInput::Step(StepId(1)),
+                        }
+                    },
+                    scope: StepScope::PerFile,
+                },
+            ],
+            Scenario::NativeJoinSteps => vec![
+                select(
+                    vec![text_is(1, Test::Equal, "word")],
+                    vec![ColumnIndex(0), ColumnIndex(1)],
+                ),
+                select(
+                    vec![text_is(2, Test::Equal, "a")],
+                    vec![ColumnIndex(0), ColumnIndex(1)],
+                ),
+                PlanStep {
+                    operation: Operation::Join {
+                        left: PlanInput::Step(StepId(0)),
+                        right: PlanInput::Step(StepId(1)),
+                        left_on: vec![ColumnIndex(1)],
+                        right_on: vec![ColumnIndex(1)],
+                        output: vec![
+                            JoinColumn {
+                                side: Side::Left,
+                                column: ColumnIndex(0),
+                            },
+                            JoinColumn {
+                                side: Side::Right,
+                                column: ColumnIndex(0),
+                            },
+                        ],
+                        filter: vec![],
+                        view: vec![],
+                        reach: None,
+                    },
+                    scope: StepScope::PerFile,
+                },
+            ],
+            Scenario::NativeJoinTree => vec![
+                select(vec![text_is(1, Test::Equal, "other")], vec![ColumnIndex(0)]),
+                PlanStep {
+                    operation: Operation::Join {
+                        left: PlanInput::Step(StepId(0)),
+                        right: PlanInput::Relation(Relation::SyntaxTree),
+                        left_on: vec![ColumnIndex(0)],
+                        right_on: vec![ColumnIndex(0)],
+                        output: vec![
+                            JoinColumn {
+                                side: Side::Left,
+                                column: ColumnIndex(0),
+                            },
+                            JoinColumn {
+                                side: Side::Right,
+                                column: ColumnIndex(0),
+                            },
+                        ],
+                        filter: vec![],
+                        view: vec![],
+                        reach: None,
+                    },
+                    scope: StepScope::PerFile,
+                },
+            ],
+            _ => unreachable!(),
+        };
     }
     let last = StepId((steps.len() - 1) as u32);
     Plan {
@@ -167,9 +322,43 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
-    let engine = CommonOperatorEngine::new(crate::outbound::operators::factory::test_port());
-    let services = ProgramServices::new(
-        &engine,
+    let target = StepId((plan(scenario).steps.len() - 1) as u32);
+    let target_region = {
+        let program = prepared.program();
+        let logical = program.rules()[0].original_steps[target.0 as usize]
+            .as_ref()
+            .unwrap()
+            .logical;
+        program.logical_regions()[logical.0]
+    };
+    let expects_native = matches!(
+        scenario,
+        Scenario::NativeAntijoin
+            | Scenario::NativeUnion
+            | Scenario::NativeJoinSteps
+            | Scenario::NativeJoinTree
+    );
+    if expects_native {
+        assert!(
+            prepared.program().regions()[target_region.0]
+                .native_positions
+                .is_some(),
+            "this case requires the compiled native-position strategy to be installed"
+        );
+    }
+    if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
+        assert!(
+            prepared.program().regions()[target_region.0]
+                .native_positions
+                .is_none(),
+            "the non-tree RHS must decline native-position installation"
+        );
+    }
+    let engine = Arc::new(CommonOperatorEngine::new(
+        crate::outbound::operators::factory::test_port(),
+    ));
+    let services = Arc::new(ProgramServices::new(
+        engine,
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
@@ -177,7 +366,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             size: FileSize(SMALL_SOURCE.len() as u64),
             modified: Nanoseconds(0),
         })],
-    );
+    ));
     let mut file = open_file(
         &prepared,
         FileId(0),
@@ -186,8 +375,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             publication: &[],
         },
         &[true],
-        &services,
+        services,
         SMALL_SOURCE,
+        true,
         &mut symbols,
         None,
         None,
@@ -225,6 +415,24 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         &read,
         &mut symbols,
     )?;
+    let routes = file.route_observation(crate::domain::coverage::types::RuleIndex(0), target)?;
+    if expects_native {
+        assert!(
+            routes.native_positions > 0,
+            "published rows must come from actual native-position execution; ordinary parity alone is insufficient"
+        );
+        assert_eq!(
+            routes.registered_calls, 0,
+            "the target did not dispatch through ordinary registration"
+        );
+    }
+    if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
+        assert_eq!(routes.native_positions, 0);
+        assert!(
+            routes.registered_calls > 0,
+            "a declined native shape must execute the real registered operator"
+        );
+    }
     let table = match outcome.emit {
         RootOutcome::Complete(table) => table,
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => return Err(error),
@@ -236,6 +444,22 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         .map(|cell| match cell {
             Cell::Node(node) => node.0.to_string(),
             Cell::Number(Integer(number)) => number.to_string(),
+            Cell::Symbol(symbol)
+                if matches!(
+                    scenario,
+                    Scenario::DistinctKinds
+                        | Scenario::KeptKinds
+                        | Scenario::NativeAntijoin
+                        | Scenario::NativeUnion
+                ) =>
+            {
+                ryo_language::domain::symbols::service::text_of(
+                    &symbols,
+                    ryo_language::domain::symbols::types::ByteSlice(SMALL_SOURCE),
+                    *symbol,
+                )
+                .map_or_else(|| "?".to_owned(), |text| text.0.to_owned())
+            }
             Cell::Symbol(_) | Cell::Name(_) | Cell::File(_) | Cell::Span(_) | Cell::Flag(_) => {
                 "_".to_owned()
             }
@@ -246,16 +470,58 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("the_rows_of_a_lowered_select_are_passed_on_as_values"),
+        name: CaseName("the_elements_of_the_tree_of_a_kind_are_selected"),
         word: Word::Succeeds,
         input: || Scenario::Words,
         expect: Expect::Value((2, "1 _ 3 _")),
+    },
+    Case {
+        name: CaseName("the_rows_of_a_step_whose_element_is_of_a_kind_are_selected"),
+        word: Word::Succeeds,
+        input: || Scenario::RowsOfWords,
+        expect: Expect::Value((2, "1 3")),
+    },
+    Case {
+        name: CaseName("a_projection_that_drops_repeats_keeps_the_first_row_of_each_kind"),
+        word: Word::Succeeds,
+        input: || Scenario::DistinctKinds,
+        expect: Expect::Value((2, "word other")),
+    },
+    Case {
+        name: CaseName("a_projection_that_keeps_repeats_keeps_every_row"),
+        word: Word::Succeeds,
+        input: || Scenario::KeptKinds,
+        expect: Expect::Value((3, "word other word")),
     },
     Case {
         name: CaseName("a_count_of_lowered_rows_is_passed_on_with_the_keys"),
         word: Word::Succeeds,
         input: || Scenario::Counted,
         expect: Expect::Value((1, "_ 2")),
+    },
+    Case {
+        name: CaseName("native_antijoin_preserves_missing_key_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::NativeAntijoin,
+        expect: Expect::Value((1, "other")),
+    },
+    Case {
+        name: CaseName("native_union_preserves_first_distinct_keys"),
+        word: Word::Succeeds,
+        input: || Scenario::NativeUnion,
+        expect: Expect::Value((2, "word other")),
+    },
+    Case {
+        name: CaseName("native_join_pairs_each_matching_step_row"),
+        word: Word::Succeeds,
+        input: || Scenario::NativeJoinSteps,
+        expect: Expect::Value((2, "1 1 3 1")),
+    },
+    Case {
+        name: CaseName("native_join_follows_tree_node"),
+        word: Word::Succeeds,
+        input: || Scenario::NativeJoinTree,
+        expect: Expect::Value((1, "2 2")),
     },
     Case {
         name: CaseName("non_tree_join_uses_registered_operator_after_native_decline"),

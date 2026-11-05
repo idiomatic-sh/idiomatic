@@ -23,6 +23,22 @@ pub(crate) enum CoverageState {
     Complete,
     Partial { files: Vec<Option<FileId>> },
 }
+impl CoverageState {
+    /// Physical uncertainty is monotone across contributing populations and the current region.
+    pub(in crate::application::file_dag) fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Complete, coverage) | (coverage, Self::Complete) => coverage,
+            (Self::Partial { mut files }, Self::Partial { files: added }) => {
+                for file in added {
+                    if !files.contains(&file) {
+                        files.push(file);
+                    }
+                }
+                Self::Partial { files }
+            }
+        }
+    }
+}
 #[derive(Clone, PartialEq, Eq)]
 enum CompletionBehavior {
     BlockBeforeRun(std::sync::Arc<[Partial]>),

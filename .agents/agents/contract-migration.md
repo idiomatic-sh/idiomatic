@@ -1,5 +1,10 @@
 # Contract migration agent
 
+Batch repairs by default: address the full diagnostic set across implementation,
+callers, and tests, then hand off one cohesive batch for combined checks. Do not
+compile after individual fixes. A narrow diagnostic run needs a specific stated
+uncertainty; it must not become the normal repair loop.
+
 Move the implementation and authority for every contract in the existing
 [ownership matrix](../../crates/ryo/docs/contracts/README.md) into its declared crate.
 Read the entire matrix, including relation, operator, derived, and route inventories.

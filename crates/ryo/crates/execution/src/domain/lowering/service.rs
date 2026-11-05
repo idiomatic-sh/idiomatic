@@ -9,10 +9,8 @@ use super::types::{
     ColumnFollowing, Counting, ElementPart, LoweredColumn, LoweredShape, Lowering, RowPosition,
     RowWidth,
 };
-use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::TreeForm;
-use ryo_values::domain::plan_parts::service::step_in;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side, StepId};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side};
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
 
 /// What the column `column` of the elements of a tree holds.
@@ -379,27 +377,4 @@ pub(crate) fn lower(plan: &Plan) -> Lowering {
         shapes.push(shape);
     }
     Lowering { shapes, counting }
-}
-
-/// The shape of the lowered step `id`.
-///
-/// # Errors
-///
-/// `NotRun` when the step is not lowered.
-pub(crate) fn shape_at(lowering: &Lowering, id: StepId) -> Result<&LoweredShape, OperatingError> {
-    step_in(&lowering.shapes, id)
-        .and_then(Option::as_ref)
-        .ok_or(OperatingError::NotRun)
-}
-
-/// The step an input is.
-///
-/// # Errors
-///
-/// `NotAStep` when the input is a relation.
-pub(crate) fn step_of(input: Input) -> Result<StepId, OperatingError> {
-    match input {
-        Input::Step(id) => Ok(id),
-        Input::Relation(_) | Input::BoundObservation(_) => Err(OperatingError::NotAStep),
-    }
 }

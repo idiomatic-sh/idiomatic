@@ -180,6 +180,26 @@ impl ExecutionRequest for RequestExecution {
     }
 }
 impl FileExecution for FileSession<'_, '_> {
+    fn emit_rows(
+        &mut self,
+        rule: RuleIndex,
+        symbols: &mut Symbols,
+        each: &mut dyn FnMut(
+            &[ryo_relations::domain::relations::types::Value],
+        ) -> Result<(), OperatingError>,
+    ) -> Result<RowEmission, OperatingError> {
+        let read = |relation| source_rows(self.read, self.elements, self.file, relation);
+        self.inner
+            .emit_rows(rule, &read, symbols, each)
+            .map(|coverage| match coverage {
+                crate::application::file_dag::completion::CoverageState::Complete => {
+                    RowEmission::Complete
+                }
+                crate::application::file_dag::completion::CoverageState::Partial { files } => {
+                    RowEmission::Partial { affected: files }
+                }
+            })
+    }
     fn finish(self) -> Result<FileFinished, OperatingError> {
         Ok(FileFinished {
             readiness: self.inner.finish()?,
@@ -368,9 +388,14 @@ impl ExecutionCompilation for CompilationUseCaseImpl {
         rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
         hosted: &[ryo_values::domain::hosted::types::HostRelation],
     ) -> Result<CompiledQueries, RuleCompilationError> {
-        self.inner
-            .prepare(rules, hosted)
-            .map(|inner| CompiledQueries { inner })
+        let inner = self.inner.prepare(rules, hosted)?;
+        crate::application::rule_compilation::service::observed(
+            rules,
+            &inner.plans,
+            &inner.bindings,
+            hosted,
+        );
+        Ok(CompiledQueries { inner })
     }
     fn identify(
         &self,

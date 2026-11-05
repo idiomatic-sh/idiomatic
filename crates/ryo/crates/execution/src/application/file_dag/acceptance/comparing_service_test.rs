@@ -14,7 +14,6 @@ use crate::domain::comparing::service::holds_all;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
 use crate::domain::operator::collections::operators::select::item::SelectItem;
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::domain::files::types::SourceView;
@@ -29,6 +28,7 @@ use ryo_values::domain::plan_parts::types::ParameterId;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::rows::service::push_row;
 
 /// A scenario: what a row observes of the comparisons, as a number.
 type Input = fn() -> Result<Value, OperatingError>;
