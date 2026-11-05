@@ -102,9 +102,9 @@ const REGEX: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
-    use crate::domain::table_model::types::Verdict;
-    use crate::domain::table_scratch::types::Patterns;
-    use crate::domain::table_texts::types::{Datum, TextView};
+    use ryo_matching::inbound::use_cases::matching::{
+        interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+    };
     use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
     use ryo_values::domain::plans::types::Operation;
     let plan = compile_query(&QueryBundle::from(text.clone()))?;
@@ -131,13 +131,11 @@ fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
         1,
         "the parsed predicate must reach the executable plan"
     );
-    let verdict = crate::domain::matching::service::matches(
-        &Datum::Text(TextView("\tnoqa")),
-        &Datum::Text(TextView(&patterns[0].0)),
-        &mut Patterns::default(),
-    )
-    .expect("the query contains a valid regular expression");
-    Ok(verdict == Verdict::Holds)
+    let matcher = MatchingUseCaseImpl::new();
+    let compiled = matcher
+        .compile_regex(&patterns[0].0)
+        .expect("the query contains a valid regular expression");
+    Ok(matcher.matches_regex(&compiled, "\tnoqa"))
 }
 
 /// The rows of the examples the operators print: no input, and the count of examples that do not compile as the value.

@@ -151,9 +151,9 @@ fn request_binding_rejects_a_second_rules_bag_sensitive_terminal_select() {
         &plans,
         &[vec![], vec![]],
         &[],
-        (std::sync::Arc::new(
+        std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        ),
     )
     .unwrap();
     assert_eq!(

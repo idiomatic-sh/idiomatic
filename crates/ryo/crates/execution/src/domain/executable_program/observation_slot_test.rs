@@ -152,9 +152,9 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         &plans,
         &[vec![], vec![], vec![], vec![]],
         &[],
-        (std::sync::Arc::new(
+        std::sync::Arc::new(
             ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        ),
     )
     .unwrap();
     let graph = crate::domain::file_program::service::compile_prepared_observations(

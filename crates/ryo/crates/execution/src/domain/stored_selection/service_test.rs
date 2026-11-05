@@ -2,6 +2,7 @@
 use ryo_derived::domain::contract::types::{
     BuildOutcome, BuildWorkspace, DerivedFault, DerivedInputs, ViewRequest,
 };
+use ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -10,9 +11,9 @@ fn representatives(
     columns: &[ColumnIndex],
     positions: &[u32],
 ) -> Result<Vec<u32>, DerivedFault> {
-    let port = (std::sync::Arc::new(
+    let port = std::sync::Arc::new(
         ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new(),
-    ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>);
+    );
     let plan = port.prepare(
         ViewRequest::DistinctRepresentatives {
             columns: columns.to_vec(),
