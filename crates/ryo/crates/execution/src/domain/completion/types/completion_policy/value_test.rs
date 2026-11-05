@@ -6,7 +6,7 @@ use crate::domain::trust::types::RelationRead;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input},
+    plan_parts::types::{ColumnIndex, Input as PlanInput},
     rows::types::RowCount,
     stored_facts::types::PartialCause,
 };
@@ -21,8 +21,8 @@ fn partial() -> Partial {
 }
 fn anti() -> Operation {
     Operation::Antijoin {
-        left: Input::Relation(Relation::SourceLocation),
-        right: Input::Relation(Relation::SourceLocation),
+        left: PlanInput::Relation(Relation::SourceLocation),
+        right: PlanInput::Relation(Relation::SourceLocation),
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(0)],
     }

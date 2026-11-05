@@ -3,23 +3,24 @@ use super::{
     service::{file_frontier_coverage, merge_coverage},
     types::CoverageState,
 };
-use crate::domain::operating::types::OperatingError;
+use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run, selects},
     domain::records::types::{FrontierAffected, FrontierCoverage},
 };
-struct Input {
+struct FrontierCase {
     coverage: CoverageState,
     expected: FrontierCoverage,
 }
+type Input = FrontierCase;
 type Value = ();
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("complete"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || FrontierCase {
             coverage: CoverageState::Complete,
             expected: FrontierCoverage::Complete,
         },
@@ -28,7 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("current_file"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || FrontierCase {
             coverage: CoverageState::Partial {
                 files: vec![Some(FileId(0))],
             },
@@ -39,7 +40,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("repository"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || FrontierCase {
             coverage: CoverageState::Partial { files: vec![None] },
             expected: FrontierCoverage::Partial(vec![FrontierAffected::Repository]),
         },
@@ -51,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             let mut causes = vec![FrontierAffected::CurrentFile, FrontierAffected::Repository];
             causes.sort_unstable();
-            Input {
+            FrontierCase {
                 coverage: merge_coverage(
                     CoverageState::Partial {
                         files: vec![Some(FileId(0)), Some(FileId(0))],
@@ -66,7 +67,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("foreign_file"),
         word: Word::Refuses,
-        input: || Input {
+        input: || FrontierCase {
             coverage: CoverageState::Partial {
                 files: vec![Some(FileId(1))],
             },
@@ -81,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("empty_partial"),
         word: Word::Refuses,
-        input: || Input {
+        input: || FrontierCase {
             coverage: CoverageState::Partial { files: vec![] },
             expected: FrontierCoverage::Complete,
         },

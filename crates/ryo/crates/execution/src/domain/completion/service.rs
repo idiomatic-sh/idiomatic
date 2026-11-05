@@ -1,6 +1,6 @@
 //! Merge physical completeness and certify file frontier provenance.
 use super::types::CoverageState;
-use crate::domain::operating::types::OperatingError;
+use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 /// Physical uncertainty is monotone across contributing populations and the current region.
 pub(crate) fn merge_coverage(left: CoverageState, right: CoverageState) -> CoverageState {
