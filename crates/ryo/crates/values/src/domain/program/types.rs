@@ -30,8 +30,8 @@ pub struct QuerySourceId(pub Box<str>);
 pub struct QueryDocumentSource {
     /// The stable logical identity used by imports and diagnostics.
     pub id: QuerySourceId,
-    /// Exact UTF-8 query bytes held by this source.
-    pub text: Box<str>,
+    /// Exact immutable UTF-8 bytes, shared by snapshots without copying source text.
+    pub text: std::sync::Arc<str>,
 }
 
 /// The in-memory root and immutable named module sources for one query.
@@ -39,8 +39,8 @@ pub struct QueryDocumentSource {
 pub struct QueryBundle {
     /// The entry document compiled for this query.
     pub root: QueryDocumentSource,
-    /// Explicitly registered immutable modules, keyed by logical identity.
-    pub modules: BTreeMap<QuerySourceId, QueryDocumentSource>,
+    /// Explicitly registered immutable modules, shared by root queries and cache snapshots.
+    pub modules: std::sync::Arc<BTreeMap<QuerySourceId, QueryDocumentSource>>,
 }
 
 /// The name of a parameter, as the query writes it.

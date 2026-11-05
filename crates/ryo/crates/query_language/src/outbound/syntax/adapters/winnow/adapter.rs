@@ -90,7 +90,7 @@ impl SyntaxPort for SyntaxWinnowAdapter {
                 SyntaxError::Located { .. } => error,
             })?;
         let mut fragments = std::collections::BTreeMap::new();
-        for (source_id, source) in &bundle.modules {
+        for (source_id, source) in bundle.modules.iter() {
             let fragment = fragment_program
                 .parse(LocatingSlice::new(&source.text))
                 .map_err(|error| {

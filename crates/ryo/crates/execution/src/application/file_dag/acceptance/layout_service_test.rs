@@ -93,7 +93,7 @@ fn prepared(plan: Plan) -> Result<Arc<facade::PreparedProgram>, OperatingError> 
                 id: QuerySourceId("prepared-layout".into()),
                 text: "".into(),
             },
-            modules: BTreeMap::new(),
+            modules: Default::default(),
         },
         applicability: RuleApplicability::Always,
         given: vec![],

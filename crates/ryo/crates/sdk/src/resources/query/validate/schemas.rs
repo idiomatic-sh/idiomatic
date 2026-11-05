@@ -64,6 +64,28 @@ impl crate::domain::query::types::QueryModuleSource {
 
 #[expect(
     clippy::multiple_inherent_impl,
+    reason = "checked catalog construction belongs at the SDK query schema boundary"
+)]
+impl crate::domain::query::types::QueryModuleCatalog {
+    /// Validate a reusable module catalog once, retaining each source's shared bytes.
+    ///
+    /// # Errors
+    /// Returns [`QueryBundleError::DuplicateSourceId`] for repeated module ids.
+    pub fn try_new(
+        modules: impl IntoIterator<Item = crate::domain::query::types::QueryModuleSource>,
+    ) -> Result<Self, QueryBundleError> {
+        ryo_values::domain::program::service::module_catalog(
+            modules
+                .into_iter()
+                .map(crate::domain::query::types::QueryModuleSource::into_document),
+        )
+        .map(Self::from_catalog)
+        .map_err(QueryBundleError::from_internal)
+    }
+}
+
+#[expect(
+    clippy::multiple_inherent_impl,
     reason = "bundle validation belongs beside the SDK query schema conversion"
 )]
 impl RyoQlQuery {
@@ -77,23 +99,17 @@ impl RyoQlQuery {
     pub fn with_modules(
         root_id: &str,
         root_text: &str,
-        modules: impl IntoIterator<Item = crate::domain::query::types::QueryModuleSource>,
+        modules: &crate::domain::query::types::QueryModuleCatalog,
     ) -> Result<Self, QueryBundleError> {
-        use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
+        use ryo_values::domain::program::service::{
+            document_source, query_bundle_with_catalog, source_id,
+        };
         if root_text.trim().is_empty() {
             return Err(QueryBundleError::BlankRootText);
         }
         let root_id = source_id(root_id).map_err(QueryBundleError::from_internal)?;
         let root = document_source(root_id, root_text);
-        let modules = modules
-            .into_iter()
-            .map(|module| {
-                source_id(module.id())
-                    .map(|id| document_source(id, module.text()))
-                    .map_err(QueryBundleError::from_internal)
-            })
-            .collect::<Result<Vec<_>, QueryBundleError>>()?;
-        query_bundle(root, modules)
+        query_bundle_with_catalog(root, std::sync::Arc::clone(modules.catalog()))
             .map(Self::from_bundle)
             .map_err(QueryBundleError::from_internal)
     }

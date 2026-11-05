@@ -327,6 +327,7 @@ fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
             .unwrap()
         })
         .collect::<Vec<_>>();
+    let modules = ryo::query::QueryModuleCatalog::try_new(modules).unwrap();
     let mut failures = Vec::new();
     for code in profile["defaults"]
         .as_array()
@@ -336,8 +337,7 @@ fn authored_suppression_cohort_queries_validate_through_public_sdk_contracts() {
         .map(|value| value.as_str().unwrap())
     {
         let text = std::fs::read_to_string(root.join(format!("rules/{code}/query.ryoql"))).unwrap();
-        let query =
-            RyoQlQuery::with_modules(&format!("test/{code}"), &text, modules.clone()).unwrap();
+        let query = RyoQlQuery::with_modules(&format!("test/{code}"), &text, &modules).unwrap();
         let request = ValidateRequest {
             query,
             hosted: if code == "RUF100" {

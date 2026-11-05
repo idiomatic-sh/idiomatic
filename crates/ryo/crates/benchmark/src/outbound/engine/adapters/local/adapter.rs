@@ -103,7 +103,7 @@ impl EngineLocalAdapter {
                 RyoQlQuery::try_from(query.as_str())
                     .map_err(|error| Error::Invalid(error.to_string()))?
             } else {
-                RyoQlQuery::with_modules(&format!("rules/{id}"), &query, modules.clone())
+                RyoQlQuery::with_modules(&format!("rules/{id}"), &query, &modules)
                     .map_err(|error| Error::Invalid(error.to_string()))?
             };
             let observations = declarations
@@ -373,7 +373,7 @@ impl EngineExecution for LocalEngineSession<'_> {
 fn query_modules(
     directory: &std::path::Path,
     registry: &BTreeMap<String, std::path::PathBuf>,
-) -> Result<Vec<ryo::query::QueryModuleSource>, Error> {
+) -> Result<ryo::query::QueryModuleCatalog, Error> {
     let profile = directory
         .parent()
         .ok_or_else(|| Error::Invalid("rules directory has no profile root".into()))?;
@@ -407,7 +407,8 @@ fn query_modules(
                 .map_err(|error| Error::Invalid(error.to_string()))?,
         );
     }
-    Ok(modules)
+    ryo::query::QueryModuleCatalog::try_new(modules)
+        .map_err(|error| Error::Invalid(error.to_string()))
 }
 
 /// Require the declared context mode and exact source inventory before initializing the SDK.

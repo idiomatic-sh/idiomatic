@@ -249,10 +249,10 @@ fn span_plan(
             id: QuerySourceId("root".into()),
             text: root.into(),
         },
-        modules: std::collections::BTreeMap::new(),
+        modules: Default::default(),
     };
     if let Some(text) = module {
-        let previous = bundle.modules.insert(
+        let previous = std::sync::Arc::make_mut(&mut bundle.modules).insert(
             QuerySourceId("span-fragment".into()),
             QueryDocumentSource {
                 id: QuerySourceId("span-fragment".into()),

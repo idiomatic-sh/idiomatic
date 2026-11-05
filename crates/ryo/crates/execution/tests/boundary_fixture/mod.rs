@@ -64,7 +64,7 @@ pub(crate) fn authored_request(count: usize) -> PreparedRequest {
                         id: QuerySourceId(format!("public-boundary-{index}").into()),
                         text: "".into(),
                     },
-                    modules: BTreeMap::new(),
+                    modules: Default::default(),
                 },
                 applicability: RuleApplicability::Always,
                 given: vec![],

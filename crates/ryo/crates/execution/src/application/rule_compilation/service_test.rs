@@ -47,6 +47,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([1, 3, 1]),
     },
     Case {
+        name: CaseName(
+            "immutable_module_catalog_snapshots_share_bytes_and_changed_contents_or_ids_miss_cache",
+        ),
+        word: Word::Succeeds,
+        input: || module_catalog_identity,
+        expect: Expect::Value([1, 4, 1]),
+    },
+    Case {
         name: CaseName("failed_queries_are_not_cached_and_keep_their_owner"),
         word: Word::Succeeds,
         input: || refused_program,
@@ -165,6 +173,59 @@ fn program_identity() -> Result<Value, Failure> {
     let _changed_schema = service.compile(&[rule("same", "changed")], &hosted)?;
     let _cached_schema = service.compile(&[rule("same", "changed")], &hosted)?;
     Ok([population(&plans), compiler.calls.load(Ordering::SeqCst), 1])
+}
+
+/// The real bounded cache compares exact catalog contents, never allocation identity.
+fn module_catalog_identity() -> Result<Value, Failure> {
+    use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
+    let compiler = Arc::new(QueryLanguageFake::default());
+    let plans = CompiledPlans::default();
+    let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
+        .compiling_into(plans.clone());
+    let module = source_id("shared/module").expect("nonblank module id");
+    let mut asked = rule("catalog", "select");
+    asked.query = query_bundle(
+        asked.query.root,
+        [document_source(module.clone(), "original bytes\nλ")],
+    )
+    .expect("unique module identity");
+    let snapshot = asked.query.clone();
+    assert!(Arc::ptr_eq(&snapshot.modules, &asked.query.modules));
+    assert!(Arc::ptr_eq(&snapshot.root.text, &asked.query.root.text));
+    let _first = service.compile(&[asked.clone()], &[])?;
+    let mut equal_contents = asked.clone();
+    equal_contents.query.modules = Arc::new((*asked.query.modules).clone());
+    assert!(!Arc::ptr_eq(
+        &equal_contents.query.modules,
+        &asked.query.modules
+    ));
+    let _equal_snapshot_hit = service.compile(&[equal_contents], &[])?;
+    assert_eq!(compiler.calls.load(Ordering::SeqCst), 1);
+    Arc::make_mut(&mut asked.query.modules)
+        .get_mut(&module)
+        .unwrap()
+        .text = Arc::from("changed bytes");
+    assert_eq!(snapshot.modules[&module].text.as_ref(), "original bytes\nλ");
+    let _changed_bytes_miss = service.compile(&[asked.clone()], &[])?;
+    assert_eq!(compiler.calls.load(Ordering::SeqCst), 2);
+    let renamed_id = source_id("shared/renamed").expect("nonblank renamed id");
+    Arc::make_mut(&mut asked.query.modules)
+        .get_mut(&module)
+        .unwrap()
+        .id = renamed_id.clone();
+    let _changed_document_id_miss = service.compile(&[asked.clone()], &[])?;
+    assert_eq!(compiler.calls.load(Ordering::SeqCst), 3);
+    let renamed = Arc::make_mut(&mut asked.query.modules)
+        .remove(&module)
+        .unwrap();
+    let _absent = Arc::make_mut(&mut asked.query.modules).insert(renamed_id, renamed);
+    let _changed_id_miss = service.compile(&[asked.clone()], &[])?;
+    let _stable_snapshot_hit = service.compile(&[asked.clone()], &[])?;
+    let kept = plans.0.lock().unwrap_or_else(PoisonError::into_inner);
+    let cached = &kept.plans[&asked.id].query;
+    assert!(Arc::ptr_eq(&cached.modules, &asked.query.modules));
+    assert!(Arc::ptr_eq(&cached.root.text, &asked.query.root.text));
+    Ok([kept.plans.len(), compiler.calls.load(Ordering::SeqCst), 1])
 }
 
 /// Repeated refused compiles never become a cache hit, and a later valid query still succeeds.

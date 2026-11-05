@@ -130,7 +130,9 @@ fn declared_observation_context_reaches_root_native_and_fragment_sources() {
             false,
         ),
     ] {
-        let query = RyoQlQuery::with_modules("test/root", text, [module.clone()]).unwrap();
+        let modules =
+            crate::domain::query::types::QueryModuleCatalog::try_new([module.clone()]).unwrap();
+        let query = RyoQlQuery::with_modules("test/root", text, &modules).unwrap();
         let result = validate(
             &Languages::default(),
             ValidateRequest {
