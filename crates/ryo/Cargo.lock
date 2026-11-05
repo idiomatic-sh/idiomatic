@@ -1308,6 +1308,7 @@ dependencies = [
  "cucumber",
  "divan",
  "globset",
+ "idiomatic-sh-ryo-benchmark-contracts",
  "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-sdk",
  "serde",
@@ -1321,6 +1322,16 @@ dependencies = [
  "tracing-chrome",
  "tracing-subscriber",
  "wait4",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-benchmark-contracts"
+version = "0.1.2"
+dependencies = [
+ "idiomatic-sh-ryo-sdk",
+ "serde_json",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
 ]
 
 [[package]]
@@ -1532,6 +1543,7 @@ dependencies = [
  "divan",
  "dunce",
  "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-benchmark-contracts",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
  "indexmap",
