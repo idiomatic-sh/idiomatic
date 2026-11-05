@@ -152,7 +152,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("syntax_error_is_refused_with_its_span"),
         word: Word::Refuses,
         input: || text_the_fake_refuses,
-        expect: Expect::Refusal(|error| selects(matches!(error, TypecheckError::Syntax { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, TypecheckError::Located { origin, error }
+                if !origin.source_id.0.is_empty()
+                    && origin.trace.is_empty()
+                    && matches!(error.as_ref(), TypecheckError::Syntax { span, .. } if *span == origin.span)))
+        }),
     },
     Case {
         name: CaseName("unknown_relation_is_refused"),

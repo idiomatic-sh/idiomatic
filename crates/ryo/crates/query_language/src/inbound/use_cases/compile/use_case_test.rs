@@ -471,7 +471,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("invalid_text_is_refused"),
         word: Word::Refuses,
         input: || text_the_fake_refuses,
-        expect: Expect::Refusal(|error| selects(matches!(error, CompileError::Syntax { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, CompileError::Located { origin, error }
+                if !origin.source_id.0.is_empty()
+                    && origin.trace.is_empty()
+                    && matches!(error.as_ref(), CompileError::Syntax { span, .. } if *span == origin.span)))
+        }),
     },
     Case {
         name: CaseName("unknown_relation_is_refused"),
