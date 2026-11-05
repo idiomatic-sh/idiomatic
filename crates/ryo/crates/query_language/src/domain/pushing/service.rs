@@ -4,7 +4,8 @@
 use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{
-    FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons, Pushed, Skipped,
+    ColumnPrefixLength, FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons,
+    Pushed,
 };
 use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::{Planned, StepIndex};
@@ -158,7 +159,11 @@ fn kept_columns(
 }
 
 /// Where `column` is among `columns`, after `offset` columns before them.
-fn index_among(columns: &[ColumnIndex], column: ColumnIndex, offset: Skipped) -> ColumnIndex {
+fn index_among(
+    columns: &[ColumnIndex],
+    column: ColumnIndex,
+    offset: ColumnPrefixLength,
+) -> ColumnIndex {
     ColumnIndex(
         u32::try_from(offset.0 + columns.iter().position(|each| *each == column).unwrap_or(0))
             .unwrap_or(u32::MAX),
@@ -285,8 +290,8 @@ fn pushed(steps: &[PlanStep], place: StepIndex) -> Option<Pushed> {
         left: kept_left,
         edge: kept_edge,
     } = kept_columns(output, &made_column)?;
-    let width = Skipped(kept_left.len());
-    let at_left = |column: ColumnIndex| index_among(&kept_left, column, Skipped(0));
+    let width = ColumnPrefixLength(kept_left.len());
+    let at_left = |column: ColumnIndex| index_among(&kept_left, column, ColumnPrefixLength(0));
     let at_edge = |column: ColumnIndex| index_among(&kept_edge, column, width);
     let below = edge_lookup(*left, *lookup, &kept_left, &kept_edge);
     let answer = answer_columns(output, &made_column, &at_left, &at_edge)?;

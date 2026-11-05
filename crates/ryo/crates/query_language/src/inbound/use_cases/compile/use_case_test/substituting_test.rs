@@ -520,9 +520,21 @@ fn span_bounds_types_outputs_and_file_scope() {
         ],
     }];
     let cross = valid.replace("from=\"function\"", "from=\"global\"");
-    let cross_result = span_plan(&cross, None, &hosted);
+    let cross_plan = span_plan(&cross, None, &hosted)
+        .expect("pure endpoint projection is valid after files are joined");
+    let scopes: Vec<_> = cross_plan
+        .steps
+        .iter()
+        .filter_map(|step| {
+            matches!(step.operation, Operation::SpanBounds { .. }).then_some(step.scope)
+        })
+        .collect();
+    assert_eq!(
+        scopes,
+        [ryo_values::domain::plans::types::StepScope::CrossFile]
+    );
     assert!(
-        cross_result.is_ok(),
-        "pure endpoint projection is valid after files are joined: {cross_result:?}"
+        cross_plan.frontier.is_empty(),
+        "hosted-only input needs no file frontier"
     );
 }

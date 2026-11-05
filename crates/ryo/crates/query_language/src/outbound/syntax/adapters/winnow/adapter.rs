@@ -437,7 +437,7 @@ pub(super) fn observe_line(input: &mut Input<'_>) -> ModalResult<WrittenObservat
     })
 }
 
-/// `import suppress from "python/ruff/suppress";`.
+/// `import suppress from "shared/suppress";`.
 pub(super) fn import_line(input: &mut Input<'_>) -> ModalResult<ImportDeclaration> {
     let ((alias, module), span) = delimited(
         (keyword(Keyword::Import), multispace1),

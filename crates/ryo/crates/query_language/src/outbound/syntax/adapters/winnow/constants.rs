@@ -171,7 +171,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     GrammarLine {
         name: "import_line",
         form: "import word from string \";\"",
-        example: "import suppress from \"python/ruff/suppress\";",
+        example: "import suppress from \"shared/suppress\";",
     },
     GrammarLine {
         name: "fragment_program",
