@@ -206,14 +206,20 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             .unwrap()
             .outcome
             .expect("actual file frontier");
-        // Admission, the declined stored-selection candidate and registered
-        // evaluation borrow the same pinned computed population. These are
-        // resident resolutions, not three provider population builds.
-        assert_eq!(file_reads.get(), 3);
+        // Admission may borrow a resident view more than once. The production
+        // guarantee is one source traversal and no source access during finish.
+        let resolved = file_reads.get();
+        assert!(resolved > 0);
+        assert_eq!(file.walk_counts().passes.0, 1);
+        assert_eq!(file.walk_counts().source_rows.0, table.count.0 as u64);
         assert_eq!(file.counts(RuleIndex(0)).unwrap().fed[1].0, [0; 3]);
         file.finish()
             .expect("file owner finishes without demanding project sources");
-        assert_eq!(file_reads.get(), 3, "finish cannot demand the source again");
+        assert_eq!(
+            file_reads.get(),
+            resolved,
+            "finish cannot demand the source again"
+        );
         let stored = CapturedFacts {
             captures: vec![(FileId(0), capture)],
             reads: AtomicUsize::new(0),
