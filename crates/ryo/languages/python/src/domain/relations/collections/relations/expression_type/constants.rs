@@ -9,3 +9,6 @@ pub(super) const UNKNOWN: &str = "unknown";
 pub(super) const TYPE_ERROR: &str = "type-error";
 /// The `empty` relation label.
 pub(super) const NO_TYPE: &str = "";
+
+/// Required literal payloads were not supplied completely.
+pub(super) const INCOMPLETE: &str = "basic expression types require complete parser payloads";

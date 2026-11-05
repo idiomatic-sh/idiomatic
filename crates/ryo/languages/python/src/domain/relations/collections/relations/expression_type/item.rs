@@ -15,7 +15,7 @@ use crate::domain::{
 use ryo::languages;
 
 /// The reason incomplete parser payloads cannot establish basic types.
-const INCOMPLETE: &str = "basic expression types require complete parser payloads";
+use super::constants::INCOMPLETE;
 /// Reads inferred expression classifications on demand.
 pub(crate) struct ExpressionTypeItem;
 
