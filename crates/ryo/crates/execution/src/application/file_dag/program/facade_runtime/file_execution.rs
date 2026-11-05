@@ -288,7 +288,7 @@ impl FileRun<'_> {
         let mut named = Vec::new();
         for &(index, output, ready) in &self.prepared_named {
             let rule = RuleIndex(index);
-            let root = &self.program.rule_metadata(rule)?.observations[output.0 as usize];
+            let root = &self.program.rule_metadata(rule)?.observations[output];
             sources.bind_rule(rule);
             let result = if ready {
                 root.source.clone().and_then(|source| {
@@ -484,7 +484,7 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
-    ) -> Result<Vec<FrontierSelection>, OperatingError> {
+    ) -> Result<Vec<FrontierCapture>, OperatingError> {
         let (_, _, capture_intent) = self.declared(rule)?;
         if capture_intent == CaptureIntent::Disabled {
             return Err(OperatingError::NotRun);
@@ -601,7 +601,7 @@ impl FileRun<'_> {
                     words: packed,
                 })
             })();
-            captures.push(FrontierSelection { input, outcome });
+            captures.push(FrontierCapture { input, outcome });
         }
         Ok(captures)
     }
