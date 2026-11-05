@@ -3,9 +3,13 @@ use super::{
     service::{borrowed, kind, registered},
     types::*,
 };
+use crate::domain::lowering::types::{
+    ElementPart, LoweredColumn, LoweredShape, RowPosition, RowWidth,
+};
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::positions::types::{Positions, Slots};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
+use crate::domain::table_model::types::{PositionedRows, Rows, SelectedRows, StoredSelection};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::{
     service::{enter_node, leave_node, table_builder, token},
@@ -151,6 +155,26 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
         file: FileId(3),
         form: TreeForm::Edges,
     };
+    let positions = Positions {
+        width: RowWidth(1),
+        slots: Slots(vec![1, 0, 1]),
+    };
+    let shape = LoweredShape {
+        width: RowWidth(1),
+        columns: vec![LoweredColumn {
+            slot: RowPosition(0),
+            field: ElementPart::File,
+        }],
+    };
+    let positioned = PositionedRows {
+        tree: TreeRows {
+            form: TreeForm::Elements,
+            ..tree
+        },
+        positions: &positions,
+        shape: &shape,
+        kinds: &[CellKind::File],
+    };
     for variant in RepresentationKind::ALL {
         // No wildcard: adding a representation requires a real independent fixture.
         let (input, expected) = match variant {
@@ -168,6 +192,10 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
             RepresentationKind::Compact => (
                 Rows::Compact(&compact),
                 vec![vec![number(8)], vec![number(7)]],
+            ),
+            RepresentationKind::Positioned => (
+                Rows::Positioned(positioned),
+                vec![vec![Value::File(FileId(3))]; 3],
             ),
             RepresentationKind::Tree => (
                 Rows::Tree(tree),
@@ -206,6 +234,11 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
             BulkAccess::Tree(view) => assert!(std::ptr::eq(view.elements, &elements)),
             BulkAccess::Computed(view) => assert!(std::ptr::eq(view, &table)),
             BulkAccess::Compact(view) => assert!(std::ptr::eq(view, &compact)),
+            BulkAccess::Positioned(view) => {
+                assert!(std::ptr::eq(view.positions, &positions));
+                assert!(std::ptr::eq(view.shape, &shape));
+                assert!(std::ptr::eq(view.tree.elements, &elements));
+            }
         }
     }
 }

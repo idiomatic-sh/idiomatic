@@ -139,7 +139,7 @@ fn stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows() {
 }
 #[test]
 fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
-    let kinds = [CellKind::Number, CellKind::Flag, CellKind::Number];
+    const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
     let columns = [
         fact_column(&[1, 2, 1, 3, 1]),
         FactColumn(vec![2, 0, 1, 1, 0]),
@@ -148,7 +148,7 @@ fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
     let mut source = Table::default();
     materialize(
         &Rows::Stored(ColumnsView {
-            kinds: &kinds,
+            kinds: KINDS,
             columns: &columns,
         }),
         &mut source,
@@ -196,7 +196,7 @@ fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
             &op,
             &left,
             Rows::Stored(ColumnsView {
-                kinds: &selected.kinds,
+                kinds: &[CellKind::Number, CellKind::Number, CellKind::Flag],
                 columns: &stored,
             }),
             &selected,
@@ -314,7 +314,7 @@ fn malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complet
     let right_columns = [FactColumn(vec![1, 1, 1]), FactColumn(vec![10, 11, 12])];
     let (mut right, r) = provider(
         Rows::Stored(ColumnsView {
-            kinds: &right.kinds,
+            kinds: &[CellKind::Number; 2],
             columns: &right_columns,
         }),
         1,

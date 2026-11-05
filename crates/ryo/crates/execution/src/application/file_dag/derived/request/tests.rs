@@ -21,7 +21,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
         input: 1,
         columns: IndexColumns::Whole,
     };
-    let first = views.bind_mode(&program, &kinds()[..1]).unwrap();
+    let first = views.bind_resources(&program, &kinds()[..1]).unwrap();
     let use_plan = &first[slot(DerivedKind::Equality)].as_ref().unwrap().primary;
     assert_eq!(use_plan.inputs, [1, 0]);
     assert_eq!(use_plan.len, 1);
@@ -34,7 +34,7 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
             .err(),
         Some(OperatingError::MissingInput { position: 2 }),
     );
-    let second = views.bind_mode(&program, &kinds()[..1]).unwrap();
+    let second = views.bind_resources(&program, &kinds()[..1]).unwrap();
     assert!(Arc::ptr_eq(
         &use_plan.plan,
         &second[slot(DerivedKind::Equality)]
@@ -55,15 +55,14 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
     );
     let kinds = kinds();
     let join = ResourceProgram::Join(JoinResources {
-        output: vec![],
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(1)],
         view: vec![ColumnIndex(0)],
         has_filter: false,
         reach: None,
     });
-    let first = views.bind_mode(&join, &kinds[..2]).unwrap();
-    let second = views.bind_mode(&join, &kinds[..2]).unwrap();
+    let first = views.bind_resources(&join, &kinds[..2]).unwrap();
+    let second = views.bind_resources(&join, &kinds[..2]).unwrap();
     let equality = &first[slot(DerivedKind::Equality)].as_ref().unwrap().primary;
     let lookup = &first[slot(DerivedKind::NativeLookup)]
         .as_ref()
@@ -99,7 +98,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         output: vec![],
         direction: Direction::Parent,
     });
-    let slots = views.bind_mode(&axis, &kinds).unwrap();
+    let slots = views.bind_resources(&axis, &kinds).unwrap();
     let edge = &slots[slot(DerivedKind::Equality)].as_ref().unwrap().primary;
     let ViewRequest::Equality { columns } = &edge.plan.request else {
         panic!("edge lookup")
@@ -129,7 +128,7 @@ fn family_slots_hold_compact_shared_binding_handles() {
     );
     let schema = kinds();
     let first = views
-        .bind_mode(
+        .bind_resources(
             &ResourceProgram::Index {
                 input: 1,
                 columns: IndexColumns::Columns(vec![ColumnIndex(0)]),
@@ -138,7 +137,7 @@ fn family_slots_hold_compact_shared_binding_handles() {
         )
         .unwrap();
     let second = views
-        .bind_mode(
+        .bind_resources(
             &ResourceProgram::Index {
                 input: 1,
                 columns: IndexColumns::Columns(vec![ColumnIndex(0)]),
