@@ -8,7 +8,7 @@ use crate::domain::extras::service::content;
 use crate::domain::extras::types::Content;
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::constants::STRUCTURE;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::CssNode;
 use crate::domain::syntax::constants::UNREAD_TEXT;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::domain::syntax::types::Kind;
@@ -27,12 +27,12 @@ pub(super) fn shown() -> Vec<KindSample> {
 }
 
 /// How the language shows a node: the source whose tree holds it, or why no relation reads it.
-const fn node(node: Node) -> Sample {
+const fn node(node: CssNode) -> Sample {
     match node {
-        Node::Stylesheet => Sample::Node(SampleText("")),
-        Node::AtRule => Sample::Node(SampleText("@import \"a.css\";")),
-        Node::Function => Sample::Node(SampleText("a { b: url(\"c.png\") }")),
-        Node::QualifiedRule | Node::Declaration | Node::SimpleBlock => {
+        CssNode::Stylesheet => Sample::Node(SampleText("")),
+        CssNode::AtRule => Sample::Node(SampleText("@import \"a.css\";")),
+        CssNode::Function => Sample::Node(SampleText("a { b: url(\"c.png\") }")),
+        CssNode::QualifiedRule | CssNode::Declaration | CssNode::SimpleBlock => {
             Sample::Unread(Why(STRUCTURE))
         }
     }

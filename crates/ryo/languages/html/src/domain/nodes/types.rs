@@ -16,7 +16,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum Node {
+pub(crate) enum HtmlNode {
     /// The HTML `SourceFile` field or node.
     SourceFile,
     /// The native HTML document.

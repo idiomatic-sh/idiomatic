@@ -4,7 +4,7 @@
 use crate::domain::model::service::element_at;
 use crate::domain::model::service::{boolean, decoded_as, integer, radix, said};
 use crate::domain::model::types::Model;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TomlNode;
 use crate::domain::syntax::service::{kind_bits, spanned};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -24,9 +24,9 @@ ryo::reads! {
             Kind::Token(Token::Float),
             Kind::Token(Token::Boolean),
             Kind::Token(Token::DateTime),
-            Kind::Node(Node::Array),
-            Kind::Node(Node::InlineTable),
-            Kind::Node(Node::ArrayTable),
+            Kind::Node(TomlNode::Array),
+            Kind::Node(TomlNode::InlineTable),
+            Kind::Node(TomlNode::ArrayTable),
         ] as kind_bits,
         given fact = element_at(model, at)?;
         given text = spanned(tree, symbols, at);

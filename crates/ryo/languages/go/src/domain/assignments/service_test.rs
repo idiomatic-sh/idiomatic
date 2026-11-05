@@ -2,7 +2,7 @@
 
 use super::service::{left, operator, right};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::types::Kind;
 use crate::fixtures::reading::{asked, of_kind, spans};
 
@@ -17,7 +17,7 @@ enum Question {
     Right,
 }
 
-type Input = (&'static str, Node, Question);
+type Input = (&'static str, GoNode, Question);
 /// The answer, as text.
 type Value = &'static str;
 type Failure = ();
@@ -30,7 +30,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { a, b := 1, 2 }\n",
-                Node::AssignStmt,
+                GoNode::AssignStmt,
                 Question::Operator,
             )
         },
@@ -42,7 +42,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { a += 1 }\n",
-                Node::AssignStmt,
+                GoNode::AssignStmt,
                 Question::Operator,
             )
         },
@@ -54,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { a, b := 1, 2 }\n",
-                Node::AssignStmt,
+                GoNode::AssignStmt,
                 Question::Left,
             )
         },
@@ -66,7 +66,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { a, b := 1, 2 }\n",
-                Node::AssignStmt,
+                GoNode::AssignStmt,
                 Question::Right,
             )
         },
@@ -78,7 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { for i, v := range xs {} }\n",
-                Node::RangeStmt,
+                GoNode::RangeStmt,
                 Question::Left,
             )
         },
@@ -90,7 +90,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { for range xs {} }\n",
-                Node::RangeStmt,
+                GoNode::RangeStmt,
                 Question::Left,
             )
         },

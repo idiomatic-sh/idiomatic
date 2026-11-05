@@ -8,7 +8,7 @@ use crate::domain::assignments::service::{left, operator};
 use crate::domain::fields::service::names as field_names;
 use crate::domain::names::service::dottedness;
 use crate::domain::names::types::Dottedness;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::signatures::service::signature;
 use crate::domain::specs::service::{
     import_name as spec_import_name, name as spec_name, names as spec_names,
@@ -39,27 +39,27 @@ pub(crate) fn slot_of(tree: &Tree<'_>, ident: Position) -> Slot {
     let holder = parent(tree, ident);
     let first = || nodes(tree, holder).next() == Some(ident);
     match kind(tree, holder) {
-        Kind::Node(Node::File | Node::SelectorExpr | Node::LabeledStmt | Node::BranchStmt) => {
+        Kind::Node(GoNode::File | GoNode::SelectorExpr | GoNode::LabeledStmt | GoNode::BranchStmt) => {
             Slot::Elsewhere
         }
-        Kind::Node(Node::Field) if field_names(tree, holder).any(|each| each == ident) => {
+        Kind::Node(GoNode::Field) if field_names(tree, holder).any(|each| each == ident) => {
             Slot::Declares
         }
-        Kind::Node(Node::ValueSpec) if spec_names(tree, holder).any(|each| each == ident) => {
+        Kind::Node(GoNode::ValueSpec) if spec_names(tree, holder).any(|each| each == ident) => {
             Slot::Declares
         }
-        Kind::Node(Node::ImportSpec) if spec_import_name(tree, holder) == Some(ident) => {
+        Kind::Node(GoNode::ImportSpec) if spec_import_name(tree, holder) == Some(ident) => {
             Slot::Declares
         }
-        Kind::Node(Node::TypeSpec) if spec_name(tree, holder) == Some(ident) => Slot::Declares,
-        Kind::Node(Node::FuncType) if signature_name(tree, holder) == Some(ident) => Slot::Declares,
-        Kind::Node(Node::AssignStmt | Node::RangeStmt)
+        Kind::Node(GoNode::TypeSpec) if spec_name(tree, holder) == Some(ident) => Slot::Declares,
+        Kind::Node(GoNode::FuncType) if signature_name(tree, holder) == Some(ident) => Slot::Declares,
+        Kind::Node(GoNode::AssignStmt | GoNode::RangeStmt)
             if defines(tree, holder).is_some() && left(tree, holder).any(|each| each == ident) =>
         {
             Slot::Declares
         }
-        Kind::Node(Node::KeyValueExpr)
-            if first() && kind(tree, parent(tree, holder)) == Kind::Node(Node::CompositeLit) =>
+        Kind::Node(GoNode::KeyValueExpr)
+            if first() && kind(tree, parent(tree, holder)) == Kind::Node(GoNode::CompositeLit) =>
         {
             Slot::Ambiguous
         }
@@ -70,7 +70,7 @@ pub(crate) fn slot_of(tree: &Tree<'_>, ident: Position) -> Slot {
 /// The selection at `at` when it is the longest dotted name there: it is no operand of another selection.
 fn longest(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let above = parent(tree, at);
-    (!(kind(tree, above) == Kind::Node(Node::SelectorExpr)
+    (!(kind(tree, above) == Kind::Node(GoNode::SelectorExpr)
         && nodes(tree, above).next() == Some(at)))
     .then_some(at)
 }
@@ -78,7 +78,7 @@ fn longest(tree: &Tree<'_>, at: Position) -> Option<Position> {
 /// What the element at `at`, an identifier or a selection, is as a reference.
 #[must_use]
 pub(crate) fn referencing(tree: &Tree<'_>, at: Position) -> Referencing {
-    if kind(tree, at) == Kind::Node(Node::SelectorExpr) {
+    if kind(tree, at) == Kind::Node(GoNode::SelectorExpr) {
         return if dottedness(tree, at) == Dottedness::Dotted && longest(tree, at).is_some() {
             Referencing::Used
         } else {

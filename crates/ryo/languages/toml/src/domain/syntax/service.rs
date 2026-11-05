@@ -6,12 +6,12 @@ use ryo::languages::{self, Tree};
 
 use super::types::{Field, Kind, Leaf, Rootness, Text};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TomlNode;
 use crate::domain::tokens::types::Token;
 use ryo::languages::ValueKind;
 use strum::IntoEnumIterator as _;
 
-ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(TomlNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -157,9 +157,9 @@ pub(crate) fn value_kind(kind: Kind) -> Option<ValueKind> {
         Kind::Token(Token::Float) => Some(ValueKind::Float),
         Kind::Token(Token::Boolean) => Some(ValueKind::Boolean),
         Kind::Token(Token::DateTime) => Some(ValueKind::Datetime),
-        Kind::Node(Node::Array) => Some(ValueKind::Sequence),
-        Kind::Node(Node::InlineTable) => Some(ValueKind::InlineMapping),
-        Kind::Node(Node::Toml | Node::StdTable | Node::ArrayTable | Node::Keyval | Node::Key)
+        Kind::Node(TomlNode::Array) => Some(ValueKind::Sequence),
+        Kind::Node(TomlNode::InlineTable) => Some(ValueKind::InlineMapping),
+        Kind::Node(TomlNode::Toml | TomlNode::StdTable | TomlNode::ArrayTable | TomlNode::Keyval | TomlNode::Key)
         | Kind::Token(
             Token::UnquotedKey
             | Token::Comment
@@ -211,12 +211,12 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
     }
     let element = kind(tree, at);
     match kind(tree, parent(tree, at)) {
-        Kind::Node(Node::Keyval) if element == Kind::Node(Node::Key) => Field::Key,
-        Kind::Node(Node::Keyval | Node::Array) if value_kind(element).is_some() => Field::Val,
-        Kind::Node(Node::StdTable | Node::ArrayTable) if element == Kind::Node(Node::Key) => {
+        Kind::Node(TomlNode::Keyval) if element == Kind::Node(TomlNode::Key) => Field::Key,
+        Kind::Node(TomlNode::Keyval | TomlNode::Array) if value_kind(element).is_some() => Field::Val,
+        Kind::Node(TomlNode::StdTable | TomlNode::ArrayTable) if element == Kind::Node(TomlNode::Key) => {
             Field::Key
         }
-        Kind::Node(Node::Key)
+        Kind::Node(TomlNode::Key)
             if matches!(
                 element,
                 Kind::Token(Token::UnquotedKey | Token::BasicString | Token::LiteralString)

@@ -4,7 +4,7 @@ use ryo::languages::{self, Offset};
 
 use super::item::SourceDependencyItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::links::types::{Link, Linked};
+use crate::domain::links::types::{SourceDependencyLink, Linked};
 use crate::domain::module_tree::types::{ModuleText, SourceCount, Spelling, Unfollowed};
 use crate::domain::package_index::types::ListIndex;
 use crate::domain::paths::types::RepoPath;
@@ -21,14 +21,14 @@ type Failure = ();
 fn two_links() -> Linked {
     Linked {
         dependencies: vec![
-            Link {
+            SourceDependencyLink {
                 source: ListIndex(2),
                 target: ListIndex(5),
                 start: Offset(7),
                 end: Offset(9),
                 written: Spelling("b".into()),
             },
-            Link {
+            SourceDependencyLink {
                 source: ListIndex(2),
                 target: ListIndex(6),
                 start: Offset(11),

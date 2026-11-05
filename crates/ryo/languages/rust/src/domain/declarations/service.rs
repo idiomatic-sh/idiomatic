@@ -1,7 +1,7 @@
 //! The `declarations` service: free functions named by verb that read what a node declares, with
 //! no IO and no ports. The match over the kinds is the table of what declares a name.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::refinements::types::Declared;
 use crate::domain::tokens::types::Token;
 
@@ -69,37 +69,37 @@ fn written(tree: &Tree<'_>, declared: Declared, named: languages::Position) -> O
 /// segment, else, for `self`, the module the enclosing tree names. A glob binds no name of its
 /// own, a group is no leaf, and `as _` binds none.
 pub(crate) fn imported(tree: &Tree<'_>, node: languages::Position) -> Option<Declaration> {
-    if child(tree, node, Kind::Node(Node::UseTreeList)).is_some()
+    if child(tree, node, Kind::Node(RustNode::UseTreeList)).is_some()
         || child(tree, node, Kind::Token(Token::Star)).is_some()
     {
         return None;
     }
-    if let Some(rename) = child(tree, node, Kind::Node(Node::Rename)) {
+    if let Some(rename) = child(tree, node, Kind::Node(RustNode::Rename)) {
         return written(
             tree,
             Declared::Use,
-            child(tree, rename, Kind::Node(Node::Name))?,
+            child(tree, rename, Kind::Node(RustNode::Name))?,
         );
     }
     let segment = child(
         tree,
-        child(tree, node, Kind::Node(Node::Path))?,
-        Kind::Node(Node::PathSegment),
+        child(tree, node, Kind::Node(RustNode::Path))?,
+        Kind::Node(RustNode::PathSegment),
     )?;
-    let mut name = child(tree, segment, Kind::Node(Node::NameRef))?;
+    let mut name = child(tree, segment, Kind::Node(RustNode::NameRef))?;
     if languages::children(tree.elements, name).any(|token| {
         (is_token(tree, token) == Leaf::Token) && kind(tree, token) == Kind::Token(Token::SelfKw)
     }) {
         let outer =
-            ancestors(tree, node).find(|each| kind(tree, *each) == Kind::Node(Node::UseTree))?;
+            ancestors(tree, node).find(|each| kind(tree, *each) == Kind::Node(RustNode::UseTree))?;
         name = child(
             tree,
             child(
                 tree,
-                child(tree, outer, Kind::Node(Node::Path))?,
-                Kind::Node(Node::PathSegment),
+                child(tree, outer, Kind::Node(RustNode::Path))?,
+                Kind::Node(RustNode::PathSegment),
             )?,
-            Kind::Node(Node::NameRef),
+            Kind::Node(RustNode::NameRef),
         )?;
     }
     written(tree, Declared::Use, name)
@@ -112,24 +112,24 @@ pub(crate) fn declaration(
     at: languages::Position,
 ) -> Option<Declaration> {
     let element = kind(tree, at);
-    if element == Kind::Node(Node::LetStmt) {
+    if element == Kind::Node(RustNode::LetStmt) {
         return written(tree, Declared::Variable, bound_name(tree, at)?);
     }
     // A name bound by a destructuring `let`, unless it is written as a constant is: it may be one.
-    if element == Kind::Node(Node::IdentPat) {
+    if element == Kind::Node(RustNode::IdentPat) {
         if in_let_pattern(tree, at) == LetPattern::Outside {
             return None;
         }
-        let name = child(tree, at, Kind::Node(Node::Name))?;
+        let name = child(tree, at, Kind::Node(RustNode::Name))?;
         if looks_like_constant(tree, name) == Constness::Constant {
             return None;
         }
         return written(tree, Declared::Variable, name);
     }
-    if element == Kind::Node(Node::Fn) {
-        let declared = if kind(tree, parent(tree, at)) == Kind::Node(Node::AssocItemList) {
-            let receives = child(tree, at, Kind::Node(Node::ParamList))
-                .is_some_and(|list| child(tree, list, Kind::Node(Node::SelfParam)).is_some());
+    if element == Kind::Node(RustNode::Fn) {
+        let declared = if kind(tree, parent(tree, at)) == Kind::Node(RustNode::AssocItemList) {
+            let receives = child(tree, at, Kind::Node(RustNode::ParamList))
+                .is_some_and(|list| child(tree, list, Kind::Node(RustNode::SelfParam)).is_some());
             if receives {
                 Declared::Method
             } else {
@@ -138,9 +138,9 @@ pub(crate) fn declaration(
         } else {
             Declared::Function
         };
-        return written(tree, declared, child(tree, at, Kind::Node(Node::Name))?);
+        return written(tree, declared, child(tree, at, Kind::Node(RustNode::Name))?);
     }
-    if element == Kind::Node(Node::TupleField) {
+    if element == Kind::Node(RustNode::TupleField) {
         let index = languages::children(tree.elements, parent(tree, at))
             .filter(|each| is_token(tree, *each) == Leaf::Node)
             .position(|each| each == at)?;
@@ -156,24 +156,24 @@ pub(crate) fn declaration(
             to: end(tree, at),
         });
     }
-    if element == Kind::Node(Node::Label) {
+    if element == Kind::Node(RustNode::Label) {
         return written(
             tree,
             Declared::Label,
-            child(tree, at, Kind::Node(Node::Lifetime))?,
+            child(tree, at, Kind::Node(RustNode::Lifetime))?,
         );
     }
-    if element == Kind::Node(Node::LifetimeParam) {
+    if element == Kind::Node(RustNode::LifetimeParam) {
         return written(
             tree,
             Declared::LifetimeParameter,
-            child(tree, at, Kind::Node(Node::Lifetime))?,
+            child(tree, at, Kind::Node(RustNode::Lifetime))?,
         );
     }
-    if element == Kind::Node(Node::UseTree) {
+    if element == Kind::Node(RustNode::UseTree) {
         return imported(tree, at);
     }
-    if element == Kind::Node(Node::Impl) {
+    if element == Kind::Node(RustNode::Impl) {
         return crate::domain::implementations::service::implemented(tree, symbols, at).map(
             |header| Declaration {
                 declared: Declared::Implementation,
@@ -184,17 +184,17 @@ pub(crate) fn declaration(
             },
         );
     }
-    if element == Kind::Node(Node::ExternCrate) {
-        let name = match child(tree, at, Kind::Node(Node::Rename)) {
-            Some(rename) => child(tree, rename, Kind::Node(Node::Name))?,
-            None => child(tree, at, Kind::Node(Node::NameRef))?,
+    if element == Kind::Node(RustNode::ExternCrate) {
+        let name = match child(tree, at, Kind::Node(RustNode::Rename)) {
+            Some(rename) => child(tree, rename, Kind::Node(RustNode::Name))?,
+            None => child(tree, at, Kind::Node(RustNode::NameRef))?,
         };
         return written(tree, Declared::ExternCrate, name);
     }
     written(
         tree,
         named_kind(element)?,
-        child(tree, at, Kind::Node(Node::Name))?,
+        child(tree, at, Kind::Node(RustNode::Name))?,
     )
 }
 
@@ -254,8 +254,8 @@ pub(crate) fn declaration_span(declaration: &Declaration) -> languages::Span {
 
 /// The path a type is, when it is a path type.
 fn path_of(tree: &Tree<'_>, ty: languages::Position) -> Option<languages::Position> {
-    if kind(tree, ty) == Kind::Node(Node::PathType) {
-        child(tree, ty, Kind::Node(Node::Path))
+    if kind(tree, ty) == Kind::Node(RustNode::PathType) {
+        child(tree, ty, Kind::Node(RustNode::Path))
     } else {
         None
     }
@@ -276,11 +276,11 @@ pub(crate) fn supertraits<'a>(
     symbols: &'a mut languages::Symbols,
     at: languages::Position,
 ) -> impl Iterator<Item = Supertrait> + 'a {
-    child(tree, at, Kind::Node(Node::TypeBoundList))
+    child(tree, at, Kind::Node(RustNode::TypeBoundList))
         .into_iter()
         .flat_map(move |bounds| {
             languages::children(tree.elements, bounds)
-                .filter(move |each| kind(tree, *each) == Kind::Node(Node::TypeBound))
+                .filter(move |each| kind(tree, *each) == Kind::Node(RustNode::TypeBound))
         })
         .filter_map(move |bound| {
             let contract = first_node(tree, bound)?;
@@ -301,11 +301,11 @@ fn declared_once(
     if languages::has_noted_words(symbols) == languages::Noted::Nothing {
         languages::note_word(symbols, languages::Bits(0));
         for at in languages::positions(tree.elements) {
-            if !matches!(kind(tree, at), Kind::Node(Node::Struct | Node::Enum)) {
+            if !matches!(kind(tree, at), Kind::Node(RustNode::Struct | RustNode::Enum)) {
                 continue;
             }
             let Some(declared) =
-                child(tree, at, Kind::Node(Node::Name)).and_then(|each| name_text(tree, each))
+                child(tree, at, Kind::Node(RustNode::Name)).and_then(|each| name_text(tree, each))
             else {
                 continue;
             };

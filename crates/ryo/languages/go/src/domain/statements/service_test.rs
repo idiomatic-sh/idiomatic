@@ -4,7 +4,7 @@ use super::service::{branch, clauses, labeled, receive, repetition, type_switch}
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::grammar::service::form;
 use crate::domain::grammar::types::{Form, Index};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::fixtures::reading::found_by;
 
 /// A source.
@@ -81,8 +81,8 @@ fn subject(source: Input) -> Value {
         found_by(source, |tree, pieces| {
             for at in (0..tree.nodes.len()).map(Index) {
                 match form(tree, at) {
-                    Form::Switch => clauses(tree, pieces, Node::SwitchStmt, at),
-                    Form::Select => clauses(tree, pieces, Node::SelectStmt, at),
+                    Form::Switch => clauses(tree, pieces, GoNode::SwitchStmt, at),
+                    Form::Select => clauses(tree, pieces, GoNode::SelectStmt, at),
                     Form::TypeSwitch => type_switch(tree, pieces, at),
                     Form::Loop => repetition(tree, pieces, at),
                     Form::Receive => receive(tree, pieces, at),

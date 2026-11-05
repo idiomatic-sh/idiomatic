@@ -4,7 +4,7 @@
 //! import of `.` brings in names it cannot list: its name is the unknown value of a dot import.
 
 use crate::domain::definitions::service::{declarations, declared_name, word};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -15,14 +15,14 @@ pub(crate) struct DefinesItem;
 ryo::reads! {
     DefinesItem => languages::Defines |tree, at, symbols| {
         kinds: [
-            Kind::Node(Node::FuncDecl),
-            Kind::Node(Node::TypeSpec),
-            Kind::Node(Node::ValueSpec),
-            Kind::Node(Node::ImportSpec),
-            Kind::Node(Node::Field),
-            Kind::Node(Node::AssignStmt),
-            Kind::Node(Node::RangeStmt),
-            Kind::Node(Node::LabeledStmt),
+            Kind::Node(GoNode::FuncDecl),
+            Kind::Node(GoNode::TypeSpec),
+            Kind::Node(GoNode::ValueSpec),
+            Kind::Node(GoNode::ImportSpec),
+            Kind::Node(GoNode::Field),
+            Kind::Node(GoNode::AssignStmt),
+            Kind::Node(GoNode::RangeStmt),
+            Kind::Node(GoNode::LabeledStmt),
         ] as kind_bits,
         each (declarations(tree, at)) as declared {
             given name = declared_name(tree, &declared)?;

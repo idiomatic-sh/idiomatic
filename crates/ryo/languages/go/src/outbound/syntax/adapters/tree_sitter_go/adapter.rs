@@ -8,13 +8,13 @@
 //! it: each a diagnostic. The library's names stop here; what leaves is the language's own `Kind`.
 
 use ryo::languages::{self, ByteSlice, Offset, ReportText};
-use tree_sitter::{Node as Library, Parser, TreeCursor};
+use tree_sitter::{GoNode as Library, Parser, TreeCursor};
 
 use crate::domain::extras::types::Extra;
 use crate::domain::grammar::types::{
     ByteIndex, Concrete, Form, GoText, Index, Naming, Presence, Raw,
 };
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::pieces::service::{arrange, value_of};
 use crate::domain::pieces::types::Pieces;
 use crate::domain::shapes::service::find;
@@ -237,7 +237,7 @@ fn write_tree(
     let mut written = languages::lossless(builder, Offset(0));
     languages::lossless_enter(
         &mut written,
-        kind_bits(Kind::Node(Node::File)),
+        kind_bits(Kind::Node(GoNode::File)),
         Offset(0),
         &mut unread,
     );

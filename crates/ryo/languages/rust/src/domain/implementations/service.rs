@@ -3,7 +3,7 @@
 
 use super::constants::OMITTED;
 use super::types::{Header, Opening};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::syntax::service::{child, end, is_token, kind, push_token, start};
 use crate::domain::syntax::types::{Gap, Kind, Leaf};
 use crate::domain::tokens::types::Token;
@@ -21,7 +21,7 @@ fn header(
 ) {
     for each in languages::children(tree.elements, at) {
         let element = kind(tree, each);
-        if element == Kind::Node(Node::AssocItemList) {
+        if element == Kind::Node(RustNode::AssocItemList) {
             *opened = Opening::Body;
             return;
         }
@@ -63,7 +63,7 @@ pub(crate) fn implemented(
     Some(Header {
         name,
         from: start(tree, keyword),
-        to: child(tree, at, Kind::Node(Node::AssocItemList))
+        to: child(tree, at, Kind::Node(RustNode::AssocItemList))
             .map_or_else(|| end(tree, at), |body| start(tree, body)),
     })
 }

@@ -2,11 +2,11 @@
 
 use super::constants::STANDARD;
 use super::service::category;
-use super::types::{Category, Node};
+use super::types::{Category, CssNode};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// A node.
-type Input = Node;
+type Input = CssNode;
 /// Its category.
 type Value = Category;
 type Failure = ();
@@ -16,19 +16,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_at_rule_is_a_rule"),
         word: Word::Succeeds,
-        input: || Node::AtRule,
+        input: || CssNode::AtRule,
         expect: Expect::Value(Category::Rule),
     },
     Case {
         name: CaseName("a_simple_block_is_a_component_value"),
         word: Word::Succeeds,
-        input: || Node::SimpleBlock,
+        input: || CssNode::SimpleBlock,
         expect: Expect::Value(Category::ComponentValue),
     },
     Case {
         name: CaseName("a_declaration_is_its_own"),
         word: Word::Succeeds,
-        input: || Node::Declaration,
+        input: || CssNode::Declaration,
         expect: Expect::Value(Category::Declaration),
     },
 ];

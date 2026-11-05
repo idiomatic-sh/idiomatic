@@ -14,7 +14,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum Node {
+pub(crate) enum JavaScriptNode {
     /// `Program` in the standard.
     Program,
     /// `Identifier` in the standard.

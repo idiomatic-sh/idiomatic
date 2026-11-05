@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::service::{fields, role_of};
 use super::types::Field;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JavaScriptNode;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -48,8 +48,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a></a>;",
-                Kind::Node(Node::JSXOpeningElement),
-                Kind::Node(Node::JSXIdentifier),
+                Kind::Node(JavaScriptNode::JSXOpeningElement),
+                Kind::Node(JavaScriptNode::JSXIdentifier),
                 0,
             )
         },
@@ -61,7 +61,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "x;",
-                Kind::Node(Node::ExpressionStatement),
+                Kind::Node(JavaScriptNode::ExpressionStatement),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -74,8 +74,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a ? b : c;",
-                Kind::Node(Node::ConditionalExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ConditionalExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 2,
             )
         },
@@ -87,8 +87,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "-x;",
-                Kind::Node(Node::UnaryExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::UnaryExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -100,8 +100,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "f(a);",
-                Kind::Node(Node::CallExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::CallExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -113,8 +113,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 r#"import a from "a" with { type: "json" };"#,
-                Kind::Node(Node::ImportDeclaration),
-                Kind::Node(Node::ImportAttribute),
+                Kind::Node(JavaScriptNode::ImportDeclaration),
+                Kind::Node(JavaScriptNode::ImportAttribute),
                 0,
             )
         },
@@ -126,8 +126,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "try {} finally {}",
-                Kind::Node(Node::TryStatement),
-                Kind::Node(Node::BlockStatement),
+                Kind::Node(JavaScriptNode::TryStatement),
+                Kind::Node(JavaScriptNode::BlockStatement),
                 0,
             )
         },
@@ -139,8 +139,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "while (a) {}",
-                Kind::Node(Node::WhileStatement),
-                Kind::Node(Node::BlockStatement),
+                Kind::Node(JavaScriptNode::WhileStatement),
+                Kind::Node(JavaScriptNode::BlockStatement),
                 0,
             )
         },
@@ -152,8 +152,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "f(a);",
-                Kind::Node(Node::CallExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::CallExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -165,8 +165,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "switch (a) { case 1: }",
-                Kind::Node(Node::SwitchStatement),
-                Kind::Node(Node::SwitchCase),
+                Kind::Node(JavaScriptNode::SwitchStatement),
+                Kind::Node(JavaScriptNode::SwitchCase),
                 0,
             )
         },
@@ -178,8 +178,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a><b /></a>;",
-                Kind::Node(Node::JSXElement),
-                Kind::Node(Node::JSXElement),
+                Kind::Node(JavaScriptNode::JSXElement),
+                Kind::Node(JavaScriptNode::JSXElement),
                 0,
             )
         },
@@ -191,8 +191,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a></a>;",
-                Kind::Node(Node::JSXElement),
-                Kind::Node(Node::JSXClosingElement),
+                Kind::Node(JavaScriptNode::JSXElement),
+                Kind::Node(JavaScriptNode::JSXClosingElement),
                 0,
             )
         },
@@ -204,8 +204,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<></>;",
-                Kind::Node(Node::JSXFragment),
-                Kind::Node(Node::JSXClosingFragment),
+                Kind::Node(JavaScriptNode::JSXFragment),
+                Kind::Node(JavaScriptNode::JSXClosingFragment),
                 0,
             )
         },
@@ -217,8 +217,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "if (a) b;",
-                Kind::Node(Node::IfStatement),
-                Kind::Node(Node::ExpressionStatement),
+                Kind::Node(JavaScriptNode::IfStatement),
+                Kind::Node(JavaScriptNode::ExpressionStatement),
                 0,
             )
         },
@@ -230,8 +230,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "export const a = 1;",
-                Kind::Node(Node::ExportNamedDeclaration),
-                Kind::Node(Node::VariableDeclaration),
+                Kind::Node(JavaScriptNode::ExportNamedDeclaration),
+                Kind::Node(JavaScriptNode::VariableDeclaration),
                 0,
             )
         },
@@ -243,8 +243,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "let a = 1;",
-                Kind::Node(Node::VariableDeclaration),
-                Kind::Node(Node::VariableDeclarator),
+                Kind::Node(JavaScriptNode::VariableDeclaration),
+                Kind::Node(JavaScriptNode::VariableDeclarator),
                 0,
             )
         },
@@ -256,8 +256,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "switch (a) {}",
-                Kind::Node(Node::SwitchStatement),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::SwitchStatement),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -269,8 +269,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "[a];",
-                Kind::Node(Node::ArrayExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ArrayExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -282,8 +282,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "export { a as b };",
-                Kind::Node(Node::ExportSpecifier),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ExportSpecifier),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -295,8 +295,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a;",
-                Kind::Node(Node::ExpressionStatement),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ExpressionStatement),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -308,8 +308,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a, b;",
-                Kind::Node(Node::SequenceExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::SequenceExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -321,8 +321,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "try {} finally {}",
-                Kind::Node(Node::TryStatement),
-                Kind::Node(Node::BlockStatement),
+                Kind::Node(JavaScriptNode::TryStatement),
+                Kind::Node(JavaScriptNode::BlockStatement),
                 1,
             )
         },
@@ -334,8 +334,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "try {} catch {}",
-                Kind::Node(Node::TryStatement),
-                Kind::Node(Node::CatchClause),
+                Kind::Node(JavaScriptNode::TryStatement),
+                Kind::Node(JavaScriptNode::CatchClause),
                 0,
             )
         },
@@ -347,8 +347,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "function f() {}",
-                Kind::Node(Node::FunctionDeclaration),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::FunctionDeclaration),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -360,8 +360,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 r#"import { a as b } from "m";"#,
-                Kind::Node(Node::ImportSpecifier),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ImportSpecifier),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -373,8 +373,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "let a = 1;",
-                Kind::Node(Node::VariableDeclarator),
-                Kind::Node(Node::Literal),
+                Kind::Node(JavaScriptNode::VariableDeclarator),
+                Kind::Node(JavaScriptNode::Literal),
                 0,
             )
         },
@@ -386,8 +386,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "({ a: 1 });",
-                Kind::Node(Node::Property),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::Property),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -399,8 +399,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a: for (;;) break a;",
-                Kind::Node(Node::BreakStatement),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::BreakStatement),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -412,8 +412,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a + b;",
-                Kind::Node(Node::BinaryExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::BinaryExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -425,8 +425,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 r#"import a from "m";"#,
-                Kind::Node(Node::ImportDefaultSpecifier),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ImportDefaultSpecifier),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -438,8 +438,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "import.meta;",
-                Kind::Node(Node::MetaProperty),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::MetaProperty),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -451,8 +451,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a:b />;",
-                Kind::Node(Node::JSXNamespacedName),
-                Kind::Node(Node::JSXIdentifier),
+                Kind::Node(JavaScriptNode::JSXNamespacedName),
+                Kind::Node(JavaScriptNode::JSXIdentifier),
                 0,
             )
         },
@@ -464,8 +464,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a.b;",
-                Kind::Node(Node::MemberExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::MemberExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -477,8 +477,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a></a>;",
-                Kind::Node(Node::JSXElement),
-                Kind::Node(Node::JSXOpeningElement),
+                Kind::Node(JavaScriptNode::JSXElement),
+                Kind::Node(JavaScriptNode::JSXOpeningElement),
                 0,
             )
         },
@@ -490,8 +490,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<></>;",
-                Kind::Node(Node::JSXFragment),
-                Kind::Node(Node::JSXOpeningFragment),
+                Kind::Node(JavaScriptNode::JSXFragment),
+                Kind::Node(JavaScriptNode::JSXOpeningFragment),
                 0,
             )
         },
@@ -503,7 +503,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a + b;",
-                Kind::Node(Node::BinaryExpression),
+                Kind::Node(JavaScriptNode::BinaryExpression),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -516,8 +516,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 r#"import("m", { with: {} });"#,
-                Kind::Node(Node::ImportExpression),
-                Kind::Node(Node::ObjectExpression),
+                Kind::Node(JavaScriptNode::ImportExpression),
+                Kind::Node(JavaScriptNode::ObjectExpression),
                 0,
             )
         },
@@ -529,8 +529,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "try {} catch (e) {}",
-                Kind::Node(Node::CatchClause),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::CatchClause),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -542,8 +542,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "function f(a) {}",
-                Kind::Node(Node::FunctionDeclaration),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::FunctionDeclaration),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -555,8 +555,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "({ a });",
-                Kind::Node(Node::ObjectExpression),
-                Kind::Node(Node::Property),
+                Kind::Node(JavaScriptNode::ObjectExpression),
+                Kind::Node(JavaScriptNode::Property),
                 0,
             )
         },
@@ -568,8 +568,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a.b;",
-                Kind::Node(Node::MemberExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::MemberExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -581,8 +581,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "f`a`;",
-                Kind::Node(Node::TaggedTemplateExpression),
-                Kind::Node(Node::TemplateLiteral),
+                Kind::Node(JavaScriptNode::TaggedTemplateExpression),
+                Kind::Node(JavaScriptNode::TemplateLiteral),
                 0,
             )
         },
@@ -594,8 +594,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "`a`;",
-                Kind::Node(Node::TemplateLiteral),
-                Kind::Node(Node::TemplateElement),
+                Kind::Node(JavaScriptNode::TemplateLiteral),
+                Kind::Node(JavaScriptNode::TemplateElement),
                 0,
             )
         },
@@ -607,8 +607,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a + b;",
-                Kind::Node(Node::BinaryExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::BinaryExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -620,8 +620,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 r#"import a from "m";"#,
-                Kind::Node(Node::ImportDeclaration),
-                Kind::Node(Node::Literal),
+                Kind::Node(JavaScriptNode::ImportDeclaration),
+                Kind::Node(JavaScriptNode::Literal),
                 0,
             )
         },
@@ -633,8 +633,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 r#"import a from "m";"#,
-                Kind::Node(Node::ImportDeclaration),
-                Kind::Node(Node::ImportDefaultSpecifier),
+                Kind::Node(JavaScriptNode::ImportDeclaration),
+                Kind::Node(JavaScriptNode::ImportDefaultSpecifier),
                 0,
             )
         },
@@ -646,8 +646,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "class A extends B {}",
-                Kind::Node(Node::ClassDeclaration),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ClassDeclaration),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -659,8 +659,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "f`a`;",
-                Kind::Node(Node::TaggedTemplateExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::TaggedTemplateExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -672,8 +672,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "for (; a;) {}",
-                Kind::Node(Node::ForStatement),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ForStatement),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -685,8 +685,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "for (;; a++) {}",
-                Kind::Node(Node::ForStatement),
-                Kind::Node(Node::UpdateExpression),
+                Kind::Node(JavaScriptNode::ForStatement),
+                Kind::Node(JavaScriptNode::UpdateExpression),
                 0,
             )
         },
@@ -698,8 +698,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "({ a: 1 });",
-                Kind::Node(Node::Property),
-                Kind::Node(Node::Literal),
+                Kind::Node(JavaScriptNode::Property),
+                Kind::Node(JavaScriptNode::Literal),
                 0,
             )
         },
@@ -711,8 +711,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a => b;",
-                Kind::Node(Node::ArrowFunctionExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ArrowFunctionExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -724,8 +724,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a => b;",
-                Kind::Node(Node::ArrowFunctionExpression),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ArrowFunctionExpression),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -737,8 +737,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "for (a;;) {}",
-                Kind::Node(Node::ForStatement),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ForStatement),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -750,8 +750,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "class A extends B {}",
-                Kind::Node(Node::ClassDeclaration),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ClassDeclaration),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -763,8 +763,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "class A { m() {} }",
-                Kind::Node(Node::MethodDefinition),
-                Kind::Node(Node::FunctionExpression),
+                Kind::Node(JavaScriptNode::MethodDefinition),
+                Kind::Node(JavaScriptNode::FunctionExpression),
                 0,
             )
         },
@@ -776,8 +776,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "class A { m() {} }",
-                Kind::Node(Node::MethodDefinition),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::MethodDefinition),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -789,7 +789,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "-x;",
-                Kind::Node(Node::UnaryExpression),
+                Kind::Node(JavaScriptNode::UnaryExpression),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -802,7 +802,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "(a) + b;",
-                Kind::Node(Node::BinaryExpression),
+                Kind::Node(JavaScriptNode::BinaryExpression),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -815,8 +815,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "switch (a) { case 1: b; }",
-                Kind::Node(Node::SwitchCase),
-                Kind::Node(Node::Literal),
+                Kind::Node(JavaScriptNode::SwitchCase),
+                Kind::Node(JavaScriptNode::Literal),
                 0,
             )
         },
@@ -828,8 +828,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "switch (a) { case 1: b; }",
-                Kind::Node(Node::SwitchCase),
-                Kind::Node(Node::ExpressionStatement),
+                Kind::Node(JavaScriptNode::SwitchCase),
+                Kind::Node(JavaScriptNode::ExpressionStatement),
                 0,
             )
         },
@@ -841,8 +841,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "({ a });",
-                Kind::Node(Node::Property),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::Property),
+                Kind::Node(JavaScriptNode::Identifier),
                 1,
             )
         },
@@ -854,8 +854,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "export { a };",
-                Kind::Node(Node::ExportSpecifier),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::ExportSpecifier),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },
@@ -867,8 +867,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "const { a = 1 } = o;",
-                Kind::Node(Node::Property),
-                Kind::Node(Node::AssignmentPattern),
+                Kind::Node(JavaScriptNode::Property),
+                Kind::Node(JavaScriptNode::AssignmentPattern),
                 0,
             )
         },
@@ -880,8 +880,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "const { a = 1 } = o;",
-                Kind::Node(Node::Property),
-                Kind::Node(Node::Identifier),
+                Kind::Node(JavaScriptNode::Property),
+                Kind::Node(JavaScriptNode::Identifier),
                 0,
             )
         },

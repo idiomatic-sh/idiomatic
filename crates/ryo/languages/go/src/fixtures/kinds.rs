@@ -5,7 +5,7 @@ use ryo::languages::{KindName, Sample, SampleText, Why};
 
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::constants::{EXPRESSION, NAME, NEVER_WRITTEN, PART, STATEMENT, TYPE};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::constants::{TRIVIA, UNREAD_TEXT};
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::domain::syntax::types::Kind;
@@ -24,63 +24,63 @@ pub(super) fn shown() -> Vec<KindSample> {
 }
 
 /// How the language shows a node: the source whose tree holds it, or why no relation reads it.
-const fn node(node: Node) -> Sample {
+const fn node(node: GoNode) -> Sample {
     match node {
-        Node::File => Sample::Node(SampleText("")),
-        Node::BasicLit => Sample::Node(SampleText("package p\nvar s = \"a\"\n")),
-        Node::ImportSpec => Sample::Node(SampleText("package p\nimport \"a\"\n")),
-        Node::FuncDecl => Sample::Node(SampleText("package p\nfunc f() {}\n")),
-        Node::FuncLit => Sample::Node(SampleText("package p\nvar f = func() {}\n")),
-        Node::Field => Sample::Node(SampleText("package p\nfunc f(a int) {}\n")),
-        Node::CallExpr => Sample::Node(SampleText("package p\nvar x = f()\n")),
-        Node::DeclStmt
-        | Node::EmptyStmt
-        | Node::LabeledStmt
-        | Node::ExprStmt
-        | Node::SendStmt
-        | Node::IncDecStmt
-        | Node::AssignStmt
-        | Node::GoStmt
-        | Node::DeferStmt
-        | Node::ReturnStmt
-        | Node::BranchStmt
-        | Node::BlockStmt
-        | Node::IfStmt
-        | Node::CaseClause
-        | Node::SwitchStmt
-        | Node::TypeSwitchStmt
-        | Node::CommClause
-        | Node::SelectStmt
-        | Node::ForStmt
-        | Node::RangeStmt => Sample::Unread(Why(STATEMENT)),
-        Node::CompositeLit
-        | Node::ParenExpr
-        | Node::SelectorExpr
-        | Node::IndexExpr
-        | Node::IndexListExpr
-        | Node::SliceExpr
-        | Node::TypeAssertExpr
-        | Node::StarExpr
-        | Node::UnaryExpr
-        | Node::BinaryExpr
-        | Node::KeyValueExpr => Sample::Unread(Why(EXPRESSION)),
-        Node::ArrayType
-        | Node::StructType
-        | Node::FuncType
-        | Node::InterfaceType
-        | Node::MapType
-        | Node::ChanType
-        | Node::Ellipsis => Sample::Unread(Why(TYPE)),
-        Node::FieldList | Node::ValueSpec | Node::TypeSpec | Node::GenDecl => {
+        GoNode::File => Sample::Node(SampleText("")),
+        GoNode::BasicLit => Sample::Node(SampleText("package p\nvar s = \"a\"\n")),
+        GoNode::ImportSpec => Sample::Node(SampleText("package p\nimport \"a\"\n")),
+        GoNode::FuncDecl => Sample::Node(SampleText("package p\nfunc f() {}\n")),
+        GoNode::FuncLit => Sample::Node(SampleText("package p\nvar f = func() {}\n")),
+        GoNode::Field => Sample::Node(SampleText("package p\nfunc f(a int) {}\n")),
+        GoNode::CallExpr => Sample::Node(SampleText("package p\nvar x = f()\n")),
+        GoNode::DeclStmt
+        | GoNode::EmptyStmt
+        | GoNode::LabeledStmt
+        | GoNode::ExprStmt
+        | GoNode::SendStmt
+        | GoNode::IncDecStmt
+        | GoNode::AssignStmt
+        | GoNode::GoStmt
+        | GoNode::DeferStmt
+        | GoNode::ReturnStmt
+        | GoNode::BranchStmt
+        | GoNode::BlockStmt
+        | GoNode::IfStmt
+        | GoNode::CaseClause
+        | GoNode::SwitchStmt
+        | GoNode::TypeSwitchStmt
+        | GoNode::CommClause
+        | GoNode::SelectStmt
+        | GoNode::ForStmt
+        | GoNode::RangeStmt => Sample::Unread(Why(STATEMENT)),
+        GoNode::CompositeLit
+        | GoNode::ParenExpr
+        | GoNode::SelectorExpr
+        | GoNode::IndexExpr
+        | GoNode::IndexListExpr
+        | GoNode::SliceExpr
+        | GoNode::TypeAssertExpr
+        | GoNode::StarExpr
+        | GoNode::UnaryExpr
+        | GoNode::BinaryExpr
+        | GoNode::KeyValueExpr => Sample::Unread(Why(EXPRESSION)),
+        GoNode::ArrayType
+        | GoNode::StructType
+        | GoNode::FuncType
+        | GoNode::InterfaceType
+        | GoNode::MapType
+        | GoNode::ChanType
+        | GoNode::Ellipsis => Sample::Unread(Why(TYPE)),
+        GoNode::FieldList | GoNode::ValueSpec | GoNode::TypeSpec | GoNode::GenDecl => {
             Sample::Unread(Why(PART))
         }
-        Node::Ident => Sample::Unread(Why(NAME)),
-        Node::BadExpr
-        | Node::BadStmt
-        | Node::BadDecl
-        | Node::Comment
-        | Node::CommentGroup
-        | Node::Package => Sample::Unread(Why(NEVER_WRITTEN)),
+        GoNode::Ident => Sample::Unread(Why(NAME)),
+        GoNode::BadExpr
+        | GoNode::BadStmt
+        | GoNode::BadDecl
+        | GoNode::Comment
+        | GoNode::CommentGroup
+        | GoNode::Package => Sample::Unread(Why(NEVER_WRITTEN)),
     }
 }
 

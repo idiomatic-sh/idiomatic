@@ -3,7 +3,7 @@
 //! (`@typescript-eslint/visitor-keys`), in kebab case. One closed list, each name once, `None` first: the number `0` is the role of an
 //! edge that has none.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 
 /// The role of an element under its parent.
 #[derive(
@@ -219,7 +219,7 @@ pub(crate) struct Standing {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KindRole {
     /// The kind of the child.
-    pub node: Node,
+    pub node: TypeScriptNode,
     /// The role it plays.
     pub field: Field,
 }

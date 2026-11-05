@@ -178,7 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Given::One(Piece::Function),
         expect: Expect::Value(Seen::Kind(
             Kind::Token(crate::domain::tokens::types::Token::Function),
-            Met::Opens(crate::domain::nodes::types::Node::Function),
+            Met::Opens(crate::domain::nodes::types::CssNode::Function),
         )),
     },
     Case {

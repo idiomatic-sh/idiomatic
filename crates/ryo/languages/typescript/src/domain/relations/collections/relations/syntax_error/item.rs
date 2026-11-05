@@ -1,6 +1,6 @@
 //! The parser's diagnostics, including malformed UTF-8 and recovered syntax.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -10,7 +10,7 @@ pub(crate) struct SyntaxErrorItem;
 
 ryo::reads! {
     SyntaxErrorItem => languages::SyntaxError |tree, at, symbols| {
-        kinds: [Kind::Node(Node::Program)] as kind_bits,
+        kinds: [Kind::Node(TypeScriptNode::Program)] as kind_bits,
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
             given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));
             given impact = languages::intern_derived(symbols, tree.source, languages::NameText("incomplete"));

@@ -3,7 +3,7 @@
 
 use super::constants::NO_ARGUMENT;
 use crate::domain::names::service::{nodes, text};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -11,11 +11,11 @@ use ryo::languages::{self, Position, Symbol, Symbols, Tree};
 
 /// The string literal that is the whole of the statement at `at`, when the statement is a string statement.
 fn literal_of(tree: &Tree<'_>, at: Position) -> Option<Position> {
-    if kind(tree, at) != Kind::Node(Node::ExpressionStatement) {
+    if kind(tree, at) != Kind::Node(TypeScriptNode::ExpressionStatement) {
         return None;
     }
     let first = languages::children(tree.elements, at).next()?;
-    if kind(tree, first) != Kind::Node(Node::Literal) {
+    if kind(tree, first) != Kind::Node(TypeScriptNode::Literal) {
         return None;
     }
     languages::children(tree.elements, first)
@@ -41,13 +41,13 @@ pub(crate) fn directive(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) ->
     let literal = literal_of(tree, at)?;
     let enclosing = parent(tree, at);
     let holds_prologue = match kind(tree, enclosing) {
-        Kind::Node(Node::Program) => true,
-        Kind::Node(Node::BlockStatement) => matches!(
+        Kind::Node(TypeScriptNode::Program) => true,
+        Kind::Node(TypeScriptNode::BlockStatement) => matches!(
             kind(tree, parent(tree, enclosing)),
             Kind::Node(
-                Node::FunctionDeclaration
-                    | Node::FunctionExpression
-                    | Node::ArrowFunctionExpression
+                TypeScriptNode::FunctionDeclaration
+                    | TypeScriptNode::FunctionExpression
+                    | TypeScriptNode::ArrowFunctionExpression
             )
         ),
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,

@@ -4,7 +4,7 @@
 use super::{FieldSchema, KindSchema, spelling};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::grammar::types::{Form, Role};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::tokens::types::Token;
 
 /// What a row asks about the grammar's kinds.
@@ -155,7 +155,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_pointer_type_is_a_star_expr"),
         word: Word::Succeeds,
         input: || Given::Kind("pointer_type"),
-        expect: Expect::Value(Seen::Form(Some(Form::Node(Node::StarExpr)))),
+        expect: Expect::Value(Seen::Form(Some(Form::Node(GoNode::StarExpr)))),
     },
     Case {
         name: CaseName("a_list_the_library_makes_a_node_of_has_none"),

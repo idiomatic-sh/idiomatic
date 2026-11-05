@@ -10,7 +10,7 @@ use ryo::languages::{self, Offset};
 #[derive(Clone, Debug)]
 pub(crate) enum Piece {
     /// A node, with the pieces under it.
-    Node(Kind, Vec<Piece>),
+    RustNode(Kind, Vec<Piece>),
     /// A token with its text.
     Token(Kind, &'static str),
     /// Something the parser said it could not read, at this point of the text.
@@ -110,7 +110,7 @@ macro_rules! scripted_tree {
     };
     ($kind:ident { $($child:ident $body:tt),* $(,)? }) => {
         $crate::outbound::syntax::fixtures::script::node(
-            $crate::domain::syntax::types::Kind::Node($crate::domain::nodes::types::Node::$kind),
+            $crate::domain::syntax::types::Kind::Node($crate::domain::nodes::types::RustNode::$kind),
             vec![$($crate::scripted_tree!($child $body)),*],
         )
     };

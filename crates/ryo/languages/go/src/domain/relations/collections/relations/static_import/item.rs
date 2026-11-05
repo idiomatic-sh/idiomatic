@@ -3,7 +3,7 @@
 //! name of `p`: each has the unknown value of that.
 
 use crate::domain::names::service::{import_binding, import_target};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -14,7 +14,7 @@ pub(crate) struct StaticImportItem;
 
 ryo::reads! {
     StaticImportItem => languages::StaticImport |tree, at, symbols| {
-        kinds: [Kind::Node(Node::ImportSpec)] as kind_bits,
+        kinds: [Kind::Node(GoNode::ImportSpec)] as kind_bits,
         given target = import_target(tree, symbols, at)?;
         row {
             occurrence: node(at),

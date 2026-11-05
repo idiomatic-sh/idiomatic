@@ -1,6 +1,6 @@
 //! The `bindings` service's cases, on trees written by hand: each answers what the service said, in full.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use ryo::languages::{self, Position, Tree};
 
 use super::service::{bound_name, in_let_pattern, looks_like_constant};
@@ -85,7 +85,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_parameter_that_is_one_name_binds_it"),
         word: Word::Succeeds,
-        input: || ("fn f(a: u32) {}", Question::Bound(Kind::Node(Node::Param))),
+        input: || ("fn f(a: u32) {}", Question::Bound(Kind::Node(RustNode::Param))),
         expect: Expect::Value(Answer::Name("a")),
     },
     Case {
@@ -94,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "fn f((a, b): (u32, u32)) {}",
-                Question::Bound(Kind::Node(Node::Param)),
+                Question::Bound(Kind::Node(RustNode::Param)),
             )
         },
         expect: Expect::Value(Answer::Nothing),
@@ -105,7 +105,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "fn f() { let x = 1; }",
-                Question::Bound(Kind::Node(Node::LetStmt)),
+                Question::Bound(Kind::Node(RustNode::LetStmt)),
             )
         },
         expect: Expect::Value(Answer::Name("x")),
@@ -116,7 +116,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "fn f() { let x = 1; }",
-                Question::LetPattern(Kind::Node(Node::LetStmt)),
+                Question::LetPattern(Kind::Node(RustNode::LetStmt)),
             )
         },
         expect: Expect::Value(Answer::LetPattern(LetPattern::In)),
@@ -127,7 +127,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "fn f() { let MAX = 1; }",
-                Question::Constant(Kind::Node(Node::LetStmt)),
+                Question::Constant(Kind::Node(RustNode::LetStmt)),
             )
         },
         expect: Expect::Value(Answer::Constness(Constness::Constant)),
@@ -138,7 +138,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "fn f() { let x = 1; }",
-                Question::Constant(Kind::Node(Node::LetStmt)),
+                Question::Constant(Kind::Node(RustNode::LetStmt)),
             )
         },
         expect: Expect::Value(Answer::Constness(Constness::NotConstant)),

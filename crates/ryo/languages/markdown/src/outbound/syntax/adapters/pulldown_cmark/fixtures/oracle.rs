@@ -3,7 +3,7 @@
 //! and the code of every code block and code span, as the library gives it, is the `string_literal` of the same span. What the oracle
 //! rail of the conformance holds `syntax_tree` and `string_literal` to.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use pulldown_cmark::{Event, LinkType, Parser, Tag, TagEnd};
 use ryo::languages::Relation;
 use ryo::languages::contract::{Cell, OracleRows, Point, point_of};
@@ -14,35 +14,35 @@ use crate::domain::syntax::types::Kind;
 
 /// The kinds of construct the oracle compares.
 const COMPARED: [Kind; 13] = [
-    Kind::Node(Node::Heading),
-    Kind::Node(Node::Heading),
-    Kind::Node(Node::Heading),
-    Kind::Node(Node::Heading),
-    Kind::Node(Node::Heading),
-    Kind::Node(Node::Heading),
-    Kind::Node(Node::Link),
-    Kind::Node(Node::Image),
-    Kind::Node(Node::Code),
-    Kind::Node(Node::Code),
-    Kind::Node(Node::Emphasis),
-    Kind::Node(Node::Strong),
-    Kind::Node(Node::Delete),
+    Kind::Node(MarkdownNode::Heading),
+    Kind::Node(MarkdownNode::Heading),
+    Kind::Node(MarkdownNode::Heading),
+    Kind::Node(MarkdownNode::Heading),
+    Kind::Node(MarkdownNode::Heading),
+    Kind::Node(MarkdownNode::Heading),
+    Kind::Node(MarkdownNode::Link),
+    Kind::Node(MarkdownNode::Image),
+    Kind::Node(MarkdownNode::Code),
+    Kind::Node(MarkdownNode::Code),
+    Kind::Node(MarkdownNode::Emphasis),
+    Kind::Node(MarkdownNode::Strong),
+    Kind::Node(MarkdownNode::Delete),
 ];
 
 /// The kind of the compared constructs the library opens with `tag`: the oracle's own table, which names no other construct.
 fn compared(tag: &Tag<'_>) -> Option<Kind> {
     match tag {
-        Tag::Heading { .. } => Some(Kind::Node(Node::Heading)),
+        Tag::Heading { .. } => Some(Kind::Node(MarkdownNode::Heading)),
         Tag::Link { link_type, .. } if written_with_destination(*link_type) => {
-            Some(Kind::Node(Node::Link))
+            Some(Kind::Node(MarkdownNode::Link))
         }
         Tag::Image { link_type, .. } if written_with_destination(*link_type) => {
-            Some(Kind::Node(Node::Image))
+            Some(Kind::Node(MarkdownNode::Image))
         }
-        Tag::CodeBlock(_) => Some(Kind::Node(Node::Code)),
-        Tag::Emphasis => Some(Kind::Node(Node::Emphasis)),
-        Tag::Strong => Some(Kind::Node(Node::Strong)),
-        Tag::Strikethrough => Some(Kind::Node(Node::Delete)),
+        Tag::CodeBlock(_) => Some(Kind::Node(MarkdownNode::Code)),
+        Tag::Emphasis => Some(Kind::Node(MarkdownNode::Emphasis)),
+        Tag::Strong => Some(Kind::Node(MarkdownNode::Strong)),
+        Tag::Strikethrough => Some(Kind::Node(MarkdownNode::Delete)),
         Tag::Link { .. }
         | Tag::Image { .. }
         | Tag::Paragraph

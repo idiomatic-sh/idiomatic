@@ -8,7 +8,7 @@ use crate::domain::targets::types::{Manifest, Pattern, Platform};
 
 /// A configuration found above a directory: what it says that the answer depends on, placed in the repository.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Configured {
+pub(crate) struct WorkspaceConfiguration {
     /// Where Cargo writes its outputs, when the configuration says: the directory its `target-dir` names, from the directory the
     /// `.cargo` it was found in lies in.
     pub target_dir: Section<Placement>,
@@ -35,7 +35,7 @@ pub(crate) struct Looking {
     /// Whether a name matches a pattern of one segment.
     pub matches: Asked<SegmentMatch, Matching>,
     /// The configurations above a directory of the repository, nearest first.
-    pub configurations: Asked<RepoPath, Vec<Configured>>,
+    pub configurations: Asked<RepoPath, Vec<WorkspaceConfiguration>>,
     /// A platform as Cargo shows it.
     pub platforms: Asked<Platform, PlatformCondition>,
 }

@@ -1,24 +1,24 @@
 //! Exhaustive mappings of the parser's native closed DOM and tokenizer variants.
-use crate::domain::{nodes::types::Node, tokens::types::Token};
+use crate::domain::{nodes::types::HtmlNode, tokens::types::Token};
 use swc_html_ast::{Child, Token as NativeToken};
 
 use super::types::{PropertyValue, Published};
 use crate::domain::syntax::service::property_id;
 
 /// Every native DOM child has one corresponding node kind.
-pub(super) fn child_kind(child: &Child) -> Node {
+pub(super) fn child_kind(child: &Child) -> HtmlNode {
     ChildSchema(child).into()
 }
 
 /// The native DOM child at its conversion boundary.
 pub(super) struct ChildSchema<'a>(pub &'a Child);
-impl From<ChildSchema<'_>> for Node {
+impl From<ChildSchema<'_>> for HtmlNode {
     fn from(schema: ChildSchema<'_>) -> Self {
         match schema.0 {
-            Child::DocumentType(_) => Node::DocumentType,
-            Child::Element(_) => Node::Element,
-            Child::Text(_) => Node::Text,
-            Child::Comment(_) => Node::Comment,
+            Child::DocumentType(_) => HtmlNode::DocumentType,
+            Child::Element(_) => HtmlNode::Element,
+            Child::Text(_) => HtmlNode::Text,
+            Child::Comment(_) => HtmlNode::Comment,
         }
     }
 }

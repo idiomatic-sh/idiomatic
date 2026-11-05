@@ -10,7 +10,7 @@ use toml_parser::{ErrorSink, ParseError, Raw, Source, Span};
 
 use super::super::constants::NESTING;
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TomlNode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -132,7 +132,7 @@ impl Recorder<'_> {
 impl EventReceiver for Recorder<'_> {
     fn std_table_open(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.push(
-            Role::HeaderOpen(Kind::Node(Node::StdTable)),
+            Role::HeaderOpen(Kind::Node(TomlNode::StdTable)),
             Kind::Token(Token::StdTableOpen),
             span,
         );
@@ -144,7 +144,7 @@ impl EventReceiver for Recorder<'_> {
 
     fn array_table_open(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.push(
-            Role::HeaderOpen(Kind::Node(Node::ArrayTable)),
+            Role::HeaderOpen(Kind::Node(TomlNode::ArrayTable)),
             Kind::Token(Token::ArrayTableOpen),
             span,
         );
@@ -156,7 +156,7 @@ impl EventReceiver for Recorder<'_> {
 
     fn inline_table_open(&mut self, span: Span, _error: &mut dyn ErrorSink) -> bool {
         self.open(
-            Kind::Node(Node::InlineTable),
+            Kind::Node(TomlNode::InlineTable),
             Kind::Token(Token::InlineTableOpen),
             span,
         )
@@ -164,19 +164,19 @@ impl EventReceiver for Recorder<'_> {
 
     fn inline_table_close(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.close(
-            Kind::Node(Node::InlineTable),
+            Kind::Node(TomlNode::InlineTable),
             Kind::Token(Token::InlineTableClose),
             span,
         );
     }
 
     fn array_open(&mut self, span: Span, _error: &mut dyn ErrorSink) -> bool {
-        self.open(Kind::Node(Node::Array), Kind::Token(Token::ArrayOpen), span)
+        self.open(Kind::Node(TomlNode::Array), Kind::Token(Token::ArrayOpen), span)
     }
 
     fn array_close(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.close(
-            Kind::Node(Node::Array),
+            Kind::Node(TomlNode::Array),
             Kind::Token(Token::ArrayClose),
             span,
         );
@@ -216,7 +216,7 @@ impl EventReceiver for Recorder<'_> {
     }
 
     fn value_sep(&mut self, span: Span, _error: &mut dyn ErrorSink) {
-        let separator = if self.nesting.last() == Some(&Kind::Node(Node::InlineTable)) {
+        let separator = if self.nesting.last() == Some(&Kind::Node(TomlNode::InlineTable)) {
             Token::InlineTableSep
         } else {
             Token::ArraySep

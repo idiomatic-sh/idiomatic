@@ -3,7 +3,7 @@
 //! resolved.
 
 use crate::domain::names::service::name_of;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::specs::service::{binding_of, holder, written_as_type};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -14,7 +14,7 @@ pub(crate) struct ResolvesItem;
 
 ryo::reads! {
     ResolvesItem => languages::Resolves |tree, at, symbols| {
-        kinds: [Kind::Node(Node::Ident)] as kind_bits,
+        kinds: [Kind::Node(GoNode::Ident)] as kind_bits,
         given typed = written_as_type(tree, at)?;
         given name = name_of(tree, typed)?;
         given definition = binding_of(tree, at, name)?;

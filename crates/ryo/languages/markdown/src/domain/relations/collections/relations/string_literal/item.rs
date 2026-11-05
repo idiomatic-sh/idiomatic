@@ -2,7 +2,7 @@
 //! decoded it, in its place. Markdown has no other literal: its text is prose, and code is the one text it holds as written.
 
 use crate::domain::model::types::Sections;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use crate::domain::syntax::service::{code_value, kind_bits, parent};
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -12,7 +12,7 @@ pub(crate) struct StringLiteralItem;
 
 ryo::reads! {
     StringLiteralItem => languages::StringLiteral, model(Sections) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::InlineCode), Kind::Node(Node::Code), Kind::Node(Node::Code)] as kind_bits,
+        kinds: [Kind::Node(MarkdownNode::InlineCode), Kind::Node(MarkdownNode::Code), Kind::Node(MarkdownNode::Code)] as kind_bits,
         row {
             occurrence: node(at),
             owner: node(parent(tree, at)),

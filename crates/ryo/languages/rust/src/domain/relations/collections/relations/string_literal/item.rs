@@ -2,7 +2,7 @@
 //! standard macro whose arguments are expressions is read there too. The file a `#[path = "…"]` names is an import specifier.
 
 use crate::domain::fact_extraction::service::specifier;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::{child, kind_bits};
 use crate::domain::syntax::types::Kind;
@@ -14,7 +14,7 @@ pub(crate) struct StringLiteralItem;
 
 ryo::reads! {
     StringLiteralItem => languages::StringLiteral |tree, at, symbols| {
-        kinds: [Kind::Node(Node::Literal)] as kind_bits,
+        kinds: [Kind::Node(RustNode::Literal)] as kind_bits,
         expanded,
         given string = child(tree, at, Kind::Token(Token::String))?;
         given value = languages::intern_derived(symbols, tree.source, languages::decoded_at(tree.elements, string)?);

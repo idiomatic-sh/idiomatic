@@ -22,7 +22,7 @@ use super::constants::{
 use super::schemas::{node_kind, token_kind};
 use super::types::{ChildCursor, Decoded, DecodedText, Piece, Text, VisitDepth, VisitorStack};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
@@ -38,9 +38,9 @@ impl<'a> Visit<'a> for VisitorStack {
         if let Some(value) = kind.identifier_name() {
             let import_options = value == IMPORT_OPTIONS_KEY
                 && self.open.iter().rev().take(3).map(|piece| piece.kind).eq([
-                    Kind::Node(Node::Property),
-                    Kind::Node(Node::ObjectExpression),
-                    Kind::Node(Node::TSImportType),
+                    Kind::Node(TypeScriptNode::Property),
+                    Kind::Node(TypeScriptNode::ObjectExpression),
+                    Kind::Node(TypeScriptNode::TSImportType),
                 ]);
             self.decoded.push(Decoded {
                 span: kind.span(),
@@ -133,7 +133,7 @@ impl<'a> Visit<'a> for VisitorStack {
             |piece| {
                 piece
                     .children
-                    .push(leaf(Kind::Node(Node::Identifier), it.global_span));
+                    .push(leaf(Kind::Node(TypeScriptNode::Identifier), it.global_span));
             },
         );
     }
@@ -191,13 +191,13 @@ fn annotate(piece: &mut Piece) {
     if let Some(index) = piece
         .children
         .iter()
-        .position(|child| child.kind == Kind::Node(Node::TSTypeAnnotation))
+        .position(|child| child.kind == Kind::Node(TypeScriptNode::TSTypeAnnotation))
     {
         let annotation = piece.children.remove(index);
         if let Some(binding) = piece
             .children
             .iter_mut()
-            .find(|child| child.kind != Kind::Node(Node::Decorator))
+            .find(|child| child.kind != Kind::Node(TypeScriptNode::Decorator))
         {
             binding.span.end = annotation.span.end;
             binding.children.push(annotation);
@@ -242,8 +242,8 @@ fn attach(projection: &mut VisitorStack, mut piece: Piece) {
 /// JSX names have their own standard identity even where Oxc uses an identifier child.
 fn jsx_names(piece: &mut Piece) {
     for child in &mut piece.children {
-        if child.kind == Kind::Node(Node::Identifier) {
-            child.kind = Kind::Node(Node::JSXIdentifier);
+        if child.kind == Kind::Node(TypeScriptNode::Identifier) {
+            child.kind = Kind::Node(TypeScriptNode::JSXIdentifier);
         }
     }
 }
@@ -253,7 +253,7 @@ fn parameter(piece: &mut Piece, parameter: &FormalParameter<'_>) {
     annotate(piece);
     let decorators: Vec<_> = piece
         .children
-        .extract_if(.., |child| child.kind == Kind::Node(Node::Decorator))
+        .extract_if(.., |child| child.kind == Kind::Node(TypeScriptNode::Decorator))
         .collect();
     if parameter.optional
         && parameter.type_annotation.is_none()
@@ -267,11 +267,11 @@ fn parameter(piece: &mut Piece, parameter: &FormalParameter<'_>) {
     let property = parameter.accessibility.is_some() || parameter.readonly || parameter.r#override;
     let whole = piece.span;
     if parameter.initializer.is_some() {
-        piece.kind = Kind::Node(Node::AssignmentPattern);
+        piece.kind = Kind::Node(TypeScriptNode::AssignmentPattern);
         piece.span.start = parameter.pattern.span().start;
     }
     if property {
-        let argument = std::mem::replace(piece, leaf(Kind::Node(Node::TSParameterProperty), whole));
+        let argument = std::mem::replace(piece, leaf(Kind::Node(TypeScriptNode::TSParameterProperty), whole));
         if matches!(argument.kind, Kind::Node(_)) {
             piece.children.push(argument);
         } else {
@@ -292,7 +292,7 @@ fn expression_body(piece: &mut Piece) {
     if let Some(index) = piece
         .children
         .iter()
-        .position(|child| child.kind == Kind::Node(Node::BlockStatement))
+        .position(|child| child.kind == Kind::Node(TypeScriptNode::BlockStatement))
     {
         let block = piece.children.remove(index);
         for statement in block.children {
@@ -303,17 +303,17 @@ fn expression_body(piece: &mut Piece) {
 
 /// Put a token under the first deepest AST node containing its range.
 fn insert(node: &mut Piece, mut token: Piece) {
-    if node.kind == Kind::Node(Node::JSXAttribute)
+    if node.kind == Kind::Node(TypeScriptNode::JSXAttribute)
         && token.kind == Kind::Token(Token::String)
         && node
             .children
             .iter()
-            .any(|child| child.kind == Kind::Node(Node::Literal) && child.span == token.span)
+            .any(|child| child.kind == Kind::Node(TypeScriptNode::Literal) && child.span == token.span)
     {
         token.kind = Kind::Token(Token::JSXTextToken);
     }
     while let Some(child) = node.children.get_mut(node.cursor.0) {
-        if child.kind == Kind::Node(Node::TemplateElement)
+        if child.kind == Kind::Node(TypeScriptNode::TemplateElement)
             && token.kind == Kind::Token(Token::Template)
             && token.span.start <= child.span.start
             && child.span.end <= token.span.end
@@ -332,7 +332,7 @@ fn insert(node: &mut Piece, mut token: Piece) {
         }
         node.cursor.0 += 1;
     }
-    if node.kind == Kind::Node(Node::JSXIdentifier)
+    if node.kind == Kind::Node(TypeScriptNode::JSXIdentifier)
         && matches!(
             token.kind,
             Kind::Token(Token::IdentifierToken | Token::Keyword)
@@ -342,7 +342,7 @@ fn insert(node: &mut Piece, mut token: Piece) {
     }
     // A keyword the parser decoded no name for that the standard holds as an identifier is its identifier token: a function's
     // `this` parameter. A key of import options is decoded, and stays the keyword the standard says it is.
-    if node.kind == Kind::Node(Node::Identifier)
+    if node.kind == Kind::Node(TypeScriptNode::Identifier)
         && token.kind == Kind::Token(Token::Keyword)
         && matches!(token.text, Text::Source)
     {
@@ -398,7 +398,7 @@ fn meta_words(
             token_kind: Token::IdentifierToken,
         });
     }
-    spans.map(|word_span| leaf(Kind::Node(Node::Identifier), word_span))
+    spans.map(|word_span| leaf(Kind::Node(TypeScriptNode::Identifier), word_span))
 }
 
 /// A token or gap with the source spelling.

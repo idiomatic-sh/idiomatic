@@ -10,7 +10,7 @@ use super::constants::{ARROW, COLON, EXTENDS, FROM, OPEN_PARENTHESIS, PARENTHESE
 use super::types::{
     Field, KindRole, Lastness, Marker, MarkerRole, Operands, Ordinal, Precedence, Standing,
 };
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JavaScriptNode;
 use crate::domain::syntax::service::{is_token, kind, parent, spelling};
 use crate::domain::syntax::types::{Kind, Leaf};
 use crate::domain::tokens::types::Token;
@@ -100,9 +100,9 @@ fn nth(roles: &[Field], ordinal: Ordinal) -> Field {
 fn operator_of(tree: &Tree<'_>, holder: Position) -> Option<Position> {
     let operands = match kind(tree, holder) {
         Kind::Node(
-            Node::BinaryExpression | Node::LogicalExpression | Node::AssignmentExpression,
+            JavaScriptNode::BinaryExpression | JavaScriptNode::LogicalExpression | JavaScriptNode::AssignmentExpression,
         ) => Operands::Binary,
-        Kind::Node(Node::UnaryExpression | Node::UpdateExpression) => Operands::Unary,
+        Kind::Node(JavaScriptNode::UnaryExpression | JavaScriptNode::UpdateExpression) => Operands::Unary,
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => return None,
     };
     let children: Vec<Position> = languages::children(tree.elements, holder).collect();
@@ -125,7 +125,7 @@ fn operator_of(tree: &Tree<'_>, holder: Position) -> Option<Position> {
 }
 
 /// The role a child of the kind `node` plays.
-const fn kinded(node: Node, field: Field) -> KindRole {
+const fn kinded(node: JavaScriptNode, field: Field) -> KindRole {
     KindRole { node, field }
 }
 
@@ -154,8 +154,8 @@ fn by_marker(tree: &Tree<'_>, at: Position, markers: &[MarkerRole], otherwise: F
 /// though the wider default comes first; any other child is the key, then the value.
 fn property(tree: &Tree<'_>, at: Position, child: Kind, ordinal: Ordinal) -> Field {
     let defaulted = languages::children(tree.elements, parent(tree, at))
-        .any(|each| kind(tree, each) == Kind::Node(Node::AssignmentPattern));
-    if child == Kind::Node(Node::AssignmentPattern) {
+        .any(|each| kind(tree, each) == Kind::Node(JavaScriptNode::AssignmentPattern));
+    if child == Kind::Node(JavaScriptNode::AssignmentPattern) {
         Field::Value
     } else if defaulted {
         Field::Key
@@ -169,127 +169,127 @@ fn property(tree: &Tree<'_>, at: Position, child: Kind, ordinal: Ordinal) -> Fie
     clippy::too_many_lines,
     reason = "one arm for each kind of `ESTree` node: the table of the properties is the proof, and splitting it would split it"
 )]
-fn held(tree: &Tree<'_>, at: Position, holder: Node, child: Kind) -> Field {
+fn held(tree: &Tree<'_>, at: Position, holder: JavaScriptNode, child: Kind) -> Field {
     let Standing { ordinal, lastness } = place(tree, at);
     match holder {
-        Node::Program | Node::BlockStatement | Node::ClassBody | Node::StaticBlock => Field::Body,
-        Node::ArrayExpression | Node::ArrayPattern => Field::Elements,
-        Node::ObjectExpression | Node::ObjectPattern => Field::Properties,
-        Node::SequenceExpression => Field::Expressions,
-        Node::TemplateLiteral => by_kind(
+        JavaScriptNode::Program | JavaScriptNode::BlockStatement | JavaScriptNode::ClassBody | JavaScriptNode::StaticBlock => Field::Body,
+        JavaScriptNode::ArrayExpression | JavaScriptNode::ArrayPattern => Field::Elements,
+        JavaScriptNode::ObjectExpression | JavaScriptNode::ObjectPattern => Field::Properties,
+        JavaScriptNode::SequenceExpression => Field::Expressions,
+        JavaScriptNode::TemplateLiteral => by_kind(
             child,
-            &[kinded(Node::TemplateElement, Field::Quasis)],
+            &[kinded(JavaScriptNode::TemplateElement, Field::Quasis)],
             Field::Expressions,
         ),
-        Node::VariableDeclaration => Field::Declarations,
-        Node::SwitchStatement => by_kind(
+        JavaScriptNode::VariableDeclaration => Field::Declarations,
+        JavaScriptNode::SwitchStatement => by_kind(
             child,
-            &[kinded(Node::SwitchCase, Field::Cases)],
+            &[kinded(JavaScriptNode::SwitchCase, Field::Cases)],
             Field::Discriminant,
         ),
-        Node::SwitchCase => by_marker(tree, at, &[marked(COLON, Field::Consequent)], Field::Test),
-        Node::ImportDeclaration => by_kind(
+        JavaScriptNode::SwitchCase => by_marker(tree, at, &[marked(COLON, Field::Consequent)], Field::Test),
+        JavaScriptNode::ImportDeclaration => by_kind(
             child,
             &[
-                kinded(Node::ImportSpecifier, Field::Specifiers),
-                kinded(Node::ImportDefaultSpecifier, Field::Specifiers),
-                kinded(Node::ImportNamespaceSpecifier, Field::Specifiers),
-                kinded(Node::ImportAttribute, Field::Attributes),
+                kinded(JavaScriptNode::ImportSpecifier, Field::Specifiers),
+                kinded(JavaScriptNode::ImportDefaultSpecifier, Field::Specifiers),
+                kinded(JavaScriptNode::ImportNamespaceSpecifier, Field::Specifiers),
+                kinded(JavaScriptNode::ImportAttribute, Field::Attributes),
             ],
             Field::Source,
         ),
-        Node::ExportNamedDeclaration => by_kind(
+        JavaScriptNode::ExportNamedDeclaration => by_kind(
             child,
             &[
-                kinded(Node::ExportSpecifier, Field::Specifiers),
-                kinded(Node::ImportAttribute, Field::Attributes),
+                kinded(JavaScriptNode::ExportSpecifier, Field::Specifiers),
+                kinded(JavaScriptNode::ImportAttribute, Field::Attributes),
             ],
             by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Declaration),
         ),
-        Node::ExportAllDeclaration => by_kind(
+        JavaScriptNode::ExportAllDeclaration => by_kind(
             child,
-            &[kinded(Node::ImportAttribute, Field::Attributes)],
+            &[kinded(JavaScriptNode::ImportAttribute, Field::Attributes)],
             by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Exported),
         ),
-        Node::ExportDefaultDeclaration => Field::Declaration,
-        Node::ChainExpression
-        | Node::ExpressionStatement
-        | Node::JSXExpressionContainer
-        | Node::JSXSpreadChild => Field::Expression,
-        Node::AwaitExpression
-        | Node::ReturnStatement
-        | Node::ThrowStatement
-        | Node::SpreadElement
-        | Node::RestElement
-        | Node::UnaryExpression
-        | Node::UpdateExpression
-        | Node::YieldExpression
-        | Node::JSXSpreadAttribute => Field::Argument,
-        Node::BreakStatement | Node::ContinueStatement => Field::Label,
-        Node::JSXClosingElement => Field::Name,
-        Node::ImportDefaultSpecifier | Node::ImportNamespaceSpecifier => Field::Local,
-        Node::AssignmentExpression
-        | Node::BinaryExpression
-        | Node::LogicalExpression
-        | Node::AssignmentPattern => nth(&[Field::Left, Field::Right], ordinal),
-        Node::ConditionalExpression | Node::IfStatement => {
+        JavaScriptNode::ExportDefaultDeclaration => Field::Declaration,
+        JavaScriptNode::ChainExpression
+        | JavaScriptNode::ExpressionStatement
+        | JavaScriptNode::JSXExpressionContainer
+        | JavaScriptNode::JSXSpreadChild => Field::Expression,
+        JavaScriptNode::AwaitExpression
+        | JavaScriptNode::ReturnStatement
+        | JavaScriptNode::ThrowStatement
+        | JavaScriptNode::SpreadElement
+        | JavaScriptNode::RestElement
+        | JavaScriptNode::UnaryExpression
+        | JavaScriptNode::UpdateExpression
+        | JavaScriptNode::YieldExpression
+        | JavaScriptNode::JSXSpreadAttribute => Field::Argument,
+        JavaScriptNode::BreakStatement | JavaScriptNode::ContinueStatement => Field::Label,
+        JavaScriptNode::JSXClosingElement => Field::Name,
+        JavaScriptNode::ImportDefaultSpecifier | JavaScriptNode::ImportNamespaceSpecifier => Field::Local,
+        JavaScriptNode::AssignmentExpression
+        | JavaScriptNode::BinaryExpression
+        | JavaScriptNode::LogicalExpression
+        | JavaScriptNode::AssignmentPattern => nth(&[Field::Left, Field::Right], ordinal),
+        JavaScriptNode::ConditionalExpression | JavaScriptNode::IfStatement => {
             nth(&[Field::Test, Field::Consequent, Field::Alternate], ordinal)
         }
-        Node::MemberExpression | Node::JSXMemberExpression => {
+        JavaScriptNode::MemberExpression | JavaScriptNode::JSXMemberExpression => {
             nth(&[Field::Object, Field::Property], ordinal)
         }
-        Node::MetaProperty => nth(&[Field::Meta, Field::Property], ordinal),
-        Node::WhileStatement => nth(&[Field::Test, Field::Body], ordinal),
-        Node::DoWhileStatement => nth(&[Field::Body, Field::Test], ordinal),
-        Node::WithStatement => nth(&[Field::Object, Field::Body], ordinal),
-        Node::LabeledStatement => nth(&[Field::Label, Field::Body], ordinal),
-        Node::ForInStatement | Node::ForOfStatement => {
+        JavaScriptNode::MetaProperty => nth(&[Field::Meta, Field::Property], ordinal),
+        JavaScriptNode::WhileStatement => nth(&[Field::Test, Field::Body], ordinal),
+        JavaScriptNode::DoWhileStatement => nth(&[Field::Body, Field::Test], ordinal),
+        JavaScriptNode::WithStatement => nth(&[Field::Object, Field::Body], ordinal),
+        JavaScriptNode::LabeledStatement => nth(&[Field::Label, Field::Body], ordinal),
+        JavaScriptNode::ForInStatement | JavaScriptNode::ForOfStatement => {
             nth(&[Field::Left, Field::Right, Field::Body], ordinal)
         }
-        Node::ImportSpecifier => nth(&[Field::Imported, Field::Local], ordinal),
-        Node::ExportSpecifier => nth(&[Field::Local, Field::Exported], ordinal),
-        Node::Property => property(tree, at, child, ordinal),
-        Node::ImportAttribute | Node::PropertyDefinition => {
+        JavaScriptNode::ImportSpecifier => nth(&[Field::Imported, Field::Local], ordinal),
+        JavaScriptNode::ExportSpecifier => nth(&[Field::Local, Field::Exported], ordinal),
+        JavaScriptNode::Property => property(tree, at, child, ordinal),
+        JavaScriptNode::ImportAttribute | JavaScriptNode::PropertyDefinition => {
             nth(&[Field::Key, Field::Value], ordinal)
         }
-        Node::JSXAttribute => nth(&[Field::Name, Field::Value], ordinal),
-        Node::JSXNamespacedName => nth(&[Field::Namespace, Field::Name], ordinal),
-        Node::ImportExpression => nth(&[Field::Source, Field::Options], ordinal),
-        Node::VariableDeclarator => nth(&[Field::Id, Field::Init], ordinal),
-        Node::CallExpression | Node::NewExpression => {
+        JavaScriptNode::JSXAttribute => nth(&[Field::Name, Field::Value], ordinal),
+        JavaScriptNode::JSXNamespacedName => nth(&[Field::Namespace, Field::Name], ordinal),
+        JavaScriptNode::ImportExpression => nth(&[Field::Source, Field::Options], ordinal),
+        JavaScriptNode::VariableDeclarator => nth(&[Field::Id, Field::Init], ordinal),
+        JavaScriptNode::CallExpression | JavaScriptNode::NewExpression => {
             nth(&[Field::Callee, Field::Arguments], ordinal)
         }
-        Node::TaggedTemplateExpression => nth(&[Field::Tag, Field::Quasi], ordinal),
+        JavaScriptNode::TaggedTemplateExpression => nth(&[Field::Tag, Field::Quasi], ordinal),
         // A method's function is its last node: what comes before is its key.
-        Node::MethodDefinition => match lastness {
+        JavaScriptNode::MethodDefinition => match lastness {
             Lastness::Last => Field::Value,
             Lastness::NotLast => Field::Key,
         },
-        Node::CatchClause => by_kind(
+        JavaScriptNode::CatchClause => by_kind(
             child,
-            &[kinded(Node::BlockStatement, Field::Body)],
+            &[kinded(JavaScriptNode::BlockStatement, Field::Body)],
             Field::Param,
         ),
-        Node::TryStatement => by_kind(
+        JavaScriptNode::TryStatement => by_kind(
             child,
-            &[kinded(Node::CatchClause, Field::Handler)],
+            &[kinded(JavaScriptNode::CatchClause, Field::Handler)],
             nth(&[Field::Block, Field::Finalizer], ordinal),
         ),
         // A `for` writes each of its three clauses only when it has one: the semicolons before a clause say which it is; its body is
         // its last node.
-        Node::ForStatement => match lastness {
+        JavaScriptNode::ForStatement => match lastness {
             Lastness::Last => Field::Body,
             Lastness::NotLast => nth(
                 &[Field::Init, Field::Test, Field::Update],
                 count_before(tree, at, SEMICOLON),
             ),
         },
-        Node::ArrowFunctionExpression => {
+        JavaScriptNode::ArrowFunctionExpression => {
             by_marker(tree, at, &[marked(ARROW, Field::Body)], Field::Params)
         }
-        Node::FunctionDeclaration | Node::FunctionExpression => by_kind(
+        JavaScriptNode::FunctionDeclaration | JavaScriptNode::FunctionExpression => by_kind(
             child,
-            &[kinded(Node::BlockStatement, Field::Body)],
+            &[kinded(JavaScriptNode::BlockStatement, Field::Body)],
             by_marker(
                 tree,
                 at,
@@ -297,43 +297,43 @@ fn held(tree: &Tree<'_>, at: Position, holder: Node, child: Kind) -> Field {
                 Field::Id,
             ),
         ),
-        Node::ClassDeclaration | Node::ClassExpression => by_kind(
+        JavaScriptNode::ClassDeclaration | JavaScriptNode::ClassExpression => by_kind(
             child,
-            &[kinded(Node::ClassBody, Field::Body)],
+            &[kinded(JavaScriptNode::ClassBody, Field::Body)],
             by_marker(tree, at, &[marked(EXTENDS, Field::SuperClass)], Field::Id),
         ),
-        Node::JSXElement => by_kind(
+        JavaScriptNode::JSXElement => by_kind(
             child,
             &[
-                kinded(Node::JSXOpeningElement, Field::OpeningElement),
-                kinded(Node::JSXClosingElement, Field::ClosingElement),
+                kinded(JavaScriptNode::JSXOpeningElement, Field::OpeningElement),
+                kinded(JavaScriptNode::JSXClosingElement, Field::ClosingElement),
             ],
             Field::Children,
         ),
-        Node::JSXFragment => by_kind(
+        JavaScriptNode::JSXFragment => by_kind(
             child,
             &[
-                kinded(Node::JSXOpeningFragment, Field::OpeningFragment),
-                kinded(Node::JSXClosingFragment, Field::ClosingFragment),
+                kinded(JavaScriptNode::JSXOpeningFragment, Field::OpeningFragment),
+                kinded(JavaScriptNode::JSXClosingFragment, Field::ClosingFragment),
             ],
             Field::Children,
         ),
-        Node::JSXOpeningElement => nth(&[Field::Name, Field::Attributes], ordinal),
+        JavaScriptNode::JSXOpeningElement => nth(&[Field::Name, Field::Attributes], ordinal),
 
         // Nodes that hold no node in a property.
-        Node::Identifier
-        | Node::PrivateIdentifier
-        | Node::Literal
-        | Node::Super
-        | Node::ThisExpression
-        | Node::TemplateElement
-        | Node::DebuggerStatement
-        | Node::EmptyStatement
-        | Node::JSXEmptyExpression
-        | Node::JSXIdentifier
-        | Node::JSXText
-        | Node::JSXOpeningFragment
-        | Node::JSXClosingFragment => Field::None,
+        JavaScriptNode::Identifier
+        | JavaScriptNode::PrivateIdentifier
+        | JavaScriptNode::Literal
+        | JavaScriptNode::Super
+        | JavaScriptNode::ThisExpression
+        | JavaScriptNode::TemplateElement
+        | JavaScriptNode::DebuggerStatement
+        | JavaScriptNode::EmptyStatement
+        | JavaScriptNode::JSXEmptyExpression
+        | JavaScriptNode::JSXIdentifier
+        | JavaScriptNode::JSXText
+        | JavaScriptNode::JSXOpeningFragment
+        | JavaScriptNode::JSXClosingFragment => Field::None,
     }
 }
 

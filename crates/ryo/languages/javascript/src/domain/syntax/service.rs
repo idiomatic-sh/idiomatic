@@ -11,10 +11,10 @@ use super::constants::{
 };
 use super::types::{Declaredness, Kind, Leaf};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JavaScriptNode;
 use crate::domain::tokens::types::Token;
 
-ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(JavaScriptNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -83,7 +83,7 @@ pub(crate) fn named(
     if let Some(value) = languages::children(tree.elements, at)
         .find_map(|child| languages::decoded_at(tree.elements, child))
     {
-        if kind(tree, at) == Kind::Node(Node::PrivateIdentifier) {
+        if kind(tree, at) == Kind::Node(JavaScriptNode::PrivateIdentifier) {
             let mark = languages::begin_name(symbols);
             languages::push_text(symbols, languages::NameText(PRIVATE_PREFIX));
             languages::push_text(symbols, value);
@@ -161,7 +161,7 @@ pub(crate) fn parameters<'a>(
             languages::start_at(tree.elements, *child) >= open
                 && languages::end_at(tree.elements, *child) <= close
         }
-        _ => kind(tree, at) == Kind::Node(Node::ArrowFunctionExpression) && Some(*child) == first,
+        _ => kind(tree, at) == Kind::Node(JavaScriptNode::ArrowFunctionExpression) && Some(*child) == first,
     })
 }
 /// An explicit function name; anonymous expressions have no inferred name.
@@ -182,7 +182,7 @@ pub(crate) fn function_name(
         .map(|child| languages::start_at(tree.elements, child));
     nodes(tree, at)
         .find(|child| {
-            kind(tree, *child) == Kind::Node(Node::Identifier)
+            kind(tree, *child) == Kind::Node(JavaScriptNode::Identifier)
                 && open.is_some_and(|open| languages::start_at(tree.elements, *child) < open)
         })
         .map_or_else(unknown, |name| named(tree, symbols, name))
@@ -191,16 +191,16 @@ pub(crate) fn function_name(
 /// getter or setter (a property with no `:` between its key and its value); every other function is an expression.
 pub(crate) fn function_form(tree: &Tree<'_>, at: languages::Position) -> Declaredness {
     match kind(tree, at) {
-        Kind::Node(Node::FunctionDeclaration) => Declaredness::Function,
-        Kind::Node(Node::FunctionExpression) => {
+        Kind::Node(JavaScriptNode::FunctionDeclaration) => Declaredness::Function,
+        Kind::Node(JavaScriptNode::FunctionExpression) => {
             let holder = parent(tree, at);
             let has = |spelled: languages::NameText<'_>| {
                 languages::children(tree.elements, holder)
                     .any(|child| spelling(tree, child).0 == spelled.0)
             };
             let method = match kind(tree, holder) {
-                Kind::Node(Node::MethodDefinition) => true,
-                Kind::Node(Node::Property) => !has(languages::NameText(PROPERTY_SEPARATOR)),
+                Kind::Node(JavaScriptNode::MethodDefinition) => true,
+                Kind::Node(JavaScriptNode::Property) => !has(languages::NameText(PROPERTY_SEPARATOR)),
                 Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,
             };
             if !method {
@@ -210,7 +210,7 @@ pub(crate) fn function_form(tree: &Tree<'_>, at: languages::Position) -> Declare
                 !has(languages::NameText(COMPUTED_OPEN))
                     && matches!(
                         kind(tree, *key),
-                        Kind::Node(Node::Identifier | Node::PrivateIdentifier)
+                        Kind::Node(JavaScriptNode::Identifier | JavaScriptNode::PrivateIdentifier)
                     )
             });
             Declaredness::Method(key)
@@ -224,12 +224,12 @@ pub(crate) fn parameter_name(
     symbols: &mut languages::Symbols,
     at: languages::Position,
 ) -> languages::Symbol {
-    if kind(tree, at) == Kind::Node(Node::Identifier) {
+    if kind(tree, at) == Kind::Node(JavaScriptNode::Identifier) {
         return named(tree, symbols, at);
     }
     if matches!(
         kind(tree, at),
-        Kind::Node(Node::AssignmentPattern | Node::RestElement)
+        Kind::Node(JavaScriptNode::AssignmentPattern | JavaScriptNode::RestElement)
     ) {
         return nodes(tree, at)
             .next()
@@ -245,11 +245,11 @@ pub(crate) fn target(
 ) -> languages::Symbol {
     if matches!(
         kind(tree, at),
-        Kind::Node(Node::Identifier | Node::PrivateIdentifier | Node::ThisExpression | Node::Super)
+        Kind::Node(JavaScriptNode::Identifier | JavaScriptNode::PrivateIdentifier | JavaScriptNode::ThisExpression | JavaScriptNode::Super)
     ) {
         return named(tree, symbols, at);
     }
-    if kind(tree, at) == Kind::Node(Node::MemberExpression)
+    if kind(tree, at) == Kind::Node(JavaScriptNode::MemberExpression)
         && !languages::children(tree.elements, at)
             .any(|child| spelling(tree, child).0 == COMPUTED_OPEN)
     {
@@ -278,9 +278,9 @@ pub(crate) fn imports<'a>(
         matches!(
             kind(tree, *child),
             Kind::Node(
-                Node::ImportSpecifier
-                    | Node::ImportDefaultSpecifier
-                    | Node::ImportNamespaceSpecifier
+                JavaScriptNode::ImportSpecifier
+                    | JavaScriptNode::ImportDefaultSpecifier
+                    | JavaScriptNode::ImportNamespaceSpecifier
             )
         )
     };
@@ -298,12 +298,12 @@ pub(crate) fn import_binding(
 ) -> languages::Symbol {
     if matches!(
         kind(tree, at),
-        Kind::Node(Node::ImportExpression | Node::CallExpression)
+        Kind::Node(JavaScriptNode::ImportExpression | JavaScriptNode::CallExpression)
     ) {
         return unknown();
     }
     nodes(tree, at)
-        .filter(|child| kind(tree, *child) == Kind::Node(Node::Identifier))
+        .filter(|child| kind(tree, *child) == Kind::Node(JavaScriptNode::Identifier))
         .last()
         .map_or_else(unknown, |name| named(tree, symbols, name))
 }
@@ -315,10 +315,10 @@ pub(crate) fn import_target(
     symbols: &mut languages::Symbols,
     at: languages::Position,
 ) -> Option<languages::Symbol> {
-    if kind(tree, at) == Kind::Node(Node::CallExpression) {
+    if kind(tree, at) == Kind::Node(JavaScriptNode::CallExpression) {
         let mut parts = nodes(tree, at);
         let callee = parts.next()?;
-        if kind(tree, callee) != Kind::Node(Node::Identifier) || spelling(tree, callee).0 != REQUIRE
+        if kind(tree, callee) != Kind::Node(JavaScriptNode::Identifier) || spelling(tree, callee).0 != REQUIRE
         {
             return None;
         }
@@ -329,7 +329,7 @@ pub(crate) fn import_target(
                 .unwrap_or_else(unknown),
         );
     }
-    if kind(tree, at) == Kind::Node(Node::ImportExpression) {
+    if kind(tree, at) == Kind::Node(JavaScriptNode::ImportExpression) {
         return Some(
             nodes(tree, at)
                 .next()
@@ -356,13 +356,13 @@ pub(crate) fn passed(
     argument: languages::Position,
 ) -> languages::Symbol {
     let mut current = argument;
-    while kind(tree, current) == Kind::Node(Node::SpreadElement) {
+    while kind(tree, current) == Kind::Node(JavaScriptNode::SpreadElement) {
         match nodes(tree, current).next() {
             Some(inner) => current = inner,
             None => return languages::NO_SYMBOL,
         }
     }
-    if kind(tree, current) == Kind::Node(Node::Identifier) {
+    if kind(tree, current) == Kind::Node(JavaScriptNode::Identifier) {
         named(tree, symbols, current)
     } else {
         languages::NO_SYMBOL

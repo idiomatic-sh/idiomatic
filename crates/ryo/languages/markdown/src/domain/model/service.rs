@@ -1,7 +1,7 @@
 //! The `model` service: free functions named by verb that work out the sections of a file from its headings, and the section that
 //! holds an element, with no IO and no ports.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use ryo::languages::{self, Tree};
 
 use super::types::{Holding, Scoped, Section, SectionPlace, Sections, Up};
@@ -97,7 +97,7 @@ pub(crate) fn opened_by(sections: &Sections, heading: languages::Position) -> Op
 /// What the element at `at` opens a scope as: the document, a section when it is a heading, nothing otherwise.
 #[must_use]
 pub(crate) fn scoped(tree: &Tree<'_>, sections: &Sections, at: languages::Position) -> Scoped {
-    if kind(tree, at) == Kind::Node(Node::Root) {
+    if kind(tree, at) == Kind::Node(MarkdownNode::Root) {
         Scoped::Document
     } else {
         opened_by(sections, at).map_or(Scoped::Nothing, Scoped::Section)

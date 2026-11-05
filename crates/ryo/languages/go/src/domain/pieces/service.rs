@@ -5,11 +5,11 @@ use ryo::languages::NameText;
 use super::types::{DecodedAt, Lexeme, Order, Pieces, Placed};
 use crate::domain::grammar::service::{ending, start};
 use crate::domain::grammar::types::{ByteIndex, Concrete, Index};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::tokens::types::Token;
 
 /// Finds a node of `go/ast` over the bytes `start..end`.
-pub(crate) fn node(pieces: &mut Pieces, kind: Node, from: ByteIndex, to: ByteIndex) {
+pub(crate) fn node(pieces: &mut Pieces, kind: GoNode, from: ByteIndex, to: ByteIndex) {
     let order = Order(u32::try_from(pieces.nodes.len()).unwrap_or(u32::MAX));
     pieces.nodes.push(Placed {
         kind,
@@ -20,7 +20,7 @@ pub(crate) fn node(pieces: &mut Pieces, kind: Node, from: ByteIndex, to: ByteInd
 }
 
 /// Finds a node of `go/ast` over a node of the library's tree.
-pub(crate) fn over(pieces: &mut Pieces, tree: &Concrete<'_>, kind: Node, at: Index) {
+pub(crate) fn over(pieces: &mut Pieces, tree: &Concrete<'_>, kind: GoNode, at: Index) {
     node(pieces, kind, start(tree, at), ending(tree, at));
 }
 

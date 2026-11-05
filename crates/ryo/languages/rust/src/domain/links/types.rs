@@ -13,14 +13,14 @@ use crate::domain::paths::types::RepoPath;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Examination {
     /// The dependencies of the file.
-    pub dependencies: Vec<Link>,
+    pub dependencies: Vec<SourceDependencyLink>,
     /// The file's place, when all its written paths were examined; nothing when they were not.
     pub analyzed: Vec<ListIndex>,
 }
 
 /// A path written in one file that names what another owns, by the files' places among the repository's.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Link {
+pub(crate) struct SourceDependencyLink {
     /// The file the path is written in.
     pub source: ListIndex,
     /// The file that owns what it names.
@@ -37,7 +37,7 @@ pub(crate) struct Link {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
     /// The dependencies, by source file, then target, then place.
-    pub dependencies: Vec<Link>,
+    pub dependencies: Vec<SourceDependencyLink>,
     /// The files whose written paths were all examined, in order.
     pub analyzed: Vec<ListIndex>,
     /// The modules that could not be followed, and why: dependencies through them are not found.

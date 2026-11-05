@@ -11,7 +11,7 @@ use ryo::languages::Optionality;
 use super::item::WorkspaceMemberItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::packages::service::numbered;
-use crate::domain::packages::types::{Dependency, Located, Membership, Packages};
+use crate::domain::packages::types::{Dependency, Located, WorkspacePackageMembership, Packages};
 use crate::domain::paths::types::RepoPath;
 use crate::fixtures::reading::SHOWN;
 use ryo::languages::contract::want_file;
@@ -59,11 +59,11 @@ fn the_tool_unlisted() -> Located {
 fn packages() -> Packages {
     Packages {
         members: vec![
-            Membership {
+            WorkspacePackageMembership {
                 workspace: RepoPath("Cargo.toml".into()),
                 package: RepoPath("app/Cargo.toml".into()),
             },
-            Membership {
+            WorkspacePackageMembership {
                 workspace: RepoPath("Cargo.toml".into()),
                 package: RepoPath("tool/Cargo.toml".into()),
             },

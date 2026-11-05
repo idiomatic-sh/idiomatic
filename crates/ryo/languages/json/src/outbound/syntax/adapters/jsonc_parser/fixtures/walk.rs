@@ -14,7 +14,7 @@ use ryo::languages::Offset;
 use ryo::languages::contract::{Leafness, Walked};
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JsonNode;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -62,7 +62,7 @@ fn kind_of_token(token: &Scanned<'_>) -> Kind {
 }
 
 /// Adds a construct to `out` and answers where it is there.
-fn add(out: &mut Vec<Made>, kind: Node, range: Range, parent: Option<usize>) -> usize {
+fn add(out: &mut Vec<Made>, kind: JsonNode, range: Range, parent: Option<usize>) -> usize {
     out.push(Made {
         kind: Kind::Node(kind),
         start: range.start,
@@ -76,14 +76,14 @@ fn add(out: &mut Vec<Made>, kind: Node, range: Range, parent: Option<usize>) -> 
 fn made(value: &Value<'_>, parent: Option<usize>, out: &mut Vec<Made>) {
     match value {
         Value::Object(object) => {
-            let here = add(out, Node::Object, object.range, parent);
+            let here = add(out, JsonNode::Object, object.range, parent);
             for property in &object.properties {
-                let member = add(out, Node::Member, property.range, Some(here));
+                let member = add(out, JsonNode::Member, property.range, Some(here));
                 made(&property.value, Some(member), out);
             }
         }
         Value::Array(array) => {
-            let here = add(out, Node::Array, array.range, parent);
+            let here = add(out, JsonNode::Array, array.range, parent);
             for element in &array.elements {
                 made(element, Some(here), out);
             }
@@ -122,7 +122,7 @@ fn gap(text: &str, from: usize, to: usize, out: &mut Vec<Walked>) {
 fn piece(text: &str, all: &[Made], seen: &[Seen], at: usize) -> Walked {
     let Some(this) = all.get(at) else {
         return Walked {
-            kind: kind_bits(Kind::Node(Node::JsonText)),
+            kind: kind_bits(Kind::Node(JsonNode::JsonText)),
             leaf: Leafness::Node,
             start: Offset(0),
             end: Offset(0),
@@ -241,7 +241,7 @@ pub(crate) fn walked(text: &str) -> Walked {
     let (mut children, cursor) = within(text, &all, &seen, None, 0);
     gap(text, cursor, length, &mut children);
     Walked {
-        kind: kind_bits(Kind::Node(Node::JsonText)),
+        kind: kind_bits(Kind::Node(JsonNode::JsonText)),
         leaf: Leafness::Node,
         start: Offset(0),
         end: Offset(u32::try_from(length).unwrap_or(u32::MAX)),

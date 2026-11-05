@@ -16,7 +16,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum Node {
+pub(crate) enum TomlNode {
     /// The whole file: `toml`.
     Toml,
     /// A table opened by its header, `[a.b]`, with the entries below it: `std-table`.

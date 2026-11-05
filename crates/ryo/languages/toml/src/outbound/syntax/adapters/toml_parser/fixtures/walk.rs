@@ -12,7 +12,7 @@ use ryo::languages::contract::{Leafness, Walked};
 
 use super::events::{Recorded, Role, events};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TomlNode;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 
@@ -45,7 +45,7 @@ impl Constructs {
         self.open
             .last()
             .and_then(|at| self.made.get(*at))
-            .map_or(Kind::Node(Node::Toml), |top| top.kind)
+            .map_or(Kind::Node(TomlNode::Toml), |top| top.kind)
     }
 
     /// Opens a construct of `kind` at `at`, inside the innermost one open.
@@ -68,7 +68,7 @@ impl Constructs {
 
     /// Closes the key, and the key-value it is in, of an entry that ends before its value.
     fn end_entry(&mut self) {
-        for kind in [Kind::Node(Node::Key), Kind::Node(Node::Keyval)] {
+        for kind in [Kind::Node(TomlNode::Key), Kind::Node(TomlNode::Keyval)] {
             if self.top() == kind {
                 self.close();
             }
@@ -80,7 +80,7 @@ impl Constructs {
         let key_piece = matches!(event.role, Role::KeyPart | Role::KeyDot);
         for at in &self.open {
             if let Some(each) = self.made.get_mut(*at)
-                && (each.kind != Kind::Node(Node::Key) || key_piece)
+                && (each.kind != Kind::Node(TomlNode::Key) || key_piece)
             {
                 each.end = each.end.max(event.end);
             }
@@ -101,16 +101,16 @@ fn constructs(events: &[Recorded]) -> (Vec<Construct>, Vec<Option<usize>>) {
                 header = true;
             }
             Role::HeaderClose | Role::Equals => {
-                if made.top() == Kind::Node(Node::Key) {
+                if made.top() == Kind::Node(TomlNode::Key) {
                     made.close();
                 }
                 header &= event.role != Role::HeaderClose;
             }
-            Role::KeyPart if made.top() != Kind::Node(Node::Key) => {
+            Role::KeyPart if made.top() != Kind::Node(TomlNode::Key) => {
                 if !header {
-                    made.open(Kind::Node(Node::Keyval), event.start);
+                    made.open(Kind::Node(TomlNode::Keyval), event.start);
                 }
-                made.open(Kind::Node(Node::Key), event.start);
+                made.open(Kind::Node(TomlNode::Key), event.start);
             }
             Role::Ends | Role::Close(_) => made.end_entry(),
             Role::Open(kind) => {
@@ -130,7 +130,7 @@ fn constructs(events: &[Recorded]) -> (Vec<Construct>, Vec<Option<usize>>) {
         }
         // A value ends the key-value it is the value of.
         if matches!(event.role, Role::Close(_) | Role::Value)
-            && made.top() == Kind::Node(Node::Keyval)
+            && made.top() == Kind::Node(TomlNode::Keyval)
         {
             made.close();
         }
@@ -247,7 +247,7 @@ pub(crate) fn walked(text: &str) -> Walked {
         }
     }
     Walked {
-        kind: kind_bits(Kind::Node(Node::Toml)),
+        kind: kind_bits(Kind::Node(TomlNode::Toml)),
         leaf: Leafness::Node,
         start: Offset(0),
         end: length,

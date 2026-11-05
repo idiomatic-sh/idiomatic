@@ -2,7 +2,7 @@
 
 use super::service::{callable, listing, parameters, signature};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::kind;
 use crate::domain::syntax::types::Kind;
 use crate::fixtures::reading::{asked, of_kind, parsed, spans};
@@ -122,7 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn lists(source: &'static str) -> Vec<String> {
     asked(source, |tree| {
-        of_kind(tree, Kind::Node(Node::FieldList))
+        of_kind(tree, Kind::Node(GoNode::FieldList))
             .into_iter()
             .filter_map(|list| {
                 listing(tree, list)
@@ -138,9 +138,9 @@ fn lists(source: &'static str) -> Vec<String> {
 
 fn parts(source: &'static str) -> Vec<String> {
     asked(source, |tree| {
-        let Some(function) = of_kind(tree, Kind::Node(Node::FuncDecl))
+        let Some(function) = of_kind(tree, Kind::Node(GoNode::FuncDecl))
             .into_iter()
-            .chain(of_kind(tree, Kind::Node(Node::FuncLit)))
+            .chain(of_kind(tree, Kind::Node(GoNode::FuncLit)))
             .next()
         else {
             return Vec::new();
@@ -181,7 +181,7 @@ fn subject((source, question): Input) -> Result<Value, Failure> {
         file: languages::FileId(0),
     };
     let found: Vec<String> = languages::positions(&elements)
-        .filter(|at| kind(&tree, *at) == Kind::Node(Node::Field))
+        .filter(|at| kind(&tree, *at) == Kind::Node(GoNode::Field))
         .flat_map(|at| parameters(&tree, at))
         .map(|each| {
             let name = languages::text_of(&file.symbols, tree.source, each.name)

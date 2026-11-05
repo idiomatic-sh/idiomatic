@@ -19,7 +19,7 @@ use crate::domain::grammar::service::{
 use crate::domain::grammar::types::{ByteIndex, Concrete, Form, Index, Presence};
 use crate::domain::literals::service::unquoted;
 use crate::domain::literals::types::Written;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::pieces::service::{node, string, token};
 use crate::domain::pieces::types::Pieces;
 use crate::domain::statements::service::{
@@ -41,7 +41,7 @@ fn comment(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, from: ByteIndex,
 
 /// Finds the nodes and tokens of a string: a `BasicLit` over a string token, with the text the string stands for when it is text.
 fn text(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, from: ByteIndex, to: ByteIndex) {
-    node(pieces, Node::BasicLit, from, to);
+    node(pieces, GoNode::BasicLit, from, to);
     match unquoted(Written(written(tree, at).0)) {
         Some(value) => string(pieces, from, to, NameText(&value.0)),
         None => token(pieces, Token::String, from, to),
@@ -49,12 +49,12 @@ fn text(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, from: ByteIndex, to
 }
 
 /// Finds a node over the same bytes, a `CaseClause` being a `CommClause` in a `select`, as the other clauses of it are.
-fn same(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, kind: Node) -> Descent {
-    if kind == Node::StarExpr && pieces.consumed.contains(&at) {
+fn same(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, kind: GoNode) -> Descent {
+    if kind == GoNode::StarExpr && pieces.consumed.contains(&at) {
         return Descent::Below;
     }
-    let kind = if kind == Node::CaseClause && parent_form(tree, at) == Some(Form::Select) {
-        Node::CommClause
+    let kind = if kind == GoNode::CaseClause && parent_form(tree, at) == Some(Form::Select) {
+        GoNode::CommClause
     } else {
         kind
     };
@@ -86,8 +86,8 @@ fn build(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, form: Form) {
         Form::ImplicitArray => implicit_array(tree, pieces, at),
         Form::Elements => elements(tree, pieces, at),
         Form::Declaration | Form::Import => declaration(tree, pieces, at),
-        Form::Switch => clauses(tree, pieces, Node::SwitchStmt, at),
-        Form::Select => clauses(tree, pieces, Node::SelectStmt, at),
+        Form::Switch => clauses(tree, pieces, GoNode::SwitchStmt, at),
+        Form::Select => clauses(tree, pieces, GoNode::SelectStmt, at),
         Form::TypeSwitch => type_switch(tree, pieces, at),
         Form::Loop => repetition(tree, pieces, at),
         Form::Receive => receive(tree, pieces, at),
@@ -124,17 +124,17 @@ fn find_at(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, silence: Silence
             Descent::Stop
         }
         Form::Name | Form::TypeName => {
-            node(pieces, Node::Ident, from, to);
+            node(pieces, GoNode::Ident, from, to);
             token(pieces, Token::Ident, from, to);
             Descent::Stop
         }
         Form::Dot => {
-            node(pieces, Node::Ident, from, to);
+            node(pieces, GoNode::Ident, from, to);
             token(pieces, Token::Period, from, to);
             Descent::Stop
         }
         Form::Literal(kind) => {
-            node(pieces, Node::BasicLit, from, to);
+            node(pieces, GoNode::BasicLit, from, to);
             token(pieces, kind, from, to);
             Descent::Stop
         }
@@ -153,10 +153,10 @@ fn find_at(tree: &Concrete<'_>, pieces: &mut Pieces, at: Index, silence: Silence
                 Descent::Below
             }
         }
-        Form::Node(Node::Field) | Form::Variadic if silence == Silence::Quiet => Descent::Below,
+        Form::Node(GoNode::Field) | Form::Variadic if silence == Silence::Quiet => Descent::Below,
         Form::Node(kind) => same(tree, pieces, at, kind),
         Form::Parameters => {
-            node(pieces, Node::FieldList, from, to);
+            node(pieces, GoNode::FieldList, from, to);
             match fields(tree, pieces, at) {
                 Grouping::Grouped => Descent::Fieldless,
                 Grouping::Ungrouped => Descent::Below,

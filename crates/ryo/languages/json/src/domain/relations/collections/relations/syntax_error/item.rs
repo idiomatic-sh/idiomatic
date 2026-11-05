@@ -1,7 +1,7 @@
 //! The `syntax_error` relation of the language: every diagnostic of the parser, kept beside the recovered tree.
 
 use crate::domain::model::types::Model;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JsonNode;
 use crate::domain::syntax::service::{
     diagnostic_id, diagnostic_message, diagnostic_span, is_root, kind_bits,
 };
@@ -13,7 +13,7 @@ pub(crate) struct SyntaxErrorItem;
 
 ryo::reads! {
     SyntaxErrorItem => languages::SyntaxError, model(Model) |tree, model, at, symbols| {
-        kinds: [Kind::Node(Node::JsonText)] as kind_bits,
+        kinds: [Kind::Node(JsonNode::JsonText)] as kind_bits,
         require (is_root(tree, at) == Rootness::Root);
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
             given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));

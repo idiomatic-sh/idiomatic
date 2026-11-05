@@ -2,7 +2,7 @@
 //! and no inherent impl. A kind of node or token is a node, a token or an extra, named in kebab case; the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JavaScriptNode;
 use crate::domain::tokens::types::Token;
 
 /// What a node or a token of a javascript syntax tree is: a node or a token of the standard, or an extra the standard lacks. The element table
@@ -10,7 +10,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
-    Node(Node),
+    Node(JavaScriptNode),
     /// A token.
     Token(Token),
     /// A kind the standard lacks.
@@ -23,7 +23,7 @@ pub(crate) enum Leaf {
     /// A token.
     Token,
     /// A node.
-    Node,
+    JavaScriptNode,
 }
 
 /// Whether a function of the tree is declared: a function declaration, or the body of a method, which its key names; a function

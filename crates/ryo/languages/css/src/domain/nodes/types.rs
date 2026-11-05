@@ -18,7 +18,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum Node {
+pub(crate) enum CssNode {
     /// A stylesheet: a list of rules, the whole file.
     Stylesheet,
     /// A qualified rule: a prelude, then its declarations and child rules, `a > b { .. }`.

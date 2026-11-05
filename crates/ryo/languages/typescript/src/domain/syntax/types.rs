@@ -2,7 +2,7 @@
 //! and no inherent impl. A kind of node or token is a node, a token or an extra, named in kebab case; the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 use crate::domain::tokens::types::Token;
 
 /// What a node or a token of a typescript syntax tree is: a node or a token of the standard, or an extra the standard lacks. The element table
@@ -10,7 +10,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
-    Node(Node),
+    Node(TypeScriptNode),
     /// A token.
     Token(Token),
     /// A kind the standard lacks.
@@ -23,7 +23,7 @@ pub(crate) enum Leaf {
     /// A token.
     Token,
     /// A node.
-    Node,
+    TypeScriptNode,
 }
 
 /// How the text of a file is read, as its extension names it: TypeScript, TypeScript with JSX, TypeScript that is always a module or

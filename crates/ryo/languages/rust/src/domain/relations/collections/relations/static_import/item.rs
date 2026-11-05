@@ -1,7 +1,7 @@
 //! The `static_import` relation of the language: each name a `use` brings into scope, by the path it imports.
 
 use crate::domain::imports::service::{import_of, leaves};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::{child, kind_bits};
 use crate::domain::syntax::types::Kind;
@@ -12,8 +12,8 @@ pub(crate) struct StaticImportItem;
 
 ryo::reads! {
     StaticImportItem => languages::StaticImport |tree, at, symbols| {
-        kinds: [Kind::Node(Node::Use)] as kind_bits,
-        given use_tree = child(tree, at, Kind::Node(Node::UseTree))?;
+        kinds: [Kind::Node(RustNode::Use)] as kind_bits,
+        given use_tree = child(tree, at, Kind::Node(RustNode::UseTree))?;
         each (leaves(tree, use_tree)) as leaf {
             given import = import_of(tree, symbols, leaf)?;
             row {

@@ -3,7 +3,7 @@
 
 use crate::domain::model::service::scoped;
 use crate::domain::model::types::{Scoped, Sections};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -14,8 +14,8 @@ pub(crate) struct ScopeItem;
 ryo::reads! {
     ScopeItem => languages::Scope, model(Sections) |tree, model, at, _symbols| {
         kinds: [
-            Kind::Node(Node::Root),
-            Kind::Node(Node::Heading),
+            Kind::Node(MarkdownNode::Root),
+            Kind::Node(MarkdownNode::Heading),
         ] as kind_bits,
         when scoped(tree, model, at) {
             Scoped::Document => {

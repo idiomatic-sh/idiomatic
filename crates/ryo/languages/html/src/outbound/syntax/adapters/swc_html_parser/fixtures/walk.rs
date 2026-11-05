@@ -2,7 +2,7 @@
 //! This does not call the production writer or its schemas.
 use crate::domain::{
     extras::types::Extra,
-    nodes::types::Node,
+    nodes::types::HtmlNode,
     syntax::{service::kind_bits, types::Kind},
     tokens::types::Token,
 };
@@ -86,7 +86,7 @@ impl<I: ParserInput> ParserInput for Observed<'_, I> {
 }
 
 /// A node of `kind` over `span`, holding `children`; one the parser implied has no span.
-fn node(kind: Node, span: Span, children: Vec<Walked>) -> Walked {
+fn node(kind: HtmlNode, span: Span, children: Vec<Walked>) -> Walked {
     let (start, end) = if span.is_dummy() {
         (NO_SPAN.start, NO_SPAN.end)
     } else {
@@ -106,10 +106,10 @@ fn node(kind: Node, span: Span, children: Vec<Walked>) -> Walked {
 
 /// The nodes of a node's DOM scalar properties, in the order given: each a node with no bytes of its own, one the DOM leaves empty
 /// left out unless it is a value.
-fn properties(values: &[(Node, &str)]) -> Vec<Walked> {
+fn properties(values: &[(HtmlNode, &str)]) -> Vec<Walked> {
     values
         .iter()
-        .filter(|(kind, value)| !value.is_empty() || *kind == Node::Value)
+        .filter(|(kind, value)| !value.is_empty() || *kind == HtmlNode::Value)
         .map(|(kind, _)| Walked {
             kind: kind_bits(Kind::Node(*kind)),
             leaf: Leafness::Node,
@@ -125,8 +125,8 @@ fn element(value: &Element) -> Walked {
     let mut names = std::collections::HashSet::new();
     let element_namespace = value.namespace.to_string();
     let mut children = properties(&[
-        (Node::Name, &value.tag_name),
-        (Node::Namespace, &element_namespace),
+        (HtmlNode::Name, &value.tag_name),
+        (HtmlNode::Namespace, &element_namespace),
     ]);
     children.extend(
         value
@@ -139,16 +139,16 @@ fn element(value: &Element) -> Walked {
                     .map(|each| each.to_string())
                     .unwrap_or_default();
                 node(
-                    Node::Attribute,
+                    HtmlNode::Attribute,
                     attribute.span,
                     properties(&[
-                        (Node::Name, &attribute.name),
-                        (Node::Namespace, &attribute_namespace),
+                        (HtmlNode::Name, &attribute.name),
+                        (HtmlNode::Namespace, &attribute_namespace),
                         (
-                            Node::Prefix,
+                            HtmlNode::Prefix,
                             attribute.prefix.as_deref().unwrap_or_default(),
                         ),
-                        (Node::Value, attribute.value.as_deref().unwrap_or_default()),
+                        (HtmlNode::Value, attribute.value.as_deref().unwrap_or_default()),
                     ]),
                 )
             }),
@@ -156,12 +156,12 @@ fn element(value: &Element) -> Walked {
     children.extend(value.children.iter().map(visit));
     if let Some(content) = &value.content {
         children.push(node(
-            Node::DocumentFragment,
+            HtmlNode::DocumentFragment,
             content.span,
             content.children.iter().map(visit).collect(),
         ));
     }
-    node(Node::Element, value.span, children)
+    node(HtmlNode::Element, value.span, children)
 }
 
 /// The node of a child of an element or of the document.
@@ -169,26 +169,26 @@ fn visit(value: &Child) -> Walked {
     match value {
         Child::Element(value) => element(value),
         Child::Text(value) => node(
-            Node::Text,
+            HtmlNode::Text,
             value.span,
-            properties(&[(Node::Value, &value.data)]),
+            properties(&[(HtmlNode::Value, &value.data)]),
         ),
         Child::Comment(value) => node(
-            Node::Comment,
+            HtmlNode::Comment,
             value.span,
-            properties(&[(Node::Value, &value.data)]),
+            properties(&[(HtmlNode::Value, &value.data)]),
         ),
         Child::DocumentType(value) => node(
-            Node::DocumentType,
+            HtmlNode::DocumentType,
             value.span,
             properties(&[
-                (Node::Name, value.name.as_deref().unwrap_or_default()),
+                (HtmlNode::Name, value.name.as_deref().unwrap_or_default()),
                 (
-                    Node::PublicId,
+                    HtmlNode::PublicId,
                     value.public_id.as_deref().unwrap_or_default(),
                 ),
                 (
-                    Node::SystemId,
+                    HtmlNode::SystemId,
                     value.system_id.as_deref().unwrap_or_default(),
                 ),
             ]),
@@ -222,9 +222,9 @@ pub(crate) fn walked(text: &str) -> Walked {
         |_| Vec::new(),
         |document| {
             let mode = document.mode.to_string();
-            let mut children = properties(&[(Node::DocumentMode, &mode)]);
+            let mut children = properties(&[(HtmlNode::DocumentMode, &mode)]);
             children.extend(document.children.iter().map(visit));
-            vec![node(Node::Document, document.span, children)]
+            vec![node(HtmlNode::Document, document.span, children)]
         },
     );
     let mut cursor = Offset(0);
@@ -239,7 +239,7 @@ pub(crate) fn walked(text: &str) -> Walked {
         children.push(gap(cursor, end));
     }
     Walked {
-        kind: kind_bits(Kind::Node(Node::SourceFile)),
+        kind: kind_bits(Kind::Node(HtmlNode::SourceFile)),
         leaf: Leafness::Node,
         start: Offset(0),
         end,

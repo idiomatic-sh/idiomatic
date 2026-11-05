@@ -2,7 +2,7 @@
 //! and no inherent impl. A kind of node or token is a node, a token or an extra, named in kebab case; the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::HtmlNode;
 use crate::domain::tokens::types::Token;
 
 /// What a node or a token of a html syntax tree is: a node or a token of the standard, or an extra the standard lacks. The element table
@@ -10,7 +10,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
-    Node(Node),
+    Node(HtmlNode),
     /// A token.
     Token(Token),
     /// A kind the standard lacks.

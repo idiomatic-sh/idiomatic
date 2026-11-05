@@ -2,7 +2,7 @@
 //! of an element under its parent, in the words of `ESTree`: the name of the property of the parent node that holds the child, in kebab
 //! case. One closed list, each name once, `None` first: the number `0` is the role of an edge that has none.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JavaScriptNode;
 
 /// The role of an element under its parent.
 #[derive(
@@ -156,7 +156,7 @@ pub(crate) struct Standing {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KindRole {
     /// The kind of the child.
-    pub node: Node,
+    pub node: JavaScriptNode,
     /// The role it plays.
     pub field: Field,
 }

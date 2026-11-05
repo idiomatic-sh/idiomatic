@@ -3,7 +3,7 @@
 //! read through the parse. The roles are those the labels of `rust.ungram` give; the adapter of the syntax port holds them to the typed
 //! accessors of the library.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::tokens::types::Token;
 use std::sync::Arc;
 
@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() {}",
-                Kind::Node(Node::Fn),
+                Kind::Node(RustNode::Fn),
                 Kind::Token(Token::FnKw),
                 0,
             )
@@ -59,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("name_is_the_role_of_its_edge"),
         word: Word::Succeeds,
-        input: || edge("fn f() {}", Kind::Node(Node::Fn), Kind::Node(Node::Name), 0),
+        input: || edge("fn f() {}", Kind::Node(RustNode::Fn), Kind::Node(RustNode::Name), 0),
         expect: Expect::Value("name"),
     },
     Case {
@@ -68,8 +68,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { g(); }",
-                Kind::Node(Node::PathSegment),
-                Kind::Node(Node::NameRef),
+                Kind::Node(RustNode::PathSegment),
+                Kind::Node(RustNode::NameRef),
                 0,
             )
         },
@@ -81,8 +81,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { g(); }",
-                Kind::Node(Node::PathExpr),
-                Kind::Node(Node::Path),
+                Kind::Node(RustNode::PathExpr),
+                Kind::Node(RustNode::Path),
                 0,
             )
         },
@@ -94,8 +94,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a::b(); }",
-                Kind::Node(Node::Path),
-                Kind::Node(Node::PathSegment),
+                Kind::Node(RustNode::Path),
+                Kind::Node(RustNode::PathSegment),
                 0,
             )
         },
@@ -107,8 +107,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a::b(); }",
-                Kind::Node(Node::Path),
-                Kind::Node(Node::Path),
+                Kind::Node(RustNode::Path),
+                Kind::Node(RustNode::Path),
                 0,
             )
         },
@@ -120,8 +120,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "pub fn f() {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::Visibility),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::Visibility),
                 0,
             )
         },
@@ -133,8 +133,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "#[a] fn f() {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::Attr),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::Attr),
                 0,
             )
         },
@@ -146,8 +146,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f<'a>() {}",
-                Kind::Node(Node::LifetimeParam),
-                Kind::Node(Node::Lifetime),
+                Kind::Node(RustNode::LifetimeParam),
+                Kind::Node(RustNode::Lifetime),
                 0,
             )
         },
@@ -159,8 +159,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { 'a: loop {} }",
-                Kind::Node(Node::LoopExpr),
-                Kind::Node(Node::Label),
+                Kind::Node(RustNode::LoopExpr),
+                Kind::Node(RustNode::Label),
                 0,
             )
         },
@@ -172,8 +172,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "extern \"C\" fn f() {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::Abi),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::Abi),
                 0,
             )
         },
@@ -185,8 +185,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "use a as b;",
-                Kind::Node(Node::UseTree),
-                Kind::Node(Node::Rename),
+                Kind::Node(RustNode::UseTree),
+                Kind::Node(RustNode::Rename),
                 0,
             )
         },
@@ -198,8 +198,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f<T>() {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::GenericParamList),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::GenericParamList),
                 0,
             )
         },
@@ -211,8 +211,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { g::<u8>(); }",
-                Kind::Node(Node::PathSegment),
-                Kind::Node(Node::GenericArgList),
+                Kind::Node(RustNode::PathSegment),
+                Kind::Node(RustNode::GenericArgList),
                 0,
             )
         },
@@ -224,8 +224,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() where T: A {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::WhereClause),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::WhereClause),
                 0,
             )
         },
@@ -237,8 +237,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f(a: u8) {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::ParamList),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::ParamList),
                 0,
             )
         },
@@ -250,8 +250,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() -> u8 {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::RetType),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::RetType),
                 0,
             )
         },
@@ -263,8 +263,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { g(1); }",
-                Kind::Node(Node::CallExpr),
-                Kind::Node(Node::ArgList),
+                Kind::Node(RustNode::CallExpr),
+                Kind::Node(RustNode::ArgList),
                 0,
             )
         },
@@ -276,8 +276,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "mod m { fn f() {} }",
-                Kind::Node(Node::Module),
-                Kind::Node(Node::ItemList),
+                Kind::Node(RustNode::Module),
+                Kind::Node(RustNode::ItemList),
                 0,
             )
         },
@@ -289,8 +289,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "impl T { fn f() {} }",
-                Kind::Node(Node::Impl),
-                Kind::Node(Node::AssocItemList),
+                Kind::Node(RustNode::Impl),
+                Kind::Node(RustNode::AssocItemList),
                 0,
             )
         },
@@ -302,8 +302,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "struct S { a: u8 }",
-                Kind::Node(Node::Struct),
-                Kind::Node(Node::RecordFieldList),
+                Kind::Node(RustNode::Struct),
+                Kind::Node(RustNode::RecordFieldList),
                 0,
             )
         },
@@ -315,8 +315,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "struct S(u8);",
-                Kind::Node(Node::Struct),
-                Kind::Node(Node::TupleFieldList),
+                Kind::Node(RustNode::Struct),
+                Kind::Node(RustNode::TupleFieldList),
                 0,
             )
         },
@@ -328,8 +328,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "enum E { A }",
-                Kind::Node(Node::Enum),
-                Kind::Node(Node::VariantList),
+                Kind::Node(RustNode::Enum),
+                Kind::Node(RustNode::VariantList),
                 0,
             )
         },
@@ -341,8 +341,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { match x { _ => 1 } }",
-                Kind::Node(Node::MatchExpr),
-                Kind::Node(Node::MatchArmList),
+                Kind::Node(RustNode::MatchExpr),
+                Kind::Node(RustNode::MatchArmList),
                 0,
             )
         },
@@ -354,8 +354,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() {}",
-                Kind::Node(Node::BlockExpr),
-                Kind::Node(Node::StmtList),
+                Kind::Node(RustNode::BlockExpr),
+                Kind::Node(RustNode::StmtList),
                 0,
             )
         },
@@ -367,8 +367,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "use a::{b};",
-                Kind::Node(Node::UseTree),
-                Kind::Node(Node::UseTreeList),
+                Kind::Node(RustNode::UseTree),
+                Kind::Node(RustNode::UseTreeList),
                 0,
             )
         },
@@ -380,8 +380,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { S { a: 1 }; }",
-                Kind::Node(Node::RecordExpr),
-                Kind::Node(Node::RecordExprFieldList),
+                Kind::Node(RustNode::RecordExpr),
+                Kind::Node(RustNode::RecordExprFieldList),
                 0,
             )
         },
@@ -393,8 +393,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { let S { a } = s; }",
-                Kind::Node(Node::RecordPat),
-                Kind::Node(Node::RecordPatFieldList),
+                Kind::Node(RustNode::RecordPat),
+                Kind::Node(RustNode::RecordPatFieldList),
                 0,
             )
         },
@@ -406,8 +406,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "use a;",
-                Kind::Node(Node::Use),
-                Kind::Node(Node::UseTree),
+                Kind::Node(RustNode::Use),
+                Kind::Node(RustNode::UseTree),
                 0,
             )
         },
@@ -419,8 +419,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { let a = b else { return }; }",
-                Kind::Node(Node::LetStmt),
-                Kind::Node(Node::LetElse),
+                Kind::Node(RustNode::LetStmt),
+                Kind::Node(RustNode::LetElse),
                 0,
             )
         },
@@ -432,8 +432,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() {}",
-                Kind::Node(Node::SourceFile),
-                Kind::Node(Node::Fn),
+                Kind::Node(RustNode::SourceFile),
+                Kind::Node(RustNode::Fn),
                 0,
             )
         },
@@ -445,8 +445,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { let a = 1; }",
-                Kind::Node(Node::StmtList),
-                Kind::Node(Node::LetStmt),
+                Kind::Node(RustNode::StmtList),
+                Kind::Node(RustNode::LetStmt),
                 0,
             )
         },
@@ -458,8 +458,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { 1 }",
-                Kind::Node(Node::StmtList),
-                Kind::Node(Node::Literal),
+                Kind::Node(RustNode::StmtList),
+                Kind::Node(RustNode::Literal),
                 0,
             )
         },
@@ -471,8 +471,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { x.y; }",
-                Kind::Node(Node::FieldExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::FieldExpr),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -484,8 +484,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f(a: u8) {}",
-                Kind::Node(Node::Param),
-                Kind::Node(Node::IdentPat),
+                Kind::Node(RustNode::Param),
+                Kind::Node(RustNode::IdentPat),
                 0,
             )
         },
@@ -497,8 +497,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f(a: u8) {}",
-                Kind::Node(Node::Param),
-                Kind::Node(Node::PathType),
+                Kind::Node(RustNode::Param),
+                Kind::Node(RustNode::PathType),
                 0,
             )
         },
@@ -510,8 +510,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "struct S { a: u8 }",
-                Kind::Node(Node::RecordFieldList),
-                Kind::Node(Node::RecordField),
+                Kind::Node(RustNode::RecordFieldList),
+                Kind::Node(RustNode::RecordField),
                 0,
             )
         },
@@ -523,8 +523,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "enum E { A }",
-                Kind::Node(Node::VariantList),
-                Kind::Node(Node::Variant),
+                Kind::Node(RustNode::VariantList),
+                Kind::Node(RustNode::Variant),
                 0,
             )
         },
@@ -536,8 +536,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f(a: u8) {}",
-                Kind::Node(Node::ParamList),
-                Kind::Node(Node::Param),
+                Kind::Node(RustNode::ParamList),
+                Kind::Node(RustNode::Param),
                 0,
             )
         },
@@ -549,8 +549,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { g(1); }",
-                Kind::Node(Node::ArgList),
-                Kind::Node(Node::Literal),
+                Kind::Node(RustNode::ArgList),
+                Kind::Node(RustNode::Literal),
                 0,
             )
         },
@@ -562,8 +562,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { match x { _ => 1 } }",
-                Kind::Node(Node::MatchArmList),
-                Kind::Node(Node::MatchArm),
+                Kind::Node(RustNode::MatchArmList),
+                Kind::Node(RustNode::MatchArm),
                 0,
             )
         },
@@ -575,8 +575,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f<T: A>() {}",
-                Kind::Node(Node::TypeBoundList),
-                Kind::Node(Node::TypeBound),
+                Kind::Node(RustNode::TypeBoundList),
+                Kind::Node(RustNode::TypeBound),
                 0,
             )
         },
@@ -588,8 +588,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() where T: A {}",
-                Kind::Node(Node::WhereClause),
-                Kind::Node(Node::WherePred),
+                Kind::Node(RustNode::WhereClause),
+                Kind::Node(RustNode::WherePred),
                 0,
             )
         },
@@ -601,8 +601,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { if a {} }",
-                Kind::Node(Node::IfExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::IfExpr),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -614,8 +614,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { if a {} }",
-                Kind::Node(Node::IfExpr),
-                Kind::Node(Node::BlockExpr),
+                Kind::Node(RustNode::IfExpr),
+                Kind::Node(RustNode::BlockExpr),
                 0,
             )
         },
@@ -627,8 +627,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { if a {} else {} }",
-                Kind::Node(Node::IfExpr),
-                Kind::Node(Node::BlockExpr),
+                Kind::Node(RustNode::IfExpr),
+                Kind::Node(RustNode::BlockExpr),
                 1,
             )
         },
@@ -640,8 +640,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { loop {} }",
-                Kind::Node(Node::LoopExpr),
-                Kind::Node(Node::BlockExpr),
+                Kind::Node(RustNode::LoopExpr),
+                Kind::Node(RustNode::BlockExpr),
                 0,
             )
         },
@@ -653,8 +653,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { for a in b {} }",
-                Kind::Node(Node::ForExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::ForExpr),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -666,8 +666,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a.b(); }",
-                Kind::Node(Node::MethodCallExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::MethodCallExpr),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -679,8 +679,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a + b; }",
-                Kind::Node(Node::BinExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::BinExpr),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -692,8 +692,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a + b; }",
-                Kind::Node(Node::BinExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::BinExpr),
+                Kind::Node(RustNode::PathExpr),
                 1,
             )
         },
@@ -705,7 +705,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a + b; }",
-                Kind::Node(Node::BinExpr),
+                Kind::Node(RustNode::BinExpr),
                 Kind::Token(Token::Plus),
                 0,
             )
@@ -718,8 +718,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a[b]; }",
-                Kind::Node(Node::IndexExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::IndexExpr),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -731,8 +731,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a[b]; }",
-                Kind::Node(Node::IndexExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::IndexExpr),
+                Kind::Node(RustNode::PathExpr),
                 1,
             )
         },
@@ -744,8 +744,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a..b; }",
-                Kind::Node(Node::RangeExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::RangeExpr),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -757,8 +757,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { a..b; }",
-                Kind::Node(Node::RangeExpr),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::RangeExpr),
+                Kind::Node(RustNode::PathExpr),
                 1,
             )
         },
@@ -770,8 +770,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { S { ..a }; }",
-                Kind::Node(Node::RecordExprFieldList),
-                Kind::Node(Node::PathExpr),
+                Kind::Node(RustNode::RecordExprFieldList),
+                Kind::Node(RustNode::PathExpr),
                 0,
             )
         },
@@ -783,8 +783,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { let a = 1; }",
-                Kind::Node(Node::LetStmt),
-                Kind::Node(Node::Literal),
+                Kind::Node(RustNode::LetStmt),
+                Kind::Node(RustNode::Literal),
                 0,
             )
         },
@@ -796,8 +796,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() { match x { _ if y => 1 } }",
-                Kind::Node(Node::MatchArm),
-                Kind::Node(Node::MatchGuard),
+                Kind::Node(RustNode::MatchArm),
+                Kind::Node(RustNode::MatchGuard),
                 0,
             )
         },
@@ -809,8 +809,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f() {}",
-                Kind::Node(Node::Fn),
-                Kind::Node(Node::BlockExpr),
+                Kind::Node(RustNode::Fn),
+                Kind::Node(RustNode::BlockExpr),
                 0,
             )
         },
@@ -822,8 +822,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "impl A for B {}",
-                Kind::Node(Node::Impl),
-                Kind::Node(Node::PathType),
+                Kind::Node(RustNode::Impl),
+                Kind::Node(RustNode::PathType),
                 1,
             )
         },
@@ -835,8 +835,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "impl A for B {}",
-                Kind::Node(Node::Impl),
-                Kind::Node(Node::PathType),
+                Kind::Node(RustNode::Impl),
+                Kind::Node(RustNode::PathType),
                 0,
             )
         },
@@ -848,8 +848,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f<T = u8>() {}",
-                Kind::Node(Node::TypeParam),
-                Kind::Node(Node::PathType),
+                Kind::Node(RustNode::TypeParam),
+                Kind::Node(RustNode::PathType),
                 0,
             )
         },
@@ -861,8 +861,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "fn f<const N: usize = 1>() {}",
-                Kind::Node(Node::ConstParam),
-                Kind::Node(Node::ConstArg),
+                Kind::Node(RustNode::ConstParam),
+                Kind::Node(RustNode::ConstArg),
                 0,
             )
         },
@@ -874,7 +874,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "#[cfg(unix)] fn f() {}",
-                Kind::Node(Node::CfgAtom),
+                Kind::Node(RustNode::CfgAtom),
                 Kind::Token(Token::Ident),
                 0,
             )

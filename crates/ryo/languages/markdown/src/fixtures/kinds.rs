@@ -1,7 +1,7 @@
 //! How each kind of the language's trees is shown: the source whose tree holds it, or the reason no relation reads it.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use crate::domain::tokens::types::Token;
 use ryo::languages::contract::KindSample;
 use ryo::languages::{KindName, Sample, SampleText, Why};
@@ -29,30 +29,30 @@ pub(super) fn shown() -> Vec<KindSample> {
 #[must_use]
 pub(crate) const fn sample(kind: Kind) -> Sample {
     match kind {
-        Kind::Node(Node::Root) => Sample::Node(SampleText("")),
-        Kind::Node(Node::Html) => Sample::Node(SampleText("<!-- a -->\n")),
-        Kind::Node(Node::InlineCode) => Sample::Token(SampleText("`a`\n")),
-        Kind::Node(Node::Code) => Sample::Node(SampleText("```\na\n```\n")),
-        Kind::Node(Node::Paragraph) => Sample::Node(SampleText("a\n")),
-        Kind::Node(Node::Heading) => Sample::Node(SampleText("# a\n")),
-        Kind::Node(Node::ListItem) => Sample::Node(SampleText("- a\n")),
-        Kind::Node(Node::TableCell) => Sample::Node(SampleText("| a |\n|---|\n| b |\n")),
-        Kind::Node(Node::Link) => Sample::Node(SampleText("[a](b)\n")),
-        Kind::Node(Node::LinkReference) => Sample::Node(SampleText("[a][b]\n\n[b]: c\n")),
-        Kind::Node(Node::Image) => Sample::Node(SampleText("![a](b)\n")),
-        Kind::Node(Node::ImageReference) => Sample::Node(SampleText("![a][b]\n\n[b]: c\n")),
-        Kind::Node(Node::FootnoteDefinition) => Sample::Node(SampleText("a[^1]\n\n[^1]: b\n")),
-        Kind::Node(Node::Definition) => Sample::Token(SampleText("[a]\n\n[a]: b\n")),
+        Kind::Node(MarkdownNode::Root) => Sample::Node(SampleText("")),
+        Kind::Node(MarkdownNode::Html) => Sample::Node(SampleText("<!-- a -->\n")),
+        Kind::Node(MarkdownNode::InlineCode) => Sample::Token(SampleText("`a`\n")),
+        Kind::Node(MarkdownNode::Code) => Sample::Node(SampleText("```\na\n```\n")),
+        Kind::Node(MarkdownNode::Paragraph) => Sample::Node(SampleText("a\n")),
+        Kind::Node(MarkdownNode::Heading) => Sample::Node(SampleText("# a\n")),
+        Kind::Node(MarkdownNode::ListItem) => Sample::Node(SampleText("- a\n")),
+        Kind::Node(MarkdownNode::TableCell) => Sample::Node(SampleText("| a |\n|---|\n| b |\n")),
+        Kind::Node(MarkdownNode::Link) => Sample::Node(SampleText("[a](b)\n")),
+        Kind::Node(MarkdownNode::LinkReference) => Sample::Node(SampleText("[a][b]\n\n[b]: c\n")),
+        Kind::Node(MarkdownNode::Image) => Sample::Node(SampleText("![a](b)\n")),
+        Kind::Node(MarkdownNode::ImageReference) => Sample::Node(SampleText("![a][b]\n\n[b]: c\n")),
+        Kind::Node(MarkdownNode::FootnoteDefinition) => Sample::Node(SampleText("a[^1]\n\n[^1]: b\n")),
+        Kind::Node(MarkdownNode::Definition) => Sample::Token(SampleText("[a]\n\n[a]: b\n")),
         Kind::Node(
-            Node::Blockquote
-            | Node::List
-            | Node::Table
-            | Node::TableRow
-            | Node::Emphasis
-            | Node::Strong
-            | Node::Delete
-            | Node::FootnoteReference
-            | Node::ThematicBreak,
+            MarkdownNode::Blockquote
+            | MarkdownNode::List
+            | MarkdownNode::Table
+            | MarkdownNode::TableRow
+            | MarkdownNode::Emphasis
+            | MarkdownNode::Strong
+            | MarkdownNode::Delete
+            | MarkdownNode::FootnoteReference
+            | MarkdownNode::ThematicBreak,
         )
         | Kind::Extra(
             Extra::Yaml
@@ -69,7 +69,7 @@ pub(crate) const fn sample(kind: Kind) -> Sample {
             | Extra::Superscript
             | Extra::Subscript,
         ) => Sample::Unread(Why(EXTENSION_OFF)),
-        Kind::Node(Node::Text | Node::Break) | Kind::Token(Token::LineEnding) => {
+        Kind::Node(MarkdownNode::Text | MarkdownNode::Break) | Kind::Token(Token::LineEnding) => {
             Sample::Unread(Why(PROSE))
         }
         Kind::Token(Token::CodeFlowValue | Token::HtmlFlowData) => {

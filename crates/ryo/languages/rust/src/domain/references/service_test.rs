@@ -1,6 +1,6 @@
 //! The `references` service's cases, on trees written by hand: each answers what the service said, in full.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use ryo::languages::{self, Position, Tree};
 
 use super::service::{is_single, is_written_use};
@@ -43,7 +43,7 @@ fn subject((source, question): Input) -> Result<Value, Failure> {
         file: languages::FileId(0),
     };
     let path: Position = languages::positions(tree.elements)
-        .find(|at| kind(&tree, *at) == Kind::Node(Node::Path))
+        .find(|at| kind(&tree, *at) == Kind::Node(RustNode::Path))
         .ok_or(())?;
     Ok(match question {
         Question::Single => Answer::Singleness(is_single(&tree, path)),

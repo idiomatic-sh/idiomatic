@@ -4,7 +4,7 @@
 use ryo::languages::{self, Tree};
 
 use super::types::Gap;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::HtmlNode;
 use crate::domain::syntax::constants::{BREAK, CODE, INLINE, SCRIPT, STYLE, TEMPLATE, WORD_SPACE};
 use crate::domain::syntax::service::{field, kind, owner, parent, section};
 use crate::domain::syntax::types::{Flow, Kind, Property, Readability, Section, Wording};
@@ -50,7 +50,7 @@ pub(crate) fn flow(tree: &Tree<'_>, at: languages::Position) -> Flow {
 /// text, in itself or in the inline elements it holds, besides code.
 #[must_use]
 pub(crate) fn run_words(tree: &Tree<'_>, at: languages::Position) -> Wording {
-    if kind(tree, at) != Kind::Node(Node::Element)
+    if kind(tree, at) != Kind::Node(HtmlNode::Element)
         || flow(tree, at) == Flow::Inline
         || readable(tree, at) == Readability::Excluded
     {
@@ -85,7 +85,7 @@ fn gather(
 ) {
     for child in languages::children(tree.elements, at) {
         match kind(tree, child) {
-            Kind::Node(Node::Text) => {
+            Kind::Node(HtmlNode::Text) => {
                 let text = field(tree, child, Property::Value).0;
                 if text.starts_with(char::is_whitespace) {
                     *gap = Gap::Open;
@@ -106,7 +106,7 @@ fn gather(
                     };
                 }
             }
-            Kind::Node(Node::Element) => {
+            Kind::Node(HtmlNode::Element) => {
                 let name = field(tree, child, Property::Name).0;
                 if name == CODE || name == BREAK || flow(tree, child) == Flow::Block {
                     *gap = Gap::Open;

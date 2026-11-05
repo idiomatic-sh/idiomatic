@@ -1,6 +1,6 @@
 //! What the `parse` contract promises, against the fake of the syntax port.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::tokens::types::Token;
 use ryo::languages;
 use std::sync::Arc;
@@ -63,11 +63,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// The tree the fake makes of the bytes `sample`: a file holding one function named for them.
 fn sample() -> Piece {
     node(
-        Kind::Node(Node::SourceFile),
+        Kind::Node(RustNode::SourceFile),
         vec![node(
-            Kind::Node(Node::Fn),
+            Kind::Node(RustNode::Fn),
             vec![node(
-                Kind::Node(Node::Name),
+                Kind::Node(RustNode::Name),
                 vec![token(Kind::Token(Token::Ident), "sample")],
             )],
         )],

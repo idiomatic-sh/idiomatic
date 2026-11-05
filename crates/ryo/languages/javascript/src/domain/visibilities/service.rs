@@ -1,7 +1,7 @@
 //! The visibilities of the JavaScript tree: `export` and `export default` on a declaration, each written on the declaration's node.
 use super::constants::SPACE;
 use super::types::{Declaring, Visible};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JavaScriptNode;
 use crate::domain::syntax::service::{kind, nodes};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -10,10 +10,10 @@ use ryo::languages::{self, Position, Span, Symbol, Symbols, Tree};
 /// Whether the node at `at` declares a name of its own: a named function or class, or a declarator.
 fn declares(tree: &Tree<'_>, at: Position) -> Declaring {
     let declares = match kind(tree, at) {
-        Kind::Node(Node::FunctionDeclaration | Node::ClassDeclaration) => {
-            nodes(tree, at).any(|child| kind(tree, child) == Kind::Node(Node::Identifier))
+        Kind::Node(JavaScriptNode::FunctionDeclaration | JavaScriptNode::ClassDeclaration) => {
+            nodes(tree, at).any(|child| kind(tree, child) == Kind::Node(JavaScriptNode::Identifier))
         }
-        Kind::Node(Node::VariableDeclarator) => true,
+        Kind::Node(JavaScriptNode::VariableDeclarator) => true,
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,
     };
     if declares {
@@ -26,7 +26,7 @@ fn declares(tree: &Tree<'_>, at: Position) -> Declaring {
 /// The declarations an export holds, each by its own node: the declarators of a variable declaration, or the one declaration.
 fn exported<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
     let held = nodes(tree, at).next();
-    let variables = held.filter(|each| kind(tree, *each) == Kind::Node(Node::VariableDeclaration));
+    let variables = held.filter(|each| kind(tree, *each) == Kind::Node(JavaScriptNode::VariableDeclaration));
     let own =
         held.filter(|each| variables.is_none() && declares(tree, *each) == Declaring::Declares);
     own.into_iter()

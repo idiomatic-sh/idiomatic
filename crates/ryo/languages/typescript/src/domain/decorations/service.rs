@@ -3,18 +3,18 @@ use crate::domain::names::constants::{
     BLOCK_COMMENT, BLOCK_END, CLOSE_PARAMETERS, LINE_COMMENT, OPEN_PARAMETERS,
 };
 use crate::domain::names::service::nodes;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 use crate::domain::syntax::{service::kind, types::Kind};
 use ryo::languages::{self, ByteSlice, Offset, Position, Symbol, Symbols, Tree};
 /// The arguments the decorator at `at` passes, as written between the parentheses of its call, or nothing when it is no call.
 pub(crate) fn arguments(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
-    let call = nodes(tree, at).find(|child| kind(tree, *child) == Kind::Node(Node::CallExpression));
+    let call = nodes(tree, at).find(|child| kind(tree, *child) == Kind::Node(TypeScriptNode::CallExpression));
     let between = call.and_then(|call| {
         let mut parts = nodes(tree, call);
         let callee = parts.next()?;
         let mut after = languages::end_at(tree.elements, callee);
         if let Some(generic) = parts.next()
-            && kind(tree, generic) == Kind::Node(Node::TSTypeParameterInstantiation)
+            && kind(tree, generic) == Kind::Node(TypeScriptNode::TSTypeParameterInstantiation)
         {
             after = languages::end_at(tree.elements, generic);
         }

@@ -3,7 +3,7 @@
 use ryo::languages::{self, Count, Position, Symbol, Tree};
 
 use super::types::{Declares, Underlying};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::{kind, nodes, parent, token, tokens};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -62,8 +62,8 @@ pub(crate) fn underlying(tree: &Tree<'_>, spec: Position) -> Underlying {
         return Underlying::Alias;
     }
     match declared_type(tree, spec).map(|each| kind(tree, each)) {
-        Some(Kind::Node(Node::StructType)) => Underlying::Structure,
-        Some(Kind::Node(Node::InterfaceType)) => Underlying::Interface,
+        Some(Kind::Node(GoNode::StructType)) => Underlying::Structure,
+        Some(Kind::Node(GoNode::InterfaceType)) => Underlying::Interface,
         Some(Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) | None => Underlying::Other,
     }
 }
@@ -73,7 +73,7 @@ pub(crate) fn underlying(tree: &Tree<'_>, spec: Position) -> Underlying {
 pub(crate) fn name(tree: &Tree<'_>, spec: Position) -> Option<Position> {
     nodes(tree, spec)
         .next()
-        .filter(|each| kind(tree, *each) == Kind::Node(Node::Ident))
+        .filter(|each| kind(tree, *each) == Kind::Node(GoNode::Ident))
 }
 
 /// The name the `ImportSpec` at `spec` gives the package: the identifier before the path.
@@ -81,13 +81,13 @@ pub(crate) fn name(tree: &Tree<'_>, spec: Position) -> Option<Position> {
 pub(crate) fn import_name(tree: &Tree<'_>, spec: Position) -> Option<Position> {
     let mut each = nodes(tree, spec);
     let first = each.next()?;
-    (each.next().is_some() && kind(tree, first) == Kind::Node(Node::Ident)).then_some(first)
+    (each.next().is_some() && kind(tree, first) == Kind::Node(GoNode::Ident)).then_some(first)
 }
 
 /// The path the `ImportSpec` at `spec` imports: its string literal.
 #[must_use]
 pub(crate) fn import_path(tree: &Tree<'_>, spec: Position) -> Option<Position> {
-    nodes(tree, spec).find(|each| kind(tree, *each) == Kind::Node(Node::BasicLit))
+    nodes(tree, spec).find(|each| kind(tree, *each) == Kind::Node(GoNode::BasicLit))
 }
 
 /// The identifier at `ident`, when it is written as a type: the type of a field, a pointer, an array, a map, a channel, a variadic
@@ -100,12 +100,12 @@ pub(crate) fn written_as_type(tree: &Tree<'_>, ident: Position) -> Option<Positi
     let last = nodes(tree, above).last();
     let typed = match kind(tree, above) {
         Kind::Node(
-            Node::StarExpr | Node::MapType | Node::ChanType | Node::Ellipsis | Node::ArrayType,
+            GoNode::StarExpr | GoNode::MapType | GoNode::ChanType | GoNode::Ellipsis | GoNode::ArrayType,
         ) => Some(ident),
-        Kind::Node(Node::IndexExpr | Node::IndexListExpr | Node::CompositeLit) => first,
-        Kind::Node(Node::Field | Node::TypeAssertExpr) => last,
-        Kind::Node(Node::TypeSpec) => last.filter(|_| first != last),
-        Kind::Node(Node::ValueSpec) => value_type(tree, above),
+        Kind::Node(GoNode::IndexExpr | GoNode::IndexListExpr | GoNode::CompositeLit) => first,
+        Kind::Node(GoNode::Field | GoNode::TypeAssertExpr) => last,
+        Kind::Node(GoNode::TypeSpec) => last.filter(|_| first != last),
+        Kind::Node(GoNode::ValueSpec) => value_type(tree, above),
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => None,
     };
     typed.filter(|each| *each == ident)
@@ -114,16 +114,16 @@ pub(crate) fn written_as_type(tree: &Tree<'_>, ident: Position) -> Option<Positi
 /// The `type` spec of the declaration `declaration` that is named `name`.
 fn spec_named(tree: &Tree<'_>, declaration: Position, name: Symbol) -> Option<Position> {
     nodes(tree, declaration).find(|each| {
-        kind(tree, *each) == Kind::Node(Node::TypeSpec) && name_of_spec(tree, *each) == Some(name)
+        kind(tree, *each) == Kind::Node(GoNode::TypeSpec) && name_of_spec(tree, *each) == Some(name)
     })
 }
 
 /// The type declaration of the scope `scope` that is named `name`, when it declares one: the `type` declarations of a file or a block.
 fn declares_type(tree: &Tree<'_>, scope: Position, name: Symbol) -> Option<Position> {
     nodes(tree, scope).find_map(|each| match kind(tree, each) {
-        Kind::Node(Node::GenDecl) => spec_named(tree, each, name),
-        Kind::Node(Node::DeclStmt) => nodes(tree, each)
-            .filter(|inner| kind(tree, *inner) == Kind::Node(Node::GenDecl))
+        Kind::Node(GoNode::GenDecl) => spec_named(tree, each, name),
+        Kind::Node(GoNode::DeclStmt) => nodes(tree, each)
+            .filter(|inner| kind(tree, *inner) == Kind::Node(GoNode::GenDecl))
             .find_map(|inner| spec_named(tree, inner, name)),
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => None,
     })
@@ -140,7 +140,7 @@ pub(crate) fn binding_of(tree: &Tree<'_>, at: Position, name: Symbol) -> Option<
     let mut above = at;
     while parent(tree, above) != above {
         above = parent(tree, above);
-        if matches!(kind(tree, above), Kind::Node(Node::File | Node::BlockStmt))
+        if matches!(kind(tree, above), Kind::Node(GoNode::File | GoNode::BlockStmt))
             && let Some(found) = declares_type(tree, above, name)
         {
             return Some(found);
@@ -157,7 +157,7 @@ pub(crate) fn holder(tree: &Tree<'_>, at: Position) -> languages::NodeId {
         above = parent(tree, above);
         if matches!(
             kind(tree, above),
-            Kind::Node(Node::TypeSpec | Node::FuncDecl)
+            Kind::Node(GoNode::TypeSpec | GoNode::FuncDecl)
         ) {
             return languages::node_id(tree.file, above);
         }

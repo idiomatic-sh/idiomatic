@@ -12,7 +12,7 @@
 //! The library's names stop here; what leaves is the language's own `Kind`.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TomlNode;
 use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Count, NameText, Offset};
 use toml_parser::decoder::{Encoding, ScalarKind};
@@ -26,7 +26,7 @@ use crate::outbound::syntax::types::SourceText;
 
 use super::constants::{DIGIT_SEPARATOR, NESTING, NOT_UTF8};
 use super::schemas::{event_kind, reports, scalar_kind, string_kind};
-use super::types::{Decoded, Decoding, Held, Opened, Part, Reading, Scratch, TomlText};
+use super::types::{Decoded, Decoding, Held, Opened, Part, TableReadPhase, Scratch, TomlText};
 
 /// The `toml_parser` syntax adapter.
 #[derive(Debug)]
@@ -64,7 +64,7 @@ struct Writer<'b, 'w, 's> {
     /// White space and text the parser could not read, met after a part of a key.
     held: Vec<Held>,
     /// Whether a header is being read, so a key opens no key-value.
-    reading: Reading,
+    reading: TableReadPhase,
     /// An empty token that waits for the next one.
     empty: Option<Held>,
     /// How many arrays and inline tables are open.
@@ -80,7 +80,7 @@ struct Writer<'b, 'w, 's> {
 impl Writer<'_, '_, '_> {
     /// The kind of the innermost construct open: the document when none other is.
     fn top(&self) -> Kind {
-        self.open.last().copied().unwrap_or(Kind::Node(Node::Toml))
+        self.open.last().copied().unwrap_or(Kind::Node(TomlNode::Toml))
     }
 
     /// Opens a construct at `at`, after any text before it the parser gave no event for: that text is not the construct's.
@@ -154,11 +154,11 @@ impl Writer<'_, '_, '_> {
 
     /// Closes the key, and the key-value it is in, when the line or the entry ends before its value.
     fn close_entry(&mut self) {
-        if self.top() == Kind::Node(Node::Key) {
+        if self.top() == Kind::Node(TomlNode::Key) {
             self.leave();
             self.release();
         }
-        if self.top() == Kind::Node(Node::Keyval) {
+        if self.top() == Kind::Node(TomlNode::Keyval) {
             self.leave();
         }
     }
@@ -173,14 +173,14 @@ impl Writer<'_, '_, '_> {
 
     /// Closes the key-value whose value has just ended.
     fn value_ended(&mut self) {
-        if self.top() == Kind::Node(Node::Keyval) {
+        if self.top() == Kind::Node(TomlNode::Keyval) {
             self.leave();
         }
     }
 
     /// Writes white space or text the parser could not read, or holds it when it comes after a part of a key, whose key may go on.
     fn trivia(&mut self, kind: Kind, span: Span) {
-        if self.top() == Kind::Node(Node::Key) {
+        if self.top() == Kind::Node(TomlNode::Key) {
             self.held.push(Held {
                 kind,
                 start: start_of(span),
@@ -196,17 +196,17 @@ impl Writer<'_, '_, '_> {
         self.close_all();
         self.enter(kind, start_of(span));
         self.token(bracket, span);
-        self.reading = Reading::Header;
+        self.reading = TableReadPhase::Header;
     }
 
     /// Writes the bracket of `kind` that ends a header, after closing its key.
     fn header_closed(&mut self, kind: Kind, span: Span) {
-        if self.top() == Kind::Node(Node::Key) {
+        if self.top() == Kind::Node(TomlNode::Key) {
             self.leave();
         }
         self.release();
         self.token(kind, span);
-        self.reading = Reading::Entries;
+        self.reading = TableReadPhase::Entries;
     }
 
     /// Opens an array or an inline table, or, past the nesting the library reads, writes its opening as text the parser could not
@@ -328,7 +328,7 @@ impl Writer<'_, '_, '_> {
 impl EventReceiver for Writer<'_, '_, '_> {
     fn std_table_open(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.header(
-            Kind::Node(Node::StdTable),
+            Kind::Node(TomlNode::StdTable),
             event_kind(EventKind::StdTableOpen),
             span,
         );
@@ -340,7 +340,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
 
     fn array_table_open(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.header(
-            Kind::Node(Node::ArrayTable),
+            Kind::Node(TomlNode::ArrayTable),
             event_kind(EventKind::ArrayTableOpen),
             span,
         );
@@ -352,7 +352,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
 
     fn inline_table_open(&mut self, span: Span, _error: &mut dyn ErrorSink) -> bool {
         self.nest(
-            Kind::Node(Node::InlineTable),
+            Kind::Node(TomlNode::InlineTable),
             event_kind(EventKind::InlineTableOpen),
             span,
         ) == Opened::Opened
@@ -360,7 +360,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
 
     fn inline_table_close(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.unnest(
-            Kind::Node(Node::InlineTable),
+            Kind::Node(TomlNode::InlineTable),
             event_kind(EventKind::InlineTableClose),
             span,
         );
@@ -368,7 +368,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
 
     fn array_open(&mut self, span: Span, _error: &mut dyn ErrorSink) -> bool {
         self.nest(
-            Kind::Node(Node::Array),
+            Kind::Node(TomlNode::Array),
             event_kind(EventKind::ArrayOpen),
             span,
         ) == Opened::Opened
@@ -376,7 +376,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
 
     fn array_close(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.unnest(
-            Kind::Node(Node::Array),
+            Kind::Node(TomlNode::Array),
             event_kind(EventKind::ArrayClose),
             span,
         );
@@ -384,13 +384,13 @@ impl EventReceiver for Writer<'_, '_, '_> {
 
     fn simple_key(&mut self, span: Span, encoding: Option<Encoding>, _error: &mut dyn ErrorSink) {
         let Decoding { said, .. } = self.decode(span, encoding, Part::Key);
-        if self.top() == Kind::Node(Node::Key) {
+        if self.top() == Kind::Node(TomlNode::Key) {
             self.release();
-        } else if self.reading == Reading::Header {
-            self.enter(Kind::Node(Node::Key), start_of(span));
+        } else if self.reading == TableReadPhase::Header {
+            self.enter(Kind::Node(TomlNode::Key), start_of(span));
         } else {
-            self.enter(Kind::Node(Node::Keyval), start_of(span));
-            self.enter(Kind::Node(Node::Key), start_of(span));
+            self.enter(Kind::Node(TomlNode::Keyval), start_of(span));
+            self.enter(Kind::Node(TomlNode::Key), start_of(span));
         }
         match encoding {
             Some(quoted) => self.decoded(string_kind(quoted), span, said),
@@ -404,7 +404,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
     }
 
     fn key_val_sep(&mut self, span: Span, _error: &mut dyn ErrorSink) {
-        if self.top() == Kind::Node(Node::Key) {
+        if self.top() == Kind::Node(TomlNode::Key) {
             self.leave();
         }
         self.release();
@@ -426,7 +426,7 @@ impl EventReceiver for Writer<'_, '_, '_> {
 
     fn value_sep(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.close_entry();
-        let separator = if self.top() == Kind::Node(Node::InlineTable) {
+        let separator = if self.top() == Kind::Node(TomlNode::InlineTable) {
             Token::InlineTableSep
         } else {
             Token::ArraySep
@@ -459,13 +459,13 @@ impl SyntaxPort for SyntaxTomlParserAdapter {
         let content = TomlText(languages::readable_text(languages::ByteSlice(text.0)).0);
         let source = Source::new(content.0);
         let tokens = source.lex().into_vec();
-        languages::enter_node(builder, kind_bits(Kind::Node(Node::Toml)), Offset(0));
+        languages::enter_node(builder, kind_bits(Kind::Node(TomlNode::Toml)), Offset(0));
         let mut writer = Writer {
             tree: languages::lossless(builder, Offset(0)),
             source,
-            open: vec![Kind::Node(Node::Toml)],
+            open: vec![Kind::Node(TomlNode::Toml)],
             held: Vec::new(),
-            reading: Reading::Entries,
+            reading: TableReadPhase::Entries,
             empty: None,
             depth: Count(0),
             refused: Count(0),

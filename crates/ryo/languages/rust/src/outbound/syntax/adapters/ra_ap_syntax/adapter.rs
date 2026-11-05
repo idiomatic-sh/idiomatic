@@ -14,7 +14,7 @@ use super::schemas::repaired;
 use super::schemas::step_of;
 use super::types::{
     ArgumentSpan, Child, Cursor, DecodedString, Expansion, Held, MacroArgument, MacroName, Open,
-    Reading, RustText, Step, Stretch, StringLiteral, Triviality,
+    FragmentEntryPoint, RustText, Step, Stretch, StringLiteral, Triviality,
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -267,15 +267,15 @@ pub(super) fn children_of(steps: &[Step], start: Offset) -> Option<Vec<Child>> {
 }
 
 /// The steps of `text` read as `reading`, with no error; nothing when it is not all one of them.
-pub(super) fn parsed(text: RustText<'_>, reading: Reading) -> Option<Vec<Step>> {
+pub(super) fn parsed(text: RustText<'_>, reading: FragmentEntryPoint) -> Option<Vec<Step>> {
     let lexed = LexedStr::new(Edition::CURRENT, text.0);
     if lexed.errors().next().is_some() {
         return None;
     }
     let input = lexed.to_input(Edition::CURRENT);
     let entry = match reading {
-        Reading::Expression => TopEntryPoint::Expr,
-        Reading::Pattern => TopEntryPoint::Pattern,
+        FragmentEntryPoint::Expression => TopEntryPoint::Expr,
+        FragmentEntryPoint::Pattern => TopEntryPoint::Pattern,
     };
     let output = entry.parse(&input);
     let mut steps = Vec::new();
@@ -339,22 +339,22 @@ pub(super) fn stretches(name: &MacroName, children: &[Child]) -> Option<Vec<Stre
                 Some(at) => {
                     found.push(Stretch {
                         span: trimmed(argument.get(..at)?)?,
-                        reading: Reading::Pattern,
+                        reading: FragmentEntryPoint::Pattern,
                     });
                     found.push(Stretch {
                         span: trimmed(argument.get(at + 1..)?)?,
-                        reading: Reading::Expression,
+                        reading: FragmentEntryPoint::Expression,
                     });
                 }
                 None => found.push(Stretch {
                     span,
-                    reading: Reading::Pattern,
+                    reading: FragmentEntryPoint::Pattern,
                 }),
             }
         } else {
             found.push(Stretch {
                 span,
-                reading: Reading::Expression,
+                reading: FragmentEntryPoint::Expression,
             });
         }
         place += 1_i32;

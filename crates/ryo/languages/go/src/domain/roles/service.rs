@@ -6,7 +6,7 @@ use ryo::languages::{self, Count, Position, Tree};
 use strum::IntoEnumIterator as _;
 
 use super::types::{AstField, Holding};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::siblings::service::{
     among, before, first, last, matching, nodes_after, opening, previous, siblings,
 };
@@ -54,7 +54,7 @@ fn none(count: Count) -> Holding {
 }
 
 /// Whether the element at `at` is a node of kind `wanted`.
-fn is(tree: &Tree<'_>, at: Position, wanted: Node) -> Holding {
+fn is(tree: &Tree<'_>, at: Position, wanted: GoNode) -> Holding {
     if kind(tree, at) == Kind::Node(wanted) {
         Holding::Holds
     } else {
@@ -73,89 +73,89 @@ fn ahead_of(tree: &Tree<'_>, at: Position, wanted: Token) -> Holding {
 }
 
 /// The role of the token `spelled` at `at` under a node of kind `holder`: the field of the node that says where it is.
-fn token_role(tree: &Tree<'_>, at: Position, holder: Node, spelled: Token) -> AstField {
+fn token_role(tree: &Tree<'_>, at: Position, holder: GoNode, spelled: Token) -> AstField {
     let assigns = matching(Wanted::Assigning, Kind::Token(spelled)) == Match::Wanted;
     match (holder, spelled) {
-        (Node::Ident, _) => AstField::Name,
-        (Node::BasicLit, _) => AstField::Value,
-        (Node::BinaryExpr | Node::UnaryExpr, _) => AstField::Op,
-        (Node::AssignStmt, _) if assigns => AstField::Tok,
-        (Node::BranchStmt, Token::Break | Token::Continue | Token::Goto | Token::Fallthrough)
-        | (Node::GenDecl, Token::Import | Token::Const | Token::Type | Token::Var)
-        | (Node::IncDecStmt, Token::Inc | Token::Dec)
-        | (Node::RangeStmt, Token::Define | Token::Assign) => AstField::Tok,
-        (Node::BlockStmt | Node::CompositeLit, Token::Lbrace) => AstField::Lbrace,
-        (Node::BlockStmt | Node::CompositeLit, Token::Rbrace) => AstField::Rbrace,
+        (GoNode::Ident, _) => AstField::Name,
+        (GoNode::BasicLit, _) => AstField::Value,
+        (GoNode::BinaryExpr | GoNode::UnaryExpr, _) => AstField::Op,
+        (GoNode::AssignStmt, _) if assigns => AstField::Tok,
+        (GoNode::BranchStmt, Token::Break | Token::Continue | Token::Goto | Token::Fallthrough)
+        | (GoNode::GenDecl, Token::Import | Token::Const | Token::Type | Token::Var)
+        | (GoNode::IncDecStmt, Token::Inc | Token::Dec)
+        | (GoNode::RangeStmt, Token::Define | Token::Assign) => AstField::Tok,
+        (GoNode::BlockStmt | GoNode::CompositeLit, Token::Lbrace) => AstField::Lbrace,
+        (GoNode::BlockStmt | GoNode::CompositeLit, Token::Rbrace) => AstField::Rbrace,
         (
-            Node::CallExpr | Node::GenDecl | Node::ParenExpr | Node::TypeAssertExpr,
+            GoNode::CallExpr | GoNode::GenDecl | GoNode::ParenExpr | GoNode::TypeAssertExpr,
             Token::Lparen,
         ) => AstField::Lparen,
         (
-            Node::CallExpr | Node::GenDecl | Node::ParenExpr | Node::TypeAssertExpr,
+            GoNode::CallExpr | GoNode::GenDecl | GoNode::ParenExpr | GoNode::TypeAssertExpr,
             Token::Rparen,
         ) => AstField::Rparen,
         (
-            Node::ArrayType | Node::IndexExpr | Node::IndexListExpr | Node::SliceExpr,
+            GoNode::ArrayType | GoNode::IndexExpr | GoNode::IndexListExpr | GoNode::SliceExpr,
             Token::Lbrack,
         ) => AstField::Lbrack,
-        (Node::IndexExpr | Node::IndexListExpr | Node::SliceExpr, Token::Rbrack) => {
+        (GoNode::IndexExpr | GoNode::IndexListExpr | GoNode::SliceExpr, Token::Rbrack) => {
             AstField::Rbrack
         }
-        (Node::CallExpr | Node::Ellipsis, Token::Ellipsis) => AstField::Ellipsis,
-        (Node::CaseClause | Node::CommClause, Token::Case | Token::Default) => AstField::Case,
+        (GoNode::CallExpr | GoNode::Ellipsis, Token::Ellipsis) => AstField::Ellipsis,
+        (GoNode::CaseClause | GoNode::CommClause, Token::Case | Token::Default) => AstField::Case,
         (
-            Node::CaseClause | Node::CommClause | Node::KeyValueExpr | Node::LabeledStmt,
+            GoNode::CaseClause | GoNode::CommClause | GoNode::KeyValueExpr | GoNode::LabeledStmt,
             Token::Colon,
         ) => AstField::Colon,
         // `chan T` and `chan<- T` begin at `chan`, `<-chan T` at its arrow, which `Arrow` names too.
-        (Node::ChanType, Token::Chan | Token::Arrow) if first(tree, at) == Standing::Edge => {
+        (GoNode::ChanType, Token::Chan | Token::Arrow) if first(tree, at) == Standing::Edge => {
             AstField::Begin
         }
-        (Node::ChanType | Node::SendStmt, Token::Arrow) => AstField::Arrow,
-        (Node::FieldList, Token::Lparen | Token::Lbrace | Token::Lbrack)
+        (GoNode::ChanType | GoNode::SendStmt, Token::Arrow) => AstField::Arrow,
+        (GoNode::FieldList, Token::Lparen | Token::Lbrace | Token::Lbrack)
             if first(tree, at) == Standing::Edge =>
         {
             AstField::Opening
         }
-        (Node::FieldList, Token::Rparen | Token::Rbrace | Token::Rbrack)
+        (GoNode::FieldList, Token::Rparen | Token::Rbrace | Token::Rbrack)
             if last(tree, at) == Standing::Edge =>
         {
             AstField::Closing
         }
-        (Node::DeferStmt, Token::Defer) => AstField::Defer,
-        (Node::GoStmt, Token::Go) => AstField::Go,
-        (Node::File, Token::Package) => AstField::Package,
-        (Node::ForStmt | Node::RangeStmt, Token::For) => AstField::For,
-        (Node::RangeStmt, Token::Range) => AstField::Range,
-        (Node::FuncType, Token::Func) => AstField::Func,
-        (Node::IfStmt, Token::If) => AstField::If,
-        (Node::InterfaceType, Token::Interface) => AstField::Interface,
-        (Node::StructType, Token::Struct) => AstField::Struct,
-        (Node::MapType, Token::Map) => AstField::Map,
-        (Node::ReturnStmt, Token::Return) => AstField::Return,
-        (Node::SelectStmt, Token::Select) => AstField::Select,
-        (Node::SwitchStmt | Node::TypeSwitchStmt, Token::Switch) => AstField::Switch,
-        (Node::StarExpr, Token::Mul) => AstField::Star,
-        (Node::TypeSpec, Token::Assign) => AstField::Assign,
-        (Node::EmptyStmt, Token::Semicolon) => AstField::Semicolon,
+        (GoNode::DeferStmt, Token::Defer) => AstField::Defer,
+        (GoNode::GoStmt, Token::Go) => AstField::Go,
+        (GoNode::File, Token::Package) => AstField::Package,
+        (GoNode::ForStmt | GoNode::RangeStmt, Token::For) => AstField::For,
+        (GoNode::RangeStmt, Token::Range) => AstField::Range,
+        (GoNode::FuncType, Token::Func) => AstField::Func,
+        (GoNode::IfStmt, Token::If) => AstField::If,
+        (GoNode::InterfaceType, Token::Interface) => AstField::Interface,
+        (GoNode::StructType, Token::Struct) => AstField::Struct,
+        (GoNode::MapType, Token::Map) => AstField::Map,
+        (GoNode::ReturnStmt, Token::Return) => AstField::Return,
+        (GoNode::SelectStmt, Token::Select) => AstField::Select,
+        (GoNode::SwitchStmt | GoNode::TypeSwitchStmt, Token::Switch) => AstField::Switch,
+        (GoNode::StarExpr, Token::Mul) => AstField::Star,
+        (GoNode::TypeSpec, Token::Assign) => AstField::Assign,
+        (GoNode::EmptyStmt, Token::Semicolon) => AstField::Semicolon,
         _ => AstField::None,
     }
 }
 
 /// The role of a node of a function type: `FuncDecl`'s receiver and name, then type parameters, parameters and results.
 fn signature_role(tree: &Tree<'_>, at: Position) -> AstField {
-    let named = among(tree, at, Wanted::NodeOf(Node::Ident)) > Count(0);
-    if is(tree, at, Node::Ident) == Holding::Holds {
+    let named = among(tree, at, Wanted::NodeOf(GoNode::Ident)) > Count(0);
+    if is(tree, at, GoNode::Ident) == Holding::Holds {
         return AstField::Name;
     }
-    if named && before(tree, at, Wanted::NodeOf(Node::Ident)) == Count(0) {
+    if named && before(tree, at, Wanted::NodeOf(GoNode::Ident)) == Count(0) {
         return AstField::Recv;
     }
     if opening(tree, at) == Some(Token::Lbrack) {
         return AstField::TypeParams;
     }
     let unbracketed = |each: &Position| {
-        kind(tree, *each) == Kind::Node(Node::FieldList)
+        kind(tree, *each) == Kind::Node(GoNode::FieldList)
             && opening(tree, *each) != Some(Token::Lbrack)
     };
     let lists = siblings(tree, at)
@@ -164,7 +164,7 @@ fn signature_role(tree: &Tree<'_>, at: Position) -> AstField {
         .count();
     // A function with no name, a literal or a method of an interface, has no receiver.
     let receivers = siblings(tree, at)
-        .take_while(|each| named && kind(tree, *each) != Kind::Node(Node::Ident))
+        .take_while(|each| named && kind(tree, *each) != Kind::Node(GoNode::Ident))
         .filter(unbracketed)
         .count();
     if lists <= receivers {
@@ -179,7 +179,7 @@ fn field_role(tree: &Tree<'_>, at: Position) -> AstField {
     let tagged = siblings(tree, at)
         .filter(|each| is_token(tree, *each) == Leaf::Node)
         .last()
-        .is_some_and(|each| kind(tree, each) == Kind::Node(Node::BasicLit))
+        .is_some_and(|each| kind(tree, each) == Kind::Node(GoNode::BasicLit))
         && among(tree, at, Wanted::Node) > Count(1);
     match (nodes_after(tree, at), tagged) {
         (Count(0), true) => AstField::Tag,
@@ -282,7 +282,7 @@ fn value_spec_role(tree: &Tree<'_>, at: Position) -> AstField {
 
 /// The role of a node of a type spec: its name, its type parameters in brackets, and its type.
 fn type_spec_role(tree: &Tree<'_>, at: Position) -> AstField {
-    match (leading(tree, at), is(tree, at, Node::FieldList)) {
+    match (leading(tree, at), is(tree, at, GoNode::FieldList)) {
         (Holding::Holds, _) => AstField::Name,
         (Holding::Fails, Holding::Holds) => AstField::TypeParams,
         (Holding::Fails, Holding::Fails) => AstField::Type,
@@ -290,86 +290,86 @@ fn type_spec_role(tree: &Tree<'_>, at: Position) -> AstField {
 }
 
 /// The role of the node at `at` under a node of kind `holder`.
-fn node_role(tree: &Tree<'_>, at: Position, holder: Node) -> AstField {
+fn node_role(tree: &Tree<'_>, at: Position, holder: GoNode) -> AstField {
     match holder {
-        Node::ArrayType | Node::Ellipsis => {
+        GoNode::ArrayType | GoNode::Ellipsis => {
             either(none(nodes_after(tree, at)), AstField::Elt, AstField::Len)
         }
-        Node::BinaryExpr => either(leading(tree, at), AstField::FieldX, AstField::FieldY),
-        Node::CallExpr => either(leading(tree, at), AstField::Fun, AstField::Args),
-        Node::ChanType => AstField::Value,
-        Node::CompositeLit => either(
+        GoNode::BinaryExpr => either(leading(tree, at), AstField::FieldX, AstField::FieldY),
+        GoNode::CallExpr => either(leading(tree, at), AstField::Fun, AstField::Args),
+        GoNode::ChanType => AstField::Value,
+        GoNode::CompositeLit => either(
             ahead_of(tree, at, Token::Lbrace),
             AstField::Type,
             AstField::Elts,
         ),
-        Node::IndexExpr => either(leading(tree, at), AstField::FieldX, AstField::Index),
-        Node::IndexListExpr => either(leading(tree, at), AstField::FieldX, AstField::Indices),
-        Node::SelectorExpr => either(leading(tree, at), AstField::FieldX, AstField::Sel),
-        Node::SliceExpr => slice_role(tree, at),
-        Node::InterfaceType => AstField::Methods,
-        Node::StructType => AstField::Fields,
-        Node::KeyValueExpr => either(
+        GoNode::IndexExpr => either(leading(tree, at), AstField::FieldX, AstField::Index),
+        GoNode::IndexListExpr => either(leading(tree, at), AstField::FieldX, AstField::Indices),
+        GoNode::SelectorExpr => either(leading(tree, at), AstField::FieldX, AstField::Sel),
+        GoNode::SliceExpr => slice_role(tree, at),
+        GoNode::InterfaceType => AstField::Methods,
+        GoNode::StructType => AstField::Fields,
+        GoNode::KeyValueExpr => either(
             ahead_of(tree, at, Token::Colon),
             AstField::Key,
             AstField::Value,
         ),
-        Node::MapType => either(leading(tree, at), AstField::Key, AstField::Value),
-        Node::TypeAssertExpr => either(
+        GoNode::MapType => either(leading(tree, at), AstField::Key, AstField::Value),
+        GoNode::TypeAssertExpr => either(
             ahead_of(tree, at, Token::Lparen),
             AstField::FieldX,
             AstField::Type,
         ),
-        Node::FuncType => signature_role(tree, at),
-        Node::FuncDecl | Node::FuncLit => {
-            either(is(tree, at, Node::FuncType), AstField::Type, AstField::Body)
+        GoNode::FuncType => signature_role(tree, at),
+        GoNode::FuncDecl | GoNode::FuncLit => {
+            either(is(tree, at, GoNode::FuncType), AstField::Type, AstField::Body)
         }
-        Node::ExprStmt | Node::IncDecStmt | Node::ParenExpr | Node::StarExpr | Node::UnaryExpr => {
+        GoNode::ExprStmt | GoNode::IncDecStmt | GoNode::ParenExpr | GoNode::StarExpr | GoNode::UnaryExpr => {
             AstField::FieldX
         }
-        Node::AssignStmt => either(
+        GoNode::AssignStmt => either(
             none(before(tree, at, Wanted::Assigning)),
             AstField::Lhs,
             AstField::Rhs,
         ),
-        Node::BlockStmt | Node::FieldList => AstField::List,
-        Node::BranchStmt => AstField::Label,
-        Node::LabeledStmt => either(leading(tree, at), AstField::Label, AstField::Stmt),
-        Node::CaseClause => either(
+        GoNode::BlockStmt | GoNode::FieldList => AstField::List,
+        GoNode::BranchStmt => AstField::Label,
+        GoNode::LabeledStmt => either(leading(tree, at), AstField::Label, AstField::Stmt),
+        GoNode::CaseClause => either(
             ahead_of(tree, at, Token::Colon),
             AstField::List,
             AstField::Body,
         ),
-        Node::CommClause => either(
+        GoNode::CommClause => either(
             ahead_of(tree, at, Token::Colon),
             AstField::Comm,
             AstField::Body,
         ),
-        Node::SelectStmt => AstField::Body,
-        Node::DeclStmt => AstField::Decl,
-        Node::DeferStmt | Node::GoStmt => AstField::Call,
-        Node::ForStmt => loop_role(tree, at),
-        Node::IfStmt => if_role(tree, at),
-        Node::SwitchStmt => switch_role(tree, at, AstField::Tag),
-        Node::TypeSwitchStmt => switch_role(tree, at, AstField::Assign),
-        Node::RangeStmt => range_role(tree, at),
-        Node::ReturnStmt => AstField::Results,
-        Node::SendStmt => either(leading(tree, at), AstField::Chan, AstField::Value),
-        Node::Field => field_role(tree, at),
-        Node::File => either(is(tree, at, Node::Ident), AstField::Name, AstField::Decls),
-        Node::ImportSpec => either(is(tree, at, Node::Ident), AstField::Name, AstField::Path),
-        Node::GenDecl => AstField::Specs,
-        Node::TypeSpec => type_spec_role(tree, at),
-        Node::ValueSpec => value_spec_role(tree, at),
-        Node::BadDecl
-        | Node::BadExpr
-        | Node::BadStmt
-        | Node::BasicLit
-        | Node::Comment
-        | Node::CommentGroup
-        | Node::EmptyStmt
-        | Node::Ident
-        | Node::Package => AstField::None,
+        GoNode::SelectStmt => AstField::Body,
+        GoNode::DeclStmt => AstField::Decl,
+        GoNode::DeferStmt | GoNode::GoStmt => AstField::Call,
+        GoNode::ForStmt => loop_role(tree, at),
+        GoNode::IfStmt => if_role(tree, at),
+        GoNode::SwitchStmt => switch_role(tree, at, AstField::Tag),
+        GoNode::TypeSwitchStmt => switch_role(tree, at, AstField::Assign),
+        GoNode::RangeStmt => range_role(tree, at),
+        GoNode::ReturnStmt => AstField::Results,
+        GoNode::SendStmt => either(leading(tree, at), AstField::Chan, AstField::Value),
+        GoNode::Field => field_role(tree, at),
+        GoNode::File => either(is(tree, at, GoNode::Ident), AstField::Name, AstField::Decls),
+        GoNode::ImportSpec => either(is(tree, at, GoNode::Ident), AstField::Name, AstField::Path),
+        GoNode::GenDecl => AstField::Specs,
+        GoNode::TypeSpec => type_spec_role(tree, at),
+        GoNode::ValueSpec => value_spec_role(tree, at),
+        GoNode::BadDecl
+        | GoNode::BadExpr
+        | GoNode::BadStmt
+        | GoNode::BasicLit
+        | GoNode::Comment
+        | GoNode::CommentGroup
+        | GoNode::EmptyStmt
+        | GoNode::Ident
+        | GoNode::Package => AstField::None,
     }
 }
 

@@ -3,7 +3,7 @@
 
 use super::constants::{GLOB, ROOT, SELF_SEGMENT, UNDERSCORE};
 use super::types::{Ending, Import, Imported, Rooting};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::references::constants::SEPARATOR;
 use crate::domain::references::service::segments;
 use crate::domain::syntax::service::{child, kind, last_descendant, name_text, parent};
@@ -61,17 +61,17 @@ fn joined(
 
 /// Whether the `use` tree at `use_tree` starts its path with `::`: on its first segment, or on the tree itself when it writes no path.
 fn rooting_of(tree: &Tree<'_>, use_tree: languages::Position) -> Rooting {
-    let Some(mut path) = child(tree, use_tree, Kind::Node(Node::Path)) else {
+    let Some(mut path) = child(tree, use_tree, Kind::Node(RustNode::Path)) else {
         return if child(tree, use_tree, Kind::Token(Token::Colon2)).is_some() {
             Rooting::Absolute
         } else {
             Rooting::Relative
         };
     };
-    while let Some(inner) = child(tree, path, Kind::Node(Node::Path)) {
+    while let Some(inner) = child(tree, path, Kind::Node(RustNode::Path)) {
         path = inner;
     }
-    if child(tree, path, Kind::Node(Node::PathSegment))
+    if child(tree, path, Kind::Node(RustNode::PathSegment))
         .is_some_and(|segment| child(tree, segment, Kind::Token(Token::Colon2)).is_some())
     {
         Rooting::Absolute
@@ -88,8 +88,8 @@ pub(crate) fn leaves<'a>(
     (use_tree.0..=last_descendant(tree, use_tree).0)
         .map(languages::Position)
         .filter(|at| {
-            kind(tree, *at) == Kind::Node(Node::UseTree)
-                && child(tree, *at, Kind::Node(Node::UseTreeList)).is_none()
+            kind(tree, *at) == Kind::Node(RustNode::UseTree)
+                && child(tree, *at, Kind::Node(RustNode::UseTreeList)).is_none()
         })
 }
 
@@ -100,11 +100,11 @@ fn above(
     use_tree: languages::Position,
 ) -> Option<Imported> {
     let list = parent(tree, use_tree);
-    if kind(tree, list) != Kind::Node(Node::UseTreeList) {
+    if kind(tree, list) != Kind::Node(RustNode::UseTreeList) {
         return None;
     }
     let group = parent(tree, list);
-    (kind(tree, group) == Kind::Node(Node::UseTree)).then(|| through(tree, symbols, group))?
+    (kind(tree, group) == Kind::Node(RustNode::UseTree)).then(|| through(tree, symbols, group))?
 }
 
 /// The path the `use` tree at `use_tree` names, with the groups above it: a `self` and a tree that writes no path name the group.
@@ -114,7 +114,7 @@ fn through(
     use_tree: languages::Position,
 ) -> Option<Imported> {
     let prefix = above(tree, symbols, use_tree);
-    let path = child(tree, use_tree, Kind::Node(Node::Path));
+    let path = child(tree, use_tree, Kind::Node(RustNode::Path));
     let (mut count, mut only) = (0_i32, languages::NO_SYMBOL);
     if let Some(path) = path {
         segments(tree, path, &mut |segment| {
@@ -158,9 +158,9 @@ pub(crate) fn import_of(
     } else {
         target
     }?;
-    let binding = match child(tree, leaf, Kind::Node(Node::Rename)) {
+    let binding = match child(tree, leaf, Kind::Node(RustNode::Rename)) {
         Some(rename) => {
-            match child(tree, rename, Kind::Node(Node::Name)).and_then(|name| name_text(tree, name))
+            match child(tree, rename, Kind::Node(RustNode::Name)).and_then(|name| name_text(tree, name))
             {
                 Some(name) => name,
                 None => {

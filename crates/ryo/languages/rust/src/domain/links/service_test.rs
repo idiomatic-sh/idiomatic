@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::service::{draw, examine, gaps_in, merged};
-use super::types::{Link, Linked, Run};
+use super::types::{SourceDependencyLink, Linked, Run};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::module_tree::types::{
     Body, Cleanliness, Facts, ModDeclaration, Segment, Spelling, Written,
@@ -292,7 +292,7 @@ fn subject(made: Input) -> Value {
     let links: Vec<String> = linked
         .dependencies
         .iter()
-        .map(|Link { source, target, .. }| format!("{} -> {}", files[source.0], files[target.0]))
+        .map(|SourceDependencyLink { source, target, .. }| format!("{} -> {}", files[source.0], files[target.0]))
         .collect();
     let analyzed: Vec<&str> = linked
         .analyzed

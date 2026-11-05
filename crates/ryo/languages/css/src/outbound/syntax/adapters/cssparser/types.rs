@@ -1,6 +1,6 @@
 //! The types of the `cssparser` adapter: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::CssNode;
 use ryo::languages::ReportText;
 
 /// What the block of an at-rule holds: rules and declarations, as a style rule's does (`@media`, `@font-face`), or component
@@ -19,7 +19,7 @@ pub(crate) enum Met {
     /// White space or a comment.
     Trivia,
     /// A token that opens a function or a simple block: the node it opens.
-    Opens(Node),
+    Opens(CssNode),
     /// A token the library says is a parse error, and what the language says of it.
     Broken(ReportText<'static>),
     /// Any other token of content.
@@ -58,7 +58,7 @@ pub(super) enum Closing {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Open {
     /// The node.
-    pub node: Node,
+    pub node: CssNode,
     /// Where it ends.
     pub closing: Closing,
 }

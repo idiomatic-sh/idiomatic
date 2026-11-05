@@ -4,7 +4,7 @@ use ryo::languages::contract::KindSample;
 use ryo::languages::{KindName, Sample, SampleText, Why};
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::HtmlNode;
 use crate::domain::syntax::constants::{
     DOM_STRUCTURE, LEXICAL_STRUCTURE, PROPERTY_STRUCTURE, TEXT_RUN, UNREAD_TEXT,
 };
@@ -29,21 +29,21 @@ pub(super) fn shown() -> Vec<KindSample> {
 #[must_use]
 pub(crate) const fn sample(kind: Kind) -> Sample {
     match kind {
-        Kind::Node(Node::SourceFile | Node::Element) => Sample::Node(SampleText("")),
-        Kind::Node(Node::Document | Node::DocumentType | Node::DocumentFragment) => {
+        Kind::Node(HtmlNode::SourceFile | HtmlNode::Element) => Sample::Node(SampleText("")),
+        Kind::Node(HtmlNode::Document | HtmlNode::DocumentType | HtmlNode::DocumentFragment) => {
             Sample::Unread(Why(DOM_STRUCTURE))
         }
-        Kind::Node(Node::Attribute) => Sample::Node(SampleText("<p title='a'>")),
-        Kind::Node(Node::Text) => Sample::Unread(Why(TEXT_RUN)),
-        Kind::Node(Node::Comment) => Sample::Node(SampleText("<!-- a -->")),
+        Kind::Node(HtmlNode::Attribute) => Sample::Node(SampleText("<p title='a'>")),
+        Kind::Node(HtmlNode::Text) => Sample::Unread(Why(TEXT_RUN)),
+        Kind::Node(HtmlNode::Comment) => Sample::Node(SampleText("<!-- a -->")),
         Kind::Node(
-            Node::Name
-            | Node::Namespace
-            | Node::Prefix
-            | Node::Value
-            | Node::PublicId
-            | Node::SystemId
-            | Node::DocumentMode,
+            HtmlNode::Name
+            | HtmlNode::Namespace
+            | HtmlNode::Prefix
+            | HtmlNode::Value
+            | HtmlNode::PublicId
+            | HtmlNode::SystemId
+            | HtmlNode::DocumentMode,
         ) => Sample::Unread(Why(PROPERTY_STRUCTURE)),
         Kind::Token(
             Token::Characters | Token::Doctype | Token::StartTag | Token::EndTag | Token::Comment,

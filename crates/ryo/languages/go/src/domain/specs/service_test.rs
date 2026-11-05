@@ -4,7 +4,7 @@ use super::service::{
     declared_type, declares, import_name, import_path, name, names, underlying, value_type,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::types::Kind;
 use crate::fixtures::reading::{asked, of_kind, spans};
 
@@ -16,7 +16,7 @@ enum Question {
     /// The type it gives them.
     ValueType,
     /// What the declaration that holds the spec declares.
-    Declares(Node),
+    Declares(GoNode),
     /// What the type spec declares.
     Underlying,
     /// The name of a type spec.
@@ -59,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nconst c = 1\n",
-                Question::Declares(Node::ValueSpec),
+                Question::Declares(GoNode::ValueSpec),
             )
         },
         expect: Expect::Value("Constants"),
@@ -70,7 +70,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nvar v int\n",
-                Question::Declares(Node::ValueSpec),
+                Question::Declares(GoNode::ValueSpec),
             )
         },
         expect: Expect::Value("Variables"),
@@ -81,7 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\ntype T int\n",
-                Question::Declares(Node::TypeSpec),
+                Question::Declares(GoNode::TypeSpec),
             )
         },
         expect: Expect::Value("Types"),
@@ -92,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nimport \"a\"\n",
-                Question::Declares(Node::ImportSpec),
+                Question::Declares(GoNode::ImportSpec),
             )
         },
         expect: Expect::Value("Imports"),
@@ -149,12 +149,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn answer((source, question): Input) -> String {
     asked(source, |tree| {
-        let spec_of = |node: Node| of_kind(tree, Kind::Node(node)).first().copied();
+        let spec_of = |node: GoNode| of_kind(tree, Kind::Node(node)).first().copied();
         let shown = |at: Option<ryo::languages::Position>| {
             at.map_or_else(|| "none".to_owned(), |each| spans(tree, each))
         };
         match question {
-            Question::Names => spec_of(Node::ValueSpec)
+            Question::Names => spec_of(GoNode::ValueSpec)
                 .map(|spec| {
                     names(tree, spec)
                         .map(|each| spans(tree, each))
@@ -163,19 +163,19 @@ fn answer((source, question): Input) -> String {
                 })
                 .unwrap_or_default(),
             Question::ValueType => {
-                shown(spec_of(Node::ValueSpec).and_then(|spec| value_type(tree, spec)))
+                shown(spec_of(GoNode::ValueSpec).and_then(|spec| value_type(tree, spec)))
             }
             Question::Declares(node) => spec_of(node)
                 .and_then(|spec| declares(tree, spec))
                 .map_or_else(|| "none".to_owned(), |each| format!("{each:?}")),
-            Question::Underlying => spec_of(Node::TypeSpec)
+            Question::Underlying => spec_of(GoNode::TypeSpec)
                 .map(|spec| format!("{:?}", underlying(tree, spec)))
                 .unwrap_or_default(),
-            Question::TypeName => shown(spec_of(Node::TypeSpec).and_then(|spec| name(tree, spec))),
+            Question::TypeName => shown(spec_of(GoNode::TypeSpec).and_then(|spec| name(tree, spec))),
             Question::DeclaredType => {
-                shown(spec_of(Node::TypeSpec).and_then(|spec| declared_type(tree, spec)))
+                shown(spec_of(GoNode::TypeSpec).and_then(|spec| declared_type(tree, spec)))
             }
-            Question::Import => spec_of(Node::ImportSpec)
+            Question::Import => spec_of(GoNode::ImportSpec)
                 .map(|spec| {
                     format!(
                         "{} {}",

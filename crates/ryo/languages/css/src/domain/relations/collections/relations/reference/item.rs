@@ -2,7 +2,7 @@
 //! points at (the adapter resolves the url the library decoded against the stylesheet's own path), owned by the declaration or rule it
 //! is written in.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::CssNode;
 use crate::domain::syntax::service::{decoded, kind_bits};
 use crate::domain::syntax::types::Kind;
 use crate::domain::targets::service::{owner, reference, url_token};
@@ -14,7 +14,7 @@ pub(crate) struct ReferenceItem;
 
 ryo::reads! {
     ReferenceItem => languages::Reference |tree, at, symbols| {
-        kinds: [Kind::Token(Token::Url), Kind::Node(Node::Function)] as kind_bits,
+        kinds: [Kind::Token(Token::Url), Kind::Node(CssNode::Function)] as kind_bits,
         given token = url_token(tree, at)?;
         given url = reference(tree, at)?;
         given target = decoded(tree, symbols, token)?;

@@ -3,7 +3,7 @@
 
 use ryo::languages::{Position, Tree};
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::{kind, nodes};
 use crate::domain::syntax::types::Kind;
 
@@ -16,7 +16,7 @@ pub(crate) fn type_of(tree: &Tree<'_>, field: Position) -> Option<Position> {
         last = Some(each);
     }
     match last {
-        Some(tag) if kind(tree, tag) == Kind::Node(Node::BasicLit) && before.is_some() => before,
+        Some(tag) if kind(tree, tag) == Kind::Node(GoNode::BasicLit) && before.is_some() => before,
         other => other,
     }
 }
@@ -29,5 +29,5 @@ pub(crate) fn names<'a>(
     let declared = type_of(tree, field);
     nodes(tree, field)
         .take_while(move |each| Some(*each) != declared)
-        .filter(|each| kind(tree, *each) == Kind::Node(Node::Ident))
+        .filter(|each| kind(tree, *each) == Kind::Node(GoNode::Ident))
 }

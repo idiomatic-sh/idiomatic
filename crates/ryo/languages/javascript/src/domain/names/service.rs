@@ -9,7 +9,7 @@
 
 use super::constants::{CONSTANT, EXTENDS};
 use super::types::{Assignment, Reference};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::JavaScriptNode;
 use crate::domain::syntax::constants::{COMPUTED_OPEN, PARAMETERS_OPEN};
 use crate::domain::syntax::service::{kind, nodes, parameters, parent, spelling};
 use crate::domain::syntax::types::Kind;
@@ -24,7 +24,7 @@ fn token(tree: &Tree<'_>, at: Position, written: languages::NameText<'_>) -> Opt
 /// The identifier a declaration names itself with: the first one written before `before`, or the first at all.
 fn name_before(tree: &Tree<'_>, at: Position, before: Option<Position>) -> Option<Position> {
     nodes(tree, at).find(|child| {
-        kind(tree, *child) == Kind::Node(Node::Identifier)
+        kind(tree, *child) == Kind::Node(JavaScriptNode::Identifier)
             && before.is_none_or(|before| {
                 languages::start_at(tree.elements, *child)
                     < languages::start_at(tree.elements, before)
@@ -42,7 +42,7 @@ pub(crate) fn bindings<'a>(
         .filter(move |candidate| {
             if !matches!(
                 kind(tree, *candidate),
-                Kind::Node(Node::Identifier | Node::PrivateIdentifier | Node::Literal)
+                Kind::Node(JavaScriptNode::Identifier | JavaScriptNode::PrivateIdentifier | JavaScriptNode::Literal)
             ) {
                 return false;
             }
@@ -50,11 +50,11 @@ pub(crate) fn bindings<'a>(
             while child != at {
                 let enclosing = parent(tree, child);
                 let binds = match kind(tree, enclosing) {
-                    Kind::Node(Node::RestElement | Node::AssignmentPattern) => {
+                    Kind::Node(JavaScriptNode::RestElement | JavaScriptNode::AssignmentPattern) => {
                         nodes(tree, enclosing).next() == Some(child)
                     }
-                    Kind::Node(Node::Property) => nodes(tree, enclosing).last() == Some(child),
-                    Kind::Node(Node::ArrayPattern | Node::ObjectPattern) => true,
+                    Kind::Node(JavaScriptNode::Property) => nodes(tree, enclosing).last() == Some(child),
+                    Kind::Node(JavaScriptNode::ArrayPattern | JavaScriptNode::ObjectPattern) => true,
                     _ => false,
                 };
                 if !binds {
@@ -74,17 +74,17 @@ pub(crate) fn declared<'a>(
 ) -> impl Iterator<Item = Position> + 'a {
     let named = match kind(tree, at) {
         Kind::Node(
-            Node::ImportSpecifier | Node::ImportDefaultSpecifier | Node::ImportNamespaceSpecifier,
+            JavaScriptNode::ImportSpecifier | JavaScriptNode::ImportDefaultSpecifier | JavaScriptNode::ImportNamespaceSpecifier,
         ) => nodes(tree, at).last(),
-        Kind::Node(Node::FunctionDeclaration | Node::FunctionExpression) => name_before(
+        Kind::Node(JavaScriptNode::FunctionDeclaration | JavaScriptNode::FunctionExpression) => name_before(
             tree,
             at,
             token(tree, at, languages::NameText(PARAMETERS_OPEN)),
         ),
-        Kind::Node(Node::ClassDeclaration | Node::ClassExpression) => {
+        Kind::Node(JavaScriptNode::ClassDeclaration | JavaScriptNode::ClassExpression) => {
             name_before(tree, at, token(tree, at, languages::NameText(EXTENDS)))
         }
-        Kind::Node(Node::MethodDefinition | Node::PropertyDefinition)
+        Kind::Node(JavaScriptNode::MethodDefinition | JavaScriptNode::PropertyDefinition)
             if token(tree, at, languages::NameText(COMPUTED_OPEN)).is_some() =>
         {
             None
@@ -101,15 +101,15 @@ pub(crate) fn declared<'a>(
 pub(crate) fn declaration_kind(tree: &Tree<'_>, at: Position) -> languages::DeclarationKind {
     use languages::DeclarationKind as Declaration;
     match kind(tree, at) {
-        Kind::Node(Node::FunctionDeclaration) => Declaration::Function,
-        Kind::Node(Node::ClassDeclaration) => Declaration::Class,
+        Kind::Node(JavaScriptNode::FunctionDeclaration) => Declaration::Function,
+        Kind::Node(JavaScriptNode::ClassDeclaration) => Declaration::Class,
         Kind::Node(
-            Node::ImportSpecifier | Node::ImportDefaultSpecifier | Node::ImportNamespaceSpecifier,
+            JavaScriptNode::ImportSpecifier | JavaScriptNode::ImportDefaultSpecifier | JavaScriptNode::ImportNamespaceSpecifier,
         ) => Declaration::Import,
-        Kind::Node(Node::MethodDefinition) => Declaration::Method,
-        Kind::Node(Node::PropertyDefinition) => Declaration::Property,
-        Kind::Node(Node::LabeledStatement) => Declaration::Label,
-        Kind::Node(Node::VariableDeclarator)
+        Kind::Node(JavaScriptNode::MethodDefinition) => Declaration::Method,
+        Kind::Node(JavaScriptNode::PropertyDefinition) => Declaration::Property,
+        Kind::Node(JavaScriptNode::LabeledStatement) => Declaration::Label,
+        Kind::Node(JavaScriptNode::VariableDeclarator)
             if languages::children(tree.elements, parent(tree, at)).any(|child| {
                 kind(tree, child) == Kind::Token(Token::Keyword)
                     && spelling(tree, child).0 == CONSTANT
@@ -130,21 +130,21 @@ pub(crate) fn referenced(tree: &Tree<'_>, at: Position) -> Reference {
     if matches!(
         parent_kind,
         Kind::Node(
-            Node::ImportSpecifier | Node::ImportDefaultSpecifier | Node::ImportNamespaceSpecifier
+            JavaScriptNode::ImportSpecifier | JavaScriptNode::ImportDefaultSpecifier | JavaScriptNode::ImportNamespaceSpecifier
         )
     ) {
         return Reference::Binding;
     }
     // A static member is read as one dotted name, the chain it is part of; a computed one names nothing static, so what it selects
     // from and the key it selects with are each read on their own.
-    if parent_kind == Kind::Node(Node::MemberExpression)
+    if parent_kind == Kind::Node(JavaScriptNode::MemberExpression)
         && token(tree, enclosing, languages::NameText(COMPUTED_OPEN)).is_none()
     {
         return Reference::Binding;
     }
     if matches!(
         parent_kind,
-        Kind::Node(Node::Property | Node::MethodDefinition | Node::PropertyDefinition)
+        Kind::Node(JavaScriptNode::Property | JavaScriptNode::MethodDefinition | JavaScriptNode::PropertyDefinition)
     ) && nodes(tree, enclosing).last() != Some(at)
         && token(tree, enclosing, languages::NameText(COMPUTED_OPEN)).is_none()
     {
@@ -155,14 +155,14 @@ pub(crate) fn referenced(tree: &Tree<'_>, at: Position) -> Reference {
         if matches!(
             kind(tree, ancestor),
             Kind::Node(
-                Node::VariableDeclarator
-                    | Node::FunctionDeclaration
-                    | Node::FunctionExpression
-                    | Node::ClassDeclaration
-                    | Node::ClassExpression
-                    | Node::MethodDefinition
-                    | Node::PropertyDefinition
-                    | Node::LabeledStatement
+                JavaScriptNode::VariableDeclarator
+                    | JavaScriptNode::FunctionDeclaration
+                    | JavaScriptNode::FunctionExpression
+                    | JavaScriptNode::ClassDeclaration
+                    | JavaScriptNode::ClassExpression
+                    | JavaScriptNode::MethodDefinition
+                    | JavaScriptNode::PropertyDefinition
+                    | JavaScriptNode::LabeledStatement
             )
         ) && declared(tree, ancestor).any(|binding| binding == at)
         {
@@ -171,9 +171,9 @@ pub(crate) fn referenced(tree: &Tree<'_>, at: Position) -> Reference {
         let callable = matches!(
             kind(tree, ancestor),
             Kind::Node(
-                Node::FunctionDeclaration
-                    | Node::FunctionExpression
-                    | Node::ArrowFunctionExpression
+                JavaScriptNode::FunctionDeclaration
+                    | JavaScriptNode::FunctionExpression
+                    | JavaScriptNode::ArrowFunctionExpression
             )
         );
         if callable
@@ -207,6 +207,6 @@ pub(crate) fn bases<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item 
         .map(|child| languages::end_at(tree.elements, child));
     nodes(tree, at).filter(move |child| {
         extends.is_some_and(|from| languages::start_at(tree.elements, *child) >= from)
-            && kind(tree, *child) != Kind::Node(Node::ClassBody)
+            && kind(tree, *child) != Kind::Node(JavaScriptNode::ClassBody)
     })
 }

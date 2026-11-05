@@ -4,7 +4,7 @@ use super::{
     types::{Declaring, Visible},
 };
 use crate::domain::names::service::{declared, nodes, text};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 use crate::domain::syntax::{service::kind, types::Kind};
 use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Position, Span, Symbol, Symbols, Tree};
@@ -23,13 +23,13 @@ fn declaration(tree: &Tree<'_>, at: Position) -> Declaring {
     let declaration = matches!(
         kind(tree, at),
         Kind::Node(
-            Node::FunctionDeclaration
-                | Node::TSDeclareFunction
-                | Node::ClassDeclaration
-                | Node::TSInterfaceDeclaration
-                | Node::TSTypeAliasDeclaration
-                | Node::TSEnumDeclaration
-                | Node::TSModuleDeclaration
+            TypeScriptNode::FunctionDeclaration
+                | TypeScriptNode::TSDeclareFunction
+                | TypeScriptNode::ClassDeclaration
+                | TypeScriptNode::TSInterfaceDeclaration
+                | TypeScriptNode::TSTypeAliasDeclaration
+                | TypeScriptNode::TSEnumDeclaration
+                | TypeScriptNode::TSModuleDeclaration
         )
     );
     if declaration {
@@ -41,14 +41,14 @@ fn declaration(tree: &Tree<'_>, at: Position) -> Declaring {
 
 /// The declarations an export holds, each by its own node: the declarators of a variable declaration, or the one declaration.
 fn exported<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
-    let held = nodes(tree, at).find(|child| kind(tree, *child) != Kind::Node(Node::Decorator));
-    let variables = held.filter(|each| kind(tree, *each) == Kind::Node(Node::VariableDeclaration));
+    let held = nodes(tree, at).find(|child| kind(tree, *child) != Kind::Node(TypeScriptNode::Decorator));
+    let variables = held.filter(|each| kind(tree, *each) == Kind::Node(TypeScriptNode::VariableDeclaration));
     let own =
         held.filter(|each| variables.is_none() && declaration(tree, *each) == Declaring::Declares);
     own.into_iter()
         .chain(variables.into_iter().flat_map(move |list| {
             nodes(tree, list).filter(move |each| {
-                kind(tree, *each) == Kind::Node(Node::VariableDeclarator)
+                kind(tree, *each) == Kind::Node(TypeScriptNode::VariableDeclarator)
                     && defined(tree, *each) == Declaring::Declares
             })
         }))
@@ -59,10 +59,10 @@ fn exported<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Positi
 fn keywords<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
     let export = matches!(
         kind(tree, at),
-        Kind::Node(Node::ExportNamedDeclaration | Node::ExportDefaultDeclaration)
+        Kind::Node(TypeScriptNode::ExportNamedDeclaration | TypeScriptNode::ExportDefaultDeclaration)
     );
     let held = nodes(tree, at)
-        .find(|child| kind(tree, *child) != Kind::Node(Node::Decorator))
+        .find(|child| kind(tree, *child) != Kind::Node(TypeScriptNode::Decorator))
         .map_or_else(
             || languages::end_at(tree.elements, at),
             |child| languages::start_at(tree.elements, child),
@@ -83,7 +83,7 @@ pub(crate) fn visible<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Ite
     let last = keywords(tree, at).last();
     let export = matches!(
         kind(tree, at),
-        Kind::Node(Node::ExportNamedDeclaration | Node::ExportDefaultDeclaration)
+        Kind::Node(TypeScriptNode::ExportNamedDeclaration | TypeScriptNode::ExportDefaultDeclaration)
     );
     let member = (!export && defined(tree, at) == Declaring::Declares).then_some(at);
     let declarations = export

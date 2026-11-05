@@ -3,7 +3,7 @@
 //! `basic-string`, `ws`); the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TomlNode;
 use crate::domain::tokens::types::Token;
 
 /// What a node or a token of a TOML syntax tree is: a node or a token of `toml.abnf`, or an extra the standard lacks. The element table
@@ -11,7 +11,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
-    Node(Node),
+    Node(TomlNode),
     /// A token.
     Token(Token),
     /// A kind the standard lacks.
@@ -24,7 +24,7 @@ pub(crate) enum Leaf {
     /// A token.
     Token,
     /// A node.
-    Node,
+    TomlNode,
 }
 
 /// Whether an element is the root of its tree.

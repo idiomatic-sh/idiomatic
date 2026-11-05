@@ -4,7 +4,7 @@
 use super::adapter::SyntaxCssparserAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::CssNode;
 use crate::domain::syntax::service::{kind_name, kind_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::service::mirror;
@@ -215,13 +215,13 @@ fn project(elements: &Elements, text: &str, at: Position, out: &mut Vec<Shape>) 
     let mut kids: Vec<Position> = children_at(elements, at).collect();
     let of = |position: &Position| kind_of(kind_at(elements, *position));
     let closer = match (node, kids.first().map(of)) {
-        (Node::Function, _) => Some(Token::RightParenthesis),
-        (Node::SimpleBlock, Some(Kind::Token(opener))) => mirror(opener),
+        (CssNode::Function, _) => Some(Token::RightParenthesis),
+        (CssNode::SimpleBlock, Some(Kind::Token(opener))) => mirror(opener),
         _ => None,
     };
     let mut important = false;
     match node {
-        Node::Stylesheet => {
+        CssNode::Stylesheet => {
             skip_charset(elements, text, &mut kids);
             kids.retain(|each| {
                 !matches!(
@@ -230,8 +230,8 @@ fn project(elements: &Elements, text: &str, at: Position, out: &mut Vec<Shape>) 
                 )
             });
         }
-        Node::QualifiedRule | Node::AtRule => {
-            if node == Node::QualifiedRule
+        CssNode::QualifiedRule | CssNode::AtRule => {
+            if node == CssNode::QualifiedRule
                 && !kids
                     .iter()
                     .any(|each| of(each) == Kind::Token(Token::LeftCurly))
@@ -242,7 +242,7 @@ fn project(elements: &Elements, text: &str, at: Position, out: &mut Vec<Shape>) 
                 !matches!(of(each), Kind::Token(Token::Semicolon | Token::RightCurly))
             });
         }
-        Node::Declaration => {
+        CssNode::Declaration => {
             let words: Vec<&Position> = kids
                 .iter()
                 .filter(|each| {
@@ -263,7 +263,7 @@ fn project(elements: &Elements, text: &str, at: Position, out: &mut Vec<Shape>) 
                 important = true;
             }
         }
-        Node::Function | Node::SimpleBlock => {
+        CssNode::Function | CssNode::SimpleBlock => {
             if let (Some(last), Some(closer)) = (kids.last(), closer)
                 && of(last) == Kind::Token(closer)
             {

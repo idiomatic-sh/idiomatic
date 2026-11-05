@@ -11,7 +11,7 @@ use ryo::languages::contract::{Leafness, Walked};
 
 use super::super::constants::{OPTIONS, WHITE_SPACE};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -48,29 +48,29 @@ fn labelled(link: LinkType) -> bool {
 /// The kind of the construct the library opens with `tag`, named by the walk's own table.
 fn construct(tag: &Tag<'_>) -> Kind {
     match tag {
-        Tag::Paragraph => Kind::Node(Node::Paragraph),
-        Tag::Heading { .. } => Kind::Node(Node::Heading),
-        Tag::BlockQuote(_) => Kind::Node(Node::Blockquote),
-        Tag::CodeBlock(_) => Kind::Node(Node::Code),
-        Tag::HtmlBlock => Kind::Node(Node::Html),
-        Tag::List(_) => Kind::Node(Node::List),
-        Tag::Item => Kind::Node(Node::ListItem),
-        Tag::FootnoteDefinition(_) => Kind::Node(Node::FootnoteDefinition),
+        Tag::Paragraph => Kind::Node(MarkdownNode::Paragraph),
+        Tag::Heading { .. } => Kind::Node(MarkdownNode::Heading),
+        Tag::BlockQuote(_) => Kind::Node(MarkdownNode::Blockquote),
+        Tag::CodeBlock(_) => Kind::Node(MarkdownNode::Code),
+        Tag::HtmlBlock => Kind::Node(MarkdownNode::Html),
+        Tag::List(_) => Kind::Node(MarkdownNode::List),
+        Tag::Item => Kind::Node(MarkdownNode::ListItem),
+        Tag::FootnoteDefinition(_) => Kind::Node(MarkdownNode::FootnoteDefinition),
         Tag::DefinitionList => Kind::Extra(Extra::DefinitionList),
         Tag::DefinitionListTitle => Kind::Extra(Extra::DefinitionListTitle),
         Tag::DefinitionListDefinition => Kind::Extra(Extra::DefinitionListDefinition),
-        Tag::Table(_) => Kind::Node(Node::Table),
-        Tag::TableHead | Tag::TableRow => Kind::Node(Node::TableRow),
-        Tag::TableCell => Kind::Node(Node::TableCell),
-        Tag::Emphasis => Kind::Node(Node::Emphasis),
-        Tag::Strong => Kind::Node(Node::Strong),
-        Tag::Strikethrough => Kind::Node(Node::Delete),
+        Tag::Table(_) => Kind::Node(MarkdownNode::Table),
+        Tag::TableHead | Tag::TableRow => Kind::Node(MarkdownNode::TableRow),
+        Tag::TableCell => Kind::Node(MarkdownNode::TableCell),
+        Tag::Emphasis => Kind::Node(MarkdownNode::Emphasis),
+        Tag::Strong => Kind::Node(MarkdownNode::Strong),
+        Tag::Strikethrough => Kind::Node(MarkdownNode::Delete),
         Tag::Superscript => Kind::Extra(Extra::Superscript),
         Tag::Subscript => Kind::Extra(Extra::Subscript),
-        Tag::Link { link_type, .. } if labelled(*link_type) => Kind::Node(Node::LinkReference),
-        Tag::Link { .. } => Kind::Node(Node::Link),
-        Tag::Image { link_type, .. } if labelled(*link_type) => Kind::Node(Node::ImageReference),
-        Tag::Image { .. } => Kind::Node(Node::Image),
+        Tag::Link { link_type, .. } if labelled(*link_type) => Kind::Node(MarkdownNode::LinkReference),
+        Tag::Link { .. } => Kind::Node(MarkdownNode::Link),
+        Tag::Image { link_type, .. } if labelled(*link_type) => Kind::Node(MarkdownNode::ImageReference),
+        Tag::Image { .. } => Kind::Node(MarkdownNode::Image),
         Tag::MetadataBlock(MetadataBlockKind::YamlStyle) => Kind::Extra(Extra::Yaml),
         Tag::MetadataBlock(MetadataBlockKind::PlusesStyle) => Kind::Extra(Extra::Toml),
     }
@@ -79,18 +79,18 @@ fn construct(tag: &Tag<'_>) -> Kind {
 /// The kind of a token for an event that is not the start or end of a construct, in the construct `within`.
 fn leaf_kind(event: &Event<'_>, within: Kind) -> Option<Kind> {
     Some(match event {
-        Event::Text(_) if within == Kind::Node(Node::Html) => return None,
-        Event::Text(_) if within == Kind::Node(Node::Code) => Kind::Token(Token::CodeFlowValue),
-        Event::Text(_) => Kind::Node(Node::Text),
-        Event::Code(_) => Kind::Node(Node::InlineCode),
+        Event::Text(_) if within == Kind::Node(MarkdownNode::Html) => return None,
+        Event::Text(_) if within == Kind::Node(MarkdownNode::Code) => Kind::Token(Token::CodeFlowValue),
+        Event::Text(_) => Kind::Node(MarkdownNode::Text),
+        Event::Code(_) => Kind::Node(MarkdownNode::InlineCode),
         Event::InlineMath(_) => Kind::Extra(Extra::InlineMath),
         Event::DisplayMath(_) => Kind::Extra(Extra::Math),
         Event::Html(_) => Kind::Token(Token::HtmlFlowData),
-        Event::InlineHtml(_) => Kind::Node(Node::Html),
-        Event::FootnoteReference(_) => Kind::Node(Node::FootnoteReference),
+        Event::InlineHtml(_) => Kind::Node(MarkdownNode::Html),
+        Event::FootnoteReference(_) => Kind::Node(MarkdownNode::FootnoteReference),
         Event::SoftBreak => Kind::Token(Token::LineEnding),
-        Event::HardBreak => Kind::Node(Node::Break),
-        Event::Rule => Kind::Node(Node::ThematicBreak),
+        Event::HardBreak => Kind::Node(MarkdownNode::Break),
+        Event::Rule => Kind::Node(MarkdownNode::ThematicBreak),
         Event::TaskListMarker(true) => Kind::Extra(Extra::TaskChecked),
         Event::TaskListMarker(false) => Kind::Extra(Extra::TaskUnchecked),
         Event::Start(_) | Event::End(_) => return None,
@@ -141,15 +141,15 @@ fn close_sections(
 
 /// The tree the events open and close, with the tokens of the events in it and nothing between them.
 fn nested(text: &str) -> Walked {
-    let root = piece(Kind::Node(Node::Root), Leafness::Node, 0, text.len());
-    let mut open = vec![(Kind::Node(Node::Root), root)];
+    let root = piece(Kind::Node(MarkdownNode::Root), Leafness::Node, 0, text.len());
+    let mut open = vec![(Kind::Node(MarkdownNode::Root), root)];
     // The sections open: how deep each heading is, and how many constructs were open when it started.
     let mut sections: Vec<(u8, usize)> = Vec::new();
     let mut constructs = 0_usize;
     for (event, range) in Parser::new_ext(text, OPTIONS).into_offset_iter() {
         let within = open
             .last()
-            .map_or(Kind::Node(Node::Root), |(kind, _)| *kind);
+            .map_or(Kind::Node(MarkdownNode::Root), |(kind, _)| *kind);
         match &event {
             Event::Start(tag) => {
                 if let Tag::Heading { level, .. } = tag {
@@ -197,7 +197,7 @@ fn nested(text: &str) -> Walked {
         close(&mut open);
     }
     open.pop().map_or_else(
-        || piece(Kind::Node(Node::Root), Leafness::Node, 0, text.len()),
+        || piece(Kind::Node(MarkdownNode::Root), Leafness::Node, 0, text.len()),
         |(_, document)| document,
     )
 }
@@ -254,7 +254,7 @@ pub(crate) fn walked(text: &str) -> Walked {
         place(
             &mut tree,
             piece(
-                Kind::Node(Node::Definition),
+                Kind::Node(MarkdownNode::Definition),
                 Leafness::Token,
                 definition.span.start,
                 definition.span.end,

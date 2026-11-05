@@ -8,7 +8,7 @@ use std::sync::Arc;
 use super::service::{field_name, field_of, fields, role_of};
 use super::types::AstField;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::{kind, kind_name, parent};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -25,7 +25,7 @@ enum Given {
         /// The source.
         source: &'static str,
         /// The kind of the parent.
-        parent: Node,
+        parent: GoNode,
         /// The kind of the child.
         child: Kind,
         /// Which of the edges of those kinds, from zero.
@@ -41,7 +41,7 @@ type Input = Given;
 type Value = &'static str;
 type Failure = ();
 
-const fn edge(source: &'static str, parent: Node, child: Kind, nth: usize) -> Given {
+const fn edge(source: &'static str, parent: GoNode, child: Kind, nth: usize) -> Given {
     Given::Edge {
         source,
         parent,
@@ -58,7 +58,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar a, b int\n",
-                Node::ValueSpec,
+                GoNode::ValueSpec,
                 Kind::Token(Token::Comma),
                 0,
             )
@@ -71,8 +71,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = f(1)\n",
-                Node::CallExpr,
-                Kind::Node(Node::BasicLit),
+                GoNode::CallExpr,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -84,7 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(c chan<- int) { c <- 1 }\n",
-                Node::SendStmt,
+                GoNode::SendStmt,
                 Kind::Token(Token::Arrow),
                 0,
             )
@@ -97,7 +97,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\ntype A = int\n",
-                Node::TypeSpec,
+                GoNode::TypeSpec,
                 Kind::Token(Token::Assign),
                 0,
             )
@@ -110,7 +110,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar c <-chan int\n",
-                Node::ChanType,
+                GoNode::ChanType,
                 Kind::Token(Token::Arrow),
                 0,
             )
@@ -123,8 +123,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::FuncDecl,
-                Kind::Node(Node::BlockStmt),
+                GoNode::FuncDecl,
+                Kind::Node(GoNode::BlockStmt),
                 0,
             )
         },
@@ -136,8 +136,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { go f() }\n",
-                Node::GoStmt,
-                Kind::Node(Node::CallExpr),
+                GoNode::GoStmt,
+                Kind::Node(GoNode::CallExpr),
                 0,
             )
         },
@@ -149,7 +149,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(x int) {\n\tswitch x {\n\tcase 1:\n\t}\n}\n",
-                Node::CaseClause,
+                GoNode::CaseClause,
                 Kind::Token(Token::Case),
                 0,
             )
@@ -162,8 +162,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(c chan int) { c <- 1 }\n",
-                Node::SendStmt,
-                Kind::Node(Node::Ident),
+                GoNode::SendStmt,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -175,7 +175,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::FieldList,
+                GoNode::FieldList,
                 Kind::Token(Token::Rparen),
                 0,
             )
@@ -188,7 +188,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = map[int]int{1: 2}\n",
-                Node::KeyValueExpr,
+                GoNode::KeyValueExpr,
                 Kind::Token(Token::Colon),
                 0,
             )
@@ -201,8 +201,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(c chan int) {\n\tselect {\n\tcase <-c:\n\t}\n}\n",
-                Node::CommClause,
-                Kind::Node(Node::ExprStmt),
+                GoNode::CommClause,
+                Kind::Node(GoNode::ExprStmt),
                 0,
             )
         },
@@ -214,8 +214,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(x bool) {\n\tif x {\n\t}\n}\n",
-                Node::IfStmt,
-                Kind::Node(Node::Ident),
+                GoNode::IfStmt,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -227,8 +227,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { var x int; _ = x }\n",
-                Node::DeclStmt,
-                Kind::Node(Node::GenDecl),
+                GoNode::DeclStmt,
+                Kind::Node(GoNode::GenDecl),
                 0,
             )
         },
@@ -240,8 +240,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::File,
-                Kind::Node(Node::FuncDecl),
+                GoNode::File,
+                Kind::Node(GoNode::FuncDecl),
                 0,
             )
         },
@@ -253,7 +253,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { defer f() }\n",
-                Node::DeferStmt,
+                GoNode::DeferStmt,
                 Kind::Token(Token::Defer),
                 0,
             )
@@ -266,7 +266,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(x ...int) {}\n",
-                Node::Ellipsis,
+                GoNode::Ellipsis,
                 Kind::Token(Token::Ellipsis),
                 0,
             )
@@ -279,8 +279,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(x bool) {\n\tif x {\n\t} else {\n\t}\n}\n",
-                Node::IfStmt,
-                Kind::Node(Node::BlockStmt),
+                GoNode::IfStmt,
+                Kind::Node(GoNode::BlockStmt),
                 1,
             )
         },
@@ -292,8 +292,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ []int\n",
-                Node::ArrayType,
-                Kind::Node(Node::Ident),
+                GoNode::ArrayType,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -305,8 +305,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = []int{1}\n",
-                Node::CompositeLit,
-                Kind::Node(Node::BasicLit),
+                GoNode::CompositeLit,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -318,8 +318,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\ntype T struct{}\n",
-                Node::StructType,
-                Kind::Node(Node::FieldList),
+                GoNode::StructType,
+                Kind::Node(GoNode::FieldList),
                 0,
             )
         },
@@ -331,7 +331,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\n\tfor {\n\t}\n}\n",
-                Node::ForStmt,
+                GoNode::ForStmt,
                 Kind::Token(Token::For),
                 0,
             )
@@ -344,8 +344,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = f(1)\n",
-                Node::CallExpr,
-                Kind::Node(Node::Ident),
+                GoNode::CallExpr,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -357,7 +357,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::FuncType,
+                GoNode::FuncType,
                 Kind::Token(Token::Func),
                 0,
             )
@@ -370,7 +370,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { go f() }\n",
-                Node::GoStmt,
+                GoNode::GoStmt,
                 Kind::Token(Token::Go),
                 0,
             )
@@ -383,8 +383,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = s[1:2]\n",
-                Node::SliceExpr,
-                Kind::Node(Node::BasicLit),
+                GoNode::SliceExpr,
+                Kind::Node(GoNode::BasicLit),
                 1,
             )
         },
@@ -396,7 +396,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(x bool) {\n\tif x {\n\t}\n}\n",
-                Node::IfStmt,
+                GoNode::IfStmt,
                 Kind::Token(Token::If),
                 0,
             )
@@ -409,8 +409,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = s[1]\n",
-                Node::IndexExpr,
-                Kind::Node(Node::BasicLit),
+                GoNode::IndexExpr,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -422,8 +422,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = f[int, string]\n",
-                Node::IndexListExpr,
-                Kind::Node(Node::Ident),
+                GoNode::IndexListExpr,
+                Kind::Node(GoNode::Ident),
                 1,
             )
         },
@@ -435,8 +435,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\n\tif x := 1; x > 0 {\n\t}\n}\n",
-                Node::IfStmt,
-                Kind::Node(Node::AssignStmt),
+                GoNode::IfStmt,
+                Kind::Node(GoNode::AssignStmt),
                 0,
             )
         },
@@ -448,7 +448,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\ntype I interface{}\n",
-                Node::InterfaceType,
+                GoNode::InterfaceType,
                 Kind::Token(Token::Interface),
                 0,
             )
@@ -461,8 +461,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ map[string]int\n",
-                Node::MapType,
-                Kind::Node(Node::Ident),
+                GoNode::MapType,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -474,8 +474,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\nL:\n\tfor {\n\t\tbreak L\n\t}\n}\n",
-                Node::BranchStmt,
-                Kind::Node(Node::Ident),
+                GoNode::BranchStmt,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -487,7 +487,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::BlockStmt,
+                GoNode::BlockStmt,
                 Kind::Token(Token::Lbrace),
                 0,
             )
@@ -500,7 +500,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = s[1]\n",
-                Node::IndexExpr,
+                GoNode::IndexExpr,
                 Kind::Token(Token::Lbrack),
                 0,
             )
@@ -513,8 +513,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ [2]int\n",
-                Node::ArrayType,
-                Kind::Node(Node::BasicLit),
+                GoNode::ArrayType,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -526,8 +526,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { x := 1; _ = x }\n",
-                Node::AssignStmt,
-                Kind::Node(Node::Ident),
+                GoNode::AssignStmt,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -539,8 +539,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { f() }\n",
-                Node::BlockStmt,
-                Kind::Node(Node::ExprStmt),
+                GoNode::BlockStmt,
+                Kind::Node(GoNode::ExprStmt),
                 0,
             )
         },
@@ -552,8 +552,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = s[1:2]\n",
-                Node::SliceExpr,
-                Kind::Node(Node::BasicLit),
+                GoNode::SliceExpr,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -565,7 +565,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = f(1)\n",
-                Node::CallExpr,
+                GoNode::CallExpr,
                 Kind::Token(Token::Lparen),
                 0,
             )
@@ -578,7 +578,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ map[string]int\n",
-                Node::MapType,
+                GoNode::MapType,
                 Kind::Token(Token::Map),
                 0,
             )
@@ -591,8 +591,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = s[1:2:3]\n",
-                Node::SliceExpr,
-                Kind::Node(Node::BasicLit),
+                GoNode::SliceExpr,
+                Kind::Node(GoNode::BasicLit),
                 2,
             )
         },
@@ -604,8 +604,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\ntype I interface{ M() }\n",
-                Node::InterfaceType,
-                Kind::Node(Node::FieldList),
+                GoNode::InterfaceType,
+                Kind::Node(GoNode::FieldList),
                 0,
             )
         },
@@ -617,8 +617,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::FuncType,
-                Kind::Node(Node::Ident),
+                GoNode::FuncType,
+                Kind::Node(GoNode::Ident),
                 0,
             )
         },
@@ -630,8 +630,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(a, b int) {}\n",
-                Node::Field,
-                Kind::Node(Node::Ident),
+                GoNode::Field,
+                Kind::Node(GoNode::Ident),
                 1,
             )
         },
@@ -643,7 +643,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = 1 + 2\n",
-                Node::BinaryExpr,
+                GoNode::BinaryExpr,
                 Kind::Token(Token::Add),
                 0,
             )
@@ -656,7 +656,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::FieldList,
+                GoNode::FieldList,
                 Kind::Token(Token::Lparen),
                 0,
             )
@@ -666,7 +666,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("package_is_the_role_of_its_edge"),
         word: Word::Succeeds,
-        input: || edge("package p\n", Node::File, Kind::Token(Token::Package), 0),
+        input: || edge("package p\n", GoNode::File, Kind::Token(Token::Package), 0),
         expect: Expect::Value("package"),
     },
     Case {
@@ -675,8 +675,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc (r T) f(a int) (b int) {}\n",
-                Node::FuncType,
-                Kind::Node(Node::FieldList),
+                GoNode::FuncType,
+                Kind::Node(GoNode::FieldList),
                 1,
             )
         },
@@ -688,8 +688,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nimport f \"fmt\"\n",
-                Node::ImportSpec,
-                Kind::Node(Node::BasicLit),
+                GoNode::ImportSpec,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -701,8 +701,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\n\tfor i := 0; i < 1; i++ {\n\t}\n}\n",
-                Node::ForStmt,
-                Kind::Node(Node::IncDecStmt),
+                GoNode::ForStmt,
+                Kind::Node(GoNode::IncDecStmt),
                 0,
             )
         },
@@ -714,7 +714,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(s []int) {\n\tfor range s {\n\t}\n}\n",
-                Node::RangeStmt,
+                GoNode::RangeStmt,
                 Kind::Token(Token::Range),
                 0,
             )
@@ -727,7 +727,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {}\n",
-                Node::BlockStmt,
+                GoNode::BlockStmt,
                 Kind::Token(Token::Rbrace),
                 0,
             )
@@ -740,7 +740,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = s[1]\n",
-                Node::IndexExpr,
+                GoNode::IndexExpr,
                 Kind::Token(Token::Rbrack),
                 0,
             )
@@ -753,8 +753,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc (r T) f(a int) (b int) {}\n",
-                Node::FuncType,
-                Kind::Node(Node::FieldList),
+                GoNode::FuncType,
+                Kind::Node(GoNode::FieldList),
                 0,
             )
         },
@@ -766,8 +766,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc (r T) f(a int) (b int) {}\n",
-                Node::FuncType,
-                Kind::Node(Node::FieldList),
+                GoNode::FuncType,
+                Kind::Node(GoNode::FieldList),
                 2,
             )
         },
@@ -779,7 +779,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { return }\n",
-                Node::ReturnStmt,
+                GoNode::ReturnStmt,
                 Kind::Token(Token::Return),
                 0,
             )
@@ -792,8 +792,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { x := 1; _ = x }\n",
-                Node::AssignStmt,
-                Kind::Node(Node::BasicLit),
+                GoNode::AssignStmt,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -805,7 +805,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = f(1)\n",
-                Node::CallExpr,
+                GoNode::CallExpr,
                 Kind::Token(Token::Rparen),
                 0,
             )
@@ -818,7 +818,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\n\tselect {\n\t}\n}\n",
-                Node::SelectStmt,
+                GoNode::SelectStmt,
                 Kind::Token(Token::Select),
                 0,
             )
@@ -831,8 +831,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = a.b\n",
-                Node::SelectorExpr,
-                Kind::Node(Node::Ident),
+                GoNode::SelectorExpr,
+                Kind::Node(GoNode::Ident),
                 1,
             )
         },
@@ -844,7 +844,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\n\tfor {\n\t\t;\n\t}\n}\n",
-                Node::EmptyStmt,
+                GoNode::EmptyStmt,
                 Kind::Token(Token::Semicolon),
                 0,
             )
@@ -857,8 +857,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar x int\n",
-                Node::GenDecl,
-                Kind::Node(Node::ValueSpec),
+                GoNode::GenDecl,
+                Kind::Node(GoNode::ValueSpec),
                 0,
             )
         },
@@ -870,7 +870,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ *int\n",
-                Node::StarExpr,
+                GoNode::StarExpr,
                 Kind::Token(Token::Mul),
                 0,
             )
@@ -883,8 +883,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\nL:\n\tfor {\n\t\tbreak L\n\t}\n}\n",
-                Node::LabeledStmt,
-                Kind::Node(Node::ForStmt),
+                GoNode::LabeledStmt,
+                Kind::Node(GoNode::ForStmt),
                 0,
             )
         },
@@ -896,7 +896,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\ntype T struct{}\n",
-                Node::StructType,
+                GoNode::StructType,
                 Kind::Token(Token::Struct),
                 0,
             )
@@ -909,7 +909,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() {\n\tswitch {\n\t}\n}\n",
-                Node::SwitchStmt,
+                GoNode::SwitchStmt,
                 Kind::Token(Token::Switch),
                 0,
             )
@@ -922,8 +922,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\ntype T struct {\n\tx int `json:\"x\"`\n}\n",
-                Node::Field,
-                Kind::Node(Node::BasicLit),
+                GoNode::Field,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -935,7 +935,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f() { x := 1; _ = x }\n",
-                Node::AssignStmt,
+                GoNode::AssignStmt,
                 Kind::Token(Token::Define),
                 0,
             )
@@ -948,8 +948,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f(a int) {}\n",
-                Node::Field,
-                Kind::Node(Node::Ident),
+                GoNode::Field,
+                Kind::Node(GoNode::Ident),
                 1,
             )
         },
@@ -961,8 +961,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nfunc f[T any]() {}\n",
-                Node::FuncType,
-                Kind::Node(Node::FieldList),
+                GoNode::FuncType,
+                Kind::Node(GoNode::FieldList),
                 0,
             )
         },
@@ -974,7 +974,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = 1\n",
-                Node::BasicLit,
+                GoNode::BasicLit,
                 Kind::Token(Token::Int),
                 0,
             )
@@ -987,8 +987,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar x = 1\n",
-                Node::ValueSpec,
-                Kind::Node(Node::BasicLit),
+                GoNode::ValueSpec,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -1000,8 +1000,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = 1 + 2\n",
-                Node::BinaryExpr,
-                Kind::Node(Node::BasicLit),
+                GoNode::BinaryExpr,
+                Kind::Node(GoNode::BasicLit),
                 0,
             )
         },
@@ -1013,8 +1013,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "package p\nvar _ = 1 + 2\n",
-                Node::BinaryExpr,
-                Kind::Node(Node::BasicLit),
+                GoNode::BinaryExpr,
+                Kind::Node(GoNode::BasicLit),
                 1,
             )
         },

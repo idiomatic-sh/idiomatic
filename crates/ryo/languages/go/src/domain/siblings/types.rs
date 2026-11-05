@@ -1,15 +1,15 @@
 //! The types of the `siblings` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::tokens::types::Token;
 
 /// Which siblings are counted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Wanted {
     /// Every node.
-    Node,
+    GoNode,
     /// The nodes of one kind.
-    NodeOf(Node),
+    NodeOf(GoNode),
     /// The tokens of one kind.
     Token(Token),
     /// The tokens that assign: `=`, `:=` and an operator with `=`.

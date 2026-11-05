@@ -2,7 +2,7 @@
 //! kind alone decides: the tables of `rust.ungram`, with no IO and no ports.
 
 use super::types::{Category, Field};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -15,98 +15,98 @@ use crate::domain::tokens::types::Token;
 pub(crate) fn category(element: Kind) -> Category {
     match element {
         Kind::Node(
-            Node::ArrayExpr
-            | Node::AsmExpr
-            | Node::AwaitExpr
-            | Node::BecomeExpr
-            | Node::BinExpr
-            | Node::BlockExpr
-            | Node::BreakExpr
-            | Node::CallExpr
-            | Node::CastExpr
-            | Node::ClosureExpr
-            | Node::ContinueExpr
-            | Node::FieldExpr
-            | Node::FormatArgsExpr
-            | Node::ForExpr
-            | Node::IfExpr
-            | Node::IncludeBytesExpr
-            | Node::IndexExpr
-            | Node::LetExpr
-            | Node::Literal
-            | Node::LoopExpr
-            | Node::MacroExpr
-            | Node::MatchExpr
-            | Node::MethodCallExpr
-            | Node::OffsetOfExpr
-            | Node::ParenExpr
-            | Node::PathExpr
-            | Node::PrefixExpr
-            | Node::RangeExpr
-            | Node::RecordExpr
-            | Node::RefExpr
-            | Node::ReturnExpr
-            | Node::TryExpr
-            | Node::TupleExpr
-            | Node::UnderscoreExpr
-            | Node::WhileExpr
-            | Node::YeetExpr
-            | Node::YieldExpr,
+            RustNode::ArrayExpr
+            | RustNode::AsmExpr
+            | RustNode::AwaitExpr
+            | RustNode::BecomeExpr
+            | RustNode::BinExpr
+            | RustNode::BlockExpr
+            | RustNode::BreakExpr
+            | RustNode::CallExpr
+            | RustNode::CastExpr
+            | RustNode::ClosureExpr
+            | RustNode::ContinueExpr
+            | RustNode::FieldExpr
+            | RustNode::FormatArgsExpr
+            | RustNode::ForExpr
+            | RustNode::IfExpr
+            | RustNode::IncludeBytesExpr
+            | RustNode::IndexExpr
+            | RustNode::LetExpr
+            | RustNode::Literal
+            | RustNode::LoopExpr
+            | RustNode::MacroExpr
+            | RustNode::MatchExpr
+            | RustNode::MethodCallExpr
+            | RustNode::OffsetOfExpr
+            | RustNode::ParenExpr
+            | RustNode::PathExpr
+            | RustNode::PrefixExpr
+            | RustNode::RangeExpr
+            | RustNode::RecordExpr
+            | RustNode::RefExpr
+            | RustNode::ReturnExpr
+            | RustNode::TryExpr
+            | RustNode::TupleExpr
+            | RustNode::UnderscoreExpr
+            | RustNode::WhileExpr
+            | RustNode::YeetExpr
+            | RustNode::YieldExpr,
         ) => Category::Expression,
         Kind::Node(
-            Node::BoxPat
-            | Node::ConstBlockPat
-            | Node::DerefPat
-            | Node::IdentPat
-            | Node::LiteralPat
-            | Node::MacroPat
-            | Node::OrPat
-            | Node::ParenPat
-            | Node::PathPat
-            | Node::RangePat
-            | Node::RecordPat
-            | Node::RefPat
-            | Node::RestPat
-            | Node::SlicePat
-            | Node::TuplePat
-            | Node::TupleStructPat
-            | Node::WildcardPat,
+            RustNode::BoxPat
+            | RustNode::ConstBlockPat
+            | RustNode::DerefPat
+            | RustNode::IdentPat
+            | RustNode::LiteralPat
+            | RustNode::MacroPat
+            | RustNode::OrPat
+            | RustNode::ParenPat
+            | RustNode::PathPat
+            | RustNode::RangePat
+            | RustNode::RecordPat
+            | RustNode::RefPat
+            | RustNode::RestPat
+            | RustNode::SlicePat
+            | RustNode::TuplePat
+            | RustNode::TupleStructPat
+            | RustNode::WildcardPat,
         ) => Category::Pattern,
         Kind::Node(
-            Node::ArrayType
-            | Node::DynTraitType
-            | Node::FnPtrType
-            | Node::ForType
-            | Node::ImplTraitType
-            | Node::InferType
-            | Node::MacroType
-            | Node::NeverType
-            | Node::ParenType
-            | Node::PathType
-            | Node::PtrType
-            | Node::RefType
-            | Node::SliceType
-            | Node::TupleType,
+            RustNode::ArrayType
+            | RustNode::DynTraitType
+            | RustNode::FnPtrType
+            | RustNode::ForType
+            | RustNode::ImplTraitType
+            | RustNode::InferType
+            | RustNode::MacroType
+            | RustNode::NeverType
+            | RustNode::ParenType
+            | RustNode::PathType
+            | RustNode::PtrType
+            | RustNode::RefType
+            | RustNode::SliceType
+            | RustNode::TupleType,
         ) => Category::Type,
         Kind::Node(
-            Node::Const
-            | Node::Enum
-            | Node::ExternBlock
-            | Node::ExternCrate
-            | Node::Fn
-            | Node::Impl
-            | Node::MacroCall
-            | Node::MacroDef
-            | Node::MacroRules
-            | Node::Module
-            | Node::Static
-            | Node::Struct
-            | Node::Trait
-            | Node::TypeAlias
-            | Node::Union
-            | Node::Use,
+            RustNode::Const
+            | RustNode::Enum
+            | RustNode::ExternBlock
+            | RustNode::ExternCrate
+            | RustNode::Fn
+            | RustNode::Impl
+            | RustNode::MacroCall
+            | RustNode::MacroDef
+            | RustNode::MacroRules
+            | RustNode::Module
+            | RustNode::Static
+            | RustNode::Struct
+            | RustNode::Trait
+            | RustNode::TypeAlias
+            | RustNode::Union
+            | RustNode::Use,
         ) => Category::Item,
-        Kind::Node(Node::ExprStmt | Node::LetStmt) => Category::Statement,
+        Kind::Node(RustNode::ExprStmt | RustNode::LetStmt) => Category::Statement,
         _ => Category::Other,
     }
 }
@@ -115,7 +115,7 @@ pub(crate) fn category(element: Kind) -> Category {
 pub(crate) fn token_role(parent_kind: Kind, element: Kind) -> Field {
     match (parent_kind, element) {
         (
-            Kind::Node(Node::BinExpr),
+            Kind::Node(RustNode::BinExpr),
             Kind::Token(
                 Token::Plus
                 | Token::Minus
@@ -148,12 +148,12 @@ pub(crate) fn token_role(parent_kind: Kind, element: Kind) -> Field {
                 | Token::Ampeq,
             ),
         )
-        | (Kind::Node(Node::PrefixExpr), Kind::Token(Token::Minus | Token::Bang | Token::Star))
+        | (Kind::Node(RustNode::PrefixExpr), Kind::Token(Token::Minus | Token::Bang | Token::Star))
         | (
-            Kind::Node(Node::RangeExpr | Node::RangePat),
+            Kind::Node(RustNode::RangeExpr | RustNode::RangePat),
             Kind::Token(Token::Dot2 | Token::Dot2eq),
         ) => Field::Op,
-        (Kind::Node(Node::CfgAtom), Kind::Token(Token::Ident)) => Field::Keyword,
+        (Kind::Node(RustNode::CfgAtom), Kind::Token(Token::Ident)) => Field::Keyword,
         _ => Field::None,
     }
 }
@@ -165,34 +165,34 @@ pub(crate) fn token_role(parent_kind: Kind, element: Kind) -> Field {
 )]
 pub(crate) fn kind_role(element: Kind) -> Field {
     match element {
-        Kind::Node(Node::Name) => Field::Name,
-        Kind::Node(Node::NameRef) => Field::NameRef,
-        Kind::Node(Node::Path) => Field::Path,
-        Kind::Node(Node::PathSegment) => Field::Segment,
-        Kind::Node(Node::Visibility) => Field::Visibility,
-        Kind::Node(Node::Attr) => Field::Attrs,
-        Kind::Node(Node::Lifetime) => Field::Lifetime,
-        Kind::Node(Node::Label) => Field::Label,
-        Kind::Node(Node::Abi) => Field::Abi,
-        Kind::Node(Node::Rename) => Field::Rename,
-        Kind::Node(Node::GenericParamList) => Field::GenericParamList,
-        Kind::Node(Node::GenericArgList) => Field::GenericArgList,
-        Kind::Node(Node::WhereClause) => Field::WhereClause,
-        Kind::Node(Node::ParamList) => Field::ParamList,
-        Kind::Node(Node::RetType) => Field::RetType,
-        Kind::Node(Node::ArgList) => Field::ArgList,
-        Kind::Node(Node::ItemList) => Field::ItemList,
-        Kind::Node(Node::AssocItemList) => Field::AssocItemList,
-        Kind::Node(Node::RecordFieldList) => Field::RecordFieldList,
-        Kind::Node(Node::TupleFieldList) => Field::TupleFieldList,
-        Kind::Node(Node::VariantList) => Field::VariantList,
-        Kind::Node(Node::MatchArmList) => Field::MatchArmList,
-        Kind::Node(Node::StmtList) => Field::StmtList,
-        Kind::Node(Node::UseTreeList) => Field::UseTreeList,
-        Kind::Node(Node::RecordExprFieldList) => Field::RecordExprFieldList,
-        Kind::Node(Node::RecordPatFieldList) => Field::RecordPatFieldList,
-        Kind::Node(Node::UseTree) => Field::UseTree,
-        Kind::Node(Node::LetElse) => Field::LetElse,
+        Kind::Node(RustNode::Name) => Field::Name,
+        Kind::Node(RustNode::NameRef) => Field::NameRef,
+        Kind::Node(RustNode::Path) => Field::Path,
+        Kind::Node(RustNode::PathSegment) => Field::Segment,
+        Kind::Node(RustNode::Visibility) => Field::Visibility,
+        Kind::Node(RustNode::Attr) => Field::Attrs,
+        Kind::Node(RustNode::Lifetime) => Field::Lifetime,
+        Kind::Node(RustNode::Label) => Field::Label,
+        Kind::Node(RustNode::Abi) => Field::Abi,
+        Kind::Node(RustNode::Rename) => Field::Rename,
+        Kind::Node(RustNode::GenericParamList) => Field::GenericParamList,
+        Kind::Node(RustNode::GenericArgList) => Field::GenericArgList,
+        Kind::Node(RustNode::WhereClause) => Field::WhereClause,
+        Kind::Node(RustNode::ParamList) => Field::ParamList,
+        Kind::Node(RustNode::RetType) => Field::RetType,
+        Kind::Node(RustNode::ArgList) => Field::ArgList,
+        Kind::Node(RustNode::ItemList) => Field::ItemList,
+        Kind::Node(RustNode::AssocItemList) => Field::AssocItemList,
+        Kind::Node(RustNode::RecordFieldList) => Field::RecordFieldList,
+        Kind::Node(RustNode::TupleFieldList) => Field::TupleFieldList,
+        Kind::Node(RustNode::VariantList) => Field::VariantList,
+        Kind::Node(RustNode::MatchArmList) => Field::MatchArmList,
+        Kind::Node(RustNode::StmtList) => Field::StmtList,
+        Kind::Node(RustNode::UseTreeList) => Field::UseTreeList,
+        Kind::Node(RustNode::RecordExprFieldList) => Field::RecordExprFieldList,
+        Kind::Node(RustNode::RecordPatFieldList) => Field::RecordPatFieldList,
+        Kind::Node(RustNode::UseTree) => Field::UseTree,
+        Kind::Node(RustNode::LetElse) => Field::LetElse,
         _ => Field::None,
     }
 }

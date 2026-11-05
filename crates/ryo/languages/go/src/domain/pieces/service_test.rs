@@ -6,7 +6,7 @@ use super::service::{arrange, node, string, token, value_of};
 use super::types::Pieces;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::grammar::types::ByteIndex;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::tokens::types::Token;
 
 /// What a row finds.
@@ -47,11 +47,11 @@ fn answer(finding: Input) -> String {
     let mut pieces = Pieces::default();
     match finding {
         Finding::Nodes => {
-            node(&mut pieces, Node::FieldList, ByteIndex(4), ByteIndex(8));
-            node(&mut pieces, Node::Field, ByteIndex(5), ByteIndex(7));
-            node(&mut pieces, Node::Ident, ByteIndex(5), ByteIndex(7));
-            node(&mut pieces, Node::FuncType, ByteIndex(0), ByteIndex(8));
-            node(&mut pieces, Node::FuncDecl, ByteIndex(0), ByteIndex(9));
+            node(&mut pieces, GoNode::FieldList, ByteIndex(4), ByteIndex(8));
+            node(&mut pieces, GoNode::Field, ByteIndex(5), ByteIndex(7));
+            node(&mut pieces, GoNode::Ident, ByteIndex(5), ByteIndex(7));
+            node(&mut pieces, GoNode::FuncType, ByteIndex(0), ByteIndex(8));
+            node(&mut pieces, GoNode::FuncDecl, ByteIndex(0), ByteIndex(9));
             arrange(&mut pieces);
             pieces
                 .nodes

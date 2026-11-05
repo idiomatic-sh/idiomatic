@@ -4,7 +4,7 @@
 use super::constants::DEPTHS;
 use super::types::Within;
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use pulldown_cmark::{Event, HeadingLevel, LinkType, MetadataBlockKind, Tag};
@@ -39,32 +39,32 @@ fn written_as(link: LinkType) -> WrittenSchema {
 impl From<TagSchema<'_, '_>> for Kind {
     fn from(schema: TagSchema<'_, '_>) -> Self {
         match schema.0 {
-            Tag::Paragraph => Self::Node(Node::Paragraph),
-            Tag::Heading { .. } => Self::Node(Node::Heading),
-            Tag::BlockQuote(_) => Self::Node(Node::Blockquote),
-            Tag::CodeBlock(_) => Self::Node(Node::Code),
-            Tag::HtmlBlock => Self::Node(Node::Html),
-            Tag::List(_) => Self::Node(Node::List),
-            Tag::Item => Self::Node(Node::ListItem),
-            Tag::FootnoteDefinition(_) => Self::Node(Node::FootnoteDefinition),
+            Tag::Paragraph => Self::Node(MarkdownNode::Paragraph),
+            Tag::Heading { .. } => Self::Node(MarkdownNode::Heading),
+            Tag::BlockQuote(_) => Self::Node(MarkdownNode::Blockquote),
+            Tag::CodeBlock(_) => Self::Node(MarkdownNode::Code),
+            Tag::HtmlBlock => Self::Node(MarkdownNode::Html),
+            Tag::List(_) => Self::Node(MarkdownNode::List),
+            Tag::Item => Self::Node(MarkdownNode::ListItem),
+            Tag::FootnoteDefinition(_) => Self::Node(MarkdownNode::FootnoteDefinition),
             Tag::DefinitionList => Self::Extra(Extra::DefinitionList),
             Tag::DefinitionListTitle => Self::Extra(Extra::DefinitionListTitle),
             Tag::DefinitionListDefinition => Self::Extra(Extra::DefinitionListDefinition),
-            Tag::Table(_) => Self::Node(Node::Table),
-            Tag::TableHead | Tag::TableRow => Self::Node(Node::TableRow),
-            Tag::TableCell => Self::Node(Node::TableCell),
-            Tag::Emphasis => Self::Node(Node::Emphasis),
-            Tag::Strong => Self::Node(Node::Strong),
-            Tag::Strikethrough => Self::Node(Node::Delete),
+            Tag::Table(_) => Self::Node(MarkdownNode::Table),
+            Tag::TableHead | Tag::TableRow => Self::Node(MarkdownNode::TableRow),
+            Tag::TableCell => Self::Node(MarkdownNode::TableCell),
+            Tag::Emphasis => Self::Node(MarkdownNode::Emphasis),
+            Tag::Strong => Self::Node(MarkdownNode::Strong),
+            Tag::Strikethrough => Self::Node(MarkdownNode::Delete),
             Tag::Superscript => Self::Extra(Extra::Superscript),
             Tag::Subscript => Self::Extra(Extra::Subscript),
             Tag::Link { link_type, .. } => match written_as(*link_type) {
-                WrittenSchema::Destination => Self::Node(Node::Link),
-                WrittenSchema::Label => Self::Node(Node::LinkReference),
+                WrittenSchema::Destination => Self::Node(MarkdownNode::Link),
+                WrittenSchema::Label => Self::Node(MarkdownNode::LinkReference),
             },
             Tag::Image { link_type, .. } => match written_as(*link_type) {
-                WrittenSchema::Destination => Self::Node(Node::Image),
-                WrittenSchema::Label => Self::Node(Node::ImageReference),
+                WrittenSchema::Destination => Self::Node(MarkdownNode::Image),
+                WrittenSchema::Label => Self::Node(MarkdownNode::ImageReference),
             },
             Tag::MetadataBlock(MetadataBlockKind::YamlStyle) => Self::Extra(Extra::Yaml),
             Tag::MetadataBlock(MetadataBlockKind::PlusesStyle) => Self::Extra(Extra::Toml),
@@ -109,17 +109,17 @@ pub(super) fn event_kind(event: &Event<'_>, within: Within) -> Option<Kind> {
         Event::Text(_) => match within {
             Within::Code => Some(Kind::Token(Token::CodeFlowValue)),
             Within::Indent => None,
-            Within::Prose => Some(Kind::Node(Node::Text)),
+            Within::Prose => Some(Kind::Node(MarkdownNode::Text)),
         },
-        Event::Code(_) => Some(Kind::Node(Node::InlineCode)),
+        Event::Code(_) => Some(Kind::Node(MarkdownNode::InlineCode)),
         Event::InlineMath(_) => Some(Kind::Extra(Extra::InlineMath)),
         Event::DisplayMath(_) => Some(Kind::Extra(Extra::Math)),
         Event::Html(_) => Some(Kind::Token(Token::HtmlFlowData)),
-        Event::InlineHtml(_) => Some(Kind::Node(Node::Html)),
-        Event::FootnoteReference(_) => Some(Kind::Node(Node::FootnoteReference)),
+        Event::InlineHtml(_) => Some(Kind::Node(MarkdownNode::Html)),
+        Event::FootnoteReference(_) => Some(Kind::Node(MarkdownNode::FootnoteReference)),
         Event::SoftBreak => Some(Kind::Token(Token::LineEnding)),
-        Event::HardBreak => Some(Kind::Node(Node::Break)),
-        Event::Rule => Some(Kind::Node(Node::ThematicBreak)),
+        Event::HardBreak => Some(Kind::Node(MarkdownNode::Break)),
+        Event::Rule => Some(Kind::Node(MarkdownNode::ThematicBreak)),
         Event::TaskListMarker(true) => Some(Kind::Extra(Extra::TaskChecked)),
         Event::TaskListMarker(false) => Some(Kind::Extra(Extra::TaskUnchecked)),
     }

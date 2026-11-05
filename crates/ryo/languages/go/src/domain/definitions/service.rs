@@ -8,18 +8,18 @@ use super::constants::{
     INTERFACE_METHOD, LABEL, METHOD, RANGE_VARIABLE, SHORT_VARIABLE, STRUCT, TYPE_PARAMETER,
     TYPE_SWITCH_VARIABLE, VARIABLE,
 };
-use super::types::{Annotation, Assignment, Declaration, Defined, Meaning, NameSpelling, Shape};
+use super::types::{Annotation, Assignment, Declaration, Defined, Meaning, NameSpelling, DeclarationShape};
 use crate::domain::assignments::service::{left, operator, right};
 use crate::domain::fields::service::{names as field_names, type_of};
 use crate::domain::names::service::{
     blankness, embedded_name, import_binding, name_of, string_token,
 };
 use crate::domain::names::types::Blankness;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::scopes::service::enclosing;
 use crate::domain::signatures::constants::{PARAMETER, RECEIVER, RESULT, VARIADIC};
 use crate::domain::signatures::service::{callable, listing, signature};
-use crate::domain::signatures::types::{Listing, Refinement};
+use crate::domain::signatures::types::{Listing, SignatureRefinement};
 use crate::domain::specs::service::{
     declares, import_name, name as spec_name, names as spec_names, underlying, value_type,
 };
@@ -29,12 +29,12 @@ use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
 /// What a declaration is: its shared kind and Go's word for it.
-const fn defined(kind: DeclarationKind, word: Refinement) -> Defined {
+const fn defined(kind: DeclarationKind, word: SignatureRefinement) -> Defined {
     Defined { kind, word }
 }
 
 /// A word of the language as a name of the file.
-pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: Refinement) -> Symbol {
+pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: SignatureRefinement) -> Symbol {
     languages::intern_derived(symbols, tree.source, languages::NameText(text.0))
 }
 
@@ -44,23 +44,23 @@ pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: Refi
     clippy::wildcard_enum_match_arm,
     reason = "only the kinds that declare names have a shape; every other kind declares nothing"
 )]
-pub(crate) fn shape(tree: &Tree<'_>, at: Position) -> Shape {
+pub(crate) fn shape(tree: &Tree<'_>, at: Position) -> DeclarationShape {
     match kind(tree, at) {
-        Kind::Node(Node::FuncDecl) => Shape::Function,
-        Kind::Node(Node::TypeSpec) => Shape::Type,
-        Kind::Node(Node::ValueSpec) => Shape::Values,
-        Kind::Node(Node::ImportSpec) => Shape::Import,
-        Kind::Node(Node::Field) => Shape::Field,
-        Kind::Node(Node::AssignStmt | Node::RangeStmt) => Shape::Variables,
-        Kind::Node(Node::LabeledStmt) => Shape::Label,
-        _ => Shape::Nothing,
+        Kind::Node(GoNode::FuncDecl) => DeclarationShape::Function,
+        Kind::Node(GoNode::TypeSpec) => DeclarationShape::Type,
+        Kind::Node(GoNode::ValueSpec) => DeclarationShape::Values,
+        Kind::Node(GoNode::ImportSpec) => DeclarationShape::Import,
+        Kind::Node(GoNode::Field) => DeclarationShape::Field,
+        Kind::Node(GoNode::AssignStmt | GoNode::RangeStmt) => DeclarationShape::Variables,
+        Kind::Node(GoNode::LabeledStmt) => DeclarationShape::Label,
+        _ => DeclarationShape::Nothing,
     }
 }
 
 /// The type declaration, or the file, that holds the element at `at`: what a member of a type is owned by.
 fn holder(tree: &Tree<'_>, at: Position) -> Position {
     ancestors(tree, at)
-        .find(|each| kind(tree, *each) == Kind::Node(Node::TypeSpec))
+        .find(|each| kind(tree, *each) == Kind::Node(GoNode::TypeSpec))
         .unwrap_or_else(|| enclosing(tree, at))
 }
 
@@ -90,7 +90,7 @@ pub(crate) fn function_declaration(tree: &Tree<'_>, at: Position) -> Option<Decl
 pub(crate) fn label_declaration(tree: &Tree<'_>, at: Position) -> Option<Declaration> {
     let name = nodes(tree, at)
         .next()
-        .filter(|each| kind(tree, *each) == Kind::Node(Node::Ident))
+        .filter(|each| kind(tree, *each) == Kind::Node(GoNode::Ident))
         .filter(|each| blankness(tree, *each) == Blankness::Named)?;
     Some(Declaration {
         defined: defined(DeclarationKind::Label, LABEL),
@@ -162,7 +162,7 @@ fn meaning(tree: &Tree<'_>, field: Position) -> Option<Meaning> {
     let listed = listing(tree, list)?;
     let function = || callable(tree, list).map(|each| each.callable);
     let variadic =
-        || type_of(tree, field).is_some_and(|each| kind(tree, each) == Kind::Node(Node::Ellipsis));
+        || type_of(tree, field).is_some_and(|each| kind(tree, each) == Kind::Node(GoNode::Ellipsis));
     let (kind, word, owner) = match listed {
         Listing::Members => (DeclarationKind::Property, FIELD, holder(tree, field)),
         Listing::Methods => (
@@ -179,7 +179,7 @@ fn meaning(tree: &Tree<'_>, field: Position) -> Option<Meaning> {
         Listing::Results => (DeclarationKind::Parameter, RESULT, function()?),
         Listing::TypeParameters => {
             let owner = parent(tree, list);
-            let owner = if kind(tree, owner) == Kind::Node(Node::FuncType) {
+            let owner = if kind(tree, owner) == Kind::Node(GoNode::FuncType) {
                 parent(tree, owner)
             } else {
                 owner
@@ -226,9 +226,9 @@ pub(crate) fn variable_declarations<'a>(
     at: Position,
 ) -> impl Iterator<Item = Declaration> + 'a {
     let declares = operator(tree, at).is_some_and(|each| each.token == Token::Define);
-    let word = if kind(tree, at) == Kind::Node(Node::RangeStmt) {
+    let word = if kind(tree, at) == Kind::Node(GoNode::RangeStmt) {
         RANGE_VARIABLE
-    } else if kind(tree, parent(tree, at)) == Kind::Node(Node::TypeSwitchStmt) {
+    } else if kind(tree, parent(tree, at)) == Kind::Node(GoNode::TypeSwitchStmt) {
         TYPE_SWITCH_VARIABLE
     } else {
         SHORT_VARIABLE
@@ -237,7 +237,7 @@ pub(crate) fn variable_declarations<'a>(
     left(tree, at)
         .filter(move |each| {
             declares
-                && kind(tree, *each) == Kind::Node(Node::Ident)
+                && kind(tree, *each) == Kind::Node(GoNode::Ident)
                 && blankness(tree, *each) == Blankness::Named
         })
         .map(move |named| Declaration {
@@ -263,7 +263,7 @@ pub(crate) fn annotations<'a>(
     tree: &'a Tree<'_>,
     at: Position,
 ) -> impl Iterator<Item = Annotation> + 'a {
-    let listed = (kind(tree, at) == Kind::Node(Node::Field))
+    let listed = (kind(tree, at) == Kind::Node(GoNode::Field))
         .then(|| listing(tree, parent(tree, at)))
         .flatten();
     let field_type = matches!(
@@ -272,7 +272,7 @@ pub(crate) fn annotations<'a>(
     )
     .then(|| type_of(tree, at))
     .flatten();
-    let spec_type = (kind(tree, at) == Kind::Node(Node::ValueSpec))
+    let spec_type = (kind(tree, at) == Kind::Node(GoNode::ValueSpec))
         .then(|| value_type(tree, at))
         .flatten();
     let fields = field_type.into_iter().flat_map(move |annotation| {
@@ -299,10 +299,10 @@ pub(crate) fn assignments<'a>(
 ) -> impl Iterator<Item = Assignment> + 'a {
     let plain =
         operator(tree, at).is_some_and(|each| matches!(each.token, Token::Assign | Token::Define));
-    let from_statement = (plain && kind(tree, at) == Kind::Node(Node::AssignStmt))
+    let from_statement = (plain && kind(tree, at) == Kind::Node(GoNode::AssignStmt))
         .then(|| left(tree, at).zip(right(tree, at)));
     let assign = token(tree, at, Token::Assign);
-    let from_spec = (kind(tree, at) == Kind::Node(Node::ValueSpec)).then(|| {
+    let from_spec = (kind(tree, at) == Kind::Node(GoNode::ValueSpec)).then(|| {
         spec_names(tree, at)
             .zip(nodes(tree, at).skip_while(move |each| assign.is_none_or(|assign| *each < assign)))
     });
@@ -311,7 +311,7 @@ pub(crate) fn assignments<'a>(
         .flatten()
         .chain(from_spec.into_iter().flatten())
         .filter(move |(binding, value)| {
-            kind(tree, *binding) == Kind::Node(Node::Ident) && string_token(tree, *value).is_some()
+            kind(tree, *binding) == Kind::Node(GoNode::Ident) && string_token(tree, *value).is_some()
         })
         .map(|(binding, value)| Assignment { binding, value })
 }
@@ -323,15 +323,15 @@ pub(crate) fn declarations<'a>(
 ) -> impl Iterator<Item = Declaration> + 'a {
     let shaped = shape(tree, at);
     let one = match shaped {
-        Shape::Function => function_declaration(tree, at),
-        Shape::Type => type_declaration(tree, at),
-        Shape::Import => import_declaration(tree, at),
-        Shape::Label => label_declaration(tree, at),
-        Shape::Values | Shape::Field | Shape::Variables | Shape::Nothing => None,
+        DeclarationShape::Function => function_declaration(tree, at),
+        DeclarationShape::Type => type_declaration(tree, at),
+        DeclarationShape::Import => import_declaration(tree, at),
+        DeclarationShape::Label => label_declaration(tree, at),
+        DeclarationShape::Values | DeclarationShape::Field | DeclarationShape::Variables | DeclarationShape::Nothing => None,
     };
-    let values = (shaped == Shape::Values).then(|| value_declarations(tree, at));
-    let fields = (shaped == Shape::Field).then(|| field_declarations(tree, at));
-    let variables = (shaped == Shape::Variables).then(|| variable_declarations(tree, at));
+    let values = (shaped == DeclarationShape::Values).then(|| value_declarations(tree, at));
+    let fields = (shaped == DeclarationShape::Field).then(|| field_declarations(tree, at));
+    let variables = (shaped == DeclarationShape::Variables).then(|| variable_declarations(tree, at));
     one.into_iter()
         .chain(values.into_iter().flatten())
         .chain(fields.into_iter().flatten())

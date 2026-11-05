@@ -5,7 +5,7 @@ use super::constants::NONE;
 use super::types::{
     Annotated, Binding, Constness, LetPattern, Patternness, PossibleConstant, Preludeness, Spread,
 };
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::syntax::service::{
     child, end, first_body, first_node, is_root, kind, name_text, node_after, parent, start,
 };
@@ -22,10 +22,10 @@ pub(crate) fn bound_name(
     owner: languages::Position,
 ) -> Option<languages::Position> {
     let pattern = first_body(tree, owner)?;
-    if kind(tree, pattern) != Kind::Node(Node::IdentPat) {
+    if kind(tree, pattern) != Kind::Node(RustNode::IdentPat) {
         return None;
     }
-    child(tree, pattern, Kind::Node(Node::Name))
+    child(tree, pattern, Kind::Node(RustNode::Name))
 }
 
 /// Whether a kind of node is a pattern, or a part of one.
@@ -33,25 +33,25 @@ fn is_pattern(kind: Kind) -> Patternness {
     if matches!(
         kind,
         Kind::Node(
-            Node::BoxPat
-                | Node::ConstBlockPat
-                | Node::DerefPat
-                | Node::IdentPat
-                | Node::LiteralPat
-                | Node::MacroPat
-                | Node::OrPat
-                | Node::ParenPat
-                | Node::PathPat
-                | Node::RangePat
-                | Node::RecordPat
-                | Node::RecordPatField
-                | Node::RecordPatFieldList
-                | Node::RefPat
-                | Node::RestPat
-                | Node::SlicePat
-                | Node::TuplePat
-                | Node::TupleStructPat
-                | Node::WildcardPat
+            RustNode::BoxPat
+                | RustNode::ConstBlockPat
+                | RustNode::DerefPat
+                | RustNode::IdentPat
+                | RustNode::LiteralPat
+                | RustNode::MacroPat
+                | RustNode::OrPat
+                | RustNode::ParenPat
+                | RustNode::PathPat
+                | RustNode::RangePat
+                | RustNode::RecordPat
+                | RustNode::RecordPatField
+                | RustNode::RecordPatFieldList
+                | RustNode::RefPat
+                | RustNode::RestPat
+                | RustNode::SlicePat
+                | RustNode::TuplePat
+                | RustNode::TupleStructPat
+                | RustNode::WildcardPat
         )
     ) {
         Patternness::Pattern
@@ -68,7 +68,7 @@ pub(crate) fn in_let_pattern(tree: &Tree<'_>, at: languages::Position) -> LetPat
     while is_root(tree, up) == Rootness::Inner {
         up = parent(tree, up);
         let here = kind(tree, up);
-        if here == Kind::Node(Node::LetStmt) {
+        if here == Kind::Node(RustNode::LetStmt) {
             return if first_body(tree, up).is_some_and(|whole| whole != at) {
                 LetPattern::In
             } else {
@@ -126,7 +126,7 @@ pub(crate) fn assigned_string(
     at: languages::Position,
 ) -> Option<languages::Position> {
     node_after(tree, at, Kind::Token(Token::Eq)).filter(|each| {
-        kind(tree, *each) == Kind::Node(Node::Literal)
+        kind(tree, *each) == Kind::Node(RustNode::Literal)
             && child(tree, *each, Kind::Token(Token::String)).is_some()
     })
 }
@@ -138,9 +138,9 @@ pub(crate) fn names_a_possible_constant(
     tree: &Tree<'_>,
     at: languages::Position,
 ) -> PossibleConstant {
-    if kind(tree, at) == Kind::Node(Node::IdentPat)
+    if kind(tree, at) == Kind::Node(RustNode::IdentPat)
         && in_let_pattern(tree, at) == LetPattern::In
-        && child(tree, at, Kind::Node(Node::Name)).is_some_and(|name| {
+        && child(tree, at, Kind::Node(RustNode::Name)).is_some_and(|name| {
             looks_like_constant(tree, name) == Constness::Constant
                 && is_prelude_variant(tree, name) == Preludeness::NotPrelude
         })
@@ -157,7 +157,7 @@ pub(crate) fn parameters_of<'a>(
     list: languages::Position,
 ) -> impl Iterator<Item = languages::Position> + 'a {
     languages::children(tree.elements, list)
-        .filter(|each| matches!(kind(tree, *each), Kind::Node(Node::SelfParam | Node::Param)))
+        .filter(|each| matches!(kind(tree, *each), Kind::Node(RustNode::SelfParam | RustNode::Param)))
 }
 
 /// How many arguments the parameter at `parameter` takes: the arguments left over when it is written `...` (the Rust Reference,
@@ -194,15 +194,15 @@ pub(crate) fn annotations<'a>(
 ) -> impl Iterator<Item = Annotated> + 'a {
     let element = kind(tree, at);
     let function =
-        element == Kind::Node(Node::Fn) && child(tree, at, Kind::Node(Node::Name)).is_some();
-    let list = if function || element == Kind::Node(Node::ClosureExpr) {
-        child(tree, at, Kind::Node(Node::ParamList))
+        element == Kind::Node(RustNode::Fn) && child(tree, at, Kind::Node(RustNode::Name)).is_some();
+    let list = if function || element == Kind::Node(RustNode::ClosureExpr) {
+        child(tree, at, Kind::Node(RustNode::ParamList))
     } else {
         None
     };
     let parameters = list.into_iter().flat_map(move |list| {
         languages::children(tree.elements, list)
-            .filter(move |each| kind(tree, *each) == Kind::Node(Node::Param))
+            .filter(move |each| kind(tree, *each) == Kind::Node(RustNode::Param))
             .filter_map(move |parameter| {
                 Some(Annotated {
                     owner: bound_name(tree, parameter).unwrap_or(parameter),
@@ -211,7 +211,7 @@ pub(crate) fn annotations<'a>(
             })
     });
     let returned = if function {
-        child(tree, at, Kind::Node(Node::RetType)).and_then(|returned| first_node(tree, returned))
+        child(tree, at, Kind::Node(RustNode::RetType)).and_then(|returned| first_node(tree, returned))
     } else {
         None
     }
@@ -219,7 +219,7 @@ pub(crate) fn annotations<'a>(
         owner: at,
         annotation,
     });
-    let declared = if element == Kind::Node(Node::LetStmt) {
+    let declared = if element == Kind::Node(RustNode::LetStmt) {
         bound_name(tree, at)
             .or_else(|| first_body(tree, at))
             .zip(node_after(tree, at, Kind::Token(Token::Colon)))
@@ -227,7 +227,7 @@ pub(crate) fn annotations<'a>(
         None
     }
     .map(|(owner, annotation)| Annotated { owner, annotation });
-    let item = if matches!(element, Kind::Node(Node::Const | Node::Static)) {
+    let item = if matches!(element, Kind::Node(RustNode::Const | RustNode::Static)) {
         node_after(tree, at, Kind::Token(Token::Colon))
     } else {
         None

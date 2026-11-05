@@ -10,7 +10,7 @@ use crate::domain::modules::types::{Located, Manifest, ManifestPath, Modules};
 /// An import written in one file that names the package another file is part of, by the files' numbers: an import of a package of
 /// several files is one link to each.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Link {
+pub(crate) struct PackageImportLink {
     /// The file the import is written in.
     pub source: FileId,
     /// A file of the package it names.
@@ -45,7 +45,7 @@ pub(crate) struct UnlinkedFile {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
     /// The links, by source file, then place, then target.
-    pub dependencies: Vec<Link>,
+    pub dependencies: Vec<PackageImportLink>,
     /// The files whose imports were all examined, in order.
     pub analyzed: Vec<FileId>,
     /// The files whose imports are not all linked, by file.

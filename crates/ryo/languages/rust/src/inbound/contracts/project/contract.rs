@@ -36,7 +36,7 @@ use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{FileText, Settlement};
 use crate::domain::targets::types::Manifest as TargetManifest;
 use crate::domain::workspaces::service::settled;
-use crate::domain::workspaces::types::{Configured, Looking, Reason};
+use crate::domain::workspaces::types::{WorkspaceConfiguration, Looking, Reason};
 use crate::outbound::conditions::interface::ConditionsPort;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
 use crate::outbound::job_scheduling::types::{JobIndex, ScheduledJobCount};
@@ -264,7 +264,7 @@ impl ProjectContract {
         repository: &dyn RepositoryPort,
         directory: &RepoPath,
         consulted: &mut Vec<RepoPath>,
-    ) -> Vec<Configured> {
+    ) -> Vec<WorkspaceConfiguration> {
         let current = repository
             .above(directory, &EntryName(CONFIGURATION.into()))
             .0;
@@ -295,7 +295,7 @@ impl ProjectContract {
                 let Ok(config) = self.manifest.configuration(text) else {
                     return None;
                 };
-                Some(Configured {
+                Some(WorkspaceConfiguration {
                     target_dir: match &config.target_dir {
                         Section::Present(written) => {
                             Section::Present(repository.placed(directory, look.height, written))

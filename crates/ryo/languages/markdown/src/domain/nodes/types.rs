@@ -15,7 +15,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum Node {
+pub(crate) enum MarkdownNode {
     /// The whole file: `root`.
     Root,
     /// A paragraph: `paragraph`.

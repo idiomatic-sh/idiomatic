@@ -4,14 +4,14 @@
 use ryo::languages::{self, Position, Tree};
 
 use super::types::Scopeness;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::{is_root, kind, parent};
 use crate::domain::syntax::types::{Kind, Rootness};
 
 /// Whether `kind` opens a scope of its own.
 #[must_use]
 pub(crate) const fn scopeness(kind: Kind) -> Scopeness {
-    if matches!(kind, Kind::Node(Node::FuncDecl | Node::FuncLit)) {
+    if matches!(kind, Kind::Node(GoNode::FuncDecl | GoNode::FuncLit)) {
         Scopeness::Scope
     } else {
         Scopeness::Inner

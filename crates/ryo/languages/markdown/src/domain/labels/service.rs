@@ -2,7 +2,7 @@
 //! of an `id` attribute of any tag, or of the `name` attribute of an `a`. They are found one at a time, so that a reader of a file
 //! allocates nothing for them.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use ryo::languages::{self, Tree};
 
 use super::constants::{
@@ -113,11 +113,11 @@ pub(crate) fn anchors_in(html: HtmlText<'_>) -> impl Iterator<Item = AnchorText<
 #[must_use]
 pub(crate) fn defined<'a>(tree: &Tree<'a>, at: languages::Position) -> Defined<'a> {
     let of = kind(tree, at);
-    if of == Kind::Node(Node::Definition) {
+    if of == Kind::Node(MarkdownNode::Definition) {
         labelled(tree, at).map_or(Defined::Nothing, |label| Defined::Label(LabelText(label.0)))
-    } else if of == Kind::Node(Node::FootnoteDefinition) {
+    } else if of == Kind::Node(MarkdownNode::FootnoteDefinition) {
         named_by(tree, at).map_or(Defined::Nothing, |label| Defined::Label(LabelText(label.0)))
-    } else if of == Kind::Node(Node::Html) || of == Kind::Node(Node::Html) {
+    } else if of == Kind::Node(MarkdownNode::Html) || of == Kind::Node(MarkdownNode::Html) {
         Defined::Html(HtmlText(written(tree, at).0))
     } else if level_of(tree, at).is_some() {
         Defined::Section

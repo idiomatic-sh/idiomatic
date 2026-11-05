@@ -3,7 +3,7 @@
 use ryo::languages::{Position, Tree};
 
 use super::types::Operator;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::{kind, nodes, tokens};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -43,7 +43,7 @@ pub(crate) fn operator(tree: &Tree<'_>, at: Position) -> Option<Operator> {
 /// The elements before the operator of the assignment, the short variable declaration or the `range` clause at `at`: what it assigns to.
 /// A `range` clause with no operator before its `range` assigns to nothing.
 pub(crate) fn left<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
-    let keyword = (kind(tree, at) == Kind::Node(Node::RangeStmt))
+    let keyword = (kind(tree, at) == Kind::Node(GoNode::RangeStmt))
         .then(|| tokens(tree, at).find(|each| each.token == Token::Range))
         .flatten()
         .map(|each| each.at);

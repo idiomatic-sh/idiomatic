@@ -3,7 +3,7 @@
 use super::service::{category, kind_role, token_role};
 use super::types::Category;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -29,49 +29,49 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_binary_expression_is_an_expression"),
         word: Word::Succeeds,
-        input: || Scenario::Category(Kind::Node(Node::BinExpr)),
+        input: || Scenario::Category(Kind::Node(RustNode::BinExpr)),
         expect: Expect::Value("expression"),
     },
     Case {
         name: CaseName("a_function_is_an_item"),
         word: Word::Succeeds,
-        input: || Scenario::Category(Kind::Node(Node::Fn)),
+        input: || Scenario::Category(Kind::Node(RustNode::Fn)),
         expect: Expect::Value("item"),
     },
     Case {
         name: CaseName("a_let_statement_is_a_statement"),
         word: Word::Succeeds,
-        input: || Scenario::Category(Kind::Node(Node::LetStmt)),
+        input: || Scenario::Category(Kind::Node(RustNode::LetStmt)),
         expect: Expect::Value("statement"),
     },
     Case {
         name: CaseName("a_name_is_the_name_of_its_parent"),
         word: Word::Succeeds,
-        input: || Scenario::Kind(Kind::Node(Node::Name)),
+        input: || Scenario::Kind(Kind::Node(RustNode::Name)),
         expect: Expect::Value("name"),
     },
     Case {
         name: CaseName("a_path_segment_is_a_segment"),
         word: Word::Succeeds,
-        input: || Scenario::Kind(Kind::Node(Node::PathSegment)),
+        input: || Scenario::Kind(Kind::Node(RustNode::PathSegment)),
         expect: Expect::Value("segment"),
     },
     Case {
         name: CaseName("a_function_has_no_role_by_its_kind"),
         word: Word::Succeeds,
-        input: || Scenario::Kind(Kind::Node(Node::Fn)),
+        input: || Scenario::Kind(Kind::Node(RustNode::Fn)),
         expect: Expect::Value("none"),
     },
     Case {
         name: CaseName("the_plus_of_a_binary_expression_is_its_operator"),
         word: Word::Succeeds,
-        input: || Scenario::Token(Kind::Node(Node::BinExpr), Kind::Token(Token::Plus)),
+        input: || Scenario::Token(Kind::Node(RustNode::BinExpr), Kind::Token(Token::Plus)),
         expect: Expect::Value("op"),
     },
     Case {
         name: CaseName("a_name_token_of_a_function_has_no_role"),
         word: Word::Succeeds,
-        input: || Scenario::Token(Kind::Node(Node::Fn), Kind::Token(Token::FnKw)),
+        input: || Scenario::Token(Kind::Node(RustNode::Fn), Kind::Token(Token::FnKw)),
         expect: Expect::Value("none"),
     },
 ];

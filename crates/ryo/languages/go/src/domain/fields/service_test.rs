@@ -2,7 +2,7 @@
 
 use super::service::{names, type_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::types::Kind;
 use crate::fixtures::reading::{asked, of_kind, spans};
 
@@ -42,7 +42,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(source: Input) -> Value {
     let answer = asked(source, |tree| {
-        of_kind(tree, Kind::Node(Node::Field)).first().map(|field| {
+        of_kind(tree, Kind::Node(GoNode::Field)).first().map(|field| {
             let declared: Vec<String> = names(tree, *field).map(|each| spans(tree, each)).collect();
             let typed = type_of(tree, *field)
                 .map(|each| spans(tree, each))

@@ -6,7 +6,7 @@ use ryo::languages::{self, Position, Tree};
 use super::constants::LINE_END;
 use super::types::{ImportNote, ImportPath, Note, Spelling};
 use crate::domain::names::service::string_token;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::syntax::service::{kind, nodes};
 use crate::domain::syntax::types::Kind;
 
@@ -15,7 +15,7 @@ use crate::domain::syntax::types::Kind;
 #[must_use]
 pub(crate) fn noted(tree: &Tree<'_>) -> Note {
     let imports = languages::positions(tree.elements)
-        .filter(|at| kind(tree, *at) == Kind::Node(Node::ImportSpec))
+        .filter(|at| kind(tree, *at) == Kind::Node(GoNode::ImportSpec))
         .filter_map(|at| import_of(tree, at))
         .collect();
     Note { imports }

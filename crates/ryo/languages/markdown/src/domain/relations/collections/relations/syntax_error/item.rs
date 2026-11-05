@@ -2,7 +2,7 @@
 //! as a document, so the one error is bytes that are not UTF-8 text.
 
 use crate::domain::model::types::Sections;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use crate::domain::syntax::service::{
     diagnostic_id, diagnostic_message, diagnostic_span, is_root, kind_bits,
 };
@@ -14,7 +14,7 @@ pub(crate) struct SyntaxErrorItem;
 
 ryo::reads! {
     SyntaxErrorItem => languages::SyntaxError, model(Sections) |tree, _model, at, symbols| {
-        kinds: [Kind::Node(Node::Root)] as kind_bits,
+        kinds: [Kind::Node(MarkdownNode::Root)] as kind_bits,
         require (is_root(tree, at) == Rootness::Root);
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
             given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));

@@ -10,7 +10,7 @@ use crate::domain::extras::types::Extra;
 use crate::domain::keys::service::{put, slot};
 use crate::domain::keys::types::Child;
 use crate::domain::model::types::{ElementFact, EntryFact, MappingFact, Model, Readability};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TomlNode;
 use crate::domain::syntax::service::{kind, value_kind};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -31,7 +31,7 @@ fn keyness(kind: Kind) -> Keyness {
 /// The parts of the key of the header or key-value `holder`, in order.
 fn parts<'a>(tree: &'a Tree<'_>, holder: Position) -> impl Iterator<Item = Position> + 'a {
     let key = languages::children(tree.elements, holder)
-        .find(|each| kind(tree, *each) == Kind::Node(Node::Key));
+        .find(|each| kind(tree, *each) == Kind::Node(TomlNode::Key));
     key.into_iter()
         .flat_map(|key| languages::children(tree.elements, key))
         .filter(|each| keyness(kind(tree, *each)) == Keyness::Part)
@@ -179,7 +179,7 @@ fn pair(tree: &Tree<'_>, model: &mut Model, owner: Position, pair: Position) {
 /// Reads the entries of the inline table `table`.
 fn inline(tree: &Tree<'_>, model: &mut Model, table: Position) {
     for each in languages::children(tree.elements, table) {
-        if kind(tree, each) == Kind::Node(Node::Keyval) {
+        if kind(tree, each) == Kind::Node(TomlNode::Keyval) {
             pair(tree, model, table, each);
         }
     }
@@ -301,23 +301,23 @@ pub(crate) fn build(tree: &Tree<'_>, model: &mut Model) {
     let mut within = Some(root);
     for each in languages::children(tree.elements, root) {
         let found = kind(tree, each);
-        if found == Kind::Node(Node::Keyval) {
+        if found == Kind::Node(TomlNode::Keyval) {
             if let Some(owner) = within {
                 pair(tree, model, owner, each);
             }
-        } else if found == Kind::Node(Node::StdTable) {
+        } else if found == Kind::Node(TomlNode::StdTable) {
             within = table(tree, model, each);
-        } else if found == Kind::Node(Node::ArrayTable) {
+        } else if found == Kind::Node(TomlNode::ArrayTable) {
             within = member(tree, model, each);
         } else {
             continue;
         }
         // A header's node holds the key-values below it.
         if let Some(owner) = within
-            && kind(tree, each) != Kind::Node(Node::Keyval)
+            && kind(tree, each) != Kind::Node(TomlNode::Keyval)
         {
             for below in languages::children(tree.elements, each) {
-                if kind(tree, below) == Kind::Node(Node::Keyval) {
+                if kind(tree, below) == Kind::Node(TomlNode::Keyval) {
                     pair(tree, model, owner, below);
                 }
             }

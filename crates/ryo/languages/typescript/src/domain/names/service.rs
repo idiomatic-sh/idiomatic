@@ -12,7 +12,7 @@ use super::{
     },
     types::{Assignment, Reference, Spelling},
 };
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::TypeScriptNode;
 use crate::domain::syntax::{
     service::{kind, last, parent},
     types::Kind,
@@ -43,7 +43,7 @@ pub(crate) fn unknown() -> Symbol {
 }
 /// The spelling/value of an identifier's direct token.
 pub(crate) fn identifier(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
-    if kind(tree, at) == Kind::Node(Node::Literal)
+    if kind(tree, at) == Kind::Node(TypeScriptNode::Literal)
         && let Some(value) = string(tree, symbols, at)
     {
         return value;
@@ -99,7 +99,7 @@ pub(crate) fn name_before(
     before: Option<Position>,
 ) -> Option<Position> {
     nodes(tree, at).find(|child| {
-        kind(tree, *child) == Kind::Node(Node::Identifier)
+        kind(tree, *child) == Kind::Node(TypeScriptNode::Identifier)
             && before.is_none_or(|before| {
                 languages::start_at(tree.elements, *child)
                     < languages::start_at(tree.elements, before)
@@ -109,9 +109,9 @@ pub(crate) fn name_before(
 /// A static dotted name; computed selections and other runtime expressions remain unknown.
 pub(crate) fn target(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
     match kind(tree, at) {
-        Kind::Node(Node::Identifier | Node::PrivateIdentifier) => identifier(tree, symbols, at),
-        Kind::Node(Node::ThisExpression | Node::Super) => written(tree, symbols, at),
-        Kind::Node(Node::MemberExpression | Node::TSQualifiedName) => {
+        Kind::Node(TypeScriptNode::Identifier | TypeScriptNode::PrivateIdentifier) => identifier(tree, symbols, at),
+        Kind::Node(TypeScriptNode::ThisExpression | TypeScriptNode::Super) => written(tree, symbols, at),
+        Kind::Node(TypeScriptNode::MemberExpression | TypeScriptNode::TSQualifiedName) => {
             if token(tree, at, Spelling(OPEN_COMPUTED)).is_some() {
                 return unknown();
             }
@@ -134,12 +134,12 @@ pub(crate) fn target(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Sy
             languages::end_name(symbols, tree.source, mark)
         }
         Kind::Node(
-            Node::CallExpression
-            | Node::Decorator
-            | Node::TSInstantiationExpression
-            | Node::ChainExpression
-            | Node::TSClassImplements
-            | Node::TSInterfaceHeritage,
+            TypeScriptNode::CallExpression
+            | TypeScriptNode::Decorator
+            | TypeScriptNode::TSInstantiationExpression
+            | TypeScriptNode::ChainExpression
+            | TypeScriptNode::TSClassImplements
+            | TypeScriptNode::TSInterfaceHeritage,
         ) => nodes(tree, at)
             .next()
             .map_or_else(unknown, |child| target(tree, symbols, child)),
@@ -154,16 +154,16 @@ pub(crate) fn parameters<'a>(
     let callable = matches!(
         kind(tree, at),
         Kind::Node(
-            Node::FunctionDeclaration
-                | Node::FunctionExpression
-                | Node::ArrowFunctionExpression
-                | Node::TSDeclareFunction
-                | Node::TSEmptyBodyFunctionExpression
-                | Node::TSFunctionType
-                | Node::TSConstructorType
-                | Node::TSCallSignatureDeclaration
-                | Node::TSConstructSignatureDeclaration
-                | Node::TSMethodSignature
+            TypeScriptNode::FunctionDeclaration
+                | TypeScriptNode::FunctionExpression
+                | TypeScriptNode::ArrowFunctionExpression
+                | TypeScriptNode::TSDeclareFunction
+                | TypeScriptNode::TSEmptyBodyFunctionExpression
+                | TypeScriptNode::TSFunctionType
+                | TypeScriptNode::TSConstructorType
+                | TypeScriptNode::TSCallSignatureDeclaration
+                | TypeScriptNode::TSConstructSignatureDeclaration
+                | TypeScriptNode::TSMethodSignature
         )
     );
     callable.then_some(at).into_iter().flat_map(move |at| {
@@ -185,7 +185,7 @@ pub(crate) fn parameters<'a>(
                     && languages::end_at(tree.elements, *child) <= close
             }
             _ => {
-                kind(tree, at) == Kind::Node(Node::ArrowFunctionExpression) && Some(*child) == first
+                kind(tree, at) == Kind::Node(TypeScriptNode::ArrowFunctionExpression) && Some(*child) == first
             }
         })
     })
@@ -193,8 +193,8 @@ pub(crate) fn parameters<'a>(
 /// The name of a simple parameter; destructuring has no single binding.
 pub(crate) fn parameter_name(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
     match kind(tree, at) {
-        Kind::Node(Node::Identifier) => identifier(tree, symbols, at),
-        Kind::Node(Node::RestElement | Node::AssignmentPattern | Node::TSParameterProperty) => {
+        Kind::Node(TypeScriptNode::Identifier) => identifier(tree, symbols, at),
+        Kind::Node(TypeScriptNode::RestElement | TypeScriptNode::AssignmentPattern | TypeScriptNode::TSParameterProperty) => {
             nodes(tree, at)
                 .next()
                 .map_or_else(unknown, |child| parameter_name(tree, symbols, child))
@@ -212,7 +212,7 @@ pub(crate) fn bindings<'a>(
         .filter(move |candidate| {
             if !matches!(
                 kind(tree, *candidate),
-                Kind::Node(Node::Identifier | Node::PrivateIdentifier | Node::Literal)
+                Kind::Node(TypeScriptNode::Identifier | TypeScriptNode::PrivateIdentifier | TypeScriptNode::Literal)
             ) {
                 return false;
             }
@@ -221,10 +221,10 @@ pub(crate) fn bindings<'a>(
                 let enclosing = parent(tree, child);
                 let valid = match kind(tree, enclosing) {
                     Kind::Node(
-                        Node::RestElement | Node::AssignmentPattern | Node::TSParameterProperty,
+                        TypeScriptNode::RestElement | TypeScriptNode::AssignmentPattern | TypeScriptNode::TSParameterProperty,
                     ) => nodes(tree, enclosing).next() == Some(child),
-                    Kind::Node(Node::Property) => nodes(tree, enclosing).last() == Some(child),
-                    Kind::Node(Node::ArrayPattern | Node::ObjectPattern) => true,
+                    Kind::Node(TypeScriptNode::Property) => nodes(tree, enclosing).last() == Some(child),
+                    Kind::Node(TypeScriptNode::ArrayPattern | TypeScriptNode::ObjectPattern) => true,
                     _ => false,
                 };
                 if !valid {
@@ -241,21 +241,21 @@ pub(crate) fn declared<'a>(
     at: Position,
 ) -> impl Iterator<Item = Position> + 'a {
     let mut children =
-        nodes(tree, at).filter(|child| kind(tree, *child) != Kind::Node(Node::Decorator));
+        nodes(tree, at).filter(|child| kind(tree, *child) != Kind::Node(TypeScriptNode::Decorator));
     let named = match kind(tree, at) {
-        Kind::Node(Node::ImportSpecifier) => children.last(),
+        Kind::Node(TypeScriptNode::ImportSpecifier) => children.last(),
         Kind::Node(
-            Node::FunctionDeclaration | Node::FunctionExpression | Node::TSDeclareFunction,
+            TypeScriptNode::FunctionDeclaration | TypeScriptNode::FunctionExpression | TypeScriptNode::TSDeclareFunction,
         ) => name_before(tree, at, token(tree, at, Spelling(OPEN_PARAMETERS))),
-        Kind::Node(Node::ClassDeclaration | Node::ClassExpression) => {
+        Kind::Node(TypeScriptNode::ClassDeclaration | TypeScriptNode::ClassExpression) => {
             name_before(tree, at, token(tree, at, Spelling(EXTENDS)))
         }
         Kind::Node(
-            Node::MethodDefinition
-            | Node::PropertyDefinition
-            | Node::AccessorProperty
-            | Node::TSPropertySignature
-            | Node::TSMethodSignature,
+            TypeScriptNode::MethodDefinition
+            | TypeScriptNode::PropertyDefinition
+            | TypeScriptNode::AccessorProperty
+            | TypeScriptNode::TSPropertySignature
+            | TypeScriptNode::TSMethodSignature,
         ) if token(tree, at, Spelling(OPEN_COMPUTED)).is_some() => None,
         _ => children.next(),
     };
@@ -267,23 +267,23 @@ pub(crate) fn declared<'a>(
 pub(crate) fn declaration_kind(tree: &Tree<'_>, at: Position) -> languages::DeclarationKind {
     use languages::DeclarationKind as Declaration;
     match kind(tree, at) {
-        Kind::Node(Node::FunctionDeclaration | Node::TSDeclareFunction) => Declaration::Function,
-        Kind::Node(Node::ClassDeclaration) => Declaration::Class,
-        Kind::Node(Node::TSInterfaceDeclaration) => Declaration::Interface,
-        Kind::Node(Node::TSTypeAliasDeclaration) => Declaration::TypeAlias,
-        Kind::Node(Node::TSTypeParameter) => Declaration::TypeParameter,
-        Kind::Node(Node::TSEnumDeclaration) => Declaration::Enum,
-        Kind::Node(Node::TSEnumMember) => Declaration::EnumMember,
-        Kind::Node(Node::TSModuleDeclaration) => Declaration::Namespace,
+        Kind::Node(TypeScriptNode::FunctionDeclaration | TypeScriptNode::TSDeclareFunction) => Declaration::Function,
+        Kind::Node(TypeScriptNode::ClassDeclaration) => Declaration::Class,
+        Kind::Node(TypeScriptNode::TSInterfaceDeclaration) => Declaration::Interface,
+        Kind::Node(TypeScriptNode::TSTypeAliasDeclaration) => Declaration::TypeAlias,
+        Kind::Node(TypeScriptNode::TSTypeParameter) => Declaration::TypeParameter,
+        Kind::Node(TypeScriptNode::TSEnumDeclaration) => Declaration::Enum,
+        Kind::Node(TypeScriptNode::TSEnumMember) => Declaration::EnumMember,
+        Kind::Node(TypeScriptNode::TSModuleDeclaration) => Declaration::Namespace,
         Kind::Node(
-            Node::ImportSpecifier | Node::ImportDefaultSpecifier | Node::ImportNamespaceSpecifier,
+            TypeScriptNode::ImportSpecifier | TypeScriptNode::ImportDefaultSpecifier | TypeScriptNode::ImportNamespaceSpecifier,
         ) => Declaration::Import,
-        Kind::Node(Node::MethodDefinition | Node::TSMethodSignature) => Declaration::Method,
-        Kind::Node(Node::LabeledStatement) => Declaration::Label,
+        Kind::Node(TypeScriptNode::MethodDefinition | TypeScriptNode::TSMethodSignature) => Declaration::Method,
+        Kind::Node(TypeScriptNode::LabeledStatement) => Declaration::Label,
         Kind::Node(
-            Node::PropertyDefinition | Node::AccessorProperty | Node::TSPropertySignature,
+            TypeScriptNode::PropertyDefinition | TypeScriptNode::AccessorProperty | TypeScriptNode::TSPropertySignature,
         ) => Declaration::Property,
-        Kind::Node(Node::VariableDeclarator)
+        Kind::Node(TypeScriptNode::VariableDeclarator)
             if languages::children(tree.elements, parent(tree, at)).any(|child| {
                 kind(tree, child) == Kind::Token(Token::Keyword) && text(tree, child).0 == CONSTANT
             }) =>
@@ -300,16 +300,16 @@ pub(crate) fn referenced(tree: &Tree<'_>, at: Position) -> Reference {
     if matches!(
         parent_kind,
         Kind::Node(
-            Node::ImportSpecifier
-                | Node::ImportDefaultSpecifier
-                | Node::ImportNamespaceSpecifier
-                | Node::MemberExpression
-                | Node::TSQualifiedName
+            TypeScriptNode::ImportSpecifier
+                | TypeScriptNode::ImportDefaultSpecifier
+                | TypeScriptNode::ImportNamespaceSpecifier
+                | TypeScriptNode::MemberExpression
+                | TypeScriptNode::TSQualifiedName
         )
     ) {
         return Reference::Binding;
     }
-    if matches!(parent_kind, Kind::Node(Node::Property))
+    if matches!(parent_kind, Kind::Node(TypeScriptNode::Property))
         && nodes(tree, enclosing).last() != Some(at)
         && token(tree, enclosing, Spelling(OPEN_COMPUTED)).is_none()
     {
@@ -320,23 +320,23 @@ pub(crate) fn referenced(tree: &Tree<'_>, at: Position) -> Reference {
         if matches!(
             kind(tree, ancestor),
             Kind::Node(
-                Node::VariableDeclarator
-                    | Node::FunctionDeclaration
-                    | Node::FunctionExpression
-                    | Node::TSDeclareFunction
-                    | Node::ClassDeclaration
-                    | Node::ClassExpression
-                    | Node::TSTypeAliasDeclaration
-                    | Node::TSInterfaceDeclaration
-                    | Node::TSEnumDeclaration
-                    | Node::TSModuleDeclaration
-                    | Node::TSTypeParameter
-                    | Node::MethodDefinition
-                    | Node::PropertyDefinition
-                    | Node::AccessorProperty
-                    | Node::TSPropertySignature
-                    | Node::TSMethodSignature
-                    | Node::TSEnumMember
+                TypeScriptNode::VariableDeclarator
+                    | TypeScriptNode::FunctionDeclaration
+                    | TypeScriptNode::FunctionExpression
+                    | TypeScriptNode::TSDeclareFunction
+                    | TypeScriptNode::ClassDeclaration
+                    | TypeScriptNode::ClassExpression
+                    | TypeScriptNode::TSTypeAliasDeclaration
+                    | TypeScriptNode::TSInterfaceDeclaration
+                    | TypeScriptNode::TSEnumDeclaration
+                    | TypeScriptNode::TSModuleDeclaration
+                    | TypeScriptNode::TSTypeParameter
+                    | TypeScriptNode::MethodDefinition
+                    | TypeScriptNode::PropertyDefinition
+                    | TypeScriptNode::AccessorProperty
+                    | TypeScriptNode::TSPropertySignature
+                    | TypeScriptNode::TSMethodSignature
+                    | TypeScriptNode::TSEnumMember
             )
         ) && declared(tree, ancestor).any(|binding| binding == at)
         {
@@ -365,18 +365,18 @@ pub(crate) fn assignment(tree: &Tree<'_>, at: Position) -> Option<Assignment> {
 }
 /// The explicit bases of a class or interface.
 pub(crate) fn bases<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
-    let interface = kind(tree, at) == Kind::Node(Node::TSInterfaceDeclaration);
+    let interface = kind(tree, at) == Kind::Node(TypeScriptNode::TSInterfaceDeclaration);
     let extends =
         token(tree, at, Spelling(EXTENDS)).map(|child| languages::end_at(tree.elements, child));
     nodes(tree, at).filter(move |child| {
         if interface {
-            return kind(tree, *child) == Kind::Node(Node::TSInterfaceHeritage);
+            return kind(tree, *child) == Kind::Node(TypeScriptNode::TSInterfaceHeritage);
         }
-        matches!(kind(tree, *child), Kind::Node(Node::TSClassImplements))
+        matches!(kind(tree, *child), Kind::Node(TypeScriptNode::TSClassImplements))
             || (extends.is_some_and(|from| languages::start_at(tree.elements, *child) >= from)
                 && !matches!(
                     kind(tree, *child),
-                    Kind::Node(Node::ClassBody | Node::TSTypeParameterInstantiation)
+                    Kind::Node(TypeScriptNode::ClassBody | TypeScriptNode::TSTypeParameterInstantiation)
                 ))
     })
 }

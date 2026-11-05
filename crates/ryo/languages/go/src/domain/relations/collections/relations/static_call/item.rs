@@ -3,7 +3,7 @@
 
 use crate::domain::names::service::{callee_of, dotted, unknown};
 use crate::domain::names::types::{Callee, Unresolved};
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::GoNode;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::{kind_bits, nodes};
 use crate::domain::syntax::types::Kind;
@@ -14,7 +14,7 @@ pub(crate) struct StaticCallItem;
 
 ryo::reads! {
     StaticCallItem => languages::StaticCall |tree, at, symbols| {
-        kinds: [Kind::Node(Node::CallExpr)] as kind_bits,
+        kinds: [Kind::Node(GoNode::CallExpr)] as kind_bits,
         given callee = nodes(tree, at).next()?;
         when callee_of(tree, callee) {
             Callee::Named => {

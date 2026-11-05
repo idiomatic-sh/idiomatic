@@ -1,6 +1,6 @@
 //! The `imports` service's cases, on trees written by hand: the leaves of a `use`, each by its text.
 
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::RustNode;
 use ryo::languages::{self, Position, Tree};
 
 use super::service::leaves;
@@ -38,7 +38,7 @@ fn subject(source: Input) -> Result<Value, Failure> {
         file: languages::FileId(0),
     };
     let root = languages::positions(tree.elements)
-        .find(|at| kind(&tree, *at) == Kind::Node(Node::UseTree))
+        .find(|at| kind(&tree, *at) == Kind::Node(RustNode::UseTree))
         .ok_or(())?;
     let found: Vec<&'static str> = leaves(&tree, root).map(|leaf| text(&tree, leaf)).collect();
     Ok(Box::leak(found.into_boxed_slice()))

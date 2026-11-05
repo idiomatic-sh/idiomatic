@@ -3,7 +3,7 @@
 //! `code`, `inline-code`); the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::Node;
+use crate::domain::nodes::types::MarkdownNode;
 use crate::domain::tokens::types::Token;
 
 /// What a node or a token of a Markdown syntax tree is: a node of mdast, a token of micromark, or an extra the standards lack. The element
@@ -11,7 +11,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node of mdast.
-    Node(Node),
+    Node(MarkdownNode),
     /// A token of micromark.
     Token(Token),
     /// A kind the standards lack.
@@ -24,7 +24,7 @@ pub(crate) enum Leaf {
     /// A token.
     Token,
     /// A node.
-    Node,
+    MarkdownNode,
 }
 
 /// Whether an element is the root of its tree.
