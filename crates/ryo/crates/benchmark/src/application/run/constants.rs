@@ -9,7 +9,6 @@ pub(super) const CANDIDATE: &str = "candidate";
 pub(super) const LINE_SEPARATOR: &str = "\n";
 
 /// Authored rule directory within the frozen profile.
-pub(super) const RULES: &str = "rules";
 
 /// Refuse certification without executable cases.
 pub(super) const NO_CASES: &str = "no executable rule cases";

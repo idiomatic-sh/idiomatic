@@ -69,8 +69,9 @@ pub fn check(adapter: &impl EnginePort) {
         if matches!(scenario, Scenario::Loaded) {
             let mut request = request;
             let id = ryo::linter::RuleId::try_from("R1").expect("rule identity");
-            std::fs::create_dir(temporary.path().join("R1")).expect("rule directory");
-            std::fs::write(temporary.path().join("R1/query.ryoql"), "let missing = select path as file, span from \"filesystem.read-failure\"; emit missing subject file key(file);").expect("query");
+            request.rules = temporary.path().join("rules");
+            std::fs::create_dir_all(request.rules.join("R1")).expect("rule directory");
+            std::fs::write(request.rules.join("R1/query.ryoql"), "let missing = select path as file, span from \"filesystem.read-failure\"; emit missing subject file key(file);").expect("query");
             let boundary = temporary.path().join("snapshot");
             request.context_manifest = Some(
                 crate::outbound::context::adapters::local::adapter::materialize(
@@ -97,7 +98,7 @@ pub fn check(adapter: &impl EnginePort) {
                     .map_err(|_| Failure::Unexpected)?
                     .is_empty()
             );
-            std::fs::remove_file(temporary.path().join("R1/query.ryoql")).expect("loaded snapshot");
+            std::fs::remove_file(request.rules.join("R1/query.ryoql")).expect("loaded snapshot");
             let inputs = crate::outbound::engine::types::EngineConfiguration {
                 selected_missing: request.files.iter().cloned().collect(),
                 selected_rules: [id.clone()].into_iter().collect(),
