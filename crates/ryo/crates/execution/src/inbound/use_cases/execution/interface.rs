@@ -1,5 +1,8 @@
 //! One public prepare/open/run protocol; ownership is never delegated to callers.
 use super::types::*;
+pub use crate::domain::shared_walk::types::WalkCounts;
+pub use crate::domain::shared_walk::types::WalkPassCount;
+pub use crate::domain::shared_walk::types::WalkSourceRows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     files::types::CorpusInput, runs::types::Skipped, stored_facts::types::Bucket,
@@ -48,6 +51,8 @@ pub trait ExecutionRequest {
     ) -> Result<ProjectSession<'a>, OperatingError>;
 }
 pub trait FileExecution {
+    /// Actual shared native pass work already performed by this file owner.
+    fn walk_counts(&self) -> WalkCounts;
     fn emit_rows(
         &mut self,
         rule: RuleIndex,

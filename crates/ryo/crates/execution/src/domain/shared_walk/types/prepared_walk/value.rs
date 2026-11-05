@@ -36,6 +36,97 @@ impl PreparedWalk {
         }
     }
 
+    /// Resolve only a physical selection head whose rows this walk can deliver.
+    pub(crate) fn class_for(
+        &self,
+        program: &crate::domain::executable_program::types::ExecutableProgram,
+        instruction: &crate::domain::executable_program::types::Instruction,
+    ) -> Option<ClassPlace> {
+        let region = program.logical_regions().get(instruction.logical.0)?;
+        if program
+            .regions()
+            .get(region.0)?
+            .instructions
+            .first()?
+            .logical
+            != instruction.logical
+        {
+            return None;
+        }
+        let ryo_values::domain::plans::types::Operation::Select {
+            from: Input::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
+            comparisons,
+            kept,
+        } = &instruction.operation
+        else {
+            return None;
+        };
+        if kept.iter().any(|column| {
+            column.0 as usize >= crate::domain::step_classes::constants::ELEMENT_COLUMNS
+        }) {
+            return None;
+        }
+        let original = program
+            .rules()
+            .get(instruction.producer.0)?
+            .original_steps
+            .iter()
+            .filter_map(|origin| origin.as_ref().ok())
+            .find(|origin| origin.logical == instruction.logical)?;
+        let class = self
+            .class_of(instruction.producer)?
+            .get(original.step.0 as usize)
+            .copied()
+            .flatten()?;
+        (self.classes().get(class.0)?.comparisons == *comparisons).then_some(class)
+    }
+
+    /// Exclude logical classes with no physical consumer of the shared result.
+    pub(crate) fn retain_program_consumers(
+        &mut self,
+        program: &crate::domain::executable_program::types::ExecutableProgram,
+    ) {
+        let retained = self
+            .classes
+            .classes
+            .iter()
+            .enumerate()
+            .map(|(at, class)| {
+                class
+                    .members
+                    .iter()
+                    .copied()
+                    .filter(|member| {
+                        let Some(origin) = program
+                            .rules()
+                            .get(member.rule.0)
+                            .and_then(|rule| rule.original_steps.get(member.step.0))
+                            .and_then(|origin| origin.as_ref().ok())
+                        else {
+                            return false;
+                        };
+                        let Some(region) = program
+                            .logical_regions()
+                            .get(origin.logical.0)
+                            .and_then(|region| program.regions().get(region.0))
+                        else {
+                            return false;
+                        };
+                        region
+                            .instructions
+                            .iter()
+                            .find(|instruction| instruction.logical == origin.logical)
+                            .and_then(|instruction| self.class_for(program, instruction))
+                            == Some(ClassPlace(at))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        for (class, members) in self.classes.classes.iter_mut().zip(retained) {
+            class.members = members;
+        }
+    }
+
     pub(crate) fn classes(&self) -> &[StepClass] {
         &self.classes.classes
     }
@@ -52,12 +143,25 @@ impl PreparedWalk {
 /// None declined before semantic work; a reached class retains its own result.
 #[derive(Debug)]
 pub(crate) struct NativeBatch {
-    classes: Vec<Option<Result<Slots, OperatingError>>>,
+    classes: Vec<Option<crate::domain::shared_walk::types::ClassResult>>,
+    counts: crate::domain::shared_walk::types::WalkCounts,
     visits: Vec<RowsVisited>,
 }
 
 impl NativeBatch {
-    pub(crate) fn class(&self, place: ClassPlace) -> Option<&Result<Slots, OperatingError>> {
+    pub(crate) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
+        self.counts
+    }
+    pub(in crate::domain::shared_walk) fn record_pass(&mut self) {
+        self.counts.passes.0 = self.counts.passes.0.saturating_add(1);
+    }
+    pub(in crate::domain::shared_walk) fn record_source_row(&mut self) {
+        self.counts.source_rows.0 = self.counts.source_rows.0.saturating_add(1);
+    }
+    pub(crate) fn class(
+        &self,
+        place: ClassPlace,
+    ) -> Option<&crate::domain::shared_walk::types::ClassResult> {
         self.classes.get(place.0).and_then(Option::as_ref)
     }
 
@@ -72,6 +176,7 @@ impl NativeBatch {
         Self {
             classes,
             visits: vec![RowsVisited::default(); count.0],
+            counts: crate::domain::shared_walk::types::WalkCounts::default(),
         }
     }
 
@@ -80,7 +185,20 @@ impl NativeBatch {
         place: ClassPlace,
         result: Result<Slots, OperatingError>,
     ) {
-        self.classes[place.0] = Some(result);
+        use crate::domain::shared_walk::types::ClassResult;
+        self.classes[place.0] = Some(match result {
+            Ok(positions) => ClassResult {
+                positions,
+                completion: Ok(()),
+            },
+            Err(error) => ClassResult {
+                positions: self.classes[place.0]
+                    .take()
+                    .map(|result| result.positions)
+                    .unwrap_or_default(),
+                completion: Err(error),
+            },
+        });
     }
 
     pub(in crate::domain::shared_walk) fn output(
@@ -88,8 +206,8 @@ impl NativeBatch {
         place: ClassPlace,
     ) -> Option<&mut Slots> {
         match &mut self.classes[place.0] {
-            Some(Ok(slots)) => Some(slots),
-            Some(Err(_)) | None => None,
+            Some(result) if result.completion.is_ok() => Some(&mut result.positions),
+            Some(_) | None => None,
         }
     }
 
@@ -99,3 +217,5 @@ impl NativeBatch {
 }
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+
+use ryo_values::domain::plan_parts::types::Input;

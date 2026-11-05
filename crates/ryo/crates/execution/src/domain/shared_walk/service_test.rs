@@ -124,10 +124,7 @@ fn inactive_representative_and_single_member_preserve_eligibility() {
             RuleActivity::Inactive,
         ],
     );
-    assert_eq!(
-        with_two.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
-        [1, 3]
-    );
+    assert_eq!(with_two.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
     let with_one = evaluate_plans(
         &prepared,
         &bindings,
@@ -138,7 +135,56 @@ fn inactive_representative_and_single_member_preserve_eligibility() {
             RuleActivity::Inactive,
         ],
     );
-    assert!((0..prepared.classes().len()).all(|at| with_one.class(ClassPlace(at)).is_none()));
+    assert_eq!(with_one.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
+    assert!((1..prepared.classes().len()).all(|at| with_one.class(ClassPlace(at)).is_none()));
+}
+
+fn distinct_single_consumer_predicates_share_the_walk() {
+    let plans = [plan("word"), plan("other")];
+    let bindings = vec![Vec::new(); plans.len()];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    assert_eq!(prepared.classes().len(), 2);
+    assert!(
+        prepared
+            .classes()
+            .iter()
+            .all(|class| class.members.len() == 1)
+    );
+    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 2]);
+    assert_eq!(batch.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
+    assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
+    assert_eq!(batch.visits(ClassPlace(0)).0, 2);
+    assert_eq!(batch.visits(ClassPlace(1)).0, 1);
+}
+
+fn predicate_order_preserves_errors_and_short_circuits() {
+    let mut first = plan("absent-kind");
+    let Operation::Select { comparisons, .. } = &mut first.steps[0].operation else {
+        unreachable!()
+    };
+    let invalid = Comparison {
+        test: Test::Matches,
+        left: Operand::Column(ColumnIndex(2)),
+        right: Operand::Literal(QueryLiteral::Text(LiteralText("[".into()))),
+        origin: None,
+    };
+    comparisons.insert(0, invalid.clone());
+    let mut second = plan("absent-kind");
+    let Operation::Select { comparisons, .. } = &mut second.steps[0].operation else {
+        unreachable!()
+    };
+    comparisons.push(invalid);
+    let plans = [first, second];
+    let bindings = vec![Vec::new(); plans.len()];
+    let prepared = PreparedWalk::compile(&plans, &bindings);
+    let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 2]);
+    assert!(matches!(
+        batch.class(ClassPlace(0)).map(|result| &result.completion),
+        Some(Err(
+            crate::domain::operating::errors::OperatingError::InvalidRegex { .. }
+        ))
+    ));
+    assert!(batch.class(ClassPlace(1)).unwrap().positions.0.is_empty());
 }
 
 pub(crate) fn add_pattern(plans: &mut [Plan; 4], parameter: u32) {
@@ -164,9 +210,12 @@ fn a_reached_semantic_error_is_kept_for_its_class() {
     let prepared = PreparedWalk::compile(&plans, &bindings);
     assert_eq!(prepared.classes()[0].members.len(), 2);
     let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
-    assert!(matches!(batch.class(ClassPlace(0)), Some(Err(_))));
+    assert!(matches!(
+        batch.class(ClassPlace(0)).map(|result| &result.completion),
+        Some(Err(_))
+    ));
     assert_eq!(batch.visits(ClassPlace(0)).0, 1);
-    assert!(batch.class(ClassPlace(1)).is_none());
+    assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
 }
 
 fn different_kind_errors_keep_the_first_source_row() {
@@ -240,7 +289,7 @@ fn different_kind_errors_keep_the_first_source_row() {
         &mut WalkWork::default(),
     );
     let Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { reason })) =
-        batch.class(ClassPlace(0))
+        batch.class(ClassPlace(0)).map(|result| &result.completion)
     else {
         panic!("first source row must retain its regex error");
     };
@@ -288,10 +337,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         &[RuleActivity::Active; 4],
         &mut work,
     );
-    assert_eq!(
-        first.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
-        [1, 3]
-    );
+    assert_eq!(first.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
     let empty = ryo_language::domain::elements::types::Elements::default();
     let next = evaluate(
         &prepared,
@@ -306,14 +352,13 @@ fn an_empty_next_file_has_no_stale_native_publication() {
         &mut work,
     );
     assert!((0..prepared.classes().len()).all(|at| next.class(ClassPlace(at)).is_none()));
-    assert_eq!(
-        first.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
-        [1, 3]
-    );
+    assert_eq!(first.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
 }
 
 #[derive(Clone, Copy)]
 enum Scenario {
+    PredicateOrder,
+    Distinct,
     Active,
     Failure,
     SourceOrder,
@@ -325,6 +370,18 @@ type Value = usize;
 type Failure = ();
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("predicates preserve authored error and short-circuit order"),
+        word: Word::Succeeds,
+        input: || Scenario::PredicateOrder,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("distinct single-consumer predicates share source traversal"),
+        word: Word::Succeeds,
+        input: || Scenario::Distinct,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("inactive representative and one active member"),
         word: Word::Succeeds,
@@ -353,6 +410,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
+        Scenario::PredicateOrder => predicate_order_preserves_errors_and_short_circuits(),
+        Scenario::Distinct => distinct_single_consumer_predicates_share_the_walk(),
         Scenario::Active => inactive_representative_and_single_member_preserve_eligibility(),
         Scenario::Failure => a_reached_semantic_error_is_kept_for_its_class(),
         Scenario::SourceOrder => different_kind_errors_keep_the_first_source_row(),

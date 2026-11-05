@@ -145,9 +145,11 @@ impl AdmittedInput {
     ) -> Result<crate::domain::completion::types::CoverageState, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(crate::domain::completion::types::CoverageState::Complete),
-            Readiness::Partial { files } => Ok(crate::domain::completion::types::CoverageState::Partial {
-                files: files.clone(),
-            }),
+            Readiness::Partial { files } => {
+                Ok(crate::domain::completion::types::CoverageState::Partial {
+                    files: files.clone(),
+                })
+            }
         }
     }
     pub(super) fn with_coverage(
@@ -500,9 +502,6 @@ impl<'scope> KernelPermit<'scope> {
         work: &'call mut crate::domain::shared_walk::types::WalkWork,
     ) -> Result<super::native_walk::PermittedWalk<'call, 'context, 'scope>, OperatingError> {
         self.validate_live()?;
-        if self.evaluation != crate::domain::operator::contract::types::EvaluationMode::Collected {
-            return Err(OperatingError::WrongOperation);
-        }
         if !std::ptr::eq(source.source, self.bound_input(0)?) {
             return Err(OperatingError::NotRead);
         }

@@ -1,4 +1,4 @@
-//! One borrowed tree pass for equivalent selection classes. No publication,
+//! One borrowed tree pass for active selection classes. No publication,
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
 use super::types::{
@@ -6,15 +6,15 @@ use super::types::{
     prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
 };
 use crate::domain::{
-    comparing::service::holds_some,
+    comparing::service::holds_all,
     coverage::types::RuleIndex,
     kind_sets::{
-        service::{kind_tests, named_kinds, passes},
+        service::{kind_tests, named_kinds, names_a_kind, passes},
         types::KindScratch,
     },
     operating::{
         errors::OperatingError,
-        types::{Memo, NameCount, OperatorContext},
+        types::{KindNaming, Memo, NameCount, OperatorContext},
     },
     positions::types::{ClassPlace, Slots},
     step_classes::{constants::ELEMENT_COLUMNS, types::StepClass},
@@ -26,8 +26,7 @@ use crate::domain::{
         service::kinds_of,
         types::{Rows, Verdict},
     },
-    table_scratch::types::{ElementIndex, KindsBy},
-    text_gate::service::{needed_of_rest, text_admitted, text_gate, undecided},
+    text_gate::service::needed_of_rest,
 };
 use ryo_language::domain::{
     elements::service::{kind_at, kind_names, positions, real_count},
@@ -98,35 +97,13 @@ fn consider(
     let index = usize::try_from(position.0).unwrap_or(usize::MAX);
     let mut class_context = class_context(context, bound, &mut each.memo);
     let decided = (|| -> Result<Verdict, OperatingError> {
-        if !each.gate.0.is_empty()
-            && text_admitted(
-                tree,
-                ElementIndex(index),
-                comparisons,
-                &each.gate,
-                &mut each.text_ok,
-                names,
-                cells,
-                element_kinds,
-                &mut class_context,
-            )? == Verdict::Fails
-        {
-            return Ok(Verdict::Fails);
-        }
         if *read == RowRead::Pending {
             if read_tree_cells(tree, RowIndex(index), cells, union) == CellsRead::Missing {
                 return Ok(Verdict::Fails);
             }
             *read = RowRead::Done;
         }
-        holds_some(
-            comparisons,
-            &each.rest,
-            cells,
-            element_kinds,
-            names,
-            &mut class_context,
-        )
+        holds_all(comparisons, cells, element_kinds, names, &mut class_context)
     })();
     match decided {
         Ok(Verdict::Holds) => {
@@ -173,8 +150,6 @@ pub(crate) fn evaluate(
     work.resize_with(program.classes().len(), ClassWork::default);
     for each in work.iter_mut() {
         each.kinds = KindCount(0);
-        each.gate.0.clear();
-        each.text_ok.0.clear();
         each.rest.0.clear();
         each.needed.0.clear();
         each.memo.clear();
@@ -193,14 +168,12 @@ pub(crate) fn evaluate(
     };
 
     for (at, class) in program.classes().iter().enumerate() {
-        // A single active member has no shared work. Its ordinary invocation
-        // remains the only owner of its result and error.
-        if class
+        // Distinct predicates share the source traversal too. Duplicate consumers
+        // are not required; only a class with no demanded member is excluded.
+        if !class
             .members
             .iter()
-            .filter(|member| active[member.rule.0] == RuleActivity::Active)
-            .nth(1)
-            .is_none()
+            .any(|member| active[member.rule.0] == RuleActivity::Active)
         {
             continue;
         }
@@ -209,13 +182,21 @@ pub(crate) fn evaluate(
         };
         let comparisons = class.comparisons.as_slice();
         let mut prepared = class_context(context, bound, &mut each.memo);
-        kind_tests(&tree, comparisons, &mut prepared, &mut kinds);
-        text_gate(&tree, comparisons, &mut each.gate);
-        each.text_ok.0.clear();
-        if !each.gate.0.is_empty() {
-            each.text_ok.0.resize(names.0 + 1, 0);
-        }
-        undecided(comparisons, &each.gate, KindsBy::Sets, &mut each.rest);
+        // Only an initial sequence of total kind equalities may narrow dispatch.
+        // Every predicate is still evaluated in authored order for admitted rows.
+        let prefix = comparisons
+            .iter()
+            .take_while(|comparison| {
+                names_a_kind(comparison) == KindNaming::Names
+                    && matches!(
+                        comparison.test,
+                        ryo_values::domain::plan_parts::types::Test::Equal
+                            | ryo_values::domain::plan_parts::types::Test::NotEqual
+                    )
+            })
+            .count();
+        kind_tests(&tree, &comparisons[..prefix], &mut prepared, &mut kinds);
+        each.rest.0.extend(0..comparisons.len());
         needed_of_rest(comparisons, &each.rest, &mut each.needed);
         if each
             .needed
@@ -226,11 +207,8 @@ pub(crate) fn evaluate(
             continue;
         }
         prepared.memo.clear();
-        if !each.rest.0.is_empty() {
-            prepared
-                .memo
-                .resize(comparisons.len() * names.0, Memo::Unknown);
-        }
+        // Do not allocate a comparisons-by-symbols matrix for every class.
+        // Matcher compilation and keyed verdict reuse already live in shared scratch.
         if let Some(named) = named_kinds(&kinds) {
             for kind in named {
                 if passes(&kinds, *kind) == Verdict::Holds
@@ -262,7 +240,12 @@ pub(crate) fn evaluate(
         group.dedup();
         needed_together(columns, work, group);
     }
+    if by_kind.iter().all(Vec::is_empty) {
+        return batch;
+    }
+    batch.record_pass();
     for position in positions(tree.elements) {
+        batch.record_source_row();
         let kind = usize::from(kind_at(tree.elements, position).0);
         let (Some(group), Some(columns)) = (by_kind.get(kind), columns_by_kind.get(kind)) else {
             continue;

@@ -23,14 +23,11 @@ fn equivalent_rules_share_one_ordered_class_without_retaining_plans() {
         Some(ClassPlace(0))
     );
     let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
-    assert_eq!(
-        batch.class(ClassPlace(0)).unwrap().as_ref().unwrap().0,
-        [1, 3]
-    );
+    assert_eq!(batch.class(ClassPlace(0)).unwrap().positions.0, [1, 3]);
     assert_eq!(batch.visits(ClassPlace(0)).0, 2);
-    assert_eq!(batch.visits(ClassPlace(1)).0, 0);
-    assert!(batch.class(ClassPlace(1)).is_none());
-    assert!(batch.class(ClassPlace(2)).is_none());
+    assert_eq!(batch.visits(ClassPlace(1)).0, 1);
+    assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
+    assert!(batch.class(ClassPlace(2)).unwrap().positions.0.is_empty());
 }
 
 #[test]
@@ -48,8 +45,7 @@ fn only_referenced_bindings_affect_class_equivalence() {
         evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4])
             .class(ClassPlace(0))
             .unwrap()
-            .as_ref()
-            .unwrap()
+            .positions
             .0,
         [1, 3]
     );
@@ -69,7 +65,15 @@ fn a_missing_referenced_binding_cannot_be_shared_as_a_value() {
             .all(|class| class.members.len() == 1)
     );
     let batch = evaluate_plans(&prepared, &bindings, &[RuleActivity::Active; 4]);
-    assert!((0..prepared.classes().len()).all(|at| batch.class(ClassPlace(at)).is_none()));
+    assert!(matches!(
+        batch.class(ClassPlace(0)).map(|result| &result.completion),
+        Some(Err(_))
+    ));
+    assert_eq!(batch.class(ClassPlace(1)).unwrap().positions.0, [2]);
+    assert!(matches!(
+        batch.class(ClassPlace(2)).map(|result| &result.completion),
+        Some(Err(_))
+    ));
 }
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;

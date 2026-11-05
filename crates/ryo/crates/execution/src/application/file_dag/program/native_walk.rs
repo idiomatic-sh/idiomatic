@@ -84,6 +84,12 @@ impl FileWalk {
         }
         Ok(())
     }
+    pub(super) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
+        self.batch
+            .borrow()
+            .as_ref()
+            .map_or_else(Default::default, NativeBatch::counts)
+    }
     pub(super) fn batch(&self) -> std::cell::Ref<'_, Option<NativeBatch>> {
         self.batch.borrow()
     }

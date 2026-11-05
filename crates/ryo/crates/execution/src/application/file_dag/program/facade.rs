@@ -1,9 +1,9 @@
 //! Application request preparation and compact root metadata; original plans are transient.
 pub(crate) use super::admission::ApplicabilityReason;
-use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 pub(crate) use super::restored::ValidatedFrontier;
 pub(in crate::application) use super::restored::validate_restored_frontier;
 use crate::domain::prepared_request::types::{Compiled, ObservationIdentity};
+use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{ExecutableProgram, InputSource, RegionId},
@@ -198,36 +198,7 @@ impl PreparedProgram {
         &self,
         instruction: &crate::domain::executable_program::types::Instruction,
     ) -> Option<crate::domain::positions::types::ClassPlace> {
-        let region = self.program.logical_regions().get(instruction.logical.0)?;
-        if self.program.regions().get(region.0)?.instructions.len() != 1 {
-            return None;
-        }
-        let ryo_values::domain::plans::types::Operation::Select {
-            from: Input::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
-            comparisons,
-            kept,
-        } = &instruction.operation
-        else {
-            return None;
-        };
-        if !kept.is_empty() {
-            return None;
-        }
-        let original = self
-            .program
-            .rules()
-            .get(instruction.producer.0)?
-            .original_steps
-            .iter()
-            .filter_map(|origin| origin.as_ref().ok())
-            .find(|origin| origin.logical == instruction.logical)?;
-        let class = self
-            .walk
-            .class_of(instruction.producer)?
-            .get(original.step.0 as usize)
-            .copied()
-            .flatten()?;
-        (self.walk.classes().get(class.0)?.comparisons == *comparisons).then_some(class)
+        self.walk.class_for(&self.program, instruction)
     }
     pub(super) fn rule_id(
         &self,
@@ -465,7 +436,7 @@ pub(crate) fn prepare(
         schedule,
         observations,
     } = compiled;
-    let walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
+    let mut walk = crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(
         &plans, &bindings,
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
@@ -530,6 +501,7 @@ pub(crate) fn prepare(
         &partitions,
         &operators,
     )?);
+    walk.retain_program_consumers(&program);
     let native_orders = program
         .regions()
         .iter()

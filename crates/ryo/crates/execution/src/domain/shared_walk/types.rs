@@ -1,11 +1,8 @@
 //! File-local scratch for one borrowed tree pass.
 
 use crate::domain::{
-    operating::types::Memo,
-    positions::types::ClassPlace,
-    step_classes::constants::ELEMENT_COLUMNS,
-    table_cells::types::ColumnPlaces,
-    table_scratch::types::{ComparisonNumbers, TextVerdicts},
+    operating::types::Memo, positions::types::ClassPlace, step_classes::constants::ELEMENT_COLUMNS,
+    table_cells::types::ColumnPlaces, table_scratch::types::ComparisonNumbers,
 };
 use ryo_relations::domain::relations::types::{Flag, Value};
 
@@ -41,8 +38,6 @@ pub(crate) enum RowRead {
 #[derive(Debug, Default)]
 pub(crate) struct ClassWork {
     pub kinds: KindCount,
-    pub gate: ComparisonNumbers,
-    pub text_ok: TextVerdicts,
     pub rest: ComparisonNumbers,
     pub needed: ColumnPlaces,
     pub memo: Vec<Memo>,
@@ -68,4 +63,24 @@ impl Default for WalkWork {
             cells: [Value::Flag(Flag::Lowered); ELEMENT_COLUMNS],
         }
     }
+}
+
+/// Actual outer shared native traversals in this file generation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WalkPassCount(pub u64);
+/// Source positions visited by the outer traversal, independently of class visits.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WalkSourceRows(pub u64);
+/// Read-only work performed by the actual shared walk, never a schedule or capability.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WalkCounts {
+    pub passes: WalkPassCount,
+    pub source_rows: WalkSourceRows,
+}
+
+/// Accepted rows precede the first terminal predicate error in source order.
+#[derive(Debug)]
+pub(crate) struct ClassResult {
+    pub positions: crate::domain::positions::types::Slots,
+    pub completion: Result<(), crate::domain::operating::errors::OperatingError>,
 }

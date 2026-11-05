@@ -713,3 +713,6 @@ mod mode_order;
 mod publication;
 
 mod project_phase;
+
+#[cfg(test)]
+mod shared_walk;

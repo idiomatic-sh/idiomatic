@@ -187,6 +187,10 @@ impl ExecutionRequest for RequestExecution {
     }
 }
 impl FileExecution for FileSession<'_, '_> {
+    fn walk_counts(&self) -> WalkCounts {
+        self.inner.walk_counts()
+    }
+
     fn emit_rows(
         &mut self,
         rule: RuleIndex,

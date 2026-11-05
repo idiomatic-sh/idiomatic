@@ -441,6 +441,9 @@ impl FileRun<'_> {
             .map_err(Clone::clone)?;
         self.execution.region_observation(*region)
     }
+    pub(crate) fn walk_counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
+        self.walk.counts()
+    }
     pub(crate) fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
         self.execution.logical_counts(rule)
     }
