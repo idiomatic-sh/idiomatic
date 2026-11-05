@@ -34,7 +34,7 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
     let rows = owner
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
-    workspace.capture_admitted(vec![publication]);
+    workspace.capture_admitted(vec![publication.clone()]);
     let admitted = workspace.admit(0, BorrowedRows::from(&rows)).unwrap();
     assert_eq!(admitted.identity(&owner).unwrap().1, None);
     assert_eq!(admitted.rows().kinds(), &[CellKind::Number]);

@@ -37,7 +37,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
     ];
     let (right, r) = provider(
         Rows::Stored(ColumnsView {
-            kinds: &right_table.kinds,
+            kinds: &[CellKind::Number; 2],
             columns: &right_columns,
         }),
         1,

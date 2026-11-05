@@ -1,8 +1,8 @@
-//! Demand compilation consumes actual prepared Axis publication policy for every supply tuple.
+//! Demand compilation preserves declared order independently of physical delivery.
 use super::{service::demand, types::DemandAction};
 use crate::domain::{
-    operating::types::Supply, operation_schema::types::InputShape,
-    operator::contract::service::prepare_for,
+    operation_schema::types::InputShape, operator::contract::service::prepare_for,
+    operator::contract::types::DemandOrder,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::{
@@ -12,60 +12,48 @@ use ryo_values::{
         plans::types::{Operation, OperationKind},
     },
 };
-type Input = [Supply; 3];
+type Input = (DemandOrder, usize);
 type Value = Vec<usize>;
 type Failure = crate::domain::operating::errors::OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("athand_athand_athand"),
+        name: CaseName("no_inputs"),
         word: Word::Succeeds,
-        input: || [Supply::AtHand, Supply::AtHand, Supply::AtHand],
-        expect: Expect::Value(vec![0, 1, 2]),
+        input: || (DemandOrder::None, 0),
+        expect: Expect::Value(vec![]),
     },
     Case {
-        name: CaseName("athand_athand_streamed"),
+        name: CaseName("unary"),
         word: Word::Succeeds,
-        input: || [Supply::AtHand, Supply::AtHand, Supply::Streamed],
-        expect: Expect::Value(vec![0, 1, 2]),
+        input: || (DemandOrder::Unary, 1),
+        expect: Expect::Value(vec![0]),
     },
     Case {
-        name: CaseName("athand_streamed_athand"),
+        name: CaseName("empty_ordered"),
         word: Word::Succeeds,
-        input: || [Supply::AtHand, Supply::Streamed, Supply::AtHand],
-        expect: Expect::Value(vec![0, 1, 2]),
+        input: || (DemandOrder::LeftThenRight, 0),
+        expect: Expect::Value(vec![]),
     },
     Case {
-        name: CaseName("athand_streamed_streamed"),
+        name: CaseName("one_ordered"),
         word: Word::Succeeds,
-        input: || [Supply::AtHand, Supply::Streamed, Supply::Streamed],
-        expect: Expect::Value(vec![0, 1, 2]),
+        input: || (DemandOrder::LeftThenRight, 1),
+        expect: Expect::Value(vec![0]),
     },
     Case {
-        name: CaseName("streamed_athand_athand"),
+        name: CaseName("two_ordered"),
         word: Word::Succeeds,
-        input: || [Supply::Streamed, Supply::AtHand, Supply::AtHand],
-        expect: Expect::Value(vec![0, 1, 2]),
+        input: || (DemandOrder::LeftThenRight, 2),
+        expect: Expect::Value(vec![0, 1]),
     },
     Case {
-        name: CaseName("streamed_athand_streamed"),
+        name: CaseName("three_ordered"),
         word: Word::Succeeds,
-        input: || [Supply::Streamed, Supply::AtHand, Supply::Streamed],
-        expect: Expect::Value(vec![0, 1, 2]),
-    },
-    Case {
-        name: CaseName("streamed_streamed_athand"),
-        word: Word::Succeeds,
-        input: || [Supply::Streamed, Supply::Streamed, Supply::AtHand],
-        expect: Expect::Value(vec![0, 1, 2]),
-    },
-    Case {
-        name: CaseName("streamed_streamed_streamed"),
-        word: Word::Succeeds,
-        input: || [Supply::Streamed, Supply::Streamed, Supply::Streamed],
+        input: || (DemandOrder::LeftThenRight, 3),
         expect: Expect::Value(vec![0, 1, 2]),
     },
 ];
-fn subject(supplies: Input) -> Result<Value, Failure> {
+fn subject((order, count): Input) -> Result<Value, Failure> {
     let operation = Operation::Axis {
         from: PlanInput::Relation(Relation::Function),
         edges: PlanInput::Relation(Relation::SyntaxChild),
@@ -93,9 +81,10 @@ fn subject(supplies: Input) -> Result<Value, Failure> {
             tree: None,
         },
     ];
-    let contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[])?;
-    let _physical_supplies = supplies;
-    let program = demand(contract.semantics, 3);
+    let mut contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[])?;
+    assert_eq!(contract.semantics.demand, DemandOrder::LeftThenRight);
+    contract.semantics.demand = order;
+    let program = demand(contract.semantics, count);
     Ok(program
         .actions()
         .iter()

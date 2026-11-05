@@ -113,7 +113,7 @@ fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability
     for rows in [
         Rows::Computed(&right),
         Rows::Stored(ColumnsView {
-            kinds: &right.kinds,
+            kinds: &[CellKind::Number; 2],
             columns: &columns,
         }),
     ] {

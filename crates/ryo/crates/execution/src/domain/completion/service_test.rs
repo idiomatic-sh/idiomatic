@@ -69,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Refusal(|error| {
             selects(
-                matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_ref() == "file frontier carries a foreign physical partition"),
+                matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_str() == "file frontier carries a foreign physical partition"),
             )
         }),
     },
@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Refusal(|error| {
             selects(
-                matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_ref() == "partial frontier has no affected physical partition"),
+                matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_str() == "partial frontier has no affected physical partition"),
             )
         }),
     },

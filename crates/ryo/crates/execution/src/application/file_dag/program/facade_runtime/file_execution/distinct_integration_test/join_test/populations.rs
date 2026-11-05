@@ -72,7 +72,7 @@ fn composite_typed_keys_keep_duplicate_bag_order_under_stored_and_zero_budget_ro
     for left in [
         Rows::Computed(&left),
         Rows::Stored(ColumnsView {
-            kinds: &left.kinds,
+            kinds: kinds(Relation::Function),
             columns: &columns,
         }),
     ] {

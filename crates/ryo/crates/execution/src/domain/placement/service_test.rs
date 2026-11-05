@@ -113,12 +113,14 @@ fn compiled_globs(
     let compiled = MatchingUseCaseImpl::new()
         .compile_globs(&globs.iter().map(|glob| glob.0.as_ref()).collect::<Vec<_>>())?;
     Ok(ryo_values::domain::files::types::GlobsMatcher {
-        matches: std::sync::Arc::new(move |path, hits| {
-            MatchingUseCaseImpl::new().match_globs(
-                &compiled,
-                std::path::Path::new(path.0),
-                &mut hits.0,
-            );
-        }),
+        matches: std::sync::Arc::new(
+            move |path: ryo_values::domain::files::types::MatchCandidate<'_>, hits: &mut Hits| {
+                MatchingUseCaseImpl::new().match_globs(
+                    &compiled,
+                    std::path::Path::new(path.0),
+                    &mut hits.0,
+                );
+            },
+        ),
     })
 }

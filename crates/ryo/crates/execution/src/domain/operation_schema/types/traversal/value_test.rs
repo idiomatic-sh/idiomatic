@@ -216,3 +216,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::rows::errors::TableModelError;
