@@ -12,13 +12,16 @@ use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
     argument_named, column_of, input_argument, position, positions_of, word_of, words_of,
 };
+use crate::domain::syntax::constants::argument_name;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_values::domain::program::types::ArgumentValue;
 
-fn semantic_arguments(call: &Call, allowed: &[&str]) -> Result<(), LoweringError> {
+fn semantic_arguments(call: &Call, allowed: &[ArgumentSlot]) -> Result<(), LoweringError> {
     for (at, argument) in call.arguments.iter().enumerate() {
-        if !allowed.contains(&argument.name.0.as_ref())
+        if !allowed
+            .iter()
+            .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
             || call.arguments[..at]
                 .iter()
                 .any(|earlier| earlier.name == argument.name)
@@ -48,7 +51,15 @@ pub(crate) fn call_render_syntax(
     name: &StepName,
     call: &Call,
 ) -> Result<(), LoweringError> {
-    semantic_arguments(call, &["from", "node", "context", "output"])?;
+    semantic_arguments(
+        call,
+        &[
+            ArgumentSlot::From,
+            ArgumentSlot::Node,
+            ArgumentSlot::Context,
+            ArgumentSlot::Output,
+        ],
+    )?;
     let Sourced {
         input: from,
         mut fields,
@@ -101,7 +112,14 @@ pub(crate) fn call_fits_rendered(
 ) -> Result<(), LoweringError> {
     semantic_arguments(
         call,
-        &["from", "texts", "literals", "span", "max-line", "tab-width"],
+        &[
+            ArgumentSlot::From,
+            ArgumentSlot::Texts,
+            ArgumentSlot::Literals,
+            ArgumentSlot::Span,
+            ArgumentSlot::MaxLine,
+            ArgumentSlot::TabWidth,
+        ],
     )?;
     let Sourced {
         input: from,
@@ -162,14 +180,19 @@ pub(crate) fn call_span_between(
     call: &Call,
 ) -> Result<(), LoweringError> {
     for (at, argument) in call.arguments.iter().enumerate() {
-        if !matches!(
-            argument.name.0.as_ref(),
-            "from" | "start" | "end" | "output"
-        ) || call
-            .arguments
-            .iter()
-            .take(at)
-            .any(|earlier| earlier.name == argument.name)
+        if ![
+            ArgumentSlot::From,
+            ArgumentSlot::Start,
+            ArgumentSlot::End,
+            ArgumentSlot::Output,
+        ]
+        .iter()
+        .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
+            || call
+                .arguments
+                .iter()
+                .take(at)
+                .any(|earlier| earlier.name == argument.name)
         {
             return Err(LoweringError::SpanArgument {
                 name: argument.name.0.to_string(),
@@ -230,14 +253,19 @@ pub(crate) fn call_span_bounds(
     call: &Call,
 ) -> Result<(), LoweringError> {
     for (at, argument) in call.arguments.iter().enumerate() {
-        if !matches!(
-            argument.name.0.as_ref(),
-            "from" | "span" | "start-output" | "end-output"
-        ) || call
-            .arguments
-            .iter()
-            .take(at)
-            .any(|earlier| earlier.name == argument.name)
+        if ![
+            ArgumentSlot::From,
+            ArgumentSlot::Span,
+            ArgumentSlot::StartOutput,
+            ArgumentSlot::EndOutput,
+        ]
+        .iter()
+        .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
+            || call
+                .arguments
+                .iter()
+                .take(at)
+                .any(|earlier| earlier.name == argument.name)
         {
             return Err(LoweringError::SpanBoundsArgument {
                 name: argument.name.0.to_string(),
@@ -297,23 +325,25 @@ pub(crate) fn call_source_matches(
     call: &Call,
 ) -> Result<(), LoweringError> {
     for (at, argument) in call.arguments.iter().enumerate() {
-        if !matches!(
-            argument.name.0.as_ref(),
-            "from"
-                | "span"
-                | "pattern"
-                | "output"
-                | "base-line"
-                | "line-output"
-                | "capture"
-                | "capture-output"
-                | "capture-text-output"
-                | "capture-line-output"
-        ) || call
-            .arguments
-            .iter()
-            .take(at)
-            .any(|earlier| earlier.name == argument.name)
+        if ![
+            ArgumentSlot::From,
+            ArgumentSlot::Span,
+            ArgumentSlot::Pattern,
+            ArgumentSlot::Output,
+            ArgumentSlot::BaseLine,
+            ArgumentSlot::LineOutput,
+            ArgumentSlot::CaptureName,
+            ArgumentSlot::CaptureOutput,
+            ArgumentSlot::CaptureTextOutput,
+            ArgumentSlot::CaptureLineOutput,
+        ]
+        .iter()
+        .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
+            || call
+                .arguments
+                .iter()
+                .take(at)
+                .any(|earlier| earlier.name == argument.name)
         {
             return Err(LoweringError::SourceMatchesArgument {
                 name: argument.name.0.to_string(),
@@ -343,11 +373,11 @@ pub(crate) fn call_source_matches(
     let has_base_line = call
         .arguments
         .iter()
-        .any(|argument| argument.name.0.as_ref() == "base-line");
+        .any(|argument| argument.name.0.as_ref() == argument_name(ArgumentSlot::BaseLine));
     let has_line_output = call
         .arguments
         .iter()
-        .any(|argument| argument.name.0.as_ref() == "line-output");
+        .any(|argument| argument.name.0.as_ref() == argument_name(ArgumentSlot::LineOutput));
     if has_base_line != has_line_output {
         return Err(LoweringError::SourceMatchesLinePair { span: call.span });
     }
@@ -369,15 +399,15 @@ pub(crate) fn call_source_matches(
     } else {
         None
     };
-    let present = |name: &str| {
+    let present = |slot: ArgumentSlot| {
         call.arguments
             .iter()
-            .any(|argument| argument.name.0.as_ref() == name)
+            .any(|argument| argument.name.0.as_ref() == argument_name(slot))
     };
-    let capture = present("capture");
-    let capture_output = present("capture-output");
-    let capture_text = present("capture-text-output");
-    let capture_line = present("capture-line-output");
+    let capture = present(ArgumentSlot::CaptureName);
+    let capture_output = present(ArgumentSlot::CaptureOutput);
+    let capture_text = present(ArgumentSlot::CaptureTextOutput);
+    let capture_line = present(ArgumentSlot::CaptureLineOutput);
     if capture != capture_output
         || (capture_text || capture_line) && !capture
         || capture_line && !has_base_line
