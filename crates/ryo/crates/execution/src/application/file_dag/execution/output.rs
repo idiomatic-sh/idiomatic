@@ -11,6 +11,7 @@ use ryo_relations::domain::relations::types::Value;
 
 pub(super) struct Headers<'a> {
     phase: crate::domain::operating::types::AfterTheFiles,
+    semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     pub(super) prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
@@ -23,6 +24,7 @@ impl<'a> Headers<'a> {
     pub(super) fn from_context(context: &OperatorContext<'a>) -> Self {
         Self {
             phase: context.phase,
+            semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
             prepared_kinds: context.prepared_kinds,
             bindings: context.bindings,
@@ -41,7 +43,7 @@ impl<'a> Headers<'a> {
     ) -> Result<(), OperatingError> {
         let mut downstream = OperatorContext {
             phase: self.phase,
-            semantic: None,
+            semantic: self.semantic,
             prepared_matchers: self.prepared_matchers,
             prepared_kinds: self.prepared_kinds,
             bindings: self.bindings,
@@ -54,4 +56,42 @@ impl<'a> Headers<'a> {
         };
         emit.row(&mut downstream, row)
     }
+}
+
+/// Deliver one committed publication through the same isolated downstream frame
+/// used by primitive output. Mutable consumer state lives for this delivery
+/// attempt, never in the producer context and never one allocation per row.
+pub(in crate::application::file_dag) fn replay(
+    rows: &crate::domain::table_model::types::Rows<'_>,
+    context: &mut OperatorContext<'_>,
+    output: &mut dyn Emit,
+) -> Result<(), OperatingError> {
+    struct Delivery<'call, 'headers> {
+        headers: Headers<'headers>,
+        output: &'call mut dyn Emit,
+        scratch: OperatorScratch,
+        memo: Vec<Memo>,
+    }
+    impl Emit for Delivery<'_, '_> {
+        fn row(
+            &mut self,
+            context: &mut OperatorContext<'_>,
+            row: &[Value],
+        ) -> Result<(), OperatingError> {
+            self.headers.row(
+                self.output,
+                &mut context.symbols,
+                &mut self.scratch,
+                &mut self.memo,
+                row,
+            )
+        }
+    }
+    let mut delivery = Delivery {
+        headers: Headers::from_context(context),
+        output,
+        scratch: OperatorScratch::default(),
+        memo: Vec::new(),
+    };
+    crate::domain::replay::service::scan(rows, &mut Vec::new(), context, &mut delivery)
 }

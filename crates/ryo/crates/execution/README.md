@@ -263,3 +263,10 @@ actual Join reader releases first, then Project returns its exact column error.
 The provider-refusal Union control now also declares callback delivery and
 requires one terminal RHS refusal, no delivered prefix and no provider retry.
 All correction controls remain unexecuted pending the combined gate.
+
+The index lifetime control now follows the single `DerivedOwner` equality entry.
+The former wrapper-eviction stage assumed a second backend equality cache;
+`CacheBackend` no longer owns such a payload. The replacement keeps the same
+live-consumer refusal, weak backing, shared-allocation charge and final-release
+assertions at the actual owner. This retires the obsolete two-cache stage rather
+than claiming its intermediate retention behavior still exists.

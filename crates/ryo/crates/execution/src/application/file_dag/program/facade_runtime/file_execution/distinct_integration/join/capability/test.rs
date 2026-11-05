@@ -186,10 +186,22 @@ fn empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index()
                 None => assert!(actual.result.unwrap().cells.is_empty()),
             }
             assert_eq!(witness.calls.load(Ordering::Relaxed), 0);
-            assert_eq!(
-                actual.reads[0], 1,
-                "exact external left source demanded once"
-            );
+            if let Some(error) = &failure {
+                assert_eq!(actual.attempts, [SourceAttempt::Refused(0, error.clone())]);
+                assert_eq!(actual.reads, [1, 0]);
+            } else {
+                assert_eq!(actual.attempts.first(), Some(&SourceAttempt::Available(0)));
+                assert!(
+                    actual
+                        .attempts
+                        .iter()
+                        .all(|attempt| matches!(attempt, SourceAttempt::Available(_)))
+                );
+                assert!(
+                    actual.attempts.contains(&SourceAttempt::Available(1)),
+                    "canonical dependency admission still checks RHS after a successful empty LHS"
+                );
+            }
             assert_eq!(actual.work.index_rows, 0);
             assert_eq!(actual.work.index_cells, 0);
             assert!(actual.prefix.is_empty());
@@ -213,25 +225,40 @@ fn empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index()
 }
 
 #[derive(Debug)]
-struct KeepsCalling;
+struct KeepsCalling {
+    refuse_project: bool,
+}
 impl OperatorsUseCase for KeepsCalling {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        if let OperatorCall::EqualityJoin {
-            input: JoinInput::Values { driver, .. },
-        } = call
-        {
-            assert!(driver.emit(&[Cell::Number(Integer(1))]).is_err());
-            assert!(driver.emit(&[Cell::Number(Integer(2))]).is_err());
-            assert!(driver.next(&[]).is_err());
-            Ok(OperatorAnswer::Written)
-        } else {
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
-                .operators(call)
+        match call {
+            OperatorCall::Project { .. } if self.refuse_project => {
+                Err(PortableOperatorFault::NoSuchColumn { index: REFUSAL })
+            }
+            OperatorCall::EqualityJoin {
+                input: JoinInput::Values { driver, .. },
+            } => {
+                if self.refuse_project {
+                    assert!(driver.emit(&[Cell::Number(Integer(1))]).is_err());
+                    assert!(driver.emit(&[Cell::Number(Integer(2))]).is_err());
+                    assert!(driver.next(&[Cell::Number(Integer(7))]).is_err());
+                } else {
+                    // External delivery begins only after this semantic result
+                    // commits; it cannot interrupt this driver retroactively.
+                    assert!(driver.emit(&[Cell::Number(Integer(1))]).is_ok());
+                    assert!(driver.emit(&[Cell::Number(Integer(2))]).is_ok());
+                }
+                Ok(OperatorAnswer::Written)
+            }
+            call => {
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+                    .operators(call)
+            }
         }
     }
 }
+
 #[test]
-fn first_sink_failure_wins_over_a_kernel_that_continues_and_reports_success() {
+fn sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success() {
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
     let right = table_of(
         &[CellKind::Number, CellKind::Number],
@@ -243,7 +270,9 @@ fn first_sink_failure_wins_over_a_kernel_that_continues_and_reports_success() {
         &mut Symbols::default(),
         b"",
         true,
-        Arc::new(KeepsCalling),
+        Arc::new(KeepsCalling {
+            refuse_project: false,
+        }),
         Faults {
             sink_after: Some(0),
             ..Faults::default()
@@ -252,6 +281,66 @@ fn first_sink_failure_wins_over_a_kernel_that_continues_and_reports_success() {
     .unwrap();
     assert!(matches!(actual.result, Err(OperatingError::NotRun)));
     assert!(actual.prefix.is_empty());
+}
+
+#[test]
+fn fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success() {
+    let left_table = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
+    let right_table = table_of(
+        &[CellKind::Number; 2],
+        &[&[Cell::Number(Integer(7)), Cell::Number(Integer(1))]],
+    );
+    let mut steps = vec![];
+    let (left, l) = provider(Rows::Computed(&left_table), 0, &mut steps);
+    let (right, r) = provider(Rows::Computed(&right_table), 1, &mut steps);
+    let join = steps.len() as u32;
+    let mut op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
+    let Operation::Join {
+        left: from,
+        right: other,
+        ..
+    } = &mut op
+    else {
+        unreachable!()
+    };
+    *from = l;
+    *other = r;
+    steps.push(PlanStep {
+        scope: StepScope::PerFile,
+        operation: op,
+    });
+    steps.push(PlanStep {
+        scope: StepScope::PerFile,
+        operation: Operation::Project {
+            from: PlanInput::Step(StepId(join)),
+            columns: vec![ColumnIndex(0)],
+            distinct: RepeatedRows::Kept,
+        },
+    });
+    let mut request = plan(Scenario::ProjectRetry);
+    request.emit.step = StepId((steps.len() - 1) as u32);
+    request.steps = steps;
+    let actual = execute(
+        request,
+        [left, right],
+        &mut Symbols::default(),
+        b"",
+        true,
+        Arc::new(KeepsCalling {
+            refuse_project: true,
+        }),
+        Faults::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        actual.instructions, 2,
+        "the failure must occur in the real fused Join→Project continuation"
+    );
+    refusal(actual.result);
+    assert!(
+        actual.prefix.is_empty(),
+        "failed semantic publication delivers no prefix"
+    );
 }
 
 #[test]
@@ -322,7 +411,11 @@ fn compiled_tree_and_step_joins_cannot_bypass_the_same_semantic_refusal() {
                 "tree/step case must install the real compiled native strategy"
             );
             assert_eq!(actual.work.native_positions, usize::from(!refuse));
-            assert_eq!(witness.positions.load(Ordering::Relaxed), 1);
+            assert_eq!(
+                witness.positions.load(Ordering::Relaxed),
+                if refuse { 1 } else { 4 },
+                "one semantic call per authored left tree position, stopping at the first refusal"
+            );
             assert_eq!(witness.columns.load(Ordering::Relaxed), 0);
             if refuse {
                 refusal(actual.result);
@@ -339,15 +432,15 @@ fn compiled_tree_and_step_joins_cannot_bypass_the_same_semantic_refusal() {
 }
 
 #[test]
-fn genuine_native_provenance_keeps_right_first_refusal_even_when_left_is_empty() {
+fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_is_empty() {
     use ryo_values::domain::plan_parts::types::{
         Comparison, LiteralText, Operand, QueryLiteral, Test,
     };
-    for (left_fails, right_fails, error, left_reads) in [
-        (false, true, Some(OperatingError::NotRead), 0),
-        (true, true, Some(OperatingError::NotRead), 0),
-        (true, false, Some(OperatingError::NotRun), 1),
-        (false, false, None, 1),
+    for (left_fails, right_fails, error) in [
+        (false, true, Some(OperatingError::NotRead)),
+        (true, true, Some(OperatingError::NotRun)),
+        (true, false, Some(OperatingError::NotRun)),
+        (false, false, None),
     ] {
         let (elements, mut symbols) = wide_tree(1, true);
         let mut request = plan(Scenario::ProjectRetry);
@@ -392,14 +485,43 @@ fn genuine_native_provenance_keeps_right_first_refusal_even_when_left_is_empty()
         )
         .unwrap();
         assert!(
-            actual.native_prepared && actual.right_before_left,
-            "the owner must compile actual native provenance, not a fixture-supplied ordering flag"
+            actual.native_prepared,
+            "the owner must compile actual native provenance"
         );
+        if left_fails {
+            assert_eq!(
+                actual.attempts,
+                [SourceAttempt::Refused(0, OperatingError::NotRun)]
+            );
+            assert_eq!(actual.reads, [1, 0]);
+        } else if right_fails {
+            let (last, before) = actual
+                .attempts
+                .split_last()
+                .expect("RHS refusal is observed");
+            assert_eq!(last, &SourceAttempt::Refused(1, OperatingError::NotRead));
+            assert!(!before.is_empty());
+            assert!(
+                before
+                    .iter()
+                    .all(|attempt| *attempt == SourceAttempt::Available(0)),
+                "every prior borrow is a successful LHS read; no source is retried after the refusal"
+            );
+            assert_eq!(actual.reads[1], 1);
+        } else {
+            assert_eq!(actual.attempts.first(), Some(&SourceAttempt::Available(0)));
+            assert!(actual.attempts.contains(&SourceAttempt::Available(1)));
+            assert!(
+                actual
+                    .attempts
+                    .iter()
+                    .all(|attempt| matches!(attempt, SourceAttempt::Available(_)))
+            );
+        }
         match error {
             Some(error) => assert_eq!(actual.result, Err(error)),
             None => assert!(actual.result.unwrap().cells.is_empty()),
         }
-        assert_eq!(actual.reads, [left_reads, 1]);
         assert!(actual.prefix.is_empty());
     }
 }

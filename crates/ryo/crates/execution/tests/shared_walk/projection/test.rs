@@ -387,7 +387,18 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 };
                 assert_eq!(complete(first).cells, expected);
             }
-            assert_eq!(semantics.calls.load(Ordering::Relaxed), usize::from(!empty));
+            // The native join capability is invoked once per selected left row,
+            // including a row with no RHS match, and stops at its first refusal.
+            let expected_calls = if empty {
+                0
+            } else if refuse {
+                1
+            } else if relation == Relation::SyntaxTree {
+                4
+            } else {
+                3
+            };
+            assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
             let walks = file.walk_counts();
             assert_eq!(walks.passes.0, 1);
             assert_eq!(
@@ -417,7 +428,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                 );
             }
             assert_eq!(file.walk_counts(), walks);
-            assert_eq!(semantics.calls.load(Ordering::Relaxed), usize::from(!empty));
+            assert_eq!(semantics.calls.load(Ordering::Relaxed), expected_calls);
             file.finish().unwrap();
             request.finish();
         }

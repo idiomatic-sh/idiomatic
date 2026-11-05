@@ -16,6 +16,22 @@ impl RowSink for Callback<'_> {
         self.0(context, row)
     }
 }
+#[derive(Debug, Default)]
+struct DeliveryLookup {
+    calls: Counter<usize>,
+}
+impl crate::domain::operating::types::SemanticLookup for DeliveryLookup {
+    fn render_batch(
+        &self,
+        requests: &[ryo_language::domain::semantics::types::RenderRequest],
+        source: &[u8],
+    ) -> Result<Vec<ryo_language::domain::semantics::types::RenderOutcome>, OperatingError> {
+        assert!(requests.is_empty());
+        assert!(source.is_empty());
+        self.calls.set(self.calls.get() + 1);
+        Ok(Vec::new())
+    }
+}
 fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
     let n = |at| Cell::Number(Integer(at));
     let key = if single_result { 7 } else { 2 };
@@ -132,6 +148,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         Ok(providers[side].rows())
     };
     let mut symbols = Symbols::default();
+    let lookup = DeliveryLookup::default();
     let mut file = open_file(
         &prepared,
         FileId(0),
@@ -155,7 +172,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         b"",
         true,
         &mut symbols,
-        None,
+        Some(&lookup),
         None,
     )?;
     let owner = Rc::clone(&file.owner);
@@ -186,6 +203,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
     context.scratch.row = vec![n(654)];
     // Failure resets only the delivery attempt. The retry uses this exact owner,
     // prepared region, admitted providers, cache and invocation implementation.
+    let mut published_reads = None;
     for fail_after in [Some(1), None] {
         let mut prefix = vec![];
         let mut nested_rows = vec![];
@@ -193,6 +211,15 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         let mut nested_observed = std::collections::HashMap::new();
         let mut each = |context: &mut OperatorContext<'_>, row: &[Cell]| {
             entries += 1;
+            let admitted = context
+                .semantic
+                .expect("the same admitted file lookup survives delivery");
+            assert_eq!(
+                std::ptr::from_ref(admitted) as *const (),
+                std::ptr::from_ref(&lookup) as *const (),
+                "the frame borrows the exact existing lookup, without replacing or extending its session"
+            );
+            assert!(admitted.render_batch(&[], b"")?.is_empty());
             context.memo.clear();
             context.memo.push(Memo::Holds);
             context.scratch.row = vec![n(987)];
@@ -279,13 +306,30 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         }
         assert_eq!(*context.memo, vec![Memo::Fails]);
         assert_eq!(context.scratch.row, vec![n(654)]);
+        let after_delivery = reads.each_ref().map(|count| count.get());
+        if let Some(prepared_reads) = published_reads {
+            assert_eq!(
+                after_delivery, prepared_reads,
+                "retry and nested publication replay do not reread the admitted provider populations"
+            );
+        } else {
+            assert!(
+                after_delivery.iter().all(|count| *count > 0),
+                "the first committed publications come from both actual providers"
+            );
+            published_reads = Some(after_delivery);
+        }
     }
+    assert_eq!(
+        lookup.calls.get(),
+        5,
+        "two callbacks before refusal and three on replay"
+    );
     drop(context);
     drop(kernels);
     assert_eq!(
         reads.map(|count| count.get()),
-        [1, 1],
-        "compiled producers are shared across nested and retried consumers"
+        published_reads.expect("first delivery prepares both roots")
     );
     assert_eq!(
         owner.derived.counts().0,

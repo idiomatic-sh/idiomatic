@@ -176,16 +176,22 @@ fn provider<'a>(
         input,
     )
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum SourceAttempt {
+    Available(usize),
+    Refused(usize, OperatingError),
+}
 struct Observation {
     result: Result<Table, OperatingError>,
     prefix: Vec<Vec<Cell>>,
     reads: [usize; 2],
+    attempts: Vec<SourceAttempt>,
     work: ExecutionObservation,
     counts: (u64, u64, u64),
     fed: Vec<crate::domain::operator::types::RowsFed>,
+    instructions: usize,
     native_prepared: bool,
     column_prepared: bool,
-    right_before_left: bool,
     frontiers: Vec<Table>,
     frontier_errors: Vec<OperatingError>,
     affected: Vec<Option<FileId>>,
@@ -271,9 +277,9 @@ fn execute(
         .unwrap()
         .logical;
     let region = program.logical_regions()[logical.0];
+    let instructions = program.regions()[region.0].instructions.len();
     let native_prepared = program.regions()[region.0].native_positions.is_some();
     let column_prepared = program.regions()[region.0].column.is_some();
-    let right_before_left = false; // Canonical semantic admission is left then right.
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(port)),
         derived,
@@ -285,6 +291,7 @@ fn execute(
         })],
     ));
     let reads = [Counter::new(0), Counter::new(0)];
+    let attempts = std::cell::RefCell::new(Vec::new());
     let read = |relation| {
         let side = providers
             .iter()
@@ -297,8 +304,12 @@ fn execute(
             &faults.right
         };
         if let Some(error) = fault {
+            attempts
+                .borrow_mut()
+                .push(SourceAttempt::Refused(side, error.clone()));
             return Err(error.clone());
         }
+        attempts.borrow_mut().push(SourceAttempt::Available(side));
         Ok(providers[side].rows())
     };
     let mut file = open_file(
@@ -428,12 +439,13 @@ fn execute(
         result,
         prefix,
         reads: reads.map(|n| n.get()),
+        attempts: attempts.into_inner(),
         work,
         counts,
         fed,
+        instructions,
         native_prepared,
         column_prepared,
-        right_before_left,
         frontiers,
         frontier_errors,
         affected,

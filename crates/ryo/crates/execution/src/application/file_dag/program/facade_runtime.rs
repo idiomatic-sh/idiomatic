@@ -29,7 +29,7 @@ use {
     crate::domain::completion::types::completion_policy::value::CompletionPolicy,
     crate::domain::coverage::types::Covered, crate::domain::coverage::types::RuleIndex,
     crate::domain::operating::errors::OperatingError,
-    crate::domain::operating::types::OperatorContext, crate::domain::replay::service::scan,
+    crate::domain::operating::types::OperatorContext,
     crate::domain::table_model::service::count_of,
     crate::domain::table_model::service::materialize, crate::domain::table_model::types::Rows,
     crate::outbound::derived::interface::DerivedPort, ryo_values::domain::rows::service::reset,

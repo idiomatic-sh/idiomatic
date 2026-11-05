@@ -646,7 +646,7 @@ impl Inputs for SourceInputs<'_, '_> {
         output: &mut dyn crate::domain::operating::types::Emit,
     ) -> Result<(), OperatingError> {
         let rows = input.rows(&self.owner, self.read)?;
-        scan(&rows, &mut Vec::new(), context, output)
+        crate::application::file_dag::execution::output::replay(&rows, context, output)
     }
 }
 

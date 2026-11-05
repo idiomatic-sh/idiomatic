@@ -77,15 +77,15 @@ fn reclaim(fixture: &ResourceFixture, all_payload: bool) -> bool {
     let mut backend = owner.backend.borrow_mut();
     let cache = backend.as_mut().unwrap();
     let cost = if all_payload {
-        let payload = owner
-            .state
-            .borrow()
-            .entries
-            .values()
-            .find(|entry| entry._plan.kind == DerivedKind::Equality && entry.retained.is_some())
-            .expect("retained equality payload")
-            .bytes;
-        let metadata = cache.bytes - payload - owner.state.borrow().retained_bytes;
+        // The single owner charges each optional physical allocation once.
+        // Request all that space; do not subtract the same equality payload
+        // twice as if an independent backend cache still owned a second copy.
+        let payload = owner.ledger.borrow().snapshot().view_optional_bytes;
+        assert!(payload > 0);
+        let metadata = cache
+            .bytes
+            .checked_sub(payload)
+            .expect("charged optional payload belongs to this cache");
         cache.limit - metadata
     } else {
         cache.limit - cache.bytes + 1
