@@ -12,7 +12,11 @@ enum RegistrationField {
     Artifacts,
 }
 
-const CASES: &[Case<RegistrationField, usize, &'static str>] = &[
+type Input = RegistrationField;
+type Value = usize;
+type Failure = &'static str;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("shared receipt-only registration verifies both actual sides"),
         word: Word::Succeeds,
@@ -39,7 +43,7 @@ const CASES: &[Case<RegistrationField, usize, &'static str>] = &[
     },
 ];
 
-fn subject(field: RegistrationField) -> Result<usize, &'static str> {
+fn subject(field: Input) -> Result<Value, Failure> {
     let mut registration: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../tests/fixtures/registrations/receipt_only/registration.json"
     ))
