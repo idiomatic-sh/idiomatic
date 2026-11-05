@@ -1659,6 +1659,7 @@ dependencies = [
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
