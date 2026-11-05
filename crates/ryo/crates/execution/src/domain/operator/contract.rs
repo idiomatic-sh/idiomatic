@@ -20,3 +20,6 @@ pub(crate) mod workspace;
 
 #[cfg(test)]
 mod workspace_test;
+
+#[cfg(test)]
+mod row_population_test;

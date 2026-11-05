@@ -804,3 +804,5 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     file.finish().expect("finish count");
     request.finish();
 }
+
+mod union_rows;

@@ -64,7 +64,10 @@ pub(crate) fn modes(
             0,
         ),
         OperationKind::Union => (
-            row(0, LeftThenRight),
+            ModeContract {
+                row_inputs: RowInputMask(3),
+                ..row(0, LeftThenRight)
+            },
             views(LeftThenRight),
             DistinctRows,
             Pure,
@@ -189,10 +192,6 @@ pub(crate) fn prepare_for(
         return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
     }
     let (mut streaming, mut collected, _resource_class, effects, absence_inputs) = modes(expected);
-    if expected == OperationKind::Union {
-        streaming.row_inputs = RowInputMask(3);
-        collected.row_inputs = RowInputMask(3);
-    }
     if matches!(
         expected,
         OperationKind::Union | OperationKind::Intersection | OperationKind::Difference

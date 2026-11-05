@@ -628,62 +628,85 @@ impl KernelInvocation for KernelSession<'_, '_> {
                             .map_err(InvocationFailure::Semantic)
                         }
                         InputShape::Row { primary } => {
-                            let source = originals.get(primary.0).ok_or(
-                                InvocationFailure::Semantic(OperatingError::MissingInput {
-                                    position: primary.0 + 1,
-                                }),
-                            )?;
+                            // The primary input defines the row contract; the required mask
+                            // declares every population that drives that same evaluator.
+                            let row_inputs = meaning.row_inputs.0;
+                            let primary_bit = u32::try_from(primary.0)
+                                .ok()
+                                .and_then(|at| 1_u8.checked_shl(at))
+                                .ok_or(InvocationFailure::Semantic(
+                                    OperatingError::WrongOperation,
+                                ))?;
+                            if row_inputs == 0 || row_inputs & primary_bit == 0 {
+                                return Err(InvocationFailure::Semantic(
+                                    OperatingError::WrongOperation,
+                                ));
+                            }
+                            for input in originals.len()..u8::BITS as usize {
+                                if row_inputs & (1_u8 << input) != 0 {
+                                    return Err(InvocationFailure::Semantic(
+                                        OperatingError::MissingInput {
+                                            position: input + 1,
+                                        },
+                                    ));
+                                }
+                            }
                             let mut cells = Vec::new();
-                            for at in 0..count_of(source).0 {
-                                let row = read_row(source, RowIndex(at), &mut cells).ok_or(
-                                    InvocationFailure::Semantic(OperatingError::ShapeMismatch),
-                                )?;
-                                workspace.work.found(primary.0, 1);
-                                let texts = crate::domain::table_texts::types::Texts {
-                                    symbols: context.symbols.as_ref(),
-                                    source: context.source,
-                                    paths: context.paths,
-                                    arenas: context.arenas,
-                                };
-                                if !crate::domain::executable_program::kernel::row_admissible(
-                                    contract, row, &texts,
-                                )
-                                .map_err(InvocationFailure::Semantic)?
-                                {
+                            for (input, source) in originals.iter().enumerate() {
+                                if input >= u8::BITS as usize || row_inputs & (1_u8 << input) == 0 {
                                     continue;
                                 }
-                                if resources.is_none() {
-                                    resources = Some(
-                                        InvocationResources::prepare(
-                                            contract,
-                                            &views,
-                                            context,
-                                            mode,
-                                            &originals,
-                                            workspace,
-                                            &setup_semantics,
-                                        )
-                                        .map_err(InvocationFailure::Semantic)?,
-                                    );
+                                for at in 0..count_of(source).0 {
+                                    let row = read_row(source, RowIndex(at), &mut cells).ok_or(
+                                        InvocationFailure::Semantic(OperatingError::ShapeMismatch),
+                                    )?;
+                                    workspace.work.found(input, 1);
+                                    let texts = crate::domain::table_texts::types::Texts {
+                                        symbols: context.symbols.as_ref(),
+                                        source: context.source,
+                                        paths: context.paths,
+                                        arenas: context.arenas,
+                                    };
+                                    if !crate::domain::executable_program::kernel::row_admissible(
+                                        contract, row, &texts,
+                                    )
+                                    .map_err(InvocationFailure::Semantic)?
+                                    {
+                                        continue;
+                                    }
+                                    if resources.is_none() {
+                                        resources = Some(
+                                            InvocationResources::prepare(
+                                                contract,
+                                                &views,
+                                                context,
+                                                mode,
+                                                &originals,
+                                                workspace,
+                                                &setup_semantics,
+                                            )
+                                            .map_err(InvocationFailure::Semantic)?,
+                                        );
+                                    }
+                                    crate::application::file_dag::execution::lease::evaluate(
+                                        self.kernels,
+                                        contract,
+                                        permit,
+                                        &instruction.operation,
+                                        PreparedInputs::Row {
+                                            input: InputPlace(input),
+                                            sides: &views,
+                                            row,
+                                        },
+                                        resources.as_mut().ok_or(InvocationFailure::Semantic(
+                                            OperatingError::NotRun,
+                                        ))?,
+                                        workspace,
+                                        context,
+                                        output,
+                                    )
+                                    .map_err(InvocationFailure::Semantic)?;
                                 }
-                                crate::application::file_dag::execution::lease::evaluate(
-                                    self.kernels,
-                                    contract,
-                                    permit,
-                                    &instruction.operation,
-                                    PreparedInputs::Row {
-                                        input: InputPlace(primary.0),
-                                        sides: &views,
-                                        row,
-                                    },
-                                    resources.as_mut().ok_or(InvocationFailure::Semantic(
-                                        OperatingError::NotRun,
-                                    ))?,
-                                    workspace,
-                                    context,
-                                    output,
-                                )
-                                .map_err(InvocationFailure::Semantic)?;
                             }
                             Ok(())
                         }
