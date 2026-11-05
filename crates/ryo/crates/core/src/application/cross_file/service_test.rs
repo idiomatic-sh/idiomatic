@@ -11,6 +11,7 @@ use ryo_execution::inbound::use_cases::execution::{
     interface::{ExecutionRequest, ExecutionUseCase, PreparedExecution},
     types::{
         FrontierDemand, FrontierRequest, ObservationIdentity, PreparedFrontiers, PreparedRequest,
+        ProjectScope,
     },
     use_case::ExecutionUseCaseImpl,
 };
@@ -223,7 +224,7 @@ fn prepared(
     world: &World,
     rows: &[(FileId, ryo_values::domain::rows::types::Table)],
     symbols: &mut Symbols,
-) -> Result<PreparedFrontiers, RulesError> {
+) -> Result<(ProjectScope, PreparedFrontiers), RulesError> {
     use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
     use ryo_values::domain::{
         records::types::{FrontierCoverage, FrontierProof},
@@ -266,7 +267,7 @@ fn prepared(
         .request
         .project_scope(RuleIndex(0), &world.files, &world.covered, &[])
         .expect("project scope");
-    world
+    let frontiers = world
         .request
         .prepare_frontiers(
             FrontierRequest {
@@ -280,7 +281,8 @@ fn prepared(
             },
             symbols,
         )
-        .map_err(|error| crate::domain::rules::service::failed(&world.ids[0], &error))
+        .map_err(|error| crate::domain::rules::service::failed(&world.ids[0], &error))?;
+    Ok((scope, frontiers))
 }
 
 fn todo(rule: usize) -> Todo {
@@ -396,8 +398,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let frontier = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done = service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross)?;
+            let (scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
+            let done =
+                service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
             [
                 done.rendered
                     .as_ref()
@@ -411,8 +414,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let frontier = prepared(&rules, &frontier_rows(), &mut cross)?;
-            let done = service().evaluate(&crossing(&rules), &todo(3), frontier, &mut cross)?;
+            let (scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
+            let done =
+                service().evaluate(&crossing(&rules), &todo(3), frontier, &mut cross, &scope)?;
             [
                 done.rendered
                     .as_ref()
@@ -424,8 +428,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let frontier = prepared(&rules, &[], &mut cross)?;
-            let done = service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross)?;
+            let (scope, frontier) = prepared(&rules, &[], &mut cross)?;
+            let done =
+                service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
             [
                 done.rendered
                     .as_ref()
@@ -591,12 +596,8 @@ fn current_project_roots_keep_the_original_two_group_four_cell_result() {
     };
     let world = world(counting_plan(1, Vec::new()));
     let mut symbols = Symbols::default();
-    let ordinary =
+    let (scope, ordinary) =
         prepared(&world, &frontier_rows(), &mut symbols).expect("actual source-bound frontier");
-    let scope = world
-        .request
-        .project_scope(RuleIndex(0), &world.files, &world.covered, &[])
-        .expect("scope");
     let partials = Partials::default();
     let mut run = world
         .request
@@ -656,4 +657,37 @@ fn rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagn
         [FileId(0)],
         "skipped source remains unavailable for absence checks"
     );
+}
+
+#[test]
+fn project_evaluation_rejects_frontiers_from_another_request() {
+    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+    let rules = world(counting_plan(1, Vec::new()));
+    let mut symbols = Symbols::default();
+    let (_scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
+        .expect("frontiers admitted by the original request");
+    let engine = ExecutionUseCaseImpl::new(
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+        Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+    );
+    let next = engine.begin(&rules.program, &rules.files);
+    let foreign = next
+        .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
+        .expect("independent request over the same program and corpus");
+    let result = service().evaluate(
+        &crossing(&rules),
+        &todo(0),
+        frontier,
+        &mut symbols,
+        &foreign,
+    );
+    match result {
+        Err(error) => assert_eq!(
+            error,
+            crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead)
+        ),
+        Ok(_) => panic!("an unrelated request scope cannot admit the original frontiers"),
+    }
 }

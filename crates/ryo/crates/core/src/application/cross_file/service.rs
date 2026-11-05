@@ -17,9 +17,7 @@ use crate::domain::reporting::service::order_found;
 use crate::domain::rules::service::failed;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::publication::interface::PublicationPort;
-use ryo_execution::inbound::use_cases::execution::interface::{
-    ExecutionRequest, PreparedExecution,
-};
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::types::{
     BoundInput, PreparedFrontiers, ProjectScope, PublicationSlot,
 };
@@ -69,23 +67,16 @@ impl CrossFile {
         }
     }
     /// Evaluate, place and render one cross-file rule without publishing it.
-    /// Diagnostic-only entry; demanded observation phases require the explicit reserved-slot entry.
+    /// Reuse the scope that admitted these frontiers. Demanded observation phases
+    /// use the explicit reserved-slot entry.
     pub(crate) fn evaluate(
         &self,
         crossing: &CrossingInput<'_>,
         todo: &Todo,
         frontier: PreparedFrontiers,
         cross: &mut Symbols,
+        scope: &ProjectScope,
     ) -> Result<Crossed, RulesError> {
-        let scope = crossing
-            .services
-            .project_scope(
-                todo.rule,
-                crossing.files,
-                crossing.covered,
-                crossing.skipped,
-            )
-            .map_err(|error| failed(&todo.id, &error))?;
         self.evaluate_phase(
             crossing,
             todo,
@@ -93,7 +84,7 @@ impl CrossFile {
             cross,
             &[],
             PublicationSlot::Unused,
-            &scope,
+            scope,
         )
         .map(|result| result.crossed)
     }

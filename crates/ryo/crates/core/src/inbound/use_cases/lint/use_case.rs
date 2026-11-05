@@ -982,7 +982,7 @@ impl LintUseCaseImpl {
                         PreparationError::Facts(error) => LintError::from(error),
                         PreparationError::Metadata(error) => LintError::from(crate::domain::rules::service::failed(&each.id, &error)),
                     })?;
-                    let result = self.cross_file.evaluate(&crossing, each, inputs, &mut cross);
+                    let result = self.cross_file.evaluate(&crossing, each, inputs, &mut cross, &scope);
                     observed_cross_symbols("before_cross_cleanup", &mut cross);
                     Ok(result?)
                 })();
