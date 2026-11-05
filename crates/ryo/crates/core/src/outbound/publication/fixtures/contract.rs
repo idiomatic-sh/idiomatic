@@ -19,7 +19,7 @@ enum Scenario {
 type Input = Scenario;
 type Value = ();
 type Failure = ObservationReason;
-pub const CASES: &[Case<Input, Value, Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(numeric_row_remains_complete)),
         word: Word::Succeeds,
