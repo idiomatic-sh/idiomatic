@@ -3,14 +3,14 @@ why = "The directory names the concept; mod.rs declares its generic test role. T
 content = '''
 //! One cohesive public-contract proof concept.
 #[cfg(test)]
-mod test;
+pub(super) mod test;
 '''
 
 [[scenarios]]
 id = "directory-module"
 scenario = "A directory module declares its generic test role."
 given.file = "axis/mod.rs"
-given.files.'axis/mod.rs' = "#[cfg(test)] mod test;"
+given.files.'axis/mod.rs' = "#[cfg(test)] pub(super) mod test;"
 
 [[scenarios]]
 id = "missing-directory-module"
