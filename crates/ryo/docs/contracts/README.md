@@ -9,7 +9,7 @@
 - B008: **FAIL**, aggregate 120-second timeout. 122 candidate cases completed without recorded mismatches; 129 are required.
 - Last complete inventory run185: **411 PASS / 2 FAIL**. The newer two-rule run does not establish a new full-inventory total.
 - B008 diagnostic run196: **311,791 suspended preparation polls across 1,945 regions**. Repeated blocked-work polling is the next scheduler target. Non-instrumented fixture baseline198: **0.961 s / 30.2 MB**; no candidate speedup or full-Django acceptance yet.
-- Paired Astra/Opus review accepts the bounded source reasoning and public-test evidence; broader ownership, internal fixtures, lifetime and performance remain unverified.
+- Paired Astra/Opus review found no remaining bounded source blocker and verified the public-test evidence. Its overall verdict remains **UNASSESSED**; broader ownership, internal fixtures, lifetime and performance remain unverified.
 - Scoped TM197: **241 findings / 0 suppressed across 77 changed Rust files**. This is not a whole-workspace count or comparable to a smaller path selection.
 
 Engine-issued file/project phase now determines text identity across hosted sources and primitive leases. Explicitly declared empty observations use the ordinary typed Union and publication owner; missing or unavailable producers still refuse. These are bounded correctness improvements, not category completion. Evidence and live work are tracked in Beads `ryo-7tkn.19`; previous source reports remain in Git history.
