@@ -79,13 +79,13 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
             },
         })
         .collect();
-    let bytes = schemas::encode(
-        &samples
-            .iter()
-            .map(SampleInput::publication)
-            .collect::<Vec<_>>(),
-    )
-    .map_err(|error| {
+    let observations = samples
+        .iter()
+        .map(SampleInput::publication)
+        .collect::<Vec<_>>();
+    let publication =
+        crate::outbound::evidence::types::publication::value::Publication::checked(&observations);
+    let bytes = schemas::encode(&publication).map_err(|error| {
         use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
         match error {
             ReportsError::Invalid(message)

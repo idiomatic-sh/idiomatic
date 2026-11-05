@@ -107,13 +107,16 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// Panics if the destination violates the publication contract.
 pub fn check(adapter: &impl EvidencePort) {
     let subject = |samples: Vec<SampleInput>| {
+        let observations = samples
+            .iter()
+            .map(SampleInput::publication)
+            .collect::<Vec<_>>();
+        let publication =
+            crate::outbound::evidence::types::publication::value::Publication::checked(
+                &observations,
+            );
         adapter
-            .publish(
-                &samples
-                    .iter()
-                    .map(SampleInput::publication)
-                    .collect::<Vec<_>>(),
-            )
+            .publish(&publication)
             .map_err(|_invalid_boundary_value| ())
     };
     run(CASES, Word::Succeeds, subject);

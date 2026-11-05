@@ -22,5 +22,7 @@ pub(crate) fn publish(
         .iter()
         .map(BenchmarkSample::publication)
         .collect::<Vec<_>>();
-    evidence.publish(&observations)
+    evidence.publish(
+        &crate::outbound::evidence::types::publication::value::Publication::checked(&observations),
+    )
 }
