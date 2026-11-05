@@ -5,7 +5,7 @@
 **Latest public runtime: `b75c59ce3d` (2026-11-05).** No ownership category is complete.
 
 - Public boundaries221/222: **71/71 pass**. Restoring whole-program scratch sizing makes the dormant-class control fail **257 versus 1**; restoring the candidate passes all 71. This proves the bounded allocation-work guard, not whole-program memory performance.
-- Previous full rule inventory212: **413 PASS / 0 FAIL** on `a9fc28a5c9`; candidate inventory remains pending.
+- Candidate full rule inventory226: **413 PASS / 0 FAIL**, complete, using the immutable `b75c59ce3d` worker. This verifies registered rule fixtures, not mixed-syntax project completeness.
 - Full-Django213 **failed** after **3,039.41 s / 5.30 GB**, with I001 frontier proof mismatch and no report. Warm was cancelled after the correctness failure; edit did not run. Rust214 refused pending recorded rules before timing.
 - Tiny mixed-syntax224 passes the repaired transport boundary but still fails with **nine unknowns**. RUF100 incorrectly becomes unavailable for the valid file too. Partition-aware named availability and absence-sensitive consumption remain open; do not label this case fixed.
 - Tiny valid-file225: **10.59 → 9.88 s**, **1.988 → 1.985 GB**, exactly equal complete reports for 413 rules. One diagnostic comparison only. Profile217 attributed **6.272 s** to compilation and left **2.567 s** of preparation unaccounted.
