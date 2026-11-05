@@ -15,11 +15,12 @@ use super::interface::ValidateUseCase as _;
 use super::types::ValidateRequest;
 use super::use_case::ValidateUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::operator::constants::describe;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::interface::LanguagePort;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
 use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 const VALID: &str =
     "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");";
@@ -308,7 +309,7 @@ fn subject((text, declared, linked, compiler): Input) -> Result<Value, Failure> 
     };
     let text: Box<str> = match text {
         Text::Written(written) => written.into(),
-        Text::ExampleOf(operator) => describe(operator).example.0,
+        Text::ExampleOf(operator) => MetadataUseCaseImpl.describe(operator).example.0,
     };
     ValidateUseCaseImpl::new(compiling, language)
         .validate(ValidateRequest {

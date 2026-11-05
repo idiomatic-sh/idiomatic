@@ -5,15 +5,14 @@ use super::service::CrossFile;
 use crate::application::run_coordination::settings::CrossingInput;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::answering::types::Todo;
-use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, RuleIndex};
 use crate::domain::crossing::service::{partials_for, placeable};
 use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Frontier;
-use crate::domain::table_words::service::{encode_table, pack};
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::trust::types::{Needs, RelationRead};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Covered, FilePartial, Lacking, MetadataUseCase, Needs, Partial, RelationRead, RuleIndex,
+};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::service::places_mut;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
@@ -25,10 +24,13 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
+use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::PartialCause;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
+use ryo_values::domain::table_words::service::{encode_table, pack};
+use ryo_values::domain::table_words::types::WordSlice;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
@@ -61,7 +63,7 @@ type Failure = RulesError;
 
 /// What the cross-file steps of every rule read, owned.
 struct World {
-    placed: crate::domain::placement::types::PlacedScopes,
+    placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
     graph: std::sync::Arc<crate::domain::file_program::types::RequestGraph>,
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
@@ -109,11 +111,12 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 
 fn world(plan: Plan) -> World {
     use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
-    let placement =
-        crate::domain::placement::service::decide(&[crate::domain::placement::types::RuleScope {
+    let placement = MetadataUseCaseImpl.decide(&[
+        ryo_execution::inbound::use_cases::metadata::interface::RuleScope {
             include: Vec::new(),
             exclude: Vec::new(),
-        }]);
+        },
+    ]);
     let matcher = crate::outbound::matching::fixtures::fake::MatchingFake
         .compile(&placement.globs)
         .unwrap();
@@ -127,7 +130,10 @@ fn world(plan: Plan) -> World {
         &prepared,
     ));
     World {
-        placed: crate::domain::placement::types::PlacedScopes { placement, matcher },
+        placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {
+            placement,
+            matcher,
+        },
         graph,
         plans: vec![plan],
         bindings: vec![Vec::new()],

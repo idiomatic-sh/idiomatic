@@ -1,12 +1,12 @@
 //! The `answering` service: free functions named by verb over the answers of the cross-file steps, with no IO and no ports.
 
 use super::types::{CrossSteps, Crossed, Todo};
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operator::types::RowsFed;
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
 use crate::domain::rules::service::id_at;
 use crate::domain::workers::service::add_fed;
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_values::domain::run_metadata::types::RuleMetadata;
 use ryo_values::domain::runs::types::RuleId;
 
@@ -44,7 +44,7 @@ pub(crate) fn settle(
     crossed: Crossed,
     later: &mut Rendered,
     fed: &mut [Vec<RowsFed>],
-    unknowns: &mut Vec<crate::domain::coverage::types::Unknown>,
+    unknowns: &mut Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown>,
 ) -> Option<ryo_values::domain::records::types::CrossPublicationTransfer> {
     let Crossed {
         rendered: here,

@@ -1,7 +1,7 @@
 //! The types of the `crossing` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::coverage::types::{Covered, Partial};
-use crate::domain::trust::types::Needs;
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
+use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::CorpusInput;
@@ -14,9 +14,10 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 #[derive(Clone, Debug)]
 pub(crate) struct CrossingInput<'a> {
     /// The same compiled file scopes used during per-file evaluation.
-    pub placed: &'a crate::domain::placement::types::PlacedScopes,
+    pub placed: &'a ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
     /// Actual generation-bound readiness beside the producer frontier words.
-    pub observations: &'a [crate::domain::coverage::types::FileObservationReadiness],
+    pub observations:
+        &'a [ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness],
     /// Pure source and accounting facts extracted before executable plans are consumed.
     pub metadata: &'a [crate::domain::run_metadata::types::RuleMetadata],
     /// The ids of the rules.
@@ -56,7 +57,7 @@ pub(crate) struct Evaluated {
     /// Actual Emit and independent named roots for this phase.
     pub roots: PhaseRoots,
     /// Work performed by each step.
-    pub fed: Vec<crate::domain::operator::types::RowsFed>,
+    pub fed: Vec<ryo_execution::inbound::use_cases::execution::types::RowsFed>,
 }
 
 /// Independently demanded named output from one actual execution phase.

@@ -72,7 +72,7 @@ pub struct Unknown {
 
 /// Where a relation is read in part: one file, or the repository as a whole.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CoverageScope<'a> {
+pub enum CoverageScope<'a> {
     /// The repository as a whole.
     Repository,
     /// This file.
@@ -101,7 +101,7 @@ pub struct Covered {
 
 /// How much of a file is only a recovery of what was written.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Recovery {
+pub enum Recovery {
     /// None: the file was read as it is.
     Whole,
     /// The tree is a recovery from syntax errors.

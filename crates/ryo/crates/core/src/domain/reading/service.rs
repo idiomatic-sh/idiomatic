@@ -1,20 +1,20 @@
 //! The `reading` service: free functions named by verb over the visit of one file, with no IO and no ports.
 
 use super::types::{EngineAsked, EngineRows};
-use crate::domain::coverage::service::partial_of;
-use crate::domain::coverage::types::Recovery;
-use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::service::escape;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::{emitted, pool_for};
 use crate::domain::operator::types::RuleWorkspace;
 use crate::domain::ordering::service::sort_findings;
-use crate::domain::placement::service::governs;
-use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::service::{render_rows, rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, RenderInput};
 use crate::domain::rules::service::{failed, id_at};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::rule_requests::errors::RulesError;
 use {
     crate::domain::finish::types::Arena, crate::domain::finish::types::Leaves,
@@ -22,11 +22,9 @@ use {
     ryo_values::domain::runs::types::RuleNumber,
 };
 
-use crate::domain::table_words::service::{encode_table, pack_onto};
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::trust::types::Needs;
 use crate::domain::value_cells::types::Scene;
 use crate::domain::workers::types::{Tables, VisitSetting};
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_language::domain::elements::service::clear_elements;
 use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
 use ryo_values::domain::files::types::SourceView;
@@ -34,6 +32,8 @@ use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::records::types::PlacedRule;
 use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, ReadInPart};
+use ryo_values::domain::table_words::service::{encode_table, pack_onto};
+use ryo_values::domain::table_words::types::WordSlice;
 
 /// Readies the worker for a file it reads: counts it, notes where its text will begin in the worker's arena and empties what the
 /// last file left.
@@ -99,7 +99,8 @@ pub(crate) fn read_failure_demanded(
         return true;
     }
     needs.iter().enumerate().any(|(place, rule)| {
-        governs(mask, RuleNumber(u32::try_from(place).unwrap_or(u32::MAX))) == Governing::Governs
+        MetadataUseCaseImpl.governs(mask, RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)))
+            == Governing::Governs
             && rule
                 .reads
                 .iter()
@@ -142,7 +143,7 @@ pub(crate) fn start_partials(
     everything: Recovery,
     wanted: &[Relation],
 ) {
-    tables.partials = partial_of(said, everything, wanted);
+    tables.partials = MetadataUseCaseImpl.partial_of(said, everything, wanted);
 }
 
 /// Hands what the rule's per-file steps leave for the cross-file steps to `keep`, input by input, and keeps a copy when the run

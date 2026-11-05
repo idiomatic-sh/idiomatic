@@ -1,23 +1,18 @@
 //! The `recording` service: free functions named by verb over what a visit of a file comes to for the store, with no IO and no ports.
 
 use super::types::{BucketWords, Flat, InterfaceBytes};
-use crate::domain::coverage::service::unknown_message;
-use crate::domain::coverage::types::Covered;
-use crate::domain::coverage::types::{
-    CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown,
-};
 use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
-use crate::domain::placement::service::governs;
-use crate::domain::placement::types::Governing;
 use crate::domain::render::types::Answering;
 use crate::domain::rules::service::id_at;
-use crate::domain::table_words::service::{pack, unpacked};
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::trust::service::{blocked, matters};
-use crate::domain::trust::types::{Bearing, Blocking};
 use crate::domain::visit::types::{Keeping, Noting};
 use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables, VisitSetting};
+use ryo_execution::inbound::use_cases::metadata::interface::Covered;
+use ryo_execution::inbound::use_cases::metadata::interface::Governing;
+use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Blocking};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown,
+};
 use ryo_language::domain::elements::service::{notes_of, take_notes};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
@@ -37,6 +32,8 @@ use ryo_values::domain::stored_facts::types::{
     ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes, PartialAt, PartialCause, PartialKind,
     PartialScope, StoredPartial,
 };
+use ryo_values::domain::table_words::service::{pack, unpacked};
+use ryo_values::domain::table_words::types::WordSlice;
 
 /// The relations a record says were read in part, as the coverage steps take them.
 #[must_use]
@@ -278,7 +275,7 @@ pub(crate) fn cover(
         if !applicable {
             continue;
         }
-        if governs(
+        if MetadataUseCaseImpl.governs(
             &tables.mask,
             RuleNumber(u32::try_from(rule).unwrap_or(u32::MAX)),
         ) == Governing::DoesNotGovern
@@ -289,16 +286,17 @@ pub(crate) fn cover(
             if needs
                 .reads
                 .iter()
-                .any(|read| matters(read, partial) == Bearing::Matters)
+                .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
             {
                 tables.unknowns.push(Unknown {
                     rule: id_at(setting.ids, RuleIndex(rule)),
                     path: path.clone(),
-                    message: unknown_message(partial, CoverageScope::File(path)),
+                    message: MetadataUseCaseImpl
+                        .unknown_message(partial, CoverageScope::File(path)),
                 });
             }
         }
-        if blocked(&needs.cross, &tables.partials) == Blocking::Blocked {
+        if MetadataUseCaseImpl.blocked(&needs.cross, &tables.partials) == Blocking::Blocked {
             rules.push(RuleIndex(rule));
         }
     }
@@ -441,12 +439,12 @@ pub(crate) fn hand_rest_again(
     observations: Option<&std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
 ) {
     if let Some(root) = observations {
-        tables
-            .observations
-            .push(crate::domain::coverage::types::FileObservationReadiness {
+        tables.observations.push(
+            ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness {
                 file: number,
                 root: std::sync::Arc::clone(root),
-            });
+            },
+        );
     }
     tables.arena.0.extend_from_slice(&text.0);
     if let Some(notes) = notes {
@@ -467,3 +465,6 @@ pub(crate) fn hand_rest_again(
         });
     }
 }
+
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;

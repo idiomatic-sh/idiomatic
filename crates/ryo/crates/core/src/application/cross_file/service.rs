@@ -9,8 +9,6 @@ use crate::domain::finish::service::{
     column_cell, founds, line_cell, place_all, shown_cell, source_of,
 };
 use crate::domain::ordering::service::{order_alike, sort_findings};
-use crate::domain::placement::service::{governs, place};
-use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::service::{end_row, key_count, next_row};
 use crate::domain::render::types::{
     AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
@@ -24,6 +22,9 @@ use ryo_execution::inbound::use_cases::execution::interface::{
 use ryo_execution::inbound::use_cases::execution::types::{
     BoundInput, PreparedFrontiers, ProjectScope, PublicationSlot,
 };
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::service::file_in;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Value};
@@ -119,30 +120,45 @@ impl CrossFile {
                 .paths
                 .iter()
                 .take(crossing.files.len())
-                .map(|path| crate::domain::coverage::types::Unknown {
-                    rule: todo.id.clone(),
-                    path: path.clone(),
-                    message: crate::domain::coverage::types::Message(error.to_string().into()),
-                })
+                .map(
+                    |path| ryo_execution::inbound::use_cases::metadata::interface::Unknown {
+                        rule: todo.id.clone(),
+                        path: path.clone(),
+                        message: ryo_execution::inbound::use_cases::metadata::interface::Message(
+                            error.to_string().into(),
+                        ),
+                    },
+                )
                 .collect()
         } else {
             Vec::new()
         };
         if let Some(affected) = &roots.emit_affected {
-            for index in
-                crate::domain::coverage::service::affected_ordinals(affected, crossing.files.len())
-                    .map_err(|error| refuse(&error))?
+            for index in MetadataUseCaseImpl
+                .affected_ordinals(
+                    ryo_execution::inbound::use_cases::metadata::types::AffectedFiles {
+                        affected,
+                        file_count:
+                            ryo_execution::inbound::use_cases::metadata::types::CoverageFileCount(
+                                crossing.files.len(),
+                            ),
+                    },
+                )
+                .map_err(|error| refuse(&error))?
+                .0
             {
                 let path = crossing.paths.get(index).ok_or_else(|| {
                     refuse(&crate::domain::operating::errors::OperatingError::NotRun)
                 })?;
-                unknowns.push(crate::domain::coverage::types::Unknown {
-                    rule: todo.id.clone(),
-                    path: path.clone(),
-                    message: crate::domain::coverage::types::Message(
-                        "physical source facts are incomplete".into(),
-                    ),
-                });
+                unknowns.push(
+                    ryo_execution::inbound::use_cases::metadata::interface::Unknown {
+                        rule: todo.id.clone(),
+                        path: path.clone(),
+                        message: ryo_execution::inbound::use_cases::metadata::interface::Message(
+                            "physical source facts are incomplete".into(),
+                        ),
+                    },
+                );
             }
         }
         let rendered = match self.render_emit(crossing, todo, emit, roots.emit, cross) {
@@ -158,12 +174,15 @@ impl CrossFile {
                         .paths
                         .iter()
                         .take(crossing.files.len())
-                        .map(|path| crate::domain::coverage::types::Unknown {
-                            rule: todo.id.clone(),
-                            path: path.clone(),
-                            message: crate::domain::coverage::types::Message(
-                                error.to_string().into(),
-                            ),
+                        .map(|path| {
+                            ryo_execution::inbound::use_cases::metadata::interface::Unknown {
+                                rule: todo.id.clone(),
+                                path: path.clone(),
+                                message:
+                                    ryo_execution::inbound::use_cases::metadata::interface::Message(
+                                        error.to_string().into(),
+                                    ),
+                            }
                         }),
                 );
                 None
@@ -238,8 +257,8 @@ impl CrossFile {
                     return true;
                 };
                 *visible.entry(each.file.0).or_insert_with(|| {
-                    place(crossing.placed, path, &mut mask, &mut hits);
-                    governs(&mask, rule_number) == Governing::Governs
+                    MetadataUseCaseImpl.place(crossing.placed, path, &mut mask, &mut hits);
+                    MetadataUseCaseImpl.governs(&mask, rule_number) == Governing::Governs
                 })
             });
             found.sort_by_key(|each| each.file);
@@ -322,9 +341,11 @@ impl CrossFile {
         for each in found {
             let emit = crossing
                 .program
-                .emit(crate::domain::coverage::types::RuleIndex(
-                    usize::try_from(each.rule.0).unwrap_or(usize::MAX),
-                ))
+                .emit(
+                    ryo_execution::inbound::use_cases::metadata::interface::RuleIndex(
+                        usize::try_from(each.rule.0).unwrap_or(usize::MAX),
+                    ),
+                )
                 .map_err(|error| FinishError::Publication {
                     reason: error.to_string().into_boxed_str(),
                 })?;

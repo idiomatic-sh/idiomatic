@@ -2,7 +2,9 @@
 
 use super::service::{failed, governing, ids_of, owner_of, scopes_of};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::placement::types::{GlobOwner, GlobSide, Mask, ScopePlacement};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    GlobOwner, GlobSide, Mask, ScopePlacement,
+};
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::rule_requests::errors::RulesError;

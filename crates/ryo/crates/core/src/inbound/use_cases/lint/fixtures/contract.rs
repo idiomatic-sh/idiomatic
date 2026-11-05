@@ -44,10 +44,8 @@ use crate::domain::corpus_copies::service::copied;
 use crate::domain::corpus_copies::types::{
     CopyCount, CopyDigits, CopyNaming, CorpusInputs, Extension, ItemName, ListShape, Repeat,
 };
-use crate::domain::operator::constants::{OPERATORS, describe};
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
 use crate::outbound::language::fixtures::fake::{LanguageFake, READ};
 use crate::outbound::language::{interface::LanguagePort, types::Absence};
 use crate::outbound::lint_store::interface::LintStorePort;
@@ -57,6 +55,9 @@ use crate::outbound::rows::interface::RowsPort;
 use crate::outbound::scheduler::fixtures::fake::{CountingSchedulerFake, SchedulerFake};
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::{facts, matching, query_language, rows};
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::plans::types::QueryOperator;
 
 /// What a row of the contract is given: the request to lint.
@@ -358,14 +359,14 @@ pub fn fake_corpus() -> Corpus {
             .0
             .insert(ItemName("function".to_owned()), function),
     );
-    for operator in OPERATORS {
+    for &operator in MetadataUseCaseImpl.operators() {
         // This fake parser has no semantic-rendering session. The language
         // capability is exercised by the Python provider's actual case run.
         if matches!(operator, QueryOperator::RenderSyntax) {
             continue;
         }
         let governs = format!("function/*.{}", extension.0);
-        let (id, rule) = operator_rule(&describe(operator).name.0, &governs);
+        let (id, rule) = operator_rule(&MetadataUseCaseImpl.describe(operator).name.0, &governs);
         assert!(
             found.rules.insert(id, rule).is_none(),
             "every operator has one rule"
@@ -445,13 +446,16 @@ pub fn corpus(
     }
     let function = ItemName("function".to_owned());
     let text = found.inputs.0.get(&function).cloned().unwrap_or_default();
-    for operator in OPERATORS {
+    for &operator in MetadataUseCaseImpl.operators() {
         // The Rust fixture parser deliberately has no semantic-rendering
         // session; its other generic operators remain in this corpus.
         if matches!(operator, QueryOperator::RenderSyntax) {
             continue;
         }
-        let (id, rule) = operator_rule(&describe(operator).name.0, "function/*.rs");
+        let (id, rule) = operator_rule(
+            &MetadataUseCaseImpl.describe(operator).name.0,
+            "function/*.rs",
+        );
         let shown = FilePath("function/input.rs".into());
         let stated = expected(operator);
         assert!(!stated.is_empty(), "every operator states its findings");
@@ -556,8 +560,9 @@ fn use_case_over(
         let analysis_language: Arc<dyn LanguagePort> = Arc::clone(&corpus.language);
         let analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
-            Arc::new(crate::outbound::digest::fixtures::fake::DigestFake);
+        let analysis_digest: Arc<
+            dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+        > = Arc::new(crate::outbound::digest::fixtures::fake::DigestFake);
         LintUseCaseImpl::new(
             crate::application::file_analysis::service::FileAnalysis::new(
                 Arc::clone(&analysis_corpus),

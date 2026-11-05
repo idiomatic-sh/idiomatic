@@ -6,11 +6,12 @@ use super::types::{
     Checking, FileOrder, FileTotal, FilesRead, Fresh, FreshNotes, PlacedNotes, Tables,
     VisitSetting, WorkersMet,
 };
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::placement::service::{governed, governs, place};
-use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
 use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
@@ -79,8 +80,8 @@ pub(crate) fn govern(
     tables: &mut Tables,
     path: &FilePath,
 ) -> Governing {
-    place(setting.placed, path, &mut tables.mask, &mut tables.hits);
-    governed(&tables.mask)
+    MetadataUseCaseImpl.place(setting.placed, path, &mut tables.mask, &mut tables.hits);
+    MetadataUseCaseImpl.governed(&tables.mask)
 }
 
 /// Whether the visit of the file at `place` reads the memory the process holds: the reading costs more than a file's visit when
@@ -147,7 +148,7 @@ pub(crate) fn order(met: &mut WorkersMet) -> Fresh {
 /// Whether the rule governs the file the worker is visiting.
 #[must_use]
 pub(crate) fn governs_rule(tables: &Tables, rule: RuleIndex) -> Governing {
-    governs(
+    MetadataUseCaseImpl.governs(
         &tables.mask,
         RuleNumber(u32::try_from(rule.0).unwrap_or(u32::MAX)),
     )

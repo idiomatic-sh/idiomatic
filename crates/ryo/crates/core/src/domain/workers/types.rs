@@ -1,12 +1,12 @@
 //! The types of the `workers` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::coverage::types::{Covered, Partial, Unknown};
 use crate::domain::finish::types::LineStarts;
-use crate::domain::placement::types::{Mask, PlacedScopes};
 use crate::domain::render::types::{Answering, Rendered};
-use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
 use ryo_execution::inbound::use_cases::execution::types::{PreparedVocabulary, RowsFed};
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
+use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial, Unknown};
+use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
@@ -81,7 +81,8 @@ pub(crate) struct Tables {
     pub current_observations:
         Option<std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
     /// Actual fresh/replayed readiness accumulated for the existing cross handover.
-    pub observations: Vec<crate::domain::coverage::types::FileObservationReadiness>,
+    pub observations:
+        Vec<ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness>,
     /// The worker's number.
     pub number: WorkerNumber,
     /// The elements of the file being read.
@@ -182,7 +183,8 @@ pub(crate) struct VisitSetting<'a> {
 /// What the workers made, once they have met: their text, the files they could not read and what the rules could not decide.
 #[derive(Debug, Default)]
 pub(crate) struct WorkersMet {
-    pub observations: Vec<crate::domain::coverage::types::FileObservationReadiness>,
+    pub observations:
+        Vec<ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness>,
     /// The text each worker made, in the order of the workers.
     pub arenas: Vec<ArenaBytes>,
     /// The files no language read.
@@ -238,7 +240,8 @@ pub(crate) struct ProjectHandle<W> {
 /// What the rules that cross files read when they are made again: what the files handed over and the text of the workers.
 pub(crate) struct CrossReading<'a, W> {
     /// Actual fresh/replayed per-file named-root readiness.
-    pub observations: &'a [crate::domain::coverage::types::FileObservationReadiness],
+    pub observations:
+        &'a [ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness],
     /// The text of the workers.
     pub arenas: &'a mut Vec<ArenaBytes>,
     /// What each rule covered.

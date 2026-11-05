@@ -2,10 +2,10 @@
 //! and no ports.
 
 use super::types::{Decision, MadeAgain, ToKeep, ToStore};
-use crate::domain::coverage::types::{Message, Unknown};
 use crate::domain::handing::service::{hand_into, handed_in, rows_of_file};
 use crate::domain::keeping::service::{findings_of, rows_from};
 use crate::domain::workers::types::FileOrder;
+use ryo_execution::inbound::use_cases::metadata::interface::{Message, Unknown};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileNumber, Nanoseconds};
 use ryo_values::domain::records::types::{

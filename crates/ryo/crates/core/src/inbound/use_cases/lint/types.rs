@@ -2,14 +2,14 @@
 
 use crate::application::file_analysis::types::FileVisit;
 use crate::domain::admission::errors::AdmissionError;
-use crate::domain::coverage::types::Unknown;
-use crate::domain::features::types::FeatureRows;
 use crate::domain::ordering::types::Ordered;
-use crate::domain::placement::types::PlacedScopes;
 use crate::domain::render::types::Answering;
-use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::Wants;
 use crate::outbound::lint_store::interface::ReadStore;
+use ryo_execution::inbound::use_cases::metadata::interface::FeatureRows;
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
+use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
+use ryo_execution::inbound::use_cases::metadata::interface::Unknown;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_values::domain::files::types::{CorpusInput, Glob};
@@ -315,7 +315,7 @@ impl From<AdmissionError> for ProviderFault {
 /// What the stages after the reading share: the rules, the files and what the store kept.
 pub(super) struct LintRun<'a> {
     /// Required file applicability for both per-file and cross-file diagnostic Emit.
-    pub placed: &'a crate::domain::placement::types::PlacedScopes,
+    pub placed: &'a ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes,
     /// The sole request-prepared executable program and its required application capabilities.
     pub program: Arc<ryo_execution::inbound::use_cases::execution::types::PreparedProgram>,
     pub services: &'a ryo_execution::inbound::use_cases::execution::types::RequestExecution,

@@ -6,10 +6,10 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScop
 use super::service::{cross_steps, settle, todo_list};
 use super::types::{CrossSteps, Crossed, Todo};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::operator::types::RowsFed;
 use crate::domain::render::service::{end_row, lent_row, row_cells};
 use crate::domain::render::types::{Rendered, RowNumber};
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::records::types::{Cell, CellText, RowsTextView};
 use ryo_values::domain::runs::types::RuleId;

@@ -14,7 +14,7 @@ use ryo_values::domain::observations::types::{ObservationReason, ProducerReadine
 /// Pure phase rows plus the actual admitted owner proof of each Complete named root.
 pub(crate) struct ProgramEvaluated {
     pub roots: PhaseRoots,
-    pub fed: Vec<crate::domain::operator::types::RowsFed>,
+    pub fed: Vec<ryo_execution::inbound::use_cases::execution::types::RowsFed>,
     pub publications: Vec<(
         ryo_values::domain::observations::types::ObservationIndex,
         ObservedPublication,
@@ -25,8 +25,8 @@ pub(crate) fn evaluate_cross_roots(
     request: &RequestExecution,
     rule: RuleIndex,
     scope: &ProjectScope,
-    evaluation: &crate::domain::coverage::types::Partials,
-    publication: &crate::domain::coverage::types::Partials,
+    evaluation: &ryo_execution::inbound::use_cases::metadata::interface::Partials,
+    publication: &ryo_execution::inbound::use_cases::metadata::interface::Partials,
     ordinary: PreparedFrontiers,
     bound: &[ryo_execution::inbound::use_cases::execution::types::BoundInput],
     symbols: &mut ryo_language::domain::symbols::types::Symbols,

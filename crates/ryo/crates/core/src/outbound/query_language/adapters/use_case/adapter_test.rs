@@ -1,5 +1,7 @@
 //! The `use_case` adapter of the `query_language` port: the core's contract rows run through it, then the cases specific to it.
 
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use std::sync::Arc;
 
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
@@ -148,10 +150,11 @@ const EXAMPLES: &[Case<(), usize, Failure>] = &[Case {
 
 /// How many of the examples the operators print do not compile.
 fn uncompiled() -> usize {
-    crate::domain::operator::constants::OPERATORS
+    MetadataUseCaseImpl
+        .operators()
         .iter()
         .filter(|operator| {
-            let described = crate::domain::operator::constants::describe(**operator);
+            let described = MetadataUseCaseImpl.describe(**operator);
             matches!(
                 subject(&QueryText(described.example.0.clone())),
                 Err(QueryLanguageError::Refused { .. })

@@ -2,20 +2,21 @@
 
 use super::types::{CrossingInput, Evaluated, Placeability};
 use crate::domain::answering::types::Todo;
-use crate::domain::coverage::types::{FilePartial, Partials, RuleIndex};
 use crate::domain::finish::service::carry;
 use crate::domain::finish::types::{Arenas, Resolving};
 use crate::domain::hosted::service::table_of;
 use crate::domain::hosted::types::NumberedFiles;
 use crate::domain::operating::types::OperatorContext;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Partials, RuleIndex};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
-use crate::domain::operator::types::RowsFed;
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 
 use crate::domain::rules::service::failed;
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::trust::service::matters;
-use crate::domain::trust::types::Bearing;
+use ryo_execution::inbound::use_cases::metadata::interface::Bearing;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::rule_requests::errors::RulesError;
@@ -60,12 +61,12 @@ pub(crate) fn partials_for(crossing: &CrossingInput<'_>, rule: RuleIndex) -> Par
 pub(crate) fn partials_for_reads(
     crossing: &CrossingInput<'_>,
     rule: RuleIndex,
-    trusted: &[crate::domain::trust::types::RelationRead],
+    trusted: &[ryo_execution::inbound::use_cases::metadata::interface::RelationRead],
 ) -> Partials {
-    let matter = |partial: &&crate::domain::coverage::types::Partial| {
+    let matter = |partial: &&ryo_execution::inbound::use_cases::metadata::interface::Partial| {
         trusted
             .iter()
-            .any(|read| matters(read, partial) == Bearing::Matters)
+            .any(|read| MetadataUseCaseImpl.matters(read, partial) == Bearing::Matters)
     };
     Partials {
         entries: crossing

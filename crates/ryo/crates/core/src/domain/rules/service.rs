@@ -1,10 +1,13 @@
 //! The `rules` service: free functions named by verb over the rules of a run, with no IO and no ports.
 
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::rule_requests::errors::RulesError;
 
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::placement::service::governs;
-use crate::domain::placement::types::{Governing, Mask, RuleScope, ScopePlacement};
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Governing, Mask, RuleScope, ScopePlacement,
+};
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::RuleNumber;
@@ -45,7 +48,7 @@ pub(crate) fn governing(mask: &Mask, ids: &[RuleId]) -> Vec<RuleId> {
     ids.iter()
         .enumerate()
         .filter(|(rule, _)| {
-            governs(mask, RuleNumber(u32::try_from(*rule).unwrap_or(u32::MAX)))
+            MetadataUseCaseImpl.governs(mask, RuleNumber(u32::try_from(*rule).unwrap_or(u32::MAX)))
                 == Governing::Governs
         })
         .map(|(_, id)| id.clone())

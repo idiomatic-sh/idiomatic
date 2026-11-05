@@ -6,6 +6,8 @@ use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::digest::fixtures::fake::DigestFake;
 use crate::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::types::{ProjectInput, ProjectNotes};
@@ -19,10 +21,10 @@ use std::sync::{Arc, atomic::Ordering};
 use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::TreeSteps;
-use crate::domain::placement::types::{Mask, PlacedScopes, ScopePlacement};
-use crate::domain::trust::types::{Needs, RelationRead};
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
+use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes, ScopePlacement};
+use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_relations::domain::relations::types::{Relation, WorkerNumber};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
@@ -256,9 +258,8 @@ fn assert_accepted_and_missing_applicability(setting: &VisitSetting<'_>) {
 
 #[test]
 fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
-    use crate::domain::coverage::service::partial_of;
-    use crate::domain::coverage::types::Recovery;
     use crate::outbound::language::types::FileReading;
+    use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
     use ryo_language::domain::elements::service::{
         diagnose, diagnose_with_metadata, diagnostics, has_incomplete_lexical_stream,
         has_incomplete_syntax, table_builder,
@@ -297,7 +298,11 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
         1,
         "diagnostic remains reportable"
     );
-    assert!(partial_of(&[], preserved, &[Relation::Function]).is_empty());
+    assert!(
+        MetadataUseCaseImpl
+            .partial_of(&[], preserved, &[Relation::Function])
+            .is_empty()
+    );
 
     let mut lexical_elements = Elements::default();
     let mut lexical_symbols = Symbols::default();
@@ -323,7 +328,7 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     assert_eq!(lexical_recovery, Recovery::LexicallyCompleteSyntaxErrors);
     assert!(has_incomplete_syntax(&lexical_elements));
     assert!(!has_incomplete_lexical_stream(&lexical_elements));
-    let lexical_partials = partial_of(
+    let lexical_partials = MetadataUseCaseImpl.partial_of(
         &[],
         lexical_recovery,
         &[
@@ -354,7 +359,11 @@ fn only_incomplete_diagnostics_mark_code_relations_as_recovery() {
     assert!(has_incomplete_syntax(&incomplete_elements));
     assert!(has_incomplete_lexical_stream(&incomplete_elements));
     assert_eq!(diagnostics(&incomplete_elements).count(), 1);
-    assert!(!partial_of(&[], incomplete, &[Relation::Function]).is_empty());
+    assert!(
+        !MetadataUseCaseImpl
+            .partial_of(&[], incomplete, &[Relation::Function])
+            .is_empty()
+    );
 }
 
 /// What the last run kept, for a run that uses nothing of it.
@@ -531,7 +540,7 @@ fn visited_inputs_with_rule_demands(
     kept: Option<&ryo_values::domain::records::types::Record>,
     repetitions: usize,
     ids: &[ryo_values::domain::runs::types::RuleId],
-    needs: &[crate::domain::trust::types::Needs],
+    needs: &[ryo_execution::inbound::use_cases::metadata::interface::Needs],
     always: Mask,
 ) -> Result<(super::types::Worker, Arc<LanguageFake>), Failure> {
     use super::types::{FileVisit, Worker};
@@ -868,7 +877,7 @@ impl ryo_execution::inbound::use_cases::execution::types::facts::FactsWorker
 
 fn prepared_resource_state(
     enabled: bool,
-    partial: &[crate::domain::coverage::types::Partial],
+    partial: &[ryo_execution::inbound::use_cases::metadata::interface::Partial],
 ) -> (bool, bool) {
     use crate::application::file_dag::types::FileDagExecution;
     use crate::domain::file_program::types::RequestGraph;
@@ -902,7 +911,7 @@ fn prepared_resource_state(
 
 #[test]
 fn physical_missing_kinds_remain_ineligible_when_rows_mode_clears_evaluation_coverage() {
-    use crate::domain::coverage::types::{Lacking, LackingKind, Partial};
+    use ryo_execution::inbound::use_cases::metadata::interface::{Lacking, LackingKind, Partial};
     use ryo_values::domain::stored_facts::types::{LanguageNumber, PartialCause};
     let mut tables = tables_for(
         WorkerNumber(0),
@@ -1053,8 +1062,6 @@ fn actual_file_visit_admits_only_stable_resource_generation() {
 fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     use super::types::{FileVisit, Worker};
 
-    use crate::domain::table_words::service::{encode_table, pack};
-    use crate::domain::table_words::types::WordSlice;
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use crate::outbound::digest::fixtures::fake::DigestCounting;
     use ryo_relations::domain::relations::types::{
@@ -1063,6 +1070,8 @@ fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() {
     };
     use ryo_values::domain::records::types::Kept;
     use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, KeptWords};
+    use ryo_values::domain::table_words::service::{encode_table, pack};
+    use ryo_values::domain::table_words::types::WordSlice;
     let plan = Plan {
         observation_inputs: Vec::new(),
         observations: Vec::new(),
@@ -1325,8 +1334,6 @@ fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() 
 fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() {
     use super::types::{FileVisit, Worker};
 
-    use crate::domain::table_words::service::{encode_table, pack};
-    use crate::domain::table_words::types::WordSlice;
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use crate::domain::workers::types::FileOrder;
     use crate::outbound::lint_store::interface::LintStorePort as _;
@@ -1339,6 +1346,8 @@ fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() 
     };
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
     use ryo_values::domain::stores::types::BucketsWanted;
+    use ryo_values::domain::table_words::service::{encode_table, pack};
+    use ryo_values::domain::table_words::types::WordSlice;
 
     let directory = tempfile::tempdir().expect("snapshot directory");
     let store = crate::outbound::lint_store::factory::postcard(Store {
@@ -1706,7 +1715,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             "only successfully admitted visits have reusable records"
         );
         if fail_at == 0 {
-            use crate::domain::trust::types::{Needs, RelationRead};
+            use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
             use ryo_values::domain::runs::types::RuleId;
             let excluded = Arc::new(ChangingRead {
                 reads: AtomicUsize::new(0),
@@ -1771,7 +1780,7 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
 #[test]
 fn read_failure_demand_is_limited_to_governing_rules() {
     use crate::domain::reading::service::read_failure_demanded;
-    use crate::domain::trust::types::{Needs, RelationRead};
+    use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
     let wanted = [Relation::FilesystemReadFailure];
     let needs = [
         Needs::default(),

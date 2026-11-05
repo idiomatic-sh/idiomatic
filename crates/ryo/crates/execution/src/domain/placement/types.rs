@@ -10,7 +10,7 @@ use ryo_values::domain::files::types::GlobsMatcher;
 /// Which files a rule governs: the globs it includes, and the globs it leaves out. A rule that
 /// includes nothing governs every file the globs it leaves out do not match.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct RuleScope {
+pub struct RuleScope {
     /// The globs of the files the rule governs.
     pub include: Vec<Glob>,
     /// The globs of the files it does not.
@@ -19,7 +19,7 @@ pub(crate) struct RuleScope {
 
 /// Which side of a rule's scope a glob is on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum GlobSide {
+pub enum GlobSide {
     /// The glob names files the rule governs.
     Include,
     /// The glob names files the rule does not govern.
@@ -28,7 +28,7 @@ pub(crate) enum GlobSide {
 
 /// Whose glob a glob of the set is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct GlobOwner {
+pub struct GlobOwner {
     /// The rule.
     pub rule: RuleNumber,
     /// Its side.
@@ -37,7 +37,7 @@ pub(crate) struct GlobOwner {
 
 /// A bit for each rule, set when the rule governs the file: sixty-four rules to a word.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Mask(pub Vec<u64>);
+pub struct Mask(pub Vec<u64>);
 
 /// Where a rule's bit is in a mask: the word it is in, and the bit within the word.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,7 +58,7 @@ pub(crate) struct BitMask(pub u64);
 
 /// Whether a rule governs a file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Governing {
+pub enum Governing {
     /// It does.
     Governs,
     /// It does not.
@@ -68,7 +68,7 @@ pub(crate) enum Governing {
 /// The scopes of every rule of a run, decided once: the globs to make ready, whose each is whose,
 /// and the rules that govern every file their excluded globs do not match.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ScopePlacement {
+pub struct ScopePlacement {
     /// Every glob of every rule, each once, in one list, so a path is matched against all of them at once.
     pub globs: Vec<Glob>,
     /// Whose glob each glob of the list is, by its place in the list: a glob several rules write is each one's.
@@ -79,7 +79,7 @@ pub(crate) struct ScopePlacement {
 
 /// The scopes of every rule, with their globs made ready by the `matching` port.
 #[derive(Clone, Debug)]
-pub(crate) struct PlacedScopes {
+pub struct PlacedScopes {
     /// What was decided of the scopes.
     pub placement: ScopePlacement,
     /// The globs, ready.

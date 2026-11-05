@@ -8,9 +8,9 @@ use ryo_execution::inbound::use_cases::execution::types::ProjectScope;
 use ryo_execution::inbound::use_cases::execution::types::{BoundInput, PreparedFrontiers};
 use ryo_language::domain::symbols::types::Symbols;
 use {
-    crate::domain::answering::types::Todo, crate::domain::coverage::types::Partials,
-    crate::domain::crossing::service::partials_for,
+    crate::domain::answering::types::Todo, crate::domain::crossing::service::partials_for,
     crate::domain::crossing::service::partials_for_reads, crate::domain::rules::service::failed,
+    ryo_execution::inbound::use_cases::metadata::interface::Partials,
     ryo_values::domain::rule_requests::errors::RulesError,
 };
 

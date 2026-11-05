@@ -1,7 +1,7 @@
 //! The types of the `storing` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::coverage::types::Unknown;
 use crate::domain::workers::types::FileOrder;
+use ryo_execution::inbound::use_cases::metadata::interface::Unknown;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::records::types::{FindingRows, PlacedRule, Record};
 use ryo_values::domain::runs::types::ManifestRefused;

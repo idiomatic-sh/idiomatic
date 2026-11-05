@@ -7,7 +7,7 @@
 use super::errors::LintError;
 use super::interface::LintUseCase;
 use super::service::{
-    answered, handed_of, memory_enabled, memory_rule, observed_arenas, observed_inputs,
+    answered, handed_of, memory_enabled, memory_rule, observed_arenas, observed_cross_symbols,
     observed_notes, observed_records, observed_staged, observed_stored, records_of,
 };
 use super::types::{
@@ -31,17 +31,14 @@ use crate::domain::budget::service::{fit, repository_size, within};
 
 use crate::application::run_coordination::settings::CrossingInput;
 use crate::domain::choosing::service::chosen;
-use crate::domain::features::service::{fed_over, work_over};
 use crate::domain::keeping::service::{rendered_of, rows_of};
-use crate::domain::kind_check::service::{first_unknown, kinds_asked, unknown_message};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::RowsFed;
 use crate::domain::operator::types::TreeSteps;
 use crate::domain::ordering::service::{PENDING_LIMIT, admitted, offer, sort_findings};
 use crate::domain::ordering::types::{Admittance, Ordered, Turn};
-use crate::domain::placement::service::decide;
-use crate::domain::placement::types::PlacedScopes;
 use crate::domain::reporting::service::report_refused;
+use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
 
 use crate::domain::project::service::{project_rules, reads_any, reads_project, with_consulted};
@@ -49,6 +46,7 @@ use crate::domain::project::types::{PlanReads, Projected};
 use crate::domain::reading::service::{buckets_of, first_buckets};
 
 use crate::domain::listing::service::every_file;
+use crate::domain::render::constants::{column_heading, line_heading};
 use crate::domain::render::constants::{columns_heading, key_heading, path_heading, rule_heading};
 use crate::domain::render::service::{lent_row, row_cells, rows_answer};
 use crate::domain::render::types::{Answering, Rendered, RowLimit};
@@ -60,12 +58,9 @@ use crate::domain::storing::service::{
     decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
     unknowns_from, with_fresh,
 };
-use crate::domain::table_model::constants::{column_heading, line_heading};
-use crate::domain::table_model::types::Frontier;
-use crate::domain::trust::service::{project_unknowns, scoped_needs};
-use crate::domain::trust::types::Needs;
 use crate::domain::visit::service::wants;
 use crate::domain::visit::types::Keeping;
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use {
     crate::domain::storing::types::Decision, crate::domain::storing::types::HandedAgain,
@@ -247,7 +242,7 @@ impl LintUseCaseImpl {
         plans: &[Plan],
         ids: &[RuleId],
     ) -> Result<Wanting, LintError> {
-        let placement = decide(&scopes_of(rules));
+        let placement = MetadataUseCaseImpl::new().decide(&scopes_of(rules));
         let matcher = self.matching.compile(&placement.globs).map_err(
             |MatchingError::BadGlob { glob, reason }| LintError::Rule {
                 id: owner_of(&placement, &Glob(glob.into()), ids)
@@ -747,18 +742,29 @@ impl LintUseCaseImpl {
             .plans()
             .iter()
             .zip(compiled.bindings())
-            .all(|(plan, bound)| kinds_asked(plan, bound).is_empty())
+            .all(|(plan, bound)| {
+                MetadataUseCaseImpl::new()
+                    .kinds_asked(plan, bound)
+                    .is_empty()
+            })
         {
             return Ok(compiled);
         }
         let vocabularies = self.language.kind_vocabularies();
-        if let Some(unknown) = first_unknown(compiled.plans(), compiled.bindings(), &vocabularies) {
+        if let Some(unknown) = MetadataUseCaseImpl::new().first_unknown(
+            compiled.plans(),
+            compiled.bindings(),
+            &vocabularies,
+        ) {
             return Err(LintError::UnknownKind {
                 id: rules
                     .get(unknown.rule.0)
                     .map(|rule| rule.id.0.to_string())
                     .unwrap_or_default(),
-                reason: unknown_message(&unknown.word, &vocabularies).0.into(),
+                reason: MetadataUseCaseImpl::new()
+                    .unknown_kind_message(&unknown.word, &vocabularies)
+                    .0
+                    .into(),
             });
         }
         Ok(compiled)
@@ -986,7 +992,7 @@ impl LintUseCaseImpl {
                         PreparationError::Metadata(error) => LintError::from(crate::domain::rules::service::failed(&each.id, &error)),
                     })?;
                     let result = self.cross_file.evaluate(&crossing, each, inputs, &mut cross);
-                    observed_inputs("before_cross_cleanup", &Vec::new(), &mut cross);
+                    observed_cross_symbols("before_cross_cleanup", &mut cross);
                     Ok(result?)
                 })();
                 if memory_enabled() {
@@ -1070,7 +1076,8 @@ impl LintUseCaseImpl {
     /// What the report says each feature of the rules was fed, when the run counts the rows.
     fn features_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<FeatureFed> {
         match self.counting {
-            Counting::Counts => fed_over(run.metadata, fed)
+            Counting::Counts => MetadataUseCaseImpl::new()
+                .fed_over(run.metadata, fed)
                 .into_iter()
                 .map(FeatureFed::from)
                 .collect(),
@@ -1081,7 +1088,8 @@ impl LintUseCaseImpl {
     /// What the report says each step of each rule was fed, when the run counts the rows.
     fn work_of(&self, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<RuleWork> {
         match self.counting {
-            Counting::Counts => work_over(run.metadata, fed)
+            Counting::Counts => MetadataUseCaseImpl::new()
+                .work_over(run.metadata, fed)
                 .into_iter()
                 .zip(run.rules)
                 .map(|(steps, rule)| RuleWork {
@@ -1133,7 +1141,8 @@ impl LintUseCaseImpl {
             .map(|file| input_path(file).clone())
             .chain(now.unlisted.iter().cloned())
             .collect();
-        now.unknowns = project_unknowns(&now.partials, &named, run.needs, run.ids);
+        now.unknowns =
+            MetadataUseCaseImpl::new().project_unknowns(&now.partials, &named, run.needs, run.ids);
         Ok(now)
     }
 
@@ -1346,7 +1355,10 @@ impl LintUseCase for LintUseCaseImpl {
             || applicability.iter().any(|policy| {
                 *policy != ryo_values::domain::runs::types::RuleApplicability::Always
             });
-        let needs: Vec<Needs> = plans.iter().map(scoped_needs).collect();
+        let needs: Vec<Needs> = plans
+            .iter()
+            .map(|plan| MetadataUseCaseImpl::new().scoped_needs(plan))
+            .collect();
         let resolved = self.resolution(&manifests, &plans, &request.session)?;
         let stored_rules = self.stored_rules(
             &rules,
@@ -1515,3 +1527,6 @@ where
     records.sort();
     records.dedup();
 }
+
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;

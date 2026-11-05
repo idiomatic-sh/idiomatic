@@ -6,7 +6,7 @@ use ryo_values::domain::program::types::QueryOrigin;
 
 /// A word a rule writes for a kind: what it is compared with, and how.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct AskedKind {
+pub struct AskedKind {
     /// How the kind is compared with the word: a name, or a pattern.
     pub test: Test,
     /// The word, or the pattern.
@@ -17,7 +17,7 @@ pub(crate) struct AskedKind {
 
 /// Whether some language has a kind that satisfies a word.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum KindMatch {
+pub enum KindMatch {
     /// A kind of a language does.
     Names,
     /// No kind of any language does.
@@ -26,11 +26,11 @@ pub(crate) enum KindMatch {
 
 /// The place of a rule among the rules of a run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct RulePlace(pub usize);
+pub struct RulePlace(pub usize);
 
 /// A word a rule writes for a kind that no linked language has.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct UnknownKind {
+pub struct UnknownKind {
     /// The rule that writes it.
     pub rule: RulePlace,
     /// The word.
@@ -45,4 +45,4 @@ pub struct KindRefusal(pub Box<str>, pub Option<QueryOrigin>);
 
 /// The names of the linked languages, as one phrase.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct LanguageList(pub Box<str>);
+pub struct LanguageList(pub Box<str>);

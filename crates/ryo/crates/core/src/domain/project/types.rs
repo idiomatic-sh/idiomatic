@@ -1,6 +1,6 @@
 //! The types of the `project` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::coverage::types::{Partial, Unknown};
+use ryo_execution::inbound::use_cases::metadata::interface::{Partial, Unknown};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::runs::types::ManifestRefused;
 use ryo_values::domain::stores::types::StoredFile;

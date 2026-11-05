@@ -6,6 +6,8 @@ use ryo_execution::inbound::use_cases::execution::types::{
     ApplicabilityReason, CaptureContext, EmitDemand, FileInput, ObservationDemand, RootOutcome,
     RuleDemand, SourceLanguage, SourceRows,
 };
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 // ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
 use super::types::{FileVisit, Worker};
@@ -13,15 +15,12 @@ use crate::domain::admission::errors::AdmissionError;
 use crate::domain::admission::service::{admit_elements, admit_view, limits_of};
 
 use crate::domain::budget::service::within;
-use crate::domain::coverage::service::partial_of;
-use crate::domain::coverage::types::{Recovery, RuleIndex};
+use ryo_execution::inbound::use_cases::metadata::interface::{Recovery, RuleIndex};
 
 use crate::application::run_coordination::settings::VisitSetting;
 use crate::domain::handing::service::rows_of_file;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::Remap;
-use crate::domain::placement::service::unplace;
-use crate::domain::placement::types::Governing;
 use crate::domain::project::types::Projected;
 use crate::domain::reading::service::{
     begin, engine_asked, failure_partials, prepare, read_failure_demanded, settle as settle_file,
@@ -34,8 +33,6 @@ use crate::domain::recording::service::{
 };
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use crate::domain::table_words::service::pack_onto;
-use crate::domain::table_words::types::WordSlice;
 use crate::domain::workers::types::{Replaying, Tables};
 use ryo_relations::domain::relations::types::Words;
 use ryo_values::domain::files::types::SourceView;
@@ -47,6 +44,8 @@ use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket};
 use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::StoredFileNumber;
+use ryo_values::domain::table_words::service::pack_onto;
+use ryo_values::domain::table_words::types::WordSlice;
 
 use crate::domain::rules::service::governing;
 
@@ -329,7 +328,7 @@ impl FileAnalysis {
             if !*blocked {
                 continue;
             }
-            unplace(
+            MetadataUseCaseImpl.unplace(
                 &mut tables.mask,
                 RuleNumber(u32::try_from(place).unwrap_or(u32::MAX)),
             );
@@ -368,13 +367,15 @@ impl FileAnalysis {
             else {
                 continue;
             };
-            tables
-                .unknowns
-                .push(crate::domain::coverage::types::Unknown {
+            tables.unknowns.push(
+                ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                     rule: rule.clone(),
                     path: path.clone(),
-                    message: crate::domain::coverage::types::Message(reason.into()),
-                });
+                    message: ryo_execution::inbound::use_cases::metadata::interface::Message(
+                        reason.into(),
+                    ),
+                },
+            );
         }
         skipped
     }
@@ -522,25 +523,26 @@ impl FileAnalysis {
                         if partial {
                             tables
                                 .unknowns
-                                .push(crate::domain::coverage::types::Unknown {
+                                .push(ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                                     rule: visit.setting.ids[rule.0].clone(),
                                     path: visit.setting.paths[file.0 as usize].clone(),
-                                    message: crate::domain::coverage::types::Message(
+                                    message: ryo_execution::inbound::use_cases::metadata::interface::Message(
                                         "physical source facts are incomplete".into(),
                                     ),
                                 });
                         }
                     }
                     RootOutcome::Unknown(error) => {
-                        tables
-                            .unknowns
-                            .push(crate::domain::coverage::types::Unknown {
+                        tables.unknowns.push(
+                            ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                                 rule: visit.setting.ids[rule.0].clone(),
                                 path: visit.setting.paths[file.0 as usize].clone(),
-                                message: crate::domain::coverage::types::Message(
-                                    error.to_string().into(),
-                                ),
-                            });
+                                message:
+                                    ryo_execution::inbound::use_cases::metadata::interface::Message(
+                                        error.to_string().into(),
+                                    ),
+                            },
+                        );
                         if matches!(
                             error,
                             crate::domain::operating::errors::OperatingError::SemanticIncomplete { .. }
@@ -582,15 +584,16 @@ impl FileAnalysis {
                 let capture = match captured.outcome {
                     Ok(capture) => capture,
                     Err(error) => {
-                        tables
-                            .unknowns
-                            .push(crate::domain::coverage::types::Unknown {
+                        tables.unknowns.push(
+                            ryo_execution::inbound::use_cases::metadata::interface::Unknown {
                                 rule: visit.setting.ids[rule.0].clone(),
                                 path: visit.setting.paths[file.0 as usize].clone(),
-                                message: crate::domain::coverage::types::Message(
-                                    error.to_string().into(),
-                                ),
-                            });
+                                message:
+                                    ryo_execution::inbound::use_cases::metadata::interface::Message(
+                                        error.to_string().into(),
+                                    ),
+                            },
+                        );
                         continue;
                     }
                 };
@@ -641,12 +644,12 @@ impl FileAnalysis {
         }
         tables.current_observations = run.finish()?.readiness;
         if let Some(root) = &tables.current_observations {
-            tables
-                .observations
-                .push(crate::domain::coverage::types::FileObservationReadiness {
+            tables.observations.push(
+                ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness {
                     file,
                     root: Arc::clone(root),
-                });
+                },
+            );
         }
         settle_file(tables, visit.setting.answering);
         worker.facts.release()?;
@@ -1435,7 +1438,7 @@ impl FileAnalysis {
         let said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let mut projected = Projected {
             unknowns: Vec::new(),
-            partials: partial_of(&said, Recovery::Whole, &[]),
+            partials: MetadataUseCaseImpl.partial_of(&said, Recovery::Whole, &[]),
             refused: answer
                 .refused
                 .into_iter()
@@ -1487,3 +1490,5 @@ impl FileAnalysis {
         Ok(())
     }
 }
+
+use ryo_execution::inbound::use_cases::metadata::interface::Governing;

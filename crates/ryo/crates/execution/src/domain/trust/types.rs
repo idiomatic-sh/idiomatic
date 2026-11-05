@@ -16,7 +16,7 @@ pub struct RelationRead {
 
 /// What the steps of a rule read of the relations, by where the steps run.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct Needs {
+pub struct Needs {
     /// Every read of a relation by the plan: a partly read one makes the answer incomplete, whether or not a step trusts its
     /// absence of rows.
     pub reads: Vec<RelationRead>,
@@ -37,7 +37,7 @@ pub(crate) enum Passage {
 
 /// Whether a partly read relation could change what a read of it makes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Bearing {
+pub enum Bearing {
     /// It could.
     Matters,
     /// It could not.
@@ -46,7 +46,7 @@ pub(crate) enum Bearing {
 
 /// Whether any of some reads is of a relation read in part.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Blocking {
+pub enum Blocking {
     /// One is.
     Blocked,
     /// None is.
