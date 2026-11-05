@@ -943,7 +943,10 @@ fn exercise_project_observation_union(refused: bool) {
         assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
     } else {
         let RootOutcome::Complete(table) = result.emit else {
-            panic!("declared union must be scheduled from actual member handles")
+            panic!(
+                "declared union must be scheduled from actual member handles: {:?}",
+                result.emit
+            )
         };
         assert_eq!(table.kinds, [CellKind::File]);
         assert_eq!(table.count, RowCount(1));
