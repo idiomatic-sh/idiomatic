@@ -80,9 +80,13 @@ pub(crate) fn bytes_of<'a>(
 
 /// The name of a symbol made by the steps that run after the files were read, as a name that has left its file:
 /// its text stays in the derived text of `symbols`, and its place is that symbol.
+/// A source-owned or unknown symbol has no cross-file derived place and is refused.
 #[must_use]
 pub fn name_made_across(symbols: &Symbols, symbol: Symbol) -> Option<Name> {
     let symbols: &SymbolsEngine = symbols.as_ref();
+    if symbols.storage.get(usize::try_from(symbol.0).ok()?) != Some(&SymbolStorage::Derived) {
+        return None;
+    }
     Some(Name {
         hash: hash_of_symbol(symbols, symbol)?,
         place: PlaceNumber(CROSS_PLACE | symbol.0),

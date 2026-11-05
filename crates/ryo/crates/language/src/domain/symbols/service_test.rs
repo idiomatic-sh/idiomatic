@@ -372,7 +372,33 @@ fn interleaved_names_compose_and_clear_without_changing_storage() -> usize {
     1
 }
 
+/// Cross-file names may refer only to bytes actually owned by the cross-file pool.
+fn cross_file_names_require_derived_storage() -> usize {
+    let source = ByteSlice(b"x.A x.Z");
+    let mut symbols = Symbols::default();
+    let from_source = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(name_made_across(&symbols, from_source), None);
+    let from_derived = intern_derived(&mut symbols, source, NameText("x.Z"));
+    let retained =
+        name_made_across(&symbols, from_derived).expect("derived names can leave the pool");
+    let alias = intern(&mut symbols, source, Offset(4), Offset(7));
+    assert_eq!(alias, from_derived);
+    assert_eq!(name_made_across(&symbols, alias), Some(retained));
+    let place = place_of(retained, &[], &symbols).expect("cross-file derived place");
+    assert_eq!(place.origin, Origin::Derived(CROSS_FILE));
+    let start = usize::try_from(place.start.0).expect("fixture offset");
+    let end = usize::try_from(place.end.0).expect("fixture offset");
+    assert_eq!(&derived_of(&symbols).0[start..end], b"x.Z");
+    1
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("cross_file_names_require_derived_storage"),
+        word: Word::Succeeds,
+        input: || cross_file_names_require_derived_storage,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("interleaved_source_and_derived_names_keep_text_and_retention"),
         word: Word::Succeeds,
