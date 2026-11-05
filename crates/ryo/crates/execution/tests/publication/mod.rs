@@ -168,12 +168,29 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         if refuse {
             assert!(matches!(result, Err(OperatingError::WrongBinding)));
             assert_eq!(exposed, table.cells[..table.kinds.len()]);
+            let evaluated = file
+                .counts(RuleIndex(0))
+                .unwrap()
+                .fed
+                .iter()
+                .map(|counts| counts.0)
+                .collect::<Vec<_>>();
             exposed.clear();
             file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
                 exposed.extend_from_slice(row);
                 Ok(())
             })
             .expect("retry after delivery refusal");
+            assert_eq!(
+                file.counts(RuleIndex(0))
+                    .unwrap()
+                    .fed
+                    .iter()
+                    .map(|counts| counts.0)
+                    .collect::<Vec<_>>(),
+                evaluated,
+                "retrying a sink must not repeat semantic execution"
+            );
         } else {
             result.expect("publish after successful semantics");
         }
