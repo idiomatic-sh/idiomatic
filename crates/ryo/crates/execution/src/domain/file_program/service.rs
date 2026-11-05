@@ -269,23 +269,18 @@ pub(crate) fn compile_prepared_observations(
                         })
                     });
                     let hash = fingerprint(&operation, &inputs, scope, step.scope);
-                    // A diagnostic terminal owns its declared delivery/demand mode.
-                    // It cannot alias another diagnostic or an ordinary intermediate.
-                    // Pure upstream nodes and shared relation classes still coalesce.
-                    let diagnostic = index == plan.emit.step.0 as usize;
-                    if let Some(found) = (!diagnostic)
-                        .then(|| buckets.get(&hash))
-                        .flatten()
-                        .and_then(|bucket| {
-                            bucket.iter().copied().find(|id| {
-                                let existing = &nodes[id.0];
-                                existing.operation == operation
-                                    && existing.inputs == inputs
-                                    && existing.scope == scope
-                                    && existing.phase == step.scope
-                            })
+                    // Delivery is outside semantic evaluation. Identical pure
+                    // terminals and intermediates share one canonical publication;
+                    // authored root-reader obligations remain distinct below.
+                    if let Some(found) = buckets.get(&hash).and_then(|bucket| {
+                        bucket.iter().copied().find(|id| {
+                            let existing = &nodes[id.0];
+                            existing.operation == operation
+                                && existing.inputs == inputs
+                                && existing.scope == scope
+                                && existing.phase == step.scope
                         })
-                    {
+                    }) {
                         if let Some(region) = region {
                             nodes[found.0].regions.push(region);
                         }
@@ -314,9 +309,7 @@ pub(crate) fn compile_prepared_observations(
                         inputs,
                         schema_valid,
                     });
-                    if !diagnostic {
-                        buckets.entry(hash).or_default().push(id);
-                    }
+                    buckets.entry(hash).or_default().push(id);
                     Some(id)
                 },
             );
