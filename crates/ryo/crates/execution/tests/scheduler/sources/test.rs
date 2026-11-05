@@ -114,9 +114,13 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             .expect("named producer, alias and union");
         assert_eq!(
             program.frontiers(RuleIndex(1)).unwrap(),
-            &[Input::BoundObservation(ObservationBindingId(0))]
+            &[
+                Input::BoundObservation(ObservationBindingId(0)),
+                Input::Step(StepId(0))
+            ]
         );
-        assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
+        assert!(!program.captures_observation(RuleIndex(1), 0).unwrap());
+        assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
         let corpus = corpus();
         let request = engine.begin(&program, &corpus);
         let table = source();
@@ -194,21 +198,22 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 },
             )
             .unwrap();
-        assert_eq!(captures.len(), 1);
-        assert_eq!(
-            captures[0].input,
-            ryo_values::domain::plan_parts::types::InputNumber(0)
-        );
-        let captured = captures[0]
-            .outcome
-            .as_ref()
-            .expect("direct bound publication");
-        let decoded =
-            decode_complete(&captured.words, &mut Vec::new()).expect("valid publication words");
-        assert_eq!(decoded.count, RowCount(1));
-        assert_eq!(decoded.cells, expected);
-        file.commit_frontier(RuleIndex(1), captures[0].input)
-            .unwrap();
+        assert_eq!(captures.len(), 2);
+        for (index, capture) in captures.iter().enumerate() {
+            assert_eq!(
+                capture.input,
+                ryo_values::domain::plan_parts::types::InputNumber(index)
+            );
+            let captured = capture
+                .outcome
+                .as_ref()
+                .expect("bound and exported publications");
+            let decoded =
+                decode_complete(&captured.words, &mut Vec::new()).expect("valid publication words");
+            assert_eq!(decoded.count, RowCount(1));
+            assert_eq!(decoded.cells, expected);
+            file.commit_frontier(RuleIndex(1), capture.input).unwrap();
+        }
         assert_eq!(
             reads.get(),
             read_count,
@@ -230,9 +235,13 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
     let program = engine.prepare(named()).unwrap();
     assert_eq!(
         program.frontiers(RuleIndex(1)).unwrap(),
-        &[Input::BoundObservation(ObservationBindingId(0))]
+        &[
+            Input::BoundObservation(ObservationBindingId(0)),
+            Input::Step(StepId(0))
+        ]
     );
-    assert!(program.captures_observation(RuleIndex(1), 0).unwrap());
+    assert!(!program.captures_observation(RuleIndex(1), 0).unwrap());
+    assert!(program.captures_observation(RuleIndex(1), 1).unwrap());
     let corpus = corpus();
     let request = engine.begin(&program, &corpus);
     let read = |_| panic!("refused member cannot acquire a relation");
