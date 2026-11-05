@@ -11,6 +11,8 @@ pub(crate) mod layout_service_test;
 pub(crate) mod matching_types_prepared_value_test;
 #[cfg(test)]
 pub(crate) mod native_positions_parity_test;
+#[cfg(test)]
+pub(crate) mod native_positions_selection_test;
 pub(crate) mod operating_service_test;
 pub(crate) mod operation_schema_service_test;
 pub(crate) mod operation_schema_types_bindings_value_test;

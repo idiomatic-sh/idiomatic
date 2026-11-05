@@ -63,25 +63,7 @@ fn kind_verdict(kinds: &KindScratch, tree: &TreeRows<'_>, index: RowIndex) -> Ve
         .map_or(Verdict::Holds, |kind| passes(kinds, *kind))
 }
 
-/// Passes each element of a tree the comparisons admit to `each`, in the order of the tree for the elements found without a pass
-/// over it, with the cells the comparisons read left in `buffer`. Elements are found among the kinds the comparisons name, or among
-/// the texts they admit, when few enough; the whole tree is looked at otherwise.
-///
-/// # Errors
-///
-/// A comparison that asks for a column the tree does not have, or what `each` refuses.
-pub(crate) fn tree_each(
-    comparisons: &[Comparison],
-    tree: &TreeRows<'_>,
-    buffer: &mut Vec<Value>,
-    context: &mut OperatorContext<'_>,
-    each: &mut EachElement<'_>,
-) -> Result<(), OperatingError> {
-    tree_each_with_visits(comparisons, tree, buffer, context, &mut |_| {}, each)
-}
-
-/// As `tree_each`, with one event for each candidate visited in source order, before its
-/// comparisons can refuse. The owner uses these events for actual logical work accounting.
+/// Pass each visited candidate in source order before its comparisons can refuse. The owner uses these events for actual logical work accounting.
 pub(crate) fn tree_each_with_visits(
     comparisons: &[Comparison],
     tree: &TreeRows<'_>,

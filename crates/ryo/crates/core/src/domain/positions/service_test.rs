@@ -11,11 +11,9 @@ use ryo_relations::domain::relations::types::{FileId, Flag, KindBits, Offset, Po
 use ryo_relations::domain::terms::types::NameText;
 
 use super::service::{count, in_tree, row, value};
-use super::types::{Keeps, Keys, LoweredRoom, Positions, Readiness, Slots};
+use super::types::{Keeps, Keys, Positions, Slots};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::lowering::types::{
-    Counting, ElementPart, LoweredColumn, LoweredShape, Lowering, RowPosition, RowWidth,
-};
+use crate::domain::lowering::types::{ElementPart, RowWidth};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 
 /// A tree of four elements: a `file` node holding the tokens `word`, `other` and `word`, in this order, at positions 1 to 3.
@@ -60,40 +58,6 @@ pub(crate) fn rows_over(elements: &Elements) -> TreeRows<'_> {
         elements,
         file: FileId(0),
         form: TreeForm::Elements,
-    }
-}
-
-/// A lowering of steps each answering one column of this field.
-pub(crate) fn lowering_of(fields: &[ElementPart]) -> Lowering {
-    Lowering {
-        shapes: fields
-            .iter()
-            .map(|field| {
-                Some(LoweredShape {
-                    width: RowWidth(1),
-                    columns: vec![LoweredColumn {
-                        slot: RowPosition(0),
-                        field: *field,
-                    }],
-                })
-            })
-            .collect(),
-        counting: vec![Counting::DoesNotCount; fields.len()],
-    }
-}
-
-/// A room where each step has made these rows of one position.
-pub(crate) fn room_of(steps: &[&[u32]]) -> LoweredRoom {
-    LoweredRoom {
-        made: steps
-            .iter()
-            .map(|slots| Positions {
-                width: RowWidth(1),
-                slots: Slots(slots.to_vec()),
-            })
-            .collect(),
-        ready: vec![Readiness::Made; steps.len()],
-        ..LoweredRoom::default()
     }
 }
 

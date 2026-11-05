@@ -1,4 +1,4 @@
-//! The `positions` service: free functions named by verb that read the rows of a lowered step and key them, with no IO and no ports.
+//! Read and key borrowed position rows without IO or ports.
 
 use ryo_language::domain::elements::service::{field_name_at, parent_at, text_at};
 use ryo_relations::domain::relations::service::node_id;
@@ -6,13 +6,12 @@ use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{Flag, Position, Value};
 
 use super::constants::{COLUMN_OF_STEP, POSITION_OF_TREE, ROW_OF_POSITIONS, SLOT_OF_ROW};
-use super::types::{Keys, LoweredRoom, Positions, RowPositions, Slots, Stride};
+use super::types::{Keys, Positions, RowPositions};
 use crate::domain::lowering::types::{ElementPart, LoweredColumn};
 use crate::domain::table_cells::service::{kind_name_at, ordinal_number_at, span_at};
 use crate::domain::table_cells::types::TreeRows;
 
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::StepId;
 
 /// The value a field holds of the element at `at`.
 #[must_use]
@@ -50,12 +49,6 @@ pub(crate) fn followed(
         | ElementPart::Role
         | ElementPart::Absent => None,
     }
-}
-
-/// The rows made of the step `id`; none for a step past the room.
-#[must_use]
-pub(crate) fn made_of(made: &[Positions], id: StepId) -> Option<&Positions> {
-    made.get(usize::try_from(id.0).unwrap_or(usize::MAX))
 }
 
 /// How many rows the positions hold.
@@ -160,21 +153,6 @@ pub(crate) fn in_tree(tree: &TreeRows<'_>, at: Position) -> Position {
         .then_some(place)
         .expect(POSITION_OF_TREE);
     at
-}
-
-/// The elements the class decided for the step `step` of the rule being run selected, when the pass over the file decided its class.
-#[must_use]
-pub(crate) fn selected<'a>(
-    room: &LoweredRoom,
-    classes: &'a [Slots],
-    step: StepId,
-) -> Option<&'a Slots> {
-    let class = room
-        .picked
-        .get(usize::try_from(step.0).unwrap_or(usize::MAX))
-        .copied()
-        .flatten()?;
-    classes.get(class.0)
 }
 
 use ryo_values::domain::rows::types::{RowCount, RowIndex};

@@ -8,6 +8,8 @@ mod sets;
 pub(crate) mod types;
 
 #[cfg(test)]
+mod axis_directions_test;
+#[cfg(test)]
 mod axis_test;
 
 pub(crate) mod rows;

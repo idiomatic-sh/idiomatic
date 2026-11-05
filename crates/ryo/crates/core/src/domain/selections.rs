@@ -1,9 +1,8 @@
-//! The `core` domain's `selections` concept: the lowered steps that keep rows: a select of the tree or of another step, and a projection.
+//! Shared tree candidate selection used by native position evaluation.
 
 pub(crate) mod service;
-pub(crate) mod types;
+
+pub(crate) mod evaluation;
 
 #[cfg(test)]
 mod service_test;
-
-pub(crate) mod evaluation;
