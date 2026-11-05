@@ -4,7 +4,7 @@ use ryo_values::domain::plan_parts::types::RefusedQuery;
 
 /// A malformed program, rule identity, or parameter binding.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum RuleCompilationError {
+pub enum RuleCompilationError {
     /// Named-root dependency configuration is rejected before any file is read.
     #[error(transparent)]
     Observations(#[from] crate::domain::file_program::errors::ObservationError),

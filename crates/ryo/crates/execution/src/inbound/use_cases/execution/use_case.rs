@@ -56,6 +56,30 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
     }
 }
 impl ExecutionRequest for RequestExecution {
+    fn observations<'a>(
+        &'a self,
+        arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
+    ) -> Result<ObservationStage<'a>, OperatingError> {
+        let metadata = self
+            .program
+            .observation_metadata()
+            .ok_or(OperatingError::NotRun)?;
+        let publication = std::rc::Rc::new(facade_runtime::publication_owner(
+            &self.program,
+            &self.services,
+        )?);
+        let publications =
+            crate::application::file_dag::observations::cross::CrossPublications::new(
+                metadata,
+                &publication,
+                arenas,
+            );
+        Ok(ObservationStage {
+            request: self,
+            publication,
+            publications,
+        })
+    }
     fn prepare_frontiers(
         &self,
         input: FrontierRequest<'_>,
@@ -98,7 +122,10 @@ impl ExecutionRequest for RequestExecution {
         )?;
         Ok(FileSession {
             inner,
+            program: Arc::clone(&self.program),
             read: input.read,
+            elements: input.elements,
+            file: input.file,
         })
     }
     fn project_scope(
@@ -119,7 +146,7 @@ impl ExecutionRequest for RequestExecution {
         let publication = facade_runtime::publication_owner(&self.program, &self.services)?;
         Ok(ProjectScope {
             required,
-            publication,
+            publication: std::rc::Rc::new(publication),
         })
     }
     fn open_project<'a>(
@@ -160,7 +187,8 @@ impl FileExecution for FileSession<'_, '_> {
         demand: RuleDemand,
         symbols: &mut Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
-        self.inner.rule(rule, demand, self.read, symbols)
+        let read = |relation| source_rows(self.read, self.elements, self.file, relation);
+        self.inner.rule(rule, demand, &read, symbols)
     }
     fn capture_frontiers(
         &mut self,
@@ -169,8 +197,16 @@ impl FileExecution for FileSession<'_, '_> {
         symbols: &mut Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
+        let read = |relation| source_rows(self.read, self.elements, self.file, relation);
+        let bound = facade::CaptureContext {
+            file: self.file,
+            rule_digest: self.program.rule_digest(rule)?,
+            worker: capture.worker,
+            retained: capture.retained,
+            words: capture.words,
+        };
         self.inner
-            .capture_frontiers(rule, first, self.read, symbols, capture)
+            .capture_frontiers(rule, first, &read, symbols, bound)
     }
     fn commit_frontier(
         &mut self,
@@ -207,6 +243,215 @@ impl ProjectExecution for ProjectSession<'_> {
 
 impl ProjectStage for ProjectScope {
     fn finish(self) -> Result<(), OperatingError> {
-        self.publication.finish()
+        match std::rc::Rc::try_unwrap(self.publication) {
+            Ok(publication) => publication.finish(),
+            Err(shared) => {
+                drop(shared);
+                Err(OperatingError::NotRead)
+            }
+        }
+    }
+}
+
+fn source_rows<'a, 'facts: 'a>(
+    read: &dyn Fn(
+        ryo_relations::domain::relations::types::Relation,
+    ) -> Result<SourceRows<'facts>, OperatingError>,
+    elements: &'a ryo_language::domain::elements::types::Elements,
+    file: ryo_relations::domain::relations::types::FileId,
+    relation: ryo_relations::domain::relations::types::Relation,
+) -> Result<crate::domain::table_model::types::Rows<'a>, OperatingError> {
+    use crate::domain::{
+        table_cells::{service::native_form, types::TreeRows},
+        table_model::types::Rows,
+    };
+    if let Some(form) = native_form(relation) {
+        return Ok(Rows::Tree(TreeRows {
+            form,
+            elements,
+            file,
+        }));
+    }
+    read(relation).map(|rows| match rows {
+        SourceRows::Stored(columns) => Rows::Stored(columns),
+        SourceRows::Computed(table) => Rows::Computed(table),
+    })
+}
+
+impl PreparedExecution for PreparedProgram {
+    fn rule_count(&self) -> usize {
+        self.inner.rule_count()
+    }
+    fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_ {
+        self.inner.rule_order()
+    }
+    fn demanded_rules(&self, governs: impl Fn(usize) -> bool) -> Vec<bool> {
+        self.inner.demanded_rules(governs)
+    }
+    fn emit(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&ryo_values::domain::plans::types::Emit, OperatingError> {
+        self.inner.emit(rule)
+    }
+    fn rule_digest(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ryo_values::domain::stored_facts::types::Digest, OperatingError> {
+        self.inner.rule_digest(rule)
+    }
+    fn frontiers(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&[ryo_values::domain::plan_parts::types::Input], OperatingError> {
+        self.inner.frontiers(rule)
+    }
+    fn captures_observation(&self, rule: RuleIndex, input: usize) -> Result<bool, OperatingError> {
+        self.inner.captures_observation(rule, input)
+    }
+    fn semantic_needed(&self) -> bool {
+        self.inner.semantic_needed()
+    }
+    fn observation_layout(
+        &self,
+    ) -> Option<(
+        ryo_values::domain::observations::types::ObservationReadinessLayout,
+        &[ObservedFrontierRoot],
+    )> {
+        self.inner.observation_layout()
+    }
+    fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError> {
+        self.inner.observation_reads(rule)
+    }
+    fn has_observation_contract(&self, rule: RuleIndex) -> Result<bool, OperatingError> {
+        self.inner.has_observation_contract(rule)
+    }
+    fn frontier_dependencies(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&[Vec<ryo_values::domain::observations::types::ObservationBindingId>], OperatingError>
+    {
+        self.inner.frontier_dependencies(rule)
+    }
+}
+
+/// Query compilation is a preparation use case, not a second execution pipeline.
+pub struct CompilationUseCaseImpl;
+impl CompilationUseCaseImpl {
+    pub fn new(compiler: Arc<dyn query_language::QueryLanguagePort>) -> CompilationSession {
+        CompilationSession {
+            inner: crate::application::rule_compilation::service::RuleCompilation::new(compiler),
+        }
+    }
+}
+impl ExecutionCompilation for CompilationSession {
+    fn compiling_into(self, cache: CompiledPlans) -> Self {
+        Self {
+            inner: self.inner.compiling_into(cache),
+        }
+    }
+    fn compile(
+        &self,
+        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
+        hosted: &[ryo_values::domain::hosted::types::HostRelation],
+    ) -> Result<CompiledQueries, RuleCompilationError> {
+        self.inner
+            .compile(rules, hosted)
+            .map(|inner| CompiledQueries { inner })
+    }
+    fn identify(
+        &self,
+        queries: &CompiledQueries,
+        digest: &dyn digest::DigestPort,
+        rules: Vec<ryo_values::domain::stores::types::StoredRule>,
+    ) -> Result<PreparedRuleIdentities, RuleCompilationError> {
+        let identities = crate::application::rule_compilation::identity::with_producers(
+            digest,
+            rules,
+            &queries.inner.plans,
+            &queries.inner.schedule,
+            &queries.inner.observations,
+        )?;
+        Ok(PreparedRuleIdentities {
+            rules: identities.rules,
+            observations: identities.observations,
+        })
+    }
+}
+impl PreparedQueries for CompiledQueries {
+    fn plans(&self) -> &[ryo_values::domain::plans::types::Plan] {
+        &self.inner.plans
+    }
+    fn bindings(&self) -> &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>] {
+        &self.inner.bindings
+    }
+    fn into_request(
+        self,
+        rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
+        digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
+        hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
+        observations: ObservationIdentity,
+    ) -> PreparedRequest {
+        PreparedRequest {
+            plans: self.inner.plans,
+            bindings: self.inner.bindings,
+            rules,
+            digests,
+            hosted,
+            observations,
+        }
+    }
+}
+
+impl ObservationExecution for ObservationStage<'_> {
+    fn reserve(&mut self, rule: RuleIndex) -> Result<PublicationSlot, OperatingError> {
+        self.publications.reserve(rule)
+    }
+    fn bindings(&self, rule: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
+        self.publications.bindings(rule)
+    }
+    fn binding_readiness(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<
+        std::collections::BTreeMap<
+            ryo_values::domain::observations::types::ObservationBindingId,
+            bool,
+        >,
+        OperatingError,
+    > {
+        self.publications.binding_readiness(rule)
+    }
+    fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes] {
+        self.publications.arenas()
+    }
+    fn project_scope(
+        &self,
+        rule: RuleIndex,
+        corpus: &[CorpusInput],
+        covered: &[Covered],
+        skipped: &[Skipped],
+    ) -> Result<ProjectScope, OperatingError> {
+        let required = facade_runtime::required_partitions(
+            &self.request.program,
+            rule,
+            corpus,
+            covered,
+            skipped,
+            &self.request.services,
+        )?;
+        Ok(ProjectScope {
+            required,
+            publication: std::rc::Rc::clone(&self.publication),
+        })
+    }
+    fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
+        self.publications.finish(rule)
+    }
+    fn finish_stage(self) -> Result<(), OperatingError> {
+        drop(self.publications);
+        std::rc::Rc::try_unwrap(self.publication)
+            .map_err(|_| OperatingError::NotRead)?
+            .finish()
     }
 }

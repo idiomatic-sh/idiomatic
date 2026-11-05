@@ -406,7 +406,7 @@ fn world(given: Given) -> World {
 /// Construct either physical backend over the same fake store and query identity.
 fn world_with_kernel(mut given: Given, column_kernel: bool) -> World {
     let scheduler = Arc::new(std::mem::take(&mut given.scheduler));
-    let query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort> =
+    let query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort> =
         Arc::<QueryLanguageFake>::clone(&given.query);
     scheduled_world_with_query_kernel(
         given,
@@ -419,7 +419,7 @@ fn world_with_kernel(mut given: Given, column_kernel: bool) -> World {
 
 /// The same fixture over an explicitly injected production scheduler.
 fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: WorkerCount) -> World {
-    let query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort> =
+    let query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort> =
         Arc::<QueryLanguageFake>::clone(&given.query);
     scheduled_world_with_query(given, scheduler, workers, query_language)
 }
@@ -429,7 +429,7 @@ fn scheduled_world_with_query(
     given: Given,
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
-    query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort>,
+    query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort>,
 ) -> World {
     scheduled_world_with_query_kernel(given, scheduler, workers, query_language, false)
 }
@@ -438,7 +438,7 @@ fn scheduled_world_with_query_kernel(
     given: Given,
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
-    query_language: Arc<dyn crate::outbound::query_language::interface::QueryLanguagePort>,
+    query_language: Arc<dyn ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort>,
     column_kernel: bool,
 ) -> World {
     let collected = rows::types::Collector::default();
@@ -1620,7 +1620,7 @@ fn changed_nested_module() -> Result<Value, Failure> {
 fn changed_fragment_plan() -> Result<Value, Failure> {
     use crate::application::rule_compilation::types::CompiledPlans;
     use crate::outbound::query_language::factory;
-    use crate::outbound::query_language::interface::QueryLanguagePort;
+    use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {
         let module = format!(

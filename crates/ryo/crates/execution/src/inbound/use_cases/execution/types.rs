@@ -43,15 +43,19 @@ pub use crate::application::file_dag::program::admission::{
     ApplicabilityProof, ApplicabilityReason,
 };
 pub use crate::application::file_dag::program::facade::{
-    CaptureContext, CapturedFrontier, EmitDemand, FrontierCapture, LogicalCounts,
-    ObservationDemand, ProjectObservation, ProjectRuleOutcome, RootOutcome, RuleDemand,
-    RuleOutcome,
+    CapturedFrontier, EmitDemand, FrontierCapture, LogicalCounts, ObservationDemand,
+    ProjectObservation, ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
 };
 pub use crate::domain::coverage::types::{Covered, Partial, Partials, RuleIndex};
 pub use crate::domain::kind_sets::types::PreparedVocabulary;
 pub use crate::domain::operating::errors::OperatingError;
 pub use crate::domain::operating::types::SemanticLookup;
-pub use crate::domain::table_model::types::Rows;
+/// Physical provider data; execution-owned projections and publications cannot be supplied here.
+#[derive(Clone, Debug)]
+pub enum SourceRows<'a> {
+    Stored(ryo_relations::domain::relations::types::ColumnsView<'a>),
+    Computed(&'a ryo_values::domain::rows::types::Table),
+}
 pub struct RequestExecution {
     pub(super) program: Arc<crate::application::file_dag::program::facade::PreparedProgram>,
     pub(super) services:
@@ -63,22 +67,27 @@ pub struct FileInput<'a, 'facts> {
     pub publication: &'a [Partial],
     pub demanded: &'a [bool],
     pub source: &'a [u8],
+    pub elements: &'a ryo_language::domain::elements::types::Elements,
     /// The immutable provider snapshot is bound once, never replaced per rule.
     pub read: &'a dyn Fn(
         ryo_relations::domain::relations::types::Relation,
-    ) -> Result<Rows<'facts>, OperatingError>,
+    ) -> Result<SourceRows<'facts>, OperatingError>,
     pub semantic: Option<&'a dyn SemanticLookup>,
     pub kinds: Option<Arc<PreparedVocabulary>>,
 }
 pub struct FileSession<'a, 'facts> {
     pub(super) inner: crate::application::file_dag::program::facade_runtime::FileRun<'a>,
+    pub(super) program: Arc<crate::application::file_dag::program::facade::PreparedProgram>,
+    pub(super) file: ryo_relations::domain::relations::types::FileId,
+    pub(super) elements: &'a ryo_language::domain::elements::types::Elements,
     pub(super) read: &'a dyn Fn(
         ryo_relations::domain::relations::types::Relation,
-    ) -> Result<Rows<'facts>, OperatingError>,
+    ) -> Result<SourceRows<'facts>, OperatingError>,
 }
 pub struct ProjectScope {
     pub(super) required: crate::application::file_dag::program::admission::RequiredPartitions,
-    pub(super) publication: crate::application::file_dag::program::facade_runtime::PublicationScope,
+    pub(super) publication:
+        std::rc::Rc<crate::application::file_dag::program::facade_runtime::PublicationScope>,
 }
 pub struct ProjectInput<'a> {
     pub scope: &'a ProjectScope,
@@ -104,3 +113,43 @@ pub struct FrontierRequest<'a> {
     pub project_symbols: &'a ryo_language::domain::symbols::types::Symbols,
 }
 pub use crate::application::file_dag::frontiers::service::PreparationError;
+
+pub use crate::domain::file_program::types::ObservedFrontierRoot;
+pub use crate::domain::trust::types::RelationRead;
+
+pub mod query_language {
+    pub use crate::outbound::query_language::{
+        errors::QueryLanguageError, interface::QueryLanguagePort,
+    };
+}
+pub use crate::application::rule_compilation::{
+    errors::RuleCompilationError, types::CompiledPlans,
+};
+/// Request preparation retains its graph privately; callers may inspect source plans only.
+pub struct CompiledQueries {
+    pub(super) inner: crate::domain::prepared_request::types::Compiled,
+}
+pub struct CompilationSession {
+    pub(super) inner: crate::application::rule_compilation::service::RuleCompilation,
+}
+pub struct PreparedRuleIdentities {
+    pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
+    pub observations: ObservationIdentity,
+}
+
+/// One project publication generation shared by every ready batch.
+pub struct ObservationStage<'a> {
+    pub(super) request: &'a RequestExecution,
+    pub(super) publication:
+        std::rc::Rc<crate::application::file_dag::program::facade_runtime::PublicationScope>,
+    pub(super) publications:
+        crate::application::file_dag::observations::cross::CrossPublications<'a>,
+}
+pub use crate::application::file_dag::program::facade::ObservedPublication;
+
+/// Output storage only; source file and rule digest come from the bound session.
+pub struct CaptureContext<'a> {
+    pub worker: ryo_relations::domain::relations::types::WorkerNumber,
+    pub retained: crate::domain::finish::types::Retained<'a>,
+    pub words: &'a mut ryo_relations::domain::relations::types::Words,
+}

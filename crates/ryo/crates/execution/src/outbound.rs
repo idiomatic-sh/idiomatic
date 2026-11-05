@@ -4,3 +4,5 @@ pub(crate) mod digest;
 pub(crate) mod facts;
 pub(crate) mod matching;
 pub(crate) mod operators;
+
+pub(crate) mod query_language;

@@ -271,7 +271,7 @@ impl PreparedProgram {
     pub(super) fn rule_metadata(&self, rule: RuleIndex) -> Result<&RuleMetadata, OperatingError> {
         self.rules.get(rule.0).ok_or(OperatingError::NotRun)
     }
-    pub(in crate::application) fn observation_metadata(&self) -> Option<&ObservationMetadata> {
+    pub(crate) fn observation_metadata(&self) -> Option<&ObservationMetadata> {
         self.observations.as_ref()
     }
     pub(crate) fn emit(&self, rule: RuleIndex) -> Result<&Emit, OperatingError> {

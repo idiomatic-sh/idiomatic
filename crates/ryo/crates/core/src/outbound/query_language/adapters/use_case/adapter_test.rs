@@ -7,9 +7,9 @@ use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCas
 
 use super::adapter::QueryLanguageUseCaseAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::outbound::query_language::errors::QueryLanguageError;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
 use crate::outbound::query_language::fixtures::contract::CASES as CONTRACT;
-use crate::outbound::query_language::interface::QueryLanguagePort as _;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort as _;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::program::types::QueryBundle;
 

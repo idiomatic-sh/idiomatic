@@ -83,7 +83,7 @@ use ryo_execution::inbound::use_cases::execution::types::matching::MatchingError
 use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
 use crate::outbound::memory::interface::MemoryPort;
 use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
-use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 use crate::outbound::rows::interface::RowsPort;
 use crate::outbound::rows::types::{LentCell, Summary};
 use crate::outbound::scheduler::errors::SchedulerError;

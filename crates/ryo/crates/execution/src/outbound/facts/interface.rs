@@ -55,7 +55,7 @@ pub trait FactsWorker: Send + Sync {
     /// # Errors
     ///
     /// `Store` when the handle refuses them; `File` when a file fails.
-    fn keep(&mut self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError>;
+    fn keep(&self, bucket: Bucket, words: WordsToKeep<'_>) -> Result<(), FactsError>;
 
     /// Empties the rows of the worker's file, keeping the room for the next one. The buckets keep what was added to them.
     ///

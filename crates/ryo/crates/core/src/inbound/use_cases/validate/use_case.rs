@@ -8,8 +8,8 @@ use super::interface::ValidateUseCase;
 use super::types::ValidateRequest;
 use crate::domain::kind_check::service::refusal;
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::query_language::errors::QueryLanguageError;
-use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 use ryo_values::domain::descriptions::types::ValidateReport;
 
 /// `validate`, over the query language and the language port.

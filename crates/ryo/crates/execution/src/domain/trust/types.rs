@@ -7,7 +7,7 @@ use ryo_values::domain::plan_parts::types::Comparison;
 /// A place where a plan reads a relation: the relation, and the comparisons on its `kind` column that the rows must satisfy
 /// to get any further, when the step that reads it is a `select`.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct RelationRead {
+pub struct RelationRead {
     /// The relation read.
     pub relation: Relation,
     /// The comparisons on the kind of the rows that this read applies before anything else does.

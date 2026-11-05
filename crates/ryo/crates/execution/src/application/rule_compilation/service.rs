@@ -2,7 +2,7 @@
 use super::constants::COMPILED_PLANS;
 use super::errors::RuleCompilationError;
 use super::types::{CachedPlan, CompiledPlans};
-use ryo_execution::inbound::use_cases::execution::types::Compiled;
+use crate::domain::prepared_request::types::Compiled;
 use crate::domain::rules::service::{bind, check_ids};
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use crate::outbound::query_language::errors::QueryLanguageError;

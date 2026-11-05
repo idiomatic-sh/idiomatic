@@ -31,7 +31,7 @@ use ryo_values::domain::plan_parts::types::WholeNumber;
 /// The rows an operator reads: the columns of a relation as the store keeps them, or the table
 /// another step computed.
 #[derive(Clone, Debug)]
-pub enum Rows<'a> {
+pub(crate) enum Rows<'a> {
     /// A relation's columns, read where the store keeps them.
     Stored(ColumnsView<'a>),
     /// Ordered physical row positions and projected columns of a resident relation.

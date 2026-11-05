@@ -120,11 +120,12 @@ fn public_file_run_publishes_once_and_finishes() {
     let read = |relation| {
         reads.set(reads.get() + 1);
         if relation == Relation::Function {
-            Ok(Rows::Computed(&table))
+            Ok(SourceRows::Computed(&table))
         } else {
             Err(OperatingError::NotRead)
         }
     };
+    let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = request
         .open_file(
@@ -134,6 +135,7 @@ fn public_file_run_publishes_once_and_finishes() {
                 publication: &[],
                 demanded: &[true],
                 source: b"abc",
+                elements: &elements,
                 read: &read,
                 semantic: None,
                 kinds: None,
@@ -177,6 +179,7 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
         reads.set(reads.get() + 1);
         Err(OperatingError::NotRead)
     };
+    let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = request
         .open_file(
@@ -186,6 +189,7 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
                 publication: &[],
                 demanded: &[true],
                 source: b"abc",
+                elements: &elements,
                 read: &read,
                 semantic: None,
                 kinds: None,
@@ -207,6 +211,7 @@ fn public_open_refuses_file_outside_request() {
     let corpus = corpus();
     let request = engine.begin(&program, &corpus);
     let read = |_| Err(OperatingError::NotRead);
+    let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     assert!(matches!(
         request.open_file(
@@ -216,6 +221,7 @@ fn public_open_refuses_file_outside_request() {
                 publication: &[],
                 demanded: &[true],
                 source: b"abc",
+                elements: &elements,
                 read: &read,
                 semantic: None,
                 kinds: None

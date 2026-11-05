@@ -18,8 +18,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::operator::constants::describe;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::interface::LanguagePort;
-use crate::outbound::query_language::errors::QueryLanguageError;
-use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguageError;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
 const VALID: &str =
     "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");";

@@ -9,6 +9,10 @@ pub trait ExecutionUseCase {
     fn begin(&self, program: &PreparedProgram, corpus: &[CorpusInput]) -> RequestExecution;
 }
 pub trait ExecutionRequest {
+    fn observations<'a>(
+        &'a self,
+        arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
+    ) -> Result<ObservationStage<'a>, OperatingError>;
     fn prepare_frontiers(
         &self,
         input: FrontierRequest<'_>,
@@ -78,4 +82,88 @@ pub trait ProjectExecution {
 
 pub trait ProjectStage {
     fn finish(self) -> Result<(), OperatingError>;
+}
+
+/// Read-only request metadata; no mutable program, permit or population escapes.
+pub trait PreparedExecution {
+    fn rule_count(&self) -> usize;
+    fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_;
+    fn demanded_rules(&self, governs: impl Fn(usize) -> bool) -> Vec<bool>;
+    fn emit(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&ryo_values::domain::plans::types::Emit, OperatingError>;
+    fn rule_digest(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<ryo_values::domain::stored_facts::types::Digest, OperatingError>;
+    fn frontiers(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&[ryo_values::domain::plan_parts::types::Input], OperatingError>;
+    fn captures_observation(&self, rule: RuleIndex, input: usize) -> Result<bool, OperatingError>;
+    fn semantic_needed(&self) -> bool;
+    fn observation_layout(
+        &self,
+    ) -> Option<(
+        ryo_values::domain::observations::types::ObservationReadinessLayout,
+        &[ObservedFrontierRoot],
+    )>;
+    fn observation_reads(&self, rule: RuleIndex) -> Result<Vec<RelationRead>, OperatingError>;
+    fn has_observation_contract(&self, rule: RuleIndex) -> Result<bool, OperatingError>;
+    fn frontier_dependencies(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<&[Vec<ryo_values::domain::observations::types::ObservationBindingId>], OperatingError>;
+}
+
+pub trait ExecutionCompilation {
+    fn compiling_into(self, cache: CompiledPlans) -> Self;
+    fn compile(
+        &self,
+        rules: &[ryo_values::domain::rule_requests::types::RuleSpec],
+        hosted: &[ryo_values::domain::hosted::types::HostRelation],
+    ) -> Result<CompiledQueries, RuleCompilationError>;
+    fn identify(
+        &self,
+        queries: &CompiledQueries,
+        digest: &dyn digest::DigestPort,
+        rules: Vec<ryo_values::domain::stores::types::StoredRule>,
+    ) -> Result<PreparedRuleIdentities, RuleCompilationError>;
+}
+pub trait PreparedQueries {
+    fn plans(&self) -> &[ryo_values::domain::plans::types::Plan];
+    fn bindings(&self) -> &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>];
+    fn into_request(
+        self,
+        rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
+        digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
+        hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
+        observations: ObservationIdentity,
+    ) -> PreparedRequest;
+}
+
+pub trait ObservationExecution {
+    fn reserve(&mut self, rule: RuleIndex) -> Result<PublicationSlot, OperatingError>;
+    fn bindings(&self, rule: RuleIndex) -> Result<Vec<BoundInput>, OperatingError>;
+    fn binding_readiness(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<
+        std::collections::BTreeMap<
+            ryo_values::domain::observations::types::ObservationBindingId,
+            bool,
+        >,
+        OperatingError,
+    >;
+    fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes];
+    fn project_scope(
+        &self,
+        rule: RuleIndex,
+        corpus: &[CorpusInput],
+        covered: &[Covered],
+        skipped: &[Skipped],
+    ) -> Result<ProjectScope, OperatingError>;
+    fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError>;
+    fn finish_stage(self) -> Result<(), OperatingError>;
 }

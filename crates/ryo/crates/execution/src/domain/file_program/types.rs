@@ -170,7 +170,7 @@ pub(crate) struct ObservationRetirement {
 
 /// A persisted named root uses an existing frontier bucket, not another row store.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct ObservedFrontierRoot {
+pub struct ObservedFrontierRoot {
     pub producer: crate::domain::coverage::types::RuleIndex,
     pub output: ryo_values::domain::observations::types::ObservationIndex,
     pub frontier: ryo_values::domain::plan_parts::types::InputNumber,

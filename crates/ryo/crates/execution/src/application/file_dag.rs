@@ -39,7 +39,7 @@ pub(crate) mod route_counts;
 
 mod equality_join;
 
-pub(in crate::application) mod observations;
+pub(crate) mod observations;
 mod ordered_existence;
 
 pub(in crate::application) mod completion;
