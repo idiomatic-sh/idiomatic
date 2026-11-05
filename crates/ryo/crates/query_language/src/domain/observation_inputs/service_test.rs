@@ -11,7 +11,7 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plans::types::StepScope;
 
 #[derive(Clone, Copy)]
-enum Input {
+enum Scenario {
     Empty,
     Distinct,
     CatalogNameNotAdmitted,
@@ -22,6 +22,7 @@ enum Input {
     BlankColumn,
     DuplicateColumn,
 }
+type Input = Scenario;
 type Value = ();
 type Failure = ObservationInputsError;
 
@@ -48,7 +49,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("blank_input"),
         word: Word::Refuses,
         input: || Input::BlankName,
-        expect: Expect::Error(Failure::BlankName),
+        expect: Expect::Refusal(|error| {
+            selects(matches!(error, ObservationInputsError::BlankName))
+        }),
     },
     Case {
         name: CaseName("duplicate_input"),
@@ -56,10 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input::DuplicateInput,
         expect: Expect::Refusal(|error| {
             selects(
-                error
-                    == &Failure::SourceCollision {
-                        name: ObservationBindingName("observed".into()),
-                    },
+                matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "observed"),
             )
         }),
     },
@@ -69,10 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input::CatalogCollision,
         expect: Expect::Refusal(|error| {
             selects(
-                error
-                    == &Failure::SourceCollision {
-                        name: ObservationBindingName("function".into()),
-                    },
+                matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "function"),
             )
         }),
     },
@@ -82,10 +79,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input::HostedCollision,
         expect: Expect::Refusal(|error| {
             selects(
-                error
-                    == &Failure::SourceCollision {
-                        name: ObservationBindingName("host.placed".into()),
-                    },
+                matches!(error, ObservationInputsError::SourceCollision { name } if name.0.as_ref() == "host.placed"),
             )
         }),
     },
@@ -95,11 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input::BlankColumn,
         expect: Expect::Refusal(|error| {
             selects(
-                error
-                    == &Failure::Column {
-                        input: ObservationBindingName("observed".into()),
-                        column: ObservationColumnName(" ".into()),
-                    },
+                matches!(error, ObservationInputsError::Column { input, column } if input.0.as_ref() == "observed" && column.0.as_ref() == " "),
             )
         }),
     },
@@ -109,11 +99,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input::DuplicateColumn,
         expect: Expect::Refusal(|error| {
             selects(
-                error
-                    == &Failure::Column {
-                        input: ObservationBindingName("observed".into()),
-                        column: ObservationColumnName("id".into()),
-                    },
+                matches!(error, ObservationInputsError::Column { input, column } if input.0.as_ref() == "observed" && column.0.as_ref() == "id"),
             )
         }),
     },
