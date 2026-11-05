@@ -53,6 +53,31 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
     }
 }
 impl KernelInvocation for KernelSession<'_, '_> {
+    fn ready(
+        &self,
+        ready: &super::runtime::ReadySelection<'_, '_>,
+        inputs: &[super::admission::AdmittedInput],
+        _context: &mut OperatorContext<'_>,
+    ) -> Result<bool, OperatingError> {
+        let Some(walk) = self.walk else {
+            return Ok(false);
+        };
+        let permit = ready.permit();
+        let instruction = permit.descriptor();
+        let ryo_values::domain::plans::types::Operation::Select {
+            from: ryo_values::domain::plan_parts::types::Input::Relation(relation),
+            ..
+        } = &instruction.operation
+        else {
+            return Ok(false);
+        };
+        let [input] = inputs else {
+            return Ok(false);
+        };
+        let rows = input.rows(&self.owner, self.read)?;
+        walk.submit(self.prepared, ready, *relation, &rows)
+    }
+
     fn ordered(
         &self,
         shape: &crate::domain::executable_program::types::OrderedExistence,
@@ -62,6 +87,22 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
     ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+        let mut rebound = OperatorContext {
+            semantic: context.semantic,
+            prepared_matchers: context.prepared_matchers,
+            prepared_kinds: context.prepared_kinds,
+            bindings: self
+                .prepared
+                .bindings(permit.descriptor().producer)
+                .map_err(InvocationFailure::Semantic)?,
+            symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
+            source: context.source,
+            paths: context.paths,
+            arenas: context.arenas,
+            memo: &mut *context.memo,
+            scratch: &mut *context.scratch,
+        };
+        let context = &mut rebound;
         let publication = input
             .publication(&self.owner)
             .map_err(InvocationFailure::Semantic)?;
@@ -256,6 +297,22 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
     {
+        let mut rebound = OperatorContext {
+            semantic: context.semantic,
+            prepared_matchers: context.prepared_matchers,
+            prepared_kinds: context.prepared_kinds,
+            bindings: self
+                .prepared
+                .bindings(permit.descriptor().producer)
+                .map_err(InvocationFailure::Semantic)?,
+            symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
+            source: context.source,
+            paths: context.paths,
+            arenas: context.arenas,
+            memo: &mut *context.memo,
+            scratch: &mut *context.scratch,
+        };
+        let context = &mut rebound;
         let input = permit
             .selection_input(shape)
             .map_err(InvocationFailure::Semantic)?;
@@ -290,6 +347,22 @@ impl KernelInvocation for KernelSession<'_, '_> {
         counts: &super::runtime::ColumnCounters,
         rows: &mut ryo_values::domain::rows::types::Table,
     ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
+        let mut rebound = OperatorContext {
+            semantic: context.semantic,
+            prepared_matchers: context.prepared_matchers,
+            prepared_kinds: context.prepared_kinds,
+            bindings: self
+                .prepared
+                .bindings(permit.descriptor().producer)
+                .map_err(InvocationFailure::Semantic)?,
+            symbols: ryo_language::domain::symbols::service::query_reborrow(&mut context.symbols),
+            source: context.source,
+            paths: context.paths,
+            arenas: context.arenas,
+            memo: &mut *context.memo,
+            scratch: &mut *context.scratch,
+        };
+        let context = &mut rebound;
         let chain = shape.chain();
         let Some(index_plan) = &chain.index else {
             return Ok(super::runtime::StrategyOutcome::Declined);
@@ -478,12 +551,14 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                     self.kernels,
                                 )
                                 .map_err(InvocationFailure::Semantic)?;
-                            if let Some(result) = batch.class(class) {
-                                workspace.work.found(0, batch.visits(class).0);
-                                return crate::domain::replay::service::selected(
-                                    result, source, kept, context, output,
-                                )
-                                .map_err(InvocationFailure::Semantic);
+                            if let Some(batch) = batch {
+                                if let Some(result) = batch.class(class) {
+                                    workspace.work.found(0, batch.visits(class).0);
+                                    return crate::domain::replay::service::selected(
+                                        result, source, kept, context, output,
+                                    )
+                                    .map_err(InvocationFailure::Semantic);
+                                }
                             }
                         }
                     }

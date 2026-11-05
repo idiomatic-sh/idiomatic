@@ -71,7 +71,7 @@ pub(super) trait Inputs {
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
     fn dependency(&self, _input: InputSource) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> { Ok(None) }
-    fn bind_rule(&mut self, _rule: ryo_values::domain::plans::types::RuleIndex) {}
+    fn bind_rule(&mut self, _rule: crate::domain::coverage::types::RuleIndex) {}
 
     fn admit(
         &mut self,

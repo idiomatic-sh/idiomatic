@@ -137,17 +137,13 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             },
             &[
                 FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::Required,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::Required,
                     capture: CaptureIntent::Disabled,
                 },
                 FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::Required,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::Required,
                     capture: CaptureIntent::Disabled,
                 },
             ],

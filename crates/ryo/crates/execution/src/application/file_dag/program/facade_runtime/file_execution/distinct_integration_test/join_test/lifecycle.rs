@@ -141,17 +141,13 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
         },
         &[
             FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             },
             FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             },
         ],
@@ -205,7 +201,6 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
                 completion: inner_completion.clone(),
                 owner: Rc::clone(&owner),
                 read: &read,
-                kernels: &kernels,
                 observations: &mut nested_observed,
                 file_outputs: Some(&file.roots),
                 program: file.program,
@@ -246,7 +241,6 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             completion: completion.clone(),
             owner: Rc::clone(&owner),
             read: &read,
-            kernels: &kernels,
             observations: &mut file.observed,
             file_outputs: Some(&file.roots),
             program: file.program,

@@ -48,7 +48,8 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
     let request = engine.begin(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
-        roots: demand(),
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     }; 2];
     let mut file = request
@@ -125,7 +126,8 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
         let request = engine.begin(&program, &corpus);
         let (elements, mut symbols) = tree(FileId(0), b"abc");
         let intents = [FileRuleIntent::Run {
-            roots: demand(),
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }];
         let mut file = request
@@ -174,7 +176,8 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected),
         FileRuleIntent::Undemanded,
         FileRuleIntent::Run {
-            roots: demand(),
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         },
     ];
@@ -221,14 +224,13 @@ fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [
         FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Disabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            diagnostic: DiagnosticDelivery::Disabled,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         },
         FileRuleIntent::Run {
-            roots: demand(),
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         },
     ];

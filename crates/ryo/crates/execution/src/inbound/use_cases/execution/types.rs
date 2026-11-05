@@ -73,7 +73,7 @@ pub use crate::application::file_dag::program::admission::{
     ApplicabilityProof, ApplicabilityReason,
 };
 pub use crate::application::file_dag::program::facade::{
-    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, EmitDemand, FileRuleIntent,
+    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand, FileRuleIntent,
     FrontierCapture, LogicalCounts, ObservationDemand, ProjectObservation, ProjectRuleOutcome,
     RootOutcome, RuleDemand, RuleOutcome,
 };

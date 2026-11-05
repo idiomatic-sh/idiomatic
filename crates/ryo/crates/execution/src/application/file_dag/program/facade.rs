@@ -61,6 +61,12 @@ pub enum EmitDemand {
     Disabled,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiagnosticDelivery {
+    Disabled,
+    Collected,
+    Forwarded,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationDemand {
     Required,
     NotRequired,
@@ -90,7 +96,8 @@ pub enum FileRuleIntent {
     Skipped(ApplicabilityReason),
     Refused(ApplicabilityRefusal),
     Run {
-        roots: RuleDemand,
+        diagnostic: DiagnosticDelivery,
+        observations: ObservationDemand,
         capture: CaptureIntent,
     },
 }

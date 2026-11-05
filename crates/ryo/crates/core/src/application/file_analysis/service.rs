@@ -3,9 +3,9 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, FileExecution, PreparedExecution,
 };
 use ryo_execution::inbound::use_cases::execution::types::{
-    ApplicabilityReason, ApplicabilityRefusal, CaptureContext, CaptureIntent, EmitDemand,
-    FileInput, FileRuleIntent, ObservationDemand, RootOutcome, RuleDemand, SourceLanguage,
-    SourceRows,
+    ApplicabilityReason, ApplicabilityRefusal, CaptureContext, CaptureIntent, DiagnosticDelivery,
+    EmitDemand, FileInput, FileRuleIntent, ObservationDemand, RootOutcome, RuleDemand,
+    SourceLanguage, SourceRows,
 };
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
@@ -424,14 +424,12 @@ impl FileAnalysis {
                 }
                 let emit = governs_rule(tables, RuleIndex(place)) == Governing::Governs;
                 FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: if emit {
-                            EmitDemand::Enabled
-                        } else {
-                            EmitDemand::Disabled
-                        },
-                        observations: ObservationDemand::Required,
+                    diagnostic: if emit {
+                        DiagnosticDelivery::Collected
+                    } else {
+                        DiagnosticDelivery::Disabled
                     },
+                    observations: ObservationDemand::Required,
                     capture: if emit {
                         CaptureIntent::DiagnosticAndObservations
                     } else {
@@ -472,11 +470,24 @@ impl FileAnalysis {
             &mut tables.symbols,
         )?;
         for rule in visit.setting.program.rule_order() {
-            let Some(FileRuleIntent::Run { roots, .. }) = intents.get(rule.0) else {
+            let Some(FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                ..
+            }) = intents.get(rule.0)
+            else {
                 continue;
             };
-            let emit = roots.emit == EmitDemand::Enabled;
-            let outcome = { run.rule(rule, *roots, &mut tables.symbols) };
+            let emit = *diagnostic != DiagnosticDelivery::Disabled;
+            let demand = RuleDemand {
+                emit: if emit {
+                    EmitDemand::Enabled
+                } else {
+                    EmitDemand::Disabled
+                },
+                observations: *observations,
+            };
+            let outcome = { run.rule(rule, demand, &mut tables.symbols) };
             if let Some(error) = refused.take() {
                 return Err(error.into());
             }

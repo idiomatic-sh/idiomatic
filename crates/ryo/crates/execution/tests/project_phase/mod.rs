@@ -106,10 +106,52 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
                     evaluation: &[],
                     publication: &[],
                     intents: &[FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Forwarded,
+                        observations: ObservationDemand::NotRequired,
+                        capture: CaptureIntent::DiagnosticAndObservations,
+                    }],
+                    source: b"abc",
+                    elements: &elements,
+                    read: &read,
+                    semantic: None,
+                    kinds: None,
+                },
+                &mut symbols,
+            )
+            .expect("open actual file owner");
+        let mut emitted = vec![];
+        assert!(matches!(
+            file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
+                emitted.extend_from_slice(row);
+                Ok(())
+            })
+            .unwrap(),
+            RowEmission::Deferred {
+                phase: StepScope::CrossFile
+            }
+        ));
+        assert!(emitted.is_empty());
+        assert_eq!(file_reads.get(), 0);
+        assert!(
+            file.counts(RuleIndex(0))
+                .unwrap()
+                .fed
+                .iter()
+                .all(|count| count.0 == [0; 3])
+        );
+        file.finish()
+            .expect("finish separately declared deferred forward root");
+        let mut file = request
+            .open_file(
+                FileInput {
+                    language: SourceLanguage::Recognized,
+                    resident_stability: facts::ResidentStability::Stable,
+                    file: FileId(0),
+                    evaluation: &[],
+                    publication: &[],
+                    intents: &[FileRuleIntent::Run {
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::DiagnosticAndObservations,
                     }],
                     source: b"abc",
@@ -129,18 +171,6 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
                 phase: StepScope::CrossFile
             }
         ));
-        let mut emitted = vec![];
-        assert!(matches!(
-            file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
-                emitted.extend_from_slice(row);
-                Ok(())
-            })
-            .unwrap(),
-            RowEmission::Deferred {
-                phase: StepScope::CrossFile
-            }
-        ));
-        assert!(emitted.is_empty());
         assert_eq!(file_reads.get(), 0);
         assert!(
             file.counts(RuleIndex(0))
@@ -345,10 +375,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                     evaluation: &[],
                     publication: &[],
                     intents: &[FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::DiagnosticAndObservations,
                     }],
                     source: b"mainother",
@@ -544,17 +572,13 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                     publication: &[],
                     intents: &[
                         FileRuleIntent::Run {
-                            roots: RuleDemand {
-                                emit: EmitDemand::Enabled,
-                                observations: ObservationDemand::NotRequired,
-                            },
+                            diagnostic: DiagnosticDelivery::Collected,
+                            observations: ObservationDemand::NotRequired,
                             capture: CaptureIntent::DiagnosticAndObservations,
                         },
                         FileRuleIntent::Run {
-                            roots: RuleDemand {
-                                emit: EmitDemand::Enabled,
-                                observations: ObservationDemand::NotRequired,
-                            },
+                            diagnostic: DiagnosticDelivery::Collected,
+                            observations: ObservationDemand::NotRequired,
                             capture: CaptureIntent::DiagnosticAndObservations,
                         },
                     ],

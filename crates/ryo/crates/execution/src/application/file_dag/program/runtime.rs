@@ -46,10 +46,26 @@ pub(super) struct ColumnCounters {
     pub filter: crate::domain::operator::contract::types::WorkCounters,
     pub project: crate::domain::operator::contract::types::WorkCounters,
 }
+/// Only the completed admission interpreter can issue a ready selection head.
+pub(super) struct ReadySelection<'call, 'scope> {
+    permit: &'call super::admission::KernelPermit<'scope>,
+}
+impl ReadySelection<'_, '_> {
+    pub(super) fn permit(&self) -> &super::admission::KernelPermit<'_> {
+        self.permit
+    }
+}
 /// Application-owned preparation/acquisition supplies the borrowed semantic call.
 /// All implementations are required; no missing-capability or fallback path.
 pub(super) trait KernelInvocation {
-    fn ready(&self, _permit: &super::admission::KernelPermit<'_>, _inputs: &[AdmittedInput], _context: &mut OperatorContext<'_>) -> Result<bool, OperatingError> { Ok(false) }
+    fn ready(
+        &self,
+        _ready: &ReadySelection<'_, '_>,
+        _inputs: &[AdmittedInput],
+        _context: &mut OperatorContext<'_>,
+    ) -> Result<bool, OperatingError> {
+        Ok(false)
+    }
 
     fn ordered(
         &self,
@@ -104,14 +120,46 @@ struct AdmissionProgress {
     ordered_done: bool,
     column_done: bool,
     ready: bool,
+    preflight_done: bool,
+    empty_forwarded: Option<crate::domain::completion::types::CoverageState>,
     inputs: Vec<AdmittedInput>,
-    acquired: Vec<(crate::domain::executable_program::types::InputSource, AdmittedInput)>,
+    acquired: Vec<(
+        crate::domain::executable_program::types::InputSource,
+        AdmittedInput,
+    )>,
     waiting: Option<RegionId>,
+    emptiness: Vec<(
+        crate::domain::executable_program::types::InputSource,
+        crate::domain::operator::contract::types::EmptyRepresentation,
+        bool,
+    )>,
 }
 impl AdmissionProgress {
-    fn admit(&mut self, inputs: &mut dyn Inputs,
+    fn is_empty(
+        &mut self,
+        inputs: &dyn Inputs,
         source: crate::domain::executable_program::types::InputSource,
-        partition: &Partition, context: &mut OperatorContext<'_>,
+        input: &AdmittedInput,
+        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+    ) -> Result<bool, OperatingError> {
+        if let Some((_, _, empty)) = self
+            .emptiness
+            .iter()
+            .find(|(key, kind, _)| *key == source && *kind == representation)
+        {
+            return Ok(*empty);
+        }
+        let empty = inputs.is_empty(input, representation)?;
+        self.emptiness.push((source, representation, empty));
+        Ok(empty)
+    }
+
+    fn admit(
+        &mut self,
+        inputs: &mut dyn Inputs,
+        source: crate::domain::executable_program::types::InputSource,
+        partition: &Partition,
+        context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
         if let Some((_, input)) = self.acquired.iter().find(|(key, _)| *key == source) {
             return Ok(input.clone());
@@ -169,6 +217,9 @@ struct Slot {
     state: State,
     scratch: Vec<KernelScratch>,
     admission: AdmissionProgress,
+    mode: Option<crate::domain::operator::contract::types::EvaluationMode>,
+    failed_prefix: Option<Arc<ryo_values::domain::rows::types::Table>>,
+    prefix_delivered: bool,
     fed: Box<[crate::domain::operator::types::RowsFed]>,
     remaining: usize,
     dependencies_consumed: bool,
@@ -224,6 +275,9 @@ impl ProgramExecution {
                 state: State::Dormant,
                 scratch: Vec::new(),
                 admission: AdmissionProgress::default(),
+                mode: None,
+                failed_prefix: None,
+                prefix_delivered: false,
                 fed: vec![
                     crate::domain::operator::types::RowsFed::default();
                     region.instructions.len()
@@ -334,7 +388,7 @@ impl ProgramExecution {
         let slots = self.slots.into_inner();
         if slots
             .iter()
-            .any(|slot| matches!(slot.state, State::Running | State::Suspended | State::Ready))
+            .any(|slot| matches!(slot.state, State::Running))
         {
             return Err(OperatingError::NotRun);
         }
@@ -459,7 +513,7 @@ impl ProgramExecution {
                 if current == 0 {
                     return Err(OperatingError::NotRun);
                 }
-                if current == 1 && matches!(slot.state, State::Running | State::Suspended | State::Ready) {
+                if current == 1 && matches!(slot.state, State::Running) {
                     return Ok(Some(id));
                 }
                 let remaining = current - 1;
@@ -501,6 +555,7 @@ impl ProgramExecution {
             if slot.remaining == 0 {
                 slot.dependencies_consumed = true;
                 slot.waiting_on = None;
+                slot.admission = AdmissionProgress::default();
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 if matches!(old, State::Published(_)) {
                     self.owner.release_derived_producer(id);
@@ -550,8 +605,110 @@ impl ProgramExecution {
     ) -> bool {
         matches!(&self.partition, Partition::Project(actual) if actual.same_request(required))
     }
+    /// Drives the admission half of this interpreter for every bound root.
+    /// Newly discovered dependencies join the same queue; no dependency graph is
+    /// walked ahead of the action that actually demands it.
+    pub(in crate::application::file_dag::program) fn prepare_roots(
+        &self,
+        roots: &[(
+            RegionId,
+            crate::domain::operator::contract::types::EvaluationMode,
+        )],
+        inputs: &mut dyn Inputs,
+        kernels: &dyn KernelInvocation,
+        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<(), OperatingError> {
+        use crate::domain::operator::contract::types::EvaluationMode;
+        {
+            let mut slots = self.slots.borrow_mut();
+            for (id, mode) in roots {
+                let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+                match slot.mode {
+                    Some(bound) if bound != *mode => return Err(OperatingError::NotRead),
+                    _ => slot.mode = Some(*mode),
+                }
+            }
+        }
+        let mut pending = roots.to_vec();
+        let mut ready = Vec::new();
+        let mut waiting = std::collections::HashMap::new();
+        while !pending.is_empty() {
+            let mut blocked = Vec::new();
+            let mut discovered = Vec::new();
+            for (id, mode) in pending.drain(..) {
+                match self.poll(
+                    id,
+                    inputs,
+                    kernels,
+                    completion,
+                    context,
+                    Delivery::Retain,
+                    Some(mode),
+                ) {
+                    Ok(InvocationOutcome::Suspended(dependency)) => {
+                        waiting.insert(id, dependency);
+                        let mut cursor = dependency;
+                        let mut seen = std::collections::HashSet::new();
+                        while let Some(next) = waiting.get(&cursor).copied() {
+                            if cursor == id || !seen.insert(cursor) {
+                                return Err(OperatingError::NotRun);
+                            }
+                            cursor = next;
+                        }
+                        blocked.push((id, mode));
+                        if !discovered.iter().any(|(found, _)| *found == dependency)
+                            && !ready.iter().any(|(found, _)| *found == dependency)
+                        {
+                            let mode = self.slots.borrow()[dependency.0]
+                                .mode
+                                .unwrap_or(EvaluationMode::Collected);
+                            discovered.push((dependency, mode));
+                        }
+                    }
+                    Ok(InvocationOutcome::Ready) => {
+                        waiting.remove(&id);
+                        if !ready.iter().any(|(found, _)| *found == id) {
+                            ready.push((id, mode));
+                        }
+                    }
+                    // A terminal source refusal belongs to its own root. Other
+                    // independent roots still reach their actual admission head.
+                    Ok(_) | Err(_) => {}
+                }
+            }
+            if !discovered.is_empty() {
+                discovered.extend(blocked);
+                pending = discovered;
+                continue;
+            }
+            // Every currently reachable head has submitted its exact class.
+            // Resume collected work, keeping forwarded roots parked for their
+            // caller's sink. A callback borrow never enters this queue.
+            let mut advanced = false;
+            for (id, mode) in ready.drain(..) {
+                if mode == EvaluationMode::Collected
+                    || self.program.regions()[id.0].publishes
+                    || waiting.values().any(|dependency| *dependency == id)
+                {
+                    let _outcome =
+                        self.invoke(id, inputs, kernels, completion, context, Delivery::Retain);
+                    advanced = true;
+                }
+            }
+            if blocked.is_empty() {
+                break;
+            }
+            if !advanced {
+                return Err(OperatingError::NotRun);
+            }
+            pending = blocked;
+        }
+        Ok(())
+    }
     pub(in crate::application::file_dag::program) fn published(
-        &self, id: RegionId,
+        &self,
+        id: RegionId,
     ) -> Result<Option<AdmittedInput>, OperatingError> {
         let slots = self.slots.borrow();
         match &slots.get(id.0).ok_or(OperatingError::NotRun)?.state {
@@ -562,44 +719,59 @@ impl ProgramExecution {
         }
     }
     pub(in crate::application::file_dag::program) fn invoke(
-        &self, id: RegionId, inputs: &mut dyn Inputs, kernels: &dyn KernelInvocation,
+        &self,
+        id: RegionId,
+        inputs: &mut dyn Inputs,
+        kernels: &dyn KernelInvocation,
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
-        context: &mut OperatorContext<'_>, delivery: Delivery<'_>,
+        context: &mut OperatorContext<'_>,
+        delivery: Delivery<'_>,
     ) -> Result<InvocationOutcome, OperatingError> {
-        let mut pending = vec![id];
+        let mut delivery = delivery;
         loop {
-            let current = *pending.last().ok_or(OperatingError::NotRun)?;
-            if current == id && pending.len() == 1 {
-                match self.poll(current, inputs, kernels, completion, context, delivery, false)? {
-                    InvocationOutcome::Suspended(dependency) => {
-                        pending.push(dependency);
-                        // The caller's sink is never stored. Dependency resolution uses
-                        // retain, then returns to the original delivery below.
-                        break;
-                    }
-                    outcome => return Ok(outcome),
+            let next = match &mut delivery {
+                Delivery::Retain => Delivery::Retain,
+                Delivery::Forward(output) => Delivery::Forward(&mut **output),
+            };
+            match self.poll(id, inputs, kernels, completion, context, next, None)? {
+                InvocationOutcome::Suspended(dependency) => {
+                    let mut pending = vec![id, dependency];
+                    self.resolve_dependencies(&mut pending, inputs, kernels, completion, context)?;
                 }
+                InvocationOutcome::Ready => return Err(OperatingError::NotRun),
+                outcome => return Ok(outcome),
             }
         }
-        // A separate loop keeps the caller's output borrow entirely synchronous.
-        self.resolve_dependencies(&mut pending, inputs, kernels, completion, context)?;
-        self.invoke(id, inputs, kernels, completion, context, delivery)
     }
     fn resolve_dependencies(
-        &self, pending: &mut Vec<RegionId>, inputs: &mut dyn Inputs,
+        &self,
+        pending: &mut Vec<RegionId>,
+        inputs: &mut dyn Inputs,
         kernels: &dyn KernelInvocation,
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
     ) -> Result<(), OperatingError> {
         while pending.len() > 1 {
             let current = *pending.last().ok_or(OperatingError::NotRun)?;
-            match self.poll(current, inputs, kernels, completion, context, Delivery::Retain, false)? {
+            match self.poll(
+                current,
+                inputs,
+                kernels,
+                completion,
+                context,
+                Delivery::Retain,
+                None,
+            )? {
                 InvocationOutcome::Suspended(dependency) => {
-                    if pending.contains(&dependency) { return Err(OperatingError::NotRun); }
+                    if pending.contains(&dependency) {
+                        return Err(OperatingError::NotRun);
+                    }
                     pending.push(dependency);
                 }
                 InvocationOutcome::Ready => return Err(OperatingError::NotRun),
-                _ => { pending.pop(); }
+                _ => {
+                    pending.pop();
+                }
             }
         }
         Ok(())
@@ -612,7 +784,7 @@ impl ProgramExecution {
         completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
         context: &mut OperatorContext<'_>,
         delivery: Delivery<'_>,
-        stop_at_ready: bool,
+        prepare_mode: Option<crate::domain::operator::contract::types::EvaluationMode>,
     ) -> Result<InvocationOutcome, OperatingError> {
         let _node_origin = crate::application::file_dag::route_counts::node(id.0);
         self.cleanup_status()?;
@@ -625,7 +797,7 @@ impl ProgramExecution {
         let producer_policy = completion.for_rule(region.producer);
         let completion = &producer_policy;
         // A scope borrow never crosses admission, kernels or downstream callbacks.
-        let mut scratch = {
+        let (mut scratch, bound_mode) = {
             let mut slots = self.slots.borrow_mut();
             let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
             match &slot.completion {
@@ -635,7 +807,24 @@ impl ProgramExecution {
             }
             match &slot.state {
                 State::Running => return Err(OperatingError::NotRun),
-                State::Failed(error) => return Err(error.clone()),
+                State::Failed(error) => {
+                    let error = error.clone();
+                    let prefix = if slot.prefix_delivered {
+                        None
+                    } else {
+                        slot.failed_prefix.clone()
+                    };
+                    drop(slots);
+                    if let (Some(prefix), Delivery::Forward(output)) = (prefix, delivery) {
+                        let width = prefix.kinds.len();
+                        for row in 0..prefix.count.0 {
+                            let start = row * width;
+                            output.row(context, &prefix.cells[start..start + width])?;
+                        }
+                        self.slots.borrow_mut()[id.0].prefix_delivered = true;
+                    }
+                    return Err(error);
+                }
                 State::Published(input) => {
                     let input = input.clone();
                     drop(slots);
@@ -650,13 +839,14 @@ impl ProgramExecution {
                 State::Forwarded | State::Retired => return Err(OperatingError::NotRun),
                 State::Dormant | State::Suspended | State::Ready => {}
             }
+            let fresh = matches!(slot.state, State::Dormant);
             slot.state = State::Running;
             if slot.scratch.is_empty() {
                 slot.scratch
                     .resize_with(region.instructions.len(), KernelScratch::default);
             }
             for (frame, instruction) in slot.scratch.iter_mut().zip(region.instructions.iter()) {
-                if let Some(workspace) = frame.workspace.as_mut() {
+                if let Some(workspace) = frame.workspace.as_mut().filter(|_| fresh) {
                     crate::domain::operator::contract::workspace::begin(
                         &instruction.contract.workspace,
                         crate::domain::operator::contract::types::WorkspaceLifetime::Invocation,
@@ -664,7 +854,17 @@ impl ProgramExecution {
                     );
                 }
             }
-            std::mem::take(&mut slot.scratch)
+            let mode = *slot.mode.get_or_insert_with(|| {
+                prepare_mode.unwrap_or_else(|| match &delivery {
+                    Delivery::Retain => {
+                        crate::domain::operator::contract::types::EvaluationMode::Collected
+                    }
+                    Delivery::Forward(_) => {
+                        crate::domain::operator::contract::types::EvaluationMode::Streaming
+                    }
+                })
+            });
+            (std::mem::take(&mut slot.scratch), mode)
         };
         let mut progress = std::mem::take(&mut self.slots.borrow_mut()[id.0].admission);
         progress.waiting = None;
@@ -674,24 +874,31 @@ impl ProgramExecution {
             scratch: Some(scratch),
             terminal: Terminal::Retry,
             admission: None,
+            failed_prefix: None,
         };
         let first = region.instructions.first().ok_or(OperatingError::NotRun)?;
         let needs = region.needs.as_ref().map_err(Clone::clone)?;
         let mut admitted = progress.inputs.clone();
-        let evaluation = match &delivery {
-            Delivery::Retain => crate::domain::operator::contract::types::EvaluationMode::Collected,
-            Delivery::Forward(_) => {
-                crate::domain::operator::contract::types::EvaluationMode::Streaming
+        let evaluation = bound_mode;
+        let program = match evaluation {
+            crate::domain::operator::contract::types::EvaluationMode::Collected => {
+                &first.collected_demand
             }
-        };
-        let program = match delivery {
-            Delivery::Retain => &first.collected_demand,
-            Delivery::Forward(_) => &first.streaming_demand,
+            crate::domain::operator::contract::types::EvaluationMode::Streaming => {
+                &first.streaming_demand
+            }
         };
         let after_success = program
             .actions()
             .contains(&DemandAction::PublishAfterSuccess);
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
+            if let Some(coverage) = progress.empty_forwarded.clone() {
+                return if prepare_mode.is_some() {
+                    Ok(InvocationOutcome::Ready)
+                } else {
+                    Ok(InvocationOutcome::Forwarded(coverage))
+                };
+            }
             if completion.region_admission(needs)
                 == crate::domain::completion::types::RegionAdmission::Blocked
             {
@@ -711,8 +918,14 @@ impl ProgramExecution {
                     input.with_coverage(completion.blocked_coverage()),
                 ));
             }
-            if let Some(shape) = region.ordered_existence.as_ref().filter(|_| !progress.ordered_done) {
-                let source = progress.admit(inputs, 
+            if let Some(shape) = region
+                .ordered_existence
+                .as_ref()
+                .filter(|_| !progress.ordered_done)
+            {
+                let source = progress
+                    .admit(
+                        inputs,
                         crate::domain::executable_program::types::InputSource::Region(shape.source),
                         &self.partition,
                         context,
@@ -775,25 +988,47 @@ impl ProgramExecution {
                 }
             }
             progress.ordered_done = true;
-            if let (Some(shape), Delivery::Retain) = (&region.column.as_ref().filter(|_| !progress.column_done), &delivery) {
+            if let (
+                Some(shape),
+                crate::domain::operator::contract::types::EvaluationMode::Collected,
+            ) = (
+                region.column.as_ref().filter(|_| !progress.column_done),
+                evaluation,
+            ) {
                 use crate::domain::executable_program::types::{HeldJoinOrder, InputSource};
                 let (left, right) = match shape.order() {
                     HeldJoinOrder::RightBeforeLeft => {
-                        let right = progress.admit(inputs, 
+                        let right = progress
+                            .admit(
+                                inputs,
                                 InputSource::Relation(shape.chain().right),
                                 &self.partition,
                                 context,
                             )
                             .map_err(InvocationFailure::Semantic)?;
-                        let left = progress.admit(inputs, InputSource::Region(shape.left()), &self.partition, context)
+                        let left = progress
+                            .admit(
+                                inputs,
+                                InputSource::Region(shape.left()),
+                                &self.partition,
+                                context,
+                            )
                             .map_err(InvocationFailure::Semantic)?;
                         (left, Some(right))
                     }
                     HeldJoinOrder::LeftWithEmptyGate => {
-                        let left = progress.admit(inputs, InputSource::Region(shape.left()), &self.partition, context)
+                        let left = progress
+                            .admit(
+                                inputs,
+                                InputSource::Region(shape.left()),
+                                &self.partition,
+                                context,
+                            )
                             .map_err(InvocationFailure::Semantic)?;
-                        let right = if inputs
+                        let right = if progress
                             .is_empty(
+                                inputs,
+                                InputSource::Region(shape.left()),
                                 &left,
                                 crate::domain::operator::contract::types::EmptyRepresentation::Any,
                             )
@@ -802,7 +1037,9 @@ impl ProgramExecution {
                             None
                         } else {
                             Some(
-                                progress.admit(inputs, 
+                                progress
+                                    .admit(
+                                        inputs,
                                         InputSource::Relation(shape.chain().right),
                                         &self.partition,
                                         context,
@@ -826,8 +1063,10 @@ impl ProgramExecution {
                         published.with_coverage(completion.coverage(needs)),
                     ));
                 };
-                if inputs
+                if progress
                     .is_empty(
+                        inputs,
+                        InputSource::Region(shape.left()),
                         &left,
                         crate::domain::operator::contract::types::EmptyRepresentation::Any,
                     )
@@ -882,7 +1121,8 @@ impl ProgramExecution {
                 }
             }
             progress.column_done = true;
-            for (action_index, action) in program.actions().iter().enumerate().skip(progress.action) {
+            for (action_index, action) in program.actions().iter().enumerate().skip(progress.action)
+            {
                 match *action {
                     DemandAction::ValidateBeforeInputs => {
                         first
@@ -899,13 +1139,18 @@ impl ProgramExecution {
                             })
                         })?;
                         admitted.push(
-                            progress.admit(inputs, source, &self.partition, context)
+                            progress
+                                .admit(inputs, source, &self.partition, context)
                                 .map_err(InvocationFailure::Semantic)?,
                         );
                     }
                     DemandAction::EmptyGate(InputId(at)) => {
-                        if inputs
+                        if progress
                             .is_empty(
+                                inputs,
+                                *region.inputs.get(at).ok_or(InvocationFailure::Semantic(
+                                    OperatingError::MissingInput { position: at + 1 },
+                                ))?,
                                 admitted.get(at).ok_or_else(|| {
                                     InvocationFailure::Semantic(OperatingError::MissingInput {
                                         position: at + 1,
@@ -935,8 +1180,15 @@ impl ProgramExecution {
                         }
                     }
                     DemandAction::JoinInputs { .. } => {
-                        admitted = admit_join(region, first, inputs, &mut progress, &self.partition, context)
-                            .map_err(InvocationFailure::Semantic)?;
+                        admitted = admit_join(
+                            region,
+                            first,
+                            inputs,
+                            &mut progress,
+                            &self.partition,
+                            context,
+                        )
+                        .map_err(InvocationFailure::Semantic)?;
                         if admitted.len() == 1 {
                             // The mandatory left-empty gate ends the invocation before RHS
                             // acquisition and before any semantic permit is issued.
@@ -955,14 +1207,24 @@ impl ProgramExecution {
                         }
                     }
                     DemandAction::AxisInputs => {
-                        admitted = admit_axis(region, first, inputs, &mut progress, &self.partition, context)
-                            .map_err(InvocationFailure::Semantic)?;
+                        admitted = admit_axis(
+                            region,
+                            first,
+                            inputs,
+                            &mut progress,
+                            &self.partition,
+                            context,
+                        )
+                        .map_err(InvocationFailure::Semantic)?;
                         if admitted.len() == 1 {
                             // A held empty primary never demands its side populations.
-                            if matches!(delivery, Delivery::Forward(_)) && !region.publishes {
-                                return Ok(InvocationOutcome::Forwarded(
-                                    completion.coverage(needs),
-                                ));
+                            if evaluation == crate::domain::operator::contract::types::EvaluationMode::Streaming && !region.publishes {
+                                let coverage = completion.coverage(needs);
+                                if prepare_mode.is_some() {
+                                    progress.empty_forwarded = Some(coverage);
+                                    return Ok(InvocationOutcome::Ready);
+                                }
+                                return Ok(InvocationOutcome::Forwarded(coverage));
                             }
                             let gate = first
                                 .contract
@@ -989,15 +1251,29 @@ impl ProgramExecution {
                 progress.action = action_index + 1;
                 progress.inputs = admitted.clone();
             }
-            if evaluation == crate::domain::operator::contract::types::EvaluationMode::Collected {
+            if !progress.preflight_done
+                && evaluation == crate::domain::operator::contract::types::EvaluationMode::Collected
+            {
                 for gate in &first.contract.collected_empty {
                     let input = admitted.get(gate.input).ok_or(InvocationFailure::Semantic(
                         OperatingError::MissingInput {
                             position: gate.input + 1,
                         },
                     ))?;
-                    if inputs
-                        .is_empty(input, gate.representation)
+                    if progress
+                        .is_empty(
+                            inputs,
+                            *region
+                                .inputs
+                                .get(gate.input)
+                                .ok_or(InvocationFailure::Semantic(
+                                    OperatingError::MissingInput {
+                                        position: gate.input + 1,
+                                    },
+                                ))?,
+                            input,
+                            gate.representation,
+                        )
                         .map_err(InvocationFailure::Semantic)?
                     {
                         let publication = inputs
@@ -1025,13 +1301,17 @@ impl ProgramExecution {
                     }
                 }
             }
+            progress.preflight_done = true;
             let permit = super::admission::KernelPermit::admitted(self, id, &admitted, evaluation)
                 .map_err(InvocationFailure::Semantic)?;
-            if stop_at_ready && !progress.ready {
-                if kernels.ready(&permit, &admitted, context).map_err(InvocationFailure::Semantic)? {
+            if prepare_mode.is_some() {
+                if !progress.ready {
+                    kernels
+                        .ready(&ReadySelection { permit: &permit }, &admitted, context)
+                        .map_err(InvocationFailure::Semantic)?;
                     progress.ready = true;
-                    return Ok(InvocationOutcome::Ready);
                 }
+                return Ok(InvocationOutcome::Ready);
             }
             let frames = cleanup
                 .scratch
@@ -1041,7 +1321,9 @@ impl ProgramExecution {
                 .instructions
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
-            if let (Some(_), Delivery::Retain) = (&region.native_positions, &delivery) {
+            if let (Some(_), crate::domain::operator::contract::types::EvaluationMode::Collected) =
+                (&region.native_positions, evaluation)
+            {
                 if completion.row_retention()
                     == crate::domain::completion::types::RowRetention::Unnecessary
                 {
@@ -1062,7 +1344,11 @@ impl ProgramExecution {
                     }
                 }
             }
-            if let (Some(shape), Delivery::Retain) = (&region.selection, &delivery) {
+            if let (
+                Some(shape),
+                crate::domain::operator::contract::types::EvaluationMode::Collected,
+            ) = (&region.selection, evaluation)
+            {
                 let frame = frames
                     .first_mut()
                     .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
@@ -1134,7 +1420,7 @@ impl ProgramExecution {
                     match delivery {
                         Delivery::Retain => {
                             let mut output = crate::domain::replay::types::Collect(&mut rows);
-                            continuation(
+                            let result = continuation(
                                 &permit,
                                 region,
                                 0,
@@ -1143,7 +1429,15 @@ impl ProgramExecution {
                                 context,
                                 frames,
                                 &mut output,
-                            )?;
+                            );
+                            if result.is_err()
+                                && evaluation == crate::domain::operator::contract::types::EvaluationMode::Streaming
+                                && !after_success
+                                && completion.row_retention() == crate::domain::completion::types::RowRetention::Unnecessary
+                            {
+                                cleanup.failed_prefix = Some(Arc::new(std::mem::take(&mut rows)));
+                            }
+                            result?;
                         }
                         Delivery::Forward(output)
                             if completion.row_retention()
@@ -1373,12 +1667,16 @@ struct Invocation<'a> {
     scratch: Option<Vec<KernelScratch>>,
     terminal: Terminal,
     admission: Option<AdmissionProgress>,
+    failed_prefix: Option<Arc<ryo_values::domain::rows::types::Table>>,
 }
 impl Drop for Invocation<'_> {
     fn drop(&mut self) {
         let mut slots = self.execution.slots.borrow_mut();
         if let Some(slot) = slots.get_mut(self.id.0) {
             slot.scratch = self.scratch.take().unwrap_or_default();
+            if let Some(prefix) = self.failed_prefix.take() {
+                slot.failed_prefix = Some(prefix);
+            }
             slot.admission = match self.terminal {
                 Terminal::Suspended | Terminal::Ready => self.admission.take().unwrap_or_default(),
                 _ => AdmissionProgress::default(),
@@ -1467,7 +1765,9 @@ fn admit_join(
             }
             HeldJoinOrder::LeftWithEmptyGate => {
                 let left = progress.admit(inputs, source(0)?, partition, context)?;
-                if inputs.is_empty(
+                if progress.is_empty(
+                    inputs,
+                    source(0)?,
                     &left,
                     crate::domain::operator::contract::types::EmptyRepresentation::Any,
                 )? {
@@ -1514,7 +1814,9 @@ fn admit_axis(
         Ok(vec![primary, edges, domain])
     } else {
         let primary = progress.admit(inputs, source(0)?, partition, context)?;
-        if inputs.is_empty(
+        if progress.is_empty(
+            inputs,
+            source(0)?,
             &primary,
             crate::domain::operator::contract::types::EmptyRepresentation::Any,
         )? {

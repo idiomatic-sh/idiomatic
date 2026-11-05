@@ -72,10 +72,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
                 publication: &[],
             },
             &[FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
+                diagnostic: DiagnosticDelivery::Forwarded,
+                observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             }],
             Arc::clone(&services),

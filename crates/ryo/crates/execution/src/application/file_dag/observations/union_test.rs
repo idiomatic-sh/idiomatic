@@ -3,8 +3,8 @@ use crate::application::file_dag::{
     execution::CommonOperatorEngine,
     program::{
         facade::{
-            self, CaptureIntent, EmitDemand, FileRuleIntent, ObservationDemand, RootOutcome,
-            RuleDemand,
+            self, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand,
+            RootOutcome, RuleDemand,
         },
         facade_runtime::{ProgramServices, open_file},
     },
@@ -189,17 +189,15 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
         },
         &(0..rules.len())
             .map(|index| FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: if index == consumer {
-                        EmitDemand::Enabled
-                    } else {
-                        EmitDemand::Disabled
-                    },
-                    observations: if index == consumer {
-                        ObservationDemand::NotRequired
-                    } else {
-                        ObservationDemand::Required
-                    },
+                diagnostic: if index == consumer {
+                    DiagnosticDelivery::Collected
+                } else {
+                    DiagnosticDelivery::Disabled
+                },
+                observations: if index == consumer {
+                    ObservationDemand::NotRequired
+                } else {
+                    ObservationDemand::Required
                 },
                 capture: CaptureIntent::Disabled,
             })

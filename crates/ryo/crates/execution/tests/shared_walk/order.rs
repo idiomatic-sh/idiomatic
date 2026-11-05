@@ -29,10 +29,8 @@ fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
                 b"[bc",
                 &elements,
                 &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 &no_catalog,
@@ -63,10 +61,8 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
                 b"[bc",
                 &elements,
                 &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 &no_catalog,
@@ -123,10 +119,8 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
                 b"ab(",
                 &elements,
                 &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 &no_catalog,
@@ -189,10 +183,8 @@ fn external_delivery_refusal_is_retryable_but_the_later_head_error_is_terminal()
                 b"ab(",
                 &elements,
                 &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Forwarded,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 &no_catalog,
@@ -298,7 +290,8 @@ fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
     let request = engine.begin(&program, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [FileRuleIntent::Run {
-        roots: demand(),
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     }; 2];
     let mut file = request
@@ -351,7 +344,8 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
         Ok(SourceRows::Computed(&table))
     };
     let intents = [FileRuleIntent::Run {
-        roots: demand(),
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     }; 2];
     let mut file = request

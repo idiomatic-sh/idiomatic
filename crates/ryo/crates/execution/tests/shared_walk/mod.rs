@@ -29,17 +29,13 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
                 &elements,
                 &[
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                 ],
@@ -129,17 +125,13 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
                 &elements,
                 &[
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                 ],
@@ -176,17 +168,13 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
                 &elements,
                 &[
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                 ],
@@ -241,17 +229,13 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
                     &elements,
                     &[
                         FileRuleIntent::Run {
-                            roots: RuleDemand {
-                                emit: EmitDemand::Enabled,
-                                observations: ObservationDemand::NotRequired,
-                            },
+                            diagnostic: DiagnosticDelivery::Collected,
+                            observations: ObservationDemand::NotRequired,
                             capture: CaptureIntent::Disabled,
                         },
                         FileRuleIntent::Run {
-                            roots: RuleDemand {
-                                emit: EmitDemand::Enabled,
-                                observations: ObservationDemand::NotRequired,
-                            },
+                            diagnostic: DiagnosticDelivery::Collected,
+                            observations: ObservationDemand::NotRequired,
                             capture: CaptureIntent::Disabled,
                         },
                     ],

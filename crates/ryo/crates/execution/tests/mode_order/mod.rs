@@ -29,10 +29,8 @@ fn evaluate<'facts>(
                 evaluation: &[],
                 publication: &[],
                 intents: &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 source: b"abc",
@@ -124,10 +122,8 @@ fn deliver<'facts>(
                 evaluation: &[],
                 publication: &[],
                 intents: &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Forwarded,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 source: b"abc",

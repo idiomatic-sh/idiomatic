@@ -161,20 +161,20 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
         },
         &[
             FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
+                diagnostic: if skipped_at_start {
+                    DiagnosticDelivery::Forwarded
+                } else {
+                    DiagnosticDelivery::Collected
                 },
+                observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             },
             if skipped_at_start {
                 FileRuleIntent::Skipped(crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable)
             } else {
                 FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }
             },

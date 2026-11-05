@@ -49,10 +49,8 @@ fn public_file_run_publishes_once_and_finishes() {
                 evaluation: &[],
                 publication: &[],
                 intents: &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 source: b"abc",
@@ -111,10 +109,8 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
                 evaluation: &[],
                 publication: &[],
                 intents: &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 source: b"abc",
@@ -151,10 +147,8 @@ fn public_open_refuses_file_outside_request() {
                 evaluation: &[],
                 publication: &[],
                 intents: &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled
                 }],
                 source: b"abc",
@@ -247,10 +241,8 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
                 intents: &[
                     FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable),
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                 ],
@@ -385,17 +377,13 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
                 publication: &[],
                 intents: &[
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                     FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     },
                 ],
@@ -510,10 +498,12 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                         evaluation: &[],
                         publication: &[],
                         intents: &[FileRuleIntent::Run {
-                            roots: RuleDemand {
-                                emit: EmitDemand::Enabled,
-                                observations: ObservationDemand::NotRequired,
+                            diagnostic: if delivery == 0 {
+                                DiagnosticDelivery::Collected
+                            } else {
+                                DiagnosticDelivery::Forwarded
                             },
+                            observations: ObservationDemand::NotRequired,
                             capture: CaptureIntent::Disabled,
                         }],
                         source: b"abc",
@@ -718,10 +708,8 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
                 evaluation: &[],
                 publication: &[],
                 intents: &[FileRuleIntent::Run {
-                    roots: RuleDemand {
-                        emit: EmitDemand::Enabled,
-                        observations: ObservationDemand::NotRequired,
-                    },
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
                 source: b"abc",

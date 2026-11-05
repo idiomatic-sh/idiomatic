@@ -6,7 +6,7 @@ use super::{
         ProducerRoot, Readiness, RequiredPartitions,
     },
     facade::{
-        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, EmitDemand,
+        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand,
         FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand, ObservedPublication,
         PreparedProgram, ProjectFrontiers, ProjectObservation, ProjectRuleOutcome, RootOutcome,
         RuleDemand, RuleOutcome,

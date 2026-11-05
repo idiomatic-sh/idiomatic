@@ -186,7 +186,6 @@ fn forward<'a, 'service, 'facts>(
         completion: completion.clone(),
         owner: Rc::clone(&file.owner),
         read,
-        kernels: &kernels,
         observations: &mut file.observed,
         file_outputs: Some(&file.roots),
         program: file.program,
@@ -242,10 +241,8 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
             publication: &[],
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }],
         services,

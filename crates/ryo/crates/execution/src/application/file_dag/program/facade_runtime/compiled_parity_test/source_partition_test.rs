@@ -184,7 +184,6 @@ fn subject(case: Input) -> Result<Value, Failure> {
         completion: completion.clone(),
         owner: Rc::clone(&owner),
         read: &read,
-        kernels: &kernels,
         observations: &mut observed,
         file_outputs: None,
         program: &prepared,
