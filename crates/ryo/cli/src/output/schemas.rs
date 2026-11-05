@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/serialize-dont-format - the `--json` document of rows is written as the rows come, one row at a time: its frame is the fixed bytes below, and each value inside it is written by `serde_json`; a whole-document serializer would hold every row before writing one
+// the `--json` document of rows is written as the rows come, one row at a time: its frame is the fixed bytes below, and each value inside it is written by `serde_json`; a whole-document serializer would hold every row before writing one
 //! The shape of the data this output does not control: each wire shape is a `<Name>Schema`, its conversion into the core's type is an `impl TryFrom<<Name>Schema>` (or an `impl From<<Name>Schema>` where it cannot fail), and each refusal of a conversion is a `<Name>SchemaError`.
 
 #[cfg(test)]

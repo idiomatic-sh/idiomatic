@@ -1,4 +1,4 @@
-# The rust language's own placement (paths are directory-relative).
+# The rust provider source placement (paths are relative to src/).
 # The parser crates rust reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the language's
 # allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and nothing else does.
 variables = { libraries = ["ra_ap_syntax::*", "ra_ap_parser::*", "toml::*", "globset::*", "std::fs::*", "rustc_literal_escaper::*", "cargo_platform::*", "serde::*", "postcard::*", "rayon::*"] }

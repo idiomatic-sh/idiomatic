@@ -1,14 +1,14 @@
-// ignore: idiomatic.arch/file-length - the typed cells, the rows and the text they are written as are one vocabulary a fixture is stated in
+// the typed cells, the rows and the text they are written as are one vocabulary a fixture is stated in
 //! What a language's conformance expects, as typed rows: a relation's rows are cells, a name is its text, a span is a line and a
 //! column on each end, and nothing is a line of a table file.
 
 use std::fmt;
 
-use ryo_relations::domain::relations::service::{column_name, columns, folder_of};
-use ryo_relations::domain::relations::types::{Integer, KindBits, Offset, Position, Relation};
 use crate::domain::semantics::types::{RenderContext, RenderOutcome};
 use crate::inbound::use_cases::parse::types::SourceFile;
 use crate::inbound::use_cases::parse::types::{KindSample, Why};
+use ryo_relations::domain::relations::service::{column_name, columns, folder_of};
+use ryo_relations::domain::relations::types::{Integer, KindBits, Offset, Position, Relation};
 
 /// Whether a piece of a tree is a node or a token.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

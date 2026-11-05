@@ -2,6 +2,77 @@ description = "The language-local artifacts and entry points of one benchmark li
 why = "Placed beside the standard adapter spec, this existing artifact spec owns thin Cargo registration/composition, pinned inventory and canonical rules/<id>/query.ryoql with cases.toml. The shared benchmark application owns execution, continuation and PASS/FAIL publication. Canonical cold/warm/edit measurements require exact equality with the immutable declared complete rule inventory, captured before projection; an explicit diagnostic mode may narrow selection but cannot publish headline benchmark metrics; a linter supplies inventory and its external adapter. The adapter spec retains adapter, settings and schemas roles. Archived profiles preserve exact historical bytes and never become a second active source. Imports and AST capability checks are structural rails, not proof that runtime policy is shared; the shared runner must pass its two-provider behavioral contract."
 specs = []
 templates = [
+  { alias = "composition-support", template = "source", file = "composition/{module}.rs", count = { min = 0 }, description = "Child modules remain subject to the same thin composition imports and shared execution-policy rule.", imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] } },
+  { alias = "authoring-source", template = "source", file = "authoring/{module}.py", count = { min = 0 }, description = "Linter-specific profile authoring, staging and verifier controls; the registered shared runtime remains authoritative." },
+  { alias = "query-fragment", template = "query", file = "fragments/{fragment}.ryoql", count = { min = 0 }, description = "Reusable query modules named by the benchmark query-module registry, separate from active per-rule queries." },
+  { alias = "fragment-guide", template = "evidence", file = "fragments/{fragment}.README.md", count = { min = 0 }, description = "Provenance and ownership of a reusable query module." },
+  { alias = "rule-inventory-guide", template = "evidence", file = "RULES.md", count = { min = 0 }, description = "Generated presentation of the complete pinned rule inventory; no acceptance authority is inferred from Markdown." },
+  { alias = "worker-profile-ryo-py", template = "source", file = "profile_ryo.py", count = { min = 0 }, description = "Worker profile protocol authoring and its independent mismatch controls." },
+  { alias = "worker-worker-profile-contract-py", template = "source", file = "worker_profile_contract.py", count = { min = 0 }, description = "Worker profile protocol authoring and its independent mismatch controls." },
+  { alias = "worker-test-worker-profile-contract-py", template = "source", file = "test_worker_profile_contract.py", count = { min = 0 }, description = "Worker profile protocol authoring and its independent mismatch controls." },
+  { alias = "worker-worker-request-input-rs", template = "source", file = "worker_request_input.rs", count = { min = 0 }, description = "Typed worker request input composition support; execution remains in the shared benchmark use cases.", imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] } },
+  { alias = "worker-worker-request-input-constants-rs", template = "source", file = "worker_request_input_constants.rs", count = { min = 0 }, description = "Typed worker request input composition support; execution remains in the shared benchmark use cases.", imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] } },
+  { alias = "worker-compiler-feature-test-rs", template = "source", file = "compiler_feature_test.rs", count = { min = 0 }, description = "Real worker boundary controls over compiler features or explicit project context." },
+  { alias = "worker-project-context-test-rs", template = "source", file = "project_context_test.rs", count = { min = 0 }, description = "Real worker boundary controls over compiler features or explicit project context." },
+  { alias = "engine-test-support", template = "source", file = "engine_test/{module}.rs", count = { min = 0 }, description = "Child modules of the existing real-SDK engine integration proof." },
+  { alias = "snapshot-query", template = "query", file = "profiles/{profile}/inputs/rules/{snapshot_rule}/query.ryoql", count = { min = 0 }, description = "Exact frozen canonical query snapshot, retained as data rather than an additional active rule." },
+  { alias = "addressed-query-ryoql", template = "evidence", file = "profiles/archived-inputs/{digest}/query.ryoql", count = { min = 0 }, description = "Content-addressed historical input bytes; the profile hash validator verifies their digest, not placement." },
+  { alias = "addressed-candidate-ryoql", template = "evidence", file = "profiles/archived-inputs/{digest}/candidate.ryoql", count = { min = 0 }, description = "Content-addressed historical input bytes; the profile hash validator verifies their digest, not placement." },
+  { alias = "addressed-cases-toml", template = "evidence", file = "profiles/archived-inputs/{digest}/cases.toml", count = { min = 0 }, description = "Content-addressed historical input bytes; the profile hash validator verifies their digest, not placement." },
+  { alias = "profile-cases-toml", template = "cases", file = "profiles/{profile}/cases.toml", count = { min = 0 }, description = "Authored profile-specific or historical case inventories; canonical active cases remain under rules." },
+  { alias = "profile-cases-before-revision-toml", template = "cases", file = "profiles/{profile}/cases-before-{revision}.toml", count = { min = 0 }, description = "Authored profile-specific or historical case inventories; canonical active cases remain under rules." },
+  { alias = "profile-cases-expanded-toml", template = "cases", file = "profiles/{profile}/cases-expanded.toml", count = { min = 0 }, description = "Authored profile-specific or historical case inventories; canonical active cases remain under rules." },
+  { alias = "registry-native-standalone-json", template = "evidence", file = "profiles/native-standalone.json", count = { min = 0 }, description = "Pinned tool phase, policy or singleton registration input; content identity remains checked by the harness." },
+  { alias = "registry-native-standalone-generation-json", template = "evidence", file = "profiles/native-standalone-{generation}.json", count = { min = 0 }, description = "Pinned tool phase, policy or singleton registration input; content identity remains checked by the harness." },
+  { alias = "registry-native-standalone-generation-base-toml", template = "evidence", file = "profiles/native-standalone-{generation}-base.toml", count = { min = 0 }, description = "Pinned tool phase, policy or singleton registration input; content identity remains checked by the harness." },
+  { alias = "registry-pinned-rule-phases-json", template = "evidence", file = "profiles/pinned-rule-phases.json", count = { min = 0 }, description = "Pinned tool phase, policy or singleton registration input; content identity remains checked by the harness." },
+  { alias = "registry-pinned-noqa-code-policy-json", template = "evidence", file = "profiles/pinned-noqa-code-policy.json", count = { min = 0 }, description = "Pinned tool phase, policy or singleton registration input; content identity remains checked by the harness." },
+  { alias = "profile-reference-run-json", template = "evidence", file = "profiles/{profile}/reference-run.json", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-reference-provenance-json", template = "evidence", file = "profiles/{profile}/reference-provenance.json", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-reference-cases-jsonl", template = "evidence", file = "profiles/{profile}/reference-cases.jsonl", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-incremental-reference-cases-jsonl", template = "evidence", file = "profiles/{profile}/incremental-reference-cases.jsonl", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-ready-assets-json", template = "evidence", file = "profiles/{profile}/ready-assets.json", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-reference-stderr-txt", template = "evidence", file = "profiles/{profile}/reference.stderr.txt", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-reference-stdout-json-gz", template = "evidence", file = "profiles/{profile}/reference.stdout.json.gz", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-base-reference-stderr-txt", template = "evidence", file = "profiles/{profile}/base-reference.stderr.txt", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-base-reference-stdout-json-gz", template = "evidence", file = "profiles/{profile}/base-reference.stdout.json.gz", count = { min = 0 }, description = "Recorded reference execution and exact source/profile identities for a declared acceptance profile." },
+  { alias = "profile-oracle-json", template = "evidence", file = "profiles/{profile}/evidence/{*artifact}.json", count = { min = 0 }, description = "Recorded independent oracle observations and source identities." },
+  { alias = "profile-oracle-jsonl", template = "evidence", file = "profiles/{profile}/evidence/{*artifact}.jsonl", count = { min = 0 }, description = "Recorded independent per-case oracle observations." },
+  { alias = "profile-oracle-py", template = "source", file = "profiles/{profile}/evidence/{*artifact}.py", count = { min = 0 }, description = "Independent oracle or runtime-origin probe source, outside provider implementation." },
+  { alias = "profile-oracle-snap", template = "evidence", file = "profiles/{profile}/evidence/{*artifact}.snap", count = { min = 0 }, description = "Exact upstream diagnostic snapshots retained as source provenance." },
+  { alias = "rule-oracle-json", template = "evidence", file = "rules/{evidence_rule}/evidence/{*artifact}.json", count = { min = 0 }, description = "Recorded independent oracle observations and source identities." },
+  { alias = "rule-oracle-jsonl", template = "evidence", file = "rules/{evidence_rule}/evidence/{*artifact}.jsonl", count = { min = 0 }, description = "Recorded independent per-case oracle observations." },
+  { alias = "rule-oracle-py", template = "source", file = "rules/{evidence_rule}/evidence/{*artifact}.py", count = { min = 0 }, description = "Independent oracle or runtime-origin probe source, outside provider implementation." },
+  { alias = "rule-oracle-snap", template = "evidence", file = "rules/{evidence_rule}/evidence/{*artifact}.snap", count = { min = 0 }, description = "Exact upstream diagnostic snapshots retained as source provenance." },
+  { alias = "experiment-oracle-json", template = "evidence", file = "evidence/{experiment}/{*artifact}.json", count = { min = 0 }, description = "Recorded independent oracle observations and source identities." },
+  { alias = "experiment-oracle-jsonl", template = "evidence", file = "evidence/{experiment}/{*artifact}.jsonl", count = { min = 0 }, description = "Recorded independent per-case oracle observations." },
+  { alias = "experiment-oracle-py", template = "source", file = "evidence/{experiment}/{*artifact}.py", count = { min = 0 }, description = "Independent oracle or runtime-origin probe source, outside provider implementation." },
+  { alias = "experiment-oracle-snap", template = "evidence", file = "evidence/{experiment}/{*artifact}.snap", count = { min = 0 }, description = "Exact upstream diagnostic snapshots retained as source provenance." },
+  { alias = "captured-query", template = "query", file = "results/{*capture}/rules/{snapshot_rule}/query.ryoql", count = { min = 0 }, description = "Frozen per-rule executable query in a captured reproduction." },
+  { alias = "captured-cases", template = "cases", file = "results/{*capture}/rules/{snapshot_rule}/cases.toml", count = { min = 0 }, description = "Frozen per-rule cases in a captured reproduction." },
+  { alias = "captured-module", template = "query", file = "results/{*capture}/fragments/{fragment}.ryoql", count = { min = 0 }, description = "Frozen reusable query module in a captured reproduction." },
+  { alias = "captured-profile", template = "evidence", file = "results/{*capture}/benchmark.toml", count = { min = 0 }, description = "Recorded reproduction profile, never a second active linter integration." },
+  { alias = "captured-stderr-bin", template = "evidence", file = "results/{*capture}/stderr.bin", count = { min = 0 }, description = "Exact captured process error bytes." },
+  { alias = "captured-stdout-bin", template = "evidence", file = "results/{*capture}/stdout.bin", count = { min = 0 }, description = "Exact captured process output bytes." },
+  { alias = "captured-stderr-log", template = "evidence", file = "results/{*capture}/stderr.log", count = { min = 0 }, description = "Captured process error log." },
+  { alias = "captured-stage-seal-json", template = "evidence", file = "results/{*capture}/stage-seal.json", count = { min = 0 }, description = "Identity of staged source inputs." },
+  { alias = "captured-worker-seal-json", template = "evidence", file = "results/{*capture}/worker-seal.json", count = { min = 0 }, description = "Identity of the executed worker artifact." },
+  { alias = "captured-inventory-runner-seal-json", template = "evidence", file = "results/{*capture}/inventory-runner-seal.json", count = { min = 0 }, description = "Identity of the inventory execution artifact." },
+  { alias = "captured-invocation-json", template = "evidence", file = "results/{*capture}/invocation.json", count = { min = 0 }, description = "Exact captured process invocation." },
+  { alias = "captured-summary-json", template = "evidence", file = "results/{*capture}/summary.json", count = { min = 0 }, description = "Full execution accounting for a captured run or phase." },
+  { alias = "captured-aggregate-json", template = "evidence", file = "results/{*capture}/aggregate.json", count = { min = 0 }, description = "Full aggregation of captured case records." },
+  { alias = "captured-proof-json", template = "evidence", file = "results/{*capture}/proof.json", count = { min = 0 }, description = "Captured source-bound semantic proof." },
+  { alias = "captured-controls-json", template = "evidence", file = "results/{*capture}/controls.json", count = { min = 0 }, description = "Independent negative and positive control observations." },
+  { alias = "captured-provenance-json", template = "evidence", file = "results/{*capture}/provenance.json", count = { min = 0 }, description = "Source and input provenance of an observation." },
+  { alias = "captured-sources-json", template = "evidence", file = "results/{*capture}/sources.json", count = { min = 0 }, description = "Captured source inventory." },
+  { alias = "captured-metadata-json", template = "evidence", file = "results/{*capture}/metadata.json", count = { min = 0 }, description = "Captured execution metadata." },
+  { alias = "captured-case-json", template = "evidence", file = "results/{*capture}/case.json", count = { min = 0 }, description = "One captured case input and observation." },
+  { alias = "captured-stdout-json", template = "evidence", file = "results/{*capture}/stdout.json", count = { min = 0 }, description = "Captured structured process output." },
+  { alias = "captured-reference-json", template = "evidence", file = "results/{*capture}/reference.json", count = { min = 0 }, description = "Captured pinned reference observations." },
+  { alias = "captured-inventory-json", template = "evidence", file = "results/{*capture}/inventory.json", count = { min = 0 }, description = "Captured complete execution inventory." },
+  { alias = "captured-raw-tar-gz", template = "evidence", file = "results/{*capture}/raw.tar.gz", count = { min = 0 }, description = "Exact archived raw execution outputs." },
+  { alias = "captured-raw-receipts-tar-gz", template = "evidence", file = "results/{*capture}/raw-receipts.tar.gz", count = { min = 0 }, description = "Exact archived raw per-case observations." },
+  { alias = "captured-README-md", template = "evidence", file = "results/{*capture}/README.md", count = { min = 0 }, description = "Interpretation of a captured run or phase." },
   { alias = "host-probe", template = "source", file = "host.rs", count = { min = 0, max = 1 }, description = "Optional external-host observation at the linter process edge; it supplies facts to the applicability decision and never rewrites engine facts." },
   { alias = "host-policy", template = "source", file = "host_policy.rs", count = { min = 0, max = 1 }, description = "Optional argument-based applicability decision and its own semantic cases; environment and filesystem observation belong in host.rs." },
   { alias = "composition", template = "source", file = "composition.rs", imports = { default = "deny", allow = ["ryo_benchmark::inbound::*", "ryo_benchmark::outbound::*", "ryo_benchmark::domain::*::types::*", "ryo_benchmark::domain::measurements::service::require_inventory", "ryo::*", "std::path::*", "std::sync::*", "std::io::*", "std::fmt::*", "std::env::*", "crate::*", "self::*", "super::*"] }, description = "Thin dependency wiring and delegation to the shared benchmark use case; no local execution/status policy." },
@@ -37,7 +108,6 @@ templates = [
   { alias = "profile-uncertified", template = "evidence", file = "profiles/{profile}/evidence/uncertified-cases.jsonl", count = { min = 0 }, description = "Preserved raw case observations before certificate review." },
   { alias = "rule-guide", template = "evidence", file = "rules/{rule}/README.md", count = { min = 0 }, description = "Rule-local source and case provenance." },
   { alias = "rule-upstream", template = "evidence", file = "rules/{rule}/upstream.py", count = { min = 0 }, description = "Pinned upstream Python fixture, never provider implementation." },
-  { alias = "run-guide", template = "evidence", file = "results/{run}/README.md", count = { min = 0 }, description = "Dated verification run and its source identities." },
   { alias = "run-certifier", template = "source", file = "results/{run}/certify.py", count = { min = 0 }, description = "Reproducible evidence authoring script, outside provider implementation." },
   { alias = "run-countertarget", template = "source", file = "results/{run}/countertarget.py", count = { min = 0 }, description = "Independent countertarget evidence script, outside provider implementation." },
   { alias = "run-oracle-source", template = "source", file = "results/{run}/oracle.py", count = { min = 0 }, description = "Preserved independent oracle source." },
@@ -57,20 +127,18 @@ templates = [
   { alias = "run-policy-proof-stdout", template = "evidence", file = "results/{run}/tool-contract-proof/{phase}/stdout.bin", count = { min = 0 }, description = "Captured contestant standard output." },
   { alias = "run-policy-proof-worker", template = "evidence", file = "results/{run}/tool-contract-proof/{phase}/worker-seal.json", count = { min = 0 }, description = "Sealed worker identity." },
   { alias = "run-policy-proof-initial-error", template = "evidence", file = "results/{run}/tool-contract-proof/{phase}/stderr.log", count = { min = 0 }, description = "Preserved first failed proof attempt." },
-  { alias = "run-recorded-profile", template = "evidence", file = "results/{run}/{target}/benchmark.toml", count = { min = 0 }, description = "Archived observed settings for a target or captured profile; never an active profile." },
   { alias = "run-target-cases", template = "evidence", file = "results/{run}/{target}/cases.jsonl", count = { min = 0 }, description = "Target-specific durable case receipts." },
   { alias = "run-target-offline", template = "evidence", file = "results/{run}/{target}/offline-audit.json", count = { min = 0 }, description = "Target-specific offline audit result." },
   { alias = "run-target-registration", template = "evidence", file = "results/{run}/{target}/registration.json", count = { min = 0 }, description = "Target-specific registration identity." },
   { alias = "run-target-result", template = "evidence", file = "results/{run}/{target}/result.json", count = { min = 0 }, description = "Target-specific execution result." },
   { alias = "run-target-oracle", template = "evidence", file = "results/{run}/{target}/oracle.json", count = { min = 0 }, description = "Target-specific independent oracle result." },
   { alias = "run-target-preflight", template = "evidence", file = "results/{run}/{target}/initial-staging.stderr", count = { min = 0 }, description = "Preserved failed staging preflight output." },
-  { alias = "run-phase-summary", template = "evidence", file = "results/{run}/{phase}/summary.json", count = { min = 0 }, description = "A named follow-up proof phase and its target receipts." },
   { alias = "run-phase-cases", template = "evidence", file = "results/{run}/{phase}/{target}/cases.jsonl", count = { min = 0 }, description = "Follow-up phase case receipts for one target." },
   { alias = "run-phase-offline", template = "evidence", file = "results/{run}/{phase}/{target}/offline-audit.json", count = { min = 0 }, description = "Follow-up phase offline audit for one target." },
   { alias = "run-phase-registration", template = "evidence", file = "results/{run}/{phase}/{target}/registration.json", count = { min = 0 }, description = "Follow-up phase registration identity for one target." },
   { alias = "run-phase-result", template = "evidence", file = "results/{run}/{phase}/{target}/result.json", count = { min = 0 }, description = "Follow-up phase execution result for one target." },
   { template = "query", file = "rules/{implemented}/query.ryoql", count = { min = 0 }, description = "Benchmark query contract." },
-  { template = "cases", file = "rules/{rule}/cases.toml", description = "Benchmark cases contract." },
+  { template = "cases", file = "rules/{implemented}/cases.toml", description = "The correctness cases of each actually implemented canonical rule, using the same rule capture as query.ryoql." },
 ]
 rules = [
   { rule = "idiomatic.arch/import-directions@0.1.0", include = ["host_policy.rs"], params = { forbidden = ["std::env", "std::env::*", "std::fs", "std::fs::*", "std::process", "std::process::*", "std::net", "std::net::*", "tokio::fs", "tokio::fs::*", "tokio::process", "tokio::process::*", "tokio::net", "tokio::net::*", "*::host", "*::host::*"] }, description = "The argument-based applicability policy does not obtain ambient host observations or call the probe; review still checks semantic purity and macro limits." },
@@ -244,3 +312,42 @@ scenario = "The applicability decision cannot obtain host observations itself."
 given.files.'host_policy.rs' = 'use std::env::var;'
 then.only = ['idiomatic.arch/import-directions']
 then.findings = [{ rule = 'idiomatic.arch/import-directions', path = 'host_policy.rs', line = 1 }]
+
+[[scenarios]]
+id = "profile-capture-cannot-invent-an-active-rule"
+scenario = "A profile name does not create a required rules/<profile>/cases.toml instance."
+given.files.'profiles/target-variant/benchmark.toml' = ''
+given.files.'rules/F001/query.ryoql' = ''
+given.files.'rules/F001/cases.toml' = ''
+then.only = ['idiomatic.ryo/benchmark-linter/cases#missing']
+
+[[scenarios]]
+id = "real-query-still-requires-its-case-file"
+scenario = "The canonical query capture requires actual cases even when unrelated profiles exist."
+given.files.'profiles/target-variant/benchmark.toml' = ''
+given.files.'rules/F001/query.ryoql' = ''
+then.only = ['idiomatic.ryo/benchmark-linter/cases#missing']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter/cases#missing', path = 'rules/F001/cases.toml' }]
+
+[[scenarios]]
+id = "typed-archive-and-authoring-roles"
+scenario = "Frozen inputs, oracle sources and shared authoring modules have explicit roles."
+given.files.'authoring/register.py' = ''
+given.files.'fragments/lookup.ryoql' = ''
+given.files.'profiles/archived-inputs/abc/query.ryoql' = ''
+given.files.'profiles/archived-inputs/def/cases.toml' = ''
+given.files.'profiles/old/inputs/rules/F001/query.ryoql' = ''
+given.files.'profiles/old/inputs/rules/F001/cases.toml' = ''
+given.files.'profiles/old/evidence/context-target.py' = ''
+given.files.'profiles/old/evidence/context-target.json' = ''
+given.files.'results/run/phase/repro/rules/F001/query.ryoql' = ''
+given.files.'results/run/phase/repro/rules/F001/cases.toml' = ''
+given.files.'results/run/phase/stage-seal.json' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed', 'idiomatic.ryo/benchmark-linter/companions']
+
+[[scenarios]]
+id = "typed-evidence-does-not-open-unrecognized-source"
+scenario = "Unknown executable files cannot hide beside raw oracle observations."
+given.files.'profiles/old/evidence/escape.rs' = ''
+then.only = ['idiomatic.ryo/benchmark-linter#closed']
+then.findings = [{ rule = 'idiomatic.ryo/benchmark-linter#closed', path = 'profiles/old/evidence/escape.rs' }]

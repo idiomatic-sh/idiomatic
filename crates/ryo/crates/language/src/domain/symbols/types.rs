@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/public-fields - Symbols is the engine's table of one file's names, handed to every language: its one field is a private, crate-private `SymbolsEngine` the crate reaches through `AsRef`/`AsMut`, so a language reads and writes names only through the SDK's functions and cannot corrupt the index; a public field would hand it the table's invariants.
+// Symbols is the engine's table of one file's names, handed to every language: its one field is a private, crate-private `SymbolsEngine` the crate reaches through `AsRef`/`AsMut`, so a language reads and writes names only through the SDK's functions and cannot corrupt the index; a public field would hand it the table's invariants.
 //! The types of the `symbols` concept: the names of a file and what readers note while reading it.
 
 use hashbrown::HashTable;

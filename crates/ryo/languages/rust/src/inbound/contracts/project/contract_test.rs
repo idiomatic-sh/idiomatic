@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one row for each scenario of the project contract, each with its full rows
+// one row for each scenario of the project contract, each with its full rows
 //! What the `project` contract promises: the manifests of a repository become the rows of
 //! `package_dependency` and `workspace_member`, from what the files hold; no manifest, no rows;
 //! a manifest that cannot be read is refused and gives no row.

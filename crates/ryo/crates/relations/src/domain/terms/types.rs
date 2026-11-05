@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/collection-directory - the six vocabularies share strum's derives to name their words, but each is a closed set of its own (declarations, parameters, values, mappings, dependencies, their origins), not items of one collection
+// the six vocabularies share strum's derives to name their words, but each is a closed set of its own (declarations, parameters, values, mappings, dependencies, their origins), not items of one collection
 //! The types of the `terms` concept: plain data, public fields and derives, with no constructor
 //! and no inherent impl. Each closed set is an enum, so a language that answers with a word the
 //! set does not have does not compile; the word is text only where the answer leaves the engine.

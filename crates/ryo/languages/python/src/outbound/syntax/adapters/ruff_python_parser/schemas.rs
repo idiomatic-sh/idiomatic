@@ -1,4 +1,4 @@
-// ignore: idiomatic.ryo/language/no-wildcard-into-domain-enum - the one `_ =>` arm of this adapter is in `decoded_of`, a match over the library's hundred-odd node kinds whose answer is the text the library decoded, `Option<Decoded>`, not a domain enum: only two kinds carry such text, so a kind the library gains has none until it is named, and naming each of the others would be a hundred arms that all say None
+// the one `_ =>` arm of this adapter is in `decoded_of`, a match over the library's hundred-odd node kinds whose answer is the text the library decoded, `Option<Decoded>`, not a domain enum: only two kinds carry such text, so a kind the library gains has none until it is named, and naming each of the others would be a hundred arms that all say None
 //! The library's kinds mapped onto the language's, the standards' names: every node kind of `ruff_python_ast` onto the `CPython` `ast`
 //! kind it stands for, or onto the closed list of the extras the standard lacks; every token kind of its lexer onto the name of
 //! Python's `token` module, a keyword being a `NAME`. Both matches have no wildcard arm, so a kind the library gains is a compile

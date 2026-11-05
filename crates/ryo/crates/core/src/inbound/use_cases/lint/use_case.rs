@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the lint use case still wires eleven ports through its stages (read, visit, meet, finish): the pure steps are in 14 domain concepts, and what is left is the order the ports are called in, one stage handing its state to the next, which no domain concept can hold because it calls ports.
+// the lint use case still wires eleven ports through its stages (read, visit, meet, finish): the pure steps are in 14 domain concepts, and what is left is the order the ports are called in, one stage handing its state to the next, which no domain concept can hold because it calls ports.
 //! The `lint` use case: compile each rule once, and decide once which files each governs; then for each file, in the worker that
 //! reads it: parse it into the worker's own table and its rows into the worker's tables of the store, and run the per-file steps of
 //! the rules that govern it on them. Only the words of the rows the rules emit and the cross-file steps read are kept; the workers'

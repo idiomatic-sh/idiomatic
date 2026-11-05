@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the 37 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
+// the 37 rows each drive the whole lint use case through fakes (warm, edited, deleted and changed-rule runs): a row is one whole run, and its expected rows are the full answer of that run.
 //! What the `lint` use case promises, against the fakes of the ports it calls.
 
 use crate::outbound::rows;

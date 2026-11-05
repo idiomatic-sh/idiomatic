@@ -52,12 +52,12 @@ pub(crate) fn connect(
 /// says its own.
 pub(crate) fn build(languages: &[Language]) -> BuildIdentity {
     let program = std::env::current_exe()
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|path| std::fs::metadata(path).ok()); // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
+        .ok() // a program the system cannot describe has no size or time: the build identity reads 0
+        .and_then(|path| std::fs::metadata(path).ok()); // a program the system cannot describe has no size or time: the build identity reads 0
     let modified = program
         .as_ref()
-        .and_then(|meta| meta.modified().ok()) // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // ignore: idiomatic.arch/no-ok-on-result - a program the system cannot describe has no size or time: the build identity reads 0
+        .and_then(|meta| meta.modified().ok()) // a program the system cannot describe has no size or time: the build identity reads 0
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // a program the system cannot describe has no size or time: the build identity reads 0
         .map_or(0, |since| since.as_nanos());
     let size = program.map_or(0, |meta| meta.len());
     let mut build = size.to_string();

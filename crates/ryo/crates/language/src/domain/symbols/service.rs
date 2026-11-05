@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - every public function here is a path the SDK hands languages (named in the product's tastemaker.toml), over the one private `SymbolsEngine` they reach through `AsRef`/`AsMut`; the engine-level helpers beside them (interning, hashing, deriving) are what those functions share, and moving either half would move SDK paths or split a function from the private table it reads.
+// every public function here is a path the SDK hands languages (named in the product's tastemaker.toml), over the one private `SymbolsEngine` they reach through `AsRef`/`AsMut`; the engine-level helpers beside them (interning, hashing, deriving) are what those functions share, and moving either half would move SDK paths or split a function from the private table it reads.
 //! The `symbols` service: free functions named by verb over a file's names, with no IO and no
 //! ports. A name is a number: its text is in the file or, when it is made, beside it.
 
@@ -116,7 +116,7 @@ pub fn text_of<'a>(
     symbol: Symbol,
 ) -> Option<NameText<'a>> {
     std::str::from_utf8(bytes_of(symbols.as_ref(), source, symbol)?.0)
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a name's bytes that are not text have no text, which the caller reads as no name text: the rows keep the name's place either way
+        .ok() // a name's bytes that are not text have no text, which the caller reads as no name text: the rows keep the name's place either way
         .map(NameText)
 }
 
@@ -402,7 +402,7 @@ pub fn name_of(
     let symbols: &SymbolsEngine = symbols.as_ref();
     let bytes = bytes_of(symbols, source, symbol)?;
     let hash = hash_of_symbol(symbols, symbol)?;
-    let place = PlaceNumber(u32::try_from(places.len()).ok()?); // ignore: idiomatic.arch/no-ok-on-result - a file of more than 2^32 names has no number for the next one: it is not placed
+    let place = PlaceNumber(u32::try_from(places.len()).ok()?); // a file of more than 2^32 names has no number for the next one: it is not placed
     if usize::try_from(symbol.0).unwrap_or(usize::MAX) < symbols.sources.0 {
         let (start, end) = (
             *symbols
@@ -456,7 +456,7 @@ pub fn name_count(symbols: &Symbols) -> Count {
 #[must_use]
 pub fn note_of(symbols: &Symbols, name: Symbol) -> NameNote {
     let symbols: &SymbolsEngine = symbols.as_ref();
-    symbols // ignore: idiomatic.arch/no-unwrap-or-on-lookup - the notes hold only the names a reader noted: a name noted nothing of is `0`, as the doc says
+    symbols // the notes hold only the names a reader noted: a name noted nothing of is `0`, as the doc says
         .notes
         .indexed
         .get(usize::try_from(name.0).unwrap_or(usize::MAX))

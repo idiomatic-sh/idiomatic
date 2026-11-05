@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the table builder and the readers of one element table are one vocabulary over the private `ElementsEngine` and `WrittenColumn` they reach through `AsRef`/`AsMut`, and nearly every function is a path the SDK hands languages (named in the product's tastemaker.toml); splitting would split the builder from what it builds and move SDK paths.
+// the table builder and the readers of one element table are one vocabulary over the private `ElementsEngine` and `WrittenColumn` they reach through `AsRef`/`AsMut`, and nearly every function is a path the SDK hands languages (named in the product's tastemaker.toml); splitting would split the builder from what it builds and move SDK paths.
 //! The `elements` service: free functions named by verb over a file's element table, with no IO
 //! and no ports. An element is a node or a token, a row of the table.
 
@@ -410,7 +410,7 @@ pub fn property_at(
     let found = table
         .decoded
         .binary_search_by_key(&(at, property), |each| (each.element, each.property))
-        .ok()?; // ignore: idiomatic.arch/no-ok-on-result - a binary search answers where a key it does not find would go: that is the key's absence, not a failure
+        .ok()?; // a binary search answers where a key it does not find would go: that is the key's absence, not a failure
     let each = table.decoded.get(found)?;
     table
         .decoded_text
@@ -419,7 +419,7 @@ pub fn property_at(
             usize::try_from(each.from.0).unwrap_or(usize::MAX)
                 ..usize::try_from(each.to.0).unwrap_or(usize::MAX),
         )
-        .and_then(|bytes| std::str::from_utf8(bytes).ok()) // ignore: idiomatic.arch/no-ok-on-result - the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
+        .and_then(|bytes| std::str::from_utf8(bytes).ok()) // the bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value
         .map(NameText)
 }
 
@@ -673,7 +673,7 @@ pub fn field_at(elements: &Elements, at: Position) -> FieldId {
 /// The name of the role of the element at `at`, as the name the language gave the role in this file; no symbol for a role it did not name.
 #[must_use]
 pub fn field_name_at(elements: &Elements, at: Position) -> Symbol {
-    engine(elements) // ignore: idiomatic.arch/no-unwrap-or-on-lookup - a file names only the roles it writes: a role it did not name has no symbol, as the doc says
+    engine(elements) // a file names only the roles it writes: a role it did not name has no symbol, as the doc says
         .field_names
         .get(usize::from(field_at(elements, at).0))
         .copied()
@@ -694,7 +694,7 @@ pub fn origin_at(elements: &Elements, at: Position) -> ElementOrigin {
     let expanded = &engine(elements).expanded;
     expanded
         .binary_search_by(|each| each.element.cmp(&at))
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - a binary search answers where an element it does not find would go: that is the element's absence, not a failure
+        .ok() // a binary search answers where an element it does not find would go: that is the element's absence, not a failure
         .and_then(|found| expanded.get(found))
         .map_or(ElementOrigin::File, |mark| ElementOrigin::Expansion {
             call_site: mark.call_site,

@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - Typed projection, token attachment and diagnostics share one borrowed parser result and preserve the same walk; splitting this operation would obscure its source-order invariant. Wire-kind conversion is already separate in schemas.rs, and the adapter spec places no other file for logic beside adapter.rs.
+// Typed projection, token attachment and diagnostics share one borrowed parser result and preserve the same walk; splitting this operation would obscure its source-order invariant. Wire-kind conversion is already separate in schemas.rs, and the adapter spec places no other file for logic beside adapter.rs.
 //! Read TypeScript with Oxc and project its typed AST into TypeScript-ESTree nodes.
 
 use oxc_allocator::Allocator;

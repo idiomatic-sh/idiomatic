@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/factory-calls - this file is the command line's one registry of languages, generated from the directories of `languages/`: it is the edge's composition of them, so it hands the language factory the parts of each language and calls it, as a composition.rs would.
+// this file is the command line's one registry of languages, generated from the directories of `languages/`: it is the edge's composition of them, so it hands the language factory the parts of each language and calls it, as a composition.rs would.
 //! The language providers this build links, one per enabled feature: each is linked for its
 //! registration, which discovery finds, and is named nowhere else.
 

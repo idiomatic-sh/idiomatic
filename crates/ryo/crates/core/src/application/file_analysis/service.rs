@@ -8,7 +8,7 @@ use ryo_execution::inbound::use_cases::execution::types::{
 };
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
-// ignore: idiomatic.arch/file-length - this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
+// this operation owns one bounded worker and the read, parse, admission, evaluation, and retention sequence for its file; its private methods share that invocation state, while domain computations remain separate pure functions.
 use super::errors::FileAnalysisError;
 use super::types::{FileVisit, Worker};
 use crate::domain::admission::errors::AdmissionError;

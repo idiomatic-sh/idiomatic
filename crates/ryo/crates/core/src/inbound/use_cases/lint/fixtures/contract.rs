@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the contract holds the corpus builders (file IO through the language port) and the run-based measuring that the use-case-fixtures template fixes as contract::{allocation, call_count, corpus, fake_corpus}; each of the four is one measurement over the same corpus, so they share its builders.
+// the contract holds the corpus builders (file IO through the language port) and the run-based measuring that the use-case-fixtures template fixes as contract::{allocation, call_count, corpus, fake_corpus}; each of the four is one measurement over the same corpus, so they share its builders.
 //! What every implementation of the `lint` use case must pass, and what the whole per-file path must pass: `lint` over the corpus the
 //! fixtures state, with the real store and real queries and the language the caller brings. Every relation item the language lists and
 //! every operator item the product lists is read from its fixtures, so a new item is covered without anyone editing a test.

@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - one row for each shape of reference the item reads, each with its full rows
+// one row for each shape of reference the item reads, each with its full rows
 //! The `reference` item's cases, and the collection's shared cases.
 
 use super::super::fixtures::contract::check;

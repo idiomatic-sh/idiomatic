@@ -48,7 +48,7 @@ impl QueryModuleSource {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RyoQlQuery(ryo_values::domain::program::types::QueryBundle);
 
-// ignore: idiomatic.arch/idiomatic-rust/no-bare-text - the newtype's own text crosses only to the schemas of the SDK's entries, which check it on the way in (`query validate`'s `TryFrom`, the one place validation is allowed) and hand it to the core on the way out; the field stays private so no caller outside the crate makes an unchecked one, which a `pub(crate)` field would allow every module of it
+// the newtype's own text crosses only to the schemas of the SDK's entries, which check it on the way in (`query validate`'s `TryFrom`, the one place validation is allowed) and hand it to the core on the way out; the field stays private so no caller outside the crate makes an unchecked one, which a `pub(crate)` field would allow every module of it
 impl RyoQlQuery {
     /// A query of `text`, which a schema has checked: what the entries' schemas build, never a caller.
     pub(crate) const fn from_bundle(

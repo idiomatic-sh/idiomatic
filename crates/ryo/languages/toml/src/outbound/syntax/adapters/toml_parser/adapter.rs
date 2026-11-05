@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the adapter is the parser's event receiver, one callback for each event of the library, and the tree it writes from them; splitting it would make a second file no adapter template places
+// the adapter is the parser's event receiver, one callback for each event of the library, and the tree it writes from them; splitting it would make a second file no adapter template places
 //! The syntax port, implemented with `toml_parser`, the parser of the `toml` crate, for TOML 1.1: its events are written straight
 //! into the element table, with no document built. The parser gives a flat stream of events, every byte of the file in one of them;
 //! the adapter opens a node for each construct the events open (a table, a key-value, a key, an array, an inline table) and closes it
@@ -300,18 +300,18 @@ impl Writer<'_, '_, '_> {
         let value = match classified {
             ScalarKind::Boolean(value) => Some(value.to_string()),
             ScalarKind::Integer(radix) => i64::from_str_radix(&self.scratch.0, radix.value())
-                .ok() // ignore: idiomatic.arch/no-ok-on-result - an integer TOML refuses (out of range) has no value: the token keeps its text and gets no decoded value
+                .ok() // an integer TOML refuses (out of range) has no value: the token keeps its text and gets no decoded value
                 .map(|value| value.to_string()),
             ScalarKind::Float => written
                 .chars()
                 .filter(|each| *each != DIGIT_SEPARATOR)
                 .collect::<String>()
                 .parse::<f64>()
-                .ok() // ignore: idiomatic.arch/no-ok-on-result - a float that does not read has no value: the token keeps its text and gets no decoded value
+                .ok() // a float that does not read has no value: the token keeps its text and gets no decoded value
                 .map(|value| format!("{value:?}")),
             ScalarKind::DateTime => written
                 .parse::<toml::value::Datetime>()
-                .ok() // ignore: idiomatic.arch/no-ok-on-result - a date-time that does not read has no value: the token keeps its text and gets no decoded value
+                .ok() // a date-time that does not read has no value: the token keeps its text and gets no decoded value
                 .map(|value| value.to_string()),
             ScalarKind::String => None,
         };

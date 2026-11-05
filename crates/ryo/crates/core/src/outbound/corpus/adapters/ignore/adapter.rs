@@ -193,8 +193,8 @@ fn unreadable_file(entry: &CorpusEntry, reason: &dyn std::fmt::Display) -> Corpu
 fn modified(meta: &std::fs::Metadata) -> Nanoseconds {
     Nanoseconds(
         meta.modified()
-            .ok() // ignore: idiomatic.arch/no-ok-on-result - a system that keeps no modification time says nothing, which the record keeps as zero
-            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // ignore: idiomatic.arch/no-ok-on-result - a time before 1970 has no count since it, which the record keeps as zero
+            .ok() // a system that keeps no modification time says nothing, which the record keeps as zero
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()) // a time before 1970 has no count since it, which the record keeps as zero
             .map_or(0, |since| {
                 u64::try_from(since.as_nanos()).unwrap_or(u64::MAX)
             }),

@@ -1,5 +1,5 @@
 //! The types of the `answers` concept: how a language answers a relation: the reader of its trees, the answer it gives and why it gives none.
-// ignore: idiomatic.arch/public-fields - the answer of `Support` is private on purpose: only `absent` and `reads` make one, through `From<Answer>`, which no language can call because only this crate names an `Answer`, so a reader written beside its item is no answer (the ui case `fail_support_built_without_an_item`)
+// the answer of `Support` is private on purpose: only `absent` and `reads` make one, through `From<Answer>`, which no language can call because only this crate names an `Answer`, so a reader written beside its item is no answer (the ui case `fail_support_built_without_an_item`)
 
 use crate::domain::elements::types::Tree;
 use crate::domain::symbols::types::Symbols;

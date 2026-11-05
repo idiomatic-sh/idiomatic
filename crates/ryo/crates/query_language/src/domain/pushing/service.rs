@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the lookups pushed into a join and the filters pushed before a capture are the two pushes the planner makes and share the reading of a chain of filters.
+// the lookups pushed into a join and the filters pushed before a capture are the two pushes the planner makes and share the reading of a chain of filters.
 //! The `pushing` service: free functions named by verb over the lookups into a join of edges and elements made before the join.
 
 use ryo_relations::domain::relations::types::Relation;
@@ -7,7 +7,6 @@ use super::types::{
     FilterDepth, FilterStep, FilteredElements, KeptColumns, MovedComparisons, Pushed, Skipped,
 };
 use crate::domain::fusing::service::source_column;
-use ryo_values::domain::plans::service::each_input;
 use crate::domain::rewriting::types::{Planned, StepIndex};
 use crate::domain::walking::service::width_of;
 use ryo_values::domain::plan_parts::service::{columns_of, each_column, remapped};
@@ -18,6 +17,7 @@ use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 

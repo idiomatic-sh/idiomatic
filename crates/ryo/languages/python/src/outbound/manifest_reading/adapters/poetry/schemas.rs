@@ -26,7 +26,7 @@ const INTERPRETER: &str = "python";
 
 /// A `pyproject.toml`.
 #[derive(Debug, Default, Deserialize)]
-// ignore: idiomatic.arch/no-deep-stored-types - the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
+// the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
 struct PyprojectSchema {
     /// The `[tool]` table, which holds Poetry's.
     tool: Option<ToolSchema>,

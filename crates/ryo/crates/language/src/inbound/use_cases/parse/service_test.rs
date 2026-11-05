@@ -1,8 +1,8 @@
-// ignore: idiomatic.arch/file-length - one row for each thing a walk gives a reader, over one language written for them
+// one row for each thing a walk gives a reader, over one language written for them
 //! The `parse` service's cases: what a walk gives the readers a language answers.
 
-use ryo_relations::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::Recognition;
+use ryo_relations::domain::terms::types::UnknownName;
 use std::marker::PhantomData;
 
 use super::errors::ParseError;
@@ -12,22 +12,24 @@ use super::types::{FieldRequest, NoteRequest, ParseRequest};
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::answers::service::{absent, reads};
 use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
-use ryo_relations::domain::answers::types::AbsenceCause;
 use crate::domain::elements::service::{end_of, enter_node, leave_node, table_builder, token};
 use crate::domain::elements::types::{Completion, Elements, TableBuilder, Tree};
 use crate::domain::files::types::SourcePath;
 use crate::domain::reasons::types::ToolMessage;
-use ryo_relations::domain::relations::collections::relations::function::item::{Function, FunctionRow};
+use crate::domain::symbols::types::ByteSlice;
+use crate::domain::symbols::types::Symbols;
+use crate::inbound::use_cases::parse::fixtures::contract::Collect;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
 use ryo_relations::domain::relations::collections::relations::syntax_tree::item::{
     SyntaxTree, SyntaxTreeRow,
 };
 use ryo_relations::domain::relations::types::{
     Count, FileId, KindBits, NodeId, Offset, Position, Relation, Rows, Span,
 };
-use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::terms::types::Symbol;
-use crate::inbound::use_cases::parse::fixtures::contract::Collect;
 
 /// A language that reads `function` from the tokens of kind 2 and `syntax_tree` from every element,
 /// and says the rest is not in it.
@@ -160,7 +162,9 @@ impl ReadItem for TreeItem {
 impl ParseUseCase for Small {
     type FileModel = Seen;
 
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
 
@@ -224,7 +228,7 @@ impl ParseUseCase for Small {
             ryo_relations::domain::relations::collections::relations::source_location::item::SourceLocation,
             Seen,
         >,
-    > {
+    >{
         crate::domain::answers::service::source_locations()
     }
 
@@ -254,7 +258,9 @@ macro_rules! absent_all {
 impl ParseUseCase for Breaking {
     type FileModel = ();
 
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         &[]
     }
 
@@ -526,7 +532,8 @@ impl<const FORBIDDEN: bool> crate::domain::answers::types::declared::Syntax
 {
 }
 impl<const FORBIDDEN: bool> ReadItem for IdentifierProbe<FORBIDDEN> {
-    type Relation = ryo_relations::domain::relations::collections::relations::identifier::item::Identifier;
+    type Relation =
+        ryo_relations::domain::relations::collections::relations::identifier::item::Identifier;
     type Model = Seen;
     const READER: Reader<Self::Relation, Seen> = Reader {
         reads: Reads::Every,
@@ -580,7 +587,10 @@ macro_rules! forwarded_optional_method {
         fn $method(
             &self,
         ) -> Support<
-            Reader<ryo_relations::domain::relations::collections::relations::$method::item::$variant, Seen>,
+            Reader<
+                ryo_relations::domain::relations::collections::relations::$method::item::$variant,
+                Seen,
+            >,
         > {
             Small.$method()
         }
@@ -594,7 +604,9 @@ macro_rules! forwarded_optional_methods {
 }
 impl ParseUseCase for Promised {
     type FileModel = Seen;
-    fn capabilities(&self) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::relations::types::OptionalCapability] {
         self.0
     }
 

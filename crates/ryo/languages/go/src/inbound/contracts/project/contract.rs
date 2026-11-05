@@ -55,7 +55,7 @@ impl ProjectContract {
                 if bytes.0.is_empty() {
                     None
                 } else {
-                    self.notes.note_in(bytes).ok() // ignore: idiomatic.arch/no-ok-on-result - the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
+                    self.notes.note_in(bytes).ok() // the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
                 }
             })
             .collect()

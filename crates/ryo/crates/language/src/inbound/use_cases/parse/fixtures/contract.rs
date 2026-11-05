@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the contract is one check run in order over the samples, and its steps (rows, flow, determinism) share the reads and the sink they run against.
+// the contract is one check run in order over the samples, and its steps (rows, flow, determinism) share the reads and the sink they run against.
 //! What every implementation of the `parse` use case's trait must pass.
 
 #![expect(
@@ -17,11 +17,13 @@ use super::super::service::{absence, build, read as read_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::elements::service::{end_of, positions};
 use crate::domain::elements::types::Elements;
+use crate::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
 use ryo_relations::domain::relations::service::{all, columns, is_declaring, provenance_of};
 use ryo_relations::domain::relations::types::Provenance;
-use ryo_relations::domain::relations::types::{Bits, FileId, Missing, Relation, RelationDeclaring, Rows};
-use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{
+    Bits, FileId, Missing, Relation, RelationDeclaring, Rows,
+};
 
 /// A writer that keeps nothing: the contract looks at what the language answers, not at what it wrote.
 #[derive(Default, Clone, Copy, Debug)]
@@ -707,7 +709,8 @@ fn embedded_roots_valid(elements: &Elements) -> bool {
     use crate::domain::elements::service::{flags_at, parent_at};
     crate::domain::expansions::service::embedded_expressions(elements).all(|embedded| {
         embedded.root < embedded.end
-            && flags_at(elements, embedded.root).0 & ryo_relations::domain::relations::constants::TOKEN.0
+            && flags_at(elements, embedded.root).0
+                & ryo_relations::domain::relations::constants::TOKEN.0
                 == 0
             && parent_at(elements, embedded.root) == embedded.host
     })

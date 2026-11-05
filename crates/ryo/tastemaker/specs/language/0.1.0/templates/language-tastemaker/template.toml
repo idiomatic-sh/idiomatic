@@ -1,8 +1,8 @@
-description = "A language's own placement, `tastemaker.toml` in its directory: the parser and tool crates it reads with, declared once by the language."
+description = "A language's own placement, `src/tastemaker.toml` at its provider import boundary: the parser and tool crates it reads with, declared once by the language."
 why = "A language declares the crates it reads with in its own placement, once: `imports-allow` adds them to the allow-list of its imports, and its own `client-at-adapter` placement, with the same libraries, keeps them in its syntax adapter (a language with `imports-allow` and no such placement is a template finding). A language without the file has the entry's deny-list for its imports, and learns of it only when an import is refused; with the file placed, its absence is a finding (orchestrator ruling on the review of 62952e0aa7)."
 content = '''
 {%- set library = captures.library | default(["library"]) | first -%}
-# The {{ lang }} language's own placement (paths are directory-relative).
+# The {{ lang }} provider source placement (paths are relative to src/).
 # The parser crates {{ lang }} reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
@@ -24,7 +24,7 @@ params = { lang = 'demo' }
 id = 'language-declares-own-placement'
 scenario = 'The language declares its own placement.'
 given.files.'own.toml' = '''
-# The demo language's own placement (paths are directory-relative).
+# The demo provider source placement (paths are relative to src/).
 variables = { libraries = ["library::*"] }
 imports-allow = [{ variable = "libraries" }]
 rules = [
@@ -43,7 +43,7 @@ then.findings = [
 id = 'without-client'
 scenario = 'A language with imports-allow and no client-at-adapter placement.'
 given.files.'own.toml' = '''
-# The demo language's own placement (paths are directory-relative).
+# The demo provider source placement (paths are relative to src/).
 imports-allow = ["demo_parser::*"]
 '''
 then.findings = [

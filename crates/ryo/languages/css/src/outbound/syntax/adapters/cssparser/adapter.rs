@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the adapter is the receiver of the library's rule parsers, one method for each callback of its traits, and the tree it writes from them; splitting it would make a second file no adapter template places
+// the adapter is the receiver of the library's rule parsers, one method for each callback of its traits, and the tree it writes from them; splitting it would make a second file no adapter template places
 //! The syntax port, implemented with `cssparser`, Servo's CSS Syntax Level 3 parser. The library gives no tree: a tokenizer, nested
 //! blocks, and rule and declaration parsers that call back for each rule's prelude and body and each declaration's value. The
 //! adapter is those callbacks: each opens and closes the node of the standard's parsing results it is given (a rule, a declaration,
@@ -92,14 +92,14 @@ fn target(
             Ok::<_, ParseError<()>>(inner.expect_string()?.to_string())
         });
         parser.reset(&state);
-        found.ok() // ignore: idiomatic.arch/no-ok-on-result - a `url(` whose block holds no string names no target: the parser's refusal is the answer that there is none
+        found.ok() // a `url(` whose block holds no string names no target: the parser's refusal is the answer that there is none
     } else if let Token::AtKeyword(name) = token
         && name.eq_ignore_ascii_case(IMPORT)
     {
         let state = parser.state();
         let found = parser
             .expect_url_or_string()
-            .ok() // ignore: idiomatic.arch/no-ok-on-result - an `@import` followed by no url or string names no target: the parser's refusal is the answer that there is none
+            .ok() // an `@import` followed by no url or string names no target: the parser's refusal is the answer that there is none
             .map(|url| url.to_string());
         parser.reset(&state);
         found

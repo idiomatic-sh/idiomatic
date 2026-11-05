@@ -1,4 +1,4 @@
-# The go language's own placement (paths are directory-relative).
+# The go provider source placement (paths are relative to src/).
 # The parser crates go reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.

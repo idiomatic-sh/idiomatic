@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/adapter/stateless-adapters - WRITERS is the one counter that gives each writer a file name of its own so two runs never write one file; the name must be unique across threads, which only a process-global can promise. It is the only state: the store a run read travels with the run, in its ReadStore.
+// WRITERS is the one counter that gives each writer a file name of its own so two runs never write one file; the name must be unique across threads, which only a process-global can promise. It is the only state: the store a run read travels with the run, in its ReadStore.
 //! The store port, implemented with one file in the cache directory: sections one after the other and a table of contents last, so
 //! a run reads only the sections it needs; written whole through a temporary file renamed into place, so a reader sees the old store
 //! or the new, never part of one. A bucket whose words are as they were is copied from the old file as it is.

@@ -172,7 +172,7 @@ pub struct Answers(pub Vec<RelationAnswer>);
 
 /// The parts of one language an edge hands over: its name, its build, and the two use cases it implements. One value for each
 /// language, so no part can be missing or out of step with another.
-// ignore: idiomatic.arch/port/plain-port-types - the parts of one language an edge hands the adapter: its two use cases are shared engines behind `dyn` that nothing compares, copies or prints; the adapter takes them whole, and declaring them in factory.rs would make the adapter name its factory (factory-calls)
+// the parts of one language an edge hands the adapter: its two use cases are shared engines behind `dyn` that nothing compares, copies or prints; the adapter takes them whole, and declaring them in factory.rs would make the adapter name its factory (factory-calls)
 pub struct LanguageHandles {
     /// What the language is called, in listings.
     pub name: LanguageName,

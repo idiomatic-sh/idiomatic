@@ -1,11 +1,10 @@
-// ignore: idiomatic.arch/file-length - the three cuts of the rows handed over (a step's columns, a relation's columns, a view read in place) share the reading of what an operation reads of an input, which is one match over the operations; splitting it would repeat that match.
+// the three cuts of the rows handed over (a step's columns, a relation's columns, a view read in place) share the reading of what an operation reads of an input, which is one match over the operations; splitting it would repeat that match.
 //! The `inlining` service: free functions named by verb over the views of a relation read in place, and the rows handed over cut to the columns asked.
 
 use ryo_relations::domain::relations::service::provenance_of;
 use ryo_relations::domain::relations::types::{Provenance, Relation};
 
 use super::types::StepReading;
-use ryo_values::domain::plans::service::each_input;
 use crate::domain::rewriting::types::Planned;
 use ryo_values::domain::plan_parts::service::{each_column, each_column_mut};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -15,6 +14,7 @@ use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 use ryo_values::domain::plans::types::StepScope;

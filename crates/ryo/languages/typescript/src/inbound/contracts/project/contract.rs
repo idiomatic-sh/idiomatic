@@ -131,7 +131,7 @@ impl Project for ProjectContract {
                 .notes
                 .iter()
                 .map(|bytes| {
-                    // ignore: idiomatic.arch/no-ok-on-result - the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
+                    // the one error of a notes read is bytes that hold no note: a file the parse noted nothing of
                     self.notes.note_in(bytes).ok()
                 })
                 .collect();

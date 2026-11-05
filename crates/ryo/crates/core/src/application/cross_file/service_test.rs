@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
+// the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
 //! The `crossing` service's cases, on values alone.
 
 use super::service::CrossFile;

@@ -99,7 +99,7 @@ pub const fn unknown_symbol(reason: UnknownReason) -> Symbol {
 #[must_use]
 pub fn unknown_reason(symbol: Symbol) -> Option<UnknownReason> {
     let within = symbol.0.checked_sub(start_of(WordBlock::Unknown).0)?;
-    u8::try_from(within).ok().map(UnknownReason) // ignore: idiomatic.arch/no-ok-on-result - a symbol past the block of unknown reasons is no reason, which is the question asked
+    u8::try_from(within).ok().map(UnknownReason) // a symbol past the block of unknown reasons is no reason, which is the question asked
 }
 
 /// The words of a closed set, in the order of their numbers.
@@ -146,7 +146,7 @@ pub fn is_term(symbol: Symbol) -> Wordness {
 #[must_use]
 pub fn term_text(symbol: Symbol) -> Option<NameText<'static>> {
     let within = symbol.0.checked_sub(TERM_BASE)?;
-    let number = u8::try_from(within % BLOCK_SIZE).ok()?; // ignore: idiomatic.arch/no-ok-on-result - a place in a block past the words of a closed set is no word, which is the question asked
+    let number = u8::try_from(within % BLOCK_SIZE).ok()?; // a place in a block past the words of a closed set is no word, which is the question asked
     match within / BLOCK_SIZE {
         0 => DeclarationKind::from_repr(number).map(Term::text),
         1 => ParameterKind::from_repr(number).map(Term::text),

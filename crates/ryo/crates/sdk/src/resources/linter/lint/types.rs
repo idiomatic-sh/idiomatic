@@ -25,7 +25,7 @@ use ryo_values::domain::files::types::{CorpusFile, CorpusListing};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleId(Box<str>);
 
-// ignore: idiomatic.arch/idiomatic-rust/no-bare-text - the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
+// the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
 impl RuleId {
     /// A rule id of `text`, which the core holds or a schema has checked: what the sibling schemas build, never a caller.
     pub(super) const fn from_text(text: Box<str>) -> Self {
@@ -49,7 +49,7 @@ impl AsRef<str> for RuleId {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Glob(Box<str>);
 
-// ignore: idiomatic.arch/idiomatic-rust/no-bare-text - the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
+// the newtype's own text crosses only to its sibling schemas, which check it on the way in and read it through `AsRef<str>`; the field stays private so no caller outside them makes an unchecked one, which a `pub(super)` field would allow its whole module
 impl Glob {
     /// A glob of `text`, which a schema has checked: what the sibling schemas build, never a caller.
     pub(super) const fn from_text(text: Box<str>) -> Self {

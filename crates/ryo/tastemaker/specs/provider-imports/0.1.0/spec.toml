@@ -17,3 +17,62 @@ scenario = "A new provider implementation cannot import private engine code."
 given.files.'domain/model.rs' = 'use ryo_core::domain::operator::types::Operation;'
 then.only = ['idiomatic.ryo/provider-imports/private-engine']
 then.findings = [{ rule = 'idiomatic.ryo/provider-imports/private-engine', path = 'domain/model.rs' }]
+
+[[scenarios]]
+id = "declared-parser-at-source-adapter"
+scenario = "Declared parser at source adapter."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src", "demo/benchmarks/provider"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::*", "ryo_language::*"] } }]
+'''
+given.files.'demo/src/tastemaker.toml' = '''
+variables = { libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }]
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["outbound/*/adapters/**"], params = { libraries = { variable = "libraries" } } }]
+'''
+given.files.'demo/src/outbound/syntax/adapters/parser/adapter.rs' = 'use demo_parser::Parser;'
+
+[[scenarios]]
+id = "parser-cannot-enter-domain"
+scenario = "Parser cannot enter domain."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src", "demo/benchmarks/provider"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::*", "ryo_language::*"] } }]
+'''
+given.files.'demo/src/tastemaker.toml' = '''
+variables = { libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }]
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["outbound/*/adapters/**"], params = { libraries = { variable = "libraries" } } }]
+'''
+given.files.'demo/src/domain/model/service.rs' = 'use demo_parser::Parser;'
+then.findings = [{ rule = "idiomatic.arch/client-at-adapter", path = "demo/src/domain/model/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "undeclared-parser-stays-denied"
+scenario = "Undeclared parser stays denied."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src", "demo/benchmarks/provider"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::*", "ryo_language::*"] } }]
+'''
+given.files.'demo/src/tastemaker.toml' = '''
+variables = { libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }]
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["outbound/*/adapters/**"], params = { libraries = { variable = "libraries" } } }]
+'''
+given.files.'demo/src/outbound/syntax/adapters/parser/adapter.rs' = 'use other_parser::Parser;'
+then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/src/outbound/syntax/adapters/parser/adapter.rs", line = 1 }]
+
+[[scenarios]]
+id = "source-allowance-does-not-leak-to-benchmarks"
+scenario = "Source allowance does not leak to benchmarks."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src", "demo/benchmarks/provider"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::*", "ryo_language::*"] } }]
+'''
+given.files.'demo/src/tastemaker.toml' = '''
+variables = { libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }]
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["outbound/*/adapters/**"], params = { libraries = { variable = "libraries" } } }]
+'''
+given.files.'demo/benchmarks/provider/bench.rs' = 'use demo_parser::Parser;'
+then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/benchmarks/provider/bench.rs", line = 1 }]

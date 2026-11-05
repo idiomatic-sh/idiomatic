@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the adapter spec allows one adapter_test.rs, which holds the port contract rows, the cases of the adapter's tree and its sections, and the comparison of the whole tree with the pinned mdast prints
+// the adapter spec allows one adapter_test.rs, which holds the port contract rows, the cases of the adapter's tree and its sections, and the comparison of the whole tree with the pinned mdast prints
 //! The `pulldown_cmark` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::SyntaxPulldownCmarkAdapter;

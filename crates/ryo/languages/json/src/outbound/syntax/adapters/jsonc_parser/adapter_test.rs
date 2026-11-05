@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the adapter's rows and the one comparison they rest on: its trees held to the JSON standard's pinned dumps (read back, mapped onto the language's kinds, compared piece by piece), which only these rows use; the adapter's fixtures roles (oracle, walk) hold the library's own readings, not the standard's
+// the adapter's rows and the one comparison they rest on: its trees held to the JSON standard's pinned dumps (read back, mapped onto the language's kinds, compared piece by piece), which only these rows use; the adapter's fixtures roles (oracle, walk) hold the library's own readings, not the standard's
 //! The `jsonc_parser` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::SyntaxJsoncParserAdapter;

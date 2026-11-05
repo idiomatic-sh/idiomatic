@@ -2,7 +2,7 @@
 
 **Full categories: Relations INCOMPLETE (69 public catalog members, and framework routes); operators INCOMPLETE (26 kinds); derived views INCOMPLETE (13 required mechanisms: 12 public registered kinds plus `RawKeyOrder`).** The member and route checklists below are the acceptance scope.
 
-**Source status (2026-11-04):**
+**Source status (2026-11-05):**
 
 - [Frozen `3ff` full Ruff inventory](../../languages/python/benchmarks/linters/ruff/results/integrated-3ff-full413-2026-11-04/README.md) passes 413/413; the published `89` checkpoint also passes the [remote all-defaults job](https://github.com/idiomatic-sh/idiomatic/actions/runs/41862008828). I001 and RUF100 are implemented. This is rule evidence, not full category ownership proof. The public relation catalog has 69 members including project namespace membership.
 - Canonical cold/warm/edit benchmarks must select all 413 identical IDs for both contestants. Historical 409/411/subset benchmark evidence retains its recorded scope. Current all-413 ListedDisk Django execution reports incomplete RUF100 producers; canonical certification/context work and subsecond/memory goals remain open.

@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the catalog's vocabulary of cells, kinds and names is one list a relation is described by
+// the catalog's vocabulary of cells, kinds and names is one list a relation is described by
 //! The types of the `relations` concept: plain data, public fields and derives, with no
 //! constructor and no inherent impl. Every name, id, span and cell the engine handles is one of
 //! these; no text is held inside the engine.

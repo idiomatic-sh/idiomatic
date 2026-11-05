@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the one service_test.rs a service has holds a row for each decision of the service, and each row its own store; a second test file for one service is a role no spec places
+// the one service_test.rs a service has holds a row for each decision of the service, and each row its own store; a second test file for one service is a role no spec places
 //! The `storing` service's cases, on values alone.
 
 use ryo_language::domain::files::types::FilePath;

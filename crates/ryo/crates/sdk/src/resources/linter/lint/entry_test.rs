@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the one entry_test.rs an entry has holds a row for each promise the entry makes to its caller, each with the repository it runs over; a second test file for one entry is a role no spec places
+// the one entry_test.rs an entry has holds a row for each promise the entry makes to its caller, each with the repository it runs over; a second test file for one entry is a role no spec places
 //! What `linter lint` promises its caller, one row of `CASES` for each case it has.
 
 use std::collections::BTreeMap;

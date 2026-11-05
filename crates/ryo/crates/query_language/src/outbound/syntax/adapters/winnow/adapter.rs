@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the winnow adapter is the RyoQL grammar: one small parser fn for each thing the language has, from a word to the whole program (30 fns, none long); splitting them across files would scatter one grammar.
+// the winnow adapter is the RyoQL grammar: one small parser fn for each thing the language has, from a word to the whole program (30 fns, none long); splitting them across files would scatter one grammar.
 //! The syntax port, implemented with winnow: RyoQL text is read by small parsers, one for each
 //! thing the language has, from the smallest (a word, a string) up to the whole program.
 

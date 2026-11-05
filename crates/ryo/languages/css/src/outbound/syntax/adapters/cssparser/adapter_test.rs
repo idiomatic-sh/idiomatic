@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - this test holds the whole comparison with the standard's print: the reader of the print, our tree projected onto it and the cases; a split would be a file no adapter template places
+// this test holds the whole comparison with the standard's print: the reader of the print, our tree projected onto it and the cases; a split would be a file no adapter template places
 //! The `cssparser` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::SyntaxCssparserAdapter;

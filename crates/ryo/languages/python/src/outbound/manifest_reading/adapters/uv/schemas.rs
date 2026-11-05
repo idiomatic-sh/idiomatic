@@ -18,7 +18,7 @@ use crate::outbound::manifest_reading::errors::ManifestReadingError;
 
 /// A `pyproject.toml`.
 #[derive(Debug, Default, Deserialize)]
-// ignore: idiomatic.arch/no-deep-stored-types - the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
+// the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
 struct PyprojectSchema {
     /// The `[tool]` table, which holds uv's.
     tool: Option<ToolSchema>,
@@ -35,7 +35,7 @@ struct ManifestSchema {
 
 /// A `[tool]`.
 #[derive(Debug, Default, Deserialize)]
-// ignore: idiomatic.arch/no-deep-stored-types - the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
+// the shape is the tables of pyproject.toml, read table for table: a flatter shape reads a different file
 struct ToolSchema {
     /// The `[tool.uv]` table.
     uv: Option<UvSchema>,

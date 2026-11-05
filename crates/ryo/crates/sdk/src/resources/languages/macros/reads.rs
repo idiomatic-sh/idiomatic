@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/idiomatic-rust/no-string-literals - `env!` and the `reason` of an `allow` take a literal, which a constant cannot stand in for
+// `env!` and the `reason` of an `allow` take a literal, which a constant cannot stand in for
 /// Declares how a language reads a relation, as data. It is the only way an item implements `ryo::languages::ReadItem` or
 /// `ryo::languages::ManifestItem`: both are sealed against an accidental hand-written impl: an impl that forgets the marker in `languages::declared` does not compile. A deliberate marker impl compiles, and the rule `readers-in-items` flags it.
 ///

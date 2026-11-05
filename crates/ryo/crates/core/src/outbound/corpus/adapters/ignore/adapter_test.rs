@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - the one test file the adapter template places for the ignore adapter: its walk, stamp, listing and skip scenarios share one table and one subject, and a split would be a file no adapter template places
+// the one test file the adapter template places for the ignore adapter: its walk, stamp, listing and skip scenarios share one table and one subject, and a split would be a file no adapter template places
 //! The ignore adapter of the corpus port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::{CorpusIgnoreAdapter, agree};

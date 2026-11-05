@@ -56,6 +56,6 @@ pub struct Collected {
 
 /// Where the collect adapter keeps every row, shared with the edge that takes them after the run: the edge makes it, hands a clone
 /// to the factory, and takes what it holds once the run ends.
-// ignore: idiomatic.arch/port/plain-port-types - the one way the rows of a run reach the edge that asked: the edge makes it, the collect adapter fills it while the run writes, and the edge takes the rows once the run ends; it is a shared place to put rows, not a value a contract compares
+// the one way the rows of a run reach the edge that asked: the edge makes it, the collect adapter fills it while the run writes, and the edge takes the rows once the run ends; it is a shared place to put rows, not a value a contract compares
 #[derive(Clone, Debug, Default)]
-pub struct Collector(pub std::sync::Arc<std::sync::Mutex<Collected>>); // ignore: idiomatic.arch/port/plain-port-types - the lock is what the edge and the adapter share the rows through, as said above
+pub struct Collector(pub std::sync::Arc<std::sync::Mutex<Collected>>); // the lock is what the edge and the adapter share the rows through, as said above

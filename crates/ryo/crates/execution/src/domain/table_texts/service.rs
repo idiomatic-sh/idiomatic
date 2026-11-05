@@ -36,7 +36,7 @@ pub(crate) fn name_text<'a>(texts: &Texts<'a>, name: Name) -> Option<TextView<'a
             ..usize::try_from(place.end.0).unwrap_or(usize::MAX),
     )?;
     std::str::from_utf8(text)
-        .ok() // ignore: idiomatic.arch/no-ok-on-result - bytes of a name that are not text have no text to compare, which the caller reads as no text
+        .ok() // bytes of a name that are not text have no text to compare, which the caller reads as no text
         .map(TextView)
 }
 

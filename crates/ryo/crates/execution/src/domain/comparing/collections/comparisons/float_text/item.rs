@@ -20,7 +20,7 @@ fn number_of(datum: &Datum<'_>) -> Option<WrittenNumber> {
             .0
             .trim()
             .parse::<f64>()
-            .ok() // ignore: idiomatic.arch/no-ok-on-result - a text that writes no number is compared as text, which is the question asked
+            .ok() // a text that writes no number is compared as text, which is the question asked
             .filter(|number| number.is_finite())
             .map(WrittenNumber),
         Datum::Unlocated
