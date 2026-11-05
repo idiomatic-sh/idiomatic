@@ -2050,14 +2050,33 @@ fn project_memory_guards_stop_real_lint_cohorts_and_preserve_the_first_error() {
             } else {
                 PlanInput::Step(StepId(0))
             };
+            plan.frontier = vec![from];
             plan.steps = if self.named && !first {
                 Vec::new()
             } else {
+                let file = ryo_relations::domain::relations::service::kinds(Relation::Function)
+                    .iter()
+                    .position(|kind| *kind == CellKind::File)
+                    .expect("canonical Function file column");
+                let file = ColumnIndex(u32::try_from(file).unwrap());
+                // These are actual captured file populations, not two request-invariant
+                // Hosted operations with the same empty invocation source map.
+                let operation = if first {
+                    Operation::Select {
+                        from: PlanInput::Relation(Relation::Function),
+                        comparisons: vec![],
+                        kept: vec![file],
+                    }
+                } else {
+                    Operation::Project {
+                        from: PlanInput::Relation(Relation::Function),
+                        columns: vec![file],
+                        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+                    }
+                };
                 vec![PlanStep {
-                    scope: StepScope::CrossFile,
-                    operation: Operation::Hosted {
-                        relation: HostedNumber(if first { 0 } else { 1 }),
-                    },
+                    scope: StepScope::PerFile,
+                    operation,
                 }]
             };
             plan.steps.push(PlanStep {
@@ -2103,27 +2122,13 @@ fn project_memory_guards_stop_real_lint_cohorts_and_preserve_the_first_error() {
                 reductions: AtomicUsize::new(0),
                 pressure,
             });
-            let mut first_host = host_placed();
-            first_host.rows = vec![HostRow(vec![
-                Typed::File("a.rs".into()),
-                Typed::Text("docs".into()),
-            ])];
-            let mut second_host = first_host.clone();
-            second_host.name = HostName("host.second".into());
             let given = Given {
                 files: vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")],
                 rules: vec!["first", "second"],
                 ids: vec!["first", "second"],
-                hosted: vec![first_host, second_host],
                 ..violations()
             };
             let mut asked = request(&given);
-            if !named {
-                // Distinct covered file populations force two actual cohorts;
-                // different Hosted operations alone still share one cohort.
-                asked.rules[0].include = vec![Glob("a.rs".into())];
-                asked.rules[1].include = vec![Glob("b.rs".into())];
-            }
             if named {
                 asked.rules[1].observations = vec![ObservationBinding {
                     name: ObservationBindingName("counts".into()),
@@ -2174,7 +2179,11 @@ fn project_memory_guards_stop_real_lint_cohorts_and_preserve_the_first_error() {
                     );
                 }
                 Pressure::Allowed => {
-                    result.expect("both project cohorts fit the actual memory budget");
+                    let report = result.expect("both project cohorts fit the actual memory budget");
+                    assert!(
+                        report.unknowns.is_empty(),
+                        "the actual file frontiers and named members must be complete"
+                    );
                     assert_eq!(
                         effect.reductions.load(Ordering::SeqCst),
                         2,
