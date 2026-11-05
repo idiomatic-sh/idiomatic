@@ -9,6 +9,8 @@ Treat missing mappings or enforcement as failures, not exemptions.
 
 1. Move the actual implementation and authority into the owning crate first.
    Accept a broken compile while the boundary is being established.
+   Scaffold each new crate with [nu-hex](../../tastemaker/specs/nu-hex/0.2.0/spec.toml):
+   run `tm --help` and `tm scaffold --help`, then scaffold and declare placement.
 2. Migrate every caller promptly to the required public contract. Remove old
    entry points, compatibility re-exports, optional owners, and second pipelines,
    including obsolete test executors and adapters.
