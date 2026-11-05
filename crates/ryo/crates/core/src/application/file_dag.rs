@@ -38,6 +38,7 @@ pub(crate) mod crossing;
 #[cfg(test)]
 pub(crate) mod acceptance;
 
+#[cfg(test)]
 pub(crate) mod feed;
 
 pub(crate) mod derived;

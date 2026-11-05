@@ -376,6 +376,7 @@ impl RelationOwner {
             }
         }
     }
+    #[cfg(test)]
     pub(super) fn normalized(
         &self,
         result: &PublishedInput,

@@ -9,6 +9,7 @@ impl RelationOwner {
         let record = self.source_borrowed(relation, rows)?;
         self.admit(record.as_ref(), rows)
     }
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn admit_external<'a>(
         &self,
         rows: BorrowedRows<'a>,

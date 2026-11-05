@@ -20,7 +20,6 @@ pub(crate) struct InvocationWorkspace {
     pub work: crate::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
     pub progress_origin: super::route_counts::CapturedOrigin,
-    origins: Vec<super::feed::InputOrigin>,
     pub derived_scratch: std::cell::RefCell<crate::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
     pub publications: Vec<Option<crate::application::file_dag::relations::PublishedInput>>,
@@ -55,7 +54,6 @@ impl InvocationWorkspace {
             work: Default::default(),
             #[cfg(feature = "diagnostic-row-progress")]
             progress_origin: super::route_counts::capture(),
-            origins: Default::default(),
             derived_scratch: Default::default(),
             relation_owner: owner,
             publications: Default::default(),
@@ -122,112 +120,19 @@ impl InvocationWorkspace {
 impl InvocationWorkspace {
     pub(in crate::application::file_dag) fn release_inputs(&mut self) {
         self.publications.clear();
-        self.origins.clear();
     }
     pub(in crate::application::file_dag) fn capture_admitted(
         &mut self,
         publications: Vec<super::relations::PublishedInput>,
     ) {
-        self.origins.clear();
-        self.origins
-            .resize(publications.len(), super::feed::InputOrigin::Internal);
         self.publications = publications.into_iter().map(Some).collect();
     }
-    pub(super) fn capture_inputs(
-        &mut self,
-        logical: &[ryo_values::domain::plan_parts::types::Input],
-        inputs: &[Rows<'_>],
-    ) -> Result<(), OperatingError> {
-        let owner = std::rc::Rc::clone(&self.relation_owner);
-        self.origins.clear();
-        self.publications.clear();
-        for (at, rows) in inputs.iter().enumerate() {
-            let relation = match (logical.get(at), rows) {
-                (
-                    Some(ryo_values::domain::plan_parts::types::Input::Relation(relation)),
-                    Rows::Stored(_) | Rows::Selected(_) | Rows::Tree(_),
-                ) => Some(*relation),
-                _ => None,
-            };
-            self.origins.push(relation.map_or(
-                super::feed::InputOrigin::External,
-                super::feed::InputOrigin::Relation,
-            ));
-            self.publications.push(
-                relation
-                    .map(|relation| owner.source(relation, rows))
-                    .transpose()?,
-            );
-        }
-        Ok(())
-    }
-    pub(super) fn capture(
-        &mut self,
-        feed: &dyn super::feed::Feed<'_>,
-        count: usize,
-    ) -> Result<(), OperatingError> {
-        if !std::rc::Rc::ptr_eq(&self.relation_owner, &feed.relation_owner()) {
-            return Err(OperatingError::NotRead);
-        }
-        self.publications.clear();
-        self.origins.clear();
-        for at in 0..count {
-            let which = crate::domain::operating::types::InputPlace(at);
-            let origin = feed.origin(which)?;
-            // A stream may already have been held by an earlier input demand.
-            // Preserve its publication so admission keeps its population and
-            // generation proof. Only an unheld internal stream uses external
-            // physical admission for this invocation.
-            let publication = feed.publication(which)?;
-            let origin = match (origin, feed.streams(which)?, publication.is_some()) {
-                (
-                    super::feed::InputOrigin::Internal,
-                    crate::domain::operating::types::Supply::Streamed,
-                    false,
-                ) => super::feed::InputOrigin::InternalStream,
-                (origin, _, _) => origin,
-            };
-            self.origins.push(origin);
-            self.publications.push(publication);
-        }
-        Ok(())
-    }
+
     pub(super) fn owner(&self) -> &super::relations::RelationOwner {
         &self.relation_owner
     }
     pub(super) fn owner_handle(&self) -> std::rc::Rc<super::relations::RelationOwner> {
         std::rc::Rc::clone(&self.relation_owner)
-    }
-    pub(super) fn normalization(
-        &self,
-        place: usize,
-        rows: crate::domain::table_model::types::Rows<'_>,
-    ) -> Option<Result<Option<Arc<ryo_values::domain::rows::types::Table>>, OperatingError>> {
-        let record = self.publications.get(place)?.as_ref()?;
-        Some(self.relation_owner.normalized(record, rows))
-    }
-    pub(super) fn proven(
-        &self,
-        place: usize,
-        input: BorrowedRows<'_>,
-    ) -> Result<bool, OperatingError> {
-        let Some(record) = self.publications.get(place).and_then(Option::as_ref) else {
-            return Ok(false);
-        };
-        Ok(self.relation_owner.inspect(record.as_ref(), input)?
-            == crate::domain::table_model::collections::representations::types::PhysicalShape::Complete)
-    }
-
-    pub(super) fn validate(
-        &self,
-        place: usize,
-        input: BorrowedRows<'_>,
-    ) -> Result<(), OperatingError> {
-        if self.proven(place, input)? {
-            Ok(())
-        } else {
-            input.validate()
-        }
     }
 }
 
@@ -387,27 +292,15 @@ impl InvocationWorkspace {
         if let Some(record) = self.publications.get(place).and_then(Option::as_ref) {
             return owner.admit(record.as_ref(), rows);
         }
-        match self
-            .origins
-            .get(place)
-            .copied()
-            .ok_or(OperatingError::MissingInput {
+        if place >= self.publications.len() {
+            Err(OperatingError::MissingInput {
                 position: place + 1,
-            })? {
-            super::feed::InputOrigin::Relation(relation) => owner.admit_relation(relation, rows),
-            super::feed::InputOrigin::External => owner.admit_external(rows),
-            super::feed::InputOrigin::InternalStream => owner.admit_external(rows),
-            super::feed::InputOrigin::Internal => Err(OperatingError::NotRun),
+            })
+        } else {
+            Err(OperatingError::NotRun)
         }
     }
-    pub(super) fn acquire_rows(
-        &self,
-        use_: &PreparedViewUse,
-        inputs: &[BorrowedRows<'_>],
-        context: &mut OperatorContext<'_>,
-    ) -> Result<super::derived::view::AcquiredView, OperatingError> {
-        self.inputs(inputs).acquire_rows(use_, context)
-    }
+
     fn acquire_admitted(
         &self,
         use_: &PreparedViewUse,
