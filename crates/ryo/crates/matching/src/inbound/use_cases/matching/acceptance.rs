@@ -6,7 +6,7 @@ use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 
 #[given(expr = "the matching input {string}")]
-fn input(world: &mut Behavior, input: String) {
+fn given_input(world: &mut Behavior, input: String) {
     world.input = input;
 }
 
