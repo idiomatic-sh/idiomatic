@@ -124,7 +124,10 @@ fn streamed_count_left_and_held_count_right_join_under_one_owner() {
         ));
         let root = graph.boundaries[0].last().unwrap().1;
         assert_eq!(
-            graph.nodes[root.0].input_supply[0] == Supply::Streamed,
+            matches!(
+                graph.nodes[root.0].inputs[0],
+                crate::domain::file_program::types::NodeInput::Node(_)
+            ),
             !reverse
         );
         let fixture =

@@ -1,5 +1,5 @@
 //! The `row_population` service's cases, on values alone.
-use super::service::modes;
+use super::service::semantics;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plans::types::OperationKind;
 type Input = OperationKind;
@@ -165,7 +165,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(kind: Input) -> Result<Value, Failure> {
-    Ok(modes(kind).0.row_inputs.0)
+    Ok(semantics(kind).0.row_inputs.0)
 }
 #[test]
 fn succeeds() {

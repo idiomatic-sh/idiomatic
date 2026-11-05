@@ -1,8 +1,5 @@
-//! Physical completeness survives merging and file-frontier conversion.
-use super::{
-    service::{file_frontier_coverage, merge_coverage},
-    types::CoverageState,
-};
+//! Physical completeness survives file-frontier conversion.
+use super::{service::file_frontier_coverage, types::CoverageState};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::{
@@ -53,12 +50,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             let mut causes = vec![FrontierAffected::CurrentFile, FrontierAffected::Repository];
             causes.sort_unstable();
             FrontierCase {
-                coverage: merge_coverage(
-                    CoverageState::Partial {
-                        files: vec![Some(FileId(0)), Some(FileId(0))],
-                    },
-                    CoverageState::Partial { files: vec![None] },
-                ),
+                coverage: CoverageState::Partial {
+                    files: vec![Some(FileId(0)), Some(FileId(0)), None],
+                },
                 expected: FrontierCoverage::Partial(causes),
             }
         },

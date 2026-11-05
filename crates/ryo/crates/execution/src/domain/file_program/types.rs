@@ -32,10 +32,7 @@ pub(crate) struct FileProgramNode {
         crate::domain::operating::errors::OperatingError,
     >,
     pub phase: ryo_values::domain::plans::types::StepScope,
-    /// Declared transport preserves lazy refusal order independently of cache hits.
-    pub input_supply: Vec<crate::domain::operating::types::Supply>,
-    /// A native right relation forced a formerly streamed left publication;
-    /// preserve the Join's original right-before-left refusal order.
+    /// One semantic input and dependency contract for all output delivery.
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
     /// Executable registered operation with normalized local input numbers.
     pub operation: ryo_values::domain::plans::types::Operation,

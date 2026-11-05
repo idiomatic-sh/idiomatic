@@ -344,12 +344,16 @@ fn provenance_admission_keeps_unrelated_internal_streams_lazy() {
     let graph = graph(&[query]);
     let union = *graph.program_nodes[0][2].as_ref().expect("compiled union");
     assert_eq!(
-        graph.nodes[union.0].input_supply,
-        vec![
-            crate::domain::operating::types::Supply::Streamed,
-            crate::domain::operating::types::Supply::Streamed,
-        ],
-        "only inputs named by a prepared derived use gain held provenance"
+        graph.nodes[union.0].contract.semantics.demand,
+        crate::domain::operator::contract::types::DemandOrder::LeftThenRight
+    );
+    assert_eq!(graph.nodes[union.0].inputs.len(), 2);
+    assert!(
+        graph.nodes[union.0].inputs.iter().all(|input| matches!(
+            input,
+            crate::domain::file_program::types::NodeInput::Node(_)
+        )),
+        "both authored upstream producers remain exact semantic dependencies"
     );
 }
 
@@ -377,10 +381,10 @@ fn ordinary_join_and_group_count_keep_single_reader_streams() {
     query.emit.step = StepId(1);
     let joined = graph(&[query]);
     let id = *joined.program_nodes[0][1].as_ref().expect("compiled join");
-    assert_eq!(
-        joined.nodes[id.0].input_supply[0],
-        crate::domain::operating::types::Supply::Streamed,
-    );
+    assert!(matches!(
+        joined.nodes[id.0].inputs[0],
+        crate::domain::file_program::types::NodeInput::Node(_)
+    ));
     assert_eq!(
         joined.nodes[id.0].contract.semantics.demand,
         crate::domain::operator::contract::types::DemandOrder::LeftThenRight
@@ -401,10 +405,10 @@ fn ordinary_join_and_group_count_keep_single_reader_streams() {
     let id = *grouped.program_nodes[0][1]
         .as_ref()
         .expect("compiled GroupCount");
-    assert_eq!(
-        grouped.nodes[id.0].input_supply[0],
-        crate::domain::operating::types::Supply::Streamed,
-    );
+    assert!(matches!(
+        grouped.nodes[id.0].inputs[0],
+        crate::domain::file_program::types::NodeInput::Node(_)
+    ));
     assert_eq!(
         grouped.nodes[id.0].contract.semantics.demand,
         crate::domain::operator::contract::types::DemandOrder::Unary

@@ -4,7 +4,7 @@ use crate::application::file_dag::program::{
     admission::{FileGeneration, Inputs, Partition, ProducerRoot, contributor_readiness},
     context::RunContext,
     kernel_session::KernelSession,
-    runtime::{Delivery, InvocationOutcome, ProgramExecution},
+    runtime::{InvocationOutcome, ProgramExecution},
 };
 use crate::domain::completion::types::completion_policy::value::CompletionPolicy;
 use crate::domain::coverage::types::{Lacking, Partial, Partials, RuleIndex};

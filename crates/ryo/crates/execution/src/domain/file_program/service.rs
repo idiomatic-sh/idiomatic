@@ -21,7 +21,6 @@ struct CanonicalNode {
     contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
     scope: Option<usize>,
     phase: StepScope,
-    input_supply: Vec<crate::domain::operating::types::Supply>,
     operation: Operation,
     inputs: Vec<NodeInput>,
     schema_valid: bool,
@@ -158,21 +157,6 @@ fn fingerprint(
     hash.finish()
 }
 
-/// The streaming Join can acquire a prepared native lookup only when its
-/// right input is a native relation. That lookup needs the left publication;
-/// ordinary equality and unary derived candidates do not acquire it here.
-fn native_join_left_publication(node: &CanonicalNode) -> bool {
-    matches!(
-        &node.contract.resources,
-        crate::domain::operator::contract::resources::ResourceProgram::Join(join)
-            if join.reach.is_none()
-    ) && matches!(
-        node.inputs.get(1),
-        Some(NodeInput::Relation(relation))
-            if crate::domain::table_cells::service::native_form(*relation).is_some()
-    )
-}
-
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
 #[cfg(test)]
@@ -246,7 +230,6 @@ pub(crate) fn compile_prepared_observations(
                         || contract.effects
                             != crate::domain::operator::contract::types::Effects::Pure)
                         .then_some(rule);
-                    let input_supply = Vec::new();
                     let region = layout.as_ref().and_then(|layout| {
                         let column = columns
                             .as_ref()
@@ -304,7 +287,6 @@ pub(crate) fn compile_prepared_observations(
                         contract,
                         scope,
                         phase: step.scope,
-                        input_supply,
                         operation,
                         inputs,
                         schema_valid,
@@ -393,31 +375,6 @@ pub(crate) fn compile_prepared_observations(
     }
     for root in observed_outputs {
         resolved_readers[root.0] += 1;
-    }
-    let mut canonical_roots = vec![false; nodes.len()];
-    for roots in &boundaries {
-        for (_, root) in roots {
-            canonical_roots[root.0] = true;
-        }
-    }
-    for node in &mut nodes {
-        let native_left = native_join_left_publication(node);
-        node.input_supply = node
-            .inputs
-            .iter()
-            .enumerate()
-            .map(|(at, input)| match input {
-                NodeInput::Node(child)
-                    if node.phase == StepScope::PerFile
-                        && resolved_readers[child.0] == 1
-                        && !(at == 0 && native_left)
-                        && !canonical_roots[child.0] =>
-                {
-                    crate::domain::operating::types::Supply::Streamed
-                }
-                _ => crate::domain::operating::types::Supply::AtHand,
-            })
-            .collect();
     }
     let mut ordered_existence = vec![None; nodes.len()];
     for (rule, program) in operators.ordered_existence.iter().enumerate() {
@@ -525,7 +482,6 @@ pub(crate) fn compile_prepared_observations(
                 regions: node.regions,
                 needs: node.needs,
                 phase: node.phase,
-                input_supply: node.input_supply,
                 contract: node.contract,
                 operation: node.operation,
                 inputs: node.inputs,
