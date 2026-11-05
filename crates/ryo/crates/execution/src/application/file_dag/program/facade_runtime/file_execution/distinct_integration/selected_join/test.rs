@@ -1,6 +1,29 @@
 //! Selected RHS projection and duplicate order through the real compiled Join.
 use super::super::*;
-use crate::domain::table_model::service::take_read_row_counts;
+use crate::domain::table_model::service::{read_row_counts, take_read_row_counts};
+use ryo_operators::inbound::use_cases::operators::interface::{
+    OperatorAnswer, OperatorCall, OperatorsUseCase, PortableOperatorFault,
+};
+
+/// Observe only actual Join driver work, excluding prepared walks and publication delivery.
+#[derive(Debug, Default)]
+struct JoinReads(std::sync::Mutex<Vec<(u64, u64)>>);
+impl OperatorsUseCase for JoinReads {
+    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
+        let before = matches!(&call, OperatorCall::EqualityJoin { .. }).then(read_row_counts);
+        let answer =
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+                .operators(call);
+        if let Some(before) = before {
+            let after = read_row_counts();
+            self.0
+                .lock()
+                .unwrap()
+                .push((after.0 - before.0, after.1 - before.1));
+        }
+        answer
+    }
+}
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn, NodeId},
@@ -105,10 +128,9 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
             .is_some(),
         "RHS must use the actual compiled stored selection"
     );
+    let semantic_reads = Arc::new(JoinReads::default());
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        ))),
+        Arc::new(CommonOperatorEngine::new(semantic_reads.clone())),
         derived,
         &[CorpusInput::Available(CorpusEntry {
             executable: ExecutablePermission::Unknown,
@@ -165,9 +187,13 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
             .collect::<Vec<_>>(),
         [99, 3, 3, 99, 1, 1, 99, 3, 3]
     );
-    // The streamed left provider reads its single canonical row. The three RHS
-    // rows are decoded only by projected cell access, never as five-cell rows.
-    assert_eq!(take_read_row_counts(), (1, 5));
+    // The single real Join call probes all three RHS matches and emits duplicate
+    // projected cells without decoding any full RHS row. Observe that operation
+    // directly rather than conflating it with walk setup or committed delivery.
+    assert_eq!(*semantic_reads.0.lock().unwrap(), [(0, 0)]);
+    // Separate mandatory stages: four five-column source rows in the shared walks,
+    // one two-column selected LHS row, then three three-column publication rows.
+    assert_eq!(take_read_row_counts(), (4 + 1 + 3, 4 * 5 + 2 + 3 * 3));
     assert_eq!(
         file.route_observation(RuleIndex(0), StepId(1))?
             .registered_calls,

@@ -9,6 +9,11 @@ thread_local! {
 }
 
 #[cfg(test)]
+pub(crate) fn read_row_counts() -> (u64, u64) {
+    READ_ROW_COUNTS.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
 pub(crate) fn take_read_row_counts() -> (u64, u64) {
     READ_ROW_COUNTS.with(|counts| counts.replace((0, 0)))
 }
