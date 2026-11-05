@@ -60,7 +60,13 @@ fn semantic_failure_discards_every_after_success_row() {
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
-                        demanded: &[true],
+                        intents: &[FileRuleIntent::Run {
+                            roots: RuleDemand {
+                                emit: EmitDemand::Enabled,
+                                observations: ObservationDemand::NotRequired,
+                            },
+                            capture: CaptureIntent::Disabled,
+                        }],
                         source: b"abc",
                         elements: &elements,
                         read: &read,
@@ -116,7 +122,13 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[true],
+                    intents: &[FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    }],
                     source: b"abc",
                     elements: &elements,
                     read: &read,
@@ -265,7 +277,13 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[true],
+                    intents: &[FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::DiagnosticAndObservations,
+                    }],
                     source: b"abc",
                     elements: &elements,
                     read: &read,

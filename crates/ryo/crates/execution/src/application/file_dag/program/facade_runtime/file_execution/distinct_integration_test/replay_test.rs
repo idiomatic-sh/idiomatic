@@ -157,7 +157,13 @@ fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), OperatingErro
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         SOURCE,
         true,
@@ -314,7 +320,13 @@ fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingError> {
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         b"",
         true,

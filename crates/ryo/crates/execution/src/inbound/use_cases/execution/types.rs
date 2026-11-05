@@ -73,8 +73,9 @@ pub use crate::application::file_dag::program::admission::{
     ApplicabilityProof, ApplicabilityReason,
 };
 pub use crate::application::file_dag::program::facade::{
-    CapturedFrontier, EmitDemand, FrontierCapture, LogicalCounts, ObservationDemand,
-    ProjectObservation, ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
+    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, EmitDemand, FileRuleIntent,
+    FrontierCapture, LogicalCounts, ObservationDemand, ProjectObservation, ProjectRuleOutcome,
+    RootOutcome, RuleDemand, RuleOutcome,
 };
 pub use crate::domain::coverage::types::{Covered, Partial, Partials, RuleIndex};
 pub use crate::domain::kind_sets::types::PreparedVocabulary;
@@ -101,7 +102,8 @@ pub struct FileInput<'a, 'facts> {
     pub file: ryo_relations::domain::relations::types::FileId,
     pub evaluation: &'a [Partial],
     pub publication: &'a [Partial],
-    pub demanded: &'a [bool],
+    /// Exactly one intent for every prepared rule, bound to the engine-issued generation.
+    pub intents: &'a [FileRuleIntent],
     pub source: &'a [u8],
     pub elements: &'a ryo_language::domain::elements::types::Elements,
     /// The immutable provider snapshot is bound once, never replaced per rule.

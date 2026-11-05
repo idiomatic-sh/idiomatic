@@ -2,7 +2,10 @@
 use crate::application::file_dag::{
     execution::CommonOperatorEngine,
     program::{
-        facade::{self, EmitDemand, ObservationDemand, RootOutcome, RuleDemand},
+        facade::{
+            self, CaptureIntent, EmitDemand, FileRuleIntent, ObservationDemand, RootOutcome,
+            RuleDemand,
+        },
         facade_runtime::{ProgramServices, open_file},
     },
     scope::ScopePartials,
@@ -145,7 +148,13 @@ pub(super) fn run(
                 evaluation: &[],
                 publication: &[],
             },
-            &[true],
+            &[FileRuleIntent::Run {
+                roots: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                capture: CaptureIntent::Disabled,
+            }],
             services,
             source,
             true,

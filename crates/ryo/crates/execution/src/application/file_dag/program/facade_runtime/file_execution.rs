@@ -7,12 +7,6 @@ pub(super) struct FileRoot {
     pub(super) publication: Option<AdmittedInput>,
     pub(super) skipped: Option<ApplicabilityProof>,
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum FileRuleState {
-    Pending,
-    Active,
-    Skipped,
-}
 pub(crate) struct FileRun<'a> {
     program: &'a Arc<PreparedProgram>,
     services: Arc<ProgramServices>,
@@ -21,7 +15,9 @@ pub(crate) struct FileRun<'a> {
     file: FileId,
     partials: ScopePartials<'a>,
     roots: Vec<Vec<FileRoot>>,
-    rule_states: Vec<FileRuleState>,
+    /// Immutable intent and identity share the same private file owner lifetime.
+    intents: Box<[FileRuleIntent]>,
+    generation: FileGeneration,
     observed: HashMap<usize, AdmittedInput>,
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
@@ -31,7 +27,7 @@ pub(crate) fn open_file<'a>(
     program: &'a Arc<PreparedProgram>,
     file: FileId,
     partials: ScopePartials<'a>,
-    demanded: &[bool],
+    intents: &[FileRuleIntent],
     services: Arc<ProgramServices>,
     source: &'a [u8],
     reuse_eligible: bool,
@@ -39,6 +35,9 @@ pub(crate) fn open_file<'a>(
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
 ) -> Result<FileRun<'a>, OperatingError> {
+    if intents.len() != program.rule_count() {
+        return Err(OperatingError::ShapeMismatch);
+    }
     if !services.request.contains(file) {
         return Err(OperatingError::NotRead);
     }
@@ -58,13 +57,17 @@ pub(crate) fn open_file<'a>(
     let ScopePartials::File { publication, .. } = partials else {
         return Err(OperatingError::WrongOperation);
     };
+    let demanded = intents
+        .iter()
+        .map(|intent| matches!(intent, FileRuleIntent::Run { .. }))
+        .collect::<Vec<_>>();
     owner
         .derived
-        .prepare_program_file(program.derived(), demanded, publication)?;
+        .prepare_program_file(program.derived(), &demanded, publication)?;
     let generation = FileGeneration::from_owner(file, &owner);
     let execution = ProgramExecution::open(
         Arc::clone(program.program()),
-        Partition::File(generation),
+        Partition::File(generation.clone()),
         Rc::clone(&owner),
     );
     let roots = (0..program.rule_count())
@@ -83,7 +86,7 @@ pub(crate) fn open_file<'a>(
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(FileRun {
+    let mut run = FileRun {
         _routes: routes,
         program,
         services: Arc::clone(&services),
@@ -92,56 +95,118 @@ pub(crate) fn open_file<'a>(
         file,
         partials,
         roots,
-        rule_states: vec![FileRuleState::Pending; program.rule_count()],
+        intents: intents.into(),
+        generation,
         observed: HashMap::new(),
-        walk: super::super::native_walk::FileWalk::new(file, demanded),
+        walk: super::super::native_walk::FileWalk::new(file, &demanded),
         context: super::super::context::RunContext::file(
             &services, source, symbols, semantic, kinds,
         ),
-    })
+    };
+    run.bind_intents()?;
+    Ok(run)
 }
 impl FileRun<'_> {
-    fn activate_rule(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
-        let state = self
-            .rule_states
-            .get_mut(rule.0)
-            .ok_or(OperatingError::NotRun)?;
-        if *state == FileRuleState::Skipped {
-            return Err(OperatingError::NotRun);
+    /// Cancel every undeclared external reader before a source or native walk is admitted.
+    fn bind_intents(&mut self) -> Result<(), OperatingError> {
+        use crate::domain::executable_program::types::InputSource;
+        for (index, intent) in self.intents.iter().copied().enumerate() {
+            let rule = RuleIndex(index);
+            let prepared = &self.program.program().rules()[index];
+            let metadata = self.program.rule_metadata(rule)?;
+            let mut enabled = Vec::new();
+            if let FileRuleIntent::Run { roots, capture } = intent {
+                if roots.emit == EmitDemand::Enabled {
+                    enabled.extend(prepared.emit.iter().copied());
+                }
+                if roots.observations == ObservationDemand::Required {
+                    enabled.extend(metadata.observations.iter().filter_map(|root| {
+                        match root.source.as_ref().ok()? {
+                            InputSource::Region(id) => Some(*id),
+                            _ => None,
+                        }
+                    }));
+                }
+                for (frontier, source) in prepared.frontier.iter().enumerate() {
+                    let wanted = match capture {
+                        CaptureIntent::Disabled => false,
+                        CaptureIntent::Observations => metadata
+                            .observation_frontiers
+                            .get(frontier)
+                            .copied()
+                            .unwrap_or(false),
+                        CaptureIntent::DiagnosticAndObservations => true,
+                    };
+                    if wanted {
+                        match source {
+                            Ok(InputSource::Region(id)) => enabled.push(*id),
+                            Ok(InputSource::Observation(slot)) => {
+                                if let Some(Ok(id)) =
+                                    self.program.program().observation_regions().get(*slot)
+                                {
+                                    enabled.push(*id);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            // Reader obligations are a multiset: repeated root aliases remain distinct.
+            let mut cancelled = Vec::new();
+            for root in prepared.root_readers.iter().copied() {
+                if let Some(place) = enabled.iter().position(|enabled| *enabled == root) {
+                    enabled.swap_remove(place);
+                } else {
+                    cancelled.push(root);
+                }
+            }
+            if !cancelled.is_empty() {
+                self.execution.cancel_roots(&cancelled)?;
+            }
+            match intent {
+                FileRuleIntent::Undemanded => {}
+                FileRuleIntent::Skipped(reason) => {
+                    let proof = ApplicabilityProof::for_file(rule, self.file, reason, &self.owner);
+                    for root in &mut self.roots[index] {
+                        root.readiness = Some(
+                            ryo_values::domain::observations::types::ProducerReadiness::Skipped,
+                        );
+                        root.skipped = Some(proof.clone());
+                    }
+                }
+                FileRuleIntent::Refused(reason) => {
+                    let reason = match reason {
+                        ApplicabilityRefusal::SyntaxUndetermined => {
+                            "syntax acceptance undetermined"
+                        }
+                        ApplicabilityRefusal::MetadataUnavailable => {
+                            "applicability metadata unavailable"
+                        }
+                    };
+                    for root in &mut self.roots[index] {
+                        root.readiness = Some(
+                            ryo_values::domain::observations::types::ProducerReadiness::Unknown(
+                                ryo_values::domain::observations::types::ObservationReason(
+                                    reason.into(),
+                                ),
+                            ),
+                        );
+                    }
+                }
+                FileRuleIntent::Run { .. } => {}
+            }
         }
-        *state = FileRuleState::Active;
         Ok(())
     }
-    pub(crate) fn skip_rule(
-        &mut self,
-        rule: RuleIndex,
-        reason: ApplicabilityReason,
-    ) -> Result<(), OperatingError> {
-        let state = self
-            .rule_states
-            .get_mut(rule.0)
-            .ok_or(OperatingError::NotRun)?;
-        if *state != FileRuleState::Pending {
-            return Err(OperatingError::NotRun);
+    pub(in crate::application::file_dag::program) fn file_intents(&self) -> &[FileRuleIntent] {
+        &self.intents
+    }
+    fn declared(&self, rule: RuleIndex) -> Result<(RuleDemand, CaptureIntent), OperatingError> {
+        match self.intents.get(rule.0) {
+            Some(FileRuleIntent::Run { roots, capture }) => Ok((*roots, *capture)),
+            _ => Err(OperatingError::NotRun),
         }
-        let readers = &self
-            .program
-            .program()
-            .rules()
-            .get(rule.0)
-            .ok_or(OperatingError::NotRun)?
-            .root_readers;
-        let roots = self.roots.get_mut(rule.0).ok_or(OperatingError::NotRun)?;
-        self.execution.cancel_roots(readers)?;
-        *state = FileRuleState::Skipped;
-        let proof = ApplicabilityProof::for_file(rule, self.file, reason, &self.owner);
-        for root in roots {
-            root.readiness =
-                Some(ryo_values::domain::observations::types::ProducerReadiness::Skipped);
-            root.publication = None;
-            root.skipped = Some(proof.clone());
-        }
-        Ok(())
     }
     pub(crate) fn rule<'facts>(
         &mut self,
@@ -150,7 +215,9 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
-        self.activate_rule(rule)?;
+        if self.declared(rule)?.0 != demand {
+            return Err(OperatingError::NotRun);
+        }
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,
@@ -222,11 +289,7 @@ impl FileRun<'_> {
                     == crate::domain::completion::types::ObservationAdmission::Ready
                 {
                     root.source.clone().and_then(|source| {
-                        sources.admit(
-                            source,
-                            &Partition::File(FileGeneration::from_owner(self.file, &self.owner)),
-                            context,
-                        )
+                        sources.admit(source, &Partition::File(self.generation.clone()), context)
                     })
                 } else {
                     Err(OperatingError::ObservationIncomplete {
@@ -272,7 +335,10 @@ impl FileRun<'_> {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
-        self.activate_rule(rule)?;
+        let (_, capture_intent) = self.declared(rule)?;
+        if capture_intent == CaptureIntent::Disabled {
+            return Err(OperatingError::NotRun);
+        }
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let completion = match &self.partials {
@@ -321,6 +387,11 @@ impl FileRun<'_> {
         } = capture;
         let crate::domain::finish::types::Retained { arena, places: _ } = retained;
         for (index, source) in sources.into_iter().enumerate() {
+            if capture_intent == CaptureIntent::Observations
+                && !self.program.captures_observation(rule, index)?
+            {
+                continue;
+            }
             if let Ok(source) = source.as_ref()
                 && matches!(
                     self.program.program().frontier_phase(*source),
@@ -331,11 +402,8 @@ impl FileRun<'_> {
             }
             let input = InputNumber(index);
             let outcome = (|| {
-                let admitted = inputs.admit(
-                    source?,
-                    &Partition::File(FileGeneration::from_owner(file, &self.owner)),
-                    context,
-                )?;
+                let admitted =
+                    inputs.admit(source?, &Partition::File(self.generation.clone()), context)?;
                 let coverage = crate::domain::completion::service::file_frontier_coverage(
                     admitted.coverage()?,
                     file,
@@ -388,6 +456,14 @@ impl FileRun<'_> {
         rule: RuleIndex,
         input: InputNumber,
     ) -> Result<(), OperatingError> {
+        let (_, capture) = self.declared(rule)?;
+        if capture == CaptureIntent::Disabled
+            || (capture == CaptureIntent::Observations
+                && !self.program.captures_observation(rule, input.0)?)
+            || input.0 >= self.program.frontiers(rule)?.len()
+        {
+            return Err(OperatingError::NotRun);
+        }
         let metadata = self.program.observation_metadata();
         if let Some(metadata) = metadata {
             for root in metadata
@@ -557,7 +633,9 @@ impl FileRun<'_> {
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
     ) -> Result<super::super::facade::RowEmission, OperatingError> {
-        self.activate_rule(rule)?;
+        if self.declared(rule)?.0.emit != EmitDemand::Enabled {
+            return Err(OperatingError::NotRun);
+        }
         let _rule_origin = crate::application::file_dag::route_counts::rule(
             rule.0,
             &self.program.rule_id(rule)?.0,

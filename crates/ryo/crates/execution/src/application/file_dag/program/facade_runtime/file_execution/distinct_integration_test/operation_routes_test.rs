@@ -325,7 +325,13 @@ fn execute_fixture(
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         fixtures::SOURCE,
         true,

@@ -72,7 +72,13 @@ fn union_consumes_both_populations_in_order_with_one_distinct_scope() {
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
-                        demanded: &[true],
+                        intents: &[FileRuleIntent::Run {
+                            roots: RuleDemand {
+                                emit: EmitDemand::Enabled,
+                                observations: ObservationDemand::NotRequired,
+                            },
+                            capture: CaptureIntent::Disabled,
+                        }],
                         source: b"abc",
                         elements: &elements,
                         read: &read,
@@ -131,7 +137,13 @@ fn union_stops_on_right_delivery_refusal_and_retries_with_a_new_distinct_scope()
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -238,7 +250,13 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[true],
+                    intents: &[FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    }],
                     source: b"abc",
                     elements: &elements,
                     read: &read,

@@ -144,7 +144,7 @@ pub(super) fn input<'a, 'facts>(
     file: FileId,
     source: &'a [u8],
     elements: &'a Elements,
-    demanded: &'a [bool],
+    intents: &'a [FileRuleIntent],
     read: &'a dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
 ) -> FileInput<'a, 'facts> {
     FileInput {
@@ -153,7 +153,7 @@ pub(super) fn input<'a, 'facts>(
         file,
         evaluation: &[],
         publication: &[],
-        demanded,
+        intents,
         source,
         elements,
         read,

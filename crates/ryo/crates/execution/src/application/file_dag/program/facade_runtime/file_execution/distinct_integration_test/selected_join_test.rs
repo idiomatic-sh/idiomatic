@@ -125,7 +125,13 @@ fn selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells()
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         b"",
         true,

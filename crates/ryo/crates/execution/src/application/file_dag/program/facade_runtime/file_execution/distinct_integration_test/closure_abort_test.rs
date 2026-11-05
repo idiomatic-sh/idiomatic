@@ -120,7 +120,13 @@ fn exercise(refusal: Refusal) {
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         b"",
         true,

@@ -28,7 +28,13 @@ fn evaluate<'facts>(
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read,
@@ -117,7 +123,13 @@ fn deliver<'facts>(
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read,

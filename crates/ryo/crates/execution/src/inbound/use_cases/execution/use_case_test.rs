@@ -102,7 +102,7 @@ fn file_owner_reuses_only_recognized_stable_sources() {
                     file: ryo_relations::domain::relations::types::FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[],
+                    intents: &[],
                     source: &[],
                     elements: &elements,
                     read: &read,

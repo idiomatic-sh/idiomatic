@@ -6,9 +6,10 @@ use super::{
         ProducerRoot, Readiness, RequiredPartitions,
     },
     facade::{
-        CaptureContext, CapturedFrontier, EmitDemand, FrontierCapture, LogicalCounts,
-        ObservationDemand, ObservedPublication, PreparedProgram, ProjectFrontiers,
-        ProjectObservation, ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
+        ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, EmitDemand,
+        FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand, ObservedPublication,
+        PreparedProgram, ProjectFrontiers, ProjectObservation, ProjectRuleOutcome, RootOutcome,
+        RuleDemand, RuleOutcome,
     },
     runtime::{Delivery, InvocationOutcome, KernelInvocation, ProgramExecution},
 };
@@ -21,11 +22,11 @@ use ryo_values::domain::{
 };
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 use {
-    crate::domain::completion::types::completion_policy::value::CompletionPolicy,
     crate::application::file_dag::relations::PublishedInput,
     crate::application::file_dag::relations::RelationOwner,
     crate::application::file_dag::scope::ScopePartials,
     crate::application::file_dag::scope::open_program_owner,
+    crate::domain::completion::types::completion_policy::value::CompletionPolicy,
     crate::domain::coverage::types::Covered, crate::domain::coverage::types::RuleIndex,
     crate::domain::operating::errors::OperatingError,
     crate::domain::operating::types::OperatorContext, crate::domain::replay::service::scan,

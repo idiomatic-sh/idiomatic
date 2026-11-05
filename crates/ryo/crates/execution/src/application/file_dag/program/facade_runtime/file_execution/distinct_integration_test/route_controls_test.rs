@@ -74,7 +74,13 @@ fn run(
             evaluation: partials,
             publication: partials,
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         b"",
         true,

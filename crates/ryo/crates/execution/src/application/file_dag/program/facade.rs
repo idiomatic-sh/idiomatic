@@ -55,20 +55,44 @@ pub struct CapturedFrontier {
     pub proof: ryo_values::domain::records::types::FrontierProof,
     pub words: ryo_values::domain::stored_facts::types::PackedWords,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EmitDemand {
     Enabled,
     Disabled,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationDemand {
     Required,
     NotRequired,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleDemand {
     pub emit: EmitDemand,
     pub observations: ObservationDemand,
+}
+/// Frontier roots admitted by this file generation. Observation-only producers
+/// cannot acquire diagnostic-only frontiers through a later capture call.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureIntent {
+    Disabled,
+    Observations,
+    DiagnosticAndObservations,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApplicabilityRefusal {
+    SyntaxUndetermined,
+    MetadataUnavailable,
+}
+/// Complete per-rule intent, frozen before any file source can be walked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileRuleIntent {
+    Undemanded,
+    Skipped(ApplicabilityReason),
+    Refused(ApplicabilityRefusal),
+    Run {
+        roots: RuleDemand,
+        capture: CaptureIntent,
+    },
 }
 pub enum RootOutcome {
     Complete(Table),

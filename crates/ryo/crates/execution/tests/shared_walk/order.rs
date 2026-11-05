@@ -24,7 +24,19 @@ fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let mut file = request
         .open_file(
-            input(FileId(0), b"[bc", &elements, &[true], &no_catalog),
+            input(
+                FileId(0),
+                b"[bc",
+                &elements,
+                &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();
@@ -46,7 +58,19 @@ fn an_earlier_false_kind_test_still_short_circuits_the_later_invalid_regex() {
     let (elements, mut symbols) = tree(FileId(0), b"[bc");
     let mut file = request
         .open_file(
-            input(FileId(0), b"[bc", &elements, &[true], &no_catalog),
+            input(
+                FileId(0),
+                b"[bc",
+                &elements,
+                &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();
@@ -94,7 +118,19 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
     let (elements, mut symbols) = tree(FileId(0), b"ab(");
     let mut file = request
         .open_file(
-            input(FileId(0), b"ab(", &elements, &[true], &no_catalog),
+            input(
+                FileId(0),
+                b"ab(",
+                &elements,
+                &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();
@@ -148,7 +184,19 @@ fn external_delivery_refusal_is_retryable_but_the_later_head_error_is_terminal()
     let first = expected(FileId(0), &elements, &[1]);
     let mut file = request
         .open_file(
-            input(FileId(0), b"ab(", &elements, &[true], &no_catalog),
+            input(
+                FileId(0),
+                b"ab(",
+                &elements,
+                &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();

@@ -2,7 +2,10 @@
 use crate::application::file_dag::{
     execution::CommonOperatorEngine,
     program::{
-        facade::{self, EmitDemand, ObservationDemand, RootOutcome, RuleDemand},
+        facade::{
+            self, CaptureIntent, EmitDemand, FileRuleIntent, ObservationDemand, RootOutcome,
+            RuleDemand,
+        },
         facade_runtime::{FileRun, ProgramServices, open_file},
     },
     scope::ScopePartials,
@@ -209,7 +212,22 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() {
             evaluation: &[],
             publication: &[],
         },
-        &[true, true],
+        &[
+            FileRuleIntent::Run {
+                roots: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                capture: CaptureIntent::Disabled,
+            },
+            FileRuleIntent::Run {
+                roots: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                capture: CaptureIntent::Disabled,
+            },
+        ],
         services,
         b"",
         true,
@@ -237,7 +255,13 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         Arc::clone(&services),
         b"",
         true,
@@ -255,7 +279,13 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         b"",
         true,

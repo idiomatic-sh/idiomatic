@@ -50,6 +50,17 @@ pub trait ExecutionRequest {
         symbols: &mut Symbols,
     ) -> Result<ProjectSession<'a>, OperatingError>;
 }
+/// The intent supplied at file start is immutable throughout this session.
+/// Applicability cannot be changed after another rule has started the shared walk.
+/// ```compile_fail,E0599
+/// use ryo_execution::inbound::use_cases::execution::{
+///     interface::FileExecution,
+///     types::{ApplicabilityReason, FileSession, RuleIndex},
+/// };
+/// fn late_skip(file: &mut FileSession<'_, '_>) {
+///     file.skip_rule(RuleIndex(0), ApplicabilityReason::SyntaxRejected).unwrap();
+/// }
+/// ```
 pub trait FileExecution {
     /// Actual shared native pass work already performed by this file owner.
     fn walk_counts(&self) -> WalkCounts;
@@ -81,11 +92,6 @@ pub trait FileExecution {
         &mut self,
         rule: RuleIndex,
         input: ryo_values::domain::plan_parts::types::InputNumber,
-    ) -> Result<(), OperatingError>;
-    fn skip_rule(
-        &mut self,
-        rule: RuleIndex,
-        reason: ApplicabilityReason,
     ) -> Result<(), OperatingError>;
     fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError>;
 }

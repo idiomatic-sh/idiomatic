@@ -97,7 +97,13 @@ fn a_file_emit_defers_at_project_scope_but_its_real_file_failure_is_not_deferred
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -184,7 +190,13 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::DiagnosticAndObservations,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read: &read,

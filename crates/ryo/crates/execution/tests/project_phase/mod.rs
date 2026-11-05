@@ -105,7 +105,13 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[true],
+                    intents: &[FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::DiagnosticAndObservations,
+                    }],
                     source: b"abc",
                     elements: &elements,
                     read: &read,
@@ -338,7 +344,13 @@ fn project_grouping_reads_only_actual_captured_function_names() {
                     file: file_id,
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[true],
+                    intents: &[FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::DiagnosticAndObservations,
+                    }],
                     source: b"mainother",
                     elements: &elements,
                     read: &read,
@@ -530,7 +542,22 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[true, true],
+                    intents: &[
+                        FileRuleIntent::Run {
+                            roots: RuleDemand {
+                                emit: EmitDemand::Enabled,
+                                observations: ObservationDemand::NotRequired,
+                            },
+                            capture: CaptureIntent::DiagnosticAndObservations,
+                        },
+                        FileRuleIntent::Run {
+                            roots: RuleDemand {
+                                emit: EmitDemand::Enabled,
+                                observations: ObservationDemand::NotRequired,
+                            },
+                            capture: CaptureIntent::DiagnosticAndObservations,
+                        },
+                    ],
                     source: b"mainother",
                     elements: &elements,
                     read: &read,

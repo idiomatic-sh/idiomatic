@@ -3,8 +3,9 @@ use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, FileExecution, PreparedExecution,
 };
 use ryo_execution::inbound::use_cases::execution::types::{
-    ApplicabilityReason, CaptureContext, EmitDemand, FileInput, ObservationDemand, RootOutcome,
-    RuleDemand, SourceLanguage, SourceRows,
+    ApplicabilityReason, ApplicabilityRefusal, CaptureContext, CaptureIntent, EmitDemand,
+    FileInput, FileRuleIntent, ObservationDemand, RootOutcome, RuleDemand, SourceLanguage,
+    SourceRows,
 };
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
@@ -403,6 +404,42 @@ impl FileAnalysis {
             .setting
             .program
             .demanded_rules(|place| governs_rule(tables, RuleIndex(place)) == Governing::Governs);
+        let intents = demanded
+            .iter()
+            .enumerate()
+            .map(|(place, demanded)| {
+                if !demanded {
+                    return FileRuleIntent::Undemanded;
+                }
+                if skipped[place] {
+                    return match (visit.setting.applicability.get(place), acceptance) {
+                        (Some(RuleApplicability::AcceptedSyntax), SyntaxAcceptance::Rejected) => {
+                            FileRuleIntent::Skipped(ApplicabilityReason::SyntaxRejected)
+                        }
+                        (Some(RuleApplicability::AcceptedSyntax), _) => {
+                            FileRuleIntent::Refused(ApplicabilityRefusal::SyntaxUndetermined)
+                        }
+                        _ => FileRuleIntent::Refused(ApplicabilityRefusal::MetadataUnavailable),
+                    };
+                }
+                let emit = governs_rule(tables, RuleIndex(place)) == Governing::Governs;
+                FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: if emit {
+                            EmitDemand::Enabled
+                        } else {
+                            EmitDemand::Disabled
+                        },
+                        observations: ObservationDemand::Required,
+                    },
+                    capture: if emit {
+                        CaptureIntent::DiagnosticAndObservations
+                    } else {
+                        CaptureIntent::Observations
+                    },
+                }
+            })
+            .collect::<Vec<_>>();
         let refused = std::cell::RefCell::new(None);
         let read = |relation| {
             worker
@@ -419,7 +456,7 @@ impl FileAnalysis {
                 file,
                 evaluation,
                 publication: &physical,
-                demanded: &demanded,
+                intents: &intents,
                 source: &tables.bytes.0,
                 elements: &tables.elements,
                 language: if tables.language.is_some() {
@@ -435,32 +472,11 @@ impl FileAnalysis {
             &mut tables.symbols,
         )?;
         for rule in visit.setting.program.rule_order() {
-            if !demanded.get(rule.0).copied().ok_or(
-                ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
-            )? {
+            let Some(FileRuleIntent::Run { roots, .. }) = intents.get(rule.0) else {
                 continue;
-            }
-            if skipped.get(rule.0).copied().ok_or(
-                ryo_execution::inbound::use_cases::execution::types::OperatingError::NotRun,
-            )? {
-                run.skip_rule(rule, ApplicabilityReason::SyntaxRejected)?;
-                continue;
-            }
-            let emit = governs_rule(tables, rule) == Governing::Governs;
-            let outcome = {
-                run.rule(
-                    rule,
-                    RuleDemand {
-                        emit: if emit {
-                            EmitDemand::Enabled
-                        } else {
-                            EmitDemand::Disabled
-                        },
-                        observations: ObservationDemand::Required,
-                    },
-                    &mut tables.symbols,
-                )
             };
+            let emit = roots.emit == EmitDemand::Enabled;
+            let outcome = { run.rule(rule, *roots, &mut tables.symbols) };
             if let Some(error) = refused.take() {
                 return Err(error.into());
             }
@@ -591,14 +607,6 @@ impl FileAnalysis {
                         continue;
                     }
                 };
-                if !emit
-                    && !visit
-                        .setting
-                        .program
-                        .captures_observation(rule, capture.input.0)?
-                {
-                    continue;
-                }
                 worker.facts.keep(
                     capture.bucket,
                     WordsToKeep {

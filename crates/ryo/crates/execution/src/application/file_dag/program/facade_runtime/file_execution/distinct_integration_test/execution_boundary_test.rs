@@ -52,7 +52,13 @@ fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         b"",
         true,
@@ -198,7 +204,13 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         b"",
         true,
@@ -365,7 +377,13 @@ fn large_tiny_and_empty_rule_outputs_are_owned_beyond_workspace_drop() {
             evaluation: &[],
             publication: &[],
         },
-        &[true; 4],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }; 4],
         services,
         b"",
         true,
@@ -427,7 +445,13 @@ fn evaluation_errors_do_not_leave_mutable_state_in_the_next_rule() {
             evaluation: &[],
             publication: &[],
         },
-        &[true; 2],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }; 2],
         services,
         b"",
         true,

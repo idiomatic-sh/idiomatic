@@ -97,7 +97,13 @@ x
                     file: FileId(0),
                     evaluation: &[],
                     publication: &[],
-                    demanded: &[true],
+                    intents: &[FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    }],
                     source: bytes,
                     elements: &elements,
                     read: &read,
@@ -171,7 +177,13 @@ fn ordinary_incremental_select_preserves_prefix_before_late_predicate_failure() 
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: bytes,
                 elements: &elements,
                 read: &read,

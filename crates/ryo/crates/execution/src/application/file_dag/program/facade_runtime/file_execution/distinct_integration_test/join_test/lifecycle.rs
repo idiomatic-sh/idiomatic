@@ -139,7 +139,22 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             evaluation: &[],
             publication: &[],
         },
-        &[true, true],
+        &[
+            FileRuleIntent::Run {
+                roots: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                capture: CaptureIntent::Disabled,
+            },
+            FileRuleIntent::Run {
+                roots: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                capture: CaptureIntent::Disabled,
+            },
+        ],
         services,
         b"",
         true,

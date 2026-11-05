@@ -184,7 +184,13 @@ fn execute_request(
             evaluation: &[],
             publication: &[],
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }],
         services,
         source,
         true,
@@ -945,7 +951,13 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
             evaluation: &[],
             publication: &[],
         },
-        &[true; 4],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::Disabled,
+        }; 4],
         services,
         b"",
         true,

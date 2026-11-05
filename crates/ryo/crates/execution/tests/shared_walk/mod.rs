@@ -23,7 +23,28 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
-            input(FileId(0), b"abc", &elements, &[true, true], &no_catalog),
+            input(
+                FileId(0),
+                b"abc",
+                &elements,
+                &[
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                ],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();
@@ -51,7 +72,13 @@ fn inactive_file_has_zero_shared_walk_work() {
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let file = request
         .open_file(
-            input(FileId(0), b"abc", &elements, &[false, false], &no_catalog),
+            input(
+                FileId(0),
+                b"abc",
+                &elements,
+                &[FileRuleIntent::Undemanded, FileRuleIntent::Undemanded],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();
@@ -69,13 +96,15 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
-            input(FileId(0), b"abc", &elements, &[true, true], &no_catalog),
+            input(
+                FileId(0),
+                b"abc",
+                &elements,
+                &[FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable); 2],
+                &no_catalog,
+            ),
             &mut symbols,
         )
-        .unwrap();
-    file.skip_rule(RuleIndex(0), ApplicabilityReason::DiagnosticNotApplicable)
-        .unwrap();
-    file.skip_rule(RuleIndex(1), ApplicabilityReason::DiagnosticNotApplicable)
         .unwrap();
     counts(&file, 0, 0);
     assert_eq!(semantics.selects(), 0);
@@ -94,7 +123,28 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
-            input(FileId(0), b"abc", &elements, &[true, true], &no_catalog),
+            input(
+                FileId(0),
+                b"abc",
+                &elements,
+                &[
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                ],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();
@@ -120,7 +170,28 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
-            input(FileId(0), b"abc", &elements, &[true, true], &no_catalog),
+            input(
+                FileId(0),
+                b"abc",
+                &elements,
+                &[
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                ],
+                &no_catalog,
+            ),
             &mut symbols,
         )
         .unwrap();
@@ -164,7 +235,28 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
         let (elements, mut symbols) = tree(file_id, source);
         let mut file = request
             .open_file(
-                input(file_id, source, &elements, &[true, true], &no_catalog),
+                input(
+                    file_id,
+                    source,
+                    &elements,
+                    &[
+                        FileRuleIntent::Run {
+                            roots: RuleDemand {
+                                emit: EmitDemand::Enabled,
+                                observations: ObservationDemand::NotRequired,
+                            },
+                            capture: CaptureIntent::Disabled,
+                        },
+                        FileRuleIntent::Run {
+                            roots: RuleDemand {
+                                emit: EmitDemand::Enabled,
+                                observations: ObservationDemand::NotRequired,
+                            },
+                            capture: CaptureIntent::Disabled,
+                        },
+                    ],
+                    &no_catalog,
+                ),
                 &mut symbols,
             )
             .unwrap();

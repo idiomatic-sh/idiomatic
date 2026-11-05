@@ -123,7 +123,7 @@ impl ExecutionRequest for RequestExecution {
                 evaluation: input.evaluation,
                 publication: input.publication,
             },
-            input.demanded,
+            input.intents,
             Arc::clone(&self.services),
             input.source,
             matches!(input.language, SourceLanguage::Recognized)
@@ -244,13 +244,6 @@ impl FileExecution for FileSession<'_, '_> {
         input: ryo_values::domain::plan_parts::types::InputNumber,
     ) -> Result<(), OperatingError> {
         self.inner.commit_frontier(rule, input)
-    }
-    fn skip_rule(
-        &mut self,
-        rule: RuleIndex,
-        reason: ApplicabilityReason,
-    ) -> Result<(), OperatingError> {
-        self.inner.skip_rule(rule, reason)
     }
     fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
         self.inner.counts(rule)

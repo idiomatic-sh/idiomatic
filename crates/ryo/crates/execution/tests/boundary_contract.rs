@@ -48,7 +48,13 @@ fn public_file_run_publishes_once_and_finishes() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -104,7 +110,13 @@ fn public_file_run_refuses_replaced_symbol_population_before_reading() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -138,7 +150,13 @@ fn public_open_refuses_file_outside_request() {
                 file: FileId(9),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired
+                    },
+                    capture: CaptureIntent::Disabled
+                }],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -152,7 +170,7 @@ fn public_open_refuses_file_outside_request() {
 }
 
 #[test]
-fn public_skipped_rule_cannot_be_cancelled_twice_or_executed() {
+fn public_file_start_skipped_rule_cannot_be_executed() {
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
@@ -177,7 +195,9 @@ fn public_skipped_rule_cannot_be_cancelled_twice_or_executed() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Skipped(
+                    ApplicabilityReason::DiagnosticNotApplicable,
+                )],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -187,12 +207,6 @@ fn public_skipped_rule_cannot_be_cancelled_twice_or_executed() {
             &mut symbols,
         )
         .expect("open actual file");
-    file.skip_rule(RuleIndex(0), ApplicabilityReason::DiagnosticNotApplicable)
-        .expect("cancel the real compiled root without reading facts");
-    assert!(matches!(
-        file.skip_rule(RuleIndex(0), ApplicabilityReason::DiagnosticNotApplicable),
-        Err(OperatingError::NotRun)
-    ));
     assert!(matches!(
         file.rule(RuleIndex(0), demand(), &mut symbols),
         Err(OperatingError::NotRun)
@@ -230,7 +244,16 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true, true],
+                intents: &[
+                    FileRuleIntent::Skipped(ApplicabilityReason::DiagnosticNotApplicable),
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                ],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -240,12 +263,6 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
             &mut symbols,
         )
         .expect("two actual logical rules");
-    file.skip_rule(RuleIndex(0), ApplicabilityReason::DiagnosticNotApplicable)
-        .expect("cancel only the first logical reader");
-    assert!(matches!(
-        file.skip_rule(RuleIndex(0), ApplicabilityReason::DiagnosticNotApplicable),
-        Err(OperatingError::NotRun)
-    ));
     assert!(matches!(
         file.rule(RuleIndex(0), demand(), &mut symbols),
         Err(OperatingError::NotRun)
@@ -271,10 +288,17 @@ fn public_skip_of_one_shared_rule_preserves_the_other_rules_reader() {
     assert!(after_first > 0);
     assert!(
         matches!(
-            file.skip_rule(RuleIndex(1), ApplicabilityReason::DiagnosticNotApplicable),
+            file.rule(
+                RuleIndex(1),
+                RuleDemand {
+                    emit: EmitDemand::Disabled,
+                    observations: ObservationDemand::NotRequired
+                },
+                &mut symbols
+            ),
             Err(OperatingError::NotRun)
         ),
-        "an active reader cannot be retroactively cancelled"
+        "an active reader cannot change its bound root demand"
     );
     let RootOutcome::Complete(repeated) = file
         .rule(RuleIndex(1), demand(), &mut symbols)
@@ -359,7 +383,22 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true, true],
+                intents: &[
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                    FileRuleIntent::Run {
+                        roots: RuleDemand {
+                            emit: EmitDemand::Enabled,
+                            observations: ObservationDemand::NotRequired,
+                        },
+                        capture: CaptureIntent::Disabled,
+                    },
+                ],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -470,7 +509,13 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                         file: FileId(0),
                         evaluation: &[],
                         publication: &[],
-                        demanded: &[true],
+                        intents: &[FileRuleIntent::Run {
+                            roots: RuleDemand {
+                                emit: EmitDemand::Enabled,
+                                observations: ObservationDemand::NotRequired,
+                            },
+                            capture: CaptureIntent::Disabled,
+                        }],
                         source: b"abc",
                         elements: &elements,
                         read: &read,
@@ -672,7 +717,13 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
                 file: FileId(0),
                 evaluation: &[],
                 publication: &[],
-                demanded: &[true],
+                intents: &[FileRuleIntent::Run {
+                    roots: RuleDemand {
+                        emit: EmitDemand::Enabled,
+                        observations: ObservationDemand::NotRequired,
+                    },
+                    capture: CaptureIntent::Disabled,
+                }],
                 source: b"abc",
                 elements: &elements,
                 read: &read,
@@ -716,3 +767,5 @@ mod project_phase;
 
 #[cfg(test)]
 mod shared_walk;
+
+mod file_intents;

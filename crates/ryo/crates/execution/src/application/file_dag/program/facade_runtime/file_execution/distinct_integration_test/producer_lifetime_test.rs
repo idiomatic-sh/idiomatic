@@ -99,7 +99,6 @@ fn numbers(table: &Table) -> Vec<i64> {
 enum FinalConsumer {
     Completes,
     InvalidTerminal,
-    Skipped,
     RefusingProvider,
 }
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
@@ -158,7 +157,22 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
             evaluation: &[],
             publication: &[],
         },
-        &[true, true],
+        &[
+            FileRuleIntent::Run {
+                roots: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                capture: CaptureIntent::Disabled,
+            },
+            FileRuleIntent::Run {
+                roots: RuleDemand {
+                    emit: EmitDemand::Enabled,
+                    observations: ObservationDemand::NotRequired,
+                },
+                capture: CaptureIntent::Disabled,
+            },
+        ],
         services,
         b"",
         true,
@@ -218,9 +232,7 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     assert!(weak.upgrade().is_some());
     assert_eq!(file.owner.derived.retained_bytes(), 0);
     let reads_before_final = source_reads.get();
-    if matches!(final_consumer, FinalConsumer::Skipped) {
-        file.skip_rule(RuleIndex(1), crate::application::file_dag::program::admission::ApplicabilityReason::DiagnosticNotApplicable)?;
-    } else {
+    {
         let second = file.rule(RuleIndex(1), demand(), &read, &mut symbols)?;
         match final_consumer {
             FinalConsumer::InvalidTerminal => {
@@ -253,7 +265,6 @@ fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
                     "second consumer reuses the same live index"
                 );
             }
-            FinalConsumer::Skipped => unreachable!(),
         }
     }
     assert_eq!(
@@ -292,8 +303,8 @@ fn failed_terminal_cancels_the_shared_producer_and_releases_its_index() {
 }
 
 #[test]
-fn final_unread_or_refusing_consumer_releases_zero_budget_global_index_without_reading_sources() {
-    for final_consumer in [FinalConsumer::Skipped, FinalConsumer::RefusingProvider] {
+fn final_refusing_consumer_releases_zero_budget_global_index_without_reading_sources() {
+    for final_consumer in [FinalConsumer::RefusingProvider] {
         exercise(final_consumer).expect("actual compiled final consumer cancellation");
     }
 }

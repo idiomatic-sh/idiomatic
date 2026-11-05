@@ -318,7 +318,13 @@ fn execute(
             evaluation: &faults.partials,
             publication: &faults.partials,
         },
-        &[true],
+        &[FileRuleIntent::Run {
+            roots: RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }],
         services,
         source,
         true,
