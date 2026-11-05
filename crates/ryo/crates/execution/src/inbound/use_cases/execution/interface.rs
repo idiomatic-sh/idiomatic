@@ -2,11 +2,11 @@
 use super::types::*;
 pub use crate::domain::readiness::types::ReadinessCounts;
 pub use crate::domain::readiness::types::ReadinessEvents;
+pub use crate::domain::shared_walk::types::WalkClassWork;
 pub use crate::domain::shared_walk::types::WalkCounts;
 pub use crate::domain::shared_walk::types::WalkPassCount;
 pub use crate::domain::shared_walk::types::WalkPredicateRows;
 pub use crate::domain::shared_walk::types::WalkSourceRows;
-pub use crate::domain::shared_walk::types::WalkClassWork;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     files::types::CorpusInput, runs::types::Skipped, stored_facts::types::Bucket,
@@ -41,13 +41,8 @@ pub trait ExecutionRequest {
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError>;
-    fn project_scope(
-        &self,
-        rule: RuleIndex,
-        corpus: &[CorpusInput],
-        covered: &[Covered],
-        skipped: &[Skipped],
-    ) -> Result<ProjectScope, OperatingError>;
+    /// One mandatory owner for all ordinary project rules in this request phase.
+    fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError>;
     fn open_project<'a>(
         &'a self,
         input: ProjectInput<'a>,
@@ -118,6 +113,13 @@ pub trait ProjectExecution {
 }
 
 pub trait ProjectStage {
+    fn project_scope(
+        &self,
+        rule: RuleIndex,
+        corpus: &[CorpusInput],
+        covered: &[Covered],
+        skipped: &[Skipped],
+    ) -> Result<ProjectScope, OperatingError>;
     fn finish(self) -> Result<(), OperatingError>;
 }
 

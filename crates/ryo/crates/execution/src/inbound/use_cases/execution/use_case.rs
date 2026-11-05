@@ -67,19 +67,15 @@ impl ExecutionRequest for RequestExecution {
             .program
             .observation_metadata()
             .ok_or(OperatingError::NotRun)?;
-        let publication = std::rc::Rc::new(facade_runtime::publication_owner(
-            &self.program,
-            &self.services,
-        )?);
+        let phase = self.project_phase()?;
         let publications =
             crate::application::file_dag::observations::cross::CrossPublications::new(
                 metadata,
-                &publication,
+                &phase.publication,
                 arenas,
             );
         Ok(ObservationStage {
-            request: self,
-            publication,
+            phase,
             publications,
         })
     }
@@ -140,25 +136,13 @@ impl ExecutionRequest for RequestExecution {
             file: input.file,
         })
     }
-    fn project_scope(
-        &self,
-        rule: RuleIndex,
-        corpus: &[CorpusInput],
-        covered: &[Covered],
-        skipped: &[Skipped],
-    ) -> Result<ProjectScope, OperatingError> {
-        let required = facade_runtime::required_partitions(
-            &self.program,
-            rule,
-            corpus,
-            covered,
-            skipped,
-            &self.services,
-        )?;
-        let publication = facade_runtime::publication_owner(&self.program, &self.services)?;
-        Ok(ProjectScope {
-            required,
-            publication: std::rc::Rc::new(publication),
+    fn project_phase(&self) -> Result<ProjectPhase<'_>, OperatingError> {
+        Ok(ProjectPhase {
+            request: self,
+            publication: std::rc::Rc::new(facade_runtime::publication_owner(
+                &self.program,
+                &self.services,
+            )?),
         })
     }
     fn open_project<'a>(
@@ -268,7 +252,27 @@ impl ProjectExecution for ProjectSession<'_> {
     }
 }
 
-impl ProjectStage for ProjectScope {
+impl ProjectStage for ProjectPhase<'_> {
+    fn project_scope(
+        &self,
+        rule: RuleIndex,
+        corpus: &[CorpusInput],
+        covered: &[Covered],
+        skipped: &[Skipped],
+    ) -> Result<ProjectScope, OperatingError> {
+        let required = facade_runtime::required_partitions(
+            &self.request.program,
+            rule,
+            corpus,
+            covered,
+            skipped,
+            &self.request.services,
+        )?;
+        Ok(ProjectScope {
+            required,
+            publication: std::rc::Rc::clone(&self.publication),
+        })
+    }
     fn finish(self) -> Result<(), OperatingError> {
         match std::rc::Rc::try_unwrap(self.publication) {
             Ok(publication) => publication.finish(),
@@ -453,27 +457,14 @@ impl ObservationExecution for ObservationStage<'_> {
         covered: &[Covered],
         skipped: &[Skipped],
     ) -> Result<ProjectScope, OperatingError> {
-        let required = facade_runtime::required_partitions(
-            &self.request.program,
-            rule,
-            corpus,
-            covered,
-            skipped,
-            &self.request.services,
-        )?;
-        Ok(ProjectScope {
-            required,
-            publication: std::rc::Rc::clone(&self.publication),
-        })
+        self.phase.project_scope(rule, corpus, covered, skipped)
     }
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
         self.publications.finish(rule)
     }
     fn finish_stage(self) -> Result<(), OperatingError> {
         drop(self.publications);
-        std::rc::Rc::try_unwrap(self.publication)
-            .map_err(|_| OperatingError::NotRead)?
-            .finish()
+        self.phase.finish()
     }
 }
 
@@ -503,9 +494,9 @@ impl ObservationPublication for ObservationStage<'_> {
     ) -> Result<(), OperatingError> {
         crate::application::file_dag::observations::cross::restore_frontiers(
             &mut self.publications,
-            &self.request.program,
-            &self.request.services,
-            &self.publication,
+            &self.phase.request.program,
+            &self.phase.request.services,
+            &self.phase.publication,
             facts,
             corpus,
             covered,

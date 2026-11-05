@@ -188,7 +188,8 @@ fn exercise(case: Case) {
     if matches!(case, Case::DuplicateSkip) {
         skipped.push(skipped[0].clone());
     }
-    let scope = request
+    let phase = request.project_phase().unwrap();
+    let scope = phase
         .project_scope(RuleIndex(0), &corpus, &[], &skipped)
         .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
@@ -289,7 +290,8 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         path: FilePath("input.py".into()),
         reason: SkipReason::SyntaxRejected,
     }];
-    let scope = request
+    let phase = request.project_phase().unwrap();
+    let scope = phase
         .project_scope(RuleIndex(0), &corpus, &[], &skipped)
         .unwrap();
     let stored = CapturedFacts {

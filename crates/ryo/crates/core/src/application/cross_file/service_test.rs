@@ -8,10 +8,10 @@ use crate::domain::answering::types::Todo;
 use crate::domain::crossing::service::{partials_for, placeable};
 use crate::domain::crossing::types::Placeability;
 use ryo_execution::inbound::use_cases::execution::{
-    interface::{ExecutionRequest, ExecutionUseCase, PreparedExecution},
+    interface::{ExecutionRequest, ExecutionUseCase, PreparedExecution, ProjectStage},
     types::{
         FrontierDemand, FrontierRequest, ObservationIdentity, PreparedFrontiers, PreparedRequest,
-        ProjectScope,
+        ProjectPhase, ProjectScope,
     },
     use_case::ExecutionUseCaseImpl,
 };
@@ -115,6 +115,17 @@ fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 }
 
 fn world(plan: Plan) -> World {
+    world_with(
+        vec![plan],
+        Arc::new(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+        ),
+    )
+}
+fn world_with(
+    plans: Vec<Plan>,
+    operators: Arc<dyn ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase>,
+) -> World {
     use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort as _;
     use ryo_values::domain::{
         files::types::{CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
@@ -122,16 +133,29 @@ fn world(plan: Plan) -> World {
         rule_requests::types::{RuleParameters, RuleSpec},
         stored_facts::types::Digest,
     };
-    let placement = MetadataUseCaseImpl.decide(&[
-        ryo_execution::inbound::use_cases::metadata::interface::RuleScope {
-            include: Vec::new(),
-            exclude: Vec::new(),
-        },
-    ]);
+    let placement = MetadataUseCaseImpl.decide(
+        &plans
+            .iter()
+            .map(
+                |_| ryo_execution::inbound::use_cases::metadata::interface::RuleScope {
+                    include: Vec::new(),
+                    exclude: Vec::new(),
+                },
+            )
+            .collect::<Vec<_>>(),
+    );
     let matcher = crate::outbound::matching::fixtures::fake::MatchingFake
         .compile(&placement.globs)
         .expect("matcher");
-    let ids = vec![RuleId("rule".into())];
+    let ids = (0..plans.len())
+        .map(|rule| {
+            RuleId(if rule == 0 {
+                "rule".into()
+            } else {
+                format!("rule-{rule}").into()
+            })
+        })
+        .collect::<Vec<_>>();
     let paths = vec![FilePath("first.py".into()), FilePath("second.py".into())];
     let files = paths
         .iter()
@@ -145,36 +169,36 @@ fn world(plan: Plan) -> World {
             })
         })
         .collect::<Vec<_>>();
-    let metadata =
-        ryo_values::domain::run_metadata::service::from_plans(std::slice::from_ref(&plan));
+    let metadata = ryo_values::domain::run_metadata::service::from_plans(&plans);
     let engine = ExecutionUseCaseImpl::new(
-        Arc::new(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
-        ),
+        operators,
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
     let program = Arc::new(
         engine
             .prepare(PreparedRequest {
-                plans: vec![plan],
-                bindings: vec![Vec::new()],
-                rules: vec![RuleSpec {
-                    id: ids[0].clone(),
-                    query: QueryBundle {
-                        root: QueryDocumentSource {
-                            id: QuerySourceId("rule".into()),
-                            text: "".into(),
+                bindings: vec![Vec::new(); plans.len()],
+                rules: ids
+                    .iter()
+                    .map(|id| RuleSpec {
+                        id: id.clone(),
+                        query: QueryBundle {
+                            root: QueryDocumentSource {
+                                id: QuerySourceId(id.0.clone()),
+                                text: "".into(),
+                            },
+                            modules: Default::default(),
                         },
-                        modules: Default::default(),
-                    },
-                    applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
-                    given: Vec::new(),
-                    observations: Vec::new(),
-                    spelled: RuleParameters("".into()),
-                    include: Vec::new(),
-                    exclude: Vec::new(),
-                }],
-                digests: vec![Digest([0; 16])],
+                        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
+                        given: Vec::new(),
+                        observations: Vec::new(),
+                        spelled: RuleParameters("".into()),
+                        include: Vec::new(),
+                        exclude: Vec::new(),
+                    })
+                    .collect(),
+                digests: vec![Digest([0; 16]); plans.len()],
+                plans,
                 hosted: Vec::new(),
                 observations: ObservationIdentity::Independent,
             })
@@ -189,10 +213,10 @@ fn world(plan: Plan) -> World {
         program,
         request,
         metadata,
+        needs: vec![Needs::default(); ids.len()],
         ids,
         paths,
         files,
-        needs: vec![Needs::default()],
         arenas: Vec::new(),
         covered: Vec::new(),
         project: Vec::new(),
@@ -221,9 +245,22 @@ fn crossing(world: &World) -> CrossingInput<'_> {
     }
 }
 
-fn prepared(
-    world: &World,
+fn prepared<'a>(
+    world: &'a World,
     rows: &[(FileId, ryo_values::domain::rows::types::Table)],
+    symbols: &mut Symbols,
+) -> Result<(ProjectPhase<'a>, ProjectScope, PreparedFrontiers), RulesError> {
+    let phase = world.request.project_phase().expect("one project phase");
+    let (scope, frontiers) =
+        prepared_in(world, &phase, RuleIndex(0), &world.covered, rows, symbols)?;
+    Ok((phase, scope, frontiers))
+}
+fn prepared_in(
+    world: &World,
+    phase: &ProjectPhase<'_>,
+    rule: RuleIndex,
+    covered: &[Covered],
+    rows: &[(FileId, Table)],
     symbols: &mut Symbols,
 ) -> Result<(ProjectScope, PreparedFrontiers), RulesError> {
     use ryo_execution::inbound::use_cases::execution::types::facts::{FactsPort as _, WordsToKeep};
@@ -235,12 +272,9 @@ fn prepared(
     let mut workers = Vec::new();
     let proof = FrontierProof {
         version: 1,
-        rule: 0,
+        rule: rule.0 as u32,
         input: 0,
-        rule_digest: world
-            .program
-            .rule_digest(RuleIndex(0))
-            .expect("rule digest"),
+        rule_digest: world.program.rule_digest(rule).expect("rule digest"),
         coverage: FrontierCoverage::Complete,
     };
     for (file, table) in rows {
@@ -264,9 +298,8 @@ fn prepared(
         .finish(&mut workers.into_iter())
         .expect("facts finish");
     let project = facts_port.worker().expect("project facts");
-    let scope = world
-        .request
-        .project_scope(RuleIndex(0), &world.files, &world.covered, &[])
+    let scope = phase
+        .project_scope(rule, &world.files, covered, &[])
         .expect("project scope");
     let frontiers = world
         .request
@@ -274,7 +307,7 @@ fn prepared(
             FrontierRequest {
                 demand: FrontierDemand::Diagnostic,
                 scope: &scope,
-                rule: RuleIndex(0),
+                rule,
                 first: Bucket(0),
                 facts: facts.as_ref(),
                 project: project.as_ref(),
@@ -282,7 +315,7 @@ fn prepared(
             },
             symbols,
         )
-        .map_err(|error| crate::domain::rules::service::failed(&world.ids[0], &error))?;
+        .map_err(|error| crate::domain::rules::service::failed(&world.ids[rule.0], &error))?;
     Ok((scope, frontiers))
 }
 
@@ -399,7 +432,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let (scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
+            let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
             let done =
                 service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
             [
@@ -415,7 +448,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let (scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
+            let (_phase, scope, frontier) = prepared(&rules, &frontier_rows(), &mut cross)?;
             let done =
                 service().evaluate(&crossing(&rules), &todo(3), frontier, &mut cross, &scope)?;
             [
@@ -429,7 +462,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let (scope, frontier) = prepared(&rules, &[], &mut cross)?;
+            let (_phase, scope, frontier) = prepared(&rules, &[], &mut cross)?;
             let done =
                 service().evaluate(&crossing(&rules), &todo(0), frontier, &mut cross, &scope)?;
             [
@@ -596,7 +629,7 @@ fn current_project_roots_keep_the_original_two_group_four_cell_result() {
     };
     let world = world(counting_plan(1, Vec::new()));
     let mut symbols = Symbols::default();
-    let (scope, ordinary) =
+    let (_phase, scope, ordinary) =
         prepared(&world, &frontier_rows(), &mut symbols).expect("actual source-bound frontier");
     let partials = Partials::default();
     let mut run = world
@@ -664,7 +697,7 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
     use ryo_execution::inbound::use_cases::execution::types::OperatingError;
     let rules = world(counting_plan(1, Vec::new()));
     let mut symbols = Symbols::default();
-    let (_scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
+    let (_phase, _scope, frontier) = prepared(&rules, &frontier_rows(), &mut symbols)
         .expect("frontiers admitted by the original request");
     let engine = ExecutionUseCaseImpl::new(
         Arc::new(
@@ -673,7 +706,8 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
     let next = engine.begin(&rules.program, &rules.files);
-    let foreign = next
+    let next_phase = next.project_phase().expect("independent project phase");
+    let foreign = next_phase
         .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
         .expect("independent request over the same program and corpus");
     let result = service().evaluate(
@@ -689,5 +723,200 @@ fn project_evaluation_rejects_frontiers_from_another_request() {
             crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead)
         ),
         Ok(_) => panic!("an unrelated request scope cannot admit the original frontiers"),
+    }
+}
+
+#[derive(Debug, Default)]
+struct ProjectCalls {
+    reductions: std::sync::atomic::AtomicUsize,
+    aggregates: std::sync::atomic::AtomicUsize,
+}
+impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for ProjectCalls {
+    fn operators(
+        &self,
+        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+    > {
+        use ryo_operators::inbound::use_cases::operators::interface::{
+            OperatorCall, OperatorsUseCase,
+        };
+        use std::sync::atomic::Ordering;
+        match &call {
+            OperatorCall::ReduceCount { .. } => {
+                self.reductions.fetch_add(1, Ordering::SeqCst);
+            }
+            OperatorCall::Aggregate { .. } => {
+                self.aggregates.fetch_add(1, Ordering::SeqCst);
+            }
+            _ => {}
+        }
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new()
+            .operators(call)
+    }
+}
+
+#[test]
+fn ordinary_project_rules_share_one_preparation_and_reject_another_generation() {
+    use ryo_execution::inbound::use_cases::execution::types::OperatingError;
+    use std::sync::atomic::Ordering;
+    for order in [[0, 1], [1, 0]] {
+        let calls = Arc::new(ProjectCalls::default());
+        let plan = counting_plan(1, Vec::new());
+        let mut rules = world_with(vec![plan.clone(), plan], calls.clone());
+        let phase = rules.request.project_phase().unwrap();
+        let mut symbols = Symbols::default();
+        let mut first_rendered = None;
+        for rule in order {
+            let (scope, frontier) = prepared_in(
+                &rules,
+                &phase,
+                RuleIndex(rule),
+                &rules.covered,
+                &frontier_rows(),
+                &mut symbols,
+            )
+            .unwrap();
+            let result = service()
+                .evaluate(
+                    &crossing(&rules),
+                    &Todo {
+                        rule: RuleIndex(rule),
+                        id: rules.ids[rule].clone(),
+                    },
+                    frontier,
+                    &mut symbols,
+                    &scope,
+                )
+                .unwrap();
+            let rendered = result.rendered.expect("actual core project rendering");
+            assert_eq!(
+                [rendered.order.len(), result.fed.len(), rendered.cells.len()],
+                [2, 2, 4]
+            );
+            if let Some(first) = &first_rendered {
+                assert_eq!(&rendered, first);
+            } else {
+                first_rendered = Some(rendered);
+            }
+            assert_eq!(
+                calls.reductions.load(Ordering::SeqCst),
+                1,
+                "one real grouping setup across both logical roots"
+            );
+            assert_eq!(
+                calls.aggregates.load(Ordering::SeqCst),
+                2,
+                "the two authored node groups aggregate once each"
+            );
+        }
+        // A changed physical coverage declaration cannot consume a cached publication.
+        let changed = [Covered {
+            file: FileId(0),
+            rules: vec![RuleIndex(0)],
+            partial: vec![],
+        }];
+        let different = phase
+            .project_scope(RuleIndex(1), &rules.files, &changed, &[])
+            .unwrap();
+        let (_, old_frontier) = prepared_in(
+            &rules,
+            &phase,
+            RuleIndex(1),
+            &rules.covered,
+            &frontier_rows(),
+            &mut symbols,
+        )
+        .unwrap();
+        let result = service().evaluate(
+            &crossing(&rules),
+            &Todo {
+                rule: RuleIndex(1),
+                id: rules.ids[1].clone(),
+            },
+            old_frontier,
+            &mut symbols,
+            &different,
+        );
+        assert!(
+            matches!(result, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[1], &OperatingError::NotRead))
+        );
+        drop(different);
+        let (changed_scope, changed_frontier) = prepared_in(
+            &rules,
+            &phase,
+            RuleIndex(1),
+            &changed,
+            &frontier_rows(),
+            &mut symbols,
+        )
+        .unwrap();
+        let result = service().evaluate(
+            &crossing(&rules),
+            &Todo {
+                rule: RuleIndex(1),
+                id: rules.ids[1].clone(),
+            },
+            changed_frontier,
+            &mut symbols,
+            &changed_scope,
+        );
+        assert!(
+            matches!(result, Err(error) if error == crate::domain::rules::service::failed(
+                &rules.ids[1], &OperatingError::WrongOperation,
+            )),
+            "one interpreter cannot replay a different declared physical partition"
+        );
+        drop(changed_scope);
+        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
+        let (_, foreign) = prepared_in(
+            &rules,
+            &phase,
+            RuleIndex(0),
+            &rules.covered,
+            &frontier_rows(),
+            &mut symbols,
+        )
+        .unwrap();
+        phase.finish().unwrap();
+
+        let engine = ExecutionUseCaseImpl::new(
+            calls.clone(),
+            Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
+        );
+        rules.request = engine.begin(&rules.program, &rules.files);
+        let phase = rules.request.project_phase().unwrap();
+        let scope = phase
+            .project_scope(RuleIndex(0), &rules.files, &rules.covered, &[])
+            .unwrap();
+        let failed = service().evaluate(&crossing(&rules), &todo(0), foreign, &mut symbols, &scope);
+        assert!(
+            matches!(failed, Err(error) if error == crate::domain::rules::service::failed(&rules.ids[0], &OperatingError::NotRead))
+        );
+        drop(scope);
+        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
+        let (scope, frontier) = prepared_in(
+            &rules,
+            &phase,
+            RuleIndex(0),
+            &rules.covered,
+            &frontier_rows(),
+            &mut symbols,
+        )
+        .unwrap();
+        let result = service()
+            .evaluate(&crossing(&rules), &todo(0), frontier, &mut symbols, &scope)
+            .unwrap();
+        assert_eq!(result.rendered, first_rendered);
+        assert_eq!(
+            calls.reductions.load(Ordering::SeqCst),
+            2,
+            "a new request requires its own grouping payload"
+        );
+        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 4);
+        drop(scope);
+        phase.finish().unwrap();
     }
 }
