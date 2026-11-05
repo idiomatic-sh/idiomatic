@@ -54,7 +54,7 @@ impl tracing::field::Visit for JoinDiagnosticFields {
 
 #[test]
 fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
-    let test = "application::file_dag::program::facade_runtime::file_execution::distinct_integration::join::diagnostics::file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit";
+    let test = "application::file_dag::program::facade_runtime::file_execution::distinct_integration::join::diagnostics::test::file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit";
     const CHILD: &str = "RYO_JOIN_OWNER_DIAGNOSTIC_CHILD";
     if std::env::var_os(CHILD).as_deref() != Some(std::ffi::OsStr::new("1")) {
         let output = std::process::Command::new(std::env::current_exe().unwrap())

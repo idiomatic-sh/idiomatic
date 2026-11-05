@@ -46,14 +46,20 @@ pub(in super::super) fn wide_tree(tokens: u32, named: bool) -> (Elements, Symbol
         leave_node(&mut builder, Offset(2));
         leave_node(&mut builder, Offset(2));
     }
-    if named {
+    // Every actual tree source has a complete vocabulary. `named` selects the
+    // branch spelling used by the kind-filter controls; it never means uncompleted syntax.
+    for (bits, name) in [
+        (1, "file"),
+        (2, "word"),
+        (3, if named { "inner" } else { "branch" }),
+    ] {
         name_kind(
             &mut completion(&mut elements, &mut symbols, ByteSlice(b"abcd"), FileId(0)),
-            KindBits(3),
-            NameText("inner"),
+            KindBits(bits),
+            NameText(name),
         );
-        index_kinds(&mut elements);
     }
+    index_kinds(&mut elements);
     (elements, symbols)
 }
 

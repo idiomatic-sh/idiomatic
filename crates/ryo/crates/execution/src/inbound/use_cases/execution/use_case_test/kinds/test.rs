@@ -34,7 +34,7 @@ type Input = fn() -> Result<Value, OperatingError>;
 type Value = usize;
 type Failure = OperatingError;
 
-const FROM: PlanInput = PlanInput::Relation(Relation::Function);
+const FROM: PlanInput = PlanInput::Relation(Relation::SyntaxTree);
 
 /// The comparison of the column at `place` with the text `text` by `test`.
 fn compared(test: Test, place: u32, literal: &str) -> Comparison {

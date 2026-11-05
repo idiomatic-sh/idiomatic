@@ -89,5 +89,5 @@ fn hosted_without_its_request_source_refuses_at_the_real_owner() {
         vec![],
         &mut symbols,
     );
-    assert_eq!(result, Err(OperatingError::MissingInput { position: 1 }));
+    assert_eq!(result, Err(OperatingError::NotRead));
 }
