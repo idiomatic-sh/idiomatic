@@ -10,9 +10,9 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, PlannedColumn, Sourced, Uniqueness};
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
-    argument_named, column_of, input_argument, position, positions_of, word_of, words_of,
+    column_of, input_argument, position, positions_of, slot_named, word_of, words_of,
 };
-use crate::domain::syntax::constants::argument_name;
+use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_values::domain::program::types::ArgumentValue;
@@ -21,7 +21,7 @@ fn semantic_arguments(call: &Call, allowed: &[ArgumentSlot]) -> Result<(), Lower
     for (at, argument) in call.arguments.iter().enumerate() {
         if !allowed
             .iter()
-            .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
+            .any(|slot| slot_name(*slot) == argument.name.0.as_ref())
             || call.arguments[..at]
                 .iter()
                 .any(|earlier| earlier.name == argument.name)
@@ -142,10 +142,10 @@ pub(crate) fn call_fits_rendered(
     {
         return Err(LoweringError::KindMismatch { span: call.span });
     }
-    let ArgumentValue::Number(max_line) = argument_named(call, ArgumentSlot::MaxLine)? else {
+    let ArgumentValue::Number(max_line) = slot_named(call, ArgumentSlot::MaxLine)? else {
         return Err(LoweringError::InvalidSemanticLiteral { span: call.span });
     };
-    let ArgumentValue::Number(tab_width) = argument_named(call, ArgumentSlot::TabWidth)? else {
+    let ArgumentValue::Number(tab_width) = slot_named(call, ArgumentSlot::TabWidth)? else {
         return Err(LoweringError::InvalidSemanticLiteral { span: call.span });
     };
     let Ok(tab_width) = u32::try_from(tab_width.0) else {
@@ -187,7 +187,7 @@ pub(crate) fn call_span_between(
             ArgumentSlot::Output,
         ]
         .iter()
-        .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
+        .any(|slot| slot_name(*slot) == argument.name.0.as_ref())
             || call
                 .arguments
                 .iter()
@@ -260,7 +260,7 @@ pub(crate) fn call_span_bounds(
             ArgumentSlot::EndOutput,
         ]
         .iter()
-        .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
+        .any(|slot| slot_name(*slot) == argument.name.0.as_ref())
             || call
                 .arguments
                 .iter()
@@ -338,7 +338,7 @@ pub(crate) fn call_source_matches(
             ArgumentSlot::CaptureLineOutput,
         ]
         .iter()
-        .any(|slot| argument_name(*slot) == argument.name.0.as_ref())
+        .any(|slot| slot_name(*slot) == argument.name.0.as_ref())
             || call
                 .arguments
                 .iter()
@@ -373,11 +373,11 @@ pub(crate) fn call_source_matches(
     let has_base_line = call
         .arguments
         .iter()
-        .any(|argument| argument.name.0.as_ref() == argument_name(ArgumentSlot::BaseLine));
+        .any(|argument| argument.name.0.as_ref() == slot_name(ArgumentSlot::BaseLine));
     let has_line_output = call
         .arguments
         .iter()
-        .any(|argument| argument.name.0.as_ref() == argument_name(ArgumentSlot::LineOutput));
+        .any(|argument| argument.name.0.as_ref() == slot_name(ArgumentSlot::LineOutput));
     if has_base_line != has_line_output {
         return Err(LoweringError::SourceMatchesLinePair { span: call.span });
     }
@@ -402,7 +402,7 @@ pub(crate) fn call_source_matches(
     let present = |slot: ArgumentSlot| {
         call.arguments
             .iter()
-            .any(|argument| argument.name.0.as_ref() == argument_name(slot))
+            .any(|argument| argument.name.0.as_ref() == slot_name(slot))
     };
     let capture = present(ArgumentSlot::CaptureName);
     let capture_output = present(ArgumentSlot::CaptureOutput);

@@ -10,7 +10,7 @@ use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
     bad_argument, column_of, input_argument, position, positions_of, word_of, words_of,
 };
-use crate::domain::syntax::constants::{argument_name, direction_named};
+use crate::domain::syntax::constants::{direction_named, slot_name};
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
@@ -119,7 +119,7 @@ pub(crate) fn call_closure(
         let keys = if call
             .arguments
             .iter()
-            .any(|argument| &*argument.name.0 == argument_name(ArgumentSlot::Keys))
+            .any(|argument| &*argument.name.0 == slot_name(ArgumentSlot::Keys))
         {
             positions_of(builder, &fields, &words_of(call, ArgumentSlot::Keys)?)?
         } else {
@@ -273,7 +273,7 @@ pub(crate) fn call_ordered_dfs(
     let names = if call
         .arguments
         .iter()
-        .any(|argument| &*argument.name.0 == argument_name(ArgumentSlot::Keys))
+        .any(|argument| &*argument.name.0 == slot_name(ArgumentSlot::Keys))
     {
         words_of(call, ArgumentSlot::Keys)?
     } else {
