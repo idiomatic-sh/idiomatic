@@ -8,7 +8,7 @@ use crate::domain::kind_check::types::{
     AskedKind, KindMatch, KindRefusal, LanguageList, RulePlace, UnknownKind,
 };
 use crate::domain::kind_sets::service::satisfies;
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::Relation;

@@ -2,7 +2,7 @@
 
 use crate::domain::keeping::service::configuration_bytes;
 use crate::domain::keeping::types::{Configuration, DigestInput, HostedText};
-use crate::domain::rules::types::RuleSpec;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;

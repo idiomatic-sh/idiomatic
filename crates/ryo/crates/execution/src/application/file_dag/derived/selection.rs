@@ -13,7 +13,7 @@ use crate::domain::{
     },
     table_model::{
         service::{check_columns, matching_stored},
-        types::{ParameterBinding, SelectedRows, StoredSelection, Verdict},
+        types::{SelectedRows, StoredSelection, Verdict},
     },
     table_texts::types::Texts,
 };
@@ -245,3 +245,5 @@ fn shared_positions(
         .ok_or(OperatingError::WrongOperation)?;
     Ok(Arc::clone(rows.backing()))
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

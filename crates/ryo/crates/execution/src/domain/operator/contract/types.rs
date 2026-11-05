@@ -2,7 +2,7 @@
 use super::views::{BorrowedRows, IndexedRows};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
@@ -339,17 +339,17 @@ pub(crate) trait PrimitiveSemantics: Sync {
 
     fn operators(
         &self,
-        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
     >;
 }
 
 pub(crate) fn portable_fault(
-    error: ryo_operators::domain::contract::types::PortableOperatorFault,
+    error: ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
 ) -> OperatingError {
-    use ryo_operators::domain::contract::types::PortableOperatorFault;
+    use ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault;
     match error {
         PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
         PortableOperatorFault::NoSuchColumn { index } => {
@@ -358,6 +358,10 @@ pub(crate) fn portable_fault(
         PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
         PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
+        PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,
+        PortableOperatorFault::MissingCapture | PortableOperatorFault::WrongOperation => {
+            OperatingError::WrongOperation
+        }
     }
 }
 
@@ -452,14 +456,14 @@ impl<'a> PrimitiveLease<'a> {
         projected: &mut Vec<Value>,
     ) -> Result<(), OperatingError> {
         match self.semantics.operators(
-            ryo_operators::domain::contract::types::OperatorCall::Project {
+            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Project {
                 row,
                 columns,
                 target: projected,
             },
         ) {
-            Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
-            Err(ryo_operators::domain::contract::types::PortableOperatorFault::NoSuchColumn {
+            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written) => Ok(()),
+            Err(ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault::NoSuchColumn {
                 index,
             }) => Err(
                 crate::domain::table_model::errors::TableModelError::NoSuchColumn { index }.into(),
@@ -474,13 +478,15 @@ impl<'a> PrimitiveLease<'a> {
         joined: &mut Vec<Value>,
     ) -> Result<(), OperatingError> {
         match self.semantics.operators(
-            ryo_operators::domain::contract::types::OperatorCall::Append {
+            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Append {
                 row,
                 appended,
                 target: joined,
             },
         ) {
-            Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
+            Ok(
+                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written,
+            ) => Ok(()),
             _ => Err(OperatingError::WrongOperation),
         }
     }
@@ -489,7 +495,9 @@ impl<'a> PrimitiveLease<'a> {
         row: &[Value],
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Result<[Value; 2], OperatingError> {
-        use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall};
+        use ryo_operators::inbound::use_cases::operators::interface::{
+            OperatorAnswer, OperatorCall,
+        };
         match self
             .semantics
             .operators(OperatorCall::SpanBounds { row, column })
@@ -506,7 +514,7 @@ impl<'a> PrimitiveLease<'a> {
         end: ryo_values::domain::plan_parts::types::ColumnIndex,
         source_len: usize,
     ) -> Result<Value, OperatingError> {
-        use ryo_operators::domain::contract::types::{
+        use ryo_operators::inbound::use_cases::operators::interface::{
             OperatorAnswer, OperatorCall, SourceByteLength,
         };
         match self.semantics.operators(OperatorCall::SpanBetween {
@@ -571,8 +579,8 @@ pub(crate) struct EmptyResult {
 /// An engine error takes precedence even if an injected kernel returns a dishonest answer.
 pub(crate) fn join_result(
     answer: Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
     >,
     error: Option<OperatingError>,
 ) -> Result<(), OperatingError> {
@@ -582,8 +590,8 @@ pub(crate) fn join_result(
 /// Preserve the engine's original downstream error ahead of a portable interruption marker.
 pub(crate) fn written_result(
     answer: Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
     >,
     error: Option<OperatingError>,
 ) -> Result<(), OperatingError> {
@@ -591,7 +599,9 @@ pub(crate) fn written_result(
         return Err(error);
     }
     match answer {
-        Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
+        Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written) => {
+            Ok(())
+        }
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(error) => Err(portable_fault(error)),
     }

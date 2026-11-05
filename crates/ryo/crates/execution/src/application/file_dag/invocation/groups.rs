@@ -30,6 +30,7 @@ pub(super) fn groups(
     contract: &OperatorContract,
     mode: EvaluationMode,
     admitted: &super::super::workspace::InputAdmissions<'_, '_>,
+    semantics: &dyn crate::outbound::operators::interface::OperatorsPort,
 ) -> Result<Vec<Group>, OperatingError> {
     // The original collected contract checks the reduction operand before its grouping keys.
     if let Some(column) = digest.or(distinct) {
@@ -68,9 +69,10 @@ pub(super) fn groups(
             &texts,
             &mut room,
             &mut Hashes::default(),
+            semantics,
         )?;
     } else {
-        count_groups(&table, On::Columns(keys), distinct, &mut room)?;
+        count_groups(&table, On::Columns(keys), distinct, &mut room, semantics)?;
     }
     Ok(groups)
 }

@@ -10,7 +10,7 @@ use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
 use crate::domain::rules::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier, ParameterBinding};
+use crate::domain::table_model::types::{Frontier };
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::service::files_for;
@@ -456,7 +456,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
         plans::types::OperationKind,
     };
     #[derive(Debug)]
-    struct RefuseCount(CommonOperatorEngine<'static>);
+    struct RefuseCount(CommonOperatorEngine);
     impl PrimitiveExecutor for RefuseCount {
         fn execute(
             &self,
@@ -599,3 +599,5 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
         }
     }
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

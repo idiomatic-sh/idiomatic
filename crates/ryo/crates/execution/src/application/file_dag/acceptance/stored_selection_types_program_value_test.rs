@@ -3,7 +3,7 @@
 use crate::application::file_dag::pipeline::service_test::plan;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::stored_selection::types::program::value::SelectionProgram;
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as Source, Operand, ParameterId, RepeatedRows, StepId, Test,
     WholeNumber,

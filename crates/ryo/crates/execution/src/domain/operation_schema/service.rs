@@ -6,7 +6,7 @@ use super::types::traversal::value::TraversalShape;
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
 use crate::domain::table_model::errors::TableModelError;
 use crate::domain::table_model::service::{check_columns, column_in};
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};

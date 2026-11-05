@@ -5,7 +5,7 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
 use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::terms::types::NameText;

@@ -31,7 +31,7 @@ use ryo_values::domain::plan_parts::types::WholeNumber;
 /// The rows an operator reads: the columns of a relation as the store keeps them, or the table
 /// another step computed.
 #[derive(Clone, Debug)]
-pub(crate) enum Rows<'a> {
+pub enum Rows<'a> {
     /// A relation's columns, read where the store keeps them.
     Stored(ColumnsView<'a>),
     /// Ordered physical row positions and projected columns of a resident relation.
@@ -93,38 +93,6 @@ pub(crate) struct SelectionIdentity {
     pub comparisons: Vec<ryo_values::domain::plan_parts::types::Comparison>,
     /// Only the binding values referenced by these predicates.
     pub bindings: Vec<ParameterBinding>,
-}
-
-/// What a parameter is bound to when a query runs: text that came from the host.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum ParameterBinding {
-    /// A whole number.
-    Number(WholeNumber),
-    /// A yes or no.
-    Flag(FlagState),
-    /// Text.
-    Text(LiteralText),
-    /// A list or a set of numbers.
-    Numbers(Vec<WholeNumber>),
-    /// A list or a set of text.
-    Texts(Vec<LiteralText>),
-    /// A list of sets of text: the sets in order.
-    TextSets(Vec<Vec<LiteralText>>),
-    /// A list of tables of text, each a row.
-    Tables(Vec<BindingTable>),
-}
-
-/// One table a `list<table>` parameter holds: a row, its cells by key.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct BindingTable(pub Vec<BindingCell>);
-
-/// One cell of a table a `list<table>` parameter holds: the key it is under and its text.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct BindingCell {
-    /// The key.
-    pub key: LiteralText,
-    /// The text.
-    pub value: LiteralText,
 }
 
 /// The rows of one input that the per-file steps hand to the cross-file steps: the rows of every

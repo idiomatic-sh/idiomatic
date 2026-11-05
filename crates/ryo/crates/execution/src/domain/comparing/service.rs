@@ -20,7 +20,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::family_of;
 use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount, OperatorContext};
 use crate::domain::table_model::service::{cell, column_in};
-use crate::domain::table_model::types::{ParameterBinding, Verdict};
+use crate::domain::table_model::types::{Verdict};
 use crate::domain::table_scratch::types::{
     ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
     SubjectHash, SubjectTag, VerdictKey,
@@ -425,3 +425,5 @@ pub(crate) fn holds_some(
     }
     Ok(Verdict::Holds)
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

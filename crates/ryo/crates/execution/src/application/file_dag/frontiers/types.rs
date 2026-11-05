@@ -23,7 +23,16 @@ pub struct BoundInput {
 }
 
 /// Admission preserves independent input successes and explicit refusal causes.
+pub(in crate::application::file_dag) struct FrontierSource {
+    pub input: ryo_values::domain::plan_parts::types::Input,
+    pub root: Result<
+        crate::domain::executable_program::types::InputSource,
+        crate::domain::operating::errors::OperatingError,
+    >,
+}
 pub struct PreparedFrontiers {
+    pub(in crate::application::file_dag) producer: crate::domain::coverage::types::RuleIndex,
+    pub(in crate::application::file_dag) sources: Box<[FrontierSource]>,
     pub(in crate::application::file_dag) rows: Vec<FrontierInput>,
     pub(in crate::application::file_dag) program:
         std::sync::Arc<crate::domain::executable_program::types::ExecutableProgram>,
@@ -60,4 +69,32 @@ impl PreparedFrontiers {
         }
         Ok(())
     }
+}
+
+pub(in crate::application::file_dag) fn validate_consumer_sources(
+    prepared: &crate::application::file_dag::program::facade::PreparedProgram,
+    producer: crate::domain::coverage::types::RuleIndex,
+    sources: &[FrontierSource],
+    consumer: crate::domain::coverage::types::RuleIndex,
+) -> Result<(), crate::domain::operating::errors::OperatingError> {
+    if consumer == producer {
+        return Ok(());
+    }
+    for binding in sources {
+        let at = prepared
+            .frontiers(consumer)?
+            .iter()
+            .position(|input| *input == binding.input)
+            .ok_or(crate::domain::operating::errors::OperatingError::NotRead)?;
+        let expected = prepared
+            .program()
+            .rules()
+            .get(consumer.0)
+            .and_then(|rule| rule.frontier.get(at))
+            .ok_or(crate::domain::operating::errors::OperatingError::NotRead)?;
+        if !matches!((&binding.root, expected), (Ok(actual), Ok(expected)) if actual == expected) {
+            return Err(crate::domain::operating::errors::OperatingError::NotRead);
+        }
+    }
+    Ok(())
 }

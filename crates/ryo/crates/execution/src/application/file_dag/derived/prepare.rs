@@ -3,8 +3,7 @@ use crate::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     operator::{contract::types::OperatorContract, service::PreparationRoute},
-    table_model::types::ParameterBinding,
-};
+    table_model::types::};
 use ryo_values::domain::plans::types::Operation;
 
 #[cfg(test)]
@@ -150,3 +149,5 @@ pub(in crate::application::file_dag) fn view(
         semantic: prepared,
     })
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

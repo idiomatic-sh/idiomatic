@@ -2,12 +2,12 @@
 
 use super::errors::RulesError;
 use super::service::{bind, check_ids, failed, governing, id_at, ids_of, owner_of, scopes_of};
-use super::types::{Given, RuleParameters, RuleSpec};
+use super::types::{};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::types::RuleNumber;
 use crate::domain::placement::types::{GlobOwner, GlobSide, Mask, ScopePlacement};
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ParameterName, QueryText, StepId, WholeNumber,
@@ -321,3 +321,5 @@ fn refuses() {
 fn fails() {
     run(CASES, Word::Fails, subject);
 }
+
+use ryo_values::domain::rule_requests::types::{RuleSpec,RuleParameters,Given};

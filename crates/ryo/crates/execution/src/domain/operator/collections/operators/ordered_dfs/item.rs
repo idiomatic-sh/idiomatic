@@ -5,7 +5,7 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::service::{cell, column_in, row_in};
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_reach::{
     service::{begin_ordered, next_ordered},
     types::Edges,

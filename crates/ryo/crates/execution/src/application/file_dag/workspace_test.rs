@@ -6,7 +6,7 @@ use crate::domain::{
     operating::{errors::OperatingError, types::OperatorContext},
     operation_schema::types::InputShape,
     operator::contract::views::BorrowedRows,
-    table_model::types::{ParameterBinding, Rows},
+    table_model::types::{Rows},
 };
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
@@ -352,3 +352,5 @@ fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
         crate::outbound::derived::factory::test_port(),
     ))
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

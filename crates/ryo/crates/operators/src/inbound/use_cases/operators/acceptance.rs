@@ -1,10 +1,12 @@
 //! Executable acceptance steps for the borrowed operator family entry.
 use crate::Behavior;
 use cucumber::{given, then, when};
-use ryo_relations::domain::relations::types::{Integer, Value};
-use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
+use ryo_operators::inbound::use_cases::operators::interface::{
+    OperatorAnswer, OperatorCall, PortableOperatorFault,
+};
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[given(expr = "the operators input {string}")]

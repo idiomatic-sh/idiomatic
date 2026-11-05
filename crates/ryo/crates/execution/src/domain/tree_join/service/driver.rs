@@ -1,6 +1,6 @@
 //! One native-tree cursor retains the original kind, text and residual admission order.
 use super::*;
-use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted};
+use ryo_operators::inbound::use_cases::operators::interface::{JoinDriver, JoinInterrupted};
 pub(super) struct Driver<'a, 'f, 'c> {
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress: crate::domain::operator::contract::views::ProgressObserver,

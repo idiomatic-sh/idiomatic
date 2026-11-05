@@ -1,7 +1,7 @@
 //! All operation classes execute through the production engine in both modes.
 use crate::domain::table_model::{
     service::push_row,
-    types::{BindingCell, BindingTable, ParameterBinding},
+    types::{},
 };
 use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::{
@@ -440,3 +440,5 @@ pub(crate) use expectations::assert_expected;
 use expectations::{Expected, Fixture, cells};
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding,BindingTable,BindingCell};

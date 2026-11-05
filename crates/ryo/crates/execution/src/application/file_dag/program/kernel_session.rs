@@ -92,6 +92,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
             permit: permit.semantics(),
             failure: &failure,
             binding: crate::domain::executable_program::physical::PhysicalBinding {
+                bindings: context.bindings,
+                regex_identity: None,
                 native_join: false,
                 source_len: context.source.0.len(),
             },
@@ -160,6 +162,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 .position_semantics(shape)
                 .map_err(InvocationFailure::Semantic)?,
             binding: crate::domain::executable_program::physical::PhysicalBinding {
+                bindings: context.bindings,
+                regex_identity: None,
                 native_join: false,
                 source_len: rebound.source.0.len(),
             },
@@ -334,6 +338,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
             port: self.kernels,
             permit: permit.semantics(),
             binding: crate::domain::executable_program::physical::PhysicalBinding {
+                bindings: context.bindings,
+                regex_identity: None,
                 native_join: false,
                 source_len: context.source.0.len(),
             },
@@ -399,6 +405,18 @@ impl KernelInvocation for KernelSession<'_, '_> {
         });
         let workspace = &mut invocation_workspace;
         let contract = instruction.contract.as_ref();
+        let setup_failure = std::sync::OnceLock::new();
+        let setup_semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+            port: self.kernels,
+            permit: permit.semantics(),
+            failure: &setup_failure,
+            binding: crate::domain::executable_program::physical::PhysicalBinding {
+                bindings: context.bindings,
+                regex_identity: None,
+                native_join: false,
+                source_len: context.source.0.len(),
+            },
+        };
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
@@ -482,7 +500,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 } else {
                     Some(
                         InvocationResources::prepare(
-                            contract, &views, context, mode, &originals, workspace,
+                            contract, &views, context, mode, &originals, workspace, &setup_semantics,
                         )
                         .map_err(InvocationFailure::Semantic)?,
                     )
@@ -498,7 +516,13 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         if resources.is_none() {
                             resources = Some(
                                 InvocationResources::prepare(
-                                    contract, &views, context, mode, &originals, workspace,
+                                    contract,
+                                    &views,
+                                    context,
+                                    mode,
+                                    &originals,
+                                    workspace,
+                                    &setup_semantics,
                                 )
                                 .map_err(InvocationFailure::Semantic)?,
                             );
@@ -627,7 +651,13 @@ impl KernelInvocation for KernelSession<'_, '_> {
                                 if resources.is_none() {
                                     resources = Some(
                                         InvocationResources::prepare(
-                                            contract, &views, context, mode, &originals, workspace,
+                                            contract,
+                                            &views,
+                                            context,
+                                            mode,
+                                            &originals,
+                                            workspace,
+                                            &setup_semantics,
                                         )
                                         .map_err(InvocationFailure::Semantic)?,
                                     );
@@ -657,6 +687,10 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 }
             }
         })();
+        let result = match setup_failure.into_inner() {
+            Some(error) => Err(InvocationFailure::Semantic(error)),
+            None => result,
+        };
         workspace.release_inputs();
         scratch.workspace = Some(invocation_workspace);
         result

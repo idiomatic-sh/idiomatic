@@ -1,5 +1,5 @@
 use super::*;
-use crate::domain::contract::types::JoinInterrupted;
+use crate::domain::equality_join::types::JoinInterrupted;
 use ryo_relations::domain::relations::types::Integer;
 fn number(value: i64) -> Value {
     Value::Number(Integer(value))
@@ -182,9 +182,8 @@ fn downstream_interruption_preserves_delivered_prefix_and_stops_scanning() {
 
 #[test]
 fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
-    use crate::domain::contract::types::{
-        JoinInput, OperatorAnswer, OperatorCall, PositionJoinDriver,
-    };
+    use crate::domain::contract::types::{OperatorAnswer, OperatorCall};
+    use crate::domain::equality_join::types::{JoinInput, PositionJoinDriver};
     use crate::inbound::use_cases::operators::{
         interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
     };
@@ -221,7 +220,7 @@ fn position_representation_keeps_slots_deferred_ordered_and_duplicate() {
 
 #[test]
 fn columnar_left_decodes_only_demanded_key_and_projection_cells() {
-    use crate::domain::contract::types::{JoinCells, JoinRow};
+    use crate::domain::equality_join::types::{JoinCells, JoinRow};
     struct Columns {
         reads: std::cell::RefCell<Vec<u32>>,
     }

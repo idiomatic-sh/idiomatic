@@ -4,6 +4,7 @@ use super::*;
 pub(super) struct ProjectSources<'a> {
     pub(super) program: &'a PreparedProgram,
     pub(super) rule: RuleIndex,
+    pub(super) sources: &'a [crate::application::file_dag::frontiers::types::FrontierSource],
     pub(super) ordinary:
         &'a mut [Option<crate::application::file_dag::frontiers::types::FrontierInput>],
     pub(super) refused: &'a [crate::domain::crossing::types::RefusedFrontier],
@@ -27,7 +28,7 @@ impl ProjectSources<'_> {
         owner: &Rc<RelationOwner>,
     ) -> Option<Result<AdmittedInput, OperatingError>> {
         use crate::{
-            application::cross_file::types::FrontierInput,
+            application::file_dag::frontiers::types::FrontierInput,
             domain::executable_program::types::InputSource,
         };
         if let Some((_, admitted)) = self.cache.iter().find(|(key, _)| *key == source) {
@@ -42,7 +43,10 @@ impl ProjectSources<'_> {
                 FrontierInput::Decoded { frontier, .. } => frontier.input,
                 FrontierInput::Compact { input, .. } => *input,
             };
-            if source_for(program, rule, original).ok() == Some(source) {
+            if self.sources.iter().any(|binding| {
+                binding.input == original
+                    && matches!(&binding.root, Ok(actual) if *actual == source)
+            }) {
                 pending = Some(at);
                 break;
             }
@@ -77,7 +81,10 @@ impl ProjectSources<'_> {
             return Some(result);
         }
         for refused in self.refused {
-            if source_for(program, rule, refused.input).ok() == Some(source) {
+            if self.sources.iter().any(|binding| {
+                binding.input == refused.input
+                    && matches!(&binding.root, Ok(actual) if *actual == source)
+            }) {
                 return Some(Err(refused.error.clone()));
             }
         }
@@ -491,25 +498,4 @@ fn observation_slot(
         return Err(OperatingError::WrongOperation);
     }
     Ok(index)
-}
-
-fn source_for(
-    program: &PreparedProgram,
-    rule: RuleIndex,
-    input: Input,
-) -> Result<crate::domain::executable_program::types::InputSource, OperatingError> {
-    let index = program
-        .frontiers(rule)?
-        .iter()
-        .position(|each| *each == input)
-        .ok_or(OperatingError::NotRun)?;
-    program
-        .program()
-        .rules()
-        .get(rule.0)
-        .and_then(|rule| rule.frontier.get(index))
-        .ok_or(OperatingError::NotRun)?
-        .as_ref()
-        .copied()
-        .map_err(Clone::clone)
 }

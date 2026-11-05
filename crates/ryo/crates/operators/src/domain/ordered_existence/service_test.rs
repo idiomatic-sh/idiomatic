@@ -1,7 +1,7 @@
 use super::*;
-use crate::domain::contract::types::{
-    JoinInterrupted, OperatorCall, SetInput, SetInterrupted, SetKind, SetRowDriver,
-};
+use crate::domain::contract::types::OperatorCall;
+use crate::domain::equality_join::types::JoinInterrupted;
+use crate::domain::set_rows::types::{SetInput, SetInterrupted, SetKind, SetRowDriver};
 use crate::inbound::use_cases::operators::{
     interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
 };

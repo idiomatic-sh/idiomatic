@@ -11,7 +11,7 @@ use crate::domain::crossing::types::Placeability;
 use crate::domain::frontiers::service::decode_input;
 use crate::domain::rules::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier, ParameterBinding};
+use crate::domain::table_model::types::{Frontier };
 use crate::domain::table_words::service::{encode_table, pack};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::types::{Needs, RelationRead};
@@ -536,3 +536,5 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

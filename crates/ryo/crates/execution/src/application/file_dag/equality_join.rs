@@ -9,7 +9,7 @@ use crate::domain::operator::contract::{
 };
 
 use crate::domain::table_model::service::row_in;
-use ryo_operators::domain::contract::types::{JoinDriver, JoinInterrupted, OperatorCall};
+use ryo_operators::inbound::use_cases::operators::interface::{JoinDriver, JoinInterrupted, OperatorCall};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 
@@ -84,8 +84,8 @@ pub(super) fn indexed(
         error: None,
     };
     let result = semantics.operators(OperatorCall::EqualityJoin {
-        input: ryo_operators::domain::contract::types::JoinInput::Values {
-            left: ryo_operators::domain::contract::types::JoinRow::Values(left),
+        input: ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values {
+            left: ryo_operators::inbound::use_cases::operators::interface::JoinRow::Values(left),
             left_on,
             output,
             view: &[],

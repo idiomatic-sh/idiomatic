@@ -5,8 +5,7 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::{service::cell, types::ParameterBinding};
-use ryo_relations::domain::relations::types::{Integer, Value};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct GroupDigestItem;
 impl OperatorsItem for GroupDigestItem {
@@ -49,14 +48,12 @@ impl OperatorsItem for GroupDigestItem {
                 let first = source
                     .read(group.first, &mut row)
                     .ok_or(OperatingError::NotRun)?;
-                answer.clear();
-                for key in keys {
-                    answer.push(cell(first, *key)?);
-                }
-                answer.push(Value::Number(Integer(group.digest.0)));
-                answer.push(Value::Number(Integer(
-                    i64::try_from(group.counted.0).unwrap_or(i64::MAX),
-                )));
+                let semantic = lease.semantics().operators(
+                    ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Aggregate {
+                        row: first, keys, count: group.counted.0, digest: Some(group.digest.0), target: &mut answer,
+                    },
+                );
+                crate::domain::operator::contract::types::written_result(semantic, None)?;
                 sink.row(lease, &answer)?;
             }
             Ok(())

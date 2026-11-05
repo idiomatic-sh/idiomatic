@@ -6,7 +6,7 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use crate::domain::table_cells::types::TreeForm;
 use crate::domain::table_model::service::{check_columns, column_in};
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Side};
 use ryo_values::domain::plans::types::Operation;

@@ -13,7 +13,7 @@ use ryo_values::domain::{
 };
 
 fn fixture() -> (
-    CommonOperatorEngine<'static>,
+    CommonOperatorEngine,
     std::rc::Rc<crate::application::file_dag::relations::RelationOwner>,
 ) {
     let engine = CommonOperatorEngine::fixture();

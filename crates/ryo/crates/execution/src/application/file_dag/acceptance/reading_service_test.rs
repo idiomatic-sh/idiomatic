@@ -82,7 +82,7 @@ use crate::domain::reading::types::EngineRows;
 use crate::domain::render::types::{RowNumber, RowOrder};
 use crate::domain::rules::errors::RulesError;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::Tables;

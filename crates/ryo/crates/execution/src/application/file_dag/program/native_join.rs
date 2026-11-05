@@ -69,6 +69,8 @@ impl<'call, 'context, 'scope> PermittedNativeJoin<'call, 'context, 'scope> {
             port: kernels,
             permit: self.permit.semantics(),
             binding: crate::domain::executable_program::physical::PhysicalBinding {
+                bindings: context.bindings,
+                regex_identity: None,
                 native_join: true,
                 source_len: self.context.source.0.len(),
             },

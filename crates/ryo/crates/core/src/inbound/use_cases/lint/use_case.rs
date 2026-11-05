@@ -50,7 +50,7 @@ use crate::domain::reporting::service::{room_left, totals};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::repository::service::{by_path, configuration, paths_of};
 use crate::domain::rules::service::{ids_of, owner_of, scopes_of};
-use crate::domain::rules::types::RuleSpec;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use crate::domain::storing::service::{
     decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
     unknowns_from, with_fresh,

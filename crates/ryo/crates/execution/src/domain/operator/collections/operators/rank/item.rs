@@ -5,10 +5,10 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::service::cell;
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
-use ryo_relations::domain::relations::types::{Integer, Value};
+use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct RankItem;
 impl OperatorsItem for RankItem {
@@ -52,18 +52,30 @@ impl OperatorsItem for RankItem {
         let Datum::Text(named) = datum(cell(row, *column)?, &texts) else {
             return Ok(());
         };
-        let Some(place) = layers
-            .iter()
-            .position(|set| set.iter().any(|each| *each.0 == *named.0))
-        else {
-            return Ok(());
+        let answer = lease.semantics().operators(
+            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Rank {
+                text: named.0,
+                layers,
+            },
+        );
+        let rank = match answer {
+            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Rank(
+                Some(rank),
+            )) => rank,
+            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Rank(
+                None,
+            )) => return Ok(()),
+            Err(error) => {
+                return Err(crate::domain::operator::contract::types::portable_fault(
+                    error,
+                ));
+            }
+            _ => return Err(OperatingError::WrongOperation),
         };
         let mut joined = std::mem::take(&mut lease.workspace.row);
         joined.clear();
         joined.extend_from_slice(row);
-        joined.push(Value::Number(Integer(
-            i64::try_from(place).unwrap_or(i64::MAX),
-        )));
+        joined.push(Value::Number(rank));
         let result = emit.row(lease, &joined);
         lease.workspace.row = joined;
         result

@@ -14,7 +14,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::capture::item::CaptureItem;
 use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{ParameterBinding, Rows};
+use crate::domain::table_model::types::{Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
@@ -276,3 +276,5 @@ fn refuses() {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

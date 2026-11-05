@@ -3,7 +3,7 @@ use crate::domain::operator::contract::{
     failure::FailureLatch, types::portable_fault, views::BorrowedRows,
 };
 use crate::domain::{operating::errors::OperatingError, ordered_existence::types::Extremum};
-use ryo_operators::domain::contract::types::{
+use ryo_operators::inbound::use_cases::operators::interface::{
     JoinInterrupted, OperatorCall, OrderedExistenceDriver, OrderedExistenceScratch,
     PartitionExtremum,
 };
@@ -113,7 +113,7 @@ pub(super) fn evaluate(
         return Err(error);
     }
     match result {
-        Ok(ryo_operators::domain::contract::types::OperatorAnswer::Written) => Ok(()),
+        Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written) => Ok(()),
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(error) => Err(portable_fault(error)),
     }

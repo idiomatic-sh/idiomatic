@@ -7,7 +7,7 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::service::cell;
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_language::domain::symbols::service::query_intern_derived;
@@ -56,12 +56,16 @@ impl OperatorsItem for ReplaceItem {
         };
         let regex = lease.views.regex.ok_or(OperatingError::WrongBinding)?;
         let mut changed = std::mem::take(&mut lease.workspace.text);
-        let replacement_result = crate::domain::matching::service::replace_compiled(
-            regex,
-            value.0,
-            &replacement.0,
-            &mut changed,
+        let answer = lease.semantics().operators(
+            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Replace {
+                regex,
+                text: value.0,
+                replacement: &replacement.0,
+                target: &mut changed,
+            },
         );
+        let replacement_result =
+            crate::domain::operator::contract::types::written_result(answer, None);
         if let Err(error) = replacement_result {
             lease.workspace.text = changed;
             return Err(error);

@@ -4,7 +4,7 @@ use crate::domain::operating::{
     service::minted,
     types::{AfterTheFiles, OperatorContext},
 };
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
 use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_relations::domain::terms::types::NameText;

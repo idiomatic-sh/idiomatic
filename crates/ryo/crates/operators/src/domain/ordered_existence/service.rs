@@ -1,7 +1,7 @@
 //! Replace pair enumeration with exact per-partition extrema, preserving source row order.
-use crate::domain::contract::types::{
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::ordered_existence::types::{
     ExtremumWitness, OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum,
-    PortableOperatorFault,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

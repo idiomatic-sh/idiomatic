@@ -212,6 +212,8 @@ pub(in crate::application::file_dag) fn evaluate(
         permit: permit.semantics(),
         failure: &semantic_failure,
         binding: crate::domain::executable_program::physical::PhysicalBinding {
+            bindings: context.bindings,
+            regex_identity: regex.map(|compiled| compiled as *const _ as usize),
             native_join: resources.inputs.native_join.is_some(),
             source_len: context.source.0.len(),
         },

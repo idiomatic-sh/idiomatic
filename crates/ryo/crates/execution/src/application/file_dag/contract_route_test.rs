@@ -24,7 +24,7 @@ use crate::domain::operator::{
 };
 use crate::domain::replay::types::Pipe;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::types::{ParameterBinding, Rows};
+use crate::domain::table_model::types::{Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use fixtures::{SOURCE, fixture};
@@ -59,7 +59,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 struct CountingExecutor {
-    engine: CommonOperatorEngine<'static>,
+    engine: CommonOperatorEngine,
     ordered_calls: std::sync::atomic::AtomicUsize,
     decline_ordered: bool,
     calls: Mutex<Vec<OperationKind>>,
@@ -938,3 +938,5 @@ fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
         schema,
     )
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

@@ -1,7 +1,7 @@
 //! Pure physical-meaning authorization against the compiled semantic descriptor.
 use super::types::OrderedExistence;
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::domain::contract::types::{
+use ryo_operators::inbound::use_cases::operators::interface::{
     JoinInput, OperatorCall, PartitionExtremum, SetInput, SetKind,
 };
 use ryo_values::domain::plans::types::{Operation, OperationKind};
@@ -12,7 +12,9 @@ pub(crate) enum PhysicalRoute<'a> {
     Ordered(&'a OrderedExistence),
     Column(&'a super::column::ColumnAlternative),
 }
-pub(crate) struct PhysicalBinding {
+pub(crate) struct PhysicalBinding<'a> {
+    pub bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
+    pub regex_identity: Option<usize>,
     pub native_join: bool,
     pub source_len: usize,
 }
@@ -23,16 +25,25 @@ pub(crate) struct PhysicalAuthorization {
 pub(crate) fn authorize(
     operation: &Operation,
     route: PhysicalRoute<'_>,
-    binding: &PhysicalBinding,
+    binding: &PhysicalBinding<'_>,
     call: &OperatorCall<'_>,
 ) -> Result<PhysicalAuthorization, OperatingError> {
-    const PROJECT: u8 = 1;
-    const APPEND: u8 = 2;
-    const BOUNDS: u8 = 4;
-    const BETWEEN: u8 = 8;
-    const SET: u8 = 16;
-    const JOIN: u8 = 32;
-    const ORDERED: u8 = 64;
+    const PROJECT: u32 = 1;
+    const APPEND: u32 = 2;
+    const BOUNDS: u32 = 4;
+    const BETWEEN: u32 = 8;
+    const SET: u32 = 16;
+    const JOIN: u32 = 32;
+    const ORDERED: u32 = 64;
+    const SELECT: u32 = 128;
+    const WORDS: u32 = 256;
+    const CAPTURE: u32 = 512;
+    const RANK: u32 = 1024;
+    const REPLACE: u32 = 2048;
+    const AGGREGATE: u32 = 4096;
+    const ORDERED_MATCH: u32 = 8192;
+    const SOURCE_MATCHES: u32 = 16384;
+    const REDUCTION: u32 = 32768;
     let allowed = match crate::domain::features::service::kind_of(operation) {
         OperationKind::Project => {
             if matches!(route, PhysicalRoute::Column(_)) {
@@ -41,7 +52,8 @@ pub(crate) fn authorize(
                 PROJECT
             }
         }
-        OperationKind::Extend | OperationKind::Replace => APPEND,
+        OperationKind::Extend => APPEND,
+        OperationKind::Replace => APPEND | REPLACE,
         OperationKind::SpanBounds => BOUNDS | APPEND,
         OperationKind::SpanBetween => BETWEEN | APPEND,
         OperationKind::Union
@@ -53,26 +65,92 @@ pub(crate) fn authorize(
             if matches!(route, PhysicalRoute::Ordered(_)) {
                 ORDERED
             } else {
-                0
+                SELECT
             }
         }
-        OperationKind::GroupCount
-        | OperationKind::GroupDigest
-        | OperationKind::Capture
-        | OperationKind::Rank
-        | OperationKind::Words
-        | OperationKind::OrderedMatch
-        | OperationKind::Axis
+        OperationKind::GroupCount | OperationKind::GroupDigest => AGGREGATE | REDUCTION,
+        OperationKind::Capture => CAPTURE,
+        OperationKind::Rank => RANK,
+        OperationKind::Words => WORDS,
+        OperationKind::OrderedMatch => ORDERED_MATCH,
+        OperationKind::SourceMatches => SOURCE_MATCHES,
+        OperationKind::Axis
         | OperationKind::Closure
         | OperationKind::Cycles
         | OperationKind::OrderedDfs
         | OperationKind::Rows
         | OperationKind::Hosted
-        | OperationKind::SourceMatches
         | OperationKind::RenderSyntax
         | OperationKind::FitsRendered => 0,
     };
     let (family, exact) = match call {
+        OperatorCall::Select { kept, .. } => (
+            SELECT,
+            matches!(operation, Operation::Select { kept: expected, .. } if *kept == expected.as_slice()),
+        ),
+        OperatorCall::Words { .. } => (WORDS, matches!(operation, Operation::Words { .. })),
+        OperatorCall::Capture { pattern, .. } => (
+            CAPTURE,
+            matches!(operation, Operation::Capture { pattern: expected, .. } if *pattern == expected.0.as_ref()),
+        ),
+        OperatorCall::Rank { layers, .. } => (
+            RANK,
+            match operation {
+                Operation::Rank { sets, .. } => {
+                    matches!(binding.bindings.get(sets.0 as usize), Some(ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(expected)) if *layers == expected.as_slice())
+                }
+                _ => false,
+            },
+        ),
+        OperatorCall::Replace {
+            regex, replacement, ..
+        } => (
+            REPLACE,
+            matches!(operation, Operation::Replace { replacement: expected, .. } if *replacement == expected.0.as_ref())
+                && binding.regex_identity == Some(*regex as *const _ as usize),
+        ),
+        OperatorCall::Aggregate { keys, digest, .. } => (
+            AGGREGATE,
+            match operation {
+                Operation::GroupCount { keys: expected, .. } => {
+                    digest.is_none() && *keys == expected.as_slice()
+                }
+                Operation::GroupDigest { keys: expected, .. } => {
+                    digest.is_some() && *keys == expected.as_slice()
+                }
+                _ => false,
+            },
+        ),
+        OperatorCall::OrderedMatch { output, .. } => (
+            ORDERED_MATCH,
+            matches!(operation, Operation::OrderedMatch { output: expected, .. } if *output == expected.as_slice()),
+        ),
+        OperatorCall::SourceMatches { input, .. } => (
+            SOURCE_MATCHES,
+            matches!(operation, Operation::SourceMatches { capture, capture_text, capture_line, .. } if input.capture == capture.as_ref().map(|name| name.0.as_ref()) && input.capture_text == *capture_text && input.capture_line == *capture_line)
+                && binding.regex_identity == Some(input.regex as *const _ as usize),
+        ),
+        OperatorCall::ReduceCount { keys, distinct, .. } => (
+            REDUCTION,
+            matches!((operation, keys), (Operation::GroupCount { keys: expected, distinct: expected_distinct, .. }, ryo_operators::inbound::use_cases::operators::interface::GroupColumns::Columns(actual)) if *actual == expected.as_slice() && distinct == expected_distinct),
+        ),
+        OperatorCall::ReduceDigest { keys, over, .. } => (
+            REDUCTION,
+            matches!(operation, Operation::GroupDigest { keys: expected, over: expected_over, .. } if *keys == expected.as_slice() && over == expected_over),
+        ),
+        OperatorCall::CheckAggregation { program, .. }
+        | OperatorCall::StreamAggregation { program, .. } => {
+            (REDUCTION, aggregation_matches(operation, program))
+        }
+        OperatorCall::FinishAggregation { digest, .. } => (
+            REDUCTION,
+            match operation {
+                Operation::GroupCount { .. } => !*digest,
+                Operation::GroupDigest { .. } => *digest,
+                _ => false,
+            },
+        ),
+        OperatorCall::HashValue { .. } => return Err(OperatingError::WrongOperation),
         OperatorCall::OrderedExistence {
             partition,
             order,
@@ -205,4 +283,28 @@ pub(crate) fn authorize(
         return Err(OperatingError::WrongOperation);
     }
     Ok(PhysicalAuthorization { _private: () })
+}
+
+fn aggregation_matches(
+    operation: &Operation,
+    program: &ryo_operators::inbound::use_cases::operators::interface::AggregationPlan<'_>,
+) -> bool {
+    use ryo_operators::inbound::use_cases::operators::interface::AggregationPlan;
+    match (operation, program) {
+        (
+            Operation::GroupCount { keys, distinct, .. },
+            AggregationPlan::Count {
+                keys: actual,
+                distinct: actual_distinct,
+            },
+        ) => keys.as_slice() == *actual && distinct == actual_distinct,
+        (
+            Operation::GroupDigest { keys, over, .. },
+            AggregationPlan::Digest {
+                keys: actual,
+                over: actual_over,
+            },
+        ) => keys.as_slice() == *actual && over == actual_over,
+        _ => false,
+    }
 }

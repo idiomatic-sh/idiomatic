@@ -121,10 +121,10 @@ pub(in crate::application::file_dag::derived) fn hash_request<H: std::hash::Hash
         }
     }
     fn binding<H: std::hash::Hasher>(
-        value: &crate::domain::table_model::types::ParameterBinding,
+        value: &ryo_values::domain::query_bindings::types::ParameterBinding,
         state: &mut H,
     ) {
-        use crate::domain::table_model::types::ParameterBinding as B;
+        use ryo_values::domain::query_bindings::types::ParameterBinding as B;
         std::mem::discriminant(value).hash(state);
         match value {
             B::Number(value) => value.hash(state),

@@ -1,7 +1,7 @@
 //! Request-graph named binding configuration refusals.
 /// A configuration error, never an absent successful publication.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum ObservationError {
+pub enum ObservationError {
     #[error("too many named roots or input bindings")]
     TooManyOutputs,
     #[error("named-root plan or input reference is invalid")]

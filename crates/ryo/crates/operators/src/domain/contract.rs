@@ -1,2 +1,2 @@
-//! Semantic declarations interpreted by the engine.
-pub mod types;
+//! Portable semantic request and answer vocabulary.
+pub(crate) mod types;

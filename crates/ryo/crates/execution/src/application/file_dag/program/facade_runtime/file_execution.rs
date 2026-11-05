@@ -7,9 +7,9 @@ pub(super) struct FileRoot {
     pub(super) publication: Option<AdmittedInput>,
     pub(super) skipped: Option<ApplicabilityProof>,
 }
-pub(crate) struct FileRun<'a, 'service> {
+pub(crate) struct FileRun<'a> {
     program: &'a Arc<PreparedProgram>,
-    services: &'a ProgramServices<'service>,
+    services: Arc<ProgramServices>,
     execution: ProgramExecution,
     owner: Rc<RelationOwner>,
     file: FileId,
@@ -19,17 +19,17 @@ pub(crate) struct FileRun<'a, 'service> {
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
 }
-pub(crate) fn open_file<'a, 'service>(
+pub(crate) fn open_file<'a>(
     program: &'a Arc<PreparedProgram>,
     file: FileId,
     partials: ScopePartials<'a>,
     demanded: &[bool],
-    services: &'a ProgramServices<'service>,
-    source: &[u8],
+    services: Arc<ProgramServices>,
+    source: &'a [u8],
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
-) -> Result<FileRun<'a, 'service>, OperatingError> {
+) -> Result<FileRun<'a>, OperatingError> {
     if !services.request.contains(file) {
         return Err(OperatingError::NotRead);
     }
@@ -67,7 +67,7 @@ pub(crate) fn open_file<'a, 'service>(
         .collect::<Result<Vec<_>, _>>()?;
     Ok(FileRun {
         program,
-        services,
+        services: Arc::clone(&services),
         execution,
         owner,
         file,
@@ -76,11 +76,11 @@ pub(crate) fn open_file<'a, 'service>(
         observed: HashMap::new(),
         walk: super::super::native_walk::FileWalk::new(file, demanded),
         context: super::super::context::RunContext::file(
-            services, source, symbols, semantic, kinds,
+            &services, source, symbols, semantic, kinds,
         ),
     })
 }
-impl FileRun<'_, '_> {
+impl FileRun<'_> {
     pub(crate) fn skip_rule(
         &mut self,
         rule: RuleIndex,
@@ -322,6 +322,16 @@ impl FileRun<'_, '_> {
             }
         }
         Ok(())
+    }
+    pub(crate) fn finish(
+        mut self,
+    ) -> Result<Option<Arc<ryo_values::domain::records::types::FrontierReadiness>>, OperatingError>
+    {
+        let readiness = self.observation_snapshot();
+        self.roots.clear();
+        self.observed.clear();
+        self.execution.finish()?;
+        Ok(readiness)
     }
     pub(crate) fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
         self.execution.logical_counts(rule)

@@ -7,7 +7,7 @@ use crate::domain::operator::contract::types::{
 };
 use crate::domain::table_model::{
     service::cell,
-    types::{Addition, ParameterBinding},
+    types::{Addition },
 };
 use crate::domain::table_reach::{service::reach_all, types::Edges};
 use crate::domain::tree_join::service::source_column;
@@ -208,3 +208,5 @@ impl OperatorsItem for JoinItem {
         outcome
     }
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

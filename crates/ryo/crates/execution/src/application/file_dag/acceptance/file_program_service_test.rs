@@ -31,7 +31,7 @@ use std::{cell::Cell, sync::Arc};
 
 fn request(
     plans: &[Plan],
-    bindings: &[Vec<crate::domain::table_model::types::ParameterBinding>],
+    bindings: &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>],
 ) -> crate::domain::operator::contract::types::RequestOperators {
     crate::domain::operator::contract::types::RequestOperators::prepare_with_schemas(
         plans,
@@ -235,10 +235,10 @@ fn typed_graph_shares_only_complete_pure_cuts_and_releases_last_consumer() {
     }
     let bound_plans = [dynamic.clone(), dynamic];
     let bound_values = [
-        vec![crate::domain::table_model::types::ParameterBinding::Text(
+        vec![ryo_values::domain::query_bindings::types::ParameterBinding::Text(
             LiteralText("main".into()),
         )],
-        vec![crate::domain::table_model::types::ParameterBinding::Text(
+        vec![ryo_values::domain::query_bindings::types::ParameterBinding::Text(
             LiteralText("other".into()),
         )],
     ];

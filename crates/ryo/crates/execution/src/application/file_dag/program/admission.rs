@@ -849,8 +849,8 @@ impl<'scope> SemanticPermit<'scope> {
     }
     pub(in crate::application::file_dag) fn physical<'call, 'meaning>(
         &'call self,
-        binding: &crate::domain::executable_program::physical::PhysicalBinding,
-        meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
+        binding: &crate::domain::executable_program::physical::PhysicalBinding<'_>,
+        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'meaning>,
     ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
         self.validate_live()?;
         use crate::domain::executable_program::physical::{self, PhysicalRoute};
@@ -887,7 +887,7 @@ impl<'scope> SemanticPermit<'scope> {
 /// The request and its validated authority cannot be separated or rewritten.
 pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
     permit: &'permit SemanticPermit<'scope>,
-    meaning: ryo_operators::domain::contract::types::OperatorCall<'meaning>,
+    meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'meaning>,
     authority: crate::domain::executable_program::physical::PhysicalAuthorization,
 }
 impl PermittedPhysical<'_, '_, '_> {
@@ -895,7 +895,7 @@ impl PermittedPhysical<'_, '_, '_> {
         self,
         port: &dyn crate::outbound::operators::interface::OperatorsPort,
     ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
         super::super::executor::KernelFault,
     > {
         if !self.permit.live.is_live() {

@@ -5,10 +5,7 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::{
-    service::cell,
-    types::{ParameterBinding, Verdict},
-};
+use crate::domain::table_model::types::{Verdict};
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct SelectItem;
 impl OperatorsItem for SelectItem {
@@ -38,21 +35,35 @@ impl OperatorsItem for SelectItem {
         let PreparedInputs::Row { row, .. } = inputs else {
             return Err(OperatingError::WrongOperation);
         };
-        if lease.holds(row)? == Verdict::Fails {
-            return Ok(());
-        }
-        if kept.is_empty() {
-            return sink.row(lease, row);
-        }
+        let holds = lease.holds(row)? != Verdict::Fails;
         let mut projected = std::mem::take(&mut lease.workspace.other);
-        let outcome = (|| {
-            projected.clear();
-            for column in kept {
-                projected.push(cell(row, *column)?);
-            }
-            sink.row(lease, &projected)
-        })();
+        let answer = lease.semantics().operators(
+            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Select {
+                row,
+                kept,
+                holds,
+                target: &mut projected,
+            },
+        );
+        let outcome = match answer {
+            Ok(
+                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+                    false,
+                ),
+            ) => Ok(()),
+            Ok(
+                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Selected(
+                    true,
+                ),
+            ) => sink.row(lease, if kept.is_empty() { row } else { &projected }),
+            Err(error) => Err(crate::domain::operator::contract::types::portable_fault(
+                error,
+            )),
+            _ => Err(OperatingError::WrongOperation),
+        };
         lease.workspace.other = projected;
         outcome
     }
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

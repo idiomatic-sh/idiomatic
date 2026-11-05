@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 pub(super) struct RunContext<'a> {
     request: Arc<RequestIdentity>,
-    source: Arc<[u8]>,
+    source: &'a [u8],
     symbols: TransportPermit,
     semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
@@ -31,15 +31,15 @@ pub(super) struct RunContext<'a> {
 }
 impl<'a> RunContext<'a> {
     pub(super) fn file(
-        services: &ProgramServices<'_>,
-        source: &[u8],
+        services: &ProgramServices,
+        source: &'a [u8],
         symbols: &mut Symbols,
         semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
         kinds: Option<Arc<crate::domain::kind_sets::types::PreparedVocabulary>>,
     ) -> Self {
         Self {
             request: Arc::clone(services.request()),
-            source: Arc::from(source),
+            source,
             symbols: transport_permit(symbols),
             semantic,
             kinds,
@@ -49,13 +49,13 @@ impl<'a> RunContext<'a> {
         }
     }
     pub(super) fn project(
-        services: &ProgramServices<'_>,
+        services: &ProgramServices,
         symbols: TransportPermit,
         arenas: &'a [ArenaBytes],
     ) -> Self {
         Self {
             request: Arc::clone(services.request()),
-            source: Arc::from([]),
+            source: &[],
             symbols,
             semantic: None,
             kinds: None,
@@ -79,7 +79,7 @@ impl<'a> RunContext<'a> {
             prepared_matchers: Some(program.matchers().as_ref()),
             bindings: program.bindings(rule)?,
             symbols: symbols.into(),
-            source: SourceView(&self.source),
+            source: SourceView(self.source),
             paths: self.request.paths(),
             arenas: self.arenas,
             memo: &mut self.memo,

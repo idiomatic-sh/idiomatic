@@ -25,12 +25,12 @@ struct ContinuesAfterSetFailure {
 impl OperatorsPort for ContinuesAfterSetFailure {
     fn operators(
         &self,
-        call: ryo_operators::domain::contract::types::OperatorCall<'_>,
+        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
     > {
-        use ryo_operators::domain::contract::types::{
+        use ryo_operators::inbound::use_cases::operators::interface::{
             OperatorAnswer, OperatorCall, SetInput, SetKind,
         };
         match call {

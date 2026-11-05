@@ -1,7 +1,6 @@
 //! Set policy controls membership, distinctness, laziness and emission order.
-use crate::domain::contract::types::{
-    PortableOperatorFault, SetKind, SetPositionsDriver, SetRowDriver,
-};
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::set_rows::types::{SetKind, SetPositionsDriver, SetRowDriver};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 

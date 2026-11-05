@@ -7,8 +7,8 @@ use crate::application::file_dag::program::{
     runtime::{Delivery, InvocationOutcome, ProgramExecution},
 };
 use crate::domain::{
+
     coverage::types::{Lacking, Partial, Partials, RuleIndex},
-    table_model::types::{BindingCell, BindingTable, ParameterBinding},
 };
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
@@ -119,6 +119,8 @@ fn subject(case: Input) -> Result<Value, Failure> {
             required.clone()
         };
         let handover = crate::application::file_dag::frontiers::types::PreparedFrontiers {
+            producer: RuleIndex(0),
+            sources: Box::new([]),
             rows: vec![],
             refused: vec![],
             program: Arc::clone(prepared.program()),
@@ -291,3 +293,5 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};

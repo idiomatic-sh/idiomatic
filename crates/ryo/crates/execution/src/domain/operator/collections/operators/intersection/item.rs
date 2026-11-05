@@ -4,8 +4,8 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::types::ParameterBinding;
-use ryo_operators::domain::contract::types::SetKind;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_operators::inbound::use_cases::operators::interface::SetKind;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct IntersectionItem;
 impl OperatorsItem for IntersectionItem {

@@ -2,8 +2,7 @@
 use super::types::Pool;
 use crate::domain::{
     operating::errors::OperatingError, operation_schema::types::InputShape,
-    operator::contract::types::OperatorContract, table_model::types::ParameterBinding,
-};
+    operator::contract::types::OperatorContract, table_model::types::};
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 
 /// Read-only contract preparation. This surface cannot evaluate an operation.
@@ -54,3 +53,5 @@ pub(crate) fn emitted<'p>(plan: &Plan, pool: &'p mut Pool) -> Option<&'p mut Tab
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

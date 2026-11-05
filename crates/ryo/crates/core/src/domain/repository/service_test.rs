@@ -2,8 +2,8 @@
 
 use super::service::{by_path, configuration, paths_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::rules::types::RuleParameters;
-use crate::domain::rules::types::RuleSpec;
+use ryo_values::domain::rule_requests::types::RuleParameters;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::QueryText;

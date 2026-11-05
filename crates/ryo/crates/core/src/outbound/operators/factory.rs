@@ -9,16 +9,14 @@ pub fn use_case(
     + Sync
     + std::fmt::Debug,
 ) -> impl OperatorsPort {
-    super::adapters::use_case::adapter::OperatorsUseCaseAdapter::new(operators)
+    operators
 }
 
-/// Test-only composition of the same stateless capability boundary.
+/// Actual portable semantic use case for contract fixtures.
 #[cfg(test)]
-pub(crate) const fn test_port() -> &'static dyn OperatorsPort {
-    use super::adapters::use_case::adapter::OperatorsUseCaseAdapter;
-    use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
-
-    static ADAPTER: OperatorsUseCaseAdapter<OperatorsUseCaseImpl> =
-        OperatorsUseCaseAdapter::new(OperatorsUseCaseImpl::new());
-    &ADAPTER
+pub(crate) fn test_port()
+-> std::sync::Arc<dyn ryo_execution::inbound::use_cases::execution::types::OperatorsPort> {
+    std::sync::Arc::new(
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
+    )
 }

@@ -12,9 +12,7 @@ use crate::domain::{
     },
     operating::errors::OperatingError,
     operator::{contract::types::RequestOperators, types::RowsFed},
-    rules::types::RuleSpec,
-    table_model::types::ParameterBinding,
-    trust::types::RelationRead,
+    rules::types::table_model::types::trust::types::RelationRead,
 };
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_relations::domain::relations::types::{CellKind, Words};
@@ -33,7 +31,7 @@ pub(crate) use super::facade_runtime::{
     FileRun, ProgramServices, ProjectRun, PublicationScope, open_file, open_project,
     publication_owner, required_partitions,
 };
-pub(crate) struct CaptureContext<'a> {
+pub struct CaptureContext<'a> {
     pub file: ryo_relations::domain::relations::types::FileId,
     /// Current rule identity validated by the store before warm replay.
     pub rule_digest: ryo_values::domain::stored_facts::types::Digest,
@@ -46,11 +44,11 @@ pub(crate) struct ProjectFrontiers<'a> {
     pub ordinary: crate::application::file_dag::frontiers::types::PreparedFrontiers,
     pub bound_inputs: &'a [crate::application::file_dag::frontiers::types::BoundInput],
 }
-pub(crate) struct FrontierCapture {
+pub struct FrontierCapture {
     pub input: ryo_values::domain::plan_parts::types::InputNumber,
     pub outcome: Result<CapturedFrontier, OperatingError>,
 }
-pub(crate) struct CapturedFrontier {
+pub struct CapturedFrontier {
     pub input: ryo_values::domain::plan_parts::types::InputNumber,
     pub bucket: ryo_values::domain::stored_facts::types::Bucket,
     /// Source-bound root and physical coverage retained with the packed words.
@@ -58,21 +56,21 @@ pub(crate) struct CapturedFrontier {
     pub words: ryo_values::domain::stored_facts::types::PackedWords,
 }
 #[derive(Clone, Copy)]
-pub(crate) enum EmitDemand {
+pub enum EmitDemand {
     Enabled,
     Disabled,
 }
 #[derive(Clone, Copy)]
-pub(crate) enum ObservationDemand {
+pub enum ObservationDemand {
     Required,
     NotRequired,
 }
 #[derive(Clone, Copy)]
-pub(crate) struct RuleDemand {
+pub struct RuleDemand {
     pub emit: EmitDemand,
     pub observations: ObservationDemand,
 }
-pub(crate) enum RootOutcome {
+pub enum RootOutcome {
     Complete(Table),
     /// Usable diagnostic rows and the exact physical partitions still uncertain.
     Partial {
@@ -98,23 +96,23 @@ impl ObservedPublication {
         &self.admitted
     }
 }
-pub(crate) struct LogicalCounts {
+pub struct LogicalCounts {
     pub fed: Box<[RowsFed]>,
 }
-pub(crate) struct RuleOutcome {
+pub struct RuleOutcome {
     pub emit: RootOutcome,
     pub observations: Vec<(ObservationIndex, RootOutcome)>,
     pub counts: LogicalCounts,
 }
 /// A project named root can be Complete only with the admitted owner proof.
-pub(crate) enum ProjectObservation {
+pub enum ProjectObservation {
     Complete {
         table: Table,
         publication: ObservedPublication,
     },
     Other(RootOutcome),
 }
-pub(crate) struct ProjectRuleOutcome {
+pub struct ProjectRuleOutcome {
     pub emit: RootOutcome,
     pub observations: Vec<(ObservationIndex, ProjectObservation)>,
     pub counts: LogicalCounts,
@@ -690,3 +688,7 @@ fn source(
             .ok_or(OperatingError::NotRun),
     }
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};
+
+use ryo_values::domain::rule_requests::types::{RuleSpec};

@@ -1,5 +1,6 @@
 //! The engine chooses the physical probe; this kernel owns ordered Join row semantics.
-use crate::domain::contract::types::{JoinDriver, JoinRow, PortableOperatorFault};
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::equality_join::types::{JoinDriver, JoinRow};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
@@ -59,7 +60,7 @@ mod service_test;
 /// them deferred: only demanded key/filter/output reads may decode cells.
 pub(crate) fn positions(
     left: &[u32],
-    driver: &mut dyn crate::domain::contract::types::PositionJoinDriver,
+    driver: &mut dyn crate::domain::equality_join::types::PositionJoinDriver,
     target: &mut Vec<u32>,
 ) -> Result<(), PortableOperatorFault> {
     while driver

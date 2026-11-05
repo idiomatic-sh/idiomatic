@@ -3,7 +3,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::bindings::value::BindingShape;
-use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
+use crate::domain::table_model::types::{};
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, FlagState, LiteralText, Operand, ParameterId, QueryLiteral, TableKey,
@@ -302,3 +302,5 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding,BindingTable,BindingCell};

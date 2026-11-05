@@ -28,7 +28,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug)]
 struct Counted {
     calls: AtomicUsize,
-    engine: CommonOperatorEngine<'static>,
+    engine: CommonOperatorEngine,
 }
 impl Default for Counted {
     fn default() -> Self {

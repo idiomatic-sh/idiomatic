@@ -1,4 +1,4 @@
-//! Portable semantic declarations interpreted by the engine.
+//! Borrowed semantic contracts. The engine owns every acquired resource and output.
 
 /// The source length used to validate a composed byte interval.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +20,12 @@ pub enum PortableOperatorFault {
     InvalidSpanBounds,
     /// A composed span exceeds the source or reverses its interval.
     InvalidSpan,
+    /// An occurrence cannot be represented inside the validated physical source.
+    InvalidSourceMatchSpan,
+    /// A required named regular-expression capture is absent.
+    MissingCapture,
+    /// The supplied semantic options are not a valid operation.
+    WrongOperation,
 }
 
 /// The result of one pure operator meaning, before engine publication.
@@ -27,6 +33,12 @@ pub enum PortableOperatorFault {
 pub enum OperatorAnswer {
     /// Caller-owned scratch was filled.
     Written,
+    /// A predicate accepted this row; an empty projection keeps the original row.
+    Selected(bool),
+    /// The first matching resolved rank, or no matching layer.
+    Rank(Option<ryo_relations::domain::relations::types::Integer>),
+    /// Stable text-aware digest hash.
+    ValueHash(u64),
     /// Checked half-open span endpoints.
     SpanBounds([ryo_relations::domain::relations::types::Value; 2]),
     /// A composed half-open span, including a declared absent span.
@@ -35,6 +47,102 @@ pub enum OperatorAnswer {
 
 /// A borrowed request for one pure operator meaning. Storage and publication stay with the engine.
 pub enum OperatorCall<'a> {
+    /// Reduce a prepared key order into first-occurrence group counts.
+    ReduceCount {
+        table: &'a ryo_values::domain::rows::types::Table,
+        keys: GroupColumns<'a>,
+        distinct: Option<ryo_values::domain::plan_parts::types::ColumnIndex>,
+        order: &'a [ryo_values::domain::rows::types::RowIndex],
+        values: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+        target: &'a mut dyn GroupOutput,
+    },
+    /// Reduce distinct text-aware hashes in the prepared key order.
+    ReduceDigest {
+        table: &'a ryo_values::domain::rows::types::Table,
+        keys: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+        over: ryo_values::domain::plan_parts::types::ColumnIndex,
+        order: &'a [ryo_values::domain::rows::types::RowIndex],
+        hashes: &'a mut Vec<u64>,
+        hasher: &'a dyn DigestValues,
+        target: &'a mut dyn GroupOutput,
+    },
+    /// Hash resolved text and typed scalar/list values without acquiring their backing storage.
+    HashValue { datum: DigestDatum<'a> },
+    /// Check aggregation columns in the original collected or streamed order.
+    CheckAggregation {
+        program: AggregationPlan<'a>,
+        kinds: &'a [ryo_relations::domain::relations::types::CellKind],
+        order: AggregationCheckOrder,
+        target: &'a mut Vec<ryo_relations::domain::relations::types::CellKind>,
+    },
+    /// Reduce one already admitted row into engine-owned streaming state.
+    StreamAggregation {
+        program: AggregationPlan<'a>,
+        row: &'a [ryo_relations::domain::relations::types::Value],
+        key: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+        driver: &'a mut dyn StreamingReduction,
+    },
+    /// Finish an engine-owned streaming reduction without retaining its state.
+    FinishAggregation {
+        counts: &'a [usize],
+        hashes: &'a mut Vec<AggregationHash>,
+        digest: bool,
+        target: &'a mut dyn GroupOutput,
+    },
+
+    /// Apply an already evaluated predicate and the authored kept-column policy.
+    Select {
+        row: &'a [ryo_relations::domain::relations::types::Value],
+        kept: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+        holds: bool,
+        target: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+    },
+    /// Split a resolved text using the language-independent word policy.
+    Words {
+        text: &'a str,
+        word: &'a mut String,
+        each: &'a mut dyn WordOutput,
+    },
+    /// Enumerate nonempty path-slot captures as UTF-8 byte ranges in encounter order.
+    Capture {
+        pattern: &'a str,
+        text: &'a str,
+        slots: &'a mut Vec<std::ops::Range<usize>>,
+        each: &'a mut dyn CaptureOutput,
+    },
+    /// Return the first matching resolved text-set layer.
+    Rank {
+        text: &'a str,
+        layers: &'a [Vec<ryo_values::domain::plan_parts::types::LiteralText>],
+    },
+    /// Replace all matches literally; matcher acquisition and storage belong to the engine.
+    Replace {
+        regex: &'a regex_automata::meta::Regex,
+        text: &'a str,
+        replacement: &'a str,
+        target: &'a mut String,
+    },
+    /// Format an already reduced group; reduction storage belongs to the engine.
+    Aggregate {
+        row: &'a [ryo_relations::domain::relations::types::Value],
+        keys: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
+        count: usize,
+        digest: Option<i64>,
+        target: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+    },
+    /// Pair each prepared open key with the first later close key in FIFO order.
+    OrderedMatch {
+        output: &'a [ryo_values::domain::plan_parts::types::JoinColumn],
+        driver: &'a mut dyn OrderedMatchDriver,
+        target: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+    },
+    /// Match a previously checked physical source interval and format its occurrences.
+    SourceMatches {
+        input: SourceMatchesInput<'a>,
+        driver: &'a mut dyn TextRowDriver,
+        target: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
+    },
+
     /// Flag exactly the source rows dominated by a strict same-column ordered selfjoin.
     /// The original downstream projection and antijoin remain engine-scheduled operations.
     OrderedExistence {
@@ -92,195 +200,27 @@ pub enum OperatorCall<'a> {
     },
 }
 
-/// The four set and antijoin meanings; input acquisition and delivery stay with the engine.
+/// An engine-retained error interrupted a finite semantic callback.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SetKind {
-    /// Emit each distinct row from either side in encounter order.
-    Union,
-    /// Emit each distinct left row present on the right.
-    Intersection,
-    /// Emit each distinct left row absent on the right.
-    Difference,
-    /// Emit each left row whose projected key is absent on the right, retaining duplicates.
-    Antijoin,
-}
+pub struct SemanticInterrupted;
 
-/// The original engine error remains with the finite driver after interruption.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SetInterrupted;
+use crate::domain::set_rows::types::SetInput;
 
-/// Finite access to acquired typed membership, invocation distinct state and delivery.
-/// The semantic capability cannot select an index, retain a row or publish independently.
-pub trait SetRowDriver {
-    /// Whether the acquired right population has no rows.
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted>;
-    /// Test a full row or projected left key against the acquired right index.
-    fn contains_right(
-        &mut self,
-        key: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, SetInterrupted>;
-    /// Record an invocation-scoped first occurrence of a full row.
-    fn first_time(
-        &mut self,
-        row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, SetInterrupted>;
-    /// Deliver one retained row in original encounter order.
-    fn emit(
-        &mut self,
-        row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<(), SetInterrupted>;
-}
+use crate::domain::equality_join::types::JoinInput;
 
-/// Borrowed set input: typed rows or deferred tree positions selected by the engine.
-pub enum SetInput<'a> {
-    /// One scheduled typed row; `left_on` is consulted only for antijoin after a nonempty RHS.
-    Values {
-        /// Set or antijoin meaning.
-        kind: SetKind,
-        /// Scheduled left row.
-        row: &'a [ryo_relations::domain::relations::types::Value],
-        /// Ordered antijoin key columns.
-        left_on: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
-        /// Engine-owned finite membership, distinct and delivery boundary.
-        driver: &'a mut dyn SetRowDriver,
-        /// Caller-owned projected key scratch.
-        key: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
-    },
-    /// Deferred position rows over an engine-acquired raw key order.
-    Positions {
-        /// Set or antijoin meaning.
-        kind: SetKind,
-        /// Engine-owned finite position and delivery boundary.
-        driver: &'a mut dyn SetPositionsDriver,
-    },
-}
+use crate::domain::ordered_existence::types::{
+    OrderedExistenceDriver, OrderedExistenceScratch, PartitionExtremum,
+};
 
-/// Finite deferred rows; the engine owns raw ordering, decoding and output slots.
-pub trait SetPositionsDriver {
-    /// Advance to the next candidate in encounter order.
-    fn next(&mut self) -> Result<bool, SetInterrupted>;
-    /// Whether the acquired right population has no rows.
-    fn right_empty(&mut self) -> Result<bool, SetInterrupted>;
-    /// Probe the current left row's key only when semantic policy asks.
-    fn contains_right(&mut self) -> Result<bool, SetInterrupted>;
-    /// Whether the current row is the first occurrence in this invocation.
-    fn first_time(&mut self) -> Result<bool, SetInterrupted>;
-    /// Deliver current positions without decoding unused cells.
-    fn emit(&mut self) -> Result<(), SetInterrupted>;
-}
+use crate::domain::ordered_match::types::OrderedMatchDriver;
 
-/// An interruption is retained as the engine's original error outside the capability.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct JoinInterrupted;
+use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
 
-/// Finite borrowed access to already acquired matching rows, in their original bag order.
-/// Implementations cannot be selected or retained by the semantic kernel. One object
-/// owns the exclusive borrow used for admission and downstream delivery.
-pub trait JoinDriver {
-    /// Advance to the next admitted match for this left key. Every yielded candidate
-    /// must satisfy the prepared equality or native lookup contract; the kernel does
-    /// not repeat verified key comparisons. Empty sources never access output cells.
-    fn next(
-        &mut self,
-        key: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<bool, JoinInterrupted>;
-    /// Decode one current right cell; no full-width row is required.
-    fn right_cell(
-        &self,
-        column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    ) -> Option<ryo_relations::domain::relations::types::Value>;
-    /// Deliver one projected row. After interruption every later call must remain interrupted.
-    fn emit(
-        &mut self,
-        row: &[ryo_relations::domain::relations::types::Value],
-    ) -> Result<(), JoinInterrupted>;
-}
+use crate::domain::reduction::types::{
+    AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues,
+    GroupColumns, GroupOutput, StreamingReduction,
+};
 
-/// Ordinary Join representations. Dispatch is exhaustive at the single capability boundary.
-pub enum JoinInput<'a> {
-    /// Immediate typed cells over already acquired matching candidates.
-    Values {
-        /// The scheduled left row.
-        left: JoinRow<'a>,
-        /// Ordered left key columns, validated when this row is reached.
-        left_on: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
-        /// Ordered output projection, including duplicates.
-        output: &'a [ryo_values::domain::plan_parts::types::JoinColumn],
-        /// Logical-to-physical right column remapping; absent entries stay unchanged.
-        view: &'a [ryo_values::domain::plan_parts::types::ColumnIndex],
-        /// One finite borrowed candidate source and delivery boundary.
-        driver: &'a mut dyn JoinDriver,
-        /// Caller-owned key buffer.
-        key: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
-        /// Caller-owned projected row buffer.
-        target: &'a mut Vec<ryo_relations::domain::relations::types::Value>,
-    },
-    /// Deferred tree rows, concatenated without decoding their logical cells.
-    Positions {
-        /// File-local positions belonging to the scheduled left row.
-        left: &'a [u32],
-        /// One finite ordered source of already matching position rows.
-        driver: &'a mut dyn PositionJoinDriver,
-        /// Caller-owned flat position destination; publication remains engine-owned.
-        target: &'a mut Vec<u32>,
-    },
-}
-/// Borrowed matching position rows. No semantic cell is decoded by this interface.
-pub trait PositionJoinDriver {
-    /// Advance in the original bag order. The first error is sticky.
-    fn next(&mut self) -> Result<bool, JoinInterrupted>;
-    /// File-local position slots of the current already matching RHS row.
-    fn right_positions(&self) -> &[u32];
-}
+use crate::domain::words::types::WordOutput;
 
-/// One immutable left row: values already at hand, or a finite columnar reader.
-pub enum JoinRow<'a> {
-    /// Already materialized typed values.
-    Values(&'a [ryo_relations::domain::relations::types::Value]),
-    /// Decode only requested key/output cells from one already admitted row.
-    Columns(&'a dyn JoinCells),
-}
-/// Read-only access to one already admitted physical row, never an acquisition port.
-pub trait JoinCells {
-    /// Read exactly one logical cell. No cache, scheduler or population handle is exposed.
-    fn cell(
-        &self,
-        column: ryo_values::domain::plan_parts::types::ColumnIndex,
-    ) -> Option<ryo_relations::domain::relations::types::Value>;
-}
-
-/// Strict comparison direction for admitted whole-number columns only.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PartitionExtremum {
-    Maximum,
-    Minimum,
-}
-
-/// Finite immutable rows already demanded and admitted by the existing engine owner.
-/// Repeated reads return identical keys/numbers; equality is exact Value equality.
-/// No provider, owner, scheduler or cache is visible to the semantic kernel.
-pub trait OrderedExistenceDriver {
-    fn len(&self) -> usize;
-    fn key_cell(&mut self, row: usize, column: ryo_values::domain::plan_parts::types::ColumnIndex)
-        -> Result<ryo_relations::domain::relations::types::Value, JoinInterrupted>;
-    /// Total non-null whole-number evidence is required before this driver is constructed.
-    fn number(&mut self, row: usize, column: ryo_values::domain::plan_parts::types::ColumnIndex)
-        -> Result<ryo_relations::domain::relations::types::Integer, JoinInterrupted>;
-    /// Deliver a dominated source row and an actual same-partition dominating witness.
-    /// The engine can reconstruct the original logical Join coordinates for the unchanged Project.
-    /// First interruption is sticky, including every subsequent callback.
-    fn emit_dominated(&mut self, row: usize, witness: usize) -> Result<(), JoinInterrupted>;
-}
-
-/// Per-step scratch supplied and owned by the engine; no completed population is retained.
-#[derive(Debug, Default)]
-pub struct OrderedExistenceScratch {
-    pub(crate) groups: std::collections::HashMap<Vec<ryo_relations::domain::relations::types::Value>, ExtremumWitness>,
-    pub(crate) key: Vec<ryo_relations::domain::relations::types::Value>,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ExtremumWitness {
-    pub(crate) value: ryo_relations::domain::relations::types::Integer,
-    pub(crate) row: usize,
-}
+use crate::domain::capture::types::CaptureOutput;

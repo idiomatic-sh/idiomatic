@@ -16,8 +16,7 @@ use crate::domain::{
         },
     },
     table_cells::types::{TreeForm, TreeRows},
-    table_model::types::ParameterBinding,
-    table_scratch::types::OperatorScratch,
+    table_model::types::table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
 use ryo_language::domain::{
@@ -371,3 +370,5 @@ fn subject(input: Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

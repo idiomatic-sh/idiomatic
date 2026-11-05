@@ -5,7 +5,7 @@ use super::types::{
     ClassWork, Eligibility, KindCount, RowRead, RuleActivity, WalkWork,
     prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
 };
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::{
     comparing::service::holds_some,
     coverage::types::RuleIndex,

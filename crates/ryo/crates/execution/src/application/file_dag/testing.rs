@@ -1,5 +1,5 @@
 //! Pure borrowed-value and preparation fixtures; no executor or admission alternative.
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::rows::types::Table;
 /// Composition of the actual portable derived use case for current engine tests.

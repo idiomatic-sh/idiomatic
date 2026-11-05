@@ -29,7 +29,7 @@ use crate::domain::{
 };
 use ryo_derived::domain::contract::types::RawOrder;
 use ryo_language::domain::{elements::service::children, symbols::service::name_count};
-use ryo_operators::domain::contract::types::{
+use ryo_operators::inbound::use_cases::operators::interface::{
     JoinInput, JoinInterrupted, OperatorCall, PositionJoinDriver,
 };
 use ryo_relations::domain::relations::types::{Position, Relation, Value};

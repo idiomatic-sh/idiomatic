@@ -1,23 +1,23 @@
-//! Streaming group acquisition preserves row-validation and upstream-error precedence.
+//! Invocation-owned reduction storage. Every reduction decision runs through the injected semantic contract.
 use crate::domain::operating::{
     errors::OperatingError,
-    types::{GroupHash, GroupNumber, GroupValue},
+    types::{GroupNumber, GroupValue},
 };
-use crate::domain::operator::contract::types::AggregationProgram;
-
+use crate::domain::operator::contract::types::{AggregationProgram, written_result};
 use crate::domain::table_dedup::{service::find_or_add, types::RowFound};
 use crate::domain::table_groups::{
-    service::hash_of,
-    types::{Group, SetDigest},
+    service::{GroupTarget, plan, resolved},
+    types::Group,
 };
-use crate::domain::table_model::{
-    errors::TableModelError,
-    service::{cell, column_in, push_row},
-    types::Addition,
-};
+use crate::domain::table_model::{service::push_row, types::Addition};
 use crate::domain::table_texts::types::Texts;
+use crate::outbound::operators::interface::OperatorsPort;
+use ryo_operators::inbound::use_cases::operators::interface::{
+    AggregationCheckOrder, AggregationHash, DigestDatum, OperatorCall, SemanticInterrupted,
+    StreamingReduction,
+};
 use ryo_relations::domain::relations::types::{CellKind, Value};
-use std::hash::Hasher as _;
+use ryo_values::domain::rows::types::{RowIndex, Table};
 
 pub(crate) struct Aggregation {
     program: AggregationProgram,
@@ -26,41 +26,52 @@ pub(crate) struct Aggregation {
     seen: hashbrown::HashTable<RowIndex>,
     counts: Vec<usize>,
     pairs: hashbrown::HashSet<GroupValue>,
-    hashes: Vec<GroupHash>,
+    hashes: Vec<AggregationHash>,
     probe: Vec<Value>,
 }
+struct Storage<'a, 'text> {
+    state: &'a mut Aggregation,
+    texts: &'a Texts<'text>,
+}
+impl StreamingReduction for Storage<'_, '_> {
+    fn group(&mut self, key: &[Value], row: &[Value]) -> Result<RowIndex, SemanticInterrupted> {
+        let RowFound { at, added } = find_or_add(&mut self.state.keys, &mut self.state.seen, key);
+        if added == Addition::Added {
+            push_row(&mut self.state.first_rows, row);
+            self.state.counts.push(0);
+        }
+        Ok(at)
+    }
+    fn insert_value(&mut self, group: RowIndex, value: Value) -> bool {
+        self.state.pairs.insert(GroupValue {
+            group: GroupNumber(u32::try_from(group.0).unwrap_or(u32::MAX)),
+            value,
+        })
+    }
+    fn count(&mut self, group: RowIndex) -> Option<&mut usize> {
+        self.state.counts.get_mut(group.0)
+    }
+    fn datum(&self, value: Value) -> DigestDatum<'_> {
+        resolved(value, self.texts)
+    }
+    fn append_hash(&mut self, hash: AggregationHash) {
+        self.state.hashes.push(hash);
+    }
+}
 impl Aggregation {
-    /// Validate metadata before requesting the stream, in the original per-class order.
     pub(crate) fn new(
         program: &AggregationProgram,
         input_kinds: &[CellKind],
+        operators: &dyn OperatorsPort,
     ) -> Result<Self, OperatingError> {
-        let (keys, over, digest) = match program {
-            AggregationProgram::Count { keys, distinct } => (keys, *distinct, false),
-            AggregationProgram::Digest { keys, over } => (keys, Some(*over), true),
-        };
-        let check_over = || -> Result<(), OperatingError> {
-            if let Some(column) = over
-                && usize::try_from(column.0).map_or(true, |at| at >= input_kinds.len())
-            {
-                return Err(TableModelError::NoSuchColumn { index: column.0 }.into());
-            }
-            Ok(())
-        };
-        if digest {
-            check_over()?;
-        }
-        let kinds = keys
-            .iter()
-            .map(|column| {
-                column_in(input_kinds, *column)
-                    .copied()
-                    .ok_or(TableModelError::NoSuchColumn { index: column.0 })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        if !digest {
-            check_over()?;
-        }
+        let mut kinds = Vec::new();
+        let answer = operators.operators(OperatorCall::CheckAggregation {
+            program: plan(program),
+            kinds: input_kinds,
+            order: AggregationCheckOrder::Streaming,
+            target: &mut kinds,
+        });
+        written_result(answer, None)?;
         Ok(Self {
             program: program.clone(),
             keys: Table {
@@ -78,89 +89,54 @@ impl Aggregation {
             probe: Vec::new(),
         })
     }
-    /// Read and hash this row now; a later upstream error cannot hide a bad earlier row.
-    pub(crate) fn push(&mut self, row: &[Value], texts: &Texts<'_>) -> Result<(), OperatingError> {
-        let columns = match &self.program {
-            AggregationProgram::Count { keys, .. } | AggregationProgram::Digest { keys, .. } => {
-                keys
-            }
-        };
-        self.probe.clear();
-        for column in columns {
-            self.probe.push(cell(row, *column)?);
-        }
-        let RowFound { at: group, added } =
-            find_or_add(&mut self.keys, &mut self.seen, &self.probe);
-        if added == Addition::Added {
-            push_row(&mut self.first_rows, row);
-            self.counts.push(0);
-        }
-        let group_number = GroupNumber(u32::try_from(group.0).unwrap_or(u32::MAX));
-        match &self.program {
-            AggregationProgram::Count { distinct, .. } => {
-                let counted = match distinct {
-                    None => true,
-                    Some(column) => self.pairs.insert(GroupValue {
-                        group: group_number,
-                        value: cell(row, *column)?,
-                    }),
-                };
-                if counted {
-                    *self
-                        .counts
-                        .get_mut(group.0)
-                        .ok_or(OperatingError::ShapeMismatch)? += 1;
-                }
-            }
-            AggregationProgram::Digest { over, .. } => self.hashes.push(GroupHash {
-                group: group_number,
-                hash: hash_of(cell(row, *over)?, texts),
-            }),
-        }
-        Ok(())
+    pub(crate) fn push(
+        &mut self,
+        row: &[Value],
+        texts: &Texts<'_>,
+        operators: &dyn OperatorsPort,
+    ) -> Result<(), OperatingError> {
+        // Move borrowed invocation scratch out temporarily; no metadata or rows are copied.
+        let program = std::mem::replace(
+            &mut self.program,
+            AggregationProgram::Count {
+                keys: Vec::new(),
+                distinct: None,
+            },
+        );
+        let mut key = std::mem::take(&mut self.probe);
+        let mut driver = Storage { state: self, texts };
+        let answer = operators.operators(OperatorCall::StreamAggregation {
+            program: plan(&program),
+            row,
+            key: &mut key,
+            driver: &mut driver,
+        });
+        let result = written_result(answer, None);
+        driver.state.program = program;
+        driver.state.probe = key;
+        result
     }
-    /// Retain only original first rows and descriptors; the primitive performs projection/emission.
-    pub(crate) fn finish(mut self) -> (Table, Vec<Group>) {
+    pub(crate) fn finish(
+        mut self,
+        operators: &dyn OperatorsPort,
+    ) -> Result<(Table, Vec<Group>), OperatingError> {
         let mut groups = Vec::with_capacity(self.keys.count.0);
-        match self.program {
-            AggregationProgram::Count { .. } => {
-                for (group, counted) in self.counts.into_iter().enumerate() {
-                    groups.push(Group {
-                        first: RowIndex(group),
-                        counted: RowCount(counted),
-                        digest: SetDigest(0),
-                    });
-                }
-            }
-            AggregationProgram::Digest { .. } => {
-                self.hashes.sort_unstable();
-                self.hashes.dedup();
-                let mut at = 0;
-                for group in 0..self.keys.count.0 {
-                    let mut hasher = rustc_hash::FxHasher::default();
-                    let mut counted = 0;
-                    while let Some(each) = self.hashes.get(at)
-                        && usize::try_from(each.group.0).unwrap_or(usize::MAX) == group
-                    {
-                        hasher.write_u64(each.hash.0);
-                        counted += 1;
-                        at += 1;
-                    }
-                    groups.push(Group {
-                        first: RowIndex(group),
-                        counted: RowCount(counted),
-                        digest: SetDigest(hasher.finish().cast_signed()),
-                    });
-                }
-            }
-        }
-        (self.first_rows, groups)
+        let answer = operators.operators(OperatorCall::FinishAggregation {
+            counts: &self.counts,
+            hashes: &mut self.hashes,
+            digest: matches!(self.program, AggregationProgram::Digest { .. }),
+            target: &mut GroupTarget(&mut groups),
+        });
+        written_result(answer, None)?;
+        Ok((self.first_rows, groups))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::service_test::OPERATORS;
     use super::*;
+    use crate::domain::table_model::errors::TableModelError;
     use crate::domain::table_texts::types::SourceView;
     use ryo_language::domain::symbols::types::Symbols;
     use ryo_relations::domain::relations::types::Integer;
@@ -174,7 +150,7 @@ mod tests {
             keys: vec![ColumnIndex(1)],
             distinct: Some(ColumnIndex(0)),
         };
-        let mut group = Aggregation::new(&program, &[CellKind::Number; 2]).unwrap();
+        let mut group = Aggregation::new(&program, &[CellKind::Number; 2], &OPERATORS).unwrap();
         let symbols = Symbols::default();
         let texts = Texts {
             symbols: &symbols,
@@ -183,9 +159,9 @@ mod tests {
             arenas: &[],
         };
         for row in [[n(9), n(2)], [n(9), n(2)], [n(8), n(1)], [n(7), n(2)]] {
-            group.push(&row, &texts).unwrap();
+            group.push(&row, &texts, &OPERATORS).unwrap();
         }
-        let (first, groups) = group.finish();
+        let (first, groups) = group.finish(&OPERATORS).unwrap();
         assert_eq!(first.cells, vec![n(9), n(2), n(8), n(1)]);
         assert_eq!(
             groups
@@ -201,7 +177,7 @@ mod tests {
             keys: vec![ColumnIndex(0)],
             over: ColumnIndex(1),
         };
-        let mut group = Aggregation::new(&program, &[CellKind::Number; 2]).unwrap();
+        let mut group = Aggregation::new(&program, &[CellKind::Number; 2], &OPERATORS).unwrap();
         let symbols = Symbols::default();
         let texts = Texts {
             symbols: &symbols,
@@ -209,7 +185,7 @@ mod tests {
             paths: &[],
             arenas: &[],
         };
-        assert!(group.push(&[n(1)], &texts).is_err());
+        assert!(group.push(&[n(1)], &texts, &OPERATORS).is_err());
     }
     #[test]
     fn count_and_digest_preserve_their_different_static_error_order() {
@@ -222,13 +198,13 @@ mod tests {
             over: ColumnIndex(98),
         };
         assert!(matches!(
-            Aggregation::new(&count, &[CellKind::Number]),
+            Aggregation::new(&count, &[CellKind::Number], &OPERATORS),
             Err(OperatingError::Table(TableModelError::NoSuchColumn {
                 index: 99
             }))
         ));
         assert!(matches!(
-            Aggregation::new(&digest, &[CellKind::Number]),
+            Aggregation::new(&digest, &[CellKind::Number], &OPERATORS),
             Err(OperatingError::Table(TableModelError::NoSuchColumn {
                 index: 98
             }))

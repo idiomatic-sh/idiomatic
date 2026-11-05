@@ -13,10 +13,10 @@ use crate::application::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
+
     file_program::types::RuleSchedule,
     operating::errors::OperatingError,
     positions::service_test::{SMALL_SOURCE, SmallTree, rows_over, small_tree},
-    rules::types::{RuleParameters, RuleSpec},
     table_model::types::Rows,
 };
 use ryo_language::domain::files::types::FilePath;
@@ -282,3 +282,5 @@ fn refuses() {
 
 #[cfg(test)]
 mod source_partition_test;
+
+use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};

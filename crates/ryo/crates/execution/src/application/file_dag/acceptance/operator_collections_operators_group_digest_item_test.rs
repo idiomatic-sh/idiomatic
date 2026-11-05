@@ -12,7 +12,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::group_digest::item::GroupDigestItem;
 
 use crate::domain::table_model::service::{push_row, row_in};
-use crate::domain::table_model::types::{ParameterBinding, Rows};
+use crate::domain::table_model::types::{Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_relations::domain::relations::types::Integer;
@@ -226,3 +226,5 @@ fn refuses() {
 }
 
 use ryo_values::domain::rows::types::{RowIndex, Table};
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

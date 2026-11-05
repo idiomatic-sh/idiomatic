@@ -6,15 +6,15 @@ pub(in crate::application::file_dag) mod lease;
 pub(in crate::application::file_dag) mod output;
 
 #[derive(Debug)]
-pub(crate) struct CommonOperatorEngine<'a> {
-    operators: &'a dyn OperatorsPort,
+pub(crate) struct CommonOperatorEngine {
+    operators: std::sync::Arc<dyn OperatorsPort>,
 }
-impl<'a> CommonOperatorEngine<'a> {
-    pub(crate) fn new(operators: &'a dyn OperatorsPort) -> Self {
+impl CommonOperatorEngine {
+    pub(crate) fn new(operators: std::sync::Arc<dyn OperatorsPort>) -> Self {
         Self { operators }
     }
 }
-impl PrimitiveExecutor for CommonOperatorEngine<'_> {
+impl PrimitiveExecutor for CommonOperatorEngine {
     fn execute(&self, call: KernelCall<'_, '_, '_>) -> Result<KernelAnswer, KernelFault> {
         match call {
             KernelCall::Registered { request } => {
@@ -29,16 +29,16 @@ impl PrimitiveExecutor for CommonOperatorEngine<'_> {
                 .dispatch(self)
                 .map(|()| KernelAnswer::Complete)
                 .map_err(KernelFault::Refused),
-            KernelCall::Physical { request } => {
-                request.dispatch(self.operators).map(KernelAnswer::Physical)
-            }
+            KernelCall::Physical { request } => request
+                .dispatch(self.operators.as_ref())
+                .map(KernelAnswer::Physical),
         }
     }
 }
 pub(super) struct PrimitiveSemanticsBridge<'a> {
     pub(super) port: &'a dyn PrimitiveExecutor,
     pub(super) permit: super::program::admission::SemanticPermit<'a>,
-    pub(super) binding: crate::domain::executable_program::physical::PhysicalBinding,
+    pub(super) binding: crate::domain::executable_program::physical::PhysicalBinding<'a>,
     pub(super) failure: &'a std::sync::OnceLock<crate::domain::operating::errors::OperatingError>,
 }
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
@@ -48,12 +48,12 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     }
     fn operators(
         &self,
-        meaning: ryo_operators::domain::contract::types::OperatorCall<'_>,
+        meaning: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
     ) -> Result<
-        ryo_operators::domain::contract::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
     > {
-        use ryo_operators::domain::contract::types::PortableOperatorFault;
+        use ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault;
         let request = match self.permit.physical(&self.binding, meaning) {
             Ok(request) => request,
             Err(error) => {
@@ -72,5 +72,27 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
                 Err(PortableOperatorFault::Interrupted)
             }
         }
+    }
+}
+
+impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
+    for PrimitiveSemanticsBridge<'_>
+{
+    fn operators(
+        &self,
+        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
+        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
+    > {
+        PrimitiveSemantics::operators(self, call)
+    }
+}
+
+impl std::fmt::Debug for PrimitiveSemanticsBridge<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PrimitiveSemanticsBridge")
+            .finish_non_exhaustive()
     }
 }

@@ -13,7 +13,7 @@ pub(super) struct Headers<'a> {
     pub(super) prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
-    pub(super) bindings: &'a [crate::domain::table_model::types::ParameterBinding],
+    pub(super) bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
     pub(super) source: crate::domain::table_texts::types::SourceView<'a>,
     pub(super) paths: &'a [ryo_language::domain::files::types::FilePath],
     pub(super) arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],

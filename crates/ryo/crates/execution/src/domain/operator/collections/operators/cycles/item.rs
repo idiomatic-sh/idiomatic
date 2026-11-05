@@ -5,7 +5,7 @@ use crate::domain::operator::contract::graph::CycleMarks;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_scratch::types::{EdgePlace, EntityNumber, WalkStep};
 use ryo_derived::domain::contract::types::CycleGraph;
 use ryo_values::domain::plans::types::{Operation, OperationKind};

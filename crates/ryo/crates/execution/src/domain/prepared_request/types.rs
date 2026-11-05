@@ -1,6 +1,6 @@
 //! Pure data crossing request preparation; no executable authority is exposed.
-use crate::domain::table_model::types::ParameterBinding;
 use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 /// The plans of the rules, and what each binds its parameters to.
 #[derive(Clone, Debug)]
 pub struct Compiled {

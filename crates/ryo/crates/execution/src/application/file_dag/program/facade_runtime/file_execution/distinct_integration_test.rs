@@ -10,7 +10,6 @@ use crate::domain::{
     file_program::types::RuleSchedule,
     operating::types::Emit as RowSink,
     positions::service_test::{SMALL_SOURCE, SmallTree, small_tree},
-    rules::types::{RuleParameters, RuleSpec},
     table_cells::types::{TreeForm, TreeRows},
 };
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
@@ -161,7 +160,7 @@ impl RowSink for RefusingSink {
     }
 }
 fn forward<'a, 'service, 'facts>(
-    file: &mut FileRun<'a, 'service>,
+    file: &mut FileRun<'a>,
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
     symbols: &mut Symbols,
     sink: &mut dyn RowSink,
@@ -333,3 +332,5 @@ fn project_and_union_retry_rebuild_invocation_distinct_after_sink_failure() {
         assert_eq!(actual, vec![0, 2]);
     }
 }
+
+use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};

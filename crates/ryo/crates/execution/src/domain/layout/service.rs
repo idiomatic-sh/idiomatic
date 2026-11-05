@@ -11,7 +11,7 @@ use crate::domain::operation_schema::types::InputShape;
 #[cfg(test)]
 use crate::domain::operator::types::{KeptSteps, PlanIdentity, PlanLayout, ReadCount, StepPlace};
 use crate::domain::table_cells::types::TreeForm;
-use crate::domain::table_model::types::{Frontier, ParameterBinding, Rows};
+use crate::domain::table_model::types::{Frontier, Rows};
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::{inputs_of, named};
@@ -179,7 +179,7 @@ pub(crate) fn shape_frontier_kinds(
         ryo_values::domain::plan_parts::types::Input,
         Vec<ryo_relations::domain::relations::types::CellKind>,
     )],
-    bindings: &[crate::domain::table_model::types::ParameterBinding],
+    bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
 ) -> Result<(), OperatingError> {
     if frontier.iter().all(|each| !each.1.is_empty()) {
         return Ok(());
@@ -352,3 +352,5 @@ fn bound_kinds(
         .ok_or(OperatingError::NotRun)?;
     Ok(input.columns.iter().map(|column| column.kind).collect())
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

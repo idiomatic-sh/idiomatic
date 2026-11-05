@@ -8,7 +8,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::service::materialize;
-use crate::domain::table_model::types::{ParameterBinding, Rows, SelectedRows, StoredSelection};
+use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_language::domain::symbols::service::intern_derived;
@@ -1122,3 +1122,5 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

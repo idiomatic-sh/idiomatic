@@ -5,7 +5,10 @@ use ryo_language::domain::semantics::types::RenderError;
 
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum OperatingError {
+pub enum OperatingError {
+    /// Request declaration errors are preserved before any file is read.
+    #[error(transparent)]
+    ObservationConfiguration(#[from] crate::domain::file_program::errors::ObservationError),
     /// A supplied producer has no future declared consumer in this phase.
     #[error("supplied frontier {input:?} was retired after its last declared consumer")]
     RetiredFrontier {

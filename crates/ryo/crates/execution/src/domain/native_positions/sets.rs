@@ -17,7 +17,7 @@ use crate::domain::{
     table_model::service::positions,
 };
 use ryo_derived::domain::contract::types::RawOrder;
-use ryo_operators::domain::contract::types::{
+use ryo_operators::inbound::use_cases::operators::interface::{
     OperatorCall, SetInput, SetInterrupted, SetKind, SetPositionsDriver,
 };
 use ryo_relations::domain::relations::{service::to_bits, types::Position};

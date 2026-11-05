@@ -16,7 +16,7 @@ use crate::domain::{
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
 };
-use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
+use ryo_operators::inbound::use_cases::operators::interface::{OperatorAnswer, OperatorCall, PortableOperatorFault};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId},

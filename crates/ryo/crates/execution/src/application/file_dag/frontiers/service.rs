@@ -1,7 +1,7 @@
 //! One compact admission operation for diagnostic and observed project phases.
 //! Store reads and name/spelling preparation keep their existing eager order;
 //! row-cell allocation belongs to the shared executable invocation owner.
-use super::types::{FrontierInput, PreparedFrontiers};
+use super::types::{FrontierInput, FrontierSource, PreparedFrontiers};
 use crate::domain::{
     crossing::types::RefusedFrontier,
     frontiers::service::{decode_input, project_input, project_relation},
@@ -28,7 +28,7 @@ pub(crate) enum PreparationPolicy<'a> {
     Observations { ready: &'a [bool] },
 }
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum PreparationError {
+pub enum PreparationError {
     #[error(transparent)]
     Facts(#[from] FactsError),
     #[error(transparent)]
@@ -46,7 +46,28 @@ pub(crate) fn prepare(
     required: &crate::application::file_dag::program::facade::RequiredPartitions,
     policy: PreparationPolicy<'_>,
 ) -> Result<PreparedFrontiers, PreparationError> {
+    let roots = &program
+        .program()
+        .rules()
+        .get(rule.0)
+        .ok_or(OperatingError::NotRead)?
+        .frontier;
+    let sources = program
+        .frontiers(rule)?
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(at, input)| {
+            Ok(FrontierSource {
+                input,
+                root: roots.get(at).ok_or(OperatingError::NotRead)?.clone(),
+            })
+        })
+        .collect::<Result<Vec<_>, OperatingError>>()?
+        .into_boxed_slice();
     let mut prepared = PreparedFrontiers {
+        producer: rule,
+        sources,
         rows: Vec::new(),
         program: std::sync::Arc::clone(program.program()),
         required: required.clone(),

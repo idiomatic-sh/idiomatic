@@ -2,13 +2,15 @@
 use super::source_admission::ProjectSources;
 use super::*;
 
-pub(crate) struct ProjectRun<'a, 'service> {
+pub(crate) struct ProjectRun<'a> {
     program: &'a Arc<PreparedProgram>,
-    services: &'a ProgramServices<'service>,
+    services: Arc<ProgramServices>,
     execution: &'a ProgramExecution,
     owner: Rc<RelationOwner>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
+    frontier_producer: RuleIndex,
+    frontier_sources: Box<[crate::application::file_dag::frontiers::types::FrontierSource]>,
     ordinary: Vec<Option<crate::application::file_dag::frontiers::types::FrontierInput>>,
     refused: Vec<crate::domain::crossing::types::RefusedFrontier>,
     bound: Vec<Option<crate::application::file_dag::frontiers::types::BoundInput>>,
@@ -20,15 +22,15 @@ pub(crate) struct ProjectRun<'a, 'service> {
     context: super::super::context::RunContext<'a>,
     publication: &'a PublicationScope,
 }
-pub(crate) fn open_project<'a, 'service>(
+pub(crate) fn open_project<'a>(
     program: &'a Arc<PreparedProgram>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
     frontiers: ProjectFrontiers<'a>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
-    services: &'a ProgramServices<'service>,
-) -> Result<ProjectRun<'a, 'service>, OperatingError> {
+    services: Arc<ProgramServices>,
+) -> Result<ProjectRun<'a>, OperatingError> {
     if !matches!(partials, ScopePartials::Project { .. }) {
         return Err(OperatingError::WrongOperation);
     }
@@ -36,7 +38,7 @@ pub(crate) fn open_project<'a, 'service>(
         .ordinary
         .validate_scope(program.program(), &required)?;
     let scope = frontiers.publication;
-    scope.validate_request(services, &required)?;
+    scope.validate_request(&services, &required)?;
     let transport = scope.claim_symbols(symbols)?;
     let owner = Rc::clone(scope.owner());
     if let Some(existing) = scope.execution.get() {
@@ -58,17 +60,19 @@ pub(crate) fn open_project<'a, 'service>(
     let execution = scope.execution.get().ok_or(OperatingError::NotRun)?;
     Ok(ProjectRun {
         program,
-        services,
+        services: Arc::clone(&services),
         execution,
         owner,
         required,
         partials,
+        frontier_producer: frontiers.ordinary.producer,
+        frontier_sources: frontiers.ordinary.sources,
         ordinary: frontiers.ordinary.rows.into_iter().map(Some).collect(),
         refused: frontiers.ordinary.refused,
         bound: frontiers.bound_inputs.iter().cloned().map(Some).collect(),
         cache: Vec::new(),
         context: super::super::context::RunContext::project(
-            services,
+            &services,
             ryo_language::domain::symbols::service::transport_permit(symbols),
             arenas,
         ),
@@ -76,13 +80,19 @@ pub(crate) fn open_project<'a, 'service>(
         publication: scope,
     })
 }
-impl ProjectRun<'_, '_> {
+impl ProjectRun<'_> {
     pub(crate) fn rule(
         &mut self,
         rule: RuleIndex,
         demand: RuleDemand,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<ProjectRuleOutcome, OperatingError> {
+        crate::application::file_dag::frontiers::types::validate_consumer_sources(
+            self.program,
+            self.frontier_producer,
+            &self.frontier_sources,
+            rule,
+        )?;
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;
@@ -116,6 +126,7 @@ impl ProjectRun<'_, '_> {
             project: Some(ProjectSources {
                 program: self.program,
                 rule,
+                sources: &self.frontier_sources,
                 ordinary: &mut self.ordinary,
                 refused: &self.refused,
                 bound: &mut self.bound,

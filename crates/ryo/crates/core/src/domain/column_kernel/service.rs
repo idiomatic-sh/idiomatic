@@ -11,7 +11,7 @@ use crate::domain::operator::contract::{
 use crate::domain::operator::types::PlanLayout;
 
 use crate::domain::table_model::service::{cell_at, column_in, reset};
-use ryo_operators::domain::contract::types::{JoinInput, JoinRow, OperatorCall};
+use ryo_operators::inbound::use_cases::operators::interface::{JoinInput, JoinRow, OperatorCall};
 mod driver;
 use crate::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::KeyIndex;

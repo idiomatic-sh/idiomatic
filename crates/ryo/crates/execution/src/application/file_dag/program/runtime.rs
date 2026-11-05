@@ -27,7 +27,7 @@ pub(super) struct KernelScratch {
     pub positions: crate::domain::native_positions::types::PositionWork,
     pub workspace: Option<super::super::workspace::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
-    pub ordered: ryo_operators::domain::contract::types::OrderedExistenceScratch,
+    pub ordered: ryo_operators::inbound::use_cases::operators::interface::OrderedExistenceScratch,
 }
 pub(super) enum KernelInput<'a> {
     Admitted(
@@ -242,6 +242,24 @@ impl ProgramExecution {
                 DependencyCheckpoint::Pending
             },
         })
+    }
+    /// Consume the generation once no invocation can remain active. Dropping
+    /// its slots releases only engine-held storage; transferred leases own theirs.
+    pub(super) fn finish(self) -> Result<(), OperatingError> {
+        let slots = self.slots.into_inner();
+        if slots
+            .iter()
+            .any(|slot| matches!(slot.state, State::Running))
+        {
+            return Err(OperatingError::NotRun);
+        }
+        let failure = self.cleanup_failure.into_inner();
+        drop(slots);
+        self.owner.release_population();
+        match failure {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
     pub(super) fn logical_counts(
         &self,

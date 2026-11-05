@@ -16,7 +16,6 @@ pub(crate) mod project;
 pub(crate) mod rank;
 pub(crate) mod rows;
 pub(crate) mod select;
-pub(crate) mod types;
 pub(crate) mod union;
 pub(crate) mod words;
 

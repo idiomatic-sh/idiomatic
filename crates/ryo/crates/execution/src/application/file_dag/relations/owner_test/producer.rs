@@ -9,7 +9,7 @@ use crate::domain::{
     stored_selection::types::Selector,
     table_model::{
         collections::representations::types::PhysicalShape,
-        types::{ParameterBinding, Rows, SelectionIdentity},
+        types::{Rows, SelectionIdentity},
     },
     table_scratch::types::OperatorScratch,
     table_texts::types::SourceView,
@@ -138,3 +138,5 @@ fn exercise_real_selector(limit: usize) {
         Err(crate::domain::operating::errors::OperatingError::NotRead)
     ));
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

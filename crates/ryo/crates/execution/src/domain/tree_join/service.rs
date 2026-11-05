@@ -30,7 +30,7 @@ use crate::domain::tree_join::collections::strategies::span_index::item::SpanInd
 use crate::domain::tree_join::collections::strategies::types::{Fitting, NodeColumns};
 use ryo_derived::domain::contract::types::Finding;
 use ryo_language::domain::elements::service::{kind_at, parent_at, text_at};
-use ryo_operators::domain::contract::types::OperatorCall;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorCall;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Comparison};
 mod driver;
 
@@ -212,8 +212,8 @@ pub(crate) fn probe(
         error: None,
     };
     let answer = semantics.operators(OperatorCall::EqualityJoin {
-        input: ryo_operators::domain::contract::types::JoinInput::Values {
-            left: ryo_operators::domain::contract::types::JoinRow::Values(left_row),
+        input: ryo_operators::inbound::use_cases::operators::interface::JoinInput::Values {
+            left: ryo_operators::inbound::use_cases::operators::interface::JoinRow::Values(left_row),
             left_on,
             output,
             view,

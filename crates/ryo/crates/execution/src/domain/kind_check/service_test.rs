@@ -3,7 +3,7 @@
 
 use super::service::{first_unknown, refusal, unknown_message};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};

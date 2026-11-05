@@ -7,45 +7,13 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 use crate::domain::table_model::service::cell;
-use crate::domain::table_model::types::ParameterBinding;
-use crate::domain::table_scratch::types::ScratchWord;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
-use crate::domain::table_texts::types::TextView;
 use crate::domain::table_texts::types::{Datum, Texts};
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
-/// Gives `each` the words of `text`: runs of letters and digits, split where a lower case letter or a
-/// digit meets an upper case one, in lower case. `_`, `-`, spaces and punctuation separate words.
-fn split(text: TextView<'_>, word: &mut ScratchWord, mut each: impl FnMut(TextView<'_>)) {
-    word.clear();
-    let mut before: Option<char> = None;
-    for character in text.0.chars() {
-        if !character.is_alphanumeric() {
-            if !word.is_empty() {
-                each(TextView(word.as_str()));
-                word.clear();
-            }
-            before = None;
-            continue;
-        }
-        if character.is_uppercase()
-            && before.is_some_and(|previous| previous.is_lowercase() || previous.is_ascii_digit())
-            && !word.is_empty()
-        {
-            each(TextView(word.as_str()));
-            word.clear();
-        }
-        word.extend(character.to_lowercase());
-        before = Some(character);
-    }
-    if !word.is_empty() {
-        each(TextView(word.as_str()));
-        word.clear();
-    }
-}
-
 pub(crate) struct WordsItem;
 impl OperatorsItem for WordsItem {
     fn prepare(
@@ -96,14 +64,27 @@ impl OperatorsItem for WordsItem {
         captured.clear();
         let width = 1;
         let mut word = std::mem::take(&mut lease.workspace.word);
-        split(TextView(&text), &mut word, |each| {
-            let made = query_intern_derived(
-                &mut lease.derived,
-                ByteSlice(lease.views.source.0),
-                NameText(each.0),
-            );
-            captured.push(minted(lease.derived.as_ref(), made, after));
-        });
+        let answer = lease.semantics().operators(
+            ryo_operators::inbound::use_cases::operators::interface::OperatorCall::Words {
+                text: &text,
+                word: &mut word.0,
+                each: &mut |each: &str| {
+                    let made = query_intern_derived(
+                        &mut lease.derived,
+                        ByteSlice(lease.views.source.0),
+                        NameText(each),
+                    );
+                    captured.push(minted(lease.derived.as_ref(), made, after));
+                },
+            },
+        );
+        let result = crate::domain::operator::contract::types::written_result(answer, None);
+        if let Err(error) = result {
+            lease.workspace.captured = captured;
+            lease.workspace.text = text;
+            lease.workspace.word = word;
+            return Err(error);
+        }
         let ways = captured.len();
         let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = (|| {

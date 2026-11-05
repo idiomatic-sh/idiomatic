@@ -1,6 +1,6 @@
 //! Independent typed, textual and set-digest expectations for the conformance fixtures.
 use super::SOURCE;
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::{
     service::datum,
     types::{Datum, SourceView, Texts},

@@ -1,7 +1,7 @@
 //! Derivation of ordered stored predicates and physical output maps from a compiled plan.
 
 use crate::domain::stored_selection::types::{PreparedPlan, Selector};
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ParameterId, RepeatedRows, Test,

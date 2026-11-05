@@ -3,7 +3,7 @@
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{PredicateProgram, PreparedPredicates};
-use crate::domain::table_model::types::{ParameterBinding, Verdict};
+use crate::domain::table_model::types::{Verdict};
 use crate::domain::table_texts::types::{SourceView, Texts};
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::Value;
@@ -140,3 +140,5 @@ mod tests {
         assert_eq!(prepared.builds.load(Ordering::Relaxed), 1);
     }
 }
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};

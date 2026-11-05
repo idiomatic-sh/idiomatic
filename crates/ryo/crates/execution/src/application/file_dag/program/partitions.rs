@@ -4,9 +4,7 @@ use crate::domain::{
     executable_program::types::{PartitionRequirement, ProducerPartitions},
     file_program::types::{ResolvedObservationBinding, ResolvedObservationProducer},
     operating::errors::OperatingError,
-    rules::types::RuleSpec,
-    table_model::types::ParameterBinding,
-};
+    rules::types::table_model::types::};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     hosted::types::HostRelation,
@@ -306,3 +304,7 @@ fn relation_partition(relation: Relation) -> PartitionRequirement {
 #[cfg(test)]
 #[path = "partitions_test.rs"]
 mod tests;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding};
+
+use ryo_values::domain::rule_requests::types::{RuleSpec};

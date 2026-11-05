@@ -38,14 +38,14 @@ use ryo_values::domain::{
 };
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 
-pub(crate) struct ProgramServices<'service> {
+pub(crate) struct ProgramServices {
     request: Arc<super::request_identity::RequestIdentity>,
-    kernels: &'service dyn super::super::executor::PrimitiveExecutor,
+    kernels: Arc<dyn super::super::executor::PrimitiveExecutor + Send>,
     derived: Arc<dyn DerivedPort>,
 }
-impl<'service> ProgramServices<'service> {
+impl ProgramServices {
     pub(crate) fn new(
-        kernels: &'service dyn super::super::executor::PrimitiveExecutor,
+        kernels: Arc<dyn super::super::executor::PrimitiveExecutor + Send>,
         derived: Arc<dyn DerivedPort>,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
     ) -> Self {
@@ -58,8 +58,8 @@ impl<'service> ProgramServices<'service> {
     pub(super) fn request(&self) -> &Arc<super::request_identity::RequestIdentity> {
         &self.request
     }
-    pub(super) fn kernels(&self) -> &'service dyn super::super::executor::PrimitiveExecutor {
-        self.kernels
+    pub(super) fn kernels(&self) -> &dyn super::super::executor::PrimitiveExecutor {
+        self.kernels.as_ref()
     }
     pub(super) fn derived(&self) -> &Arc<dyn DerivedPort> {
         &self.derived
@@ -75,6 +75,15 @@ pub(crate) struct PublicationScope {
     symbols: std::cell::OnceCell<ryo_language::domain::symbols::types::TransportPermit>,
 }
 impl PublicationScope {
+    pub(crate) fn finish(self) -> Result<(), OperatingError> {
+        match self.execution.into_inner() {
+            Some(execution) => execution.finish(),
+            None => {
+                self.owner.release_population();
+                Ok(())
+            }
+        }
+    }
     pub(super) fn program(
         &self,
     ) -> &Arc<crate::domain::executable_program::types::ExecutableProgram> {
@@ -95,7 +104,7 @@ impl PublicationScope {
     }
     pub(super) fn validate_request(
         &self,
-        services: &ProgramServices<'_>,
+        services: &ProgramServices,
         required: &RequiredPartitions,
     ) -> Result<(), OperatingError> {
         if self.request.as_ref() != services.request.as_ref()
@@ -137,7 +146,7 @@ impl PublicationScope {
 }
 pub(crate) fn publication_owner(
     program: &Arc<PreparedProgram>,
-    services: &ProgramServices<'_>,
+    services: &ProgramServices,
 ) -> Result<PublicationScope, OperatingError> {
     Ok(PublicationScope {
         request: Arc::clone(&services.request),
@@ -156,7 +165,7 @@ pub(crate) fn required_partitions(
     files: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[Covered],
     skipped: &[Skipped],
-    services: &ProgramServices<'_>,
+    services: &ProgramServices,
 ) -> Result<RequiredPartitions, OperatingError> {
     program.rule_metadata(rule)?;
     RequiredPartitions::from_request(&services.request, files, covered, skipped)

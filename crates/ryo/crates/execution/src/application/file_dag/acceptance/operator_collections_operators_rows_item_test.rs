@@ -9,7 +9,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::rows::item::RowsItem;
-use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
+use crate::domain::table_model::types::{};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::SourceView;
 use ryo_values::domain::plan_parts::types::LiteralText;
@@ -157,3 +157,5 @@ fn refuses() {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding,BindingTable,BindingCell};

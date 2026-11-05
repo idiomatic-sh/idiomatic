@@ -4,7 +4,7 @@ use super::errors::RuleCompilationError;
 use super::types::{CachedPlan, CompiledPlans};
 use ryo_execution::inbound::use_cases::execution::types::Compiled;
 use crate::domain::rules::service::{bind, check_ids};
-use crate::domain::rules::types::RuleSpec;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_values::domain::hosted::service::declarations;
@@ -195,7 +195,7 @@ impl RuleCompilation {
 pub(crate) fn observed(
     rules: &[RuleSpec],
     plans: &[ryo_values::domain::plans::types::Plan],
-    bindings: &[Vec<crate::domain::table_model::types::ParameterBinding>],
+    bindings: &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>],
     hosted: &[HostRelation],
 ) {
     super::observing::compiled(rules, plans, bindings, hosted);

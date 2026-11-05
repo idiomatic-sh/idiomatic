@@ -1,6 +1,8 @@
 //! Controlled stand-in for the operator port; records and can refuse calls.
-use super::super::interface::OperatorsPort;
-use ryo_operators::domain::contract::types::{OperatorAnswer, OperatorCall, PortableOperatorFault};
+use ryo_execution::inbound::use_cases::execution::types::OperatorsPort;
+use ryo_operators::inbound::use_cases::operators::interface::{
+    OperatorAnswer, OperatorCall, PortableOperatorFault,
+};
 use ryo_operators::inbound::use_cases::operators::{
     interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl,
 };
@@ -13,7 +15,7 @@ pub struct OperatorsFake {
     /// Refuse before the portable implementation runs.
     pub refuses: bool,
 }
-impl OperatorsPort for OperatorsFake {
+impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase for OperatorsFake {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         self.calls.fetch_add(1, Ordering::Relaxed);
         if self.refuses {

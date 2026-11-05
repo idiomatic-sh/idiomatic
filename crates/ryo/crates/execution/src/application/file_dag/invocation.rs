@@ -18,13 +18,13 @@ use crate::domain::operator::contract::{
     views::{BorrowedRows, IndexedRows},
 };
 use crate::domain::table_groups::types::Group;
-use crate::domain::table_model::types::ParameterBinding;
 use crate::domain::table_texts::types::Texts;
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_derived::domain::contract::types::{
     ClosurePartition, CycleGraph, OrderedMatching, PreparedDfs,
 };
 use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::{
     plan_parts::{
         service::parameter_in,
@@ -152,6 +152,7 @@ impl<'f> InvocationResources<'f> {
         mode: EvaluationMode,
         originals: &[crate::domain::table_model::types::Rows<'f>],
         admission: &super::workspace::InvocationWorkspace,
+        semantics: &dyn crate::outbound::operators::interface::OperatorsPort,
     ) -> Result<Self, OperatingError> {
         let mut resources = Self {
             cached_graph: None,
@@ -293,6 +294,7 @@ impl<'f> InvocationResources<'f> {
                     contract,
                     mode,
                     &admitted,
+                    semantics,
                 )?);
             }
             ResourceProgram::Digest { keys, over } => {
@@ -305,6 +307,7 @@ impl<'f> InvocationResources<'f> {
                     contract,
                     mode,
                     &admitted,
+                    semantics,
                 )?);
             }
             ResourceProgram::Closure { .. } => {

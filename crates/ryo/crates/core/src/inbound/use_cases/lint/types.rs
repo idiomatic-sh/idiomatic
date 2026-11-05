@@ -7,10 +7,10 @@ use crate::domain::features::types::FeatureRows;
 use crate::domain::ordering::types::Ordered;
 use crate::domain::placement::types::PlacedScopes;
 use crate::domain::render::types::Answering;
-use crate::domain::rules::types::RuleParameters;
-use crate::domain::rules::types::{Given, RuleSpec};
+use ryo_values::domain::rule_requests::types::RuleParameters;
+use crate::domain::rules::types::{};
 use crate::domain::storing::types::Reuse;
-use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
+use crate::domain::table_model::types::{};
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::Wants;
 use crate::outbound::lint_store::interface::ReadStore;
@@ -359,3 +359,7 @@ pub(super) struct LintRun<'a> {
     /// The buckets of what the files handed that the run read.
     pub wanted: &'a BucketsWanted,
 }
+
+use ryo_values::domain::rule_requests::types::{RuleSpec,Given};
+
+use ryo_values::domain::query_bindings::types::{ParameterBinding,BindingTable,BindingCell};

@@ -11,7 +11,7 @@ use super::service::{
     configuration_bytes, findings_of, remap_packed, rendered_of, rows_from, rows_of,
 };
 use super::types::{ArenaStart, Configuration, DigestInput, HostedText, Remap};
-use crate::domain::rules::types::{RuleParameters, RuleSpec};
+use crate::domain::rules::types::{};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::types::{ColumnNumber, FileLine, RuleNumber};
@@ -363,3 +363,5 @@ fn succeeds() {
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+
+use ryo_values::domain::rule_requests::types::{RuleSpec,RuleParameters};

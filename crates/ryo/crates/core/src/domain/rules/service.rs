@@ -2,12 +2,12 @@
 
 use super::constants::PLACE_OF_RULE;
 use super::errors::RulesError;
-use super::types::RuleSpec;
+
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::types::RuleNumber;
 use crate::domain::placement::service::governs;
 use crate::domain::placement::types::{Governing, Mask, RuleScope, ScopePlacement};
-use crate::domain::table_model::types::ParameterBinding;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::runs::types::RuleId;
@@ -121,3 +121,5 @@ pub(crate) fn failed(id: &RuleId, reason: &dyn std::fmt::Display) -> RulesError 
         reason: reason.to_string(),
     }
 }
+
+use ryo_values::domain::rule_requests::types::{RuleSpec};

@@ -5,9 +5,9 @@ use crate::domain::file_program::types::{
     PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
     RuleSchedule,
 };
-use crate::domain::rules::types::RuleSpec;
 use ryo_values::domain::observations::types::{BoundObservationSchema, ObservationProducer};
 use ryo_values::domain::plans::types::{Plan, StepScope};
+use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -80,10 +80,10 @@ pub(crate) fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, ObservationEr
 }
 
 /// Infer actual schemas/phases after earlier producer plans compiled, without renumbering rule IDs.
-pub(crate) fn schemas(
+pub(crate) fn schemas<P: std::borrow::Borrow<Plan>>(
     consumer: &RuleSpec,
     rules: &[RuleSpec],
-    compiled: &[Option<Plan>],
+    compiled: &[Option<P>],
 ) -> Result<PreparedObservationInputs, ObservationError> {
     let mut schemas = Vec::new();
     let mut bindings = Vec::new();
@@ -114,6 +114,7 @@ pub(crate) fn schemas(
                     rule: rule.0.to_string(),
                 }
             })?;
+            let plan: &Plan = std::borrow::Borrow::borrow(plan);
             let (output_index, observed) = plan
                 .observations
                 .iter()
