@@ -22,6 +22,7 @@ use ryo_values::domain::{
     stored_facts::types::Bucket,
 };
 use std::cell::Cell;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 mod source_facts;
 use self::source_facts::{CapturedFacts, ProjectFacts};
@@ -942,11 +943,15 @@ fn exercise_project_observation_union(refused: bool) {
         );
         assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
     } else {
-        let RootOutcome::Complete(table) = result.emit else {
-            panic!(
-                "declared union must be scheduled from actual member handles: {:?}",
-                result.emit
-            )
+        let table = match result.emit {
+            RootOutcome::Complete(table) => table,
+            RootOutcome::Failed(error) | RootOutcome::Unknown(error) => {
+                panic!("declared union admission failed: {error:?}");
+            }
+            RootOutcome::Deferred { phase } => panic!("union deferred to {phase:?}"),
+            RootOutcome::Partial { .. } => panic!("union unexpectedly partial"),
+            RootOutcome::Skipped(_) => panic!("union unexpectedly skipped"),
+            RootOutcome::NoQuery => panic!("union unexpectedly absent"),
         };
         assert_eq!(table.kinds, [CellKind::File]);
         assert_eq!(table.count, RowCount(1));
