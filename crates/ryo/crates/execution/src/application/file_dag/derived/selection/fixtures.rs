@@ -144,14 +144,18 @@ impl SelectionFixture {
         source: ColumnsView<'f>,
         context: &mut OperatorContext<'_>,
     ) -> Result<Option<SelectedFixtureRows<'f>>, OperatingError> {
-        if !crate::domain::table_model::service::rectangular(source) {
-            return Ok(None);
-        }
         let population = self.owner.source(program.relation, &Rows::Stored(source))?;
         let proof = self.owner.admit(
             population.as_ref(),
             crate::domain::operator::contract::views::BorrowedRows::Stored(source),
         )?;
+        // The real owner inspects the supplied representation before optional
+        // selection reuse. A readable ragged backing follows its physical fallback.
+        if proof.physical_shape()
+            != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete
+        {
+            return Ok(None);
+        }
         let (identity, _) = proof.identity(&self.owner)?;
         let Some(produced) = self
             .owner
