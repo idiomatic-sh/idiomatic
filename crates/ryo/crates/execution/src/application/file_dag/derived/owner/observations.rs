@@ -2,6 +2,7 @@
 use super::*;
 use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default)]
 pub(in crate::application::file_dag) struct IndexObservation {
     pub available: bool,
@@ -35,6 +36,7 @@ impl DerivedOwner {
                 )
             })
     }
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn index_observation(&self) -> IndexObservation {
         self.backend
             .borrow()
@@ -45,12 +47,14 @@ impl DerivedOwner {
                 reuses: cache.reuses,
             })
     }
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn relation_eligible(&self, relation: Relation) -> bool {
         self.backend
             .borrow()
             .as_ref()
             .is_some_and(|cache| cache.eligible.contains(&relation))
     }
+    #[cfg(test)]
     pub(in crate::application::file_dag) fn can_retain_equality(
         &self,
         relation: Relation,
@@ -142,7 +146,7 @@ impl DerivedOwner {
         let state = self.ledger.borrow().snapshot();
         (
             state.required_bytes,
-            state.node_optional_bytes,
+            state.optional_bytes,
             state.unique_bytes,
         )
     }

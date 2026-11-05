@@ -2,7 +2,7 @@
 use super::*;
 use std::sync::Arc;
 impl Ledger {
-    /// A live required/node consumer is not dormant optional payload, even
+    /// A live required consumer is not dormant optional payload, even
     /// when a different representation owns the same physical allocation.
     pub(in crate::application::file_dag::derived) fn optional_payload_only(
         &self,
@@ -11,7 +11,7 @@ impl Ledger {
         backings.iter().all(|backing| {
             self.entries
                 .get(&backing.key)
-                .is_some_and(|entry| entry.required == 0 && entry.node_optional == 0)
+                .is_some_and(|entry| entry.required == 0)
         })
     }
     pub(in crate::application::file_dag::derived) fn optional_release_credit(
@@ -66,7 +66,7 @@ impl Ledger {
                     .checked_add(entry.retention_units)
                     .ok_or(OperatingError::ShapeMismatch)?;
             }
-            if releasing == entry.optional && entry.required == 0 && entry.node_optional == 0 {
+            if releasing == entry.optional && entry.required == 0 {
                 bytes = bytes
                     .checked_add(entry.bytes)
                     .ok_or(OperatingError::ShapeMismatch)?;

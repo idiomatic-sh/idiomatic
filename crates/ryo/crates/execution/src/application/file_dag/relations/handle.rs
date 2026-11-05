@@ -12,7 +12,8 @@ struct RequiredLeases {
 pub(crate) struct PublishedInput {
     record: Arc<RelationResult>,
     leases: Arc<RequiredLeases>,
-    pub(super) resources: Option<Arc<[ResourceDependency]>>,
+    /// Keep derived backing leases alive until the final publication consumer drops.
+    _resources: Option<Arc<[ResourceDependency]>>,
 }
 impl PublishedInput {
     pub(super) fn new(
@@ -23,7 +24,7 @@ impl PublishedInput {
         let normalized_in_initial = record.normalized.get().is_some();
         Self {
             record,
-            resources,
+            _resources: resources,
             leases: Arc::new(RequiredLeases {
                 _initial: initial,
                 normalized: RefCell::new(None),
@@ -49,35 +50,6 @@ impl PublishedInput {
     }
 }
 impl std::ops::Deref for PublishedInput {
-    type Target = RelationResult;
-    fn deref(&self) -> &Self::Target {
-        &self.record
-    }
-}
-#[derive(Clone, Debug)]
-pub(crate) struct RetainedPublication {
-    record: Arc<RelationResult>,
-    _lease: Arc<ResourceLease>,
-    pub(super) resources: Option<Arc<[ResourceDependency]>>,
-}
-impl RetainedPublication {
-    pub(super) fn new(
-        record: Arc<RelationResult>,
-        lease: Arc<ResourceLease>,
-        resources: Option<Arc<[ResourceDependency]>>,
-    ) -> Self {
-        Self {
-            record,
-            _lease: lease,
-            resources,
-        }
-    }
-    pub(in crate::application::file_dag) fn record(&self) -> &Arc<RelationResult> {
-        &self.record
-    }
-}
-
-impl std::ops::Deref for RetainedPublication {
     type Target = RelationResult;
     fn deref(&self) -> &Self::Target {
         &self.record

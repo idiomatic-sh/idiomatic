@@ -6,7 +6,7 @@ pub struct SourceMatchesInput<'a> {
     pub base: usize,
     pub text: &'a str,
     pub line: Option<i64>,
-    pub regex: &'a regex_automata::meta::Regex,
+    pub regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
     pub capture: Option<&'a str>,
     pub capture_text: bool,
     pub capture_line: bool,

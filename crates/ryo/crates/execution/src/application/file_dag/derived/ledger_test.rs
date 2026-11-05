@@ -85,120 +85,48 @@ fn optional_retention_survives_required_release_without_double_physical_charge()
 }
 
 #[test]
-fn node_and_view_optional_caps_charge_the_same_backing_independently() {
+fn optional_release_keeps_required_backing_and_recharges_the_view_allowance() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let rows = positions(8, 400, 100);
-    let required = Ledger::acquire(&ledger, &[rows], LeaseClass::Required).unwrap();
-    let node = Ledger::acquire(&ledger, &[rows], LeaseClass::NodeOptional).unwrap();
-    let before_view = ledger.borrow().snapshot();
-    assert_eq!(
-        (
-            before_view.required_bytes,
-            before_view.optional_bytes,
-            before_view.node_optional_bytes,
-            before_view.view_optional_bytes,
-            before_view.optional_units,
-            before_view.overlap_bytes,
-            before_view.unique_bytes,
-        ),
-        (400, 400, 400, 0, 0, 400, 400)
-    );
-    assert_eq!(
-        ledger.borrow().incremental_optional_bytes(&[rows]).unwrap(),
-        400
-    );
-    assert_eq!(
-        ledger
-            .borrow()
-            .incremental_node_optional_bytes(&[rows])
-            .unwrap(),
-        0
-    );
     let view = Ledger::acquire(&ledger, &[rows], LeaseClass::Optional).unwrap();
-    let all = ledger.borrow().snapshot();
+    let required = Ledger::acquire(&ledger, &[rows], LeaseClass::Required).unwrap();
+    let both = ledger.borrow().snapshot();
     assert_eq!(
         (
-            all.optional_bytes,
-            all.node_optional_bytes,
-            all.view_optional_bytes,
-            all.optional_units,
-            all.overlap_bytes,
-            all.unique_bytes,
+            both.required_bytes,
+            both.optional_bytes,
+            both.overlap_bytes,
+            both.unique_bytes
         ),
-        (400, 400, 400, 100, 400, 400)
+        (400, 400, 400, 400)
+    );
+    drop(view);
+    let required_only = ledger.borrow().snapshot();
+    assert_eq!(
+        (
+            required_only.required_bytes,
+            required_only.optional_bytes,
+            required_only.optional_units,
+            required_only.overlap_bytes,
+            required_only.unique_bytes
+        ),
+        (400, 0, 0, 0, 400)
     );
     assert_eq!(
         ledger.borrow().incremental_optional_bytes(&[rows]).unwrap(),
-        0
-    );
-    drop(node);
-    let view_only = ledger.borrow().snapshot();
-    assert_eq!(
-        (
-            view_only.optional_bytes,
-            view_only.node_optional_bytes,
-            view_only.view_optional_bytes,
-            view_only.overlap_bytes,
-        ),
-        (400, 0, 400, 400)
-    );
-    assert_eq!(
-        ledger
-            .borrow()
-            .incremental_node_optional_bytes(&[rows])
-            .unwrap(),
         400
+    );
+    assert_eq!(
+        ledger.borrow().incremental_optional_units(&[rows]).unwrap(),
+        100
     );
     drop(required);
-    let retained = ledger.borrow().snapshot();
-    assert_eq!(
-        (
-            retained.required_bytes,
-            retained.optional_bytes,
-            retained.overlap_bytes,
-            retained.unique_bytes,
-        ),
-        (0, 400, 0, 400)
-    );
-    drop(view);
     let released = ledger.borrow().snapshot();
-    assert_eq!((released.optional_bytes, released.unique_bytes), (0, 0));
+    assert_eq!(released.unique_bytes, 0);
+    assert_eq!(released.peak_required_bytes, 400);
     assert_eq!(released.peak_optional_bytes, 400);
-    assert_eq!(released.peak_node_optional_bytes, 400);
     assert_eq!(released.peak_view_optional_bytes, 400);
-}
-
-#[test]
-fn dropping_view_retention_preserves_node_retention_and_recharges_the_view_cap() {
-    let ledger = Rc::new(RefCell::new(Ledger::default()));
-    let rows = positions(8, 400, 100);
-    let view = Ledger::acquire(&ledger, &[rows], LeaseClass::Optional).unwrap();
-    assert_eq!(
-        ledger
-            .borrow()
-            .incremental_node_optional_bytes(&[rows])
-            .unwrap(),
-        400
-    );
-    let node = Ledger::acquire(&ledger, &[rows], LeaseClass::NodeOptional).unwrap();
-    drop(view);
-    let node_only = ledger.borrow().snapshot();
-    assert_eq!(
-        (
-            node_only.optional_bytes,
-            node_only.view_optional_bytes,
-            node_only.node_optional_bytes,
-            node_only.optional_units,
-            node_only.unique_bytes,
-        ),
-        (400, 0, 400, 0, 400)
-    );
-    assert_eq!(
-        ledger.borrow().incremental_optional_bytes(&[rows]).unwrap(),
-        400
-    );
-    drop(node);
-    assert_eq!(ledger.borrow().snapshot().unique_bytes, 0);
+    assert_eq!(released.peak_optional_units, 100);
 }
 
 #[test]
@@ -272,16 +200,6 @@ fn optional_release_preview_requires_every_last_handle_and_counts_units_separate
         Some((0, 100))
     );
     drop(required);
-    let node = Ledger::acquire(&ledger, &[rows], LeaseClass::NodeOptional).unwrap();
-    assert_eq!(
-        ledger
-            .borrow()
-            .optional_release_credit(&[&first, &second])
-            .unwrap(),
-        Some((0, 100))
-    );
-    drop(node);
-
     let shared = Arc::new(
         Ledger::acquire(&ledger, &[positions(11, 250, 60)], LeaseClass::Optional).unwrap(),
     );
@@ -324,12 +242,6 @@ fn a_reused_key_cannot_change_its_immutable_size() {
         ledger
             .borrow()
             .incremental_optional_units(&[positions(3, 10, 1)]),
-        Err(OperatingError::ShapeMismatch)
-    ));
-    assert!(matches!(
-        ledger
-            .borrow()
-            .incremental_node_optional_bytes(&[positions(3, 10, 1)]),
         Err(OperatingError::ShapeMismatch)
     ));
     assert!(matches!(

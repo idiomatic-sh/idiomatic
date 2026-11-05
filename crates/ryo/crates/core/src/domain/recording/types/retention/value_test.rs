@@ -127,10 +127,7 @@ fn decoded_and_arena_snapshots_count_capacity_without_touching_cells() {
             count: RowCount(1),
         },
     });
-    let observed = RetainedBytes::inputs(
-        inputs.capacity() * size_of::<Frontier>(),
-        inputs.iter().map(|input| &input.table),
-    );
+    let observed = RetainedBytes::inputs(&inputs, |input| &input.table);
     assert_eq!(
         (
             observed.objects,

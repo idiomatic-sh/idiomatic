@@ -117,7 +117,7 @@ pub enum OperatorCall<'a> {
     },
     /// Replace all matches literally; matcher acquisition and storage belong to the engine.
     Replace {
-        regex: &'a regex_automata::meta::Regex,
+        regex: &'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
         text: &'a str,
         replacement: &'a str,
         target: &'a mut String,

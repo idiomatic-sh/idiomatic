@@ -32,7 +32,7 @@ pub(crate) struct InvocationWorkspace {
     >,
     pub predicate_memo: Vec<crate::domain::operating::types::Memo>,
     pub predicate_names: Option<crate::domain::operating::types::NameCount>,
-    pub literal_regex: Option<regex_automata::meta::Regex>,
+    pub literal_regex: Option<ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
     pub primitive: crate::domain::operator::contract::types::PrimitiveWorkspace,
 }
 
@@ -67,11 +67,6 @@ impl InvocationWorkspace {
             #[cfg(test)]
             observation: Default::default(),
         }
-    }
-
-    pub(super) fn derived_counts(&self) -> (u64, u64) {
-        let (builds, hits, _) = self.owner().derived.counts();
-        (builds, hits)
     }
 
     #[cfg(test)]

@@ -263,7 +263,7 @@ pub(crate) struct PrimitiveViews<'a> {
             'a,
         >,
     >,
-    pub regex: Option<&'a regex_automata::meta::Regex>,
+    pub regex: Option<&'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
     pub cached_reach: Option<super::graph_view::ReachResult<'a>>,
     pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
 }

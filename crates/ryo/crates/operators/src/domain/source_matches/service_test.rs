@@ -2,6 +2,9 @@
 use super::service::occurrences;
 use crate::domain::contract::types::{PortableOperatorFault, SemanticInterrupted};
 use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
+use ryo_matching::inbound::use_cases::matching::{
+    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 #[derive(Clone, Copy)]
@@ -93,7 +96,9 @@ impl TextRowDriver for Driver {
 }
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let source = "a\r\nb\rc\nd";
-    let regex = regex_automata::meta::Regex::new("(?P<cap>b|c)").unwrap();
+    let regex = MatchingUseCaseImpl::new()
+        .compile_regex("(?P<cap>b|c)")
+        .unwrap();
     let mut driver = Driver {
         scenario,
         interns: 0,

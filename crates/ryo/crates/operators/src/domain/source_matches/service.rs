@@ -1,7 +1,11 @@
 //! Physical occurrence span, capture and line semantics over one borrowed checked interval.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{SourceMatchesInput, TextRowDriver};
+use ryo_matching::inbound::use_cases::matching::{
+    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
+use std::ops::ControlFlow;
 fn advance_line(
     bytes: &[u8],
     source: &[u8],
@@ -63,14 +67,6 @@ pub(crate) fn occurrences(
     }
     if capture_line && line.is_none() {
         return Err(PortableOperatorFault::WrongOperation);
-    }
-    if let Some(name) = capture
-        && regex
-            .group_info()
-            .to_index(regex_automata::util::primitives::PatternID::ZERO, name)
-            .is_none()
-    {
-        return Err(PortableOperatorFault::MissingCapture);
     }
     let mut cursor = 0;
     let mut pending_cr = false;
@@ -155,20 +151,37 @@ pub(crate) fn occurrences(
             .map_err(|_| PortableOperatorFault::Interrupted)?;
         Ok(())
     };
+    let mut failure = None;
     if let Some(name) = capture {
-        for captures in regex.captures_iter(text) {
-            let Some(found) = captures.get_match() else {
-                continue;
-            };
-            let Some(group) = captures.get_group_by_name(name) else {
-                continue;
-            };
-            emit_one(found.start(), found.end(), Some((group.start, group.end)))?;
-        }
+        let _flow = MatchingUseCaseImpl::new()
+            .visit_regex_captures(regex, text, name, &mut |found, group| match emit_one(
+                found.start,
+                found.end,
+                Some((group.start, group.end)),
+            ) {
+                Ok(()) => ControlFlow::Continue(()),
+                Err(error) => {
+                    failure = Some(error);
+                    ControlFlow::Break(())
+                }
+            })
+            .map_err(|_| PortableOperatorFault::MissingCapture)?;
     } else {
-        for found in regex.find_iter(text) {
-            emit_one(found.start(), found.end(), None)?;
-        }
+        let _flow =
+            MatchingUseCaseImpl::new().visit_regex_matches(
+                regex,
+                text,
+                &mut |found| match emit_one(found.start, found.end, None) {
+                    Ok(()) => ControlFlow::Continue(()),
+                    Err(error) => {
+                        failure = Some(error);
+                        ControlFlow::Break(())
+                    }
+                },
+            );
+    }
+    if let Some(error) = failure {
+        return Err(error);
     }
     Ok(())
 }

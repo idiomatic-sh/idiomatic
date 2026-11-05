@@ -325,7 +325,7 @@ pub(crate) struct SelectScratch {
 pub(crate) struct Patterns(
     pub  hashbrown::HashMap<
         crate::domain::table_texts::types::RegexPattern,
-        regex_automata::meta::Regex,
+        ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
     >,
 );
 

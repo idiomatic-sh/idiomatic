@@ -130,8 +130,10 @@ pub(super) fn observed_inputs(
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
 ) {
     if memory_enabled() {
-        let mut bytes =
-            ryo_values::domain::records::types::retention::value::RetainedBytes::inputs(inputs);
+        let mut bytes = ryo_values::domain::records::types::retention::value::RetainedBytes::inputs(
+            inputs,
+            |input| &input.table,
+        );
         let places = ryo_language::domain::symbols::service::places_mut(symbols);
         bytes.places_live =
             places.len() * size_of::<ryo_relations::domain::relations::types::NamePlace>();
@@ -154,7 +156,8 @@ pub(super) fn observed_notes(
             phase,
             "worker_notes",
             ryo_values::domain::records::types::retention::value::RetainedBytes::worker_notes(
-                notes,
+                &notes.0,
+                |entry| &entry.notes,
             ),
         );
     }

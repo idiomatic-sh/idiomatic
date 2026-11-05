@@ -1517,10 +1517,10 @@ version = "0.1.2"
 dependencies = [
  "cargo_metadata",
  "cucumber",
+ "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "regex-automata",
  "rustc-hash 2.1.3",
  "tokio",
 ]

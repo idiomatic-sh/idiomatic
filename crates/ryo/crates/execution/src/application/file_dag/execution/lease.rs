@@ -18,8 +18,8 @@ use crate::domain::table_texts::{
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 use {
-    crate::domain::table_model::service::reset, crate::domain::table_model::types::Verdict,
-    ryo_values::domain::rows::service::cell,
+    crate::domain::table_model::types::Verdict, ryo_values::domain::rows::service::cell,
+    ryo_values::domain::rows::service::reset,
 };
 
 /// The executable lease belongs to the application invocation owner. A pure
@@ -32,6 +32,7 @@ pub(crate) struct ExecutableLease<'call, 'resources, 'scope> {
     output: &'call mut dyn RowSink,
 }
 impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
+    #[cfg(test)]
     pub(crate) fn kind(&self) -> ryo_values::domain::plans::types::OperationKind {
         ryo_values::domain::plans::service::kind_of(self.operation)
     }
@@ -137,13 +138,8 @@ pub(in crate::application::file_dag) fn evaluate(
             Some(prepared?)
         } else {
             if workspace.literal_regex.is_none() {
-                workspace.literal_regex = Some(
-                    regex_automata::meta::Regex::new(&pattern.0).map_err(|error| {
-                        OperatingError::InvalidRegex {
-                            reason: error.to_string(),
-                        }
-                    })?,
-                );
+                workspace.literal_regex =
+                    Some(crate::domain::matching::service::compile_regex(&pattern.0)?);
             }
             workspace.literal_regex.as_ref()
         }

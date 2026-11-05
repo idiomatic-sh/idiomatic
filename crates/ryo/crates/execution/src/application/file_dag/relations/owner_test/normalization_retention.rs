@@ -1,8 +1,8 @@
-//! Optional publication admission cannot hide later normalization growth.
+//! Required publication aliases share normalization and release its backing at the last consumer.
 use super::*;
 
 #[test]
-fn lazy_source_refusal_preserves_required_normalization_and_charges_finalized_retention() {
+fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(true, crate::outbound::derived::factory::test_port());
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
@@ -13,64 +13,41 @@ fn lazy_source_refusal_preserves_required_normalization_and_charges_finalized_re
         columns: &physical,
     };
     let publication = owner.source(relation, &Rows::Stored(source)).unwrap();
+    let consumer = publication.clone();
     let weak = Arc::downgrade(publication.record());
-    let limit = 6 * 1024 * 1024;
-    assert!(
-        owner
-            .retain_publication(&publication, limit)
-            .unwrap()
-            .is_none()
-    );
     assert_eq!(
         owner.checks.get(),
         0,
-        "retention never forces physical inspection"
+        "publication does not inspect undemanded source rows"
     );
-    assert!(
-        publication.normalized.get().is_none(),
-        "retention never materializes a lazy source"
-    );
+    assert!(publication.normalized.get().is_none());
     assert_eq!(owner.derived.publication_ownership_bytes().1, 0);
-
     let normalized_address;
     {
-        let first = owner.normalize(&publication, Rows::Stored(source)).unwrap();
-        let Rows::Computed(table) = first else {
+        let Rows::Computed(table) = owner.normalize(&publication, Rows::Stored(source)).unwrap()
+        else {
             panic!("readable physical fallback must normalize")
         };
         normalized_address = table as *const _;
         assert_eq!(read(&Rows::Computed(table)), [row(schema, 0)]);
-        assert!(owner.derived.publication_ownership_bytes().0 > 0);
     }
-    assert!(owner.retain_publication(&publication, 0).unwrap().is_none());
-    let again = owner.normalize(&publication, Rows::Stored(source)).unwrap();
-    let Rows::Computed(table) = again else {
+    let charged = owner.derived.publication_ownership_bytes();
+    assert!(charged.0 > 0);
+    assert_eq!(charged.1, 0);
+    assert_eq!(charged.0, charged.2);
+    drop(publication);
+    assert!(weak.upgrade().is_some());
+    let Rows::Computed(table) = owner.normalize(&consumer, Rows::Stored(source)).unwrap() else {
         panic!("same demanded fallback")
     };
     assert_eq!(normalized_address, table as *const _);
+    assert_eq!(owner.checks.get(), 1);
     assert_eq!(
-        owner.checks.get(),
-        1,
-        "required consumers reuse the completed normalization"
+        owner.derived.publication_ownership_bytes(),
+        charged,
+        "alias does not charge normalization again"
     );
-    assert_eq!(owner.derived.publication_ownership_bytes().1, 0);
-    let retained = owner
-        .retain_publication(&publication, limit)
-        .unwrap()
-        .unwrap();
-    let (_, optional, unique) = owner.derived.publication_ownership_bytes();
-    assert!(optional > 0);
-    assert_eq!(
-        optional, unique,
-        "required and optional aliases charge the same physical buffers once"
-    );
-    drop(publication);
-    let (required, still_optional, unique) = owner.derived.publication_ownership_bytes();
-    assert_eq!(required, 0);
-    assert_eq!(still_optional, optional);
-    assert_eq!(unique, optional);
-    assert!(weak.upgrade().is_some());
-    drop(retained);
+    drop(consumer);
     assert!(weak.upgrade().is_none());
     assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
 }

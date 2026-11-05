@@ -24,17 +24,14 @@ pub(super) enum LeaseClass {
     Required,
     /// Derived-view retention, subject to the view byte and position caps.
     Optional,
-    /// DAG node retention, subject to its own byte cap.
-    NodeOptional,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Snapshot {
     pub required_bytes: usize,
-    /// Physical bytes with either optional role, counted once per backing.
+    /// Physical bytes retained by derived views, counted once per backing.
     pub optional_bytes: usize,
     pub view_optional_bytes: usize,
-    pub node_optional_bytes: usize,
     pub optional_units: usize,
     pub overlap_bytes: usize,
     pub unique_bytes: usize,
@@ -42,7 +39,6 @@ pub(super) struct Snapshot {
     pub peak_required_bytes: usize,
     pub peak_optional_bytes: usize,
     pub peak_view_optional_bytes: usize,
-    pub peak_node_optional_bytes: usize,
     pub peak_optional_units: usize,
     pub peak_overlap_bytes: usize,
     pub peak_unique_bytes: usize,
@@ -55,7 +51,6 @@ struct Entry {
     retention_units: usize,
     required: usize,
     optional: usize,
-    node_optional: usize,
 }
 
 #[derive(Debug)]
@@ -64,7 +59,6 @@ pub(super) struct Ledger {
     required_bytes: usize,
     optional_bytes: usize,
     view_optional_bytes: usize,
-    node_optional_bytes: usize,
     optional_units: usize,
     overlap_bytes: usize,
     unique_bytes: usize,
@@ -72,7 +66,6 @@ pub(super) struct Ledger {
     peak_required_bytes: usize,
     peak_optional_bytes: usize,
     peak_view_optional_bytes: usize,
-    peak_node_optional_bytes: usize,
     peak_optional_units: usize,
     peak_overlap_bytes: usize,
     peak_unique_bytes: usize,
@@ -86,7 +79,6 @@ impl Default for Ledger {
             required_bytes: 0,
             optional_bytes: 0,
             view_optional_bytes: 0,
-            node_optional_bytes: 0,
             optional_units: 0,
             overlap_bytes: 0,
             unique_bytes: 0,
@@ -94,7 +86,6 @@ impl Default for Ledger {
             peak_required_bytes: 0,
             peak_optional_bytes: 0,
             peak_view_optional_bytes: 0,
-            peak_node_optional_bytes: 0,
             peak_optional_units: 0,
             peak_overlap_bytes: 0,
             peak_unique_bytes: 0,
@@ -110,8 +101,8 @@ impl Ledger {
     pub(super) fn backing_count(&self, tag: u8) -> usize {
         self.entries.keys().filter(|(kind, _)| *kind == tag).count()
     }
-    /// Bytes newly retained by the view optional class. A required-only or
-    /// node-only backing is charged because a view lease may outlive it.
+    /// Bytes newly retained by the view optional class. A required-only
+    /// backing is charged because a view lease may outlive it.
     pub(super) fn incremental_optional_bytes(
         &self,
         backings: &[Backing],
@@ -132,29 +123,6 @@ impl Ledger {
                     additional = additional
                         .checked_add(bytes)
                         .ok_or(OperatingError::ShapeMismatch)?
-                }
-            }
-        }
-        Ok(additional)
-    }
-
-    /// Bytes newly retained by the node optional class. View-only aliases
-    /// still consume this separate node allowance.
-    pub(super) fn incremental_node_optional_bytes(
-        &self,
-        backings: &[Backing],
-    ) -> Result<usize, OperatingError> {
-        let mut additional = 0usize;
-        for (key, bytes, units) in normalized(backings)? {
-            match self.entries.get(&key) {
-                Some(entry) if entry.bytes != bytes || entry.retention_units != units => {
-                    return Err(OperatingError::ShapeMismatch);
-                }
-                Some(entry) if entry.node_optional != 0 => {}
-                _ => {
-                    additional = additional
-                        .checked_add(bytes)
-                        .ok_or(OperatingError::ShapeMismatch)?;
                 }
             }
         }
@@ -197,7 +165,6 @@ impl Ledger {
         let mut next_required = state.required_bytes;
         let mut next_optional = state.optional_bytes;
         let mut next_view_optional = state.view_optional_bytes;
-        let mut next_node_optional = state.node_optional_bytes;
         let mut next_optional_units = state.optional_units;
         let mut next_overlap = state.overlap_bytes;
         let mut next_unique = state.unique_bytes;
@@ -208,7 +175,6 @@ impl Ledger {
             }
             let required = old.map_or(0, |entry| entry.required);
             let optional = old.map_or(0, |entry| entry.optional);
-            let node_optional = old.map_or(0, |entry| entry.node_optional);
             match class {
                 LeaseClass::Required => {
                     required
@@ -218,7 +184,7 @@ impl Ledger {
                         next_required = next_required
                             .checked_add(*bytes)
                             .ok_or(OperatingError::ShapeMismatch)?;
-                        if optional != 0 || node_optional != 0 {
+                        if optional != 0 {
                             next_overlap = next_overlap
                                 .checked_add(*bytes)
                                 .ok_or(OperatingError::ShapeMismatch)?;
@@ -236,32 +202,10 @@ impl Ledger {
                         next_optional_units = next_optional_units
                             .checked_add(*units)
                             .ok_or(OperatingError::ShapeMismatch)?;
-                        if node_optional == 0 {
-                            next_optional = next_optional
-                                .checked_add(*bytes)
-                                .ok_or(OperatingError::ShapeMismatch)?;
-                        }
-                        if required != 0 && node_optional == 0 {
-                            next_overlap = next_overlap
-                                .checked_add(*bytes)
-                                .ok_or(OperatingError::ShapeMismatch)?;
-                        }
-                    }
-                }
-                LeaseClass::NodeOptional => {
-                    node_optional
-                        .checked_add(1)
-                        .ok_or(OperatingError::ShapeMismatch)?;
-                    if node_optional == 0 {
-                        next_node_optional = next_node_optional
+                        next_optional = next_optional
                             .checked_add(*bytes)
                             .ok_or(OperatingError::ShapeMismatch)?;
-                        if optional == 0 {
-                            next_optional = next_optional
-                                .checked_add(*bytes)
-                                .ok_or(OperatingError::ShapeMismatch)?;
-                        }
-                        if required != 0 && optional == 0 {
+                        if required != 0 {
                             next_overlap = next_overlap
                                 .checked_add(*bytes)
                                 .ok_or(OperatingError::ShapeMismatch)?;
@@ -287,18 +231,15 @@ impl Ledger {
                 retention_units: units,
                 required: 0,
                 optional: 0,
-                node_optional: 0,
             });
             match class {
                 LeaseClass::Required => entry.required += 1,
                 LeaseClass::Optional => entry.optional += 1,
-                LeaseClass::NodeOptional => entry.node_optional += 1,
             }
         }
         state.required_bytes = next_required;
         state.optional_bytes = next_optional;
         state.view_optional_bytes = next_view_optional;
-        state.node_optional_bytes = next_node_optional;
         state.optional_units = next_optional_units;
         state.overlap_bytes = next_overlap;
         state.unique_bytes = next_unique;
@@ -317,7 +258,6 @@ impl Ledger {
             required_bytes: self.required_bytes,
             optional_bytes: self.optional_bytes,
             view_optional_bytes: self.view_optional_bytes,
-            node_optional_bytes: self.node_optional_bytes,
             optional_units: self.optional_units,
             overlap_bytes: self.overlap_bytes,
             unique_bytes: self.unique_bytes,
@@ -325,7 +265,6 @@ impl Ledger {
             peak_required_bytes: self.peak_required_bytes,
             peak_optional_bytes: self.peak_optional_bytes,
             peak_view_optional_bytes: self.peak_view_optional_bytes,
-            peak_node_optional_bytes: self.peak_node_optional_bytes,
             peak_optional_units: self.peak_optional_units,
             peak_overlap_bytes: self.peak_overlap_bytes,
             peak_unique_bytes: self.peak_unique_bytes,
@@ -349,7 +288,6 @@ impl Ledger {
         self.peak_required_bytes = self.peak_required_bytes.max(self.required_bytes);
         self.peak_optional_bytes = self.peak_optional_bytes.max(self.optional_bytes);
         self.peak_view_optional_bytes = self.peak_view_optional_bytes.max(self.view_optional_bytes);
-        self.peak_node_optional_bytes = self.peak_node_optional_bytes.max(self.node_optional_bytes);
         self.peak_optional_units = self.peak_optional_units.max(self.optional_units);
         self.peak_overlap_bytes = self.peak_overlap_bytes.max(self.overlap_bytes);
         self.peak_unique_bytes = self.peak_unique_bytes.max(self.unique_bytes);
@@ -378,7 +316,6 @@ impl Drop for ResourceLease {
                 match self.class {
                     LeaseClass::Required => entry.required -= 1,
                     LeaseClass::Optional => entry.optional -= 1,
-                    LeaseClass::NodeOptional => entry.node_optional -= 1,
                 }
                 (
                     entry.bytes,
@@ -386,11 +323,10 @@ impl Drop for ResourceLease {
                     match self.class {
                         LeaseClass::Required => entry.required == 0,
                         LeaseClass::Optional => entry.optional == 0,
-                        LeaseClass::NodeOptional => entry.node_optional == 0,
                     },
                     entry.required != 0,
-                    entry.optional != 0 || entry.node_optional != 0,
-                    entry.required == 0 && entry.optional == 0 && entry.node_optional == 0,
+                    entry.optional != 0,
+                    entry.required == 0 && entry.optional == 0,
                 )
             };
             if class_empty {
@@ -400,15 +336,12 @@ impl Drop for ResourceLease {
                         state.view_optional_bytes -= bytes;
                         state.optional_units -= units;
                     }
-                    LeaseClass::NodeOptional => state.node_optional_bytes -= bytes,
                 }
-                if matches!(self.class, LeaseClass::Optional | LeaseClass::NodeOptional)
-                    && !optional_live
-                {
+                if matches!(self.class, LeaseClass::Optional) && !optional_live {
                     state.optional_bytes -= bytes;
                 }
                 if (matches!(self.class, LeaseClass::Required) && optional_live)
-                    || (matches!(self.class, LeaseClass::Optional | LeaseClass::NodeOptional)
+                    || (matches!(self.class, LeaseClass::Optional)
                         && required_live
                         && !optional_live)
                 {

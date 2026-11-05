@@ -145,17 +145,26 @@ impl RetainedBytes {
         }
     }
 
-    /// Original worker language notes may coexist with the copy normalized into fresh records.
-    pub fn worker_notes<'a>(
-        metadata: usize,
-        notes: impl IntoIterator<Item = &'a crate::domain::stored_facts::types::FileNotes>,
+    /// Original worker notes lend their actual owner and the note field of each entry.
+    /// Metadata is derived from the owner's reserved allocation, including unused capacity.
+    ///
+    /// ```compile_fail
+    /// use ryo_values::domain::records::types::retention::value::RetainedBytes;
+    /// use ryo_values::domain::stored_facts::types::FileNotes;
+    /// let notes: Vec<FileNotes> = Vec::new();
+    /// let _ = RetainedBytes::worker_notes(0, notes.iter());
+    /// ```
+    pub fn worker_notes<T>(
+        owner: &Vec<T>,
+        notes: impl Fn(&T) -> &crate::domain::stored_facts::types::FileNotes,
     ) -> Self {
         let mut bytes = Self {
-            metadata,
+            objects: owner.len(),
+            metadata: capacity(owner),
             ..Self::default()
         };
-        for notes in notes {
-            bytes.objects += 1;
+        for entry in owner {
+            let notes = notes(entry);
             bytes.notes_live += notes.notes.0.len();
             bytes.notes_capacity += notes.notes.0.capacity();
         }
@@ -172,14 +181,23 @@ impl RetainedBytes {
         }
     }
 
-    /// Exact decoded frontier storage, independent of whether the cells are physically resident pages.
-    pub fn inputs<'a>(metadata: usize, inputs: impl IntoIterator<Item = &'a Table>) -> Self {
+    /// Exact decoded inputs borrow the actual owning vector and each entry's table field.
+    /// The owning allocation is measured here rather than supplied as a caller-computed byte count.
+    ///
+    /// ```compile_fail
+    /// use ryo_values::domain::records::types::retention::value::RetainedBytes;
+    /// use ryo_values::domain::rows::types::Table;
+    /// let tables: Vec<Table> = Vec::new();
+    /// let _ = RetainedBytes::inputs(0, tables.iter());
+    /// ```
+    pub fn inputs<T>(owner: &Vec<T>, table: impl Fn(&T) -> &Table) -> Self {
         let mut bytes = Self {
-            metadata,
+            objects: owner.len(),
+            metadata: capacity(owner),
             ..Self::default()
         };
-        for table in inputs {
-            bytes.objects += 1;
+        for entry in owner {
+            let table = table(entry);
             bytes.metadata += capacity(&table.kinds);
             bytes.cells_live +=
                 table.cells.len() * size_of::<ryo_relations::domain::relations::types::Value>();

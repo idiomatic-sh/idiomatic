@@ -1,11 +1,16 @@
 //! Public text calls keep matcher construction at the edge and preserve exact delivery prefixes.
 use super::*;
+use ryo_matching::inbound::use_cases::matching::{
+    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+};
 use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-fn regex(pattern: &str) -> regex_automata::meta::Regex {
-    regex_automata::meta::Regex::new(pattern).expect("valid acceptance pattern")
+fn regex(pattern: &str) -> ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex {
+    MatchingUseCaseImpl::new()
+        .compile_regex(pattern)
+        .expect("valid acceptance pattern")
 }
 fn span(start: u32, end: u32) -> Cell {
     Cell::Span(Span {

@@ -4,7 +4,6 @@ use crate::application::file_dag::cross_execution::compute;
 use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::OperatorContext;
-use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_language::domain::symbols::service::intern_derived;
@@ -17,6 +16,7 @@ use ryo_values::domain::plan_parts::types::{
     QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::rows::service::push_row;
 use std::sync::atomic::Ordering;
 
 /// One authored text predicate with no data-dependent right operand.
@@ -298,7 +298,12 @@ fn concurrent_literal_users_initialize_one_slot() {
     std::thread::scope(|scope| {
         let prepared = &prepared;
         let handles: Vec<_> = (0..4)
-            .map(|_| scope.spawn(move || prepared.regex("α+").unwrap().unwrap().is_match("αα")))
+            .map(|_| {
+                scope.spawn(move || {
+                    MatchingUseCaseImpl::new()
+                        .matches_regex(prepared.regex("α+").unwrap().unwrap(), "αα")
+                })
+            })
             .collect();
         for handle in handles {
             assert!(handle.join().unwrap());
@@ -307,6 +312,9 @@ fn concurrent_literal_users_initialize_one_slot() {
     assert_eq!(prepared.builds.load(Ordering::Relaxed), 1);
 }
 
+use ryo_matching::inbound::use_cases::matching::{
+    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+};
 use ryo_values::domain::rows::types::Table;
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;

@@ -21,7 +21,7 @@ mod accounting;
 mod admission;
 mod external;
 mod handle;
-pub(crate) use handle::{PublishedInput, RetainedPublication};
+pub(crate) use handle::PublishedInput;
 mod identity;
 pub(super) mod positioned;
 mod selected_access;
@@ -52,7 +52,7 @@ enum RelationBody {
         kinds: Arc<[CellKind]>,
     },
     Computed(Arc<Table>),
-    Compact(Arc<crate::domain::table_words::types::CompactTable>),
+    Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
 }
 mod packed;
 pub(crate) use packed::PackedPublication;
@@ -113,7 +113,7 @@ impl RelationOwner {
             RelationBody::Positioned { kinds, .. } => kinds,
             RelationBody::Computed(table) => &table.kinds,
             RelationBody::Compact(table) => {
-                crate::domain::table_words::service::compact_kinds(table)
+                ryo_values::domain::table_words::service::compact_kinds(table)
             }
         })
     }
@@ -241,7 +241,7 @@ impl RelationOwner {
     }
     pub(super) fn compact(
         &self,
-        table: Arc<crate::domain::table_words::types::CompactTable>,
+        table: Arc<ryo_values::domain::table_words::types::CompactTable>,
     ) -> Result<PublishedInput, OperatingError> {
         let input = BorrowedRows::Compact(&table);
         let contract = input.contract()?;
@@ -477,7 +477,6 @@ impl RelationOwner {
         }
     }
 }
-pub(super) use accounting::bytes;
 
 #[cfg(test)]
 mod owner_test;
@@ -561,14 +560,6 @@ impl RelationOwner {
             if backing != population {
                 self.derived.release(backing);
             }
-        }
-    }
-    pub(super) fn release_derived(&self, result: &RelationResult) {
-        let population = self.result_population(result);
-        self.derived.release(population);
-        let backing = self.backing_population(result);
-        if backing != population {
-            self.derived.release(backing);
         }
     }
 }

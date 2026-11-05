@@ -22,11 +22,11 @@ use std::{cell::Cell, mem::size_of, sync::Arc};
 
 #[test]
 fn compact_publications_share_backing_accounting_and_expire_with_generation() {
-    use crate::domain::table_words::{
+    use ryo_relations::domain::relations::types::Words;
+    use ryo_values::domain::table_words::{
         service,
         types::{DecodeMode, WordSlice},
     };
-    use ryo_relations::domain::relations::types::Words;
     use ryo_values::{
         domain::rows::types::{RowCount, Table},
         domain::stored_facts::types::KeptWords,
@@ -60,8 +60,10 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
         first_unique + size_of::<super::RelationResult>() + 2 * size_of::<usize>()
     );
     assert_eq!(
-        super::bytes(first.record().as_ref()),
+        first_unique,
         service::compact_metadata_bytes(&compact)
+            + size_of::<ryo_values::domain::stored_facts::types::KeptWords>()
+            + 2 * size_of::<usize>()
             + words.0.0.capacity()
             + size_of::<super::RelationResult>()
             + 2 * size_of::<usize>(),
@@ -76,11 +78,8 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
         ]
     );
     drop(resolved);
-    let retained = owner
-        .retain_publication(&first, usize::MAX)
-        .unwrap()
-        .unwrap();
-    assert!(owner.derived.publication_ownership_bytes().1 > 0);
+    let consumer = first.clone();
+    assert_eq!(owner.derived.publication_ownership_bytes().1, 0);
     drop(compact);
     drop(words);
     assert!(compact_weak.upgrade().is_some());
@@ -97,7 +96,8 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     drop(first);
     drop(second);
     assert!(compact_weak.upgrade().is_some());
-    drop(retained);
+    assert!(owner.derived.publication_ownership_bytes().0 > 0);
+    drop(consumer);
     assert!(compact_weak.upgrade().is_none());
     assert!(words_weak.upgrade().is_none());
     assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));

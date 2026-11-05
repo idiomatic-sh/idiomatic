@@ -3,7 +3,7 @@
 use crate::domain::globbing::types::{CompiledGlobs, GlobText};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_texts::types::RegexPattern;
-use regex_automata::meta::Regex;
+use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
 #[cfg(test)]
@@ -24,7 +24,7 @@ pub(crate) struct PreparedMatchers {
 #[derive(Debug)]
 enum PreparedPattern {
     /// Invalid expressions retain the same refusal, raised only at an actual match/replacement.
-    Regex(OnceLock<Result<Regex, OperatingError>>),
+    Regex(OnceLock<Result<CompiledRegex, OperatingError>>),
     /// Unsupported glob compilation retains the interpreter outcome for subsequent invocations.
     Glob(OnceLock<CompiledGlobs>),
 }
@@ -79,7 +79,7 @@ impl PreparedMatchers {
     }
 
     /// Read an exact authored regex slot after the evaluator has validated both text operands.
-    pub(crate) fn regex(&self, pattern: &str) -> Option<Result<&Regex, OperatingError>> {
+    pub(crate) fn regex(&self, pattern: &str) -> Option<Result<&CompiledRegex, OperatingError>> {
         let PreparedPattern::Regex(slot) = self.slots.get(&Test::Matches)?.get(pattern)? else {
             return None;
         };
@@ -89,9 +89,7 @@ impl PreparedMatchers {
                 let _previous = self
                     .builds
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                Regex::new(pattern).map_err(|error| OperatingError::InvalidRegex {
-                    reason: error.to_string(),
-                })
+                crate::domain::matching::service::compile_regex(pattern)
             })
             .as_ref()
             .map_err(Clone::clone),

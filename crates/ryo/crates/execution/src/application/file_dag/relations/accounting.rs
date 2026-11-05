@@ -47,7 +47,7 @@ impl RelationOwner {
             }
             RelationBody::Computed(table) => output.push(Self::table_backing(table)),
             RelationBody::Compact(table) => {
-                let words = crate::domain::table_words::service::compact_backing(table);
+                let words = ryo_values::domain::table_words::service::compact_backing(table);
                 output.push(Backing {
                     key: (22, Arc::as_ptr(words) as usize),
                     retention_units: 0,
@@ -58,7 +58,7 @@ impl RelationOwner {
                 output.push(Backing {
                     key: (24, Arc::as_ptr(table) as usize),
                     retention_units: 0,
-                    bytes: crate::domain::table_words::service::compact_metadata_bytes(table),
+                    bytes: ryo_values::domain::table_words::service::compact_metadata_bytes(table),
                 });
             }
             RelationBody::Selected { source, selection } => {
@@ -145,96 +145,6 @@ impl RelationOwner {
         let lease = self.derived.required_lease(&backings)?;
         Ok(PublishedInput::new(record, lease, resources))
     }
-    pub(in crate::application::file_dag) fn required_publication(
-        &self,
-        retained: &RetainedPublication,
-    ) -> Result<PublishedInput, OperatingError> {
-        self.leased_publication(Arc::clone(retained.record()), retained.resources.clone())
-    }
-    fn finalized_backings(record: &RelationResult) -> bool {
-        match &record.body {
-            RelationBody::Computed(_) | RelationBody::Compact(_) => true,
-            RelationBody::Selected { source, .. } | RelationBody::Positioned { source, .. } => {
-                Self::finalized_backings(source)
-            }
-            RelationBody::Source(_) => {
-                record.normalized.get().is_some()
-                    || matches!(record.inspected.get(), Some(Ok(PhysicalShape::Complete)))
-            }
-        }
-    }
-    pub(in crate::application::file_dag) fn retain_publication(
-        &self,
-        input: &PublishedInput,
-        limit: usize,
-    ) -> Result<Option<RetainedPublication>, OperatingError> {
-        let record = Arc::clone(input.record());
-        // Optional records must have an immutable backing set. Source shape is
-        // still lazy: declining retention must not inspect or normalize it.
-        if !Self::finalized_backings(&record) {
-            return Ok(None);
-        }
-        let mut backings = self.backings(&record);
-        Self::resource_backings(&input.resources, &mut backings);
-        let Some(lease) = self.derived.node_optional_lease(&backings, limit)? else {
-            return Ok(None);
-        };
-        Ok(Some(RetainedPublication::new(
-            record,
-            lease,
-            input.resources.clone(),
-        )))
-    }
-}
-
-pub(in crate::application::file_dag) fn bytes(result: &RelationResult) -> usize {
-    let owned = match &result.body {
-        RelationBody::Positioned {
-            positions,
-            shape,
-            kinds,
-            ..
-        } => {
-            positions.slots.0.capacity() * size_of::<u32>()
-                + shape.columns.capacity()
-                    * size_of::<crate::domain::lowering::types::LoweredColumn>()
-                + std::mem::size_of_val(kinds.as_ref())
-                + size_of::<crate::domain::positions::types::Positions>()
-                + size_of::<crate::domain::lowering::types::LoweredShape>()
-        }
-        RelationBody::Computed(table) => table_bytes(table),
-        RelationBody::Compact(table) => {
-            crate::domain::table_words::service::compact_metadata_bytes(table)
-                + crate::domain::table_words::service::compact_backing(table)
-                    .0
-                    .0
-                    .capacity()
-        }
-        RelationBody::Source(source) => {
-            source.storage.capacity() * size_of::<(usize, usize)>()
-                + source.kinds.capacity()
-                    * size_of::<ryo_relations::domain::relations::types::CellKind>()
-                + source.projection.capacity()
-                    * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
-                + source.source_kinds.capacity()
-                    * size_of::<ryo_relations::domain::relations::types::CellKind>()
-        }
-        RelationBody::Selected { selection, .. } => {
-            selection.rows.capacity() * size_of::<u32>()
-                + selection.columns.capacity()
-                    * size_of::<ryo_values::domain::plan_parts::types::ColumnIndex>()
-                + selection.kinds.capacity()
-                    * size_of::<ryo_relations::domain::relations::types::CellKind>()
-                + size_of::<StoredSelection>()
-        }
-    };
-    owned
-        + result
-            .normalized
-            .get()
-            .map_or(0, |table| table_bytes(table))
-        + size_of::<RelationResult>()
-        + 2 * size_of::<usize>()
 }
 
 fn table_bytes(table: &ryo_values::domain::rows::types::Table) -> usize {
