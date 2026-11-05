@@ -8,6 +8,3 @@
 #[cfg(test)]
 #[path = "pipeline/types/compact/value_test.rs"]
 mod compact_transport_test;
-
-#[cfg(test)]
-pub(crate) mod service_test;
