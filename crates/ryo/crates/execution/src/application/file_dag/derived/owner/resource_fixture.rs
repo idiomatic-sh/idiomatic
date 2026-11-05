@@ -162,3 +162,61 @@ pub(crate) fn weak_storage(
 ) -> Weak<super::super::storage::DerivedStorage> {
     Arc::downgrade(&view.storage)
 }
+
+/// Passive observation of actual portable builds; every call delegates to the
+/// production derived use case. No evaluator, scheduling or owner lives here.
+#[derive(Debug, Default)]
+pub(in crate::application::file_dag) struct RecordedDerived {
+    builds: std::sync::Mutex<Vec<ryo_derived::domain::contract::types::ViewRequest>>,
+}
+impl RecordedDerived {
+    pub(in crate::application::file_dag) fn builds(
+        &self,
+    ) -> Vec<ryo_derived::domain::contract::types::ViewRequest> {
+        self.builds.lock().expect("recorded semantic calls").clone()
+    }
+}
+impl ryo_derived::inbound::use_cases::derived::interface::DerivedUseCase for RecordedDerived {
+    fn prepare(
+        &self,
+        request: ryo_derived::domain::contract::types::ViewRequest,
+        schemas: Vec<Vec<ryo_relations::domain::relations::types::CellKind>>,
+    ) -> Arc<ryo_derived::domain::contract::types::PreparedDerived> {
+        use ryo_derived::inbound::use_cases::derived::{
+            interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
+        };
+        DerivedUseCaseImpl::new().prepare(request, schemas)
+    }
+    fn build(
+        &self,
+        prepared: &ryo_derived::domain::contract::types::PreparedDerived,
+        inputs: ryo_derived::domain::contract::types::DerivedInputs<'_>,
+        room: &mut ryo_derived::domain::contract::types::BuildWorkspace,
+        recycled: Option<ryo_derived::domain::contract::types::DerivedPayload>,
+    ) -> Result<
+        ryo_derived::domain::contract::types::BuildOutcome,
+        ryo_derived::domain::contract::types::DerivedFault,
+    > {
+        use ryo_derived::inbound::use_cases::derived::{
+            interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
+        };
+        self.builds
+            .lock()
+            .expect("recorded semantic calls")
+            .push(prepared.request().clone());
+        DerivedUseCaseImpl::new().build(prepared, inputs, room, recycled)
+    }
+    fn view<'a>(
+        &self,
+        prepared: &ryo_derived::domain::contract::types::PreparedDerived,
+        payload: &'a ryo_derived::domain::contract::types::DerivedPayload,
+    ) -> Result<
+        ryo_derived::domain::contract::types::DerivedView<'a>,
+        ryo_derived::domain::contract::types::DerivedFault,
+    > {
+        use ryo_derived::inbound::use_cases::derived::{
+            interface::DerivedUseCase, use_case::DerivedUseCaseImpl,
+        };
+        DerivedUseCaseImpl::new().view(prepared, payload)
+    }
+}

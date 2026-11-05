@@ -19,10 +19,12 @@ fn later_partition_refusal_stops_work_and_releases_backing() {
         Refusal::DeliveredPattern,
         Refusal::Callback,
     ] {
-        exercise(refusal);
+        for fused in [false, true] {
+            exercise(refusal, fused);
+        }
     }
 }
-fn exercise(refusal: Refusal) {
+fn exercise(refusal: Refusal, fused: bool) {
     let mut plan = plan(Scenario::ProjectRetry);
     plan.steps = vec![
         PlanStep {
@@ -60,6 +62,12 @@ fn exercise(refusal: Refusal) {
         },
     ];
     plan.emit.step = StepId(2);
+    if fused {
+        let Operation::Select { kept, .. } = &mut plan.steps[2].operation else {
+            unreachable!()
+        };
+        kept.clear(); // All four columns still pass through; this is the actual fusible shape.
+    }
     let patterns = if matches!(refusal, Refusal::Callback) {
         ["a", "a", "a"]
     } else {
@@ -85,7 +93,10 @@ fn exercise(refusal: Refusal) {
             })
             .collect(),
     );
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let recorded = Arc::new(
+        crate::application::file_dag::derived::owner::resource_fixture::RecordedDerived::default(),
+    );
+    let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = recorded.clone();
     let prepared = facade::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,
@@ -100,6 +111,19 @@ fn exercise(refusal: Refusal) {
         ObservationIdentity::Independent,
     )
     .unwrap();
+    let program = prepared.program();
+    let physical = |step: usize| {
+        let logical = program.rules()[0].original_steps[step]
+            .as_ref()
+            .unwrap()
+            .logical;
+        program.logical_regions()[logical.0]
+    };
+    assert_eq!(
+        physical(1) == physical(2),
+        fused,
+        "the test must observe the actual fused or materialized compiled boundary"
+    );
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
@@ -207,13 +231,30 @@ fn exercise(refusal: Refusal) {
     let (builds, last_backing) = owner.derived.scoped_observation();
     assert_eq!(
         builds,
-        if matches!(refusal, Refusal::Callback) {
-            3
-        } else {
+        if fused && !matches!(refusal, Refusal::Callback) {
             2
+        } else {
+            3
         },
-        "semantic failure stops at its partition; sink refusal occurs after all semantic partitions complete"
+        "only a real fused continuation can stop partition construction at its semantic failure"
     );
+    let calls = recorded.builds();
+    assert!(
+        matches!(calls.first(), Some(ryo_derived::domain::contract::types::ViewRequest::PartitionOrder { keys })
+        if keys == &[ColumnIndex(2), ColumnIndex(3)])
+    );
+    assert_eq!(
+        calls.len(),
+        1 + builds,
+        "the shared partition order is a separate family from actual scoped adjacency construction"
+    );
+    assert!(calls[1..].iter().all(|request| matches!(
+        request,
+        ryo_derived::domain::contract::types::ViewRequest::ClosureAdjacency {
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1)
+        }
+    )));
     assert!(
         last_backing.upgrade().is_none(),
         "failed invocation releases its current partition backing"

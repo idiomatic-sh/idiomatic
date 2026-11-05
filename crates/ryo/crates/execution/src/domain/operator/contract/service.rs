@@ -139,7 +139,7 @@ pub(crate) fn semantics(kind: OperationKind) -> (SemanticContract, ResourceNeeds
     });
     let acquisition = if matches!(
         kind,
-        Rank | Capture | Words | Replace | SpanBetween | SpanBounds | SourceMatches
+        Join | Rank | Capture | Words | Replace | SpanBetween | SpanBounds | SourceMatches
     ) {
         AcquisitionBoundary::FirstRow
     } else {

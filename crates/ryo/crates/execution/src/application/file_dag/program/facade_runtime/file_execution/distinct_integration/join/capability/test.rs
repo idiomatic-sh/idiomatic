@@ -525,3 +525,106 @@ fn native_provenance_preserves_canonical_left_then_right_refusal_even_when_left_
         assert!(actual.prefix.is_empty());
     }
 }
+
+#[test]
+fn empty_native_step_join_validates_both_sources_without_sorting_rhs_keys() {
+    use ryo_values::domain::plan_parts::types::{
+        Comparison, LiteralText, Operand, QueryLiteral, Test,
+    };
+    for (refuse_right, foreign_tree) in [(false, false), (true, false), (false, true)] {
+        let (left_elements, mut symbols) = wide_tree(1, true);
+        let (right_elements, _) = wide_tree(1, true);
+        let mut request = plan(Scenario::ProjectRetry);
+        request.steps = vec![
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Select {
+                    from: PlanInput::Relation(Relation::SyntaxTree),
+                    kept: vec![ColumnIndex(0)],
+                    comparisons: vec![Comparison {
+                        test: Test::Equal,
+                        left: Operand::Column(ColumnIndex(1)),
+                        right: Operand::Literal(QueryLiteral::Text(LiteralText(
+                            "absent-kind".into(),
+                        ))),
+                        origin: None,
+                    }],
+                },
+            },
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Select {
+                    from: PlanInput::Relation(Relation::SyntaxChild),
+                    kept: vec![ColumnIndex(1)],
+                    comparisons: vec![],
+                },
+            },
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Join {
+                    left: PlanInput::Step(StepId(0)),
+                    right: PlanInput::Step(StepId(1)),
+                    left_on: vec![ColumnIndex(0)],
+                    right_on: vec![ColumnIndex(0)],
+                    output: vec![JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(0),
+                    }],
+                    filter: vec![],
+                    view: vec![],
+                    reach: None,
+                },
+            },
+        ];
+        request.emit.step = StepId(2);
+        let (left, _) = provider(
+            tree_rows(&left_elements, TreeForm::Elements),
+            0,
+            &mut vec![],
+        );
+        let (right, _) = provider(
+            tree_rows(
+                if foreign_tree {
+                    &right_elements
+                } else {
+                    &left_elements
+                },
+                TreeForm::Edges,
+            ),
+            1,
+            &mut vec![],
+        );
+        let actual = execute(
+            request,
+            [left, right],
+            &mut symbols,
+            b"abcd",
+            false,
+            real_port(),
+            Faults {
+                right: refuse_right.then_some(OperatingError::NotRead),
+                ..Faults::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            actual.native_prepared,
+            "the step-RHS native strategy must be real"
+        );
+        if refuse_right || foreign_tree {
+            assert_eq!(actual.result, Err(OperatingError::NotRead));
+        } else {
+            let table = actual.result.unwrap();
+            assert_eq!(table.count, RowCount(0));
+            assert_eq!(table.kinds, [CellKind::Node]);
+            assert_eq!(
+                actual.work.native_positions, 1,
+                "the admitted native empty publication was actually produced"
+            );
+        }
+        assert!(
+            actual.derived_builds.is_empty(),
+            "including RawKeyOrder: no payload is needed for an empty primary"
+        );
+    }
+}

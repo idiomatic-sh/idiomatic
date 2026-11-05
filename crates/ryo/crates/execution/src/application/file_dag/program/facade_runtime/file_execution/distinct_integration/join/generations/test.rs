@@ -6,7 +6,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     let left = schema_column(Relation::Entry, CellKind::Number, 0);
     let right = schema_column(Relation::SequenceElement, CellKind::Number, 0);
     let payload = schema_column(Relation::SequenceElement, CellKind::Number, 1);
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let recorded = Arc::new(RecordedDerived::default());
+    let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = recorded.clone();
     let prepared = facade::prepare(
         Compiled {
             plans: vec![request(&[left], &[right], &[(Side::Right, payload)])],
@@ -54,6 +55,7 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         (1, &[][..], &[(1, 99)][..], None, vec![], 0, 1),
         (2, &[1][..], &[(1, 99)][..], None, vec![99], 1, 2),
     ] {
+        let builds_before = recorded.builds().len();
         let providers = simple(keys, values, RepresentationKind::Stored);
         let reads = [Counter::new(0), Counter::new(0)];
         let read = |relation| {
@@ -129,7 +131,12 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             "a new file-generation owner cannot hit an old population's index"
         );
         if keys.is_empty() {
-            assert_eq!(reads[1].get(), 0, "empty left skips RHS acquisition");
+            assert!(reads[1].get() > 0, "the declared RHS is still admitted");
+            assert_eq!(
+                recorded.builds().len(),
+                builds_before,
+                "the admitted RHS needs no derived payload when the primary is empty"
+            );
         }
         let owner = Rc::clone(&file.owner);
         file.finish().unwrap();
@@ -142,4 +149,78 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         );
     }
     assert_eq!(total_builds, 2);
+    let calls = recorded.builds();
+    assert_eq!(calls.len(), 2);
+    assert!(calls.iter().all(|request| matches!(request,
+        ryo_derived::domain::contract::types::ViewRequest::Equality { columns }
+        if columns == &[ColumnIndex(right)])));
+    let providers = simple(&[], &[(1, 99)], RepresentationKind::Stored);
+    let right_refusals = Counter::new(0);
+    let read = |relation| {
+        if relation == providers[0].relation {
+            Ok(providers[0].rows())
+        } else {
+            assert_eq!(relation, providers[1].relation);
+            right_refusals.set(right_refusals.get() + 1);
+            Err(OperatingError::NotRead)
+        }
+    };
+    let mut file = open_file(
+        &prepared,
+        FileId(0),
+        ScopePartials::File {
+            evaluation: &[],
+            publication: &[],
+        },
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Forwarded,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        }],
+        Arc::clone(&services),
+        b"",
+        true,
+        &mut symbols,
+        None,
+        None,
+    )
+    .unwrap();
+    let mut rows = vec![];
+    assert!(matches!(
+        file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
+            rows.push(row.to_vec());
+            Ok(())
+        }),
+        Err(OperatingError::NotRead)
+    ));
+    assert_eq!(right_refusals.get(), 1);
+    assert!(rows.is_empty());
+    assert_eq!(file.owner.derived.counts().0, 0);
+    assert_eq!(
+        recorded.builds().len(),
+        2,
+        "refused supply cannot trigger a third generation payload"
+    );
+    file.finish().unwrap();
+    // The required malformed-key declaration still refuses an empty primary,
+    // before any equality payload can be acquired.
+    let mut invalid = request(&[left], &[99], &[(Side::Right, payload)]);
+    invalid.emit.step = StepId(0);
+    let actual = execute(
+        invalid,
+        simple(&[], &[(1, 99)], RepresentationKind::Stored),
+        &mut symbols,
+        b"",
+        false,
+        real_port(),
+        Faults::default(),
+    )
+    .unwrap();
+    assert!(matches!(
+        actual.result,
+        Err(OperatingError::Table(
+            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 99 }
+        ))
+    ));
+    assert!(actual.derived_builds.is_empty());
 }

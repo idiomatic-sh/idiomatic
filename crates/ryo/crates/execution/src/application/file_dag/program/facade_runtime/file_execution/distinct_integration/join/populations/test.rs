@@ -209,6 +209,14 @@ fn reach_join_keeps_lazy_acquisition_exact_cycle_order_duplicates_and_refusals()
     .unwrap();
     assert!(nothing.result.unwrap().cells.is_empty());
     assert_eq!(nothing.counts.0, 0);
+    assert!(
+        nothing.derived_builds.is_empty(),
+        "an empty primary builds neither partition order, closure adjacency nor an equality index"
+    );
+    assert!(
+        nothing.attempts.contains(&SourceAttempt::Available(1)),
+        "skipping payload never skips the required RHS source admission"
+    );
     for (left_fault, right_fault, error) in [
         (None, Some(OperatingError::NotRead), OperatingError::NotRead),
         (Some(OperatingError::NotRun), None, OperatingError::NotRun),

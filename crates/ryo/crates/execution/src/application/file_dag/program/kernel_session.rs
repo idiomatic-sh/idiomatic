@@ -206,15 +206,14 @@ impl KernelInvocation for KernelSession<'_, '_> {
             },
             failure: &failure,
         };
+        let order = self
+            .prepared
+            .native_order(region)
+            .map_err(InvocationFailure::Semantic)?;
         let mut derived = self
             .owner
             .derived
-            .finite_raw(
-                Rc::clone(&self.owner),
-                self.prepared
-                    .native_order(region)
-                    .map_err(InvocationFailure::Semantic)?,
-            )
+            .finite_raw(Rc::clone(&self.owner), order.clone())
             .map_err(InvocationFailure::Semantic)?;
         let mut sources = Vec::new();
         let mut rows = Vec::new();
@@ -234,6 +233,33 @@ impl KernelInvocation for KernelSession<'_, '_> {
             sources.push(publication.clone());
             rows.push(actual);
         }
+        if matches!(
+            permit.operation(),
+            ryo_values::domain::plans::types::Operation::Join { .. }
+        ) {
+            // Native step joins consume RawKeyOrder, not an ordinary Equality
+            // or optional NativeLookup payload. Check the actual compiled requirement.
+            if matches!(
+                permit.operation(),
+                ryo_values::domain::plans::types::Operation::Join {
+                    right: ryo_values::domain::plan_parts::types::Input::Step(_),
+                    ..
+                }
+            ) && order.is_none()
+            {
+                return Err(InvocationFailure::Semantic(OperatingError::WrongOperation));
+            }
+            if let Some(prepared) = &order {
+                prepared
+                    .validate()
+                    .map_err(crate::domain::operator::contract::derived::portable_fault)
+                    .map_err(InvocationFailure::Semantic)?;
+            }
+        }
+        let empty_native_join = matches!(
+            permit.operation(),
+            ryo_values::domain::plans::types::Operation::Join { .. }
+        ) && rows.first().is_some_and(|rows| count_of(rows).0 == 0);
         let shared_class = self.walk.and_then(|walk| {
             walk.class(self.prepared, instruction)
                 .map(|class| (walk, class))
@@ -295,6 +321,13 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 Some(crate::domain::positions::types::Positions {
                     width: crate::domain::lowering::types::RowWidth(1),
                     slots: crate::domain::positions::types::Slots(slots),
+                })
+            })
+        } else if empty_native_join {
+            crate::domain::native_positions::rows::source_tree(&rows).map(|tree| {
+                tree.map(|_| crate::domain::positions::types::Positions {
+                    width: shape.width,
+                    slots: crate::domain::positions::types::Slots::default(),
                 })
             })
         } else {
@@ -540,6 +573,18 @@ impl KernelInvocation for KernelSession<'_, '_> {
         {
             return Ok(super::runtime::StrategyOutcome::Declined);
         }
+        crate::domain::derived_views::service::validate(
+            ryo_derived::domain::contract::types::DerivedKind::Equality,
+            index_plan,
+        )
+        .map_err(InvocationFailure::Semantic)?;
+        if count_of(&left_rows).0 == 0 {
+            ryo_values::domain::rows::service::reset(
+                rows,
+                &permit.output_kinds().map_err(InvocationFailure::Semantic)?,
+            );
+            return Ok(super::runtime::StrategyOutcome::Executed);
+        }
         let acquired = self
             .owner
             .stored_equality(index_plan, chain.right, *right_source)
@@ -712,6 +757,8 @@ impl KernelInvocation for KernelSession<'_, '_> {
                     }
 
                     workspace.capture_admitted(publications.clone());
+                    InvocationResources::validate_row_metadata(contract, &views)
+                        .map_err(InvocationFailure::Semantic)?;
                     let meaning = &contract.semantics;
                     let mut resources = if matches!(meaning.shape, InputShape::Row { .. })
                     && meaning.acquisition

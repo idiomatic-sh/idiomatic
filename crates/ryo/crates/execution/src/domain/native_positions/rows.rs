@@ -22,26 +22,13 @@ pub(crate) fn evaluate(
     work: &mut PositionWork,
     counts: &WorkCounters,
 ) -> Result<Option<Positions>, OperatingError> {
-    if rows
-        .iter()
-        .any(|rows| !matches!(rows, Rows::Tree(_) | Rows::Positioned(_)))
-    {
-        return Ok(None);
-    }
-    let Some(tree) = rows.first().and_then(|rows| match rows {
-        Rows::Tree(tree) => Some(*tree),
-        Rows::Positioned(view) => Some(view.tree),
-        _ => None,
-    }) else {
+    let Some(tree) = source_tree(rows)? else {
         return Ok(None);
     };
     let mut direct = Vec::new();
     for rows in rows {
         match rows {
             Rows::Tree(each) => {
-                if !std::ptr::eq(each.elements, tree.elements) || each.file != tree.file {
-                    return Err(OperatingError::NotRead);
-                }
                 let fields = match each.form {
                     TreeForm::Elements => &crate::domain::lowering::constants::ELEMENT,
                     TreeForm::Edges => &crate::domain::lowering::constants::EDGE,
@@ -70,10 +57,7 @@ pub(crate) fn evaluate(
                     },
                 )));
             }
-            Rows::Positioned(view) => {
-                if !std::ptr::eq(view.tree.elements, tree.elements) || view.tree.file != tree.file {
-                    return Err(OperatingError::NotRead);
-                }
+            Rows::Positioned(_) => {
                 direct.push(None);
             }
             _ => return Err(OperatingError::WrongOperation),
@@ -98,4 +82,35 @@ pub(crate) fn evaluate(
         semantics, derived, operation, &tree, &inputs, shape, context, work, counts,
     );
     result.map(Some)
+}
+
+/// The same source compatibility check serves ordinary evaluation and an empty
+/// native publication; an empty primary cannot hide a foreign tree input.
+pub(crate) fn source_tree<'a>(
+    rows: &[Rows<'a>],
+) -> Result<Option<crate::domain::table_cells::types::TreeRows<'a>>, OperatingError> {
+    if rows
+        .iter()
+        .any(|rows| !matches!(rows, Rows::Tree(_) | Rows::Positioned(_)))
+    {
+        return Ok(None);
+    }
+    let Some(tree) = rows.first().and_then(|rows| match rows {
+        Rows::Tree(tree) => Some(*tree),
+        Rows::Positioned(view) => Some(view.tree),
+        _ => None,
+    }) else {
+        return Ok(None);
+    };
+    for rows in rows {
+        let each = match rows {
+            Rows::Tree(tree) => *tree,
+            Rows::Positioned(view) => view.tree,
+            _ => return Ok(None),
+        };
+        if !std::ptr::eq(each.elements, tree.elements) || each.file != tree.file {
+            return Err(OperatingError::NotRead);
+        }
+    }
+    Ok(Some(tree))
 }

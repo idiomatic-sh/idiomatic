@@ -545,3 +545,61 @@ fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal
         }
     }
 }
+
+#[test]
+fn empty_column_primary_admits_rhs_and_metadata_without_building_an_index() {
+    for bad_rhs in [
+        None,
+        Some(OperatingError::NotRead),
+        Some(OperatingError::ShapeMismatch),
+    ] {
+        let mut symbols = Symbols::default();
+        let [mut left, mut right] = sources(&mut symbols, 1, true);
+        for column in &mut left.columns {
+            column.0.clear();
+        }
+        let faults = if bad_rhs == Some(OperatingError::ShapeMismatch) {
+            right.columns.pop(); // Actual malformed metadata, not a fabricated refusal.
+            Faults::default()
+        } else {
+            Faults {
+                right: bad_rhs.clone(),
+                ..Faults::default()
+            }
+        };
+        let witness = Arc::new(Witness::default());
+        let actual = execute(
+            plan(),
+            [left, right],
+            &mut symbols,
+            b"",
+            false,
+            witness.clone(),
+            faults,
+        )
+        .unwrap();
+        assert!(
+            actual.column_prepared,
+            "the real compiled column strategy is installed"
+        );
+        if let Some(error) = bad_rhs {
+            assert_eq!(actual.result, Err(error));
+        } else {
+            let table = actual.result.unwrap();
+            assert_eq!(table.count, RowCount(0));
+            assert_eq!(
+                table.kinds,
+                [CellKind::Node, CellKind::File, CellKind::Node]
+            );
+        }
+        assert_eq!(witness.columns.load(Ordering::Relaxed), 0);
+        assert!(
+            actual.derived_builds.is_empty(),
+            "no equality, graph or other payload is built for an empty primary"
+        );
+        assert!(actual.attempts.iter().any(|attempt| matches!(
+            attempt,
+            SourceAttempt::Available(1) | SourceAttempt::Refused(1, _)
+        )));
+    }
+}

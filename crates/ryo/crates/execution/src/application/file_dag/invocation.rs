@@ -124,6 +124,36 @@ impl<'f> InvocationResources<'f> {
         })
     }
 
+    /// Validate required Join resource metadata without constructing a payload.
+    /// Availability, geometry and static output checks remain at their existing
+    /// owner boundaries; an optional unsupported native lookup still declines.
+    pub(in crate::application::file_dag) fn validate_row_metadata(
+        contract: &OperatorContract,
+        inputs: &[BorrowedRows<'_>],
+    ) -> Result<(), OperatingError> {
+        use ryo_derived::domain::contract::types::DerivedKind;
+        let ResourceProgram::Join(join) = &contract.resources else {
+            return Ok(());
+        };
+        let right = input(inputs, 1)?;
+        let validate = |kind| {
+            let request = prepared(contract, kind)?;
+            crate::domain::derived_views::service::validate(kind, &request.plan)
+        };
+        if join.reach.is_some() {
+            validate(DerivedKind::PartitionOrder)?;
+            validate(DerivedKind::ClosureAdjacency)
+        } else if matches!(right, BorrowedRows::Tree(_)) {
+            validate(DerivedKind::NativeLookup)
+        } else {
+            // The ordinary values driver has no native filter/view protocol.
+            if join.has_filter || !join.view.is_empty() {
+                return Err(OperatingError::WrongOperation);
+            }
+            validate(DerivedKind::Equality)
+        }
+    }
+
     pub(in crate::application::file_dag) fn prepare(
         contract: &OperatorContract,
         inputs: &[BorrowedRows<'f>],
@@ -132,6 +162,7 @@ impl<'f> InvocationResources<'f> {
         admission: &super::workspace::InvocationWorkspace,
         semantics: &super::execution::PrimitiveSemanticsBridge<'_>,
     ) -> Result<Self, OperatingError> {
+        Self::validate_row_metadata(contract, inputs)?;
         let mut resources = Self {
             cached_graph: None,
             inputs: InvocationInputs {

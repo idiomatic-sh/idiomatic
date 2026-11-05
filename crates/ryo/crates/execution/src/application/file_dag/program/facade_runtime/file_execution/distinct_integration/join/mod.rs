@@ -181,6 +181,7 @@ enum SourceAttempt {
     Available(usize),
     Refused(usize, OperatingError),
 }
+use crate::application::file_dag::derived::owner::resource_fixture::RecordedDerived;
 struct Observation {
     result: Result<Table, OperatingError>,
     prefix: Vec<Vec<Cell>>,
@@ -188,6 +189,7 @@ struct Observation {
     attempts: Vec<SourceAttempt>,
     work: ExecutionObservation,
     counts: (u64, u64, u64),
+    derived_builds: Vec<ryo_derived::domain::contract::types::ViewRequest>,
     fed: Vec<crate::domain::operator::types::RowsFed>,
     instructions: usize,
     native_prepared: bool,
@@ -199,6 +201,7 @@ struct Observation {
 /// Fixture behavior belongs to real external source/sink dependencies only.
 #[derive(Default)]
 struct Faults {
+    derived: Arc<RecordedDerived>,
     left: Option<OperatingError>,
     right: Option<OperatingError>,
     sink_after: Option<usize>,
@@ -257,7 +260,7 @@ fn execute(
 ) -> Result<Observation, OperatingError> {
     let target = request.emit.step;
     let has_frontier = !request.frontier.is_empty();
-    let derived = crate::application::file_dag::testing::program_derived_port();
+    let derived: Arc<dyn crate::outbound::derived::interface::DerivedPort> = faults.derived.clone();
     let prepared = facade::prepare(
         Compiled {
             plans: vec![request],
@@ -442,6 +445,7 @@ fn execute(
         attempts: attempts.into_inner(),
         work,
         counts,
+        derived_builds: faults.derived.builds(),
         fed,
         instructions,
         native_prepared,
