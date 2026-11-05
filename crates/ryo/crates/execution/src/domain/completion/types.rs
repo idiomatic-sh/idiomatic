@@ -12,3 +12,22 @@ pub(crate) enum CoverageState {
     Complete,
     Partial { files: Vec<Option<FileId>> },
 }
+
+/// Whether incomplete physical facts permit observation publication.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ObservationAdmission {
+    Ready,
+    Incomplete,
+}
+/// Whether evaluation must retain rows for physical coverage filtering.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RowRetention {
+    Required,
+    Unnecessary,
+}
+/// Whether physical evaluation inputs permit a region to run.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RegionAdmission {
+    Allowed,
+    Blocked,
+}

@@ -36,8 +36,14 @@ fn needs() -> Vec<RelationRead> {
 fn evaluation_refusal_cannot_become_complete_when_publication_inputs_are_complete() {
     let evaluation = [partial()];
     let policy = CompletionPolicy::file_inputs(RuleIndex(3), FileId(0), &evaluation, &[]);
-    assert!(!policy.allows_region(&needs()));
-    assert!(policy.observation_ready(&needs()));
+    assert_eq!(
+        policy.region_admission(&needs()),
+        crate::domain::completion::types::RegionAdmission::Blocked
+    );
+    assert_eq!(
+        policy.observation_admission(&needs()),
+        crate::domain::completion::types::ObservationAdmission::Ready
+    );
     assert_eq!(
         policy.blocked_coverage(),
         CoverageState::Partial {

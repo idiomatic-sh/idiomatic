@@ -31,7 +31,7 @@ pub(crate) fn file_frontier_coverage(
                     None => Ok(FrontierAffected::Repository),
                     Some(at) if at == file => Ok(FrontierAffected::CurrentFile),
                     Some(_) => Err(OperatingError::ObservationIncomplete {
-                        reason: "file frontier carries a foreign physical partition".into(),
+                        reason: super::constants::FOREIGN_PARTITION.into(),
                     }),
                 })
                 .collect::<Result<Vec<_>, _>>()?;
@@ -39,7 +39,7 @@ pub(crate) fn file_frontier_coverage(
             affected.dedup();
             if affected.is_empty() {
                 return Err(OperatingError::ObservationIncomplete {
-                    reason: "partial frontier has no affected physical partition".into(),
+                    reason: super::constants::EMPTY_PARTIAL.into(),
                 });
             }
             Ok(FrontierCoverage::Partial(affected))

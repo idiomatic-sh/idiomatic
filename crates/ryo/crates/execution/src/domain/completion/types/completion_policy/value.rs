@@ -13,7 +13,9 @@ use crate::domain::{
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::{plans::types::Operation, rows::types::Table};
 
-use super::super::{CoverageState, ScopeIdentity};
+use super::super::{
+    CoverageState, ObservationAdmission, RegionAdmission, RowRetention, ScopeIdentity,
+};
 #[derive(Clone, PartialEq, Eq)]
 enum CompletionBehavior {
     BlockBeforeRun(std::sync::Arc<[Partial]>),
@@ -91,16 +93,24 @@ impl CompletionPolicy {
             CoverageState::Partial { files }
         }
     }
-    pub(crate) fn observation_ready(&self, reads: &[RelationRead]) -> bool {
-        match &self.publication {
+    pub(crate) fn observation_admission(&self, reads: &[RelationRead]) -> ObservationAdmission {
+        let ready = match &self.publication {
             CompletionBehavior::BlockBeforeRun(partials) => {
                 blocked(reads, partials) == Blocking::Free
             }
             CompletionBehavior::DropAfterCollect(partials) => files_for(partials, reads).is_empty(),
+        };
+        if ready {
+            ObservationAdmission::Ready
+        } else {
+            ObservationAdmission::Incomplete
         }
     }
-    pub(crate) fn requires_buffer(&self) -> bool {
-        matches!(self.behavior, CompletionBehavior::DropAfterCollect(_))
+    pub(crate) fn row_retention(&self) -> RowRetention {
+        match self.behavior {
+            CompletionBehavior::DropAfterCollect(_) => RowRetention::Required,
+            CompletionBehavior::BlockBeforeRun(_) => RowRetention::Unnecessary,
+        }
     }
     pub(crate) fn filter_rows(
         &self,
@@ -114,12 +124,17 @@ impl CompletionPolicy {
             drop_uncertain(operation, &kinds, rows, &uncertain);
         }
     }
-    pub(crate) fn allows_region(&self, needs: &[RelationRead]) -> bool {
-        match &self.behavior {
+    pub(crate) fn region_admission(&self, needs: &[RelationRead]) -> RegionAdmission {
+        let allowed = match &self.behavior {
             CompletionBehavior::BlockBeforeRun(partials) => {
                 blocked(needs, partials) == Blocking::Free
             }
             CompletionBehavior::DropAfterCollect(_) => true,
+        };
+        if allowed {
+            RegionAdmission::Allowed
+        } else {
+            RegionAdmission::Blocked
         }
     }
     pub(crate) fn for_rule(&self, rule: RuleIndex) -> Self {

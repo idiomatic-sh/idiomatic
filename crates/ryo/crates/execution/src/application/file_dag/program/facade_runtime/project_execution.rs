@@ -184,7 +184,9 @@ impl ProjectRun<'_> {
                 if root.phase != ryo_values::domain::plans::types::StepScope::CrossFile {
                     continue;
                 }
-                let result = if completion.observation_ready(&root.reads) {
+                let result = if completion.observation_admission(&root.reads)
+                    == crate::domain::completion::types::ObservationAdmission::Ready
+                {
                     root.source
                         .clone()
                         .and_then(|source| sources.admit(source, &partition, context))

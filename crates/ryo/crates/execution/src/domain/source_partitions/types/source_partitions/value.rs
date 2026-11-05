@@ -1,4 +1,5 @@
 //! Request-prepared declarations from actual immutable producers, never operation kinds.
+use super::super::{HostedCount, PartitionRefusal};
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{PartitionRequirement, ProducerPartitions},
@@ -22,7 +23,7 @@ struct RulePartitions {
 /// These compact declarations belong to the same frozen request as the supplied sources.
 pub(crate) struct SourcePartitions {
     rules: Vec<Result<RulePartitions, OperatingError>>,
-    hosted: usize,
+    hosted: HostedCount,
 }
 impl SourcePartitions {
     pub(crate) fn new(
@@ -68,9 +69,7 @@ impl SourcePartitions {
             let mut observed = Vec::with_capacity(observations[index].len());
             for (ordinal, binding) in observations[index].iter().enumerate() {
                 if binding.input.0 as usize != ordinal {
-                    return Err(incomplete(
-                        "observation binding ordinal is not its declared slot",
-                    ));
+                    return Err(incomplete(PartitionRefusal::BindingOrdinal));
                 }
                 observed.push(observation_partition(
                     &rules[index],
@@ -89,7 +88,7 @@ impl SourcePartitions {
         // rows may name files without changing the lifetime of the source population.
         Ok(Self {
             rules: declarations,
-            hosted: hosted.len(),
+            hosted: HostedCount(hosted.len()),
         })
     }
     fn rule(&self, rule: RuleIndex) -> Result<&RulePartitions, OperatingError> {
@@ -103,7 +102,7 @@ impl SourcePartitions {
 impl ProducerPartitions for SourcePartitions {
     fn hosted(&self, rule: RuleIndex, relation: HostedNumber) -> Declaration {
         self.rule(rule)?;
-        if (relation.0 as usize) < self.hosted {
+        if (relation.0 as usize) < self.hosted.0 {
             Ok(PartitionRequirement::RequestInvariant)
         } else {
             Err(OperatingError::NotRead)
@@ -114,7 +113,7 @@ impl ProducerPartitions for SourcePartitions {
             .parameters
             .get(parameter.0 as usize)
             .cloned()
-            .unwrap_or(Err(OperatingError::Unbound))
+            .ok_or(OperatingError::Unbound)?
     }
     fn relation(&self, relation: Relation) -> PartitionRequirement {
         relation_partition(relation)
@@ -124,12 +123,12 @@ impl ProducerPartitions for SourcePartitions {
             .observations
             .get(input.0 as usize)
             .cloned()
-            .unwrap_or_else(|| Err(incomplete("observation input has no producer declaration")))
+            .ok_or_else(|| incomplete(PartitionRefusal::MissingDeclaration))?
     }
 }
-fn incomplete(reason: &str) -> OperatingError {
+fn incomplete(reason: PartitionRefusal) -> OperatingError {
     OperatingError::ObservationIncomplete {
-        reason: reason.into(),
+        reason: reason.to_string().into(),
     }
 }
 fn observation_partition(
@@ -143,77 +142,71 @@ fn observation_partition(
     let schema = plan
         .observation_inputs
         .get(ordinal)
-        .ok_or_else(|| incomplete("observation input ordinal is undeclared"))?;
+        .ok_or_else(|| incomplete(PartitionRefusal::UndeclaredInput))?;
     let declaration = rule
         .observations
         .iter()
         .find(|declaration| declaration.name == schema.name)
-        .ok_or_else(|| incomplete("observation has no authored consumer declaration"))?;
+        .ok_or_else(|| incomplete(PartitionRefusal::MissingConsumer))?;
     if schema != &binding.schema
         || declaration.columns != schema.columns
         || declaration.producers.len() != binding.producers.len()
     {
-        return Err(incomplete(
-            "observation does not match its actual consumer declaration",
-        ));
+        return Err(incomplete(PartitionRefusal::ConsumerMismatch));
     }
     if binding.producers.is_empty() {
-        return Err(incomplete("observation has no declared producer"));
+        return Err(incomplete(PartitionRefusal::MissingProducer));
     }
     let mut required = None;
     for (producer, authored) in binding.producers.iter().zip(&declaration.producers) {
         let ResolvedObservationProducer::Output { rule, output } = producer else {
-            return Err(incomplete("observation producer has no executable query"));
+            return Err(incomplete(PartitionRefusal::MissingQuery));
         };
         let producer = plans
             .get(rule.0)
-            .ok_or_else(|| incomplete("observation producer rule is missing"))?
+            .ok_or_else(|| incomplete(PartitionRefusal::MissingRule))?
             .as_ref()
             .map_err(Clone::clone)?;
         let root = producer
             .observations
             .get(output.0 as usize)
-            .ok_or_else(|| incomplete("observation producer output ordinal is undeclared"))?;
+            .ok_or_else(|| incomplete(PartitionRefusal::MissingOutput))?;
         let producer_rule = rules
             .get(rule.0)
-            .ok_or_else(|| incomplete("observation producer rule is missing"))?;
+            .ok_or_else(|| incomplete(PartitionRefusal::MissingRule))?;
         if !matches!(authored, ObservationProducer::Output { rule, output }
             if rule == &producer_rule.id && output == &root.name)
             || root.columns != schema.columns
         {
-            return Err(incomplete(
-                "observation producer differs from its authored output",
-            ));
+            return Err(incomplete(PartitionRefusal::OutputMismatch));
         }
         let phase = match root.source {
             Input::Step(step) => {
                 producer
                     .steps
                     .get(step.0 as usize)
-                    .ok_or_else(|| incomplete("observation producer root step is missing"))?
+                    .ok_or_else(|| incomplete(PartitionRefusal::MissingStep))?
                     .scope
             }
             Input::Relation(relation) => match relation_partition(relation) {
                 PartitionRequirement::Project => StepScope::CrossFile,
                 PartitionRequirement::CurrentFile => StepScope::PerFile,
                 PartitionRequirement::RequestInvariant | PartitionRequirement::InputLineage => {
-                    return Err(incomplete("relation has no concrete producer phase"));
+                    return Err(incomplete(PartitionRefusal::IndeterminatePhase));
                 }
             },
             Input::BoundObservation(input) => {
                 producer
                     .observation_inputs
                     .get(input.0 as usize)
-                    .ok_or_else(|| incomplete("observation producer root binding is missing"))?
+                    .ok_or_else(|| incomplete(PartitionRefusal::MissingBinding))?
                     .scope
             }
         };
         if root.scope != phase
             || (schema.scope == StepScope::PerFile && phase != StepScope::PerFile)
         {
-            return Err(incomplete(
-                "observation phase disagrees with its actual producer root",
-            ));
+            return Err(incomplete(PartitionRefusal::PhaseMismatch));
         }
         let partition = match schema.scope {
             StepScope::PerFile => PartitionRequirement::CurrentFile,
@@ -221,7 +214,7 @@ fn observation_partition(
         };
         required = Some(partition);
     }
-    required.ok_or_else(|| incomplete("observation has no declared producer"))
+    required.ok_or_else(|| incomplete(PartitionRefusal::MissingProducer))
 }
 /// Exhaustive over the owned catalog: adding a relation requires choosing its producer.
 /// Tree and engine populations are read for one file; manifest populations are read

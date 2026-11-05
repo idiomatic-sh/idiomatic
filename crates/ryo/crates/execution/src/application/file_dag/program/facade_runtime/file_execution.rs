@@ -218,7 +218,9 @@ impl FileRun<'_> {
                 if root.phase != ryo_values::domain::plans::types::StepScope::PerFile {
                     continue;
                 }
-                let result = if completion.observation_ready(&root.reads) {
+                let result = if completion.observation_admission(&root.reads)
+                    == crate::domain::completion::types::ObservationAdmission::Ready
+                {
                     root.source.clone().and_then(|source| {
                         sources.admit(
                             source,
@@ -334,7 +336,10 @@ impl FileRun<'_> {
                     &Partition::File(FileGeneration::from_owner(file, &self.owner)),
                     context,
                 )?;
-                let coverage = crate::domain::completion::service::file_frontier_coverage(admitted.coverage()?, file)?;
+                let coverage = crate::domain::completion::service::file_frontier_coverage(
+                    admitted.coverage()?,
+                    file,
+                )?;
                 let mut table = table_of(&self.owner, &admitted, read)?;
                 let before = places.len();
                 crate::domain::finish::service::escape(

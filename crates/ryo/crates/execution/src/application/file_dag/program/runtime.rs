@@ -141,7 +141,8 @@ struct Slot {
     remaining: usize,
     dependencies_consumed: bool,
     waiting_on: Option<RegionId>,
-    completion: Option<crate::domain::completion::types::completion_policy::value::CompletionPolicy>,
+    completion:
+        Option<crate::domain::completion::types::completion_policy::value::CompletionPolicy>,
 }
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
 /// reader counts occurs until the entire cancellation cascade validates.
@@ -599,7 +600,9 @@ impl ProgramExecution {
             .actions()
             .contains(&DemandAction::PublishAfterSuccess);
         let result: Result<InvocationOutcome, InvocationFailure> = (|| {
-            if !completion.allows_region(needs) {
+            if completion.region_admission(needs)
+                == crate::domain::completion::types::RegionAdmission::Blocked
+            {
                 let last = region
                     .instructions
                     .last()
@@ -943,7 +946,9 @@ impl ProgramExecution {
                 .last()
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             if let (Some(_), Delivery::Retain) = (&region.native_positions, &delivery) {
-                if !completion.requires_buffer() {
+                if completion.row_retention()
+                    == crate::domain::completion::types::RowRetention::Unnecessary
+                {
                     let frame = frames
                         .first_mut()
                         .ok_or(InvocationFailure::Semantic(OperatingError::NotRun))?;
@@ -980,7 +985,10 @@ impl ProgramExecution {
             }
             match delivery {
                 Delivery::Forward(output)
-                    if !region.publishes && !completion.requires_buffer() && !after_success =>
+                    if !region.publishes
+                        && completion.row_retention()
+                            == crate::domain::completion::types::RowRetention::Unnecessary
+                        && !after_success =>
                 {
                     let mut output = GuardedOutput {
                         output,
@@ -1011,13 +1019,14 @@ impl ProgramExecution {
                             crate::domain::completion::types::CoverageState::Complete
                         }
                         super::admission::Readiness::Partial { files } => {
-                            crate::domain::completion::types::CoverageState::Partial {
-                                files,
-                            }
+                            crate::domain::completion::types::CoverageState::Partial { files }
                         }
                     };
                     Ok(InvocationOutcome::Forwarded(
-                        crate::domain::completion::service::merge_coverage(inherited, completion.coverage(needs)),
+                        crate::domain::completion::service::merge_coverage(
+                            inherited,
+                            completion.coverage(needs),
+                        ),
                     ))
                 }
                 delivery => {
@@ -1041,7 +1050,9 @@ impl ProgramExecution {
                             )?;
                         }
                         Delivery::Forward(output)
-                            if completion.requires_buffer() || after_success =>
+                            if completion.row_retention()
+                                == crate::domain::completion::types::RowRetention::Required
+                                || after_success =>
                         {
                             let mut collect = crate::domain::replay::types::Collect(&mut rows);
                             continuation(
@@ -1112,7 +1123,9 @@ impl ProgramExecution {
                             rows,
                         )
                         .map_err(InvocationFailure::Semantic)?;
-                    let published = if completion.observation_ready(needs) {
+                    let published = if completion.observation_admission(needs)
+                        == crate::domain::completion::types::ObservationAdmission::Ready
+                    {
                         published
                     } else {
                         published.with_coverage(completion.coverage(needs))
