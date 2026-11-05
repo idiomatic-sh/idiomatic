@@ -47,6 +47,11 @@ rules = [
   { rule = "idiomatic.ryo/absence-cites-the-standard", include = ["languages/*/src/inbound/contracts/*/contract.rs"], description = "A language contract's answer that the language lacks a relation, `AbsenceCause::NoSuchConstruct` or `AbsenceCause::NoManifests`, cites the standard: a `standard:` comment in the method names the document and section that lacks it." },
 ]
 templates = [
+  { alias = "lint-project-budget-module", template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/mod.rs", description = "Normal module registration for real lint project budget controls." },
+  { alias = "lint-project-budget-fixtures", template = "idiomatic.ryo/program-runtime-proof", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/fixtures.rs", description = "Injected memory pressure follows actual portable reduction work through the production lint fixture." },
+  { alias = "lint-project-budget-types", template = "idiomatic.arch/types", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/types.rs", params = { kind = "use-case", part = "project_budget" }, description = "Named route, memory disposition and observed reduction data for lint budget controls." },
+  { alias = "lint-project-budget-test", template = "idiomatic.arch/unit-test", file = "crates/core/src/inbound/use_cases/lint/use_case_test/project_budget/test.rs", params = { kind = "use-case", part = "project_budget" }, description = "Six independent real lint ordinary/named budget, unreadable-memory and success rows." },
+
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/source_boundary/mod.rs", description = "Normal Rust test registration for same-crate authority proofs." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/source_boundary/test.rs", description = "Actual production-source overlay compiles authorized runtime and rejects sibling authority bypasses." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "crates/execution/tests/scheduler/mod.rs", description = "Public inbound scheduler source, terminal delivery and physical dependency controls." },
