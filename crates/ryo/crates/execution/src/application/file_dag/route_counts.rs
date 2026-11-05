@@ -397,48 +397,6 @@ pub(crate) fn row_file(
     });
 }
 #[cfg(feature = "diagnostic-row-progress")]
-pub(crate) fn input_cardinality(which: usize, rows: usize) {
-    STATE.with_borrow_mut(|state| {
-        let Some(state) = state else {
-            return;
-        };
-        let key = (
-            state.origin.rule,
-            state.origin.namespace,
-            state.origin.node,
-            which,
-        );
-        if state.progress.inputs.contains_key(&key) || state.progress.inputs.len() < MAX_KEYS {
-            state.progress.inputs.insert(key, rows);
-        } else {
-            state.overflow += 1;
-        }
-    });
-}
-#[cfg(feature = "diagnostic-row-progress")]
-pub(crate) fn node_description(operation: &ryo_values::domain::plans::types::Operation) {
-    STATE.with_borrow_mut(|state| {
-        let Some(state) = state else {
-            return;
-        };
-        let Some(node) = state.origin.node else {
-            return;
-        };
-        if !state
-            .progress
-            .nodes
-            .contains_key(&(state.origin.rule, state.origin.namespace, node))
-            && state.progress.nodes.len() < MAX_KEYS
-        {
-            let text = format!("{operation:?}");
-            state.progress.nodes.insert(
-                (state.origin.rule, state.origin.namespace, node),
-                text.chars().take(8192).collect(),
-            );
-        }
-    });
-}
-#[cfg(feature = "diagnostic-row-progress")]
 pub(crate) fn progress(
     counter: crate::domain::operator::contract::views::ProgressCounter,
     amount: u64,
@@ -446,14 +404,12 @@ pub(crate) fn progress(
     use crate::domain::operator::contract::views::ProgressCounter;
     let label = match counter {
         ProgressCounter::InputRows => "input_rows",
-        ProgressCounter::EmittedRows => "emitted_rows",
         ProgressCounter::PredicateEvaluations => "predicate_evaluations",
         ProgressCounter::IndexProbes => "index_probes",
         ProgressCounter::IndexRowsExamined => "index_chain_rows_examined",
         ProgressCounter::EqualityMatches => "equality_matches",
         ProgressCounter::JoinCandidatePairs => "join_candidate_pairs",
         ProgressCounter::KernelOutputRows => "kernel_output_rows",
-        ProgressCounter::PositionRowsYielded => "position_rows_yielded",
     };
     let flush = STATE.with_borrow_mut(|state| {
         let Some(state) = state else {

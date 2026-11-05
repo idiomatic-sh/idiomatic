@@ -262,9 +262,6 @@ impl RelationOwner {
         }))
     }
     /// Custody of a supplied flat source, preserving exact geometry for first-borrow inspection.
-    pub(super) fn source_computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
-        self.source_shared_computed(Arc::new(table))
-    }
     pub(super) fn source_shared_computed(
         &self,
         table: Arc<Table>,
