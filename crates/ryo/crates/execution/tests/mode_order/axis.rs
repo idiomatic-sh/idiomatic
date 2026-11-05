@@ -39,16 +39,15 @@ fn empty_axis_has_identical_admission_for_both_delivery_apis() {
         collected_reads,
         "delivery must not change demanded sources"
     );
-    match collected {
-        RootOutcome::Failed(error) => {
-            assert!(matches!(callback.result, Err(actual) if actual == error))
-        }
-        RootOutcome::Complete(table) => {
-            assert_eq!(table.count, RowCount(0));
-            assert!(callback.result.is_ok());
-        }
-        _ => panic!("expected complete evaluation or semantic failure"),
-    }
+    assert!(matches!(
+        collected,
+        RootOutcome::Failed(OperatingError::NotRead)
+    ));
+    assert!(matches!(callback.result, Err(OperatingError::NotRead)));
+    assert!(
+        collected_reads.contains(&Relation::SemanticChild),
+        "empty primary cannot suppress the required edge input"
+    );
     assert!(callback.rows.is_empty());
 }
 
@@ -82,7 +81,9 @@ fn axis_error_order_is_identical_for_both_delivery_apis_and_source_shapes() {
         let RootOutcome::Failed(error) = evaluate(authored(), &read) else {
             panic!("the unavailable source must fail evaluation");
         };
+        assert_eq!(error, OperatingError::WrongBinding);
         let collected_reads = reads.take();
+        assert_eq!(collected_reads, vec![Relation::Function]);
         let callback = deliver(authored(), &read);
         assert!(matches!(callback.result, Err(actual) if actual == error));
         assert_eq!(*reads.borrow(), collected_reads);
