@@ -59,7 +59,7 @@
 | 30. Jobs and scheduler | `ryo-core` + scheduler adapter | ☐ | — | ☐ | — | ☐ | Prove worker boundaries and executor lifetime independently of reporting. |
 | 31. Core inbound use cases | `ryo-core` | ☐ | — | — | — | ☐ | Audit all seven use cases and injected ports, including CLI composition. |
 | 32. SDK and CLI composition | `ryo-sdk` + `ryo-cli` | ☐ | — | — | — | ☐ | Compose each port once at the edge; do not expose engine-private implementation. |
-| 33. Shared benchmark harness | `ryo-benchmark` | — | — | — | — | — | Verify final 413-rule inventory and workload with source-bound receipts. |
+| 33. Shared benchmark harness | `ryo-benchmark`; language-local artifact placement | — | — | — | — | — | Benchmark protocol-role correction replaces unbounded executable/JSON suffix families with exact observed basenames, treats the 12 captured one-line Python inputs as evidence data, and rejects ten filename escapes. Installed asset validation passes (one proven, zero failed). Matched Ruff TM scope falls 1,572→1,162 with zero suppressed, zero duplicate placement and no introduced rule/path/message findings; 86 closed files and other structural debt remain. Source-only placement proof does not certify runtime or 413-rule correctness. |
 | 34. Provider internals | ten provider crates | — | — | — | — | — | Parser sessions and source meaning stay local; audit each declared relation route. |
 
 Open input-route review: collected cross-file `capture_inputs` currently labels non-relation inputs `External`, so producer identity preservation is unproved under rows 18 and 22. The native forced-held Join route also needs a `Feed::found` accounting comparison against its earlier streamed route. Feed interface hardening alone closes neither route.
