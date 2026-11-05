@@ -551,7 +551,9 @@ impl FileAnalysis {
                         )
                         .into());
                     }
-                    RootOutcome::Skipped(_) | RootOutcome::NoQuery => {}
+                    RootOutcome::Skipped(_)
+                    | RootOutcome::NoQuery
+                    | RootOutcome::Deferred { .. } => {}
                 }
             }
             let captures = {

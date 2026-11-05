@@ -155,6 +155,14 @@ impl ProjectRun<'_> {
         let emit = match demand.emit {
             EmitDemand::Disabled => RootOutcome::NoQuery,
             EmitDemand::Enabled => match &metadata.emit_root {
+                Ok(id)
+                    if self.program.program().regions()[id.0].phase
+                        != ryo_values::domain::plans::types::StepScope::CrossFile =>
+                {
+                    RootOutcome::Deferred {
+                        phase: self.program.program().regions()[id.0].phase,
+                    }
+                }
                 Ok(id) => outcome_of(
                     self.execution.invoke(
                         *id,

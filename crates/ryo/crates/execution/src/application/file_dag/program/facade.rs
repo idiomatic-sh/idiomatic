@@ -81,6 +81,10 @@ pub enum RootOutcome {
     Unknown(OperatingError),
     Failed(OperatingError),
     NoQuery,
+    /// This compiled root belongs to another execution phase and has not run.
+    Deferred {
+        phase: StepScope,
+    },
 }
 /// Opaque application handover of the actual admitted population. Packed bytes
 /// may accompany it, but never substitute for its owner/generation evidence.
@@ -669,6 +673,10 @@ use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// Successful row delivery preserves physical uncertainty rather than fabricating an empty table.
 pub enum RowEmission {
+    /// No rows were delivered: the compiled root belongs to this later phase.
+    Deferred {
+        phase: StepScope,
+    },
     Complete,
     Partial {
         affected: Vec<Option<ryo_relations::domain::relations::types::FileId>>,

@@ -56,7 +56,7 @@ pub(crate) fn evaluate_cross_roots(
             roots.emit_affected = Some(affected);
         }
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => roots.emit_error = Some(error),
-        RootOutcome::Skipped(_) | RootOutcome::NoQuery => {}
+        RootOutcome::Skipped(_) | RootOutcome::NoQuery | RootOutcome::Deferred { .. } => {}
     }
     let mut publications = Vec::new();
     for (output, outcome) in outcome.observations {
@@ -81,7 +81,7 @@ pub(crate) fn evaluate_cross_roots(
                 (None, ProducerReadiness::Skipped)
             }
             ProjectObservation::Other(RootOutcome::NoQuery) => (None, ProducerReadiness::NoQuery),
-            ProjectObservation::Other(RootOutcome::Complete(_)) => {
+            ProjectObservation::Other(RootOutcome::Complete(_) | RootOutcome::Deferred { .. }) => {
                 return Err(OperatingError::WrongOperation);
             }
         };

@@ -135,6 +135,35 @@ pub(crate) struct ExecutableProgram {
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
 }
 impl ExecutableProgram {
+    /// The prepared physical phase of an original frontier root. No file or
+    /// project runtime can change this declaration while admitting its input.
+    pub(crate) fn frontier_phase(&self, source: InputSource) -> Result<StepScope, OperatingError> {
+        match source {
+            InputSource::Relation(_) => match self.source_partition(source)? {
+                PartitionRequirement::CurrentFile => Ok(StepScope::PerFile),
+                PartitionRequirement::Project => Ok(StepScope::CrossFile),
+                _ => Err(OperatingError::WrongOperation),
+            },
+            InputSource::Region(id) => self
+                .regions
+                .get(id.0)
+                .map(|region| region.phase)
+                .ok_or(OperatingError::NotRun),
+            InputSource::Observation(slot) => {
+                let root = self
+                    .observation_regions
+                    .get(slot)
+                    .ok_or(OperatingError::NotRun)?
+                    .as_ref()
+                    .map_err(Clone::clone)?;
+                self.regions
+                    .get(root.0)
+                    .map(|region| region.phase)
+                    .ok_or(OperatingError::NotRun)
+            }
+            _ => Err(OperatingError::WrongOperation),
+        }
+    }
     pub(crate) fn source_partition(
         &self,
         source: InputSource,

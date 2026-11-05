@@ -188,6 +188,14 @@ impl FileRun<'_> {
         let emit = match demand.emit {
             EmitDemand::Disabled => RootOutcome::NoQuery,
             EmitDemand::Enabled => match &metadata.emit_root {
+                Ok(id)
+                    if self.program.program().regions()[id.0].phase
+                        != ryo_values::domain::plans::types::StepScope::PerFile =>
+                {
+                    RootOutcome::Deferred {
+                        phase: self.program.program().regions()[id.0].phase,
+                    }
+                }
                 Ok(id) => outcome_of(
                     self.execution.invoke(
                         *id,
@@ -311,6 +319,14 @@ impl FileRun<'_> {
         } = capture;
         let crate::domain::finish::types::Retained { arena, places } = retained;
         for (index, source) in sources.into_iter().enumerate() {
+            if let Ok(source) = source.as_ref()
+                && matches!(
+                    self.program.program().frontier_phase(*source),
+                    Ok(ryo_values::domain::plans::types::StepScope::CrossFile)
+                )
+            {
+                continue;
+            }
             let input = InputNumber(index);
             let outcome = (|| {
                 let admitted = inputs.admit(
@@ -506,6 +522,7 @@ fn readiness_of(
             ProducerReadiness::Unknown(ObservationReason(error.to_string().into()))
         }
         RootOutcome::NoQuery => ProducerReadiness::NoQuery,
+        RootOutcome::Deferred { .. } => return None,
     })
 }
 
@@ -614,6 +631,10 @@ impl FileRun<'_> {
             }
         }
         let id = metadata.emit_root.as_ref().map_err(Clone::clone)?;
+        let phase = self.program.program().regions()[id.0].phase;
+        if phase != ryo_values::domain::plans::types::StepScope::PerFile {
+            return Ok(super::super::facade::RowEmission::Deferred { phase });
+        }
         let mut output = ForwardRows(each);
         let coverage = match self.execution.invoke(
             *id,
