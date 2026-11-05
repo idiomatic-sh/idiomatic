@@ -773,6 +773,7 @@ impl ProgramExecution {
         let producer_policy = completion.for_rule(region.producer);
         let completion = &producer_policy;
         // A scope borrow never crosses admission, kernels or downstream callbacks.
+        let started;
         let mut scratch = {
             let mut slots = self.slots.borrow_mut();
             let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
@@ -788,6 +789,9 @@ impl ProgramExecution {
                 State::Retired => return Err(OperatingError::NotRun),
                 State::Dormant | State::Suspended | State::Ready => {}
             }
+            started =
+                tracing::enabled!(target: "ryo::diagnostic::execution", tracing::Level::TRACE)
+                    .then(std::time::Instant::now);
             let fresh = matches!(slot.state, State::Dormant);
             slot.state = State::Running;
             if slot.scratch.is_empty() {
@@ -813,6 +817,8 @@ impl ProgramExecution {
             scratch: Some(scratch),
             terminal: Terminal::Retry,
             admission: None,
+            started,
+            prepare_only,
         };
         let first = region.instructions.first().ok_or(OperatingError::NotRun)?;
         let needs = region.needs.as_ref().map_err(Clone::clone)?;
@@ -1243,10 +1249,13 @@ struct Invocation<'a> {
     scratch: Option<Vec<KernelScratch>>,
     terminal: Terminal,
     admission: Option<AdmissionProgress>,
+    started: Option<std::time::Instant>,
+    prepare_only: bool,
 }
 impl Drop for Invocation<'_> {
     fn drop(&mut self) {
         let mut slots = self.execution.slots.borrow_mut();
+        let mut committed_outcome = "missing";
         if let Some(slot) = slots.get_mut(self.id.0) {
             slot.scratch = self.scratch.take().unwrap_or_default();
             slot.admission = match self.terminal {
@@ -1286,9 +1295,31 @@ impl Drop for Invocation<'_> {
                 },
                 Terminal::Failed(error) => State::Failed(error.clone()),
             };
+            committed_outcome = match slot.state {
+                State::Dormant => "retry",
+                State::Suspended => "suspended",
+                State::Ready => "ready",
+                State::Running => "running",
+                State::Published(_) => "published",
+                State::Retired => "retired",
+                State::Failed(_) => "failed",
+            };
         }
         drop(slots);
         self.execution.wake_retirements(self.id);
+        if let (Some(started), Some(region)) = (
+            self.started,
+            self.execution.program.regions().get(self.id.0),
+        ) {
+            // Each segment excludes scheduler wait and cached publication reads.
+            // The committed slot outcome is not a claim about the caller's final result.
+            tracing::trace!(target: "ryo::diagnostic::execution", event = "region_poll", region = self.id.0,
+                producer = region.producer.0, phase = ?region.phase,
+                logical = ?region.instructions.first().map(|instruction| instruction.logical.0),
+                operation = ?region.instructions.first().map(|instruction| ryo_values::domain::plans::service::kind_of(&instruction.operation)),
+                instructions = region.instructions.len(), prepare_only = self.prepare_only,
+                committed_outcome, elapsed_ns = started.elapsed().as_nanos() as u64);
+        }
     }
 }
 
