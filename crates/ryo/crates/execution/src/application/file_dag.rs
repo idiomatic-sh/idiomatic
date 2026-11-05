@@ -8,8 +8,6 @@ pub(crate) mod predicates;
 pub(crate) mod request;
 pub(crate) mod resources;
 #[cfg(test)]
-mod service_test;
-#[cfg(test)]
 pub(crate) mod testing;
 pub(crate) mod types;
 pub(crate) mod workspace;
@@ -26,7 +24,6 @@ pub(crate) mod selected;
 pub(in crate::application) mod relations;
 
 pub(crate) mod executor;
-pub(crate) mod pipeline;
 
 #[cfg(test)]
 pub(crate) mod acceptance;

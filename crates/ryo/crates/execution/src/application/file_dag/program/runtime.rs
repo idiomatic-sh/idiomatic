@@ -202,6 +202,28 @@ pub(super) struct RetryCheckpoint {
     pub(super) remaining: ReaderCount,
     pub(super) dependencies: DependencyCheckpoint,
 }
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ConsumerReleasePoint {
+    Before,
+    After,
+}
+#[cfg(test)]
+pub(super) struct ProducerLeaseEvent {
+    pub consumer: RegionId,
+    pub point: ConsumerReleasePoint,
+    pub checkpoint: RetryCheckpoint,
+    pub working_bytes: usize,
+    pub index_live: bool,
+    pub index:
+        Option<std::sync::Weak<crate::application::file_dag::derived::storage::DerivedStorage>>,
+}
+#[cfg(test)]
+struct ProducerLeaseProbe {
+    producer: RegionId,
+    consumers: Box<[RegionId]>,
+    events: Vec<ProducerLeaseEvent>,
+}
 struct Slot {
     #[cfg(test)]
     observed: crate::domain::operating::types::ExecutionObservation,
@@ -246,6 +268,8 @@ pub(crate) struct ProgramExecution {
     retirement: RefCell<RetirementWork>,
     cleanup_failure: RefCell<Option<OperatingError>>,
     readiness_counts: RefCell<crate::domain::readiness::types::ReadinessCounts>,
+    #[cfg(test)]
+    producer_lease_probe: RefCell<Option<ProducerLeaseProbe>>,
 }
 /// Constructors are private to the outer execution owner; no primitive can open
 /// another scope or choose a scheduler.
@@ -298,6 +322,8 @@ impl ProgramExecution {
             slots: RefCell::new(slots),
             cleanup_failure: RefCell::new(None),
             readiness_counts: RefCell::new(Default::default()),
+            #[cfg(test)]
+            producer_lease_probe: RefCell::new(None),
         }
     }
     fn record_column(
@@ -318,6 +344,64 @@ impl ProgramExecution {
             }
         }
         Ok(())
+    }
+    /// Observe actual release boundaries without retaining a producer or a backing lease.
+    #[cfg(test)]
+    pub(super) fn observe_producer_releases(
+        &self,
+        producer: RegionId,
+        consumers: &[RegionId],
+    ) -> Result<(), OperatingError> {
+        if producer.0 >= self.program.regions().len()
+            || consumers
+                .iter()
+                .any(|id| id.0 >= self.program.regions().len())
+            || self.producer_lease_probe.borrow().is_some()
+        {
+            return Err(OperatingError::NotRun);
+        }
+        *self.producer_lease_probe.borrow_mut() = Some(ProducerLeaseProbe {
+            producer,
+            consumers: consumers.into(),
+            events: vec![],
+        });
+        Ok(())
+    }
+    #[cfg(test)]
+    fn observe_consumer_release(&self, consumer: RegionId, point: ConsumerReleasePoint) {
+        let mut probe = self.producer_lease_probe.borrow_mut();
+        let Some(probe) = probe
+            .as_mut()
+            .filter(|probe| probe.consumers.contains(&consumer))
+        else {
+            return;
+        };
+        let checkpoint = self
+            .retry_checkpoint(probe.producer)
+            .expect("observed actual producer");
+        let index = self
+            .owner
+            .derived
+            .view_weak(ryo_derived::domain::contract::types::DerivedKind::Equality);
+        let index_live = index
+            .as_ref()
+            .is_some_and(|index| index.upgrade().is_some());
+        probe.events.push(ProducerLeaseEvent {
+            consumer,
+            point,
+            checkpoint,
+            working_bytes: self.owner.derived.working_bytes(),
+            index,
+            index_live,
+        });
+    }
+    #[cfg(test)]
+    pub(super) fn take_producer_releases(&self) -> Vec<ProducerLeaseEvent> {
+        self.producer_lease_probe
+            .borrow_mut()
+            .take()
+            .expect("installed read-only lifecycle observer")
+            .events
     }
     /// Observes completed dispatches even after the real retirement drops invocation scratch.
     #[cfg(test)]
@@ -463,12 +547,16 @@ impl ProgramExecution {
     /// A prepared consumer obligation can finish once. The whole transitive
     /// cancellation is preflighted before any slot, count or lease changes.
     fn release_inputs(&self, consumer: RegionId) -> Result<(), OperatingError> {
+        #[cfg(test)]
+        self.observe_consumer_release(consumer, ConsumerReleasePoint::Before);
         let result = self.retire(Retirement::Consumer(consumer));
         if let Err(error) = &result {
             self.cleanup_failure
                 .borrow_mut()
                 .get_or_insert(error.clone());
         }
+        #[cfg(test)]
+        self.observe_consumer_release(consumer, ConsumerReleasePoint::After);
         result
     }
     pub(super) fn cancel_roots(&self, roots: &[RegionId]) -> Result<(), OperatingError> {
@@ -1240,6 +1328,7 @@ impl Drop for Invocation<'_> {
                 if let Some(workspace) = &mut scratch.workspace {
                     #[cfg(test)]
                     {
+                        slot.observed = workspace.measured();
                         slot.native_positions +=
                             std::mem::take(&mut workspace.observation.native_positions);
                         slot.registered_calls +=

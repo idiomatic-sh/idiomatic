@@ -705,6 +705,11 @@ impl FileRun<'_> {
         self.execution.finish()?;
         Ok(readiness)
     }
+    /// Weak lifetime observation only; the test never retains a workspace or owner.
+    #[cfg(test)]
+    pub(crate) fn owner_lifetime(&self) -> std::rc::Weak<RelationOwner> {
+        Rc::downgrade(&self.owner)
+    }
     /// Read-only test telemetry from actual common-program dispatch and retirement.
     #[cfg(test)]
     pub(crate) fn route_observation(
@@ -713,6 +718,12 @@ impl FileRun<'_> {
         step: ryo_values::domain::plan_parts::types::StepId,
     ) -> Result<crate::domain::operating::types::ExecutionObservation, OperatingError> {
         self.execution.route_observation(rule, step)
+    }
+    #[cfg(test)]
+    pub(crate) fn resource_fixture_counts(
+        &self,
+    ) -> crate::application::file_dag::derived::owner::resource_fixture::Snapshot {
+        self.owner.derived.resource_fixture_counts()
     }
     #[cfg(test)]
     pub(crate) fn observation_routes(

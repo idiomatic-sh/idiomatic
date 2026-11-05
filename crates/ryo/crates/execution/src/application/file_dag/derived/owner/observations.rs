@@ -33,6 +33,19 @@ impl DerivedOwner {
     }
 
     #[cfg(test)]
+    pub(crate) fn resource_fixture_counts(&self) -> super::resource_fixture::Snapshot {
+        let backend = self.backend.borrow();
+        let cache = backend.as_ref().expect("configured actual owner");
+        super::resource_fixture::Snapshot {
+            builds: cache.builds,
+            reuses: cache.reuses,
+            entries: self.retained_index_count(),
+            graph_builds: cache.graph_counts.builds,
+            graph_reuses: cache.graph_counts.reuses,
+            graph_early_stops: cache.graph_counts.early_stops,
+        }
+    }
+    #[cfg(test)]
     pub(crate) fn index_fixture_state(&self) -> (u64, u64, usize, bool) {
         self.backend
             .borrow()
