@@ -10,7 +10,7 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, PlannedColumn, Sourced, Uniqueness};
 use crate::domain::planning::service::push;
 use crate::domain::resolving::service::{
-    column_of, input_argument, position, positions_of, slot_named, word_of, words_of,
+    column_of, input_argument, position, positions_of, argument_named, word_of, words_of,
 };
 use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
@@ -142,10 +142,10 @@ pub(crate) fn call_fits_rendered(
     {
         return Err(LoweringError::KindMismatch { span: call.span });
     }
-    let ArgumentValue::Number(max_line) = slot_named(call, ArgumentSlot::MaxLine)? else {
+    let ArgumentValue::Number(max_line) = argument_named(call, ArgumentSlot::MaxLine)? else {
         return Err(LoweringError::InvalidSemanticLiteral { span: call.span });
     };
-    let ArgumentValue::Number(tab_width) = slot_named(call, ArgumentSlot::TabWidth)? else {
+    let ArgumentValue::Number(tab_width) = argument_named(call, ArgumentSlot::TabWidth)? else {
         return Err(LoweringError::InvalidSemanticLiteral { span: call.span });
     };
     let Ok(tab_width) = u32::try_from(tab_width.0) else {
