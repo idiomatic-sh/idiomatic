@@ -75,9 +75,10 @@ fn normalize_frame(
     let mut places = Vec::new();
     for value in &mut table.cells {
         let Value::Name(name) = *value else { continue };
+        let name_hash = name.hash;
         if name.place.0 & CROSS_PLACE != 0 {
             let symbol = Symbol(name.place.0 & !CROSS_PLACE);
-            if name_made_across(leaving.symbols, symbol).map(|made| made.hash) != Some(name.hash) {
+            if name_made_across(leaving.symbols, symbol).map(|made| made.hash) != Some(name_hash) {
                 return Err(PublicationReason::CrossNameMismatch);
             }
             *value = Value::Symbol(symbol);
@@ -114,14 +115,14 @@ fn normalize_frame(
                     .0
                     .get(range)
                     .ok_or(PublicationReason::InheritedRangeMissing)?;
-                if hash_of(ByteSlice(bytes)) != name.hash || std::str::from_utf8(bytes).is_err() {
+                if hash_of(ByteSlice(bytes)) != name_hash || std::str::from_utf8(bytes).is_err() {
                     return Err(PublicationReason::InheritedTextMismatch);
                 }
                 None
             }
         };
         if let Some(bytes) = local {
-            if hash_of(ByteSlice(bytes)) != name.hash {
+            if hash_of(ByteSlice(bytes)) != name_hash {
                 return Err(PublicationReason::LocalHashMismatch);
             }
             let start = u32::try_from(arena.0.len())
@@ -144,7 +145,7 @@ fn normalize_frame(
         }
         places.push(place);
         *value = Value::Name(ryo_relations::domain::relations::types::Name {
-            hash: name.hash,
+            hash: name_hash,
             place: PlaceNumber(index),
         });
     }
