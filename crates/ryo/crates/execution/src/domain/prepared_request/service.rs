@@ -1,7 +1,7 @@
 //! Resolve caller plans against actual declarations before executable preparation.
 use super::types::Compiled;
 use crate::domain::file_program::{
-    errors::ObservationError,
+    errors::FileProgramError,
     service::{link, observations},
 };
 use ryo_values::domain::{
@@ -11,9 +11,9 @@ pub(crate) fn assemble(
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,
     rules: &[RuleSpec],
-) -> Result<Compiled, ObservationError> {
+) -> Result<Compiled, FileProgramError> {
     if plans.len() != rules.len() || bindings.len() != rules.len() {
-        return Err(ObservationError::InvalidReference);
+        return Err(FileProgramError::InvalidReference);
     }
     let schedule = observations::schedule(rules)?;
     let borrowed = plans.iter().map(Some).collect::<Vec<_>>();

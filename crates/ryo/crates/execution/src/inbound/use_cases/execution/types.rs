@@ -205,7 +205,7 @@ pub use crate::domain::operator::types::TreeSteps;
 pub use crate::domain::column_kernel::types::KernelStrategy;
 
 pub use crate::domain::coverage::types::{FilePartial, Lacking, LackingKind};
-pub use crate::domain::file_program::errors::ObservationError;
+pub use crate::domain::file_program::errors::FileProgramError;
 pub use crate::domain::spelling::errors::SpellingError;
 
 pub use crate::application::file_dag::program::facade::RowEmission;

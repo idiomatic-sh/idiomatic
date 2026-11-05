@@ -1,7 +1,7 @@
 //! Request-graph named binding configuration refusals.
 /// A configuration error, never an absent successful publication.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
-pub enum ObservationError {
+pub enum FileProgramError {
     #[error("too many named roots or input bindings")]
     TooManyOutputs,
     #[error("named-root plan or input reference is invalid")]
@@ -18,7 +18,7 @@ pub enum ObservationError {
     #[error("rule `{producer}` does not export `{output}`")]
     MissingOutput { producer: String, output: String },
     #[error("rule `{consumer}` binds incompatible schema from `{producer}` output `{output}`")]
-    Schema {
+    IncompatibleObservationColumns {
         consumer: String,
         producer: String,
         output: String,

@@ -1,7 +1,7 @@
 //! Retained findings depend on actual producer digests, through original rule indices.
 use super::errors::RuleCompilationError;
 use crate::domain::file_program::{
-    errors::ObservationError,
+    errors::FileProgramError,
     types::{ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule},
 };
 use crate::outbound::digest::{interface::DigestPort, types::DigestBytes};
@@ -22,7 +22,7 @@ pub(crate) fn with_producers(
         });
     };
     if rules.len() != plans.len() {
-        return Err(ObservationError::InvalidReference.into());
+        return Err(FileProgramError::InvalidReference.into());
     }
     let layout = rules
         .iter()
@@ -51,12 +51,12 @@ pub(crate) fn with_producers(
                     outputs,
                     frontiers: ryo_values::domain::observations::types::ObservationFrontierCount(
                         u32::try_from(plan.frontier.len())
-                            .map_err(|_| ObservationError::TooManyOutputs)?,
+                            .map_err(|_| FileProgramError::TooManyOutputs)?,
                     ),
                 },
             )
         })
-        .collect::<Result<Vec<_>, ObservationError>>()?;
+        .collect::<Result<Vec<_>, FileProgramError>>()?;
     let layout = digest.digest(DigestBytes(
         &ryo_values::domain::observations::service::layout_identity(&layout).0,
     ));
@@ -66,13 +66,13 @@ pub(crate) fn with_producers(
     for consumer in order {
         let inputs = bindings
             .get(consumer.0)
-            .ok_or(ObservationError::InvalidReference)?;
+            .ok_or(FileProgramError::InvalidReference)?;
         if inputs.is_empty() {
             continue;
         }
         let own = rules
             .get(consumer.0)
-            .ok_or(ObservationError::InvalidReference)?
+            .ok_or(FileProgramError::InvalidReference)?
             .clone();
         let mut parts = vec![
             own.digest,
@@ -86,7 +86,7 @@ pub(crate) fn with_producers(
                     ResolvedObservationProducer::Output { rule, .. } => {
                         let upstream = rules
                             .get(rule.0)
-                            .ok_or(ObservationError::InvalidReference)?;
+                            .ok_or(FileProgramError::InvalidReference)?;
                         parts.push(upstream.digest);
                         across |= upstream.crossing == Crossing::Across;
                     }
@@ -98,7 +98,7 @@ pub(crate) fn with_producers(
         }
         let result = rules
             .get_mut(consumer.0)
-            .ok_or(ObservationError::InvalidReference)?;
+            .ok_or(FileProgramError::InvalidReference)?;
         result.digest = digest.combine(&parts);
         if across {
             result.crossing = Crossing::Across;

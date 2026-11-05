@@ -10,7 +10,7 @@ pub enum OperatingError {
     Spelling(#[from] crate::domain::spelling::errors::SpellingError),
     /// Request declaration errors are preserved before any file is read.
     #[error(transparent)]
-    ObservationConfiguration(#[from] crate::domain::file_program::errors::ObservationError),
+    ObservationConfiguration(#[from] crate::domain::file_program::errors::FileProgramError),
     /// A supplied producer has no future declared consumer in this phase.
     #[error("supplied frontier {input:?} was retired after its last declared consumer")]
     RetiredFrontier {
