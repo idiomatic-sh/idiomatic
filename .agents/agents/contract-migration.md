@@ -19,7 +19,10 @@ Treat missing mappings or enforcement as failures, not exemptions.
    and lifetime under the execution engine. Semantic crates must not depend on
    the engine or mint its authority.
 4. Use Rust visibility and crate dependencies to make forbidden execution
-   paths inaccessible. Use narrow engine-issued capabilities for supported calls.
+   paths inaccessible. The main engine imports each contract crate's inbound
+   use cases through explicit typed signatures and injected ports, never a
+   parallel facade or domain/application/outbound implementation export.
+   Use narrow engine-issued capabilities for supported calls.
 5. Keep use cases as readable ordered steps. Put cohesive semantics in domains,
    effects in adapters, and owned orchestration state in application services.
    Do not optimize for line counts or move a giant function into a giant service.
