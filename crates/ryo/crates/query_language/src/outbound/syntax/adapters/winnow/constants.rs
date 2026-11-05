@@ -165,7 +165,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "line",
-        form: "import_line | parameter_line | step_line | emit_line",
+        form: "import_line | parameter_line | step_line | observe_line | emit_line",
         example: "let found = select * from \"function\";",
     },
     GrammarLine {
@@ -212,6 +212,11 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         name: "step_line",
         form: "let word \"=\" expression \";\"",
         example: "let found = select * from \"function\";",
+    },
+    GrammarLine {
+        name: "observe_line",
+        form: "observe word as name_or_string \";\"",
+        example: "observe matched as \"usage\";",
     },
     GrammarLine {
         name: "emit_line",
@@ -315,7 +320,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "function",
-        form: "( concat | pascal | camel | snake | kebab ) \"(\" operand { \",\" operand } \")\", each operand text: concat joins two or more; pascal, camel, snake and kebab take one, todo_lists as TodoLists, todoLists, todo_lists and todo-lists",
+        form: "( concat | pascal | camel | snake | kebab | lower ) \"(\" operand { \",\" operand } \")\", each operand text: concat joins two or more; pascal, camel, snake and kebab take one, todo_lists as TodoLists, todoLists, todo_lists and todo-lists",
         example: "concat(pascal(p.pkg), \"Service\")",
     },
     GrammarLine {

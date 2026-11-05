@@ -409,7 +409,7 @@ fn refuses() {
 }
 
 /// Every keyword, in the order the grammar meets them.
-const KEYWORDS: [Keyword; 34] = [
+const KEYWORDS: [Keyword; 35] = [
     Keyword::Param,
     Keyword::Import,
     Keyword::Input,
@@ -418,6 +418,7 @@ const KEYWORDS: [Keyword; 34] = [
     Keyword::Relation,
     Keyword::Let,
     Keyword::Emit,
+    Keyword::Observe,
     Keyword::Subject,
     Keyword::Key,
     Keyword::Select,
@@ -491,6 +492,7 @@ fn misread(name: &str, text: &str) -> usize {
         "parameter_line" => whole(parsers::parameter_line, text),
         "step_line" => whole(parsers::step_line, text),
         "emit_line" => whole(parsers::emit_line, text),
+        "observe_line" => whole(parsers::observe_line, text),
         "expression" => whole(parsers::expression, text),
         "select" => whole(parsers::select, text),
         "select_column" => whole(parsers::select_column, text),
