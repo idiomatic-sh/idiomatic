@@ -152,7 +152,7 @@ fn run(
     rule: usize,
     storage: &[FactColumn],
     symbols: &mut Symbols,
-) -> Table {
+) -> (Table, usize) {
     let reads = std::cell::Cell::new(0);
     let read = |relation| {
         reads.set(reads.get() + 1);
@@ -176,14 +176,10 @@ fn run(
             symbols,
         )
         .unwrap();
-    assert!(
-        reads.get() > 0,
-        "each actual generation consults its own provider"
-    );
     let RootOutcome::Complete(table) = outcome.emit else {
         panic!("compiled file rule must complete")
     };
-    table
+    (table, reads.get())
 }
 #[test]
 fn identical_binding_dependent_operations_do_not_share_rule_graph_results() {
@@ -233,11 +229,20 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() {
     )
     .unwrap();
     let storage = language_columns(7, 3);
-    assert_eq!(
-        run(&mut file, 0, &storage, &mut symbols).cells,
-        vec![Value::File(FileId(7))]
+    let (first, first_reads) = run(&mut file, 0, &storage, &mut symbols);
+    assert!(
+        first_reads > 0,
+        "the actual file generation consults its provider"
     );
-    assert_eq!(run(&mut file, 1, &storage, &mut symbols).count.0, 0);
+    let prepared_work = file.readiness_counts();
+    let (second, second_reads) = run(&mut file, 1, &storage, &mut symbols);
+    assert_eq!(first.cells, vec![Value::File(FileId(7))]);
+    assert_eq!(second.count.0, 0);
+    assert_eq!(
+        second_reads, 0,
+        "the prepared second root replays its own bound result"
+    );
+    assert_eq!(file.readiness_counts(), prepared_work);
     file.finish().unwrap();
 }
 #[test]
@@ -264,7 +269,7 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
         None,
     )
     .unwrap();
-    let left = run(&mut first, 0, &language_columns(1, 3), &mut first_symbols);
+    let (left, first_reads) = run(&mut first, 0, &language_columns(1, 3), &mut first_symbols);
     let mut second_symbols = Symbols::default();
     let mut second = open_file(
         &prepared,
@@ -286,7 +291,12 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
         None,
     )
     .unwrap();
-    let right = run(&mut second, 0, &language_columns(9, 3), &mut second_symbols);
+    let (right, second_reads) = run(&mut second, 0, &language_columns(9, 3), &mut second_symbols);
+    assert!(first_reads > 0);
+    assert!(
+        second_reads > 0,
+        "a fresh file generation consults its provider"
+    );
     assert_eq!(left.cells, vec![Value::File(FileId(1))]);
     assert_eq!(right.cells, vec![Value::File(FileId(9))]);
     first.finish().unwrap();

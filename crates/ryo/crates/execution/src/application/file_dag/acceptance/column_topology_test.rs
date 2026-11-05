@@ -263,11 +263,18 @@ fn emit_frontier_named_and_derived_ancestor_boundaries_prevent_replacement() -> 
         scope: StepScope::PerFile,
     });
 
-    for observed in [emit, frontier, named] {
+    for (observed, boundary_step) in [(emit, 1), (frontier, 2), (named, 1)] {
         let plans = vec![observed];
         let (operators, request) = graph(&plans);
-        assert_eq!(ColumnCandidates::capture(&request).fences().count(), 4);
-        assert_eq!(column_count(&program(&plans, &operators, request)), 0);
+        let boundary = node(&request, 0, boundary_step);
+        let terminal = node(&request, 0, 3);
+        let compiled = program(&plans, &operators, request);
+        assert_eq!(column_count(&compiled), 0);
+        assert_ne!(
+            compiled.logical_regions()[boundary.0],
+            compiled.logical_regions()[terminal.0],
+            "an externally observed ancestor keeps its own physical publication"
+        );
     }
 
     let plans = vec![ordinary_plan()];

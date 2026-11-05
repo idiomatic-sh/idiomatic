@@ -358,14 +358,6 @@ impl KernelInvocation for KernelSession<'_, '_> {
         scratch: &mut KernelScratch,
     ) -> Result<Option<crate::application::file_dag::relations::PublishedInput>, InvocationFailure>
     {
-        if self
-            .walk
-            .is_some_and(|walk| walk.class(self.prepared, permit.descriptor()).is_some())
-        {
-            // The ready cohort owns selection work for this head. Do not probe
-            // a second per-head stored-selection route before replaying it.
-            return Ok(None);
-        }
         let mut rebound = OperatorContext {
             phase: context.phase,
             semantic: context.semantic,
@@ -395,6 +387,83 @@ impl KernelInvocation for KernelSession<'_, '_> {
                 permit.descriptor().contract.as_ref(),
             )
         });
+        if let Some((walk, class)) = self.walk.and_then(|walk| {
+            walk.class(self.prepared, permit.descriptor())
+                .map(|class| (walk, class))
+        }) {
+            let Rows::Stored(columns) = &rows else {
+                return Ok(None);
+            };
+            if !self.owner.stable() {
+                return Ok(None);
+            }
+            let source = input
+                .publication(&self.owner)
+                .map_err(InvocationFailure::Semantic)?;
+            let proof = self
+                .owner
+                .admit(source.as_ref(), BorrowedRows::from(&rows))
+                .map_err(InvocationFailure::Semantic)?;
+            if proof.physical_shape() != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete {
+                return Ok(None);
+            }
+            let selector = shape.selector();
+            let kinds = selector
+                .columns
+                .iter()
+                .map(|column| {
+                    columns
+                        .kinds
+                        .get(column.0 as usize)
+                        .copied()
+                        .ok_or(OperatingError::ShapeMismatch)
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(InvocationFailure::Semantic)?;
+            if kinds != permit.output_kinds().map_err(InvocationFailure::Semantic)? {
+                return Err(InvocationFailure::Semantic(OperatingError::ShapeMismatch));
+            }
+            let selection = {
+                let Some(batch) = walk
+                    .prepare(
+                        self.prepared,
+                        permit,
+                        selector.relation,
+                        &rows,
+                        context,
+                        self.kernels,
+                    )
+                    .map_err(InvocationFailure::Semantic)?
+                else {
+                    return Ok(None);
+                };
+                let Some(result) = batch.class(class) else {
+                    return Ok(None);
+                };
+                workspace.work.found(0, batch.visits(class).0);
+                result
+                    .completion
+                    .clone()
+                    .map_err(InvocationFailure::Semantic)?;
+                std::sync::Arc::new(crate::domain::table_model::types::StoredSelection {
+                    relation: selector.relation,
+                    rows: std::sync::Arc::new(result.positions.0.clone()),
+                    columns: selector.columns.clone(),
+                    kinds,
+                    identity: std::sync::Arc::clone(&selector.identity),
+                })
+            };
+            // The cached walk borrow ends before owner-issued publication/leases.
+            return crate::application::file_dag::relations::selection::publish(
+                &self.owner,
+                source,
+                &proof,
+                selection,
+                [None, None],
+            )
+            .map(Some)
+            .map_err(InvocationFailure::Semantic);
+        }
         super::selection::acquire(
             self.prepared,
             permit,

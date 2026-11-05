@@ -288,6 +288,61 @@ fn child_failure_and_resources_first() {
         "resource-first admission inspects the first malformed borrow; the later NotRead population is never requested"
     );
 }
+fn stored_prefix_keeps_static_error_order_and_source_identity() {
+    use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
+    use ryo_values::domain::table_words::service::to_bits;
+    let mut symbols = Symbols::default();
+    let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("prefix"));
+    let table = population(Relation::Function, false, symbol);
+    let mut columns = (0..table.kinds.len())
+        .map(|column| {
+            FactColumn(
+                (0..table.count.0)
+                    .map(|row| to_bits(table.cells[row * table.kinds.len() + column]).0)
+                    .collect(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let _tail = columns.last_mut().unwrap().0.pop();
+    for bad_layout in [false, true] {
+        let reads = Cell::new(0);
+        let read = |relation| {
+            assert_eq!(relation, Relation::Function);
+            reads.set(reads.get() + 1);
+            Ok(SourceRows::Stored(ColumnsView {
+                kinds: &table.kinds,
+                columns: &columns,
+            }))
+        };
+        let (engine, prepared) = fixtures::prepared(
+            fixtures::plan(vec![operation(OperationKind::Project, bad_layout)]),
+            vec![],
+            vec![],
+        )
+        .unwrap();
+        let result = fixtures::run_prepared(
+            &engine,
+            &prepared,
+            b"",
+            &Elements::default(),
+            &mut symbols,
+            &read,
+        )
+        .map(|(table, _)| table);
+        if bad_layout {
+            assert_eq!(result, Err(layout_error(OperationKind::Project)));
+            assert_eq!(reads.get(), 1, "static refusal commits no provider reread");
+        } else {
+            let result =
+                result.expect("readable ragged storage normalizes the first complete prefix");
+            assert_eq!(result.count.0, 1);
+            assert_eq!(
+                result.cells,
+                [CellValue::Node(node_id(FileId(0), Position(1)))]
+            );
+        }
+    }
+}
 fn exhaustive_contract_declarations() {
     use OperationKind::*;
     assert_eq!(OperationKind::ALL.len(), 26);
@@ -306,6 +361,12 @@ fn exhaustive_contract_declarations() {
     }
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("readable_stored_prefix_preserves_schema_precedence_and_actual_rows"),
+        word: Word::Succeeds,
+        input: || stored_prefix_keeps_static_error_order_and_source_identity,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("all_six_schema_first_layout_faults_precede_malformed_physical_populations"),
         word: Word::Succeeds,

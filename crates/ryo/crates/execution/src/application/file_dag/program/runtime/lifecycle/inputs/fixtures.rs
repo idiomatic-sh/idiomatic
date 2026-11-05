@@ -209,7 +209,7 @@ impl Inputs for TestInputs {
             super::super::super::super::admission::ProducerRoot::Input(source),
             partition.clone(),
             crate::domain::completion::types::CoverageState::Complete,
-            BorrowedRows::from(&rows),
+            rows,
         )
     }
     fn admit(

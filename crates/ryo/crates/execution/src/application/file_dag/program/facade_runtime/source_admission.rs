@@ -99,7 +99,7 @@ impl ProjectSources<'_> {
                     },
                     actual_partition.clone(),
                     coverage,
-                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+                    rows,
                 )
             });
             if let Ok(input) = &result {
@@ -361,7 +361,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             relation,
                             kinds: vec![],
                         }]),
-                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+                    rows,
                 );
             }
             InputSource::Hosted { rule, relation } => {

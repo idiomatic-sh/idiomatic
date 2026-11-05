@@ -95,20 +95,32 @@ impl AvailableInput {
         root: ProducerRoot,
         partition: Partition,
         coverage: crate::domain::completion::types::CoverageState,
-        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
+        rows: crate::domain::table_model::types::Rows<'_>,
     ) -> Result<Self, OperatingError> {
         // Inspect this exact first provider borrow now, not a later re-read.
         // Only geometry refusals are deferred; identity/generation/source failures
         // remain immediate. No borrowed rows survive this synchronous boundary.
-        let inspected = owner.inspect_available(publication.as_ref(), rows)?;
+        let inspected = owner.inspect_available(
+            publication.as_ref(),
+            crate::domain::operator::contract::views::BorrowedRows::from(&rows),
+        )?;
         let admission = match inspected {
             Ok(physical) => {
-                if physical.physical_shape() != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete {
-                    Err(OperatingError::ShapeMismatch)
+                let physical = if physical.physical_shape() == crate::domain::table_model::collections::representations::types::PhysicalShape::ReadablePhysicalFallback {
+                    // Freeze the readable prefix from this first supplied borrow in
+                    // the existing generation-owned normalization record. Its refusal
+                    // remains deferred to the declared admission boundary.
+                    drop(physical);
+                    owner.normalize(&publication, rows).and_then(|normalized| {
+                        owner.admit(publication.as_ref(), crate::domain::operator::contract::views::BorrowedRows::from(&normalized))
+                            .and_then(|proof| AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &proof,
+                                root, partition.clone(), Readiness::Complete))
+                    })
                 } else {
-                    Ok(AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &physical,
-                        root, partition.clone(), Readiness::Complete)?.with_coverage(coverage))
-                }
+                    AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &physical,
+                        root, partition.clone(), Readiness::Complete)
+                };
+                physical.map(|input| input.with_coverage(coverage))
             }
             Err(geometry) => Err(geometry),
         };

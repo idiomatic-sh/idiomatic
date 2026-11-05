@@ -414,12 +414,10 @@ impl<'a> PrimitiveLease<'a> {
                 target: projected,
             },
         ) {
-            Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written) => Ok(()),
-            Err(ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault::NoSuchColumn {
-                index,
-            }) => Err(
-                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index }.into(),
-            ),
+            Ok(
+                ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written,
+            ) => Ok(()),
+            Err(error) => Err(portable_fault(error)),
             _ => Err(OperatingError::WrongOperation),
         }
     }
@@ -439,6 +437,7 @@ impl<'a> PrimitiveLease<'a> {
             Ok(
                 ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written,
             ) => Ok(()),
+            Err(error) => Err(portable_fault(error)),
             _ => Err(OperatingError::WrongOperation),
         }
     }

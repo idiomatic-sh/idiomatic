@@ -35,7 +35,7 @@ const EDGES: &[&[i64]] = &[
     &[4, 1],
     &[90, 91],
 ];
-fn plan(direction: Direction, stored: bool) -> Plan {
+fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
     fixtures::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
@@ -44,7 +44,11 @@ fn plan(direction: Direction, stored: bool) -> Plan {
             Operation::Select {
                 from: Source::Relation(Relation::LanguageTarget),
                 comparisons: vec![],
-                kept: vec![ColumnIndex(1), ColumnIndex(2)],
+                kept: if projected {
+                    vec![ColumnIndex(2), ColumnIndex(1), ColumnIndex(2)]
+                } else {
+                    vec![ColumnIndex(1), ColumnIndex(2)]
+                },
             }
         } else {
             Operation::Hosted {
@@ -60,8 +64,8 @@ fn plan(direction: Direction, stored: bool) -> Plan {
             domain: Source::Step(StepId(2)),
             direction,
             id: ColumnIndex(0),
-            parent: ColumnIndex(0),
-            child: ColumnIndex(1),
+            parent: ColumnIndex(u32::from(projected)),
+            child: ColumnIndex(u32::from(!projected)),
             domain_id: ColumnIndex(0),
             domain_filter: vec![],
             domain_view: vec![],
@@ -69,14 +73,17 @@ fn plan(direction: Direction, stored: bool) -> Plan {
         },
     ])
 }
-fn execute(stored: bool) -> Result<Vec<Table>, OperatingError> {
+fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
     let engine = ExecutionUseCaseImpl::new(
         Arc::new(
             ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(),
         ),
         Arc::new(ryo_derived::inbound::use_cases::derived::use_case::DerivedUseCaseImpl::new()),
     );
-    let plans = DIRECTIONS.into_iter().map(|d| plan(d, stored)).collect();
+    let plans = DIRECTIONS
+        .into_iter()
+        .map(|d| plan(d, stored, projected))
+        .collect();
     let prepared = engine.prepare(PreparedRequest {
         plans,
         bindings: vec![vec![]; 5],
@@ -202,8 +209,13 @@ type Input = ();
 type Value = ();
 type Failure = OperatingError;
 fn subject((): Input) -> Result<Value, Failure> {
-    let ordinary = execute(false)?;
-    let stored = execute(true)?;
+    let ordinary = execute(false, false)?;
+    let stored = execute(true, false)?;
+    let projected = execute(true, true)?;
+    assert_eq!(
+        projected, ordinary,
+        "duplicate/reordered selected columns retain the same graph meaning"
+    );
     assert_eq!(
         stored, ordinary,
         "all five directions preserve exact BFS/direct order and duplicate bags"

@@ -80,22 +80,22 @@ fn plan(operation: Operation) -> Plan {
 }
 #[test]
 fn singleton_and_many_producers_preserve_distinct_union_order_through_one_prepared_root() {
-    let cases: &[(&[&[i64]], &[i64])] = &[
-        (&[&[]], &[]),
-        (&[&[1, 1, 2]], &[1, 2]),
-        (&[&[1, 1, 2], &[]], &[1, 2]),
-        (&[&[], &[1, 1, 2]], &[1, 2]),
-        (&[&[1, 2], &[2, 3], &[1, 3]], &[1, 2, 3]),
+    let cases: &[(&[&[i64]], &[i64], usize)] = &[
+        (&[&[]], &[], 0),
+        (&[&[1, 1, 2]], &[1, 2], 6),
+        (&[&[1, 1, 2], &[]], &[1, 2], 3),
+        (&[&[], &[1, 1, 2]], &[1, 2], 3),
+        (&[&[1, 2], &[2, 3], &[1, 3]], &[1, 2, 3], 5),
     ];
-    for &(given, expected) in cases {
-        exercise(given, Some(expected));
+    for &(given, expected, registered) in cases {
+        exercise(given, Some(expected), registered);
     }
 }
 #[test]
 fn zero_producers_preserve_the_declared_project_phase_in_file_scope() {
-    exercise(&[], None);
+    exercise(&[], None, 0);
 }
-fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
+fn exercise(given: &[&[i64]], expected: Option<&[i64]>, registered_calls: usize) {
     let consumer = given.len();
     let mut rules = (0..=consumer).map(rule).collect::<Vec<_>>();
     let mut plans = (0..consumer)
@@ -139,6 +139,10 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
                 StepScope::PerFile
             },
         });
+    if consumer == 0 {
+        // Assembly links compiled plans; the step itself retains its inferred phase.
+        consumer_plan.steps[0].scope = StepScope::CrossFile;
+    }
     plans.push(consumer_plan);
     let compiled =
         assemble(plans, vec![vec![]; rules.len()], &rules).expect("actual named request assembly");
@@ -254,8 +258,8 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
         assert_eq!(table.count.0, expected.len());
         assert_eq!(
             file.observation_routes(0).unwrap().registered_calls,
-            1,
-            "the prepared union root is evaluated once"
+            registered_calls,
+            "the top union dispatches once per input row, including singleton duplication"
         );
     } else {
         assert!(matches!(
@@ -265,5 +269,43 @@ fn exercise(given: &[&[i64]], expected: Option<&[i64]>) {
             }
         ));
     }
+    let registered = file.observation_routes(0).unwrap().registered_calls;
+    let readiness = file.readiness_counts();
+    let repeated = file
+        .rule(
+            RuleIndex(consumer),
+            RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            &read,
+            &mut symbols,
+        )
+        .unwrap();
+    match expected {
+        Some(expected) => {
+            let RootOutcome::Complete(table) = repeated.emit else {
+                panic!("union replay must complete")
+            };
+            assert_eq!(
+                table.cells,
+                expected
+                    .iter()
+                    .map(|number| Value::Number(Integer(*number)))
+                    .collect::<Vec<_>>()
+            );
+        }
+        None => assert!(matches!(
+            repeated.emit,
+            RootOutcome::Deferred {
+                phase: StepScope::CrossFile
+            }
+        )),
+    }
+    assert_eq!(
+        file.observation_routes(0).unwrap().registered_calls,
+        registered
+    );
+    assert_eq!(file.readiness_counts(), readiness);
     file.finish().unwrap();
 }

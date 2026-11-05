@@ -26,12 +26,14 @@ enum Refusal {
     None,
     Union,
     Project,
+    Append,
 }
 #[derive(Debug)]
 struct ObservedSemantics {
     refusal: Refusal,
     unions: AtomicUsize,
     projects: AtomicUsize,
+    appends: AtomicUsize,
 }
 impl OperatorsUseCase for ObservedSemantics {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
@@ -43,6 +45,10 @@ impl OperatorsUseCase for ObservedSemantics {
             OperatorCall::Project { .. } => {
                 self.projects.fetch_add(1, Ordering::Relaxed);
                 matches!(self.refusal, Refusal::Project)
+            }
+            OperatorCall::Append { .. } => {
+                self.appends.fetch_add(1, Ordering::Relaxed);
+                matches!(self.refusal, Refusal::Append)
             }
             _ => false,
         };
@@ -61,6 +67,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         refusal,
         unions: AtomicUsize::new(0),
         projects: AtomicUsize::new(0),
+        appends: AtomicUsize::new(0),
     });
     let engine = ExecutionUseCaseImpl::new(
         port.clone(),
@@ -83,6 +90,16 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             distinct: RepeatedRows::Kept,
         },
     ]);
+    if matches!(refusal, Refusal::Append) {
+        plan.steps[3].operation = Operation::Extend {
+            from: Source::Step(StepId(2)),
+            values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                ryo_values::domain::plan_parts::types::QueryLiteral::Number(
+                    ryo_relations::domain::relations::types::Integer(7),
+                ),
+            )],
+        };
+    }
     // An authored identity boundary keeps the union a genuine recursive producer.
     plan.frontier.push(Source::Step(StepId(2)));
     let prepared = engine.prepare(PreparedRequest {
@@ -156,21 +173,25 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
                 assert_eq!(table.count.0, 3);
                 assert_eq!(table.cells, [1, 2, 3].map(|n| Value::Number(Integer(n))));
             }
-            _ => assert!(matches!(
-                outcome.emit,
-                RootOutcome::Failed(OperatingError::ShapeMismatch)
-            )),
+            _ => match outcome.emit {
+                RootOutcome::Failed(error) => {
+                    assert_eq!(error, OperatingError::ShapeMismatch, "{refusal:?}")
+                }
+                _ => panic!("injected {refusal:?} refusal must remain an exact terminal failure"),
+            },
         }
     }
     let expected = match refusal {
-        Refusal::None => (5, 3),
-        Refusal::Union => (1, 0),
-        Refusal::Project => (5, 1),
+        Refusal::None => (5, 3, 0),
+        Refusal::Union => (1, 0, 0),
+        Refusal::Project => (5, 1, 0),
+        Refusal::Append => (5, 0, 1),
     };
     assert_eq!(
         (
             port.unions.load(Ordering::Relaxed),
-            port.projects.load(Ordering::Relaxed)
+            port.projects.load(Ordering::Relaxed),
+            port.appends.load(Ordering::Relaxed)
         ),
         expected,
         "replay never reruns the child or root, including refusal"
@@ -180,6 +201,12 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     Ok(())
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("append_refusal_preserves_the_injected_typed_fault_and_terminal_retry"),
+        word: Word::Succeeds,
+        input: || Refusal::Append,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("recursive_producer_and_root_use_injected_semantics_once"),
         word: Word::Succeeds,
