@@ -179,7 +179,7 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             .expect("file owner finishes without demanding project sources");
         assert_eq!(file_reads.get(), 3, "finish cannot demand the source again");
         let stored = CapturedFacts {
-            capture,
+            captures: vec![(FileId(0), capture)],
             reads: AtomicUsize::new(0),
         };
         let project = ProjectFacts::new(relation);
@@ -295,71 +295,96 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {
         entry.size = ryo_values::domain::files::types::FileSize(9);
     }
+    let mut second = corpus[0].clone();
+    if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut second {
+        entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
+    }
+    corpus.push(second);
     let request = engine.begin(&program, &corpus);
-    let mut symbols = Symbols::default();
-    let main_hash = hash_of(ByteSlice(b"main"));
-    let other_hash = hash_of(ByteSlice(b"other"));
-    let table = crate::boundary_fixture::named_functions(&mut symbols);
-    let read = |relation| {
-        assert_eq!(relation, Relation::Function);
-        Ok(SourceRows::Computed(&table))
-    };
-    let elements = ryo_language::domain::elements::types::Elements::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability: facts::ResidentStability::Stable,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                demanded: &[true],
-                source: b"mainother",
-                elements: &elements,
-                read: &read,
-                semantic: None,
-                kinds: None,
-            },
-            &mut symbols,
-        )
-        .expect("open actual file");
-    assert!(matches!(
-        file.rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit,
-        RootOutcome::Deferred {
-            phase: StepScope::CrossFile
-        }
-    ));
     let mut arena = vec![];
     let mut places = vec![];
     let mut words = Words::default();
-    let mut captures = file
-        .capture_frontiers(
-            RuleIndex(0),
-            Bucket(0),
-            &mut symbols,
-            CaptureContext {
-                worker: WorkerNumber(0),
-                arena: &mut arena,
-                places: &mut places,
-                words: &mut words,
-            },
-        )
-        .expect("capture actual names");
-    assert_eq!(captures.len(), 1);
-    let capture = captures.pop().unwrap().outcome.expect("complete capture");
-    file.finish().expect("release file owner");
+    let mut captured_files = vec![];
+    let main_hash = hash_of(ByteSlice(b"main"));
+    let other_hash = hash_of(ByteSlice(b"other"));
+    for file_id in [FileId(0), FileId(1)] {
+        let mut symbols = Symbols::default();
+        let mut table = crate::boundary_fixture::named_functions(&mut symbols);
+        let width = table.kinds.len();
+        if file_id == FileId(0) {
+            table.cells.truncate(width);
+            table.count = RowCount(1);
+        } else {
+            table.cells.drain(..width);
+            table.count = RowCount(2);
+        }
+        for (index, row) in table.cells.chunks_exact_mut(width).enumerate() {
+            row[0] = Value::Node(ryo_relations::domain::relations::service::node_id(
+                file_id,
+                ryo_relations::domain::relations::types::Position(index as u32),
+            ));
+            row[2] = Value::File(file_id);
+        }
+        let read = |relation| {
+            assert_eq!(relation, Relation::Function);
+            Ok(SourceRows::Computed(&table))
+        };
+        let elements = ryo_language::domain::elements::types::Elements::default();
+        let mut file = request
+            .open_file(
+                FileInput {
+                    language: SourceLanguage::Recognized,
+                    resident_stability: facts::ResidentStability::Stable,
+                    file: file_id,
+                    evaluation: &[],
+                    publication: &[],
+                    demanded: &[true],
+                    source: b"mainother",
+                    elements: &elements,
+                    read: &read,
+                    semantic: None,
+                    kinds: None,
+                },
+                &mut symbols,
+            )
+            .expect("open actual file");
+        assert!(matches!(
+            file.rule(RuleIndex(0), demand(), &mut symbols)
+                .unwrap()
+                .emit,
+            RootOutcome::Deferred {
+                phase: StepScope::CrossFile
+            }
+        ));
+
+        let mut captures = file
+            .capture_frontiers(
+                RuleIndex(0),
+                Bucket(0),
+                &mut symbols,
+                CaptureContext {
+                    worker: WorkerNumber(0),
+                    arena: &mut arena,
+                    places: &mut places,
+                    words: &mut words,
+                },
+            )
+            .expect("capture actual names");
+        assert_eq!(captures.len(), 1);
+        let capture = captures.pop().unwrap().outcome.expect("complete capture");
+        file.finish().expect("release file owner");
+        captured_files.push((file_id, capture));
+    }
     let stored = CapturedFacts {
-        capture,
+        captures: captured_files,
         reads: AtomicUsize::new(0),
     };
     let project = ProjectFacts::new(Relation::ModuleIdentity);
-    let covered = [Covered {
-        file: FileId(0),
+    let covered = [FileId(0), FileId(1)].map(|file| Covered {
+        file,
         rules: vec![RuleIndex(0)],
         partial: vec![],
-    }];
+    });
     let scope = request
         .project_scope(RuleIndex(0), &corpus, &covered, &[])
         .unwrap();
@@ -446,23 +471,38 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                     right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
                     origin: None,
                 }],
-                kept: vec![ColumnIndex(0)],
+                kept: vec![
+                    ColumnIndex(0),
+                    ColumnIndex(1),
+                    ColumnIndex(2),
+                    ColumnIndex(3),
+                ],
             },
         };
-        input.plans[0].steps = vec![selected.clone()];
+        let projected = PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Project {
+                from: Input::Step(StepId(0)),
+                columns: vec![ColumnIndex(0)],
+                distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+            },
+        };
+        input.plans[0].steps = vec![selected.clone(), projected.clone()];
+        input.plans[0].emit.step = StepId(1);
         input.plans[1].steps = vec![
             selected,
+            projected,
             PlanStep {
                 scope: StepScope::CrossFile,
                 operation: Operation::GroupCount {
-                    from: Input::Step(StepId(0)),
+                    from: Input::Step(StepId(1)),
                     keys: vec![ColumnIndex(0)],
                     distinct: None,
                 },
             },
         ];
-        input.plans[1].frontier = vec![Input::Step(StepId(0))];
-        input.plans[1].emit.step = StepId(1);
+        input.plans[1].frontier = vec![Input::Step(StepId(1))];
+        input.plans[1].emit.step = StepId(2);
         let program = engine.prepare(input).expect("compile both plans together");
         let mut corpus = corpus();
         if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {

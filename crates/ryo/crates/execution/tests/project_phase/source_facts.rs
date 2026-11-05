@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
-use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
+use ryo_values::domain::stored_facts::types::{Bucket, KeptWords, PackedWords};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub(super) struct ProjectFacts {
@@ -74,21 +74,27 @@ impl facts::FactsWorker for ProjectFacts {
 }
 
 pub(super) struct CapturedFacts {
-    pub capture: CapturedFrontier,
+    pub captures: Vec<(FileId, CapturedFrontier)>,
     pub reads: AtomicUsize,
 }
 impl facts::FactsFinish for CapturedFacts {
     fn kept(&self, bucket: Bucket) -> Result<facts::KeptBucket, facts::FactsError> {
-        assert_eq!(bucket, self.capture.bucket);
         self.reads.fetch_add(1, Ordering::SeqCst);
+        let mut words = vec![];
+        let mut sources = vec![];
+        for (file, capture) in &self.captures {
+            assert_eq!(bucket, capture.bucket);
+            sources.push(facts::BucketSource {
+                file: *file,
+                start: words.len(),
+                length: capture.words.0.len(),
+                proof: capture.proof.clone(),
+            });
+            words.extend_from_slice(&capture.words.0);
+        }
         Ok(facts::KeptBucket {
-            words: KeptWords(self.capture.words.clone()),
-            sources: vec![facts::BucketSource {
-                file: FileId(0),
-                start: 0,
-                length: self.capture.words.0.len(),
-                proof: self.capture.proof.clone(),
-            }],
+            words: KeptWords(PackedWords(words)),
+            sources,
         })
     }
 }
