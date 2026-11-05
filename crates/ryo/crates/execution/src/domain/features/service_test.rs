@@ -111,8 +111,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Catalog,
         // The feature catalog includes the internal Hosted operation as well as
-        // the 25 public operators.
-        expect: Expect::Value(26 + 17 + 8 + 68),
+        // the 25 public operators. The 69 relations include ProjectNamespaceMembership.
+        expect: Expect::Value(26 + 17 + 8 + 69),
     },
     Case {
         name: CaseName("a_select_is_fed_the_rows_of_its_input"),

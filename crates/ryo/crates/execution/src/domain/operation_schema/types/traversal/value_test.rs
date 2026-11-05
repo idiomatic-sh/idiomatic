@@ -14,6 +14,7 @@ use ryo_values::{
 /// One native or invalid traversal contract.
 #[derive(Clone, Copy)]
 enum Scenario {
+    OrderedProjection,
     ComputedProjection,
     ComputedDeep,
     BadOrder,
@@ -90,6 +91,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let mut operation = axis();
     match scenario {
+        Scenario::OrderedProjection => operation = ordered(),
         Scenario::ComputedProjection => {
             if let Operation::Axis { output, .. } = &mut operation {
                 output.push(JoinColumn {
@@ -144,13 +146,21 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .map(|kinds| kinds.len());
         }
     }
-    TraversalShape::new(&schemas)
-        .of(&operation, &[])
-        .map(|kinds| kinds.len())
+    let kinds = TraversalShape::new(&schemas).of(&operation, &[])?;
+    if matches!(scenario, Scenario::OrderedProjection) {
+        assert_eq!(kinds, [CellKind::Node]);
+    }
+    Ok(kinds.len())
 }
 
 /// Native views and explicit schema refusals do not depend on graph rows.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("ordered_match_preserves_projected_node_kind"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedProjection,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("ordered_dfs_checks_endpoint_kinds"),
         word: Word::Refuses,

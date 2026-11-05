@@ -1,4 +1,4 @@
-//! Preparation rejects incompatible operation, input and value contracts without an executor.
+//! Preparation rejects foreign operations and retains input/value errors for execution.
 use super::service::registered;
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -50,7 +50,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &[],
         ),
     }
-    .map(|_| ())
+    .and_then(|contract| contract.schema.map(|_| ()))
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

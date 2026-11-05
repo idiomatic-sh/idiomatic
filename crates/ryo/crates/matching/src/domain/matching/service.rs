@@ -5,7 +5,9 @@ use regex_automata::meta::Regex;
 
 /// Compile a regex without acquiring or storing an engine cache entry.
 pub(crate) fn compile_regex(pattern: &str) -> Result<Regex, String> {
-    Regex::new(pattern).map_err(|error| error.to_string())
+    Regex::new(pattern).map_err(|error| {
+        error.syntax_error().map_or_else(|| error.to_string(), ToString::to_string)
+    })
 }
 
 /// Search using the caller's already acquired matcher.

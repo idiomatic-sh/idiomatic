@@ -35,7 +35,8 @@ impl RepresentationsItem for PositionedItem {
             return Err(OperatingError::WrongOperation);
         };
         count(view)?;
-        if view.shape.columns.len() != view.kinds.len()
+        if contract.kinds != view.kinds
+            || view.shape.columns.len() != view.kinds.len()
             || view
                 .shape
                 .columns

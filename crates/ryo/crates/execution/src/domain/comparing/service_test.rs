@@ -10,7 +10,7 @@ use ryo_relations::domain::relations::types::{
 
 use crate::domain::comparing::service::holds_all;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{Memo, NameCount, OperatorContext};
+use crate::domain::operating::types::{NameCount, OperatorContext};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -141,6 +141,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
         kept: Vec::new(),
     };
     let mut memo = Vec::new();
+    let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
         phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
@@ -152,7 +153,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
         paths: &[],
         arenas: &[],
         memo: &mut memo,
-        scratch: &mut OperatorScratch::default(),
+        scratch: &mut scratch,
     };
     let Operation::Select { comparisons, .. } = operation else {
         unreachable!()
@@ -173,7 +174,8 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
         .iter()
         .filter(|verdict| **verdict == Verdict::Holds)
         .count();
-    let decided = memo.iter().filter(|each| **each != Memo::Unknown).count();
+    // Glob decisions are keyed by text in the shared semantic scratch.
+    let decided = scratch.select_scratch.verdicts.len();
     Ok(kept * 10 + decided)
 }
 

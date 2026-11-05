@@ -12,7 +12,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case { name: CaseName("nonoverlapping_source_order"), word: Word::Succeeds,
         input: || ("aa", "aaa"), expect: Expect::Value(vec![0..2]) },
     Case { name: CaseName("invalid_regex"), word: Word::Refuses,
-        input: || ("[", ""), expect: Expect::Refusal(|error| crate::cases::selects(!error.is_empty())) },
+        input: || ("[", ""), expect: Expect::Refusal(|error| crate::cases::selects(error.contains('[') && error.contains("unclosed character class"))) },
 ];
 
 fn subject((pattern, text): Input) -> Result<Value, Failure> {
