@@ -161,10 +161,16 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
     };
     let shape = LoweredShape {
         width: RowWidth(1),
-        columns: vec![LoweredColumn {
-            slot: RowPosition(0),
-            field: ElementPart::File,
-        }],
+        columns: vec![
+            LoweredColumn {
+                slot: RowPosition(0),
+                field: ElementPart::File,
+            },
+            LoweredColumn {
+                slot: RowPosition(0),
+                field: ElementPart::Node,
+            },
+        ],
     };
     let positioned = PositionedRows {
         tree: TreeRows {
@@ -173,7 +179,7 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
         },
         positions: &positions,
         shape: &shape,
-        kinds: &[CellKind::File],
+        kinds: &[CellKind::File, CellKind::Node],
     };
     for variant in RepresentationKind::ALL {
         // No wildcard: adding a representation requires a real independent fixture.
@@ -195,7 +201,20 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() {
             ),
             RepresentationKind::Positioned => (
                 Rows::Positioned(positioned),
-                vec![vec![Value::File(FileId(3))]; 3],
+                vec![
+                    vec![
+                        Value::File(FileId(3)),
+                        Value::Node(node_id(FileId(3), Position(1))),
+                    ],
+                    vec![
+                        Value::File(FileId(3)),
+                        Value::Node(node_id(FileId(3), Position(0))),
+                    ],
+                    vec![
+                        Value::File(FileId(3)),
+                        Value::Node(node_id(FileId(3), Position(1))),
+                    ],
+                ],
             ),
             RepresentationKind::Tree => (
                 Rows::Tree(tree),
