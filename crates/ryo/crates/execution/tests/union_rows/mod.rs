@@ -244,11 +244,16 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 &mut symbols,
             )
             .expect("open refused Union");
-        let result = file.rule(RuleIndex(0), demand(), &mut symbols);
+        let result = file
+            .rule(RuleIndex(0), demand(), &mut symbols)
+            .expect("the public call reports a typed failed root");
         assert!(if left_refuses {
-            matches!(result, Err(OperatingError::WrongBinding))
+            matches!(
+                result.emit,
+                RootOutcome::Failed(OperatingError::WrongBinding)
+            )
         } else {
-            matches!(result, Err(OperatingError::NotRead))
+            matches!(result.emit, RootOutcome::Failed(OperatingError::NotRead))
         });
         assert_eq!(left_reads.get(), 1);
         assert_eq!(

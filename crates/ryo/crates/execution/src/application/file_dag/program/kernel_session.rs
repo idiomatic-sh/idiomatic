@@ -631,12 +631,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
                             // The primary input defines the row contract; the required mask
                             // declares every population that drives that same evaluator.
                             let row_inputs = meaning.row_inputs.0;
-                            let primary_bit = u32::try_from(primary.0)
-                                .ok()
-                                .and_then(|at| 1_u8.checked_shl(at))
-                                .ok_or(InvocationFailure::Semantic(
-                                    OperatingError::WrongOperation,
-                                ))?;
+                            let primary_shift = u32::try_from(primary.0).map_err(|_| {
+                                InvocationFailure::Semantic(OperatingError::WrongOperation)
+                            })?;
+                            let primary_bit = 1_u8.checked_shl(primary_shift).ok_or(
+                                InvocationFailure::Semantic(OperatingError::WrongOperation),
+                            )?;
                             if row_inputs == 0 || row_inputs & primary_bit == 0 {
                                 return Err(InvocationFailure::Semantic(
                                     OperatingError::WrongOperation,
