@@ -218,8 +218,9 @@ struct Slot {
     scratch: Vec<KernelScratch>,
     admission: AdmissionProgress,
     mode: Option<crate::domain::operator::contract::types::EvaluationMode>,
-    failed_prefix: Option<Arc<ryo_values::domain::rows::types::Table>>,
+    failed_prefix: Option<AdmittedInput>,
     prefix_delivered: Vec<crate::domain::coverage::types::RuleIndex>,
+    forward_consumers: Vec<crate::domain::coverage::types::RuleIndex>,
     fed: Box<[crate::domain::operator::types::RowsFed]>,
     remaining: usize,
     dependencies_consumed: bool,
@@ -278,6 +279,7 @@ impl ProgramExecution {
                 mode: None,
                 failed_prefix: None,
                 prefix_delivered: Vec::new(),
+                forward_consumers: Vec::new(),
                 fed: vec![
                     crate::domain::operator::types::RowsFed::default();
                     region.instructions.len()
@@ -556,6 +558,8 @@ impl ProgramExecution {
                 slot.dependencies_consumed = true;
                 slot.waiting_on = None;
                 slot.admission = AdmissionProgress::default();
+                slot.failed_prefix = None;
+                slot.prefix_delivered.clear();
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 if matches!(old, State::Published(_)) {
                     self.owner.release_derived_producer(id);
@@ -604,6 +608,21 @@ impl ProgramExecution {
         required: &super::admission::RequiredPartitions,
     ) -> bool {
         matches!(&self.partition, Partition::Project(actual) if actual.same_request(required))
+    }
+    pub(in crate::application::file_dag::program) fn declare_forwarder(
+        &self,
+        id: RegionId,
+        rule: crate::domain::coverage::types::RuleIndex,
+    ) -> Result<(), OperatingError> {
+        let mut slots = self.slots.borrow_mut();
+        let slot = slots.get_mut(id.0).ok_or(OperatingError::NotRun)?;
+        if !matches!(slot.state, State::Dormant) {
+            return Err(OperatingError::NotRead);
+        }
+        if !slot.forward_consumers.contains(&rule) {
+            slot.forward_consumers.push(rule);
+        }
+        Ok(())
     }
     /// Drives the admission half of this interpreter for every bound root.
     /// Newly discovered dependencies join the same queue; no dependency graph is
@@ -862,14 +881,18 @@ impl ProgramExecution {
                     drop(slots);
                     if let (Some(prefix), Delivery::Forward(consumer, output)) = (prefix, delivery)
                     {
-                        let width = prefix.kinds.len();
-                        for row in 0..prefix.count.0 {
-                            let start = row * width;
-                            output.row(context, &prefix.cells[start..start + width])?;
+                        inputs.replay(&prefix, context, output)?;
+                        let mut slots = self.slots.borrow_mut();
+                        let slot = &mut slots[id.0];
+                        slot.prefix_delivered.push(consumer);
+                        if !slot.forward_consumers.is_empty()
+                            && slot
+                                .forward_consumers
+                                .iter()
+                                .all(|rule| slot.prefix_delivered.contains(rule))
+                        {
+                            slot.failed_prefix = None;
                         }
-                        self.slots.borrow_mut()[id.0]
-                            .prefix_delivered
-                            .push(consumer);
                     }
                     return Err(error);
                 }
@@ -1484,7 +1507,10 @@ impl ProgramExecution {
                                 && !after_success
                                 && completion.row_retention() == crate::domain::completion::types::RowRetention::Unnecessary
                             {
-                                cleanup.failed_prefix = Some(Arc::new(std::mem::take(&mut rows)));
+                                cleanup.failed_prefix = Some(inputs.publish(
+                                    super::admission::ProducerRoot::Region(id), &self.partition,
+                                    &admitted, std::mem::take(&mut rows),
+                                ).map_err(InvocationFailure::Semantic)?);
                             }
                             result?;
                         }
@@ -1542,7 +1568,16 @@ impl ProgramExecution {
                                 return Err(InvocationFailure::Delivery(error));
                             }
                             if matches!(&result, Err(InvocationFailure::Semantic(_))) {
-                                cleanup.failed_prefix = Some(Arc::new(std::mem::take(&mut rows)));
+                                cleanup.failed_prefix = Some(
+                                    inputs
+                                        .publish(
+                                            super::admission::ProducerRoot::Region(id),
+                                            &self.partition,
+                                            &admitted,
+                                            std::mem::take(&mut rows),
+                                        )
+                                        .map_err(InvocationFailure::Semantic)?,
+                                );
                                 cleanup.delivered_consumer = Some(consumer);
                             }
                             result?;
@@ -1720,7 +1755,7 @@ struct Invocation<'a> {
     scratch: Option<Vec<KernelScratch>>,
     terminal: Terminal,
     admission: Option<AdmissionProgress>,
-    failed_prefix: Option<Arc<ryo_values::domain::rows::types::Table>>,
+    failed_prefix: Option<AdmittedInput>,
     delivered_consumer: Option<crate::domain::coverage::types::RuleIndex>,
 }
 impl Drop for Invocation<'_> {
@@ -1733,6 +1768,14 @@ impl Drop for Invocation<'_> {
             }
             if let Some(consumer) = self.delivered_consumer {
                 slot.prefix_delivered.push(consumer);
+            }
+            if !slot.forward_consumers.is_empty()
+                && slot
+                    .forward_consumers
+                    .iter()
+                    .all(|rule| slot.prefix_delivered.contains(rule))
+            {
+                slot.failed_prefix = None;
             }
             slot.admission = match self.terminal {
                 Terminal::Suspended | Terminal::Ready => self.admission.take().unwrap_or_default(),

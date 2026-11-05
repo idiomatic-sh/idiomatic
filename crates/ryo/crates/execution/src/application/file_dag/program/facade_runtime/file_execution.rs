@@ -138,6 +138,11 @@ impl FileRun<'_> {
                 if diagnostic != DiagnosticDelivery::Disabled {
                     enabled.extend(prepared.emit.iter().copied());
                 }
+                if diagnostic == DiagnosticDelivery::Forwarded {
+                    if let Ok(id) = &metadata.emit_root {
+                        self.execution.declare_forwarder(*id, rule)?;
+                    }
+                }
                 if observations == ObservationDemand::Required {
                     enabled.extend(metadata.observations.iter().filter_map(|root| {
                         match root.source.as_ref().ok()? {
