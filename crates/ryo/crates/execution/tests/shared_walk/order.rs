@@ -323,3 +323,63 @@ fn shared_walk_does_not_run_a_join_rhs_hidden_behind_an_empty_left() {
     file.finish().unwrap();
     request.finish();
 }
+
+#[test]
+fn independent_semantic_relation_selectors_share_one_source_walk() {
+    use crate::boundary_fixture::named_functions;
+    use ryo_relations::domain::relations::{
+        service::node_id,
+        types::{CellKind, Position, Value},
+    };
+    let (engine, semantics) = engine();
+    let mut authored = authored_request(2);
+    for (index, name) in ["main", "other"].iter().enumerate() {
+        authored.plans[index].steps[0].operation = Operation::Select {
+            from: Input::Relation(Relation::Function),
+            comparisons: vec![compared(Test::Equal, 1, text(name))],
+            kept: vec![ColumnIndex(0)],
+        };
+    }
+    let program = engine.prepare(authored).unwrap();
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+    let table = named_functions(&mut symbols);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let read = |relation| {
+        assert_eq!(relation, Relation::Function);
+        Ok(SourceRows::Computed(&table))
+    };
+    let intents = [FileRuleIntent::Run {
+        roots: demand(),
+        capture: CaptureIntent::Disabled,
+    }; 2];
+    let mut file = request
+        .open_file(
+            input(FileId(0), b"mainother", &elements, &intents, &read),
+            &mut symbols,
+        )
+        .unwrap();
+    for (rule, positions) in [(0, &[0_u32, 1][..]), (1, &[2_u32][..])] {
+        assert_eq!(
+            complete(file.rule(RuleIndex(rule), demand(), &mut symbols).unwrap()),
+            Table {
+                kinds: vec![CellKind::Node],
+                count: RowCount(positions.len()),
+                cells: positions
+                    .iter()
+                    .map(|p| Value::Node(node_id(FileId(0), Position(*p))))
+                    .collect(),
+            },
+        );
+    }
+    counts(&file, 1, 3);
+    assert_eq!(file.walk_counts().predicate_rows.0, 6);
+    assert_eq!(
+        semantics.selects(),
+        0,
+        "both selectors use shared row dispatch"
+    );
+    file.finish().unwrap();
+    request.finish();
+}
