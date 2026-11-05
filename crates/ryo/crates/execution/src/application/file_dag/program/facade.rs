@@ -1,6 +1,6 @@
 //! Application request preparation and compact root metadata; original plans are transient.
 pub(crate) use super::admission::ApplicabilityReason;
-use super::partitions::SourcePartitions;
+use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 pub(crate) use super::restored::ValidatedFrontier;
 pub(in crate::application) use super::restored::validate_restored_frontier;
 use crate::domain::prepared_request::types::{Compiled, ObservationIdentity};

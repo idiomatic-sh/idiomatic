@@ -20,12 +20,12 @@ struct RulePartitions {
 }
 /// No public field or alternate constructor can install guessed producer provenance.
 /// These compact declarations belong to the same frozen request as the supplied sources.
-pub(super) struct SourcePartitions {
+pub(crate) struct SourcePartitions {
     rules: Vec<Result<RulePartitions, OperatingError>>,
     hosted: usize,
 }
 impl SourcePartitions {
-    pub(super) fn new(
+    pub(crate) fn new(
         rules: &[RuleSpec],
         plans: &[Result<&Plan, OperatingError>],
         bindings: &[Vec<ParameterBinding>],
@@ -226,7 +226,7 @@ fn observation_partition(
 /// Exhaustive over the owned catalog: adding a relation requires choosing its producer.
 /// Tree and engine populations are read for one file; manifest populations are read
 /// once for the project. A file-valued cell does not alter either declaration.
-fn relation_partition(relation: Relation) -> PartitionRequirement {
+pub(super) fn relation_partition(relation: Relation) -> PartitionRequirement {
     use PartitionRequirement::{CurrentFile, Project};
     match relation {
         Relation::Function
@@ -300,10 +300,6 @@ fn relation_partition(relation: Relation) -> PartitionRequirement {
         | Relation::ManifestDiagnostic => Project,
     }
 }
-
-#[cfg(test)]
-#[path = "partitions_test.rs"]
-mod tests;
 
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 

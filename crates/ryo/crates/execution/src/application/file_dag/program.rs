@@ -3,7 +3,6 @@ pub(crate) mod admission;
 pub(crate) mod facade;
 pub(crate) mod facade_runtime;
 pub(super) mod kernel_session;
-mod partitions;
 pub(super) mod runtime;
 
 mod restored;

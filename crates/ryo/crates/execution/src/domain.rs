@@ -51,3 +51,5 @@ pub(crate) mod tree_walk;
 pub(crate) mod spelling;
 
 pub(crate) mod completion;
+
+pub(crate) mod source_partitions;
