@@ -192,8 +192,23 @@ impl Inputs for SourceInputs<'_, '_> {
         source: crate::domain::executable_program::types::InputSource,
     ) -> Result<Option<crate::domain::executable_program::types::RegionId>, OperatingError> {
         use crate::domain::executable_program::types::InputSource;
-        if self.project.is_some() && !matches!(source, InputSource::Region(_)) {
-            return Ok(None);
+        if let Some(project) = &self.project {
+            // Restored frontier handles are themselves the demanded source;
+            // scheduling their original per-file producer would cross phase.
+            if !matches!(source, InputSource::Region(_))
+                || project
+                    .sources
+                    .iter()
+                    .any(|binding| matches!(&binding.root, Ok(root) if *root == source))
+                || project.cache.iter().any(|(root, _)| *root == source)
+            {
+                return Ok(None);
+            }
+        }
+        if let InputSource::Observation(slot) = source {
+            if self.observations.contains_key(&slot) {
+                return Ok(None);
+            }
         }
         let region = match source {
             InputSource::Region(id) => Some(id),
@@ -227,7 +242,29 @@ impl Inputs for SourceInputs<'_, '_> {
                         rule,
                         output,
                     } => {
+                        if self
+                            .file_outputs
+                            .and_then(|outputs| outputs.get(rule.0))
+                            .and_then(|roots| roots.get(output.0 as usize))
+                            .is_some_and(|root| {
+                                root.publication.is_some() || root.readiness.is_some()
+                            })
+                        {
+                            return Ok(None);
+                        }
                         let metadata = self.program.rule_metadata(*rule)?;
+                        let root = metadata
+                            .observations
+                            .get(output.0 as usize)
+                            .ok_or(OperatingError::NotRun)?;
+                        if self
+                            .completion
+                            .for_rule(*rule)
+                            .observation_admission(&root.reads)
+                            != crate::domain::completion::types::ObservationAdmission::Ready
+                        {
+                            return Ok(None);
+                        }
                         match metadata
                             .observations
                             .get(output.0 as usize)
@@ -388,17 +425,22 @@ impl Inputs for SourceInputs<'_, '_> {
                             .observations
                             .get(output.0 as usize)
                             .ok_or(OperatingError::NotRun)?;
-                        match root.source.as_ref().map_err(Clone::clone)? {
-                            InputSource::Region(id) => self
-                                .execution
-                                .published(*id)?
-                                .ok_or(OperatingError::NotRun)?,
-                            _ => {
-                                return Err(OperatingError::ObservationIncomplete {
-                                    reason: "named producer root is not complete".into(),
-                                });
-                            }
+                        if self
+                            .completion
+                            .for_rule(*rule)
+                            .observation_admission(&root.reads)
+                            != crate::domain::completion::types::ObservationAdmission::Ready
+                        {
+                            return Err(OperatingError::ObservationIncomplete {
+                                reason: "physical source facts are incomplete".into(),
+                            });
                         }
+                        let source = *root.source.as_ref().map_err(Clone::clone)?;
+                        let previous = self.rule;
+                        self.bind_rule(*rule);
+                        let admitted = self.admit(source, partition, context);
+                        self.bind_rule(previous);
+                        admitted?
                     }
                 };
                 super::super::admission::alias_member(

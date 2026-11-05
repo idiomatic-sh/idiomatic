@@ -291,8 +291,24 @@ impl FileRun<'_> {
                 );
             }
             if *observations == ObservationDemand::Required {
+                let policy = match &self.partials {
+                    ScopePartials::File {
+                        evaluation,
+                        publication,
+                    } => CompletionPolicy::file_inputs(
+                        RuleIndex(index),
+                        self.file,
+                        evaluation,
+                        publication,
+                    ),
+                    ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
+                };
                 for root in &metadata.observations {
-                    append(&root.source, EvaluationMode::Collected);
+                    if policy.observation_admission(&root.reads)
+                        == crate::domain::completion::types::ObservationAdmission::Ready
+                    {
+                        append(&root.source, EvaluationMode::Collected);
+                    }
                 }
             }
             let prepared = &self.program.program().rules()[index];
