@@ -714,3 +714,6 @@ fn bound_observation_preserves_declared_schema_and_phase() {
 mod fragment_hygiene_test;
 #[cfg(test)]
 mod fragment_refusal_test;
+
+#[cfg(test)]
+mod validation_test;

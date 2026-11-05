@@ -1,103 +1,144 @@
-//! The `validation` service's cases, on query text read by the real syntax adapter.
+//! Validation consumes typed syntax and catalog values without calling a parser or port.
 
 use super::errors::ValidationError;
 use super::service::validate;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::outbound::catalog::fixtures::fake::CatalogFake;
-use crate::outbound::catalog::interface::CatalogPort as _;
-use crate::outbound::syntax::factory::winnow;
-use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::program::types::QueryView;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::observations::types::ObservationName;
+use ryo_values::domain::program::types::{
+    Alias, ByteOffset, ColumnName, Columns, Expression, Joining, LetStep, Program, QuerySource,
+    QuerySpan, Select, SourceReference, StepName, WrittenEmit, WrittenObservation, WrittenRelation,
+};
 
-/// The query text a row gives.
-type Input = &'static str;
-/// Whether the text is valid.
-type Value = bool;
+#[derive(Clone, Copy)]
+enum Scenario {
+    Valid,
+    UnknownRelation,
+    MissingEmitStep,
+    DuplicateStep,
+    BlankObservation,
+    DuplicateObservation,
+}
+type Input = Scenario;
+type Value = ();
 type Failure = ValidationError;
+const SPAN: QuerySpan = QuerySpan {
+    start: ByteOffset(7),
+    end: ByteOffset(19),
+};
 
-const VALID: &str = "param max-lines: integer;\nlet long = select * from \"function\" where id > $max-lines;\nemit long subject file key(file);";
-const UNKNOWN_RELATION: &str = "let a = select * from \"nothing\"; emit a subject file key(file);";
-const UNKNOWN_STEP: &str = "let a = select * from earlier; emit a subject file key(file);";
-const UNKNOWN_PARAMETER: &str =
-    "let a = select * from \"function\" where id > $limit; emit a subject file key(file);";
-const UNKNOWN_OPERATION: &str = "let a = sort(from=\"function\"); emit a subject file key(file);";
-const MISSING_ARGUMENT: &str = "let a = project(from=\"function\"); emit a subject file key(file);";
-const DUPLICATE_STEP: &str = "let a = select * from \"function\"; let a = select * from \"function\"; emit a subject file key(file);";
-const JOIN_WITHOUT_COLUMNS: &str = "let a = select * from \"function\" as l join \"function\" as r on l.id = r.id; emit a subject file key(file);";
-
-/// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_well_formed_query_is_valid"),
+        name: CaseName("typed_source_and_emit_are_admitted"),
         word: Word::Succeeds,
-        input: || VALID,
-        expect: Expect::Value(true),
+        input: || Scenario::Valid,
+        expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("unknown_relation_is_refused"),
+        name: CaseName("unknown_relation_keeps_name_and_span"),
         word: Word::Refuses,
-        input: || UNKNOWN_RELATION,
+        input: || Scenario::UnknownRelation,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownRelation { .. }))
+            selects(
+                matches!(error, ValidationError::UnknownRelation { name, span } if name == "nothing" && *span == SPAN),
+            )
         }),
     },
     Case {
-        name: CaseName("unknown_step_is_refused"),
+        name: CaseName("missing_emit_step_keeps_name_and_span"),
         word: Word::Refuses,
-        input: || UNKNOWN_STEP,
+        input: || Scenario::MissingEmitStep,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownStep { .. }))
+            selects(
+                matches!(error, ValidationError::UnknownStep { name, span } if name == "missing" && *span == SPAN),
+            )
         }),
     },
     Case {
-        name: CaseName("unknown_parameter_is_refused"),
+        name: CaseName("duplicate_step_keeps_name_and_span"),
         word: Word::Refuses,
-        input: || UNKNOWN_PARAMETER,
+        input: || Scenario::DuplicateStep,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownParameter { .. }))
+            selects(
+                matches!(error, ValidationError::DuplicateStep { name, span } if name == "rows" && *span == SPAN),
+            )
         }),
     },
     Case {
-        name: CaseName("unknown_operation_is_refused"),
+        name: CaseName("blank_observation_keeps_span"),
         word: Word::Refuses,
-        input: || UNKNOWN_OPERATION,
+        input: || Scenario::BlankObservation,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::UnknownOperation { .. }))
+            selects(matches!(error, ValidationError::BlankObservation { span } if *span == SPAN))
         }),
     },
     Case {
-        name: CaseName("missing_argument_is_refused"),
+        name: CaseName("duplicate_observation_keeps_name_and_span"),
         word: Word::Refuses,
-        input: || MISSING_ARGUMENT,
+        input: || Scenario::DuplicateObservation,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::MissingArgument { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("a_step_defined_twice_is_refused"),
-        word: Word::Refuses,
-        input: || DUPLICATE_STEP,
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::DuplicateStep { .. }))
-        }),
-    },
-    Case {
-        name: CaseName("a_join_must_name_its_columns"),
-        word: Word::Refuses,
-        input: || JOIN_WITHOUT_COLUMNS,
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, ValidationError::JoinNeedsColumns { .. }))
+            selects(
+                matches!(error, ValidationError::DuplicateObservation { name, span } if name == "exported" && *span == SPAN),
+            )
         }),
     },
 ];
 
-/// Reads the text and validates it against the fake catalog.
-fn subject(text: Input) -> Result<Value, Failure> {
-    let program = winnow()
-        .read(QueryView(text))
-        .expect("the row's text is readable");
-    let catalog = CatalogFake::default().relations().expect("the fake lists");
-    validate(&program, &catalog.0, &[]).map(|()| true)
+fn source(relation: &str) -> LetStep {
+    LetStep {
+        name: StepName("rows".into(), None),
+        expression: Expression::Select(Select {
+            columns: Columns::Every,
+            from: QuerySource {
+                reference: SourceReference::Relation(WrittenRelation(relation.into())),
+                alias: Alias::Unwritten,
+                span: SPAN,
+            },
+            join: Joining::Alone,
+            filters: Vec::new(),
+        }),
+        span: SPAN,
+    }
+}
+
+fn observation(name: &str) -> WrittenObservation {
+    WrittenObservation {
+        step: StepName("rows".into(), None),
+        name: ObservationName(name.into()),
+        span: SPAN,
+        origin: None,
+    }
+}
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    let mut program = Program {
+        linked: false,
+        imports: Vec::new(),
+        origins: Vec::new(),
+        fragment_contracts: Vec::new(),
+        step_origins: std::collections::BTreeMap::new(),
+        observations: Vec::new(),
+        emit_origin: None,
+        parameters: Vec::new(),
+        steps: vec![source("function")],
+        emit: WrittenEmit {
+            step: StepName("rows".into(), None),
+            subject: ColumnName("file".into()),
+            key: vec![ColumnName("span".into())],
+            span: SPAN,
+        },
+    };
+    match scenario {
+        Scenario::Valid => {}
+        Scenario::UnknownRelation => program.steps = vec![source("nothing")],
+        Scenario::MissingEmitStep => program.emit.step = StepName("missing".into(), None),
+        Scenario::DuplicateStep => program.steps.push(source("function")),
+        Scenario::BlankObservation => program.observations.push(observation(" \t")),
+        Scenario::DuplicateObservation => {
+            program.observations = vec![observation("exported"), observation("exported")]
+        }
+    }
+    validate(&program, &[Relation::Function], &[])
 }
 
 #[test]
