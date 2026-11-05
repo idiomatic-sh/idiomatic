@@ -23,7 +23,7 @@ pub(crate) enum Leaf {
     /// A token.
     Token,
     /// A node.
-    TypeScriptNode,
+    Node,
 }
 
 /// How the text of a file is read, as its extension names it: TypeScript, TypeScript with JSX, TypeScript that is always a module or

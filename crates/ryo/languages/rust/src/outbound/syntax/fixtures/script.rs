@@ -10,7 +10,7 @@ use ryo::languages::{self, Offset};
 #[derive(Clone, Debug)]
 pub(crate) enum Piece {
     /// A node, with the pieces under it.
-    RustNode(Kind, Vec<Piece>),
+    Node(Kind, Vec<Piece>),
     /// A token with its text.
     Token(Kind, &'static str),
     /// Something the parser said it could not read, at this point of the text.

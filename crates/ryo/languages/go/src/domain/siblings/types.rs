@@ -7,7 +7,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Wanted {
     /// Every node.
-    GoNode,
+    Node,
     /// The nodes of one kind.
     NodeOf(GoNode),
     /// The tokens of one kind.

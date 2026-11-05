@@ -24,7 +24,7 @@ pub(crate) enum Leaf {
     /// A token.
     Token,
     /// A node.
-    TomlNode,
+    Node,
 }
 
 /// Whether an element is the root of its tree.

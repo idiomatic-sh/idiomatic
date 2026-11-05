@@ -23,7 +23,7 @@ pub(crate) enum Leaf {
     /// A token.
     Token,
     /// A node.
-    JavaScriptNode,
+    Node,
 }
 
 /// Whether a function of the tree is declared: a function declaration, or the body of a method, which its key names; a function
