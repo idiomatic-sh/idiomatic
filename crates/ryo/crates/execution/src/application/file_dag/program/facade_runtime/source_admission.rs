@@ -389,7 +389,7 @@ impl Inputs for SourceInputs<'_, '_> {
             InputSource::Region(id) => self.execution.published(id)?.ok_or(OperatingError::NotRun),
             InputSource::Observation(slot) => {
                 if let Some(input) = self.observations.get(&slot) {
-                    return Ok(input.clone());
+                    return Ok(AvailableInput::published(input.clone()));
                 }
                 let union = *self
                     .program
