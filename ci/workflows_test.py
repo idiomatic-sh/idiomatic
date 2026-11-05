@@ -950,6 +950,22 @@ def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
 
 
 def ownership_contract_problems(workflow: dict) -> list[str]:
+    tm_script = "tm validate --root crates/ryo\ntm check --root crates/ryo"
+    rust_script = """set -euo pipefail
+required_suite() {
+  listing=$(mktemp)
+  "$@" -- --include-ignored --list | tee "$listing"
+  if ! grep -Eq ': test$' "$listing"; then
+    echo "required suite has no tests: $*" >&2
+    exit 1
+  fi
+  "$@" -- --include-ignored
+}
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --test boundary_contract
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --lib inbound::use_cases::execution
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-operators --doc
+cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --all-targets
+cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc"""
     jobs = workflow["jobs"]
     job = jobs.get("ownership-contracts", {})
     steps = job.get("steps", [])
@@ -961,12 +977,8 @@ def ownership_contract_problems(workflow: dict) -> list[str]:
         or job.get("continue-on-error") is not None
         or len(steps) != 9
         or any(step.get("if") is not None or step.get("continue-on-error") is not None for step in steps)
-        or "tm validate --root crates/ryo" not in steps[-2].get("run", "")
-        or "tm check --root crates/ryo" not in steps[-2].get("run", "")
-        or "--test boundary_contract" not in steps[-1].get("run", "")
-        or "-p idiomatic-sh-ryo-operators --doc" not in steps[-1].get("run", "")
-        or "--workspace --all-targets" not in steps[-1].get("run", "")
-        or "--workspace --doc" not in steps[-1].get("run", "")
+        or steps[-2].get("run", "").strip() != tm_script
+        or steps[-1].get("run", "").strip() != rust_script
         or "ownership-contracts" not in needs(gate)
         or "ownership-contracts" in allowed
     ):
@@ -983,6 +995,10 @@ def test_real_ownership_contract_suites_are_required() -> None:
         lambda w: w["jobs"]["ownership-contracts"].update({"continue-on-error": True}),
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "true"}),
         lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": "true"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "tm validate --root crates/ryo || true\ntm check --root crates/ryo"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("set -euo pipefail\n", "")}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("--include-ignored", "")}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("required_suite cargo test --locked", "# required_suite cargo test --locked", 1)}),
         lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "ownership-contracts"}),
     ):
         changed = deepcopy(workflow)

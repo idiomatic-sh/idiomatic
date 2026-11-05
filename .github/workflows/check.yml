@@ -91,12 +91,12 @@ jobs:
           set -euo pipefail
           required_suite() {
             listing=$(mktemp)
-            "$@" -- --list | tee "$listing"
+            "$@" -- --include-ignored --list | tee "$listing"
             if ! grep -Eq ': test$' "$listing"; then
               echo "required suite has no tests: $*" >&2
               exit 1
             fi
-            "$@"
+            "$@" -- --include-ignored
           }
           required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --test boundary_contract
           required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --lib inbound::use_cases::execution
