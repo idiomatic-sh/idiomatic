@@ -704,7 +704,7 @@ fn exercise_project_observation_union(refused: bool) {
         },
         use_case::OperatorsUseCaseImpl,
     };
-    #[derive(Default)]
+    #[derive(Debug, Default)]
     struct UnionSemanticCalls(AtomicUsize);
     impl OperatorsUseCase for UnionSemanticCalls {
         fn operators(
