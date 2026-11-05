@@ -156,23 +156,6 @@ pub(crate) fn schemas(
     Ok(PreparedObservationInputs { schemas, bindings })
 }
 
-/// Original-index traversal for an already prepared request. Independent requests allocate nothing.
-pub(crate) fn rule_order(
-    request: crate::domain::file_program::types::ObservationRequest<'_>,
-    count: usize,
-) -> impl Iterator<Item = RuleIndex> + '_ {
-    let order = match request {
-        crate::domain::file_program::types::ObservationRequest::Independent => None,
-        crate::domain::file_program::types::ObservationRequest::Bound { order, .. } => Some(order),
-    };
-    let independent = if order.is_none() { count } else { 0 };
-    order
-        .into_iter()
-        .flatten()
-        .copied()
-        .chain((0..independent).map(RuleIndex))
-}
-
 /// Bind every output to the existing graph's actual node identity, with explicit unsupported admission.
 pub(crate) fn graph_outputs(
     plans: &[Plan],
@@ -260,25 +243,6 @@ pub(crate) fn graph_outputs(
             }
         }
     }
-    let publish = outputs
-        .iter()
-        .map(|outputs| {
-            let mut nodes = std::collections::HashMap::<
-                crate::domain::file_program::types::NodeId,
-                Vec<ryo_values::domain::observations::types::ObservationIndex>,
-            >::new();
-            for (index, output) in outputs.iter().enumerate() {
-                if let GraphObservationRoot::PerFile(node) = output.root {
-                    nodes.entry(node).or_default().push(
-                        ryo_values::domain::observations::types::ObservationIndex(
-                            u32::try_from(index).expect("compiled output index fits u32"),
-                        ),
-                    );
-                }
-            }
-            nodes
-        })
-        .collect();
     let mut retire = vec![Vec::new(); bindings.len()];
     for (consumer, inputs) in bindings.iter().enumerate() {
         for binding in inputs {
@@ -370,7 +334,6 @@ pub(crate) fn graph_outputs(
         layout,
         slots,
         frontiers,
-        publish,
         retire,
         bindings,
         outputs,
@@ -388,9 +351,8 @@ pub(crate) fn request<'a>(
         return Ok(ObservationRequest::Independent);
     }
     match schedule {
-        RuleSchedule::Dependencies { order, batches } => Ok(ObservationRequest::Bound {
+        RuleSchedule::Dependencies { batches, .. } => Ok(ObservationRequest::Bound {
             layout,
-            order,
             batches,
             bindings,
         }),
@@ -531,36 +493,5 @@ fn bound_input_dependencies(
             .ok_or(ObservationError::InvalidReference),
         Input::BoundObservation(id) if (id.0 as usize) < count => Ok(BTreeSet::from([id])),
         Input::BoundObservation(_) => Err(ObservationError::InvalidReference),
-    }
-}
-
-/// Explicit bound producer demand is independent of diagnostic emission policy.
-/// Syntax/provider eligibility is deliberately applied by the caller afterward.
-pub(crate) fn demanded_rules(
-    graph: &super::super::types::RequestGraph,
-    emits: impl Fn(usize) -> bool,
-) -> Vec<bool> {
-    let mut demanded = (0..graph.cuts.len()).map(emits).collect::<Vec<_>>();
-    let Some(observations) = &graph.observations else {
-        return demanded;
-    };
-    loop {
-        let mut changed = false;
-        for (producer, outputs) in observations.outputs.iter().enumerate() {
-            if !demanded[producer]
-                && outputs.iter().any(|output| {
-                    output
-                        .consumers
-                        .iter()
-                        .any(|consumer| demanded.get(*consumer).copied().unwrap_or(false))
-                })
-            {
-                demanded[producer] = true;
-                changed = true;
-            }
-        }
-        if !changed {
-            return demanded;
-        }
     }
 }

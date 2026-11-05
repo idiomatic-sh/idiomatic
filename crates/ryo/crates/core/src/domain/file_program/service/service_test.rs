@@ -30,7 +30,6 @@ fn graph() -> GraphObservations {
         layout: ObservationReadinessLayout(Digest([1; 16])),
         slots: Vec::new(),
         frontiers: Vec::new(),
-        publish: (0..4).map(|_| Default::default()).collect(),
         retire: vec![Vec::new(); 4],
         bindings: vec![Vec::new(), vec![binding(0)], vec![binding(1)], Vec::new()],
         outputs: vec![

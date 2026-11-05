@@ -41,7 +41,6 @@ pub(crate) struct ColumnAlternative {
     filter: RegionId,
     chain: Chain,
     order: HeldJoinOrder,
-    cancelled: [NodeId; 2],
 }
 
 impl ColumnAlternative {
@@ -67,11 +66,6 @@ impl ColumnAlternative {
 
     pub(crate) fn order(&self) -> HeldJoinOrder {
         self.order
-    }
-
-    /// Original Join and equality-filter nodes replaced by the physical chain.
-    pub(crate) fn cancelled(&self) -> [NodeId; 2] {
-        self.cancelled
     }
 }
 
@@ -228,7 +222,6 @@ impl ColumnCandidates {
                     filter,
                     chain: each.chain.clone(),
                     order: each.order,
-                    cancelled: [each.join, each.filter],
                 })
             })
             .collect()

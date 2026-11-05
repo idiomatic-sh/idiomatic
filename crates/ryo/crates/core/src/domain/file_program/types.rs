@@ -23,12 +23,9 @@ pub(crate) struct PhysicalRegion {
     pub rule: usize,
     pub step: ryo_values::domain::plan_parts::types::StepId,
     pub column: Option<crate::domain::column_kernel::types::Chain>,
-    pub native_nodes: Vec<NodeId>,
-    pub column_nodes: Vec<NodeId>,
 }
 #[derive(Debug)]
 pub(crate) struct Node {
-    pub publication_reads: Vec<crate::domain::trust::types::RelationRead>,
     pub regions: Vec<PhysicalRegion>,
     pub needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
@@ -41,16 +38,12 @@ pub(crate) struct Node {
     /// preserve the Join's original right-before-left refusal order.
     pub native_join_right_first: bool,
     pub contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
-    pub physical:
-        crate::domain::table_model::collections::representations::publication::PreparedPhysical,
     /// Executable registered operation with normalized local input numbers.
     pub operation: ryo_values::domain::plans::types::Operation,
     /// Ordered typed dependencies retained for the central executor.
     pub inputs: Vec<NodeInput>,
     /// Invalid synthetic plans keep ordinary error order instead of DAG admission.
     pub schema_valid: bool,
-    /// Transitive physical facts required before the application admits this node.
-    pub relations: Vec<Relation>,
 }
 
 #[derive(Debug)]
@@ -66,13 +59,6 @@ pub(crate) struct RequestGraph {
     /// Producers of declared derived inputs, computed once for the whole request.
     pub derived_sources: Vec<bool>,
     pub nodes: Vec<Node>,
-    /// Only internal kept cuts may own a file-local result. Other entries are None.
-    pub cuts: Vec<Vec<Option<NodeId>>>,
-    /// Unique eligible nodes consumed by each rule, prepared once per request.
-    /// Graph outputs consumed by residual operations, in original step order.
-    pub boundaries: Vec<Vec<(usize, NodeId)>>,
-    /// Parent-before-child rule-local live-edge counts, compiled once per request.
-    pub rule_liveness: Vec<Vec<(NodeId, usize)>>,
 }
 
 /// Ordinary requests need no named-root traversal allocation.
@@ -125,7 +111,6 @@ pub(crate) enum ObservationRequest<'a> {
     /// Actual resolved bindings and original-index topology, never a second executor.
     Bound {
         layout: ryo_values::domain::observations::types::ObservationReadinessLayout,
-        order: &'a [crate::domain::coverage::types::RuleIndex],
         batches: &'a [Vec<crate::domain::coverage::types::RuleIndex>],
         bindings: &'a [Vec<ResolvedObservationBinding>],
     },
@@ -162,13 +147,6 @@ pub(crate) struct GraphObservations {
     pub frontiers: Vec<ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.
     pub retire: Vec<Vec<ObservationRetirement>>,
-    /// Producer-local constant-time root publication lookup; never rescan all exports per node.
-    pub publish: Vec<
-        std::collections::HashMap<
-            NodeId,
-            Vec<ryo_values::domain::observations::types::ObservationIndex>,
-        >,
-    >,
     pub bindings: Vec<Vec<GraphObservationBinding>>,
     pub outputs: Vec<Vec<GraphObservationOutput>>,
 }

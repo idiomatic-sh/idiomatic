@@ -84,7 +84,6 @@ pub(crate) struct Instruction {
 #[derive(Clone, Debug)]
 pub(crate) struct OrderedExistence {
     pub source: RegionId,
-    pub join: RegionId,
     pub number: crate::domain::ordered_existence::types::NumberRequirement,
     pub partition: Box<[ryo_values::domain::plan_parts::types::ColumnIndex]>,
     pub order: ryo_values::domain::plan_parts::types::ColumnIndex,
@@ -126,8 +125,6 @@ pub(crate) struct ExecutableProgram {
     pub(super) rules: Box<[RuleProgram]>,
     pub(super) logical_regions: Box<[RegionId]>,
     pub(super) observation_regions: Box<[Result<RegionId, OperatingError>]>,
-    pub(super) original_instruction_count: usize,
-    pub(super) fused_instruction_count: usize,
 }
 impl ExecutableProgram {
     pub(crate) fn regions(&self) -> &[Region] {

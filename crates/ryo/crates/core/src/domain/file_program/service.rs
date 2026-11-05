@@ -5,65 +5,27 @@ pub(crate) mod observations;
 
 use super::types::{Node, NodeId, NodeInput, ObservationRequest, RequestGraph};
 
-use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 struct CanonicalNode {
-    publication_reads: Vec<crate::domain::trust::types::RelationRead>,
     regions: Vec<super::types::PhysicalRegion>,
     needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
         crate::domain::operating::errors::OperatingError,
     >,
     contract: Arc<crate::domain::operator::contract::types::OperatorContract>,
-    physical:
-        crate::domain::table_model::collections::representations::publication::PreparedPhysical,
     scope: Option<usize>,
     phase: StepScope,
     input_supply: Vec<crate::domain::operating::types::Supply>,
     native_join_right_first: bool,
     operation: Operation,
     inputs: Vec<NodeInput>,
-    relations: Vec<Relation>,
     schema_valid: bool,
-}
-
-/// Original typed ancestry, prepared with the request. A boundary is an
-/// admitted input of the physical region, never re-evaluated by that region.
-fn region_ancestors(
-    plan: &Plan,
-    root: usize,
-    stop: Option<usize>,
-    mapped: &[Option<NodeId>],
-) -> Vec<NodeId> {
-    let mut pending = vec![root];
-    let mut seen = HashSet::new();
-    let mut nodes = Vec::new();
-    while let Some(step) = pending.pop() {
-        if !seen.insert(step) || Some(step) == stop {
-            continue;
-        }
-        if step != root
-            && let Some(Some(node)) = mapped.get(step)
-        {
-            nodes.push(*node);
-        }
-        if let Some(step) = plan.steps.get(step) {
-            for input in named(&inputs_of(&step.operation)) {
-                if let Input::Step(id) = input {
-                    pending.push(id.0 as usize);
-                }
-            }
-        }
-    }
-    nodes.sort_unstable_by_key(|id| id.0);
-    nodes.dedup();
-    nodes
 }
 
 fn node_input(
@@ -256,7 +218,6 @@ pub(crate) fn compile_prepared_observations(
     let mut buckets = HashMap::<u64, Vec<NodeId>>::new();
     for (rule, plan) in plans.iter().enumerate() {
         let kept = materialized_steps(plan);
-        let publication_reads = crate::domain::trust::service::physical_reads(plan);
         let needs = crate::domain::trust::service::needs_of_contracts(plan, &operators.rules[rule]);
         let physical_plan = Arc::new(plan.clone());
         let layout = operators.rules[rule]
@@ -301,14 +262,6 @@ pub(crate) fn compile_prepared_observations(
                             || layout.lowering.counting.get(index)
                                 == Some(&crate::domain::lowering::types::Counting::Counts);
                         (native || column.is_some()).then(|| super::types::PhysicalRegion {
-                            native_nodes: if native {
-                                region_ancestors(plan, index, None, &mapped)
-                            } else {
-                                Vec::new()
-                            },
-                            column_nodes: column.as_ref().map_or_else(Vec::new, |chain| {
-                                region_ancestors(plan, index, Some(chain.left_step), &mapped)
-                            }),
                             plan: Arc::clone(&physical_plan),
                             layout: Arc::clone(layout),
                             rule,
@@ -331,19 +284,6 @@ pub(crate) fn compile_prepared_observations(
                         }
                         return Some(found);
                     }
-                    let mut relations = Vec::new();
-                    for input in &inputs {
-                        let sources: &[Relation] = match input {
-                            NodeInput::Relation(relation) => std::slice::from_ref(relation),
-                            NodeInput::Node(id) => &nodes[id.0].relations,
-                            NodeInput::Observation(_) => &[],
-                        };
-                        for relation in sources {
-                            if !relations.contains(relation) {
-                                relations.push(*relation);
-                            }
-                        }
-                    }
                     let validated = contract.schema.clone().ok();
                     let schema_valid = validated.is_some()
                         && inputs.iter().all(|input| match input {
@@ -352,10 +292,6 @@ pub(crate) fn compile_prepared_observations(
                         });
                     let id = NodeId(nodes.len());
                     nodes.push(CanonicalNode {
-                        publication_reads: publication_reads
-                            .get(index)
-                            .cloned()
-                            .unwrap_or_default(),
                         regions: region.into_iter().collect(),
                         needs: needs.as_ref().map_err(Clone::clone).and_then(|needs| {
                             needs
@@ -363,7 +299,6 @@ pub(crate) fn compile_prepared_observations(
                                 .cloned()
                                 .ok_or(crate::domain::operating::errors::OperatingError::NotRun)
                         }),
-                        physical: operators.physical[rule][index].clone(),
                         contract,
                         scope,
                         phase: step.scope,
@@ -371,7 +306,6 @@ pub(crate) fn compile_prepared_observations(
                         native_join_right_first: false,
                         operation,
                         inputs,
-                        relations,
                         schema_valid,
                     });
                     buckets.entry(hash).or_default().push(id);
@@ -419,32 +353,6 @@ pub(crate) fn compile_prepared_observations(
                 add(output.source);
             }
             roots
-        })
-        .collect();
-    let rule_liveness = boundaries
-        .iter()
-        .map(|roots| {
-            let mut counts = HashMap::<NodeId, usize>::new();
-            let mut expanded = HashSet::new();
-            let mut pending = Vec::new();
-            for (_, root) in roots {
-                *counts.entry(*root).or_default() += 1;
-                pending.push(*root);
-            }
-            while let Some(node) = pending.pop() {
-                if !expanded.insert(node) {
-                    continue;
-                }
-                for input in &nodes[node.0].inputs {
-                    if let NodeInput::Node(child) = input {
-                        *counts.entry(*child).or_default() += 1;
-                        pending.push(*child);
-                    }
-                }
-            }
-            let mut counts = counts.into_iter().collect::<Vec<_>>();
-            counts.sort_unstable_by_key(|(node, _)| std::cmp::Reverse(node.0));
-            counts
         })
         .collect();
     let mut derived_sources = vec![false; nodes.len()];
@@ -611,26 +519,20 @@ pub(crate) fn compile_prepared_observations(
         ordered_existence,
         observations,
         derived_sources,
-        rule_liveness,
-        boundaries,
         nodes: nodes
             .into_iter()
             .map(|node| Node {
-                publication_reads: node.publication_reads,
                 regions: node.regions,
                 needs: node.needs,
                 phase: node.phase,
                 input_supply: node.input_supply,
                 native_join_right_first: node.native_join_right_first,
                 contract: node.contract,
-                physical: node.physical,
                 operation: node.operation,
                 inputs: node.inputs,
                 schema_valid: node.schema_valid,
-                relations: node.relations,
             })
             .collect(),
-        cuts,
     }
 }
 

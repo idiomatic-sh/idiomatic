@@ -335,10 +335,9 @@ impl PreparedProgram {
         &self,
     ) -> crate::domain::file_program::types::ObservationRequest<'_> {
         match (&self.observations, &self.schedule) {
-            (Some(named), RuleSchedule::Dependencies { order, batches }) => {
+            (Some(named), RuleSchedule::Dependencies { batches, .. }) => {
                 crate::domain::file_program::types::ObservationRequest::Bound {
                     layout: named.layout,
-                    order,
                     batches,
                     bindings: &named.bindings,
                 }
