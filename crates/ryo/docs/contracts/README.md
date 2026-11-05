@@ -11,7 +11,7 @@
 - Tiny valid-file225: **10.59 → 9.88 s**, **1.988 → 1.985 GB**, exactly equal complete reports for 413 rules. One diagnostic comparison only. Profile217 attributed **6.272 s** to compilation and left **2.567 s** of preparation unaccounted.
 - Internal tests: migration integrated at `01c42f64a`; build229 fails with **66 compiler errors**. Repairs target current contracts; no runtime claim until the combined suite passes.
 - TM: run230 reports **76 findings in 11 repaired files**, zero suppressed. Earlier run221’s zero findings did not prove correct placement: its existence-only template accepted concept-named test files. The test-layout family and its enforcement are being corrected; architecture remains open.
-- Allocation profile227: immutable query/catalog clones retain **551.6 MB** at the measured global heap peak. Sharing their exact immutable contents is the current bounded candidate; no candidate timing or memory result yet.
+- Shared query catalog232: three alternating runs, one valid file and all 413 rules. Median peak RSS **1.984 → 1.236 GB (37.7% lower)**; wall **10.112 → 10.110 s (unchanged)**. All six complete reports match exactly. This removes preparation copies, not the unfinished shared walk. [Source identities and measurements](evidence/query-catalog/measurements.json).
 
 Evidence and granular tasks **A1–A9, B1–B5, C1–C7** are tracked in Beads `ryo-7tkn.19`. Astra/Opus source review found no remaining blocker in the bounded frontier repair; it did not close runtime coverage, ownership categories or performance gates. Scheduling audit distinguishes shared file preparation and named-project execution from the ordinary project route, which still creates two scopes per rule and separate execution generations.
 
