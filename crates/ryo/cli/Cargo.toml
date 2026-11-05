@@ -19,6 +19,7 @@ name = "ryo"
 path = "src/main.rs"
 
 [dependencies]
+ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../crates/execution", version = "0.1.2" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../crates/relations", version = "0.1.2" }
 anstream.workspace = true
 clap.workspace = true

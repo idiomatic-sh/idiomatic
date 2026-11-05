@@ -1266,6 +1266,7 @@ dependencies = [
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-css",
  "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-go",
  "idiomatic-sh-ryo-html",
  "idiomatic-sh-ryo-javascript",

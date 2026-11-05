@@ -32,13 +32,13 @@ pub(crate) fn build(
     use ryo_core::application::file_analysis::service::FileAnalysis;
     use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
     use ryo_core::outbound::corpus::interface::CorpusPort;
-    use ryo_core::outbound::digest::interface::DigestPort;
     use ryo_core::outbound::language::interface::LanguagePort;
     use ryo_core::outbound::lint_store::interface::LintStorePort;
     use ryo_core::outbound::memory::interface::MemoryPort;
     use ryo_core::outbound::{
         corpus, digest, facts, lint_store, matching, memory, query_language, scheduler,
     };
+    use ryo_execution::inbound::use_cases::execution::types::digest::DigestPort;
     use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
     use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
     use std::sync::Arc;
