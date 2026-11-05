@@ -61,10 +61,12 @@ fn semantic_failure_discards_every_after_success_row() {
                         evaluation: &[],
                         publication: &[],
                         intents: &[FileRuleIntent::Run {
-                            roots: RuleDemand {
-                                emit: EmitDemand::Enabled,
-                                observations: ObservationDemand::NotRequired,
+                            diagnostic: if forwarded {
+                                DiagnosticDelivery::Forwarded
+                            } else {
+                                DiagnosticDelivery::Collected
                             },
+                            observations: ObservationDemand::NotRequired,
                             capture: CaptureIntent::Disabled,
                         }],
                         source: b"abc",
@@ -102,7 +104,11 @@ fn semantic_failure_discards_every_after_success_row() {
 
 #[test]
 fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
-    for refuse in [false, true] {
+    for (refuse, diagnostic) in [
+        (false, DiagnosticDelivery::Forwarded),
+        (true, DiagnosticDelivery::Forwarded),
+        (false, DiagnosticDelivery::Collected),
+    ] {
         let engine = engine();
         let prepared = program(&engine);
         let corpus = corpus();
@@ -123,10 +129,8 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
                     evaluation: &[],
                     publication: &[],
                     intents: &[FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::Disabled,
                     }],
                     source: b"abc",
@@ -138,6 +142,19 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
                 &mut symbols,
             )
             .expect("open actual file");
+        if diagnostic == DiagnosticDelivery::Collected {
+            let RootOutcome::Complete(retained) = file
+                .rule(RuleIndex(0), demand(), &mut symbols)
+                .unwrap()
+                .emit
+            else {
+                panic!("successful collected publication")
+            };
+            assert_eq!(retained, table);
+            file.finish().expect("release collected invocation");
+            request.finish();
+            continue;
+        }
         let mut exposed = Vec::new();
         let result = file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
             if refuse && !exposed.is_empty() {
@@ -159,14 +176,13 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
             result.expect("publish after successful semantics");
         }
         assert_eq!(exposed, table.cells);
-        let RootOutcome::Complete(retained) = file
-            .rule(RuleIndex(0), demand(), &mut symbols)
-            .unwrap()
-            .emit
-        else {
-            panic!("successful delivery publishes the same retained root")
-        };
-        assert_eq!(retained, table);
+        assert!(
+            matches!(
+                file.rule(RuleIndex(0), demand(), &mut symbols),
+                Err(OperatingError::NotRun)
+            ),
+            "forwarded publication cannot be reopened in collected mode"
+        );
         file.finish().expect("release successful invocation");
         request.finish();
     }
@@ -278,10 +294,8 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                     evaluation: &[],
                     publication: &[],
                     intents: &[FileRuleIntent::Run {
-                        roots: RuleDemand {
-                            emit: EmitDemand::Enabled,
-                            observations: ObservationDemand::NotRequired,
-                        },
+                        diagnostic: DiagnosticDelivery::Collected,
+                        observations: ObservationDemand::NotRequired,
                         capture: CaptureIntent::DiagnosticAndObservations,
                     }],
                     source: b"abc",

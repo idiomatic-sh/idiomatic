@@ -3,8 +3,8 @@ use crate::application::file_dag::{
     execution::CommonOperatorEngine,
     program::{
         facade::{
-            self, CaptureIntent, EmitDemand, FileRuleIntent, ObservationDemand, RootOutcome,
-            RuleDemand,
+            self, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand,
+            RootOutcome, RuleDemand,
         },
         facade_runtime::{FileRun, ProgramServices, open_file},
     },
@@ -214,17 +214,13 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() {
         },
         &[
             FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             },
             FileRuleIntent::Run {
-                roots: RuleDemand {
-                    emit: EmitDemand::Enabled,
-                    observations: ObservationDemand::NotRequired,
-                },
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
                 capture: CaptureIntent::Disabled,
             },
         ],
@@ -256,10 +252,8 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
             publication: &[],
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }],
         Arc::clone(&services),
@@ -280,10 +274,8 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() {
             publication: &[],
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }],
         services,

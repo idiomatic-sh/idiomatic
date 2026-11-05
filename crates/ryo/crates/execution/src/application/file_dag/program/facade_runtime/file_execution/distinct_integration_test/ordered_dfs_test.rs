@@ -185,10 +185,12 @@ fn execute_request(
             publication: &[],
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
+            diagnostic: if delivery {
+                DiagnosticDelivery::Forwarded
+            } else {
+                DiagnosticDelivery::Collected
             },
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }],
         services,
@@ -952,10 +954,8 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
             publication: &[],
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }; 4],
         services,

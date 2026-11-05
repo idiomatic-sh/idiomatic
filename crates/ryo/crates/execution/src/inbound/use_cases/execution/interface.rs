@@ -65,6 +65,8 @@ pub trait ExecutionRequest {
 pub trait FileExecution {
     /// Actual shared native pass work already performed by this file owner.
     fn walk_counts(&self) -> WalkCounts;
+    /// Deliver only a diagnostic root declared `DiagnosticDelivery::Forwarded` at file open.
+    /// A different declaration is refused before source admission.
     fn emit_rows(
         &mut self,
         rule: RuleIndex,
@@ -76,6 +78,7 @@ pub trait FileExecution {
     fn finish(self) -> Result<FileFinished, OperatingError>
     where
         Self: Sized;
+    /// Collect exactly the declared roots. Forwarded diagnostic roots cannot change mode.
     fn rule(
         &mut self,
         rule: RuleIndex,

@@ -60,9 +60,13 @@ pub(crate) fn open_file<'a>(
     let demanded = intents
         .iter()
         .map(|intent| match intent {
-            FileRuleIntent::Run { roots, capture } => {
-                roots.emit == EmitDemand::Enabled
-                    || roots.observations == ObservationDemand::Required
+            FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                capture,
+            } => {
+                *diagnostic != DiagnosticDelivery::Disabled
+                    || *observations == ObservationDemand::Required
                     || *capture != CaptureIntent::Disabled
             }
             _ => false,
@@ -105,7 +109,7 @@ pub(crate) fn open_file<'a>(
         intents: intents.into(),
         generation,
         observed: HashMap::new(),
-        walk: super::super::native_walk::FileWalk::new(file, &demanded),
+        walk: super::super::native_walk::FileWalk::new(file),
         context: super::super::context::RunContext::file(
             &services, source, symbols, semantic, kinds,
         ),
@@ -122,11 +126,16 @@ impl FileRun<'_> {
             let prepared = &self.program.program().rules()[index];
             let metadata = self.program.rule_metadata(rule)?;
             let mut enabled = Vec::new();
-            if let FileRuleIntent::Run { roots, capture } = intent {
-                if roots.emit == EmitDemand::Enabled {
+            if let FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                capture,
+            } = intent
+            {
+                if diagnostic != DiagnosticDelivery::Disabled {
                     enabled.extend(prepared.emit.iter().copied());
                 }
-                if roots.observations == ObservationDemand::Required {
+                if observations == ObservationDemand::Required {
                     enabled.extend(metadata.observations.iter().filter_map(|root| {
                         match root.source.as_ref().ok()? {
                             InputSource::Region(id) => Some(*id),
@@ -209,9 +218,16 @@ impl FileRun<'_> {
     pub(in crate::application::file_dag::program) fn file_intents(&self) -> &[FileRuleIntent] {
         &self.intents
     }
-    fn declared(&self, rule: RuleIndex) -> Result<(RuleDemand, CaptureIntent), OperatingError> {
+    fn declared(
+        &self,
+        rule: RuleIndex,
+    ) -> Result<(DiagnosticDelivery, ObservationDemand, CaptureIntent), OperatingError> {
         match self.intents.get(rule.0) {
-            Some(FileRuleIntent::Run { roots, capture }) => Ok((*roots, *capture)),
+            Some(FileRuleIntent::Run {
+                diagnostic,
+                observations,
+                capture,
+            }) => Ok((*diagnostic, *observations, *capture)),
             _ => Err(OperatingError::NotRun),
         }
     }
@@ -222,7 +238,13 @@ impl FileRun<'_> {
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
-        if self.declared(rule)?.0 != demand {
+        let (diagnostic, observations, _) = self.declared(rule)?;
+        let emit = match diagnostic {
+            DiagnosticDelivery::Disabled => EmitDemand::Disabled,
+            DiagnosticDelivery::Collected => EmitDemand::Enabled,
+            DiagnosticDelivery::Forwarded => return Err(OperatingError::NotRun),
+        };
+        if (RuleDemand { emit, observations }) != demand {
             return Err(OperatingError::NotRun);
         }
         let _rule_origin = crate::application::file_dag::route_counts::rule(
@@ -342,7 +364,7 @@ impl FileRun<'_> {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
-        let (_, capture_intent) = self.declared(rule)?;
+        let (_, _, capture_intent) = self.declared(rule)?;
         if capture_intent == CaptureIntent::Disabled {
             return Err(OperatingError::NotRun);
         }
@@ -463,7 +485,7 @@ impl FileRun<'_> {
         rule: RuleIndex,
         input: InputNumber,
     ) -> Result<(), OperatingError> {
-        let (_, capture) = self.declared(rule)?;
+        let (_, _, capture) = self.declared(rule)?;
         if capture == CaptureIntent::Disabled
             || (capture == CaptureIntent::Observations
                 && !self.program.captures_observation(rule, input.0)?)
@@ -640,7 +662,7 @@ impl FileRun<'_> {
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
     ) -> Result<super::super::facade::RowEmission, OperatingError> {
-        if self.declared(rule)?.0.emit != EmitDemand::Enabled {
+        if self.declared(rule)?.0 != DiagnosticDelivery::Forwarded {
             return Err(OperatingError::NotRun);
         }
         let _rule_origin = crate::application::file_dag::route_counts::rule(

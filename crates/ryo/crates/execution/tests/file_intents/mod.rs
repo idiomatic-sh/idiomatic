@@ -114,7 +114,8 @@ fn rule_demand_is_immutable_and_capture_cannot_be_added_after_open() {
         Ok(SourceRows::Computed(&table))
     };
     let intents = [FileRuleIntent::Run {
-        roots: demand(),
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     }];
     let mut symbols = Symbols::default();
@@ -252,11 +253,13 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
     };
     let intents = [
         FileRuleIntent::Run {
-            roots: producer_roots,
+            diagnostic: DiagnosticDelivery::Disabled,
+            observations: producer_roots.observations,
             capture: CaptureIntent::Observations,
         },
         FileRuleIntent::Run {
-            roots: demand(),
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         },
     ];
@@ -349,6 +352,103 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
             "no positive applicability proof was issued"
         );
         assert!(readiness.complete.iter().all(|word| *word == 0));
+    }
+    request.finish();
+}
+
+#[test]
+fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publication() {
+    let engine = engine();
+    let program = prepared(&engine);
+    let corpus = corpus();
+    let request = engine.begin(&program, &corpus);
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let table = source();
+    for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
+        let reads = Cell::new(0);
+        let read = |relation| {
+            assert_eq!(relation, Relation::Function);
+            reads.set(reads.get() + 1);
+            Ok(SourceRows::Computed(&table))
+        };
+        let intents = [FileRuleIntent::Run {
+            diagnostic,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::Disabled,
+        }];
+        let mut symbols = Symbols::default();
+        let mut file = request
+            .open_file(input(&intents, &elements, &read), &mut symbols)
+            .unwrap();
+        match diagnostic {
+            DiagnosticDelivery::Collected => assert!(matches!(
+                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| panic!(
+                    "wrong mode cannot deliver"
+                )),
+                Err(OperatingError::NotRun)
+            )),
+            DiagnosticDelivery::Forwarded => assert!(matches!(
+                file.rule(RuleIndex(0), demand(), &mut symbols),
+                Err(OperatingError::NotRun)
+            )),
+            DiagnosticDelivery::Disabled => unreachable!(),
+        }
+        assert_eq!(reads.get(), 0, "wrong mode cannot admit any provider");
+        assert!(
+            file.counts(RuleIndex(0))
+                .unwrap()
+                .fed
+                .iter()
+                .all(|count| count.0 == [0; 3])
+        );
+        let expected = Table {
+            kinds: vec![CellKind::Node],
+            count: RowCount(1),
+            cells: vec![table.cells[0]],
+        };
+        match diagnostic {
+            DiagnosticDelivery::Collected => {
+                let RootOutcome::Complete(actual) = file
+                    .rule(RuleIndex(0), demand(), &mut symbols)
+                    .unwrap()
+                    .emit
+                else {
+                    panic!("correct declared collected mode remains runnable")
+                };
+                assert_eq!(actual, expected);
+            }
+            DiagnosticDelivery::Forwarded => {
+                let mut rows = vec![];
+                file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
+                    rows.push(row.to_vec());
+                    Ok(())
+                })
+                .expect("correct declared forwarded mode remains runnable");
+                assert_eq!(rows, [expected.cells]);
+            }
+            DiagnosticDelivery::Disabled => unreachable!(),
+        }
+        let admitted_reads = reads.get();
+        assert!(admitted_reads > 0);
+        match diagnostic {
+            DiagnosticDelivery::Collected => assert!(matches!(
+                file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| panic!(
+                    "publication cannot change mode"
+                )),
+                Err(OperatingError::NotRun)
+            )),
+            DiagnosticDelivery::Forwarded => assert!(matches!(
+                file.rule(RuleIndex(0), demand(), &mut symbols),
+                Err(OperatingError::NotRun)
+            )),
+            DiagnosticDelivery::Disabled => unreachable!(),
+        }
+        assert_eq!(
+            reads.get(),
+            admitted_reads,
+            "mode rejection cannot reread a published provider"
+        );
+        file.finish().unwrap();
     }
     request.finish();
 }

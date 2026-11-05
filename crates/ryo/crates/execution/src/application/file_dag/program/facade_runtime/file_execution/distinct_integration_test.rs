@@ -242,10 +242,8 @@ fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
             publication: &[],
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }],
         services,

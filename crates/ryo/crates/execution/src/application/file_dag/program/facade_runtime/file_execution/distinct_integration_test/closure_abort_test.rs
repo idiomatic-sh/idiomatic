@@ -121,10 +121,12 @@ fn exercise(refusal: Refusal) {
             publication: &[],
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
+            diagnostic: if matches!(refusal, Refusal::CollectedPattern) {
+                DiagnosticDelivery::Collected
+            } else {
+                DiagnosticDelivery::Forwarded
             },
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::Disabled,
         }],
         services,

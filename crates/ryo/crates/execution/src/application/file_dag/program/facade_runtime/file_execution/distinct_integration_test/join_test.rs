@@ -319,10 +319,12 @@ fn execute(
             publication: &faults.partials,
         },
         &[FileRuleIntent::Run {
-            roots: RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
+            diagnostic: if delivery {
+                DiagnosticDelivery::Forwarded
+            } else {
+                DiagnosticDelivery::Collected
             },
+            observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::DiagnosticAndObservations,
         }],
         services,

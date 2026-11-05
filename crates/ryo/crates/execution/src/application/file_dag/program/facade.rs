@@ -60,6 +60,14 @@ pub enum EmitDemand {
     Enabled,
     Disabled,
 }
+/// Diagnostic root transport, fixed before admission. Observation and frontier
+/// roots retain their collected contract independently of diagnostic delivery.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiagnosticDelivery {
+    Disabled,
+    Collected,
+    Forwarded,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationDemand {
     Required,
@@ -90,7 +98,8 @@ pub enum FileRuleIntent {
     Skipped(ApplicabilityReason),
     Refused(ApplicabilityRefusal),
     Run {
-        roots: RuleDemand,
+        diagnostic: DiagnosticDelivery,
+        observations: ObservationDemand,
         capture: CaptureIntent,
     },
 }

@@ -73,9 +73,9 @@ pub use crate::application::file_dag::program::admission::{
     ApplicabilityProof, ApplicabilityReason,
 };
 pub use crate::application::file_dag::program::facade::{
-    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, EmitDemand, FileRuleIntent,
-    FrontierCapture, LogicalCounts, ObservationDemand, ProjectObservation, ProjectRuleOutcome,
-    RootOutcome, RuleDemand, RuleOutcome,
+    ApplicabilityRefusal, CaptureIntent, CapturedFrontier, DiagnosticDelivery, EmitDemand,
+    FileRuleIntent, FrontierCapture, LogicalCounts, ObservationDemand, ProjectObservation,
+    ProjectRuleOutcome, RootOutcome, RuleDemand, RuleOutcome,
 };
 pub use crate::domain::coverage::types::{Covered, Partial, Partials, RuleIndex};
 pub use crate::domain::kind_sets::types::PreparedVocabulary;
