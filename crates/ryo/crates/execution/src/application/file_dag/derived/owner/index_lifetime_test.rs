@@ -93,7 +93,7 @@ fn reclaim(fixture: &ResourceFixture, all_payload: bool) -> bool {
     owner.prepare_graph_room(cache, cost, &[]).unwrap()
 }
 #[test]
-fn wrapper_eviction_preserves_backend_charge_and_live_consumers_block_reclamation() {
+fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![10, 20])];
     let fixture = fixture(&columns);
     let weak = fixture.first_index_weak().unwrap();
@@ -106,23 +106,10 @@ fn wrapper_eviction_preserves_backend_charge_and_live_consumers_block_reclamatio
     assert_eq!(fixture.shared_index_backings(), 1);
     drop(held);
     assert!(fixture.no_invocation_index_handles());
-    assert!(reclaim(&fixture, false));
-    assert_eq!(fixture.owner().derived.retained_bytes(), 0);
-    assert!(
-        weak.upgrade().is_some(),
-        "backend retains the physical index"
-    );
-    assert_eq!(fixture.shared_index_backings(), 1);
-    assert!(
-        fixture
-            .owner()
-            .derived
-            .ledger
-            .borrow()
-            .snapshot()
-            .view_optional_bytes
-            > 0
-    );
+    // Equality payloads now have one owner entry, not a second backend cache.
+    // Preserve the lifetime contract: reclamation was refused with a live
+    // consumer above, and is allowed only after that final consumer released it.
+    assert!(weak.upgrade().is_some());
     assert!(reclaim(&fixture, true));
     assert!(weak.upgrade().is_none());
     assert_eq!(fixture.shared_index_backings(), 0);

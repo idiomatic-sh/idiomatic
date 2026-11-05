@@ -401,3 +401,107 @@ fn ragged_semantic_child_normalizes_its_complete_prefix_before_column_chain_fall
         }
     );
 }
+
+#[test]
+fn actual_column_join_counts_matching_visits_not_population_size_even_on_refusal() {
+    for (key, invalid_filter, hits) in [(1, false, 4), (99, false, 0), (1, true, 1)] {
+        let mut symbols = Symbols::default();
+        let name = intern_derived(&mut symbols, ByteSlice(b""), NameText("function"));
+        let body = intern_derived(&mut symbols, ByteSlice(b""), NameText("body"));
+        let function = stored(
+            Relation::Function,
+            Table {
+                kinds: kinds(Relation::Function).to_vec(),
+                count: RowCount(3),
+                cells: [key, key, 9]
+                    .into_iter()
+                    .flat_map(|node| {
+                        [
+                            Cell::Node(NodeId(node)),
+                            Cell::Symbol(name),
+                            Cell::File(FileId(0)),
+                            Cell::Span(Span {
+                                start: Offset(0),
+                                end: Offset(1),
+                            }),
+                        ]
+                    })
+                    .collect(),
+            },
+        );
+        let right = stored(
+            Relation::SemanticChild,
+            Table {
+                kinds: kinds(Relation::SemanticChild).to_vec(),
+                count: RowCount(5),
+                cells: [(1, 10), (1, 11), (8, 12), (10, 13), (11, 14)]
+                    .into_iter()
+                    .enumerate()
+                    .flat_map(|(ordinal, (parent, child))| {
+                        [
+                            Cell::Node(NodeId(parent)),
+                            Cell::Node(NodeId(child)),
+                            Cell::Number(Integer(ordinal as i64)),
+                            Cell::Symbol(body),
+                            Cell::File(FileId(0)),
+                        ]
+                    })
+                    .collect(),
+            },
+        );
+        let mut authored = plan();
+        let Operation::Project { distinct, .. } = &mut authored.steps[0].operation else {
+            unreachable!()
+        };
+        *distinct = RepeatedRows::Kept;
+        if invalid_filter {
+            let Operation::Select { comparisons, .. } = &mut authored.steps[2].operation else {
+                unreachable!()
+            };
+            comparisons[0].test = Test::Matches;
+            comparisons[0].right = Operand::Literal(QueryLiteral::Text(LiteralText("[".into())));
+        }
+        let witness = Arc::new(Witness::default());
+        let actual = execute(
+            authored,
+            [function, right],
+            &mut symbols,
+            b"",
+            false,
+            witness.clone(),
+            Faults::default(),
+        )
+        .unwrap();
+        assert!(
+            actual.column_prepared,
+            "this proof requires the actual compiled column alternative"
+        );
+        assert_eq!(witness.columns.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            actual.fed[1].0[1], hits,
+            "count every actual next_match result, including the match before a semantic failure"
+        );
+        if invalid_filter {
+            assert!(matches!(
+                actual.result,
+                Err(OperatingError::InvalidRegex { .. })
+            ));
+        } else {
+            let expected = if key == 99 {
+                vec![]
+            } else {
+                [10, 11]
+                    .into_iter()
+                    .flat_map(|child| {
+                        [
+                            Cell::Node(NodeId(1)),
+                            Cell::File(FileId(0)),
+                            Cell::Node(NodeId(child)),
+                        ]
+                    })
+                    .collect()
+            };
+            assert_eq!(actual.result.unwrap().cells, expected);
+        }
+    }
+}

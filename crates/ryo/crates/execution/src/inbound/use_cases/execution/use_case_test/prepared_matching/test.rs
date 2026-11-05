@@ -121,8 +121,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                         "finite literal slots never enter local invocation caches"
                     );
                     if replaced {
-                        let value = intern_derived(&mut symbols, ByteSlice(b""), NameText("ab"));
-                        assert_eq!(actual.0.cells, vec![Cell::Symbol(value)]);
+                        // Replace appends one literal replacement cell and keeps its input.
+                        let value = intern_derived(&mut symbols, ByteSlice(b""), NameText("a$1b"));
+                        assert_eq!(actual.0.count, input.count);
+                        assert_eq!(actual.0.kinds, [CellKind::Symbol, CellKind::Symbol]);
+                        assert_eq!(actual.0.cells, [input.cells[0], Cell::Symbol(value)]);
                     } else {
                         assert_eq!(actual.0, input);
                     }

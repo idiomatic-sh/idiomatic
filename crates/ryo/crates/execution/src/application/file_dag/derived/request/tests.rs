@@ -119,7 +119,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
 fn family_slots_hold_compact_shared_binding_handles() {
     assert_eq!(
         size_of::<DerivedSlots>(),
-        2 * DerivedKind::ALL.len() * size_of::<usize>()
+        DerivedKind::ALL.len() * size_of::<usize>()
     );
     let mut views = RequestViews::new(
         (std::sync::Arc::new(

@@ -729,17 +729,41 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     );
     assert_eq!(complete_empty.snapshot(None).fanouts, 0);
     assert!(
-        complete_empty
-            .select(
+        matches!(
+            complete_empty.select(
                 &selectors[0],
                 ColumnsView {
                     columns: &[],
                     ..source
                 },
-                &mut empty_context
-            )?
-            .is_none()
+                &mut empty_context,
+            ),
+            Err(OperatingError::NotRead)
+        ),
+        "one immutable population cannot be rebound to a different physical backing"
     );
+    let malformed = SelectionFixture::new(
+        &[Relation::Defines],
+        &[],
+        selectors.clone(),
+        authored.clone(),
+        source.kinds,
+    )?;
+    assert!(
+        matches!(
+            malformed.select(
+                &selectors[0],
+                ColumnsView {
+                    columns: &[],
+                    ..source
+                },
+                &mut empty_context,
+            ),
+            Err(OperatingError::ShapeMismatch)
+        ),
+        "a fresh owner inspects and refuses mismatched schema width"
+    );
+    assert_eq!(malformed.owner().checks.get(), 1);
     drop(empty_context);
     let partial = Partial {
         relation: Relation::Defines,

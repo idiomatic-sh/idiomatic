@@ -182,6 +182,7 @@ struct Observation {
     reads: [usize; 2],
     work: ExecutionObservation,
     counts: (u64, u64, u64),
+    fed: Vec<crate::domain::operator::types::RowsFed>,
     native_prepared: bool,
     column_prepared: bool,
     right_before_left: bool,
@@ -410,6 +411,7 @@ fn execute(
         vec![]
     };
     let counts = file.owner.derived.counts();
+    let fed = file.counts(RuleIndex(0))?.fed.to_vec();
     let owner = Rc::clone(&file.owner);
     file.finish()?;
     assert_eq!(
@@ -428,6 +430,7 @@ fn execute(
         reads: reads.map(|n| n.get()),
         work,
         counts,
+        fed,
         native_prepared,
         column_prepared,
         right_before_left,

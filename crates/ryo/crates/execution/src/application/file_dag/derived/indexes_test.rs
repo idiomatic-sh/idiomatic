@@ -154,7 +154,14 @@ fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
     assert_eq!(during.indexes, 0);
     assert!(during.bytes <= during.limit);
     assert!(during.required_bytes > 0);
+    let backing = Arc::downgrade(&result.storage);
     drop(result);
+    assert!(
+        backing.upgrade().is_none(),
+        "the refused optional index has no owner after its invocation"
+    );
+    // Source admission owns a separate publication record until this generation ends.
+    cache.clear();
     assert_eq!(cache.snapshot().required_bytes, 0);
 }
 
