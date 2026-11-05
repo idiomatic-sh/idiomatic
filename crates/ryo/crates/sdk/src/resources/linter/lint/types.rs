@@ -9,9 +9,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use ryo_core::outbound::language::interface::LanguagePort;
-use ryo_core::outbound::matching::interface::MatchingPort;
-use ryo_core::outbound::query_language::interface::QueryLanguagePort;
 use ryo_core::outbound::scheduler::{interface::SchedulerPort, types::WorkerCount};
+use ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort;
+use ryo_execution::inbound::use_cases::execution::types::query_language::QueryLanguagePort;
 
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, Slot};
@@ -176,7 +176,7 @@ pub(crate) struct LinterLintEngine {
     /// The matching every run checks its globs with: a set made once is not made again.
     pub matching: Arc<dyn MatchingPort>,
     /// The plans compiled so far, by rule id.
-    pub plans: ryo_core::application::rule_compilation::types::CompiledPlans,
+    pub plans: ryo_execution::inbound::use_cases::execution::types::CompiledPlans,
     /// The scheduler over the pool the caller built and injected once: every run's work is spread over it.
     pub scheduler: Arc<dyn SchedulerPort>,
     /// How many workers the scheduler runs jobs on.

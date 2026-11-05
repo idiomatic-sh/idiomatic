@@ -1603,6 +1603,7 @@ dependencies = [
  "divan",
  "idiomatic-sh-ryo-core",
  "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",

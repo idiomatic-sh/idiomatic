@@ -75,8 +75,9 @@ pub(crate) fn build(
                 skipped,
             ));
             let port: Arc<dyn language::interface::LanguagePort> = Arc::new(linked);
-            let digests: Arc<dyn digest::interface::DigestPort> =
-                Arc::new(digest::factory::blake3());
+            let digests: Arc<
+                dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort,
+            > = Arc::new(digest::factory::blake3());
             let machine: Arc<dyn memory::interface::MemoryPort> =
                 Arc::new(memory::factory::sysinfo(budget));
             ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl::new(
