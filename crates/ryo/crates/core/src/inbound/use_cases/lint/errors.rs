@@ -192,6 +192,19 @@ impl From<BudgetError> for LintError {
     }
 }
 
+impl From<crate::application::repository_listing::service::ListingError> for LintError {
+    fn from(error: crate::application::repository_listing::service::ListingError) -> Self {
+        use crate::application::repository_listing::service::ListingError;
+        match error {
+            ListingError::Corpus(error) => error.into(),
+            ListingError::Store(error) => error.into(),
+            ListingError::Memory(error) => error.into(),
+            ListingError::Budget(error) => error.into(),
+            ListingError::Scheduler(error) => error.into(),
+        }
+    }
+}
+
 impl From<VisitError> for LintError {
     fn from(error: VisitError) -> Self {
         match error {

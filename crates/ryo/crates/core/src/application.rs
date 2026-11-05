@@ -8,3 +8,4 @@ pub mod rule_compilation;
 pub(crate) mod file_dag;
 
 pub(crate) mod job_execution;
+pub(crate) mod repository_listing;

@@ -13,7 +13,6 @@ use crate::domain::storing::types::Reuse;
 use crate::domain::table_model::types::{BindingCell, BindingTable, ParameterBinding};
 use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::Wants;
-use crate::outbound::lint_store::interface::ReadStore;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_values::domain::files::types::{CorpusInput, Glob};
@@ -21,11 +20,9 @@ use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::{FlagState, LiteralText, ParameterName, WholeNumber};
 use ryo_values::domain::program::types::QueryBundle;
 use ryo_values::domain::records::types::{RowTotal, Unread};
-use ryo_values::domain::runs::types::{
-    AnswerShape, MemoryBytes, RuleApplicability, RuleId, Session, Skipped,
-};
+use ryo_values::domain::runs::types::{AnswerShape, RuleApplicability, RuleId, Session, Skipped};
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored, StoredRule};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, StoredRule};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -211,19 +208,6 @@ pub(crate) struct Wanting {
     pub wants: Wants,
 }
 
-/// The repository as this run finds it, and what the last run kept of it.
-pub(crate) struct RepositoryListing {
-    /// The files, in the order of their paths.
-    pub files: Vec<CorpusInput>,
-    /// What the last run of this build kept; empty when it kept nothing.
-    pub stored: Stored,
-    /// The store those tables were read from, none when the run reads none: what this run reads of it later, and keeps against, is of
-    /// it alone.
-    pub read: Option<Arc<dyn ReadStore>>,
-    /// The most memory the run may hold.
-    pub budget: MemoryBytes,
-}
-
 /// The findings waiting for their turn to leave, and the workers waiting for it.
 pub(crate) struct Streaming {
     /// What waits, and how much is being read.
@@ -243,16 +227,6 @@ pub enum ProviderFault {
     NodeOfAnotherFile,
     /// A cell that names a file names one that is not the file visited.
     FileNotVisited,
-}
-
-/// What one of the two jobs that open a lint answered: the files under the root, or what the last run kept, each or the
-/// error `E` it failed with.
-#[derive(Debug)]
-pub(crate) enum Listed<E> {
-    /// The files under the root.
-    Files(Result<Vec<CorpusInput>, E>),
-    /// What the last run of this build kept, boxed: it is far larger than a list of files.
-    Stored(Result<Option<Arc<dyn ReadStore>>, E>),
 }
 
 /// What the workers read together while the files are visited: the files, what every visit reads, where the findings wait for their
@@ -332,7 +306,7 @@ pub(super) struct LintRun<'a> {
     /// What the rules read of the files.
     pub wants: &'a Wants,
     /// The files listed.
-    pub listing: &'a RepositoryListing,
+    pub listing: &'a crate::application::repository_listing::types::RepositoryListing,
     /// The path of each file, by file number.
     pub paths: &'a [FilePath],
     /// The manifests the project reads.

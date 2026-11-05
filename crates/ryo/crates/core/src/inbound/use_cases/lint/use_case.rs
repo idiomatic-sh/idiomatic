@@ -11,11 +11,12 @@ use super::service::{
     observed_notes, observed_records, observed_staged, observed_stored, records_of,
 };
 use super::types::{
-    Course, FeatureFed, LintReport, LintRequest, LintRun, Listed, RepositoryListing, RuleWork,
-    StepFed, Streaming, TaskIndex, Wanting,
+    Course, FeatureFed, LintReport, LintRequest, LintRun, RuleWork, StepFed, Streaming, TaskIndex,
+    Wanting,
 };
 use crate::application::file_analysis::types::{FileVisit, Worker};
 use crate::application::file_dag::program::facade::{self, ProgramServices};
+use crate::application::repository_listing::types::RepositoryListing;
 use crate::application::rule_compilation::types::Compiled;
 
 use crate::domain::answering::service::{cross_steps, settle, todo_list};
@@ -257,42 +258,6 @@ impl LintUseCaseImpl {
         Ok(Wanting { placed, wants })
     }
 
-    /// Runs `work` once for each job below `count`, on the scheduler's workers, and answers what each gave, in the order of the jobs.
-    fn spread<T>(
-        &self,
-        count: JobCount,
-        work: impl Fn(JobNumber) -> T + Sync,
-    ) -> Result<Vec<T>, LintError>
-    where
-        T: Send,
-    {
-        if count.0 == 0 {
-            return Ok(Vec::new());
-        }
-        let slots: Vec<Mutex<Option<T>>> = std::iter::repeat_with(|| Mutex::new(None))
-            .take(usize::try_from(count.0).unwrap_or(usize::MAX))
-            .collect();
-        let mut workers: Vec<Box<dyn FnMut(JobNumber) + Send + '_>> = Vec::new();
-        for _ in 0..self.workers.0.clamp(1, count.0) {
-            let (slots, work) = (&slots, &work);
-            workers.push(Box::new(move |job: JobNumber| {
-                let answer = work(job);
-                #[expect(
-                    clippy::indexing_slicing,
-                    reason = "the scheduler hands out only the jobs below the count the slots were made for; another is a bug that must crash"
-                )]
-                let slot = &slots[usize::try_from(job.0).unwrap_or(usize::MAX)];
-                *slot.lock().unwrap_or_else(PoisonError::into_inner) = Some(answer);
-            }));
-        }
-        self.scheduler.run(&mut workers, count)?;
-        drop(workers);
-        Ok(slots
-            .into_iter()
-            .map(|slot| answered(slot.into_inner().unwrap_or_else(PoisonError::into_inner)))
-            .collect())
-    }
-
     /// Runs `work` for each of `tasks` on at most `workers` workers, each taking tasks until none is left, and answers what
     /// each gave, in the order of the tasks.
     fn drain<I: Sync, T: Send>(
@@ -308,48 +273,6 @@ impl LintUseCaseImpl {
             |index, each| work(TaskIndex(index.0), each),
         )
         .map_err(Into::into)
-    }
-
-    /// The files under the root in the order of their paths, and what the last run kept of them, read while they are listed, when
-    /// the run answers findings, which it keeps; an answer of the rules' own columns keeps nothing: what it writes is cut at its limit.
-    fn listing(&self, answering: &Answering) -> Result<RepositoryListing, LintError> {
-        // The files are listed while the store of the last run is read: neither waits for the other.
-        let both = self.spread(JobCount(2), |job| {
-            if job.0 == 0 {
-                Listed::Files(
-                    self.corpus
-                        .inventory()
-                        .map(|inventory| inventory.0)
-                        .map_err(LintError::from),
-                )
-            } else if *answering == Answering::Findings {
-                Listed::Stored(self.store.stored().map(Some).map_err(LintError::from))
-            } else {
-                Listed::Stored(Ok(None))
-            }
-        })?;
-        let (mut listed, mut stored) = (Ok(Vec::new()), Ok(None));
-        for each in both {
-            match each {
-                Listed::Files(files) => listed = files,
-                Listed::Stored(kept) => stored = kept,
-            }
-        }
-        let mut files = listed?;
-        let budget = self.memory.budget()?;
-        fit(repository_size(&files), budget)?;
-        by_path(&mut files);
-        let read = stored?;
-        Ok(RepositoryListing {
-            files,
-            stored: read
-                .as_ref()
-                .map_or_else(ryo_values::domain::stores::types::Stored::default, |read| {
-                    read.tables()
-                }),
-            read,
-            budget,
-        })
     }
 
     /// What each rule is, as one digest: its query, its parameters, the files it governs and what the host declared; for a rule that
@@ -1354,7 +1277,15 @@ impl LintUseCase for LintUseCaseImpl {
         };
         let mut listing = {
             let _listing = tracing::info_span!("list").entered();
-            self.listing(&answering)?
+            crate::application::repository_listing::service::list(
+                self.corpus.as_ref(),
+                self.store.as_ref(),
+                self.memory.as_ref(),
+                self.scheduler.as_ref(),
+                self.workers,
+                &answering,
+            )
+            .map_err(LintError::from)?
         };
         let paths = paths_of(&listing.files);
         let manifests = self.file_analysis.read_manifests(&mut listing.files)?;

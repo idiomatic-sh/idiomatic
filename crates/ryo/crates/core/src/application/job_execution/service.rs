@@ -47,3 +47,16 @@ pub(crate) fn drain<I: Sync, T: Send>(
         })
         .collect())
 }
+
+/// Open a fixed set of independent jobs and return their answers in job order.
+pub(crate) fn run_indexed<T: Send>(
+    scheduler: &dyn SchedulerPort,
+    workers: WorkerCount,
+    count: u32,
+    work: impl Fn(JobNumber) -> T + Sync,
+) -> Result<Vec<T>, SchedulerError> {
+    let jobs: Vec<JobNumber> = (0..count).map(JobNumber).collect();
+    drain(scheduler, WorkerCount(workers.0.max(1)), &jobs, |_, job| {
+        work(*job)
+    })
+}
