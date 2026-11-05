@@ -181,6 +181,9 @@ pub(crate) struct ExecutionObservation {
     pub row_capacity: usize,
     pub other_capacity: usize,
     pub index_rows: usize,
+    /// Actual borrowed representation behind the acquired equality resource.
+    pub index_representation:
+        Option<crate::domain::table_model::collections::representations::types::RepresentationKind>,
     pub index_cells: usize,
     pub index_capacity: usize,
     pub closure_partition_rows: usize,
@@ -212,6 +215,7 @@ impl std::ops::Deref for ExecutionObservationSlot {
             row_capacity: 0,
             other_capacity: 0,
             index_rows: 0,
+            index_representation: None,
             index_cells: 0,
             index_capacity: 0,
             closure_partition_rows: 0,

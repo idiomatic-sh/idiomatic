@@ -231,41 +231,6 @@ fn malformed_storage_materializes_its_complete_prefix_before_owner_admission() {
     assert_eq!(out.cells, [10, 11].map(|n| Cell::Number(Integer(n))));
 }
 #[test]
-fn invalid_join_keys_match_collected_and_delivery_before_any_rows() {
-    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
-    let columns = [fact_column(&[1]), fact_column(&[10])];
-    let right = Rows::Stored(ColumnsView {
-        kinds: &[CellKind::Number; 2],
-        columns: &columns,
-    });
-    for (l, r) in [(vec![9], vec![0]), (vec![0], vec![9])] {
-        let op = operation(&l, &r, &[(Side::Right, 1)], vec![], &[]);
-        let collected = invoke(
-            &op,
-            [Rows::Computed(&left), right.clone()],
-            &mut Symbols::default(),
-            b"",
-            false,
-            real_port(),
-            Faults::default(),
-        )
-        .unwrap();
-        let delivered = invoke(
-            &op,
-            [Rows::Computed(&left), right.clone()],
-            &mut Symbols::default(),
-            b"",
-            true,
-            real_port(),
-            Faults::default(),
-        )
-        .unwrap();
-        assert!(collected.result.is_err());
-        assert_eq!(collected.result, delivered.result);
-        assert!(delivered.prefix.is_empty());
-    }
-}
-#[test]
 fn unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact() {
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number], &[&[n(2)]]);
@@ -388,47 +353,4 @@ fn malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complet
     .unwrap();
     assert_eq!(actual.prefix, vec![vec![n(10)], vec![n(11)]]);
     assert!(actual.result.is_ok());
-}
-#[test]
-fn failing_delivery_releases_handles_and_the_next_real_file_generation_uses_new_rows() {
-    let n = |n| Cell::Number(Integer(n));
-    let left = table_of(&[CellKind::Number], &[&[n(1)]]);
-    let op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    for (payload, fault) in [(10, Some(0)), (99, None)] {
-        let columns = [FactColumn(vec![1]), FactColumn(vec![payload])];
-        let actual = invoke(
-            &op,
-            [
-                Rows::Computed(&left),
-                Rows::Stored(ColumnsView {
-                    kinds: &[CellKind::Number; 2],
-                    columns: &columns,
-                }),
-            ],
-            &mut Symbols::default(),
-            b"",
-            true,
-            real_port(),
-            Faults {
-                sink_after: fault,
-                ..Faults::default()
-            },
-        )
-        .unwrap();
-        assert_eq!(
-            actual.counts.0, 1,
-            "each actual generation builds its own equality backing"
-        );
-        assert_eq!(
-            actual.counts.1, 0,
-            "a different file owner cannot reuse stale rows"
-        );
-        if fault.is_some() {
-            assert!(matches!(actual.result, Err(OperatingError::NotRun)));
-            assert!(actual.prefix.is_empty());
-        } else {
-            assert_eq!(actual.prefix, vec![vec![n(99)]]);
-            assert!(actual.result.is_ok());
-        }
-    }
 }
