@@ -8,7 +8,6 @@ use ryo_values::domain::{
 };
 use {
     crate::domain::crossing::types::ObservedRoot,
-    crate::domain::finish::publication::escape_cross_publication,
     ryo_values::domain::table_words::service::encode_table,
     ryo_values::domain::table_words::service::pack,
     ryo_values::domain::table_words::types::WordSlice,
@@ -34,14 +33,14 @@ pub(crate) fn pack_roots(
             if let Some(mut table) = root.table {
                 let before = arena.0.len();
                 let mut places = Vec::new();
-                match escape_cross_publication(
-                    &mut table,
+                match PublicationUseCaseImpl.normalize(PublicationInput {
+                    table: &mut table,
                     symbols,
                     inherited,
                     worker,
-                    &mut arena,
-                    &mut places,
-                ) {
+                    arena: &mut arena,
+                    places: &mut places,
+                }) {
                     Ok(()) => {
                         for place in &places {
                             if let Origin::Derived(origin) = place.origin
@@ -75,3 +74,7 @@ pub(crate) fn pack_roots(
         roots: packed,
     }
 }
+
+use ryo_execution::inbound::use_cases::publication::{
+    interface::PublicationUseCase, types::PublicationInput, use_case::PublicationUseCaseImpl,
+};
