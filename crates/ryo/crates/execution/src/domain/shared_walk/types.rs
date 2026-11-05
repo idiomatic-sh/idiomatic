@@ -12,13 +12,6 @@ pub(crate) mod prepared_walk;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct KindCount(pub usize);
 
-/// Whether the caller admitted a rule into this file's shared native pass.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RuleActivity {
-    Active,
-    Inactive,
-}
-
 /// Whether a class can be decided by the shared pass.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum Eligibility {

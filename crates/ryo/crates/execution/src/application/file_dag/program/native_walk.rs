@@ -6,7 +6,7 @@ use crate::{
         executable_program::types::Instruction,
         operating::{errors::OperatingError, types::OperatorContext},
         positions::types::ClassPlace,
-        shared_walk::types::{RuleActivity, WalkWork, prepared_walk::value::NativeBatch},
+        shared_walk::types::{WalkWork, prepared_walk::value::NativeBatch},
         table_model::types::Rows,
     },
 };
@@ -21,28 +21,22 @@ struct WalkSourceIdentity {
     relation: Relation,
 }
 
+struct SourceWork {
+    ready: Vec<ClassPlace>,
+    batch: NativeBatch,
+}
+
 pub(super) struct FileWalk {
     file: FileId,
-    active: Box<[RuleActivity]>,
     // Position batches live until this file owner drops. Last-consumer retirement
     // and accounting are not implemented by this source cache.
-    batches: RefCell<HashMap<WalkSourceIdentity, NativeBatch>>,
+    batches: RefCell<HashMap<WalkSourceIdentity, SourceWork>>,
     work: RefCell<WalkWork>,
 }
 impl FileWalk {
-    pub(super) fn new(file: FileId, demanded: &[bool]) -> Self {
+    pub(super) fn new(file: FileId) -> Self {
         Self {
             file,
-            active: demanded
-                .iter()
-                .map(|active| {
-                    if *active {
-                        RuleActivity::Active
-                    } else {
-                        RuleActivity::Inactive
-                    }
-                })
-                .collect(),
             batches: RefCell::new(HashMap::new()),
             work: RefCell::new(WalkWork::default()),
         }
@@ -54,6 +48,40 @@ impl FileWalk {
     ) -> Option<ClassPlace> {
         prepared.walk_class(instruction)
     }
+    /// Called only when the existing runtime has completed the head's demand program.
+    /// A rule being requested is never sufficient to queue its other classes.
+    pub(super) fn submit(
+        &self,
+        prepared: &PreparedProgram,
+        permit: &KernelPermit<'_>,
+        relation: Relation,
+        rows: &Rows<'_>,
+    ) -> Result<bool, OperatingError> {
+        let Some(class) = self.class(prepared, permit.descriptor()) else {
+            return Ok(false);
+        };
+        permit.validate_program(prepared.program().as_ref())?;
+        let Some(admitted) = permit.admit_walk_source(relation, rows)? else {
+            return Ok(false);
+        };
+        if matches!(rows, Rows::Tree(tree) if tree.file != self.file) {
+            return Err(OperatingError::NotRead);
+        }
+        let key = WalkSourceIdentity {
+            population: admitted.population(),
+            relation,
+        };
+        let mut sources = self.batches.borrow_mut();
+        let source = sources.entry(key).or_insert_with(|| SourceWork {
+            ready: Vec::new(),
+            batch: NativeBatch::for_program(prepared.walk()),
+        });
+        if source.batch.class(class).is_none() && !source.ready.contains(&class) {
+            source.ready.push(class);
+        }
+        Ok(true)
+    }
+
     pub(super) fn prepare<'walk>(
         &'walk self,
         prepared: &PreparedProgram,
@@ -71,14 +99,21 @@ impl FileWalk {
         // Revalidate even a cache hit: population alone does not establish the
         // relation, current physical view, generation, or live invocation.
         permit.validate_program(prepared.program().as_ref())?;
-        let admitted = permit.admit_walk_source(relation, rows)?;
+        let admitted = permit
+            .admit_walk_source(relation, rows)?
+            .ok_or(OperatingError::NotRead)?;
         let identity = WalkSourceIdentity {
             population: admitted.population(),
             relation: admitted.relation(),
         };
-        if !self.batches.borrow().contains_key(&identity) {
+        let ready = {
+            let mut sources = self.batches.borrow_mut();
+            let source = sources.get_mut(&identity).ok_or(OperatingError::NotRun)?;
+            std::mem::take(&mut source.ready)
+        };
+        if !ready.is_empty() {
             let mut work = self.work.borrow_mut();
-            let request = permit.walk(prepared, admitted, context, &self.active, &mut work)?;
+            let request = permit.walk(prepared, admitted, context, &ready, &mut work)?;
             let batch = match kernels.execute(super::super::executor::KernelCall::Walk { request })
             {
                 Ok(super::super::executor::KernelAnswer::Walk(batch)) => batch,
@@ -88,16 +123,23 @@ impl FileWalk {
                 }
                 _ => return Err(OperatingError::WrongOperation),
             };
-            let _previous = self.batches.borrow_mut().insert(identity, batch);
+            self.batches
+                .borrow_mut()
+                .get_mut(&identity)
+                .ok_or(OperatingError::NotRun)?
+                .batch
+                .merge(batch)?;
         }
-        Ref::filter_map(self.batches.borrow(), |batches| batches.get(&identity))
-            .map_err(|_| OperatingError::NotRun)
+        Ref::filter_map(self.batches.borrow(), |batches| {
+            batches.get(&identity).map(|source| &source.batch)
+        })
+        .map_err(|_| OperatingError::NotRun)
     }
     pub(super) fn counts(&self) -> crate::domain::shared_walk::types::WalkCounts {
         self.batches.borrow().values().fold(
             crate::domain::shared_walk::types::WalkCounts::default(),
             |mut total, batch| {
-                let counts = batch.counts();
+                let counts = batch.batch.counts();
                 total.passes.0 = total.passes.0.saturating_add(counts.passes.0);
                 total.source_rows.0 = total.source_rows.0.saturating_add(counts.source_rows.0);
                 total.predicate_rows.0 = total
@@ -115,7 +157,7 @@ pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     pub(super) prepared: &'call PreparedProgram,
     pub(super) source: super::admission::AdmittedWalkSource<'call>,
     pub(super) context: &'call mut OperatorContext<'context>,
-    pub(super) active: &'call [RuleActivity],
+    pub(super) ready: &'call [ClassPlace],
     pub(super) work: &'call mut WalkWork,
 }
 impl PermittedWalk<'_, '_, '_> {
@@ -127,7 +169,7 @@ impl PermittedWalk<'_, '_, '_> {
             self.source.rows(),
             self.prepared.all_bindings(),
             self.context,
-            self.active,
+            self.ready,
             self.work,
         ))
     }
