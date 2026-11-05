@@ -55,3 +55,6 @@ Treat missing mappings or enforcement as failures, not exemptions.
   until their controls pass.
 - Send exact source and receipts to the independent
   [contract review agent](contract-review.md). Never self-approve a boundary.
+
+## Matrix upkeep
+Each implementation batch updates its rows in the existing contract and crate matrix: current owning crate, remaining responsibilities, source and actual check results. Do not leave superseded paths or ownership descriptions as current. Untested work stays unchecked. The integrator reconciles overlapping rows before handoff.

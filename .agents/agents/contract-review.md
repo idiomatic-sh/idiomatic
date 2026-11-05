@@ -59,3 +59,6 @@ CI loads the trusted-base validator or immutable bootstrap 763a846f.
 This file is not enforcement: name `ci/contract_review/command.py` and its proof.
 Workflow edits require trusted governance; this is not server protection.
 Activation binds this Git history; squash needs deliberate receipt migration.
+
+## Matrix upkeep
+Verify the affected contract and crate matrix rows against each reviewed batch and its actual tests. Flag stale owners, paths, claims or missing rows as review failures. Identify the implementer responsible for correcting them; do not approve documentation that outruns the code.
