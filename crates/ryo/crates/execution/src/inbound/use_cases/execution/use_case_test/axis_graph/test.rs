@@ -201,6 +201,49 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
             "hosted ordinary reference has no canonical retained graph"
         );
     }
+    let walks = file.walk_counts();
+    if stored {
+        assert_eq!(
+            walks.passes.0, 1,
+            "all five stored consumers share one actual walk"
+        );
+        assert_eq!(
+            walks.source_rows.0, 7,
+            "the seven-edge provider population is scanned once"
+        );
+        assert_eq!(
+            walks.predicate_rows.0, 7,
+            "one shared predicate class visits every source row once"
+        );
+    } else {
+        assert_eq!(
+            walks.passes.0, 0,
+            "the hosted reference performs no resident shared walk"
+        );
+    }
+    for (i, expected) in answers.iter().enumerate() {
+        let result = file.rule(
+            RuleIndex(i),
+            RuleDemand {
+                emit: EmitDemand::Enabled,
+                observations: ObservationDemand::NotRequired,
+            },
+            &mut symbols,
+        )?;
+        let RootOutcome::Complete(table) = result.emit else {
+            panic!("a completed axis root must replay its exact output")
+        };
+        assert_eq!(&table, expected);
+    }
+    assert_eq!(
+        file.walk_counts(),
+        walks,
+        "delivery retries do no source or predicate work"
+    );
+    let repeated = file.inner.resource_fixture_counts();
+    assert_eq!(repeated.graph_builds, counts.graph_builds);
+    assert_eq!(repeated.graph_reuses, counts.graph_reuses);
+    assert_eq!(repeated.graph_early_stops, counts.graph_early_stops);
     file.finish()?;
     request.finish();
     Ok(answers)
