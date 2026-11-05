@@ -25,48 +25,138 @@ Execution order is **2 → 3 → 4 → 5 → 6, then output correctness (1) and 
 
 **Query source ownership:** shared immutable catalogs are integrated. Diagnostic232 proves the scoped memory reduction above; combined245 passes SDK43, query-language89 and values21 tests. Public API snapshot/semver checks, unresolved TM findings, all-route sharing and full-Django acceptance remain open.
 
-### Phase 2 source-route proof batch (authored, not executed)
+### Phase 2 completion checklist
 
-The 2026-11-05 B4d/B5 source batch extends the public inbound owner controls in
-`crates/execution/tests/scheduler/{sources,delivery,physical}/test.rs`. It does
-not close any matrix checkbox: the combined compiler/runtime/TM run and exact-source
-independent review remain required. The authoritative source family is the six
-variants of `domain/executable_program/types.rs::InputSource`; its exhaustive
-production supply dispatch is
-`application/file_dag/program/facade_runtime/source_admission.rs::Inputs::supply`.
-The public `FileExecution` and `ProjectExecution` protocols feed that owner;
-providers in these tests supply immutable rows and cannot run a plan.
+Independent inventory audit: source `bf525425c7`; retained Astra and Opus round `df2cb3ec-1a58-41b5-9684-aa406ee2670a`. This audits scope, **not implementation approval**. The current B4b/B4c branches and authority followup are still uncompiled.
 
-| Source / dispatch family | Actual production proof and scope |
-| --- | --- |
-| `Relation` | New `scheduler/sources`: named producer reads Function through the inbound owner; new `scheduler/delivery`: failures, refusal retry, dormant independent source and fresh-generation admission. Existing `project_phase::project_relations_defer_at_file_scope_and_join_real_captured_rows_once` covers ordinary project facts/restored frontiers. |
-| `Hosted` | New `scheduler/physical::ordered_hosted_inputs_are_scheduled_once_before_collected_or_forwarded_delivery`; existing `shared_walk/readiness::diamond_deep_chains_and_duplicate_inputs_wake_only_actual_waiters` covers deep/diamond/duplicate dependencies and empty inputs. |
-| `Region` | New named producer and ordered dependency controls require actual region scheduling; public readiness counters must remain unchanged on logical aliases and terminal delivery retry. |
-| `Observation` | New `scheduler/sources::direct_bound_root_and_union_share_the_actual_member_before_producer_delivery` delivers and captures a direct bound root in both producer/consumer delivery orders. |
-| `EmptyObservation` | Existing `project_phase/declared_empty::declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_project`; missing declaration, schema mismatch and no-query negative controls live beside it. |
-| `ObservationMember` | New consumer-first named file test and refused-member negative; existing `project_phase` named-project publication/union test supplies real stage-issued member handles and refuses an unavailable frontier. |
+**No current Phase 2 completion box is checked.** “Written”, “integrated” and historical passing tests are evidence states, not completion. A check requires current evidence for the entire row. The older Beads checklist mixed these meanings and is superseded by this inventory.
 
-Physical dispatch must be identified by production strategy observations, never
-inferred from equal output. Reused controls are
-`distinct_integration/route_controls::ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root`
-(ordered existence and legitimate decline),
-`distinct_integration/selected_join::selected_join_keeps_duplicate_bag_order_and_decodes_only_projected_cells`
-(selected rows), `distinct_integration/join/column_chain` (fused column strategy,
-provider/partial/refusal and empty-RHS boundaries), and `compiled_parity` (actual
-native-position route counts versus registered-call fallback). Public
-`shared_walk/compact::selected_join_shares_work_preserves_counts_and_exports_owned_frontiers`
-and `shared_walk::two_distinct_singleton_selectors_share_one_actual_native_walk`
-connect those strategies to inbound execution and retirement. The new ordered
-Hosted test establishes shared scheduling for OrderedMatch, not entry into the
-separate ordered-existence optimization.
+**A — Shared scheduling foundations**
 
-Rust public-boundary compile-fail examples in inbound execution `types.rs` and
-`interface.rs` reject forged owners and late root mutation. They prove external
-privacy only; internal permit/owner construction requires its own module/privacy
-and TM bad/good controls. Exact scheduler proof role placements are declared in
-`crates/ryo/tastemaker.toml`; no alternate executor or marker inventory is added.
-Known LP2 foreign-file lineage remains Phase 1 output-correctness scope. No
-full-Django timing or 413-rule acceptance is claimed by this authored batch.
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | A1 | Wake actual dependants; do not repeatedly poll blocked ancestors. | integrated |
+| ☐ | A2.1 | Compile logical-to-physical class lookup once, including synthetic observation IDs. | integrated |
+| ☐ | A2.2 | Allocate scratch, pending classes and results only for admitted work. | integrated |
+| ☐ | A2.3 | Merge later cohorts atomically and preserve earlier results after failure. | integrated |
+| ☐ | A3 | Independently review the complete combined Phase 2 source. | pending |
+| ☐ | A4 | Retain dormant-class, later-cohort, failure, retry and generation controls. | integrated |
+| ☐ | A5 | Integrate every assigned Phase 2 batch into one immutable candidate. | in progress |
+| ☐ | A6 | Run the public production-boundary suite on that candidate. | pending |
+| ☐ | A7 | Prove counters detect actual excess work with independent negative controls. | historical proof; new counters pending |
+| ☐ | A8 | Run the actual readiness and sparse-merge domain tests. | historical proof; rerun pending |
+| ☐ | A9 | Resolve Phase-2-owned structural TM, placement and boundary findings without suppression. | in progress |
+
+**B1–B3 — Scheduling inventory**
+
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | B1 | Identify request/file/project owners; distinguish result delivery from scheduling. | source audited |
+| ☐ | B2 | Remove repeated request-wide class bookkeeping from cohorts and populations. | partly integrated |
+| ☐ | B3 | Refresh the complete constructor/admission/dispatch/publication/retry/retirement route census after integration. | pending |
+
+**B4a — Project ownership**
+
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | B4a.1 | Require one phase owner and symbol generation across ordinary project rules. | integrated |
+| ☐ | B4a.2 | Use the same interpreter and lifecycle for named and ordinary project work. | integrated |
+| ☐ | B4a.3 | Reuse equal populations and isolate distinct valid populations. | integrated |
+| ☐ | B4a.4 | Include payload/provenance, refusals, policy and bound members in identity. | integrated |
+| ☐ | B4a.5 | Test differing applicability under one global partition declaration, in both orders. | tests integrated |
+| ☐ | B4a.6 | Test equal-policy/different-payload isolation and equal-input reuse. | tests integrated |
+| ☐ | B4a.7 | Reject foreign generations and changed partition proofs; isolate population release. | tests integrated |
+| ☐ | B4a.8 | Allocate project state for reached regions, not populations × whole program. | tests integrated |
+| ☐ | B4a.9 | Release phase ownership on success/error and preserve primary-error precedence. | integrated; proof pending |
+| ☐ | B4a.10 | Reject contradictory producer-scope rebinding before mutating indexes. | written |
+
+**B4b — Project root scheduling**
+
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | B4b.1 | Require complete declared project root sets at the engine entry. | written |
+| ☐ | B4b.2 | Group roots by exact engine-issued population and policy identity. | written |
+| ☐ | B4b.3 | Advance every compatible root group through the common readiness queue. | written |
+| ☐ | B4b.4 | Migrate ordinary core callers to batch preparation before ordered delivery. | written |
+| ☐ | B4b.5 | Migrate named producer/consumer stages; keep dependency policy in the engine. | written |
+| ☐ | B4b.6 | Cover diagnostic, named, direct non-Region, empty and restored roots. | in progress |
+| ☐ | B4b.7 | Remove separate per-root depth-first dependency advancement. | written |
+| ☐ | B4b.8 | Preserve conditional demand, duplicate obligations, diamonds and failure wakeups. | new batch controls pending |
+| ☐ | B4b.9 | Prove prepared delivery/retry performs no further scheduling, evaluation or provider reads. | new batch controls pending |
+| ☐ | B4b.10 | Settle cancellation, budgets, errors and cleanup across the submitted batch. | written; proof pending |
+| ☐ | B4b.11 | Expose real project scheduling counts and test shared versus distinct populations. | written; proof pending |
+| ☐ | B4b.12 | Make singleton entries use the same queue or replay prepared results. | written |
+
+**B4c — Per-file preparation**
+
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | B4c.1 | Compile intent-specific root and reader multisets once per request. | written |
+| ☐ | B4c.2 | Compile frontier-input → named-output lookup once per request. | written |
+| ☐ | B4c.3 | Build ordered active roots once per file without linear queued.contains searches. | written |
+| ☐ | B4c.4 | Allocate named-root state only for demanded/readiness-output obligations. | written |
+| ☐ | B4c.5 | Allocate runtime slots, counters and scratch only for reached regions. | integrated |
+| ☐ | B4c.6 | Allocate readiness entries only for discovered roots/dependencies; reject invalid IDs. | written |
+| ☐ | B4c.7 | Apply dormant cancellation obligations without traversing/materializing the unselected graph. | in progress |
+| ☐ | B4c.8 | Compile selector ranges once; count only active selector groups per file. | written |
+| ☐ | B4c.9 | Keep graph and other activation metadata proportional to relevant rules. | written |
+| ☐ | B4c.10 | Prove opening/binding does no provider or kernel work for disabled/skipped/refused/rootless intents. | controls written |
+| ☐ | B4c.11 | Measure preparation work and falsify dense dormant processing. | controls written |
+| ☐ | B4c.12 | Preserve duplicate reader multiplicity and cancellation/release when roots are deduplicated. | proof pending |
+
+**B4d — Every source and physical route**
+
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | B4d.1 | Relation: owner-controlled provider admission and unavailable-source handling. | tests integrated |
+| ☐ | B4d.2 | Hosted: request-owned rows, dependencies and retries through the same scheduler. | tests integrated |
+| ☐ | B4d.3 | Region: shared producer results and duplicate dependency scheduling. | tests integrated |
+| ☐ | B4d.4 | Observation: direct aliases and union roots use actual producer publications. | tests integrated |
+| ☐ | B4d.5 | EmptyObservation: only validated declarations can publish typed emptiness. | tests integrated |
+| ☐ | B4d.6 | ObservationMember: Current/restored provenance and refusal survive scheduling. | tests integrated |
+| ☐ | B4d.7 | Direct roots without a Region use mandatory admission, not another evaluator. | batch proof pending |
+| ☐ | B4d.8 | Ordinary evaluation and shared-class replay use the same invocation authority. | tests integrated |
+| ☐ | B4d.9 | Native SyntaxTree/SyntaxChild positions use owner-issued source identity. | tests integrated |
+| ☐ | B4d.10 | Selected and column strategies preserve admission, population and retirement authority. | tests integrated |
+| ☐ | B4d.11 | Observe actual ordered-existence entry/decline; do not substitute OrderedMatch output tests. | tests integrated |
+| ☐ | B4d.12 | Strategy decline precedes observable work; real errors cannot retry another engine. | current all-route proof pending |
+| ☐ | B4d.13 | Cover file/project, collected/callback and named/capture/restored entry combinations. | partly integrated |
+| ☐ | B4d.14 | Require explicit classification and proof for new source/physical implementations. | enforcement pending |
+
+**B5 — Architecture and contracts**
+
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | B5.1 | Keep one production interpreter; kernels cannot resolve dependencies. | final audit pending |
+| ☐ | B5.2 | Require runtime-issued authority for ordinary, ordered and column permits. | written |
+| ☐ | B5.3 | Only actual ready gates may submit shared-walk classes. | integrated; boundary proof pending |
+| ☐ | B5.4 | Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient. | proof pending |
+| ☐ | B5.5 | Require owner, generation, partition, root and population scope at all lifecycle boundaries. | current proof pending |
+| ☐ | B5.6 | Reject scope rebinding that would retain one scope and index another. | negative control written |
+| ☐ | B5.7 | Retry delivery only after sink refusal; preserve terminal failures and generation isolation. | tests integrated |
+| ☐ | B5.8 | Prove cancellation/error/finish release real leases without premature release. | new batch proof pending |
+| ☐ | B5.9 | Enforce nu-hex ownership, acyclic boundaries and private implementation; do not widen access. | findings remain |
+| ☐ | B5.10 | Place new concepts/tests and run bad/good TM structural scenarios. | partly integrated |
+| ☐ | B5.11 | Run forbidden-access and authorized examples; verify intended failure reasons. | pending |
+| ☐ | B5.12 | Register and execute required execution/core/public/domain/contract suites. | pending |
+| ☐ | B5.13 | Require structural/contract gates and valid independent review in normal CI. | machinery present; current proof pending |
+| ☐ | B5.14 | Review exact combined source, separating deferred output faults from architectural violations. | pending |
+
+**C — Phase checkpoint**
+
+| Complete | Item | Requirement | Evidence state |
+|---|---|---|---|
+| ☐ | C1 | Retain exact full-rule baseline receipts; do not present them as candidate proof. | historical evidence retained |
+| ☐ | C2 | Retain full-Django failures, workload identity and measured resources. | historical evidence retained |
+| ☐ | C3 | Retain tiny controls and phase profiles with their limited scope. | historical evidence retained |
+| ☐ | C4a | Verify frontier/partition/owner admission contracts on the new scheduler. | pending |
+| ☐ | C5 | Build an immutable combined worker and measure useful workloads with actual work counters. | pending |
+| ☐ | C6 | Retain configured Rust guards and their failures; do not omit rules or raise limits. | failures retained |
+| ☐ | C7 | Bind compile, contracts, TM, counters, diagnostics and review to the same source. | pending |
+
+C4b (all output/completeness corrections, including LP-2) is explicitly deferred to Phase 1. Structural/ownership failures stay in Phase 2. Full shared scans belong to Phase 3, derived acquisition/last-use optimization to Phase 4, fusion to Phase 5, persistent reuse/invalidation to Phase 6. Existing full-suite output gates remain final acceptance; they do not block structural migration.
+
+Proof anchors: `crates/execution/tests/{shared_walk,scheduler,project_phase}`, core `application/cross_file/service_test.rs`, execution `domain/readiness` and `domain/shared_walk`, `program/runtime.rs`, `program/facade_runtime`, `relations/number.rs`, and the `executable-program-owner` / `program-implementation-boundary` TM assets. External compile-fail tests prove public privacy; they do not automatically prove internal authority.
 
 ## 1. Ownership matrix
 
