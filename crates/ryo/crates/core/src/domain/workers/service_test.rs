@@ -10,21 +10,19 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScop
 use ryo_values::domain::records::types::{FileOutcome, Record, Unreadable};
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest};
 
-use crate::application::file_dag::settings::VisitSetting;
-use crate::domain::coverage::types::RuleIndex;
-use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::{RowsFed, TreeSteps};
-use crate::domain::placement::service::decide;
-use crate::domain::placement::types::{Governing, Mask, PlacedScopes, RuleScope};
 use crate::domain::visit::types::{Noting, RoleRead};
 use crate::domain::workers::service::{
     absorb, add_fed, checking, file_at, gathering, govern, governs_rule, order, size_at, tables_for,
 };
+use crate::domain::workers::types::VisitSetting;
 use crate::domain::workers::types::{
     Checking, FileOrder, FilesRead, FreshRecord, Tables, WorkersMet,
 };
-use crate::outbound::matching::fixtures::fake::MatchingFake;
-use crate::outbound::matching::interface::MatchingPort as _;
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
+use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Governing, Mask, PlacedScopes, RuleScope,
+};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::runs::types::MemoryBytes;
@@ -138,12 +136,7 @@ fn record(path: &str) -> Record {
 }
 
 fn tables(plans: &[Plan]) -> Tables {
-    tables_for(
-        WorkerNumber(0),
-        plans,
-        TreeSteps::Lowered,
-        Counting::DoesNotCount,
-    )
+    tables_for(WorkerNumber(0), &from_plans(plans))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -152,18 +145,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::TablesFor => {
             let worker = tables(&[plan(2), plan(3)]);
             assert_eq!(
-                worker.pool.fed.iter().map(Vec::len).collect::<Vec<_>>(),
+                worker.fed.iter().map(Vec::len).collect::<Vec<_>>(),
                 [2, 3],
                 "worker counts are prepared for each actual plan step"
             );
             u64::from(
                 worker
-                    .pool
                     .fed
                     .iter()
                     .flatten()
                     .all(|fed| *fed == RowsFed::default())
-                    && worker.pool.selection_plans.is_empty()
                     && worker.partials.is_empty(),
             )
         }
@@ -174,56 +165,37 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::SizeAt => size_at(&files, FileOrder(1)).0,
         Scenario::NoSizeAt => size_at(&files, FileOrder(5)).0,
         Scenario::Govern(path) => {
-            let placement = decide(&[RuleScope {
+            let placement = MetadataUseCaseImpl.decide(&[RuleScope {
                 include: vec![Glob("**/*.rs".into())],
                 exclude: Vec::new(),
             }]);
             let globs = placement.globs.clone();
             let placed = PlacedScopes {
-                matcher: MatchingFake.compile(&globs).map_err(drop)?,
+                matcher: matcher(&globs).map_err(drop)?,
                 placement,
             };
-            let executor =
-                crate::application::file_dag::execution::CommonOperatorEngine::fixture_ref();
-            let operators = crate::application::file_dag::testing::request_for_executor(
-                executor,
-                &[],
-                &[],
-                &[],
-            );
-            let graph = std::sync::Arc::new(
-                crate::domain::file_program::service::compile_prepared(&[], &operators),
-            );
             let setting = VisitSetting {
-                source_language: None,
-                executor,
-                operators,
-                graph,
-                domain: crate::domain::workers::types::VisitSetting {
-                    observations:
-                        crate::domain::file_program::types::ObservationRequest::Independent,
-                    unknown: &[],
-                    plans: &[],
-                    bindings: &[],
-                    wanted: &[],
-                    paths: &[],
-                    first_bucket: &[],
-                    ids: &[],
-                    applicability: &[],
-                    applicability_can_gate: true,
-                    placed: &placed,
-                    records: &[],
-                    replaying: crate::domain::workers::types::Replaying::Findings,
-                    stored: &NOTHING_STORED,
-                    handed: &NOTHING_HANDED,
-                    wanted_buckets: &NOTHING_WANTED,
-                    budget: MemoryBytes(0),
-                    noted: Noting::Unwanted,
-                    roled: RoleRead::Skips,
-                    needs: &[],
-                    answering: &crate::domain::render::types::Answering::Findings,
-                    keeping: crate::domain::visit::types::Keeping::Keeps,
-                },
+                unknown: &[],
+                metadata: &[],
+
+                wanted: &[],
+                paths: &[],
+                first_bucket: &[],
+                ids: &[],
+                applicability: &[],
+                applicability_can_gate: true,
+                placed: &placed,
+                records: &[],
+                replaying: crate::domain::workers::types::Replaying::Findings,
+                stored: &NOTHING_STORED,
+                handed: &NOTHING_HANDED,
+                wanted_buckets: &NOTHING_WANTED,
+                budget: MemoryBytes(0),
+                noted: Noting::Unwanted,
+                roled: RoleRead::Skips,
+                needs: &[],
+                answering: &crate::domain::render::types::Answering::Findings,
+                keeping: crate::domain::visit::types::Keeping::Keeps,
             };
             let mut tables = tables(&[]);
             tables.hits = Hits::default();
@@ -236,16 +208,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             total.0[0] * 1000 + total.0[2] + u64::from(total.0[1] == u64::MAX)
         }
         Scenario::Gathering => {
-            let met = gathering(&[plan(1), plan(2)]);
+            let met = gathering(&from_plans(&[plan(1), plan(2)]));
             count(met.fed.iter().map(Vec::len).sum())
         }
         Scenario::Absorb => {
             let plans = [plan(1)];
             let mut worker = tables(&plans);
-            worker.pool.fed = vec![vec![RowsFed([1, 2, 3])]];
+            worker.fed = vec![vec![RowsFed([1, 2, 3])]];
             worker.reads = FilesRead(2);
             worker.arena = ArenaBytes(vec![7]);
-            let mut met = gathering(&plans);
+            let mut met = gathering(&from_plans(&plans));
             absorb(&mut met, worker);
             met.fed[0][0].0[2] * 100 + u64::from(met.read.0) * 10 + count(met.arenas.len())
         }
@@ -377,4 +349,34 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+use ryo_execution::inbound::use_cases::metadata::{
+    interface::MetadataUseCase, use_case::MetadataUseCaseImpl,
+};
+use ryo_matching::inbound::use_cases::matching::{
+    interface::MatchingUseCase, use_case::MatchingUseCaseImpl,
+};
+use ryo_values::domain::run_metadata::service::from_plans;
+
+fn matcher(
+    globs: &[ryo_values::domain::files::types::Glob],
+) -> Result<
+    ryo_values::domain::files::types::GlobsMatcher,
+    ryo_matching::inbound::use_cases::matching::errors::MatchingError,
+> {
+    let patterns: Vec<&str> = globs.iter().map(|glob| glob.0.as_ref()).collect();
+    let compiled = MatchingUseCaseImpl::new().compile_globs(&patterns)?;
+    Ok(ryo_values::domain::files::types::GlobsMatcher {
+        matches: std::sync::Arc::new(
+            move |path: ryo_values::domain::files::types::MatchCandidate<'_>,
+                  hits: &mut ryo_values::domain::files::types::Hits| {
+                MatchingUseCaseImpl::new().match_globs(
+                    &compiled,
+                    std::path::Path::new(path.0),
+                    &mut hits.0,
+                );
+            },
+        ),
+    })
 }
