@@ -33,7 +33,7 @@ use ryo_values::domain::rows::errors::TableModelError;
 
 /// The row at `index`, when the table has that many rows.
 #[must_use]
-use ryo_values::domain::rows::service::positions;
+use ryo_values::domain::rows::service::{positions, push_row, reset, row_in};
 
 /// Empties the table for new rows of the given kinds, keeping its room.
 
