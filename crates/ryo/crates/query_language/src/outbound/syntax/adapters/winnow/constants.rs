@@ -1,6 +1,9 @@
 //! The names of the winnow adapter: the words and marks RyoQL is written with. Text enters the
 //! engine here; the parsers match on these variants, never on text of their own.
 
+/// The lexical spelling of the select keyword.
+const SELECT: &str = "select";
+
 /// A word of the grammar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Keyword {
@@ -102,7 +105,7 @@ pub(crate) fn keyword_text(keyword: Keyword) -> &'static str {
         Keyword::Observe => "observe",
         Keyword::Subject => "subject",
         Keyword::Key => "key",
-        Keyword::Select => crate::domain::syntax::constants::SELECT,
+        Keyword::Select => SELECT,
         Keyword::From => "from",
         Keyword::As => "as",
         Keyword::Join => "join",
@@ -224,7 +227,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
         example: "select * from \"function\"",
     },
     GrammarLine {
-        name: crate::domain::syntax::constants::SELECT,
+        name: SELECT,
         form: "select ( \"*\" | select_column { \",\" select_column } ) from source [ join ] [ filters ]",
         example: "select l.name as \"name\" from \"function\" as l join \"function\" as r on l.file = r.file where r.name != \"main\"",
     },

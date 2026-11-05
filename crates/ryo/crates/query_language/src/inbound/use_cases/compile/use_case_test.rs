@@ -709,3 +709,6 @@ fn bound_observation_preserves_declared_schema_and_phase() {
             .any(|input| matches!(input, Input::BoundObservation(_)))
     );
 }
+
+mod fragment_hygiene_test;
+mod fragment_refusal_test;
