@@ -1,4 +1,4 @@
-//! Old lowered-join row contracts through the borrowed native-position evaluator.
+//! Ordered Join, Union and Antijoin rows through the native-position evaluator.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::native_positions::{
