@@ -88,15 +88,18 @@ impl ProjectSources<'_> {
                 } => (owner.source_compact(Arc::new(table)), coverage),
             };
             let result = publication.and_then(|publication| {
+                let unavailable = |_| Err(OperatingError::NotRead);
+                let rows = owner.resolve(publication.as_ref(), &unavailable)?;
                 AvailableInput::source(
                     Rc::clone(owner),
-                    publication,
+                    publication.clone(),
                     match source {
                         InputSource::Region(id) => ProducerRoot::Region(id),
                         _ => ProducerRoot::Input(source),
                     },
                     actual_partition.clone(),
                     coverage,
+                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
                 )
             });
             if let Ok(input) = &result {
@@ -358,6 +361,7 @@ impl Inputs for SourceInputs<'_, '_> {
                             relation,
                             kinds: vec![],
                         }]),
+                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
                 );
             }
             InputSource::Hosted { rule, relation } => {
@@ -535,7 +539,7 @@ impl Inputs for SourceInputs<'_, '_> {
         partition: &Partition,
         _context: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
-        input.admit(&self.owner, partition, self.read)
+        input.admit(&self.owner, partition)
     }
     fn is_empty(
         &self,

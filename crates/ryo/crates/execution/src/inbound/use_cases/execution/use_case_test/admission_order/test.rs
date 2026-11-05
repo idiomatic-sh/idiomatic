@@ -121,6 +121,7 @@ enum Supply {
     Present,
     MissingLeft,
     MissingRight,
+    MissingAfterFirst,
     Changed,
 }
 fn execute(
@@ -137,7 +138,9 @@ fn execute(
     let read = |relation| match relation {
         Relation::Function => {
             counts[0].set(counts[0].get() + 1);
-            if matches!(supply, Supply::MissingLeft) {
+            if matches!(supply, Supply::MissingLeft)
+                || (matches!(supply, Supply::MissingAfterFirst) && counts[0].get() > 1)
+            {
                 Err(OperatingError::NotRead)
             } else if matches!(supply, Supply::Changed) && counts[0].get() > 1 {
                 Ok(SourceRows::Computed(&changed))
@@ -191,7 +194,7 @@ fn schema_before_physical() {
             } else {
                 [1, 1]
             },
-            "layout fails after exact availability but before physical reborrows: {kind:?}"
+            "layout fails after exact availability without an extra admission reborrow: {kind:?}"
         );
     }
 }
@@ -273,11 +276,16 @@ fn child_failure_and_resources_first() {
         keys: vec![ColumnIndex(99)],
         distinct: None,
     };
-    let (result, _) = execute(fixtures::plan(vec![count]), true, Supply::Present);
+    let (result, calls) = execute(fixtures::plan(vec![count]), true, Supply::MissingAfterFirst);
     assert_eq!(
         result,
         Err(OperatingError::ShapeMismatch),
         "resource-first metadata is not hoisted before physical admission"
+    );
+    assert_eq!(
+        calls,
+        [1, 0],
+        "resource-first admission inspects the first malformed borrow; the later NotRead population is never requested"
     );
 }
 fn exhaustive_contract_declarations() {

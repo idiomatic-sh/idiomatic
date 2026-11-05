@@ -253,7 +253,7 @@ impl RelationOwner {
             normalized: OnceLock::new(),
         }))
     }
-    /// Custody of a supplied flat source, retaining its real malformed geometry until admission.
+    /// Custody of a supplied flat source, preserving exact geometry for first-borrow inspection.
     pub(super) fn source_computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
         self.publication(Arc::new(RelationResult {
             population: self.allocate_population()?,
@@ -418,27 +418,38 @@ impl RelationOwner {
         result: &dyn PublishedRelation,
         input: BorrowedRows<'a>,
     ) -> Result<AdmittedInput<'a>, OperatingError> {
+        self.inspect_available(result, input)?
+    }
+
+    pub(super) fn inspect_available<'a>(
+        &self,
+        result: &dyn PublishedRelation,
+        input: BorrowedRows<'a>,
+    ) -> Result<Result<AdmittedInput<'a>, OperatingError>, OperatingError> {
         let result = self.private(result)?;
         if !self.matches_current(result, input) {
             return Err(OperatingError::NotRead);
         }
-        let shape = self.inspect_current(result, input)?;
-        Ok(AdmittedInput {
-            rows: input,
-            shape,
-            backing_population: self.backing_population(result),
-            backing_relation: Self::backing_relation(result),
-            canonical_backing: Self::backing_relation(result)
-                .is_some_and(|relation| self.sources.borrow().contains_key(&relation)),
-            origin: (
-                self.result_population(result),
-                match &result.body {
-                    RelationBody::Source(source) => Some(source.relation),
-                    _ => None,
-                },
-                Arc::clone(&result.generation),
-            ),
-        })
+        // Identity is an availability refusal. Geometry is computed on the
+        // first supplied borrow but can be consumed after static preflight.
+        Ok(self
+            .inspect_current(result, input)
+            .map(|shape| AdmittedInput {
+                rows: input,
+                shape,
+                backing_population: self.backing_population(result),
+                backing_relation: Self::backing_relation(result),
+                canonical_backing: Self::backing_relation(result)
+                    .is_some_and(|relation| self.sources.borrow().contains_key(&relation)),
+                origin: (
+                    self.result_population(result),
+                    match &result.body {
+                        RelationBody::Source(source) => Some(source.relation),
+                        _ => None,
+                    },
+                    Arc::clone(&result.generation),
+                ),
+            }))
     }
 
     fn inspect_current(

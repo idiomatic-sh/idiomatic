@@ -209,6 +209,7 @@ impl Inputs for TestInputs {
             super::super::super::super::admission::ProducerRoot::Input(source),
             partition.clone(),
             crate::domain::completion::types::CoverageState::Complete,
+            BorrowedRows::from(&rows),
         )
     }
     fn admit(
@@ -217,7 +218,7 @@ impl Inputs for TestInputs {
         partition: &Partition,
         _: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
-        input.admit(&self.owner, partition, &|relation| self.read(relation))
+        input.admit(&self.owner, partition)
     }
     fn is_empty(
         &self,

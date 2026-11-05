@@ -66,8 +66,9 @@ pub(super) struct AdmittedInput {
     readiness: Readiness,
     publication: PublishedInput,
 }
-/// Actual source availability is not a physical-shape or semantic-readiness permit.
-/// It retains an owner-issued publication, never a provider borrow across suspension.
+/// Source availability does not authorize a kernel or expose a deferred geometry refusal.
+/// Pure inspection uses the first borrow; its owned result is committed at the
+/// declared schema boundary. No provider borrow survives suspension or is reread at commit.
 #[derive(Clone)]
 pub(super) struct AvailableInput {
     body: AvailableBody,
@@ -78,9 +79,8 @@ enum AvailableBody {
     Source {
         owner: Rc<RelationOwner>,
         publication: PublishedInput,
-        root: ProducerRoot,
         partition: Partition,
-        coverage: crate::domain::completion::types::CoverageState,
+        admission: Result<AdmittedInput, OperatingError>,
     },
 }
 impl AvailableInput {
@@ -95,27 +95,36 @@ impl AvailableInput {
         root: ProducerRoot,
         partition: Partition,
         coverage: crate::domain::completion::types::CoverageState,
+        rows: crate::domain::operator::contract::views::BorrowedRows<'_>,
     ) -> Result<Self, OperatingError> {
-        // This checks the private owner generation without inspecting payload geometry.
-        let _kinds = owner.publication_kinds(&publication)?;
+        // Inspect this exact first provider borrow now, not a later re-read.
+        // Only geometry refusals are deferred; identity/generation/source failures
+        // remain immediate. No borrowed rows survive this synchronous boundary.
+        let inspected = owner.inspect_available(publication.as_ref(), rows)?;
+        let admission = match inspected {
+            Ok(physical) => {
+                if physical.physical_shape() != crate::domain::table_model::collections::representations::types::PhysicalShape::Complete {
+                    Err(OperatingError::ShapeMismatch)
+                } else {
+                    Ok(AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &physical,
+                        root, partition.clone(), Readiness::Complete)?.with_coverage(coverage))
+                }
+            }
+            Err(geometry) => Err(geometry),
+        };
         Ok(Self {
             body: AvailableBody::Source {
                 owner,
                 publication,
-                root,
                 partition,
-                coverage,
+                admission,
             },
         })
     }
-    pub(super) fn admit<'facts>(
+    pub(super) fn admit(
         &self,
         owner: &Rc<RelationOwner>,
         partition: &Partition,
-        read: &dyn Fn(
-            ryo_relations::domain::relations::types::Relation,
-        )
-            -> Result<crate::domain::table_model::types::Rows<'facts>, OperatingError>,
     ) -> Result<AdmittedInput, OperatingError> {
         match &self.body {
             AvailableBody::Published(input) => {
@@ -126,28 +135,16 @@ impl AvailableInput {
             AvailableBody::Source {
                 owner: original,
                 publication,
-                root,
                 partition: actual,
-                coverage,
+                admission,
             } => {
                 if !Rc::ptr_eq(original, owner) {
                     return Err(OperatingError::NotRead);
                 }
                 actual.require_supply(partition)?;
-                let rows = owner.resolve(publication.as_ref(), read)?;
-                let checked = owner.admit(
-                    publication.as_ref(),
-                    crate::domain::operator::contract::views::BorrowedRows::from(&rows),
-                )?;
-                AdmittedInput::from_publication(
-                    Rc::clone(owner),
-                    publication.clone(),
-                    &checked,
-                    *root,
-                    actual.clone(),
-                    Readiness::Complete,
-                )
-                .map(|input| input.with_coverage(coverage.clone()))
+                // Revalidate owner generation without obtaining another provider population.
+                let _kinds = owner.publication_kinds(publication)?;
+                admission.clone()
             }
         }
     }
