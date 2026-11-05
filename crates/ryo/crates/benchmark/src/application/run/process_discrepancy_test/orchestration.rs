@@ -1,5 +1,9 @@
 //! Exercise the actual verifier orchestration and its fail-closed observer gate.
 use super::*;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+    DiscrepancyEvidence, DiscrepancyEvidenceKind,
+};
 
 /// One orchestration substitute distinguishes actual provider commands, without deciding comparison policy.
 struct PairExecution;

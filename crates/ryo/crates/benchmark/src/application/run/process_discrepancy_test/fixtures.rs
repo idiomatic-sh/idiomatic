@@ -4,7 +4,10 @@ use crate::outbound::{
     inventory::types::{CapturedObservation, Registration},
     suite::{fixtures::fake::SuiteFake, types::ArtifactPath},
 };
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use sha2::Digest as _;
 use std::path::PathBuf;
 

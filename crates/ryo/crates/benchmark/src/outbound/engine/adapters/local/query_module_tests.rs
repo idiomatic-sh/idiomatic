@@ -178,7 +178,7 @@ fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_
             output: ObservationName("matched".into()),
         }],
     };
-    let mut declarations = BTreeMap::from([(consumer.clone(), vec![binding.clone()])]);
+    let mut declarations = ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::from(BTreeMap::from([(consumer.clone(), vec![binding.clone()])]));
     let queries = EngineLocalAdapter::load_rules(
         &rules,
         &BTreeMap::new(),

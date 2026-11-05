@@ -148,7 +148,7 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
     let mut adapter = LinterRyoAdapter {
         rule_observation_selection:
             ryo_benchmark_contracts::domain::workloads::types::ObservationSelectionPolicy::Declared,
-        rule_observations: original.clone(),
+        rule_observations: original.clone().into(),
         defaults: vec![consumer.clone(), producer.clone()],
         project_context_mode: Default::default(),
         executable: "worker".into(),
@@ -182,7 +182,7 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
             given_project_inventory: Default::default(),
             staged_sources: None,
             selected_rules: (policy == Selected).then(|| vec![consumer.clone()]),
-            rule_observations: explicit,
+            rule_observations: explicit.map(Into::into),
             rule_context: None,
             file_metadata: None,
             context_manifest: None,
@@ -196,9 +196,9 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         let worker =
             crate::outbound::worker::factory::json(json.clone().into(), Box::new(Vec::<u8>::new()));
         let received = worker.receive().unwrap();
-        assert_eq!(received.rule_observations.as_ref(), Some(&expected));
+        assert_eq!(received.rule_observations.as_deref(), Some(&expected));
         assert_eq!(
-            adapter.rule_observations, original,
+            *adapter.rule_observations, original,
             "case override cannot mutate profile defaults"
         );
         if index == 0 {
