@@ -734,6 +734,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         "wrong_hash",
         "other_worker",
         "valid_then_missing",
+        "forged_cross",
     ] {
         let engine = engine();
         let mut input = authored_request(1);
@@ -781,6 +782,12 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                     place: ryo_relations::domain::relations::types::PlaceNumber(0),
                 })
             }
+            "forged_cross" => Value::Name(ryo_relations::domain::relations::types::Name {
+                hash: expected_hash,
+                place: ryo_relations::domain::relations::types::PlaceNumber(
+                    ryo_relations::domain::relations::types::CROSS_PLACE | symbol.0,
+                ),
+            }),
             "cross_name" => Value::Name(
                 ryo_language::domain::symbols::service::name_made_across(&symbols, symbol)
                     .expect("derived producer name"),
@@ -849,14 +856,20 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                 .expect("capture actual frontier");
             assert_eq!(captures.len(), 1);
             let outcome = captures.into_iter().next().unwrap().outcome;
-            if matches!(
-                representation,
-                "missing_range" | "wrong_hash" | "other_worker" | "valid_then_missing"
-            ) {
-                assert!(
-                    matches!(outcome, Err(OperatingError::ObservationIncomplete { .. })),
-                    "{representation} must refuse on attempt {ordinal}"
-                );
+            use ryo_execution::inbound::use_cases::publication::interface::PublicationReason;
+            let refusal = match representation {
+                "missing_range" => Some(PublicationReason::InheritedRangeMissing),
+                "wrong_hash" => Some(PublicationReason::InheritedTextMismatch),
+                "other_worker" => Some(PublicationReason::InheritedArenaUnrepresentable),
+                "valid_then_missing" => Some(PublicationReason::PlaceMissing),
+                "forged_cross" => Some(PublicationReason::CrossNameMismatch),
+                _ => None,
+            };
+            if let Some(reason) = refusal {
+                let Err(OperatingError::ObservationIncomplete { reason: actual }) = outcome else {
+                    panic!("{representation} must refuse on attempt {ordinal}");
+                };
+                assert_eq!(actual, reason.to_string(), "exact publication refusal");
                 assert_eq!(
                     arena, initial_arena,
                     "failed capture retains no appended bytes"
