@@ -170,10 +170,14 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             .unwrap()
             .outcome
             .expect("actual file frontier");
-        assert_eq!(file_reads.get(), 1);
+        // Admission, the declined stored-selection candidate and registered
+        // evaluation borrow the same pinned computed population. These are
+        // resident resolutions, not three provider population builds.
+        assert_eq!(file_reads.get(), 3);
         assert_eq!(file.counts(RuleIndex(0)).unwrap().fed[1].0, [0; 3]);
         file.finish()
             .expect("file owner finishes without demanding project sources");
+        assert_eq!(file_reads.get(), 3, "finish cannot demand the source again");
         let stored = CapturedFacts {
             capture,
             reads: AtomicUsize::new(0),
@@ -249,5 +253,6 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
         scope.finish().expect("release project publications");
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         request.finish();
+        assert_eq!(file_reads.get(), 3, "project work cannot reread file facts");
     }
 }
