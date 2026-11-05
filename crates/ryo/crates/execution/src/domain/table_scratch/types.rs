@@ -63,10 +63,6 @@ pub(crate) struct Candidates(pub Vec<u32>);
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct ComparisonNumbers(pub Vec<usize>);
 
-/// Which elements of a tree a domain admits, by their place.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct Marks(pub Vec<bool>);
-
 /// An element of a tree, by its place among the elements.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ElementIndex(pub usize);
