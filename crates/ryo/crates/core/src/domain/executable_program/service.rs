@@ -313,7 +313,6 @@ pub(crate) fn compile(
         }
         regions[select.0].ordered_existence = Some(OrderedExistence {
             source,
-            join,
             number: resolved.shape.number,
             partition: resolved.shape.partition.into_boxed_slice(),
             order: resolved.shape.order,
@@ -381,7 +380,6 @@ pub(crate) fn compile(
             original_steps: original_steps.into_boxed_slice(),
         });
     }
-    let fused_instruction_count = count - regions.len();
     let observation_regions = super::observed::compile_unions(
         &mut regions,
         graph.observations.as_ref(),
@@ -438,8 +436,6 @@ pub(crate) fn compile(
         rules: rules.into_boxed_slice(),
         logical_regions: logical_regions.into_boxed_slice(),
         observation_regions: observation_regions.into_boxed_slice(),
-        original_instruction_count: count,
-        fused_instruction_count,
     };
     for selection in super::selection::compile(&executable, prepared) {
         let target = selection.target();

@@ -144,7 +144,6 @@ fn fixture(invalid_frontier: bool) -> Fixture {
             }],
         }],
     ];
-    let order = [RuleIndex(0), RuleIndex(1), RuleIndex(2), RuleIndex(3)];
     let batches = vec![
         vec![RuleIndex(0), RuleIndex(1)],
         vec![RuleIndex(2), RuleIndex(3)],
@@ -161,7 +160,6 @@ fn fixture(invalid_frontier: bool) -> Fixture {
         &operators,
         ObservationRequest::Bound {
             layout: ObservationReadinessLayout(Digest([7; 16])),
-            order: &order,
             batches: &batches,
             bindings: &bindings,
         },
