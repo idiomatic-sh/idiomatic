@@ -263,14 +263,8 @@ mod negative;
 /// Every grouped name below is obtained from a real captured Function population.
 #[test]
 fn project_grouping_reads_only_actual_captured_function_names() {
-    use ryo_language::domain::symbols::{
-        service::{hash_in, intern},
-        types::ByteSlice,
-    };
-    use ryo_relations::domain::relations::{
-        service::node_id,
-        types::{Integer, Offset, Position},
-    };
+    use ryo_language::domain::symbols::{service::hash_of, types::ByteSlice};
+    use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::stored_facts::types::ArenaBytes;
     let engine = engine();
     let mut input = authored_request(1);
@@ -303,20 +297,9 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     }
     let request = engine.begin(&program, &corpus);
     let mut symbols = Symbols::default();
-    let main = intern(&mut symbols, ByteSlice(b"mainother"), Offset(0), Offset(4));
-    let other = intern(&mut symbols, ByteSlice(b"mainother"), Offset(4), Offset(9));
-    let main_hash = hash_in(&symbols, main).unwrap();
-    let other_hash = hash_in(&symbols, other).unwrap();
-    let mut table = source();
-    let prototype = table.cells.clone();
-    table.cells.clear();
-    for (index, name) in [main, main, other].into_iter().enumerate() {
-        let mut row = prototype.clone();
-        row[0] = Value::Node(node_id(FileId(0), Position(index as u32)));
-        row[1] = Value::Symbol(name);
-        table.cells.extend(row);
-    }
-    table.count = RowCount(3);
+    let main_hash = hash_of(ByteSlice(b"main"));
+    let other_hash = hash_of(ByteSlice(b"other"));
+    let table = crate::boundary_fixture::named_functions(&mut symbols);
     let read = |relation| {
         assert_eq!(relation, Relation::Function);
         Ok(SourceRows::Computed(&table))
@@ -441,4 +424,151 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     run.finish();
     scope.finish().unwrap();
     request.finish();
+}
+
+/// The former per-file, missing-input and shared-pool scenarios use one prepared program.
+#[test]
+fn named_function_selection_replays_without_running_project_steps_or_hiding_absence() {
+    use ryo_relations::domain::relations::{service::node_id, types::Position};
+    use ryo_values::domain::plan_parts::types::{
+        Comparison, LiteralText, Operand, QueryLiteral, Test,
+    };
+    for absent in [false, true] {
+        let engine = engine();
+        let mut input = authored_request(2);
+        let selected = PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::Function),
+                comparisons: vec![Comparison {
+                    test: Test::Equal,
+                    left: Operand::Column(ColumnIndex(1)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("main".into()))),
+                    origin: None,
+                }],
+                kept: vec![ColumnIndex(0)],
+            },
+        };
+        input.plans[0].steps = vec![selected.clone()];
+        input.plans[1].steps = vec![
+            selected,
+            PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::GroupCount {
+                    from: Input::Step(StepId(0)),
+                    keys: vec![ColumnIndex(0)],
+                    distinct: None,
+                },
+            },
+        ];
+        input.plans[1].frontier = vec![Input::Step(StepId(0))];
+        input.plans[1].emit.step = StepId(1);
+        let program = engine.prepare(input).expect("compile both plans together");
+        let mut corpus = corpus();
+        if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {
+            entry.size = ryo_values::domain::files::types::FileSize(9);
+        }
+        let request = engine.begin(&program, &corpus);
+        let mut symbols = Symbols::default();
+        let table = crate::boundary_fixture::named_functions(&mut symbols);
+        let reads = Cell::new(0);
+        let read = |relation| {
+            assert_eq!(relation, Relation::Function);
+            reads.set(reads.get() + 1);
+            if absent {
+                Err(OperatingError::NotRead)
+            } else {
+                Ok(SourceRows::Computed(&table))
+            }
+        };
+        let elements = ryo_language::domain::elements::types::Elements::default();
+        let mut file = request
+            .open_file(
+                FileInput {
+                    language: SourceLanguage::Recognized,
+                    resident_stability: facts::ResidentStability::Stable,
+                    file: FileId(0),
+                    evaluation: &[],
+                    publication: &[],
+                    demanded: &[true, true],
+                    source: b"mainother",
+                    elements: &elements,
+                    read: &read,
+                    semantic: None,
+                    kinds: None,
+                },
+                &mut symbols,
+            )
+            .unwrap();
+        let outcome = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+        if absent {
+            assert!(matches!(
+                outcome.emit,
+                RootOutcome::Failed(OperatingError::NotRead)
+            ));
+        } else {
+            let RootOutcome::Complete(first) = outcome.emit else {
+                panic!("matching declarations")
+            };
+            assert_eq!(first.count, RowCount(2));
+            assert_eq!(
+                first.cells,
+                [
+                    Value::Node(node_id(FileId(0), Position(0))),
+                    Value::Node(node_id(FileId(0), Position(1)))
+                ]
+            );
+            let after_first = reads.get();
+            assert!(matches!(
+                file.rule(RuleIndex(1), demand(), &mut symbols)
+                    .unwrap()
+                    .emit,
+                RootOutcome::Deferred {
+                    phase: StepScope::CrossFile
+                }
+            ));
+            let mut arena = vec![];
+            let mut places = vec![];
+            let mut words = Words::default();
+            let mut captured = file
+                .capture_frontiers(
+                    RuleIndex(1),
+                    Bucket(0),
+                    &mut symbols,
+                    CaptureContext {
+                        worker: WorkerNumber(0),
+                        arena: &mut arena,
+                        places: &mut places,
+                        words: &mut words,
+                    },
+                )
+                .expect("project rule retains its file frontier");
+            assert_eq!(captured.len(), 1);
+            let capture = captured.pop().unwrap().outcome.expect("complete frontier");
+            let decoded = ryo_values::domain::table_words::service::decode_complete(
+                &capture.words,
+                &mut vec![],
+            )
+            .unwrap();
+            assert_eq!(
+                decoded, first,
+                "captured rows match the actual file selection"
+            );
+            let RootOutcome::Complete(replayed) = file
+                .rule(RuleIndex(0), demand(), &mut symbols)
+                .unwrap()
+                .emit
+            else {
+                panic!("repeat file rule")
+            };
+            assert_eq!(first, replayed);
+            assert_eq!(
+                reads.get(),
+                after_first,
+                "deferred and replayed roots do not reread source"
+            );
+        }
+        file.finish().expect("finish actual file session");
+        request.finish();
+    }
 }

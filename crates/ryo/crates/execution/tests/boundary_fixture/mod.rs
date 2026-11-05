@@ -118,3 +118,21 @@ pub(crate) fn demand() -> RuleDemand {
         observations: ObservationDemand::NotRequired,
     }
 }
+
+/// Canonical Function rows for two matching declarations and one other declaration.
+pub(crate) fn named_functions(symbols: &mut Symbols) -> Table {
+    use ryo_language::domain::symbols::{service::intern, types::ByteSlice};
+    let main = intern(symbols, ByteSlice(b"mainother"), Offset(0), Offset(4));
+    let other = intern(symbols, ByteSlice(b"mainother"), Offset(4), Offset(9));
+    let mut table = source();
+    let prototype = table.cells.clone();
+    table.cells.clear();
+    for (index, name) in [main, main, other].into_iter().enumerate() {
+        let mut row = prototype.clone();
+        row[0] = Value::Node(node_id(FileId(0), Position(index as u32)));
+        row[1] = Value::Symbol(name);
+        table.cells.extend(row);
+    }
+    table.count = RowCount(3);
+    table
+}
