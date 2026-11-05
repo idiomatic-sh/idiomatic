@@ -669,3 +669,254 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
         request.finish();
     }
 }
+
+#[test]
+fn project_observation_union_runs_from_member_handles_without_a_restored_union() {
+    exercise_project_observation_union(false);
+}
+
+#[test]
+fn refused_project_union_frontier_precedes_available_member_handles() {
+    exercise_project_observation_union(true);
+}
+
+fn exercise_project_observation_union(refused: bool) {
+    use ryo_execution::inbound::use_cases::execution::interface::{
+        ObservationExecution, ObservationPublication, PreparedExecution,
+    };
+    use ryo_values::domain::observations::types::{
+        BoundObservationInput, ObservationBinding, ObservationBindingId, ObservationBindingName,
+        ObservationColumn, ObservationColumnName, ObservationIndex, ObservationName,
+        ObservationProducer, ObservationReadinessLayout, PlanObservation, ProducerReadiness,
+    };
+    use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};
+    use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, KeptWords};
+    use ryo_values::domain::table_words::{
+        service::{encode_table, pack},
+        types::WordSlice,
+    };
+
+    let engine = engine();
+    let mut authored = authored_request(2);
+    let relation = Relation::ModuleIdentity;
+    let file_column = kinds(relation)
+        .iter()
+        .position(|kind| *kind == CellKind::File)
+        .unwrap();
+    let columns = vec![ObservationColumn {
+        name: ObservationColumnName("file".into()),
+        kind: CellKind::File,
+    }];
+    authored.plans[0].steps = vec![PlanStep {
+        scope: StepScope::CrossFile,
+        operation: Operation::Select {
+            from: Input::Relation(relation),
+            comparisons: vec![],
+            kept: vec![ColumnIndex(u32::try_from(file_column).unwrap())],
+        },
+    }];
+    authored.plans[0].observations.push(PlanObservation {
+        name: ObservationName("files".into()),
+        source: Input::Step(StepId(0)),
+        columns: columns.clone(),
+        scope: StepScope::CrossFile,
+    });
+    authored.plans[1].steps = vec![PlanStep {
+        scope: StepScope::CrossFile,
+        operation: Operation::Select {
+            from: Input::BoundObservation(ObservationBindingId(0)),
+            comparisons: vec![],
+            kept: vec![],
+        },
+    }];
+    authored.plans[1]
+        .observation_inputs
+        .push(BoundObservationInput {
+            name: ObservationBindingName("files".into()),
+            columns: columns.clone(),
+            scope: StepScope::CrossFile,
+        });
+    let producer = authored.rules[0].id.clone();
+    authored.rules[1].observations.push(ObservationBinding {
+        name: ObservationBindingName("files".into()),
+        columns,
+        producers: vec![ObservationProducer::Output {
+            rule: producer,
+            output: ObservationName("files".into()),
+        }],
+    });
+    authored.observations =
+        ObservationIdentity::Named(ObservationReadinessLayout(Digest([63; 16])));
+    let prepared = engine
+        .prepare(authored)
+        .expect("actual named project producer and union consumer");
+    assert_eq!(
+        prepared.frontiers(RuleIndex(1)).unwrap(),
+        [Input::BoundObservation(ObservationBindingId(0))]
+    );
+    let corpus = corpus();
+    let request = engine.begin(&prepared, &corpus);
+    let covered = [Covered {
+        file: FileId(0),
+        rules: vec![RuleIndex(0), RuleIndex(1)],
+        partial: vec![],
+    }];
+    let stored = CapturedFacts {
+        captures: vec![],
+        reads: AtomicUsize::new(0),
+    };
+    let project = ProjectFacts::new(relation);
+    let project_symbols = Symbols::default();
+    let mut arenas = vec![];
+    let mut stage = request.observations(&mut arenas).unwrap();
+    let mut symbols = Symbols::default();
+    let producer_scope = stage
+        .project_scope(RuleIndex(0), &corpus, &covered, &[])
+        .unwrap();
+    let slot = stage.reserve(RuleIndex(0)).unwrap();
+    let ordinary = request
+        .prepare_frontiers(
+            FrontierRequest {
+                demand: FrontierDemand::Diagnostic,
+                scope: &producer_scope,
+                rule: RuleIndex(0),
+                first: Bucket(0),
+                facts: &stored,
+                project: &project,
+                project_symbols: &project_symbols,
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    let partials = Partials::default();
+    let mut run = request
+        .open_project(
+            ProjectInput {
+                scope: &producer_scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &[],
+                arenas: stage.arenas(),
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    let mut result = run
+        .rule(
+            RuleIndex(0),
+            RuleDemand {
+                emit: EmitDemand::Disabled,
+                observations: ObservationDemand::Required,
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    assert!(matches!(result.emit, RootOutcome::NoQuery));
+    let (output, observed) = result.observations.pop().unwrap();
+    assert_eq!(output, ObservationIndex(0));
+    let ProjectObservation::Complete { table, publication } = observed else {
+        panic!("actual named project publication")
+    };
+    assert_eq!(table.kinds, [CellKind::File]);
+    assert_eq!(table.count, RowCount(1));
+    assert_eq!(table.cells, [Value::File(FileId(0))]);
+    run.finish();
+    let PublicationSlot::Reserved(worker) = slot else {
+        panic!("real reserved publication slot")
+    };
+    let mut words = Words::default();
+    encode_table(&table, &[], &mut words);
+    stage
+        .install(
+            RuleIndex(0),
+            slot,
+            CrossPublicationTransfer {
+                worker,
+                arena: ArenaBytes::default(),
+                roots: vec![PackedObservedRoot {
+                    output,
+                    words: Some(KeptWords(pack(WordSlice(&words.0)))),
+                    readiness: ProducerReadiness::Complete,
+                    arenas: vec![],
+                }],
+            },
+            vec![(output, publication)],
+        )
+        .unwrap();
+    stage.finish(RuleIndex(0)).unwrap();
+    let consumer_scope = stage
+        .project_scope(RuleIndex(1), &corpus, &covered, &[])
+        .unwrap();
+    let bound = stage.bindings(RuleIndex(1)).unwrap();
+    assert_eq!(
+        bound.len(),
+        1,
+        "the real stage supplies members, not a whole-union packet"
+    );
+    let reads = project.reads.load(Ordering::SeqCst);
+    let ready = [false];
+    let ordinary = request
+        .prepare_frontiers(
+            FrontierRequest {
+                demand: if refused {
+                    FrontierDemand::Observations { ready: &ready }
+                } else {
+                    FrontierDemand::Diagnostic
+                },
+                scope: &consumer_scope,
+                rule: RuleIndex(1),
+                first: Bucket(1),
+                facts: &stored,
+                project: &project,
+                project_symbols: &project_symbols,
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    assert_eq!(
+        stored.reads.load(Ordering::SeqCst),
+        0,
+        "no union bytes were supplied by a file frontier"
+    );
+    let mut run = request
+        .open_project(
+            ProjectInput {
+                scope: &consumer_scope,
+                evaluation: &partials,
+                publication: &partials,
+                ordinary,
+                bound: &bound,
+                arenas: stage.arenas(),
+            },
+            &mut symbols,
+        )
+        .unwrap();
+    let result = run.rule(RuleIndex(1), demand(), &mut symbols).unwrap();
+    if refused {
+        assert!(
+            matches!(result.emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason })
+            if reason == "a producer feeding this retained frontier is unavailable")
+        );
+        assert!(result.counts.fed.iter().all(|count| count.0 == [0; 3]));
+    } else {
+        let RootOutcome::Complete(table) = result.emit else {
+            panic!("declared union must be scheduled from actual member handles")
+        };
+        assert_eq!(table.kinds, [CellKind::File]);
+        assert_eq!(table.count, RowCount(1));
+        assert_eq!(table.cells, [Value::File(FileId(0))]);
+    }
+    assert_eq!(
+        project.reads.load(Ordering::SeqCst),
+        reads,
+        "no producer or provider is rerun for the union"
+    );
+    run.finish();
+    drop(bound);
+    stage.finish(RuleIndex(1)).unwrap();
+    drop(producer_scope);
+    drop(consumer_scope);
+    stage.finish_stage().unwrap();
+    request.finish();
+}
