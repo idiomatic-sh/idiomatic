@@ -1,7 +1,7 @@
 //! Oxc's typed AST mapped to the pinned TypeScript-`ESTree` vocabulary.
 //! Parser-only wrappers are transparent; their children retain their standard parent.
 
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use oxc_ast::{
     AstKind,
@@ -11,22 +11,22 @@ use oxc_ast::{
 /// The standard kind represented by an Oxc node; wrapper nodes have no `ESTree` identity.
 /// The parser's typed node at the conversion boundary.
 struct NodeSchema<'a>(AstKind<'a>);
-impl From<NodeSchema<'_>> for Option<TypeScriptNode> {
+impl From<NodeSchema<'_>> for Option<Node> {
     #[expect(
         clippy::too_many_lines,
         reason = "One exhaustive conversion table holds the pinned parser vocabulary and its transparent wrappers together"
     )]
     fn from(schema: NodeSchema<'_>) -> Self {
         match schema.0 {
-            AstKind::Program(_) => Some(TypeScriptNode::Program),
+            AstKind::Program(_) => Some(Node::Program),
             AstKind::IdentifierName(_)
             | AstKind::IdentifierReference(_)
             | AstKind::BindingIdentifier(_)
             | AstKind::LabelIdentifier(_)
             | AstKind::TSThisParameter(_)
-            | AstKind::TSIndexSignatureName(_) => Some(TypeScriptNode::Identifier),
-            AstKind::ThisExpression(_) => Some(TypeScriptNode::ThisExpression),
-            AstKind::ArrayExpression(_) => Some(TypeScriptNode::ArrayExpression),
+            | AstKind::TSIndexSignatureName(_) => Some(Node::Identifier),
+            AstKind::ThisExpression(_) => Some(Node::ThisExpression),
+            AstKind::ArrayExpression(_) => Some(Node::ArrayExpression),
             AstKind::Elision(_)
             | AstKind::ParenthesizedExpression(_)
             | AstKind::Hashbang(_)
@@ -39,195 +39,195 @@ impl From<NodeSchema<'_>> for Option<TypeScriptNode> {
             | AstKind::JSDocNullableType(_)
             | AstKind::JSDocNonNullableType(_)
             | AstKind::JSDocUnknownType(_) => None,
-            AstKind::ObjectExpression(_) => Some(TypeScriptNode::ObjectExpression),
+            AstKind::ObjectExpression(_) => Some(Node::ObjectExpression),
             AstKind::ObjectProperty(_)
             | AstKind::AssignmentTargetPropertyIdentifier(_)
             | AstKind::AssignmentTargetPropertyProperty(_)
-            | AstKind::BindingProperty(_) => Some(TypeScriptNode::Property),
-            AstKind::TemplateLiteral(_) => Some(TypeScriptNode::TemplateLiteral),
-            AstKind::TaggedTemplateExpression(_) => Some(TypeScriptNode::TaggedTemplateExpression),
-            AstKind::TemplateElement(_) => Some(TypeScriptNode::TemplateElement),
+            | AstKind::BindingProperty(_) => Some(Node::Property),
+            AstKind::TemplateLiteral(_) => Some(Node::TemplateLiteral),
+            AstKind::TaggedTemplateExpression(_) => Some(Node::TaggedTemplateExpression),
+            AstKind::TemplateElement(_) => Some(Node::TemplateElement),
             AstKind::ComputedMemberExpression(_)
             | AstKind::StaticMemberExpression(_)
-            | AstKind::PrivateFieldExpression(_) => Some(TypeScriptNode::MemberExpression),
-            AstKind::CallExpression(_) => Some(TypeScriptNode::CallExpression),
-            AstKind::NewExpression(_) => Some(TypeScriptNode::NewExpression),
-            AstKind::ImportMeta(_) | AstKind::NewTarget(_) => Some(TypeScriptNode::MetaProperty),
-            AstKind::SpreadElement(_) => Some(TypeScriptNode::SpreadElement),
-            AstKind::UpdateExpression(_) => Some(TypeScriptNode::UpdateExpression),
-            AstKind::UnaryExpression(_) => Some(TypeScriptNode::UnaryExpression),
+            | AstKind::PrivateFieldExpression(_) => Some(Node::MemberExpression),
+            AstKind::CallExpression(_) => Some(Node::CallExpression),
+            AstKind::NewExpression(_) => Some(Node::NewExpression),
+            AstKind::ImportMeta(_) | AstKind::NewTarget(_) => Some(Node::MetaProperty),
+            AstKind::SpreadElement(_) => Some(Node::SpreadElement),
+            AstKind::UpdateExpression(_) => Some(Node::UpdateExpression),
+            AstKind::UnaryExpression(_) => Some(Node::UnaryExpression),
             AstKind::BinaryExpression(_) | AstKind::PrivateInExpression(_) => {
-                Some(TypeScriptNode::BinaryExpression)
+                Some(Node::BinaryExpression)
             }
-            AstKind::LogicalExpression(_) => Some(TypeScriptNode::LogicalExpression),
-            AstKind::ConditionalExpression(_) => Some(TypeScriptNode::ConditionalExpression),
-            AstKind::AssignmentExpression(_) => Some(TypeScriptNode::AssignmentExpression),
+            AstKind::LogicalExpression(_) => Some(Node::LogicalExpression),
+            AstKind::ConditionalExpression(_) => Some(Node::ConditionalExpression),
+            AstKind::AssignmentExpression(_) => Some(Node::AssignmentExpression),
             AstKind::ArrayAssignmentTarget(_) | AstKind::ArrayPattern(_) => {
-                Some(TypeScriptNode::ArrayPattern)
+                Some(Node::ArrayPattern)
             }
             AstKind::ObjectAssignmentTarget(_) | AstKind::ObjectPattern(_) => {
-                Some(TypeScriptNode::ObjectPattern)
+                Some(Node::ObjectPattern)
             }
             AstKind::AssignmentTargetRest(_)
             | AstKind::BindingRestElement(_)
-            | AstKind::FormalParameterRest(_) => Some(TypeScriptNode::RestElement),
+            | AstKind::FormalParameterRest(_) => Some(Node::RestElement),
             AstKind::AssignmentTargetWithDefault(_) | AstKind::AssignmentPattern(_) => {
-                Some(TypeScriptNode::AssignmentPattern)
+                Some(Node::AssignmentPattern)
             }
-            AstKind::SequenceExpression(_) => Some(TypeScriptNode::SequenceExpression),
-            AstKind::Super(_) => Some(TypeScriptNode::Super),
-            AstKind::AwaitExpression(_) => Some(TypeScriptNode::AwaitExpression),
-            AstKind::ChainExpression(_) => Some(TypeScriptNode::ChainExpression),
+            AstKind::SequenceExpression(_) => Some(Node::SequenceExpression),
+            AstKind::Super(_) => Some(Node::Super),
+            AstKind::AwaitExpression(_) => Some(Node::AwaitExpression),
+            AstKind::ChainExpression(_) => Some(Node::ChainExpression),
             AstKind::Directive(_) | AstKind::ExpressionStatement(_) => {
-                Some(TypeScriptNode::ExpressionStatement)
+                Some(Node::ExpressionStatement)
             }
-            AstKind::BlockStatement(_) | AstKind::FunctionBody(_) => Some(TypeScriptNode::BlockStatement),
-            AstKind::VariableDeclaration(_) => Some(TypeScriptNode::VariableDeclaration),
-            AstKind::VariableDeclarator(_) => Some(TypeScriptNode::VariableDeclarator),
-            AstKind::EmptyStatement(_) => Some(TypeScriptNode::EmptyStatement),
-            AstKind::IfStatement(_) => Some(TypeScriptNode::IfStatement),
-            AstKind::DoWhileStatement(_) => Some(TypeScriptNode::DoWhileStatement),
-            AstKind::WhileStatement(_) => Some(TypeScriptNode::WhileStatement),
-            AstKind::ForStatement(_) => Some(TypeScriptNode::ForStatement),
-            AstKind::ForInStatement(_) => Some(TypeScriptNode::ForInStatement),
-            AstKind::ForOfStatement(_) => Some(TypeScriptNode::ForOfStatement),
-            AstKind::ContinueStatement(_) => Some(TypeScriptNode::ContinueStatement),
-            AstKind::BreakStatement(_) => Some(TypeScriptNode::BreakStatement),
-            AstKind::ReturnStatement(_) => Some(TypeScriptNode::ReturnStatement),
-            AstKind::WithStatement(_) => Some(TypeScriptNode::WithStatement),
-            AstKind::SwitchStatement(_) => Some(TypeScriptNode::SwitchStatement),
-            AstKind::SwitchCase(_) => Some(TypeScriptNode::SwitchCase),
-            AstKind::LabeledStatement(_) => Some(TypeScriptNode::LabeledStatement),
-            AstKind::ThrowStatement(_) => Some(TypeScriptNode::ThrowStatement),
-            AstKind::TryStatement(_) => Some(TypeScriptNode::TryStatement),
-            AstKind::CatchClause(_) => Some(TypeScriptNode::CatchClause),
-            AstKind::DebuggerStatement(_) => Some(TypeScriptNode::DebuggerStatement),
+            AstKind::BlockStatement(_) | AstKind::FunctionBody(_) => Some(Node::BlockStatement),
+            AstKind::VariableDeclaration(_) => Some(Node::VariableDeclaration),
+            AstKind::VariableDeclarator(_) => Some(Node::VariableDeclarator),
+            AstKind::EmptyStatement(_) => Some(Node::EmptyStatement),
+            AstKind::IfStatement(_) => Some(Node::IfStatement),
+            AstKind::DoWhileStatement(_) => Some(Node::DoWhileStatement),
+            AstKind::WhileStatement(_) => Some(Node::WhileStatement),
+            AstKind::ForStatement(_) => Some(Node::ForStatement),
+            AstKind::ForInStatement(_) => Some(Node::ForInStatement),
+            AstKind::ForOfStatement(_) => Some(Node::ForOfStatement),
+            AstKind::ContinueStatement(_) => Some(Node::ContinueStatement),
+            AstKind::BreakStatement(_) => Some(Node::BreakStatement),
+            AstKind::ReturnStatement(_) => Some(Node::ReturnStatement),
+            AstKind::WithStatement(_) => Some(Node::WithStatement),
+            AstKind::SwitchStatement(_) => Some(Node::SwitchStatement),
+            AstKind::SwitchCase(_) => Some(Node::SwitchCase),
+            AstKind::LabeledStatement(_) => Some(Node::LabeledStatement),
+            AstKind::ThrowStatement(_) => Some(Node::ThrowStatement),
+            AstKind::TryStatement(_) => Some(Node::TryStatement),
+            AstKind::CatchClause(_) => Some(Node::CatchClause),
+            AstKind::DebuggerStatement(_) => Some(Node::DebuggerStatement),
             AstKind::Function(function) => Some(match function.r#type {
-                FunctionType::FunctionDeclaration => TypeScriptNode::FunctionDeclaration,
-                FunctionType::FunctionExpression => TypeScriptNode::FunctionExpression,
-                FunctionType::TSDeclareFunction => TypeScriptNode::TSDeclareFunction,
-                FunctionType::TSEmptyBodyFunctionExpression => TypeScriptNode::TSEmptyBodyFunctionExpression,
+                FunctionType::FunctionDeclaration => Node::FunctionDeclaration,
+                FunctionType::FunctionExpression => Node::FunctionExpression,
+                FunctionType::TSDeclareFunction => Node::TSDeclareFunction,
+                FunctionType::TSEmptyBodyFunctionExpression => Node::TSEmptyBodyFunctionExpression,
             }),
-            AstKind::ArrowFunctionExpression(_) => Some(TypeScriptNode::ArrowFunctionExpression),
-            AstKind::YieldExpression(_) => Some(TypeScriptNode::YieldExpression),
+            AstKind::ArrowFunctionExpression(_) => Some(Node::ArrowFunctionExpression),
+            AstKind::YieldExpression(_) => Some(Node::YieldExpression),
             AstKind::Class(class) => Some(match class.r#type {
-                ClassType::ClassDeclaration => TypeScriptNode::ClassDeclaration,
-                ClassType::ClassExpression => TypeScriptNode::ClassExpression,
+                ClassType::ClassDeclaration => Node::ClassDeclaration,
+                ClassType::ClassExpression => Node::ClassExpression,
             }),
-            AstKind::ClassBody(_) => Some(TypeScriptNode::ClassBody),
-            AstKind::MethodDefinition(_) => Some(TypeScriptNode::MethodDefinition),
-            AstKind::PropertyDefinition(_) => Some(TypeScriptNode::PropertyDefinition),
-            AstKind::PrivateIdentifier(_) => Some(TypeScriptNode::PrivateIdentifier),
-            AstKind::StaticBlock(_) => Some(TypeScriptNode::StaticBlock),
-            AstKind::AccessorProperty(_) => Some(TypeScriptNode::AccessorProperty),
-            AstKind::ImportExpression(_) => Some(TypeScriptNode::ImportExpression),
-            AstKind::ImportDeclaration(_) => Some(TypeScriptNode::ImportDeclaration),
-            AstKind::ImportSpecifier(_) => Some(TypeScriptNode::ImportSpecifier),
-            AstKind::ImportDefaultSpecifier(_) => Some(TypeScriptNode::ImportDefaultSpecifier),
-            AstKind::ImportNamespaceSpecifier(_) => Some(TypeScriptNode::ImportNamespaceSpecifier),
-            AstKind::ImportAttribute(_) => Some(TypeScriptNode::ImportAttribute),
-            AstKind::ExportNamedDeclaration(_) => Some(TypeScriptNode::ExportNamedDeclaration),
-            AstKind::ExportDefaultDeclaration(_) => Some(TypeScriptNode::ExportDefaultDeclaration),
-            AstKind::ExportAllDeclaration(_) => Some(TypeScriptNode::ExportAllDeclaration),
-            AstKind::ExportSpecifier(_) => Some(TypeScriptNode::ExportSpecifier),
+            AstKind::ClassBody(_) => Some(Node::ClassBody),
+            AstKind::MethodDefinition(_) => Some(Node::MethodDefinition),
+            AstKind::PropertyDefinition(_) => Some(Node::PropertyDefinition),
+            AstKind::PrivateIdentifier(_) => Some(Node::PrivateIdentifier),
+            AstKind::StaticBlock(_) => Some(Node::StaticBlock),
+            AstKind::AccessorProperty(_) => Some(Node::AccessorProperty),
+            AstKind::ImportExpression(_) => Some(Node::ImportExpression),
+            AstKind::ImportDeclaration(_) => Some(Node::ImportDeclaration),
+            AstKind::ImportSpecifier(_) => Some(Node::ImportSpecifier),
+            AstKind::ImportDefaultSpecifier(_) => Some(Node::ImportDefaultSpecifier),
+            AstKind::ImportNamespaceSpecifier(_) => Some(Node::ImportNamespaceSpecifier),
+            AstKind::ImportAttribute(_) => Some(Node::ImportAttribute),
+            AstKind::ExportNamedDeclaration(_) => Some(Node::ExportNamedDeclaration),
+            AstKind::ExportDefaultDeclaration(_) => Some(Node::ExportDefaultDeclaration),
+            AstKind::ExportAllDeclaration(_) => Some(Node::ExportAllDeclaration),
+            AstKind::ExportSpecifier(_) => Some(Node::ExportSpecifier),
             AstKind::BooleanLiteral(_)
             | AstKind::NullLiteral(_)
             | AstKind::NumericLiteral(_)
             | AstKind::StringLiteral(_)
             | AstKind::BigIntLiteral(_)
-            | AstKind::RegExpLiteral(_) => Some(TypeScriptNode::Literal),
-            AstKind::JSXElement(_) => Some(TypeScriptNode::JSXElement),
-            AstKind::JSXOpeningElement(_) => Some(TypeScriptNode::JSXOpeningElement),
-            AstKind::JSXClosingElement(_) => Some(TypeScriptNode::JSXClosingElement),
-            AstKind::JSXFragment(_) => Some(TypeScriptNode::JSXFragment),
-            AstKind::JSXOpeningFragment(_) => Some(TypeScriptNode::JSXOpeningFragment),
-            AstKind::JSXClosingFragment(_) => Some(TypeScriptNode::JSXClosingFragment),
-            AstKind::JSXNamespacedName(_) => Some(TypeScriptNode::JSXNamespacedName),
-            AstKind::JSXMemberExpression(_) => Some(TypeScriptNode::JSXMemberExpression),
-            AstKind::JSXExpressionContainer(_) => Some(TypeScriptNode::JSXExpressionContainer),
-            AstKind::JSXEmptyExpression(_) => Some(TypeScriptNode::JSXEmptyExpression),
-            AstKind::JSXAttribute(_) => Some(TypeScriptNode::JSXAttribute),
-            AstKind::JSXSpreadAttribute(_) => Some(TypeScriptNode::JSXSpreadAttribute),
-            AstKind::JSXIdentifier(_) => Some(TypeScriptNode::JSXIdentifier),
-            AstKind::JSXSpreadChild(_) => Some(TypeScriptNode::JSXSpreadChild),
-            AstKind::JSXText(_) => Some(TypeScriptNode::JSXText),
-            AstKind::TSEnumDeclaration(_) => Some(TypeScriptNode::TSEnumDeclaration),
-            AstKind::TSEnumBody(_) => Some(TypeScriptNode::TSEnumBody),
-            AstKind::TSEnumMember(_) => Some(TypeScriptNode::TSEnumMember),
-            AstKind::TSTypeAnnotation(_) => Some(TypeScriptNode::TSTypeAnnotation),
-            AstKind::TSLiteralType(_) => Some(TypeScriptNode::TSLiteralType),
-            AstKind::TSConditionalType(_) => Some(TypeScriptNode::TSConditionalType),
-            AstKind::TSUnionType(_) => Some(TypeScriptNode::TSUnionType),
-            AstKind::TSIntersectionType(_) => Some(TypeScriptNode::TSIntersectionType),
-            AstKind::TSTypeOperator(_) => Some(TypeScriptNode::TSTypeOperator),
-            AstKind::TSArrayType(_) => Some(TypeScriptNode::TSArrayType),
-            AstKind::TSIndexedAccessType(_) => Some(TypeScriptNode::TSIndexedAccessType),
-            AstKind::TSTupleType(_) => Some(TypeScriptNode::TSTupleType),
-            AstKind::TSNamedTupleMember(_) => Some(TypeScriptNode::TSNamedTupleMember),
-            AstKind::TSOptionalType(_) => Some(TypeScriptNode::TSOptionalType),
-            AstKind::TSRestType(_) => Some(TypeScriptNode::TSRestType),
-            AstKind::TSAnyKeyword(_) => Some(TypeScriptNode::TSAnyKeyword),
-            AstKind::TSStringKeyword(_) => Some(TypeScriptNode::TSStringKeyword),
-            AstKind::TSBooleanKeyword(_) => Some(TypeScriptNode::TSBooleanKeyword),
-            AstKind::TSNumberKeyword(_) => Some(TypeScriptNode::TSNumberKeyword),
-            AstKind::TSNeverKeyword(_) => Some(TypeScriptNode::TSNeverKeyword),
-            AstKind::TSIntrinsicKeyword(_) => Some(TypeScriptNode::TSIntrinsicKeyword),
-            AstKind::TSUnknownKeyword(_) => Some(TypeScriptNode::TSUnknownKeyword),
-            AstKind::TSNullKeyword(_) => Some(TypeScriptNode::TSNullKeyword),
-            AstKind::TSUndefinedKeyword(_) => Some(TypeScriptNode::TSUndefinedKeyword),
-            AstKind::TSVoidKeyword(_) => Some(TypeScriptNode::TSVoidKeyword),
-            AstKind::TSSymbolKeyword(_) => Some(TypeScriptNode::TSSymbolKeyword),
-            AstKind::TSThisType(_) => Some(TypeScriptNode::TSThisType),
-            AstKind::TSObjectKeyword(_) => Some(TypeScriptNode::TSObjectKeyword),
-            AstKind::TSBigIntKeyword(_) => Some(TypeScriptNode::TSBigIntKeyword),
-            AstKind::TSTypeReference(_) => Some(TypeScriptNode::TSTypeReference),
+            | AstKind::RegExpLiteral(_) => Some(Node::Literal),
+            AstKind::JSXElement(_) => Some(Node::JSXElement),
+            AstKind::JSXOpeningElement(_) => Some(Node::JSXOpeningElement),
+            AstKind::JSXClosingElement(_) => Some(Node::JSXClosingElement),
+            AstKind::JSXFragment(_) => Some(Node::JSXFragment),
+            AstKind::JSXOpeningFragment(_) => Some(Node::JSXOpeningFragment),
+            AstKind::JSXClosingFragment(_) => Some(Node::JSXClosingFragment),
+            AstKind::JSXNamespacedName(_) => Some(Node::JSXNamespacedName),
+            AstKind::JSXMemberExpression(_) => Some(Node::JSXMemberExpression),
+            AstKind::JSXExpressionContainer(_) => Some(Node::JSXExpressionContainer),
+            AstKind::JSXEmptyExpression(_) => Some(Node::JSXEmptyExpression),
+            AstKind::JSXAttribute(_) => Some(Node::JSXAttribute),
+            AstKind::JSXSpreadAttribute(_) => Some(Node::JSXSpreadAttribute),
+            AstKind::JSXIdentifier(_) => Some(Node::JSXIdentifier),
+            AstKind::JSXSpreadChild(_) => Some(Node::JSXSpreadChild),
+            AstKind::JSXText(_) => Some(Node::JSXText),
+            AstKind::TSEnumDeclaration(_) => Some(Node::TSEnumDeclaration),
+            AstKind::TSEnumBody(_) => Some(Node::TSEnumBody),
+            AstKind::TSEnumMember(_) => Some(Node::TSEnumMember),
+            AstKind::TSTypeAnnotation(_) => Some(Node::TSTypeAnnotation),
+            AstKind::TSLiteralType(_) => Some(Node::TSLiteralType),
+            AstKind::TSConditionalType(_) => Some(Node::TSConditionalType),
+            AstKind::TSUnionType(_) => Some(Node::TSUnionType),
+            AstKind::TSIntersectionType(_) => Some(Node::TSIntersectionType),
+            AstKind::TSTypeOperator(_) => Some(Node::TSTypeOperator),
+            AstKind::TSArrayType(_) => Some(Node::TSArrayType),
+            AstKind::TSIndexedAccessType(_) => Some(Node::TSIndexedAccessType),
+            AstKind::TSTupleType(_) => Some(Node::TSTupleType),
+            AstKind::TSNamedTupleMember(_) => Some(Node::TSNamedTupleMember),
+            AstKind::TSOptionalType(_) => Some(Node::TSOptionalType),
+            AstKind::TSRestType(_) => Some(Node::TSRestType),
+            AstKind::TSAnyKeyword(_) => Some(Node::TSAnyKeyword),
+            AstKind::TSStringKeyword(_) => Some(Node::TSStringKeyword),
+            AstKind::TSBooleanKeyword(_) => Some(Node::TSBooleanKeyword),
+            AstKind::TSNumberKeyword(_) => Some(Node::TSNumberKeyword),
+            AstKind::TSNeverKeyword(_) => Some(Node::TSNeverKeyword),
+            AstKind::TSIntrinsicKeyword(_) => Some(Node::TSIntrinsicKeyword),
+            AstKind::TSUnknownKeyword(_) => Some(Node::TSUnknownKeyword),
+            AstKind::TSNullKeyword(_) => Some(Node::TSNullKeyword),
+            AstKind::TSUndefinedKeyword(_) => Some(Node::TSUndefinedKeyword),
+            AstKind::TSVoidKeyword(_) => Some(Node::TSVoidKeyword),
+            AstKind::TSSymbolKeyword(_) => Some(Node::TSSymbolKeyword),
+            AstKind::TSThisType(_) => Some(Node::TSThisType),
+            AstKind::TSObjectKeyword(_) => Some(Node::TSObjectKeyword),
+            AstKind::TSBigIntKeyword(_) => Some(Node::TSBigIntKeyword),
+            AstKind::TSTypeReference(_) => Some(Node::TSTypeReference),
             AstKind::TSQualifiedName(_) | AstKind::TSImportTypeQualifiedName(_) => {
-                Some(TypeScriptNode::TSQualifiedName)
+                Some(Node::TSQualifiedName)
             }
-            AstKind::TSTypeParameterInstantiation(_) => Some(TypeScriptNode::TSTypeParameterInstantiation),
-            AstKind::TSTypeParameter(_) => Some(TypeScriptNode::TSTypeParameter),
-            AstKind::TSTypeParameterDeclaration(_) => Some(TypeScriptNode::TSTypeParameterDeclaration),
-            AstKind::TSTypeAliasDeclaration(_) => Some(TypeScriptNode::TSTypeAliasDeclaration),
-            AstKind::TSClassImplements(_) => Some(TypeScriptNode::TSClassImplements),
-            AstKind::TSInterfaceDeclaration(_) => Some(TypeScriptNode::TSInterfaceDeclaration),
-            AstKind::TSInterfaceBody(_) => Some(TypeScriptNode::TSInterfaceBody),
-            AstKind::TSPropertySignature(_) => Some(TypeScriptNode::TSPropertySignature),
-            AstKind::TSIndexSignature(_) => Some(TypeScriptNode::TSIndexSignature),
-            AstKind::TSCallSignatureDeclaration(_) => Some(TypeScriptNode::TSCallSignatureDeclaration),
-            AstKind::TSMethodSignature(_) => Some(TypeScriptNode::TSMethodSignature),
+            AstKind::TSTypeParameterInstantiation(_) => Some(Node::TSTypeParameterInstantiation),
+            AstKind::TSTypeParameter(_) => Some(Node::TSTypeParameter),
+            AstKind::TSTypeParameterDeclaration(_) => Some(Node::TSTypeParameterDeclaration),
+            AstKind::TSTypeAliasDeclaration(_) => Some(Node::TSTypeAliasDeclaration),
+            AstKind::TSClassImplements(_) => Some(Node::TSClassImplements),
+            AstKind::TSInterfaceDeclaration(_) => Some(Node::TSInterfaceDeclaration),
+            AstKind::TSInterfaceBody(_) => Some(Node::TSInterfaceBody),
+            AstKind::TSPropertySignature(_) => Some(Node::TSPropertySignature),
+            AstKind::TSIndexSignature(_) => Some(Node::TSIndexSignature),
+            AstKind::TSCallSignatureDeclaration(_) => Some(Node::TSCallSignatureDeclaration),
+            AstKind::TSMethodSignature(_) => Some(Node::TSMethodSignature),
             AstKind::TSConstructSignatureDeclaration(_) => {
-                Some(TypeScriptNode::TSConstructSignatureDeclaration)
+                Some(Node::TSConstructSignatureDeclaration)
             }
-            AstKind::TSInterfaceHeritage(_) => Some(TypeScriptNode::TSInterfaceHeritage),
-            AstKind::TSTypePredicate(_) => Some(TypeScriptNode::TSTypePredicate),
+            AstKind::TSInterfaceHeritage(_) => Some(Node::TSInterfaceHeritage),
+            AstKind::TSTypePredicate(_) => Some(Node::TSTypePredicate),
             AstKind::TSModuleDeclaration(_) | AstKind::TSGlobalDeclaration(_) => {
-                Some(TypeScriptNode::TSModuleDeclaration)
+                Some(Node::TSModuleDeclaration)
             }
-            AstKind::TSModuleBlock(_) => Some(TypeScriptNode::TSModuleBlock),
-            AstKind::TSTypeLiteral(_) => Some(TypeScriptNode::TSTypeLiteral),
-            AstKind::TSInferType(_) => Some(TypeScriptNode::TSInferType),
-            AstKind::TSTypeQuery(_) => Some(TypeScriptNode::TSTypeQuery),
-            AstKind::TSImportType(_) => Some(TypeScriptNode::TSImportType),
-            AstKind::TSFunctionType(_) => Some(TypeScriptNode::TSFunctionType),
-            AstKind::TSConstructorType(_) => Some(TypeScriptNode::TSConstructorType),
-            AstKind::TSMappedType(_) => Some(TypeScriptNode::TSMappedType),
-            AstKind::TSTemplateLiteralType(_) => Some(TypeScriptNode::TSTemplateLiteralType),
-            AstKind::TSAsExpression(_) => Some(TypeScriptNode::TSAsExpression),
-            AstKind::TSSatisfiesExpression(_) => Some(TypeScriptNode::TSSatisfiesExpression),
-            AstKind::TSTypeAssertion(_) => Some(TypeScriptNode::TSTypeAssertion),
-            AstKind::TSImportEqualsDeclaration(_) => Some(TypeScriptNode::TSImportEqualsDeclaration),
-            AstKind::TSExternalModuleReference(_) => Some(TypeScriptNode::TSExternalModuleReference),
-            AstKind::TSNonNullExpression(_) => Some(TypeScriptNode::TSNonNullExpression),
-            AstKind::Decorator(_) => Some(TypeScriptNode::Decorator),
-            AstKind::TSExportAssignment(_) => Some(TypeScriptNode::TSExportAssignment),
-            AstKind::TSNamespaceExportDeclaration(_) => Some(TypeScriptNode::TSNamespaceExportDeclaration),
-            AstKind::TSInstantiationExpression(_) => Some(TypeScriptNode::TSInstantiationExpression),
+            AstKind::TSModuleBlock(_) => Some(Node::TSModuleBlock),
+            AstKind::TSTypeLiteral(_) => Some(Node::TSTypeLiteral),
+            AstKind::TSInferType(_) => Some(Node::TSInferType),
+            AstKind::TSTypeQuery(_) => Some(Node::TSTypeQuery),
+            AstKind::TSImportType(_) => Some(Node::TSImportType),
+            AstKind::TSFunctionType(_) => Some(Node::TSFunctionType),
+            AstKind::TSConstructorType(_) => Some(Node::TSConstructorType),
+            AstKind::TSMappedType(_) => Some(Node::TSMappedType),
+            AstKind::TSTemplateLiteralType(_) => Some(Node::TSTemplateLiteralType),
+            AstKind::TSAsExpression(_) => Some(Node::TSAsExpression),
+            AstKind::TSSatisfiesExpression(_) => Some(Node::TSSatisfiesExpression),
+            AstKind::TSTypeAssertion(_) => Some(Node::TSTypeAssertion),
+            AstKind::TSImportEqualsDeclaration(_) => Some(Node::TSImportEqualsDeclaration),
+            AstKind::TSExternalModuleReference(_) => Some(Node::TSExternalModuleReference),
+            AstKind::TSNonNullExpression(_) => Some(Node::TSNonNullExpression),
+            AstKind::Decorator(_) => Some(Node::Decorator),
+            AstKind::TSExportAssignment(_) => Some(Node::TSExportAssignment),
+            AstKind::TSNamespaceExportDeclaration(_) => Some(Node::TSNamespaceExportDeclaration),
+            AstKind::TSInstantiationExpression(_) => Some(Node::TSInstantiationExpression),
         }
     }
 }
 
 /// The standard node for a parser node, or a transparent parser wrapper.
-pub(super) fn node_kind(kind: AstKind<'_>) -> Option<TypeScriptNode> {
+pub(super) fn node_kind(kind: AstKind<'_>) -> Option<Node> {
     NodeSchema(kind).into()
 }
 

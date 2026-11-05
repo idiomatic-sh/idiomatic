@@ -1,6 +1,6 @@
 //! Static names require every member of the selection to be static.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{
     service::kind,
     types::{Dialect, Kind},
@@ -47,7 +47,7 @@ fn subject(source: Input) -> Value {
         file: languages::FileId(0),
     };
     let at = languages::positions(&elements)
-        .find(|at| kind(&tree, *at) == Kind::Node(TypeScriptNode::CallExpression))
+        .find(|at| kind(&tree, *at) == Kind::Node(Node::CallExpression))
         .expect("case contains a call");
     let name = super::service::target(&tree, &mut symbols, at);
     languages::text_of(&symbols, bytes, name).map(|name| {

@@ -3,7 +3,7 @@
 //! the file's module.
 
 use super::types::Namelessness;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{ancestors, child, kind};
 use crate::domain::syntax::types::Kind;
 use languages::Tree;
@@ -17,7 +17,7 @@ pub(crate) fn enclosing_function(
     tree: &Tree<'_>,
     at: languages::Position,
 ) -> Option<languages::Position> {
-    ancestors(tree, at).find(|each| kind(tree, *each) == Kind::Node(RustNode::Fn))
+    ancestors(tree, at).find(|each| kind(tree, *each) == Kind::Node(Node::Fn))
 }
 
 /// The scope that directly encloses the scope at `at`: the nearest function, `impl`, trait or module that holds it, or the module of the
@@ -28,7 +28,7 @@ pub(crate) fn enclosing_scope(tree: &Tree<'_>, at: languages::Position) -> langu
         .find(|each| {
             matches!(
                 kind(tree, *each),
-                Kind::Node(RustNode::Fn | RustNode::Impl | RustNode::Trait | RustNode::Module)
+                Kind::Node(Node::Fn | Node::Impl | Node::Trait | Node::Module)
             )
         })
         .unwrap_or(FILE_OWNER)
@@ -46,7 +46,7 @@ pub(crate) fn owner(tree: &Tree<'_>, at: languages::Position) -> languages::Node
 /// Whether the element at `at` is a `fn` that writes no name: what the parser makes of a broken one, which declares nothing.
 #[must_use]
 pub(crate) fn is_nameless_function(tree: &Tree<'_>, at: languages::Position) -> Namelessness {
-    if kind(tree, at) == Kind::Node(RustNode::Fn) && child(tree, at, Kind::Node(RustNode::Name)).is_none() {
+    if kind(tree, at) == Kind::Node(Node::Fn) && child(tree, at, Kind::Node(Node::Name)).is_none() {
         Namelessness::Nameless
     } else {
         Namelessness::Named

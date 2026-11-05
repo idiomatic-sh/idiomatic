@@ -1,10 +1,10 @@
 //! JavaScript `syntax_error` facts from the `ESTree` projection.
-use crate::domain::nodes::types::JavaScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{service::kind_bits, types::Kind};
 use ryo::languages;
 /// Reads the `syntax-error` rows of one JavaScript file from its syntax tree.
 pub(crate) struct SyntaxErrorItem;
-ryo::reads! {SyntaxErrorItem => languages::SyntaxError |tree,at,symbols|{kinds:[Kind::Node(JavaScriptNode::Program)] as kind_bits,
+ryo::reads! {SyntaxErrorItem => languages::SyntaxError |tree,at,symbols|{kinds:[Kind::Node(Node::Program)] as kind_bits,
 each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
             given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));
             given impact = languages::intern_derived(symbols, tree.source, languages::NameText("incomplete"));

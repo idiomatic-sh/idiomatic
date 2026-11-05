@@ -2,7 +2,7 @@
 //! and no ports.
 
 use crate::domain::names::service::{declared, identifier, nodes};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{
     service::{kind, parent},
     types::Kind,
@@ -13,19 +13,19 @@ use ryo::languages::{self, Position, Symbol, Symbols, Tree};
 /// first node of the reference.
 #[must_use]
 pub(crate) fn plain_type_name(tree: &Tree<'_>, at: Position) -> Option<Position> {
-    if kind(tree, at) != Kind::Node(TypeScriptNode::TSTypeReference) {
+    if kind(tree, at) != Kind::Node(Node::TSTypeReference) {
         return None;
     }
     nodes(tree, at)
         .next()
-        .filter(|name| kind(tree, *name) == Kind::Node(TypeScriptNode::Identifier))
+        .filter(|name| kind(tree, *name) == Kind::Node(Node::Identifier))
 }
 
 /// The declaration that `statement` is, looking through an `export`.
 fn declaration_of(tree: &Tree<'_>, statement: Position) -> Position {
     if matches!(
         kind(tree, statement),
-        Kind::Node(TypeScriptNode::ExportNamedDeclaration | TypeScriptNode::ExportDefaultDeclaration)
+        Kind::Node(Node::ExportNamedDeclaration | Node::ExportDefaultDeclaration)
     ) {
         nodes(tree, statement).next().unwrap_or(statement)
     } else {
@@ -45,15 +45,15 @@ fn binds(
         declared(tree, declaration).any(|binding| identifier(tree, symbols, binding) == name)
     };
     if let Some(list) = nodes(tree, scope)
-        .find(|each| kind(tree, *each) == Kind::Node(TypeScriptNode::TSTypeParameterDeclaration))
+        .find(|each| kind(tree, *each) == Kind::Node(Node::TSTypeParameterDeclaration))
         && let Some(parameter) = nodes(tree, list)
-            .find(|each| kind(tree, *each) == Kind::Node(TypeScriptNode::TSTypeParameter) && called(*each))
+            .find(|each| kind(tree, *each) == Kind::Node(Node::TSTypeParameter) && called(*each))
     {
         return Some(parameter);
     }
     if !matches!(
         kind(tree, scope),
-        Kind::Node(TypeScriptNode::Program | TypeScriptNode::TSModuleBlock | TypeScriptNode::BlockStatement)
+        Kind::Node(Node::Program | Node::TSModuleBlock | Node::BlockStatement)
     ) {
         return None;
     }
@@ -61,19 +61,19 @@ fn binds(
         let declaration = declaration_of(tree, statement);
         match kind(tree, declaration) {
             Kind::Node(
-                TypeScriptNode::ClassDeclaration
-                | TypeScriptNode::TSInterfaceDeclaration
-                | TypeScriptNode::TSTypeAliasDeclaration
-                | TypeScriptNode::TSEnumDeclaration,
+                Node::ClassDeclaration
+                | Node::TSInterfaceDeclaration
+                | Node::TSTypeAliasDeclaration
+                | Node::TSEnumDeclaration,
             ) if called(declaration) => return Some(declaration),
-            Kind::Node(TypeScriptNode::ImportDeclaration) => {
+            Kind::Node(Node::ImportDeclaration) => {
                 if let Some(specifier) = nodes(tree, declaration).find(|each| {
                     matches!(
                         kind(tree, *each),
                         Kind::Node(
-                            TypeScriptNode::ImportSpecifier
-                                | TypeScriptNode::ImportDefaultSpecifier
-                                | TypeScriptNode::ImportNamespaceSpecifier
+                            Node::ImportSpecifier
+                                | Node::ImportDefaultSpecifier
+                                | Node::ImportNamespaceSpecifier
                         )
                     ) && called(*each)
                 }) {
@@ -113,12 +113,12 @@ pub(crate) fn holder(tree: &Tree<'_>, at: Position) -> languages::NodeId {
         if matches!(
             kind(tree, above),
             Kind::Node(
-                TypeScriptNode::ClassDeclaration
-                    | TypeScriptNode::TSInterfaceDeclaration
-                    | TypeScriptNode::TSTypeAliasDeclaration
-                    | TypeScriptNode::TSEnumDeclaration
-                    | TypeScriptNode::FunctionDeclaration
-                    | TypeScriptNode::MethodDefinition
+                Node::ClassDeclaration
+                    | Node::TSInterfaceDeclaration
+                    | Node::TSTypeAliasDeclaration
+                    | Node::TSEnumDeclaration
+                    | Node::FunctionDeclaration
+                    | Node::MethodDefinition
             )
         ) {
             return languages::node_id(tree.file, above);

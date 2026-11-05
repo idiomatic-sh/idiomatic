@@ -2,7 +2,7 @@
 //! what the language says of it as `golang.org/x/mod/modfile` would.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{
     diagnostic_id, diagnostic_message, diagnostic_span, is_root, kind_bits,
 };
@@ -14,7 +14,7 @@ pub(crate) struct SyntaxErrorItem;
 
 ryo::reads! {
     SyntaxErrorItem => languages::SyntaxError |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::File), Kind::Extra(Extra::ModFile)] as kind_bits,
+        kinds: [Kind::Node(Node::File), Kind::Extra(Extra::ModFile)] as kind_bits,
         require (is_root(tree, at) == Rootness::Root);
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
             given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));

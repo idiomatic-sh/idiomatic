@@ -3,7 +3,7 @@
 
 use super::constants::{DECIMAL, RADIX_PREFIXES};
 use super::types::{ElementFact, EntryFact, MappingFact, Model, Readability, Stringness};
-use crate::domain::nodes::types::TomlNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, parent, value_kind, written};
 use crate::domain::syntax::types::Kind;
 use ryo::languages::{self, Position, Tree, ValueKind};
@@ -133,7 +133,7 @@ pub(crate) fn radix(tree: &Tree<'_>, at: Option<Position>) -> languages::Integer
 /// Whether the string at `at` is a value or a part of a key.
 #[must_use]
 pub(crate) fn stringness(tree: &Tree<'_>, at: Position) -> Stringness {
-    if kind(tree, parent(tree, at)) != Kind::Node(TomlNode::Key)
+    if kind(tree, parent(tree, at)) != Kind::Node(Node::Key)
         && value_kind(kind(tree, at)) == Some(ValueKind::String)
     {
         Stringness::Value

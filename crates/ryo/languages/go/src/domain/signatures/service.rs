@@ -8,7 +8,7 @@ use super::constants::{PARAMETER, RECEIVER, RESULT, VARIADIC};
 use super::types::{Callable, Listing, Parameter, Signature};
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{child, kind, nodes, parent};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -22,16 +22,16 @@ fn bracketed(tree: &Tree<'_>, list: Position) -> Option<Position> {
 
 /// The parts of the function type at `function_type`.
 fn of_type(tree: &Tree<'_>, function_type: Position) -> Signature {
-    let named = nodes(tree, function_type).any(|each| kind(tree, each) == Kind::Node(GoNode::Ident));
+    let named = nodes(tree, function_type).any(|each| kind(tree, each) == Kind::Node(Node::Ident));
     let mut found = Signature::default();
     let mut passed = false;
     for each in nodes(tree, function_type) {
-        if kind(tree, each) == Kind::Node(GoNode::Ident) {
+        if kind(tree, each) == Kind::Node(Node::Ident) {
             found.name = Some(each);
             passed = true;
             continue;
         }
-        if kind(tree, each) == Kind::Node(GoNode::FieldList) {
+        if kind(tree, each) == Kind::Node(Node::FieldList) {
             if named && !passed {
                 found.receiver = Some(each);
             } else if bracketed(tree, each).is_some() {
@@ -50,12 +50,12 @@ fn of_type(tree: &Tree<'_>, function_type: Position) -> Signature {
 #[must_use]
 pub(crate) fn signature(tree: &Tree<'_>, function: Position) -> Signature {
     let Some(function_type) =
-        nodes(tree, function).find(|each| kind(tree, *each) == Kind::Node(GoNode::FuncType))
+        nodes(tree, function).find(|each| kind(tree, *each) == Kind::Node(Node::FuncType))
     else {
         return Signature::default();
     };
     let mut found = of_type(tree, function_type);
-    found.body = child(tree, function, Kind::Node(GoNode::BlockStmt));
+    found.body = child(tree, function, Kind::Node(Node::BlockStmt));
     found
 }
 
@@ -68,10 +68,10 @@ pub(crate) fn signature(tree: &Tree<'_>, function: Position) -> Signature {
 pub(crate) fn listing(tree: &Tree<'_>, list: Position) -> Option<Listing> {
     let holder = parent(tree, list);
     match kind(tree, holder) {
-        Kind::Node(GoNode::StructType) => Some(Listing::Members),
-        Kind::Node(GoNode::InterfaceType) => Some(Listing::Methods),
-        Kind::Node(GoNode::TypeSpec) => Some(Listing::TypeParameters),
-        Kind::Node(GoNode::FuncType) => {
+        Kind::Node(Node::StructType) => Some(Listing::Members),
+        Kind::Node(Node::InterfaceType) => Some(Listing::Methods),
+        Kind::Node(Node::TypeSpec) => Some(Listing::TypeParameters),
+        Kind::Node(Node::FuncType) => {
             let parts = of_type(tree, holder);
             [
                 (parts.receiver, Listing::Receiver),
@@ -96,13 +96,13 @@ pub(crate) fn listing(tree: &Tree<'_>, list: Position) -> Option<Listing> {
 )]
 pub(crate) fn callable(tree: &Tree<'_>, list: Position) -> Option<Callable> {
     let function_type = parent(tree, list);
-    if kind(tree, function_type) != Kind::Node(GoNode::FuncType) {
+    if kind(tree, function_type) != Kind::Node(Node::FuncType) {
         return None;
     }
     let holder = parent(tree, function_type);
     match kind(tree, holder) {
-        Kind::Node(GoNode::FuncDecl | GoNode::FuncLit) => Some(Callable { callable: holder }),
-        Kind::Node(GoNode::Field)
+        Kind::Node(Node::FuncDecl | Node::FuncLit) => Some(Callable { callable: holder }),
+        Kind::Node(Node::Field)
             if listing(tree, parent(tree, holder)) == Some(Listing::Methods) =>
         {
             Some(Callable { callable: holder })
@@ -149,8 +149,8 @@ pub(crate) fn parameters<'a>(
     let before = nodes(tree, list)
         .take_while(|each| *each != field)
         .fold(Count(0), |total, each| Count(total.0 + width(tree, each).0));
-    let variadic = child(tree, field, Kind::Node(GoNode::Ellipsis)).is_some()
-        || nodes(tree, field).any(|each| kind(tree, each) == Kind::Node(GoNode::Ellipsis));
+    let variadic = child(tree, field, Kind::Node(Node::Ellipsis)).is_some()
+        || nodes(tree, field).any(|each| kind(tree, each) == Kind::Node(Node::Ellipsis));
     (0..rows.0).filter_map(move |offset| {
         let (listing, callable) = listed?;
         let (kind, word) = match listing {

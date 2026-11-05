@@ -2,7 +2,7 @@
 
 use super::service::{annotations, assignments, declarations, shape};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::fixtures::reading::{asked, of_kind, spans};
 
@@ -19,7 +19,7 @@ enum Question {
     Shape,
 }
 
-type Input = (&'static str, GoNode, Question);
+type Input = (&'static str, Node, Question);
 /// The answer, as text.
 type Value = &'static str;
 type Failure = ();
@@ -32,7 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() {}\nfunc (t T) m() {}\n",
-                GoNode::FuncDecl,
+                Node::FuncDecl,
                 Question::Declarations,
             )
         },
@@ -44,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nvar _, b int\n",
-                GoNode::ValueSpec,
+                Node::ValueSpec,
                 Question::Declarations,
             )
         },
@@ -56,7 +56,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\ntype S struct{}\ntype A = S\ntype N int\n",
-                GoNode::TypeSpec,
+                Node::TypeSpec,
                 Question::Declarations,
             )
         },
@@ -68,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\ntype S struct {\n\t*Base\n\tpkg.Other\n}\n",
-                GoNode::Field,
+                Node::Field,
                 Question::Declarations,
             )
         },
@@ -80,7 +80,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { for k, _ := range m {} }\n",
-                GoNode::RangeStmt,
+                Node::RangeStmt,
                 Question::Declarations,
             )
         },
@@ -92,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\ntype S struct {\n\tx, y int\n}\n",
-                GoNode::Field,
+                Node::Field,
                 Question::Annotations,
             )
         },
@@ -104,7 +104,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nvar a = 1\n",
-                GoNode::ValueSpec,
+                Node::ValueSpec,
                 Question::Annotations,
             )
         },
@@ -116,7 +116,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nconst a = \"x\"\n",
-                GoNode::ValueSpec,
+                Node::ValueSpec,
                 Question::Assignments,
             )
         },
@@ -128,7 +128,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "package p\nfunc f() { e += \"w\"\n\tg = \"z\" }\n",
-                GoNode::AssignStmt,
+                Node::AssignStmt,
                 Question::Assignments,
             )
         },
@@ -137,7 +137,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_function_a_type_and_a_field_have_their_shapes"),
         word: Word::Succeeds,
-        input: || ("package p\nfunc f() {}\n", GoNode::FuncDecl, Question::Shape),
+        input: || ("package p\nfunc f() {}\n", Node::FuncDecl, Question::Shape),
         expect: Expect::Value("Function"),
     },
 ];

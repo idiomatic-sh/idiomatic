@@ -1,7 +1,7 @@
 //! The `fact_extraction` service: what a file says of its modules, read from the element table the parse has built, with no second parse,
 //! and written as it is found into the notes the project reads: the names are borrowed from the file and nothing is made for them.
 
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Position, Tree};
 use std::borrow::Cow;
@@ -73,16 +73,16 @@ fn declarations<'a>(
     declared: &mut Vec<DeclaredNote<'a>>,
 ) {
     for item in languages::children(tree.elements, node) {
-        if kind(tree, item) != Kind::Node(RustNode::Module) {
+        if kind(tree, item) != Kind::Node(Node::Module) {
             continue;
         }
         let Some(name) =
-            child(tree, item, Kind::Node(RustNode::Name)).and_then(|each| first_token(tree, each))
+            child(tree, item, Kind::Node(Node::Name)).and_then(|each| first_token(tree, each))
         else {
             continue;
         };
         let path = path_attribute(tree, item);
-        let list = child(tree, item, Kind::Node(RustNode::ItemList));
+        let list = child(tree, item, Kind::Node(Node::ItemList));
         declared.push(DeclaredNote {
             around: around.clone(),
             name: NoteName(Cow::Borrowed(name.0)),
@@ -105,8 +105,8 @@ fn declarations<'a>(
 /// is no expression macro, so its argument is no `string_literal` row.
 pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
     let meta = parent(tree, at);
-    let loads = kind(tree, meta) == Kind::Node(RustNode::KeyValueMeta)
-        && child(tree, meta, Kind::Node(RustNode::Path))
+    let loads = kind(tree, meta) == Kind::Node(Node::KeyValueMeta)
+        && child(tree, meta, Kind::Node(Node::Path))
             .is_some_and(|path| written_text(tree, path).0 == PATH_ATTRIBUTE);
     if loads {
         languages::Flag::Raised
@@ -118,13 +118,13 @@ pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
 /// The value of `item`'s `#[path = "…"]`, when it has one.
 fn path_attribute(tree: &Tree<'_>, item: Position) -> Option<NotePath> {
     languages::children(tree.elements, item)
-        .filter(|each| kind(tree, *each) == Kind::Node(RustNode::Attr))
+        .filter(|each| kind(tree, *each) == Kind::Node(Node::Attr))
         .find_map(|attr| {
-            let meta = child(tree, attr, Kind::Node(RustNode::KeyValueMeta))?;
-            if written_text(tree, child(tree, meta, Kind::Node(RustNode::Path))?).0 != PATH_ATTRIBUTE {
+            let meta = child(tree, attr, Kind::Node(Node::KeyValueMeta))?;
+            if written_text(tree, child(tree, meta, Kind::Node(Node::Path))?).0 != PATH_ATTRIBUTE {
                 return None;
             }
-            let literal = child(tree, meta, Kind::Node(RustNode::Literal))?;
+            let literal = child(tree, meta, Kind::Node(Node::Literal))?;
             let text = languages::children(tree.elements, literal)
                 .find(|each| kind(tree, *each) == Kind::Token(Token::String))?;
             languages::decoded_at(tree.elements, text).map(|value| NotePath(value.0.to_owned()))
@@ -135,20 +135,20 @@ fn path_attribute(tree: &Tree<'_>, item: Position) -> Option<NotePath> {
 /// inside generic arguments or a qualified self hangs off a segment, not a qualifier, and counts.
 fn written_paths<'a>(tree: &Tree<'a>, out: &mut Vec<WrittenNote<'a>>) {
     let (use_bits, path_bits) = (
-        kind_bits(Kind::Node(RustNode::Use)),
-        kind_bits(Kind::Node(RustNode::Path)),
+        kind_bits(Kind::Node(Node::Use)),
+        kind_bits(Kind::Node(Node::Path)),
     );
     let mut prefix: Vec<TokenText<'a>> = Vec::new();
     for (place, bits) in tree.elements.kind.iter().enumerate() {
         let node = Position(u32::try_from(place).unwrap_or(u32::MAX));
         if *bits == use_bits {
-            if let Some(use_tree) = child(tree, node, Kind::Node(RustNode::UseTree)) {
+            if let Some(use_tree) = child(tree, node, Kind::Node(Node::UseTree)) {
                 prefix.clear();
                 flatten(tree, use_tree, &mut prefix, node, out);
             }
             continue;
         }
-        if *bits != path_bits || kind(tree, parent(tree, node)) == Kind::Node(RustNode::Path) {
+        if *bits != path_bits || kind(tree, parent(tree, node)) == Kind::Node(Node::Path) {
             continue;
         }
         let mut segments: Vec<NoteName<'a>> = Vec::new();
@@ -156,7 +156,7 @@ fn written_paths<'a>(tree: &Tree<'a>, out: &mut Vec<WrittenNote<'a>>) {
             segments.push(NoteName(Cow::Borrowed(segment.0)));
         });
         if segments.len() < 2
-            || ancestors(tree, node).any(|each| kind(tree, each) == Kind::Node(RustNode::UseTree))
+            || ancestors(tree, node).any(|each| kind(tree, each) == Kind::Node(Node::UseTree))
         {
             continue;
         }
@@ -173,11 +173,11 @@ fn written_paths<'a>(tree: &Tree<'a>, out: &mut Vec<WrittenNote<'a>>) {
 /// The names of the inline `mod name { … }` blocks around `node`, outermost first.
 fn enclosing_of<'a>(tree: &Tree<'a>, node: Position) -> Vec<NoteName<'a>> {
     let blocks = |each: &Position| {
-        kind(tree, *each) == Kind::Node(RustNode::Module)
-            && child(tree, *each, Kind::Node(RustNode::ItemList)).is_some()
+        kind(tree, *each) == Kind::Node(Node::Module)
+            && child(tree, *each, Kind::Node(Node::ItemList)).is_some()
     };
     let name_of = |each: Position| {
-        let name = child(tree, each, Kind::Node(RustNode::Name))?;
+        let name = child(tree, each, Kind::Node(Node::Name))?;
         first_token(tree, name)
     };
     let around: Vec<Position> = ancestors(tree, node).filter(blocks).collect();
@@ -198,7 +198,7 @@ fn flatten<'a>(
     out: &mut Vec<WrittenNote<'a>>,
 ) {
     let before = prefix.len();
-    if let Some(path) = child(tree, use_tree, Kind::Node(RustNode::Path)) {
+    if let Some(path) = child(tree, use_tree, Kind::Node(Node::Path)) {
         let mut local: Vec<TokenText<'_>> = Vec::new();
         segments_of(tree, path, &mut |segment| local.push(segment));
         // A lone `self` inside a list names the list's prefix itself, which is written already.
@@ -207,9 +207,9 @@ fn flatten<'a>(
             prefix.extend(local);
         }
     }
-    if let Some(list) = child(tree, use_tree, Kind::Node(RustNode::UseTreeList)) {
+    if let Some(list) = child(tree, use_tree, Kind::Node(Node::UseTreeList)) {
         for each in languages::children(tree.elements, list)
-            .filter(|each| kind(tree, *each) == Kind::Node(RustNode::UseTree))
+            .filter(|each| kind(tree, *each) == Kind::Node(Node::UseTree))
         {
             flatten(tree, each, prefix, use_node, out);
         }
@@ -242,11 +242,11 @@ fn flatten<'a>(
 fn segments_of<'a>(tree: &Tree<'a>, path: Position, each: &mut dyn FnMut(TokenText<'a>)) {
     for part in languages::children(tree.elements, path) {
         let part_kind = kind(tree, part);
-        if part_kind == Kind::Node(RustNode::Path) {
+        if part_kind == Kind::Node(Node::Path) {
             segments_of(tree, part, each);
             continue;
         }
-        if part_kind == Kind::Node(RustNode::PathSegment)
+        if part_kind == Kind::Node(Node::PathSegment)
             && let Some(segment) = segment_of(tree, part)
         {
             each(segment);
@@ -256,7 +256,7 @@ fn segments_of<'a>(tree: &Tree<'a>, path: Position, each: &mut dyn FnMut(TokenTe
 
 /// The name a path segment writes: none for `<T as Trait>`, which writes a type.
 fn segment_of<'a>(tree: &Tree<'a>, segment: Position) -> Option<TokenText<'a>> {
-    if let Some(name) = child(tree, segment, Kind::Node(RustNode::NameRef)) {
+    if let Some(name) = child(tree, segment, Kind::Node(Node::NameRef)) {
         return first_token(tree, name);
     }
     languages::children(tree.elements, segment)

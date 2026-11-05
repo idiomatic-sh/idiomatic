@@ -8,7 +8,7 @@
 //! them. The library's names stop here; what leaves is the language's own `Kind`.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use ryo::languages::SourcePath;
@@ -55,7 +55,7 @@ fn fill(gap: &mut Gap<'_>, builder: &mut languages::TableBuilder<'_>, from: Offs
             let stop = stop_at.min(to);
             languages::decoded_token(
                 builder,
-                kind_bits(Kind::Node(MarkdownNode::Definition)),
+                kind_bits(Kind::Node(Node::Definition)),
                 end,
                 stop,
                 NameText(&label.0),
@@ -276,7 +276,7 @@ impl SyntaxPort for SyntaxPulldownCmarkAdapter {
             })
             .collect();
         definitions.sort_by_key(|definition| definition.start);
-        languages::enter_node(builder, kind_bits(Kind::Node(MarkdownNode::Root)), Offset(0));
+        languages::enter_node(builder, kind_bits(Kind::Node(Node::Root)), Offset(0));
         let mut writer = Writer {
             tree: languages::lossless(builder, Offset(0)),
             gap: Gap {

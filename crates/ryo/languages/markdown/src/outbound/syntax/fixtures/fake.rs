@@ -2,7 +2,7 @@
 
 use super::super::interface::SyntaxPort;
 use super::super::types::SourceText;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -20,9 +20,9 @@ impl SyntaxPort for SyntaxFake {
     ) {
         let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
         let start = languages::Offset(0);
-        languages::enter_node(builder, kind_bits(Kind::Node(MarkdownNode::Root)), start);
-        languages::enter_node(builder, kind_bits(Kind::Node(MarkdownNode::Paragraph)), start);
-        languages::token(builder, kind_bits(Kind::Node(MarkdownNode::Text)), start, end);
+        languages::enter_node(builder, kind_bits(Kind::Node(Node::Root)), start);
+        languages::enter_node(builder, kind_bits(Kind::Node(Node::Paragraph)), start);
+        languages::token(builder, kind_bits(Kind::Node(Node::Text)), start, end);
         languages::leave_node(builder, end);
         languages::leave_node(builder, end);
     }

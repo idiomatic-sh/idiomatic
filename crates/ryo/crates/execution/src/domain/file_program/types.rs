@@ -25,7 +25,7 @@ pub(crate) struct PhysicalRegion {
     pub column: Option<crate::domain::column_kernel::types::Chain>,
 }
 #[derive(Debug)]
-pub(crate) struct Node {
+pub(crate) struct FileProgramNode {
     pub regions: Vec<PhysicalRegion>,
     pub needs: Result<
         Vec<crate::domain::trust::types::RelationRead>,
@@ -58,7 +58,7 @@ pub(crate) struct RequestGraph {
     pub observations: Option<GraphObservations>,
     /// Producers of declared derived inputs, computed once for the whole request.
     pub derived_sources: Vec<bool>,
-    pub nodes: Vec<Node>,
+    pub nodes: Vec<FileProgramNode>,
 }
 
 /// Ordinary requests need no named-root traversal allocation.

@@ -11,7 +11,7 @@ use super::constants::{
 };
 use super::types::{Met, Pieces, Scratch};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token as Lexeme;
 use ryo::languages::{NameText, ReportText};
@@ -143,9 +143,9 @@ pub(super) fn decoded_text<'a>(token: &'a Token<'_>) -> Option<NameText<'a>> {
 pub(super) fn met(token: &Token<'_>) -> Met {
     match token {
         Token::WhiteSpace(_) | Token::Comment(_) => Met::Trivia,
-        Token::Function(_) => Met::Opens(CssNode::Function),
+        Token::Function(_) => Met::Opens(Node::Function),
         Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock => {
-            Met::Opens(CssNode::SimpleBlock)
+            Met::Opens(Node::SimpleBlock)
         }
         Token::BadUrl(_) => Met::Broken(ReportText(BAD_URL)),
         Token::BadString(_) => Met::Broken(ReportText(BAD_STRING)),

@@ -20,7 +20,7 @@ use ryo::languages::SourcePath;
 use ryo::languages::{self, Count, NameText, Offset};
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::service::mirror;
@@ -236,7 +236,7 @@ impl Writer<'_, '_, '_> {
     }
 
     /// Opens a node at `at`, after writing the tokens before it.
-    fn enter(&mut self, node: CssNode, at: ByteIndex) {
+    fn enter(&mut self, node: Node, at: ByteIndex) {
         self.advance(at);
         languages::enter_node(self.builder, kind_bits(Kind::Node(node)), self.offset(at));
         self.open.push(Open {
@@ -385,7 +385,7 @@ impl<'i> QualifiedRuleParser<'i> for Writer<'_, '_, '_> {
 
     fn parse_prelude(&mut self, input: &mut Parser<'i>) -> Result<(), ParseError<()>> {
         let at = place(input);
-        self.enter(CssNode::QualifiedRule, at);
+        self.enter(Node::QualifiedRule, at);
         self.content_end = at;
         self.components(input);
         Ok(())
@@ -421,7 +421,7 @@ impl<'i> AtRuleParser<'i> for Writer<'_, '_, '_> {
         }
         let at = place(input);
         let keyword = self.keyword_start(at);
-        self.enter(CssNode::AtRule, keyword);
+        self.enter(Node::AtRule, keyword);
         self.content_end = at;
         self.components(input);
         Ok(body_of(NameText(&name)))
@@ -463,7 +463,7 @@ impl<'i> DeclarationParser<'i> for Writer<'_, '_, '_> {
             ));
         }
         input.reset(&begin);
-        self.enter(CssNode::Declaration, ByteIndex(start.position().byte_index()));
+        self.enter(Node::Declaration, ByteIndex(start.position().byte_index()));
         self.content_end = ByteIndex(begin.position().byte_index());
         self.components(input);
         self.leave(self.content_end);
@@ -495,7 +495,7 @@ impl SyntaxPort for SyntaxCssparserAdapter {
             None => (0, readable),
         };
         let length = Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
-        languages::enter_node(builder, kind_bits(Kind::Node(CssNode::Stylesheet)), Offset(0));
+        languages::enter_node(builder, kind_bits(Kind::Node(Node::Stylesheet)), Offset(0));
         if base > 0 {
             languages::token(
                 builder,
@@ -512,7 +512,7 @@ impl SyntaxPort for SyntaxCssparserAdapter {
             written: ByteIndex(0),
             content_end: ByteIndex(0),
             open: vec![Open {
-                node: CssNode::Stylesheet,
+                node: Node::Stylesheet,
                 closing: Closing::AtContent,
             }],
             scratch: Scratch::default(),

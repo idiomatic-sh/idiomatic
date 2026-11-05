@@ -5,7 +5,7 @@ use jsonc_parser::tokens::Token as Scanned;
 
 use super::types::Piece;
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -15,10 +15,10 @@ pub(super) struct PieceSchema(pub Piece);
 impl From<PieceSchema> for Kind {
     fn from(schema: PieceSchema) -> Self {
         match schema.0 {
-            Piece::File => Self::Node(JsonNode::JsonText),
-            Piece::Object => Self::Node(JsonNode::Object),
-            Piece::Member => Self::Node(JsonNode::Member),
-            Piece::Array => Self::Node(JsonNode::Array),
+            Piece::File => Self::Node(Node::JsonText),
+            Piece::Object => Self::Node(Node::Object),
+            Piece::Member => Self::Node(Node::Member),
+            Piece::Array => Self::Node(Node::Array),
             Piece::OpenBrace => Self::Token(Token::BeginObject),
             Piece::CloseBrace => Self::Token(Token::EndObject),
             Piece::OpenBracket => Self::Token(Token::BeginArray),

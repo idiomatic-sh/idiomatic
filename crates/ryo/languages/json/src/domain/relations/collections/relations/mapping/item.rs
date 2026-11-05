@@ -3,7 +3,7 @@
 
 use crate::domain::model::service::mapping_ordinal;
 use crate::domain::model::types::Model;
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{holder, kind_bits, mapping_id, mapping_kind};
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -13,7 +13,7 @@ pub(crate) struct MappingItem;
 
 ryo::reads! {
     MappingItem => languages::Mapping, model(Model) |tree, model, at, symbols| {
-        kinds: [Kind::Node(JsonNode::Object)] as kind_bits,
+        kinds: [Kind::Node(Node::Object)] as kind_bits,
         row {
             id: node(mapping_id(tree, at)),
             kind: value(mapping_kind(tree, at)),

@@ -2,7 +2,7 @@
 //! the name and the string, owned by the function it is in or the file's start. Each name is paired with the value at its place.
 
 use crate::domain::definitions::service::assignments;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -13,7 +13,7 @@ pub(crate) struct AssignsItem;
 
 ryo::reads! {
     AssignsItem => languages::Assigns |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::AssignStmt), Kind::Node(GoNode::ValueSpec)] as kind_bits,
+        kinds: [Kind::Node(Node::AssignStmt), Kind::Node(Node::ValueSpec)] as kind_bits,
         each (assignments(tree, at)) as assigned {
             row {
                 occurrence: node(at),

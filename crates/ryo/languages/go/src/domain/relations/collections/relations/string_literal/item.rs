@@ -3,7 +3,7 @@
 //! that is no UTF-8 has the unknown value of a string that is no text.
 
 use crate::domain::names::service::{specifier, string_or_unknown, string_token};
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -14,7 +14,7 @@ pub(crate) struct StringLiteralItem;
 
 ryo::reads! {
     StringLiteralItem => languages::StringLiteral |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::BasicLit)] as kind_bits,
+        kinds: [Kind::Node(Node::BasicLit)] as kind_bits,
         require string_token(tree, at).is_some();
         row {
             occurrence: node(at),

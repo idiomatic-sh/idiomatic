@@ -1,7 +1,7 @@
 //! The `nodes` service's cases.
 
 use super::service::standard;
-use super::types::JsonNode;
+use super::types::Node;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Kind;
@@ -17,7 +17,7 @@ type Failure = ();
 #[derive(Clone, Copy, Debug)]
 enum Question {
     /// The name of a node, as the standard names it.
-    Name(JsonNode),
+    Name(Node),
     /// How many nodes there are.
     Count,
     /// The standard the names come from.
@@ -29,7 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("node_is_named_as_the_standard_names_it"),
         word: Word::Succeeds,
-        input: || Question::Name(JsonNode::JsonText),
+        input: || Question::Name(Node::JsonText),
         expect: Expect::Value("json-text"),
     },
     Case {
@@ -51,7 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(question: Input) -> Value {
     match question {
         Question::Name(each) => kind_name(Kind::Node(each)).0,
-        Question::Count => Box::leak(JsonNode::COUNT.to_string().into_boxed_str()),
+        Question::Count => Box::leak(Node::COUNT.to_string().into_boxed_str()),
         Question::Standard => standard().0,
     }
 }

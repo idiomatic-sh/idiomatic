@@ -2,7 +2,7 @@
 //! statement in a prologue: at the start of a file, or of a function body, with only string statements before it.
 
 use super::constants::NO_ARGUMENT;
-use crate::domain::nodes::types::JavaScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::service::{nodes, spelling};
 use crate::domain::syntax::types::Kind;
@@ -11,11 +11,11 @@ use ryo::languages::{self, Position, Symbol, Symbols, Tree};
 
 /// The string literal that is the whole of the statement at `at`, when the statement is a string statement.
 fn literal_of(tree: &Tree<'_>, at: Position) -> Option<Position> {
-    if kind(tree, at) != Kind::Node(JavaScriptNode::ExpressionStatement) {
+    if kind(tree, at) != Kind::Node(Node::ExpressionStatement) {
         return None;
     }
     let first = languages::children(tree.elements, at).next()?;
-    if kind(tree, first) != Kind::Node(JavaScriptNode::Literal) {
+    if kind(tree, first) != Kind::Node(Node::Literal) {
         return None;
     }
     languages::children(tree.elements, first)
@@ -41,13 +41,13 @@ pub(crate) fn directive(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) ->
     let literal = literal_of(tree, at)?;
     let enclosing = parent(tree, at);
     let holds_prologue = match kind(tree, enclosing) {
-        Kind::Node(JavaScriptNode::Program) => true,
-        Kind::Node(JavaScriptNode::BlockStatement) => matches!(
+        Kind::Node(Node::Program) => true,
+        Kind::Node(Node::BlockStatement) => matches!(
             kind(tree, parent(tree, enclosing)),
             Kind::Node(
-                JavaScriptNode::FunctionDeclaration
-                    | JavaScriptNode::FunctionExpression
-                    | JavaScriptNode::ArrowFunctionExpression
+                Node::FunctionDeclaration
+                    | Node::FunctionExpression
+                    | Node::ArrowFunctionExpression
             )
         ),
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,

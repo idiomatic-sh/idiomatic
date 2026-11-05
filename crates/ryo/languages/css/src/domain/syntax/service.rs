@@ -7,11 +7,11 @@ use ryo::languages::{self, Tree};
 use super::constants::{BANG, IMPORTANT};
 use super::types::{Field, Kind, Leaf, Rootness};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use strum::IntoEnumIterator as _;
 
-ryo::languages::kinds!(pub Kind { Node(CssNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -153,7 +153,7 @@ fn spelled<'a>(tree: &Tree<'a>, at: languages::Position) -> languages::NameText<
 #[must_use]
 pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
     let declaration = parent(tree, at);
-    if declaration == at || kind(tree, declaration) != Kind::Node(CssNode::Declaration) {
+    if declaration == at || kind(tree, declaration) != Kind::Node(Node::Declaration) {
         return Field::None;
     }
     let words: Vec<languages::Position> = languages::children(tree.elements, declaration)

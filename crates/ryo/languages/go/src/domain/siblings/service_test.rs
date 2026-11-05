@@ -4,7 +4,7 @@
 use super::service::{among, before, first, last, nodes_after, previous};
 use super::types::Wanted;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::fixtures::reading::{asked, of_kind};
@@ -65,10 +65,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(question: Input) -> Result<Value, Failure> {
     let answer = asked("package p\nvar _ = x /* c */ + y\n", |tree| {
-        let operation = *of_kind(tree, Kind::Node(GoNode::BinaryExpr)).first()?;
+        let operation = *of_kind(tree, Kind::Node(Node::BinaryExpr)).first()?;
         let operand = ryo::languages::children(tree.elements, operation)
             .filter(|each| {
-                crate::domain::syntax::service::kind(tree, *each) == Kind::Node(GoNode::Ident)
+                crate::domain::syntax::service::kind(tree, *each) == Kind::Node(Node::Ident)
             })
             .last()?;
         Some(match question {

@@ -3,7 +3,7 @@
 
 use crate::domain::model::service::owner;
 use crate::domain::model::types::Sections;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::prose::service::{has_words, run_name};
 use crate::domain::prose::types::Wording;
 use crate::domain::syntax::service::kind_bits;
@@ -16,10 +16,10 @@ pub(crate) struct ProseItem;
 ryo::reads! {
     ProseItem => languages::Prose, model(Sections) |tree, model, at, symbols| {
         kinds: [
-            Kind::Node(MarkdownNode::Paragraph),
-            Kind::Node(MarkdownNode::Heading),
-            Kind::Node(MarkdownNode::ListItem),
-            Kind::Node(MarkdownNode::TableCell),
+            Kind::Node(Node::Paragraph),
+            Kind::Node(Node::Heading),
+            Kind::Node(Node::ListItem),
+            Kind::Node(Node::TableCell),
         ] as kind_bits,
         require (has_words(tree, at) == Wording::Words);
         row {

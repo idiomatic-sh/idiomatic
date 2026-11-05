@@ -1,7 +1,7 @@
 //! The `inherits` relation of the language: a supertrait a trait requires, and a trait an `impl` implements, for whatever type.
 
 use crate::domain::declarations::service::{implementation, supertraits};
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{has_child, kind, kind_bits};
 use crate::domain::syntax::types::{Kind, Offspring};
 use ryo::languages;
@@ -11,10 +11,10 @@ pub(crate) struct InheritsItem;
 
 ryo::reads! {
     InheritsItem => languages::Inherits |tree, at, symbols| {
-        kinds: [Kind::Node(RustNode::Trait), Kind::Node(RustNode::Impl)] as kind_bits,
+        kinds: [Kind::Node(Node::Trait), Kind::Node(Node::Impl)] as kind_bits,
         when kind(tree, at) {
-            Kind::Node(RustNode::Trait) => {
-                require (has_child(tree, at, Kind::Node(RustNode::Name)) == Offspring::Has);
+            Kind::Node(Node::Trait) => {
+                require (has_child(tree, at, Kind::Node(Node::Name)) == Offspring::Has);
                 each (supertraits(tree, symbols, at)) as bound {
                     row {
                         occurrence: node(bound.contract),

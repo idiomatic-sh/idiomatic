@@ -16,7 +16,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum TypeScriptNode {
+pub(crate) enum Node {
     /// The standard’s `AccessorProperty` kind.
     AccessorProperty,
     /// The standard’s `ArrayExpression` kind.

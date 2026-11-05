@@ -14,7 +14,7 @@ use ryo::languages::{NameText, Offset};
 use super::super::constants::{BYTE_ORDER_MARK, CHARSET, CUSTOM_PROPERTY, RULE_BODIES};
 use super::super::types::{Body, ByteIndex, Contents};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::service::mirror;
@@ -67,11 +67,11 @@ const fn is_trivia(token: &Token<'_>) -> bool {
 }
 
 /// The node a token opens: a function or a simple block.
-const fn opens(token: &Token<'_>) -> Option<CssNode> {
+const fn opens(token: &Token<'_>) -> Option<Node> {
     match token {
-        Token::Function(_) => Some(CssNode::Function),
+        Token::Function(_) => Some(Node::Function),
         Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock => {
-            Some(CssNode::SimpleBlock)
+            Some(Node::SimpleBlock)
         }
         Token::Ident(_)
         | Token::AtKeyword(_)
@@ -280,8 +280,8 @@ struct Rules {
 
 impl Rules {
     /// Notes a rule or a declaration.
-    fn note(&mut self, node: CssNode, start: ByteIndex, end: ByteIndex) {
-        let depth = if node == CssNode::Declaration {
+    fn note(&mut self, node: Node, start: ByteIndex, end: ByteIndex) {
+        let depth = if node == Node::Declaration {
             Depth::Declaration
         } else {
             Depth::Rule
@@ -295,7 +295,7 @@ impl Rules {
     }
 
     /// Notes a rule whose end is moved later, past its body: the place of its piece, by which it is moved.
-    fn noted(&mut self, node: CssNode, start: ByteIndex, end: ByteIndex) -> usize {
+    fn noted(&mut self, node: Node, start: ByteIndex, end: ByteIndex) -> usize {
         self.note(node, start, end);
         self.pieces.len() - 1
     }
@@ -329,7 +329,7 @@ impl<'i> QualifiedRuleParser<'i> for Rules {
         let start = place(input);
         let end = content_end(input, start);
         self.runs.push((start, place(input)));
-        Ok(self.noted(CssNode::QualifiedRule, start, end))
+        Ok(self.noted(Node::QualifiedRule, start, end))
     }
 
     fn parse_block(
@@ -370,7 +370,7 @@ impl<'i> AtRuleParser<'i> for Rules {
         (_, _, end): (Body, ByteIndex, ByteIndex),
         start: &ParserState,
     ) -> Result<(), ()> {
-        self.note(CssNode::AtRule, place_of(start), end);
+        self.note(Node::AtRule, place_of(start), end);
         Ok(())
     }
 
@@ -380,7 +380,7 @@ impl<'i> AtRuleParser<'i> for Rules {
         start: &ParserState,
         input: &mut Parser<'i>,
     ) -> Result<(), ParseError<()>> {
-        let rule = self.noted(CssNode::AtRule, place_of(start), end);
+        let rule = self.noted(Node::AtRule, place_of(start), end);
         self.bodied.push(rule);
         match body {
             Body::Rules => self.body(input),
@@ -415,7 +415,7 @@ impl<'i> DeclarationParser<'i> for Rules {
         input.reset(&begin);
         let end = content_end(input, place_of(&begin));
         self.runs.push((place_of(&begin), place(input)));
-        self.note(CssNode::Declaration, place_of(start), end);
+        self.note(Node::Declaration, place_of(start), end);
         Ok(())
     }
 }
@@ -491,7 +491,7 @@ pub(crate) fn walked(text: &str) -> Walked {
     found.extend(rules.pieces);
     found.sort_by_key(|each| (each.start, std::cmp::Reverse(each.end), each.depth));
     let mut root = Walked {
-        kind: kind_bits(Kind::Node(CssNode::Stylesheet)),
+        kind: kind_bits(Kind::Node(Node::Stylesheet)),
         leaf: Leafness::Node,
         start: Offset(0),
         end: offset(base, ByteIndex(read.len())),

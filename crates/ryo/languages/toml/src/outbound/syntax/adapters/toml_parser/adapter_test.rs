@@ -3,7 +3,7 @@
 use super::adapter::SyntaxTomlParserAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::TomlNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_name, kind_of, kinds};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -197,7 +197,7 @@ fn ours(elements: &Elements, at: Position, out: &mut Vec<Shape>) {
     let kind = kind_of(languages::kind_at(elements, at));
     let (mut end, mut under, mut after) =
         (languages::end_at(elements, at).0, Vec::new(), Vec::new());
-    let header = matches!(kind, Kind::Node(TomlNode::StdTable | TomlNode::ArrayTable));
+    let header = matches!(kind, Kind::Node(Node::StdTable | Node::ArrayTable));
     let mut hoisting = false;
     for each in languages::children(elements, at) {
         if hoisting {

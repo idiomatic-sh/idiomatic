@@ -1,7 +1,7 @@
 //! The types of the `pieces` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::grammar::types::{ByteIndex, Index};
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
 /// Where a piece was found among the nodes, so that of two nodes over the same bytes the one found first holds the other.
@@ -12,7 +12,7 @@ pub(crate) struct Order(pub u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Placed {
     /// What it is.
-    pub kind: GoNode,
+    pub kind: Node,
     /// Where it starts.
     pub start: ByteIndex,
     /// Where it ends.

@@ -2,7 +2,7 @@
 //! library decoded against the stylesheet's own path). An `@import`
 //! brings in every rule of the stylesheet it names and binds no name it could list: its binding is the unknown value of that.
 
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{decoded, kind_bits};
 use crate::domain::syntax::types::Kind;
 use crate::domain::targets::service::{import_token, owner};
@@ -16,7 +16,7 @@ const EVERY_RULE: languages::UnknownReason = languages::UnknownReason(48);
 
 ryo::reads! {
     StaticImportItem => languages::StaticImport |tree, at, symbols| {
-        kinds: [Kind::Node(CssNode::AtRule)] as kind_bits,
+        kinds: [Kind::Node(Node::AtRule)] as kind_bits,
         given token = import_token(tree, at)?;
         given target = decoded(tree, symbols, token)?;
         row {

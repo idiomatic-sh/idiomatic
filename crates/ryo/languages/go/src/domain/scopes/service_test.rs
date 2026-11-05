@@ -3,7 +3,7 @@
 use super::service::{enclosing, scopeness};
 use super::types::Scopeness;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind;
 use crate::domain::syntax::types::Kind;
 use crate::fixtures::reading::parsed;
@@ -21,25 +21,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_call_in_a_function_is_in_the_function"),
         word: Word::Succeeds,
         input: || "func f() { g() }\n",
-        expect: Expect::Value(&[Kind::Node(GoNode::FuncDecl)]),
+        expect: Expect::Value(&[Kind::Node(Node::FuncDecl)]),
     },
     Case {
         name: CaseName("a_call_in_a_function_literal_is_in_the_literal"),
         word: Word::Succeeds,
         input: || "func f() { g := func() { h() }; g() }\n",
-        expect: Expect::Value(&[Kind::Node(GoNode::FuncLit), Kind::Node(GoNode::FuncDecl)]),
+        expect: Expect::Value(&[Kind::Node(Node::FuncLit), Kind::Node(Node::FuncDecl)]),
     },
     Case {
         name: CaseName("a_call_outside_any_function_is_in_the_file"),
         word: Word::Succeeds,
         input: || "var x = f()\n",
-        expect: Expect::Value(&[Kind::Node(GoNode::File)]),
+        expect: Expect::Value(&[Kind::Node(Node::File)]),
     },
 ];
 
 fn subject(source: Input) -> Result<Value, Failure> {
-    if scopeness(Kind::Node(GoNode::FuncDecl)) != Scopeness::Scope
-        || scopeness(Kind::Node(GoNode::Ident)) != Scopeness::Inner
+    if scopeness(Kind::Node(Node::FuncDecl)) != Scopeness::Scope
+        || scopeness(Kind::Node(Node::Ident)) != Scopeness::Inner
     {
         return Err(());
     }
@@ -51,7 +51,7 @@ fn subject(source: Input) -> Result<Value, Failure> {
         file: languages::FileId(0),
     };
     let scopes: Vec<Kind> = languages::positions(&elements)
-        .filter(|at| kind(&tree, *at) == Kind::Node(GoNode::CallExpr))
+        .filter(|at| kind(&tree, *at) == Kind::Node(Node::CallExpr))
         .map(|at| kind(&tree, enclosing(&tree, at)))
         .collect();
     Ok(&*Box::leak(scopes.into_boxed_slice()))

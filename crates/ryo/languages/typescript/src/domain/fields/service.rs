@@ -14,7 +14,7 @@ use super::types::{
     Field, KindRole, Lastness, Marker, MarkerRole, Operands, Ordinal, Precedence, Returning,
     Setting, Sharing, Standing,
 };
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{is_token, kind, parent};
 use crate::domain::syntax::types::{Kind, Leaf};
 use crate::domain::tokens::types::Token;
@@ -59,10 +59,10 @@ const fn setting(child: Kind) -> Setting {
     if matches!(
         child,
         Kind::Node(
-            TypeScriptNode::Decorator
-                | TypeScriptNode::TSTypeAnnotation
-                | TypeScriptNode::TSTypeParameterDeclaration
-                | TypeScriptNode::TSTypeParameterInstantiation
+            Node::Decorator
+                | Node::TSTypeAnnotation
+                | Node::TSTypeParameterDeclaration
+                | Node::TSTypeParameterInstantiation
         )
     ) {
         Setting::Aside
@@ -150,9 +150,9 @@ fn nth(roles: &[Field], ordinal: Ordinal) -> Field {
 fn operator_of(tree: &Tree<'_>, holder: Position) -> Option<Position> {
     let operands = match kind(tree, holder) {
         Kind::Node(
-            TypeScriptNode::BinaryExpression | TypeScriptNode::LogicalExpression | TypeScriptNode::AssignmentExpression,
+            Node::BinaryExpression | Node::LogicalExpression | Node::AssignmentExpression,
         ) => Operands::Binary,
-        Kind::Node(TypeScriptNode::UnaryExpression | TypeScriptNode::UpdateExpression) => Operands::Unary,
+        Kind::Node(Node::UnaryExpression | Node::UpdateExpression) => Operands::Unary,
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => return None,
     };
     let children: Vec<Position> = languages::children(tree.elements, holder).collect();
@@ -175,19 +175,19 @@ fn operator_of(tree: &Tree<'_>, holder: Position) -> Option<Position> {
 }
 
 /// Whether a type annotation under a node of `holder` kind says what it returns.
-const fn returning(holder: TypeScriptNode) -> Returning {
+const fn returning(holder: Node) -> Returning {
     if matches!(
         holder,
-        TypeScriptNode::FunctionDeclaration
-            | TypeScriptNode::FunctionExpression
-            | TypeScriptNode::ArrowFunctionExpression
-            | TypeScriptNode::TSDeclareFunction
-            | TypeScriptNode::TSEmptyBodyFunctionExpression
-            | TypeScriptNode::TSCallSignatureDeclaration
-            | TypeScriptNode::TSConstructSignatureDeclaration
-            | TypeScriptNode::TSFunctionType
-            | TypeScriptNode::TSConstructorType
-            | TypeScriptNode::TSMethodSignature
+        Node::FunctionDeclaration
+            | Node::FunctionExpression
+            | Node::ArrowFunctionExpression
+            | Node::TSDeclareFunction
+            | Node::TSEmptyBodyFunctionExpression
+            | Node::TSCallSignatureDeclaration
+            | Node::TSConstructSignatureDeclaration
+            | Node::TSFunctionType
+            | Node::TSConstructorType
+            | Node::TSMethodSignature
     ) {
         Returning::Returns
     } else {
@@ -196,7 +196,7 @@ const fn returning(holder: TypeScriptNode) -> Returning {
 }
 
 /// The role a child of the kind `node` plays.
-const fn kinded(node: TypeScriptNode, field: Field) -> KindRole {
+const fn kinded(node: Node, field: Field) -> KindRole {
     KindRole { node, field }
 }
 
@@ -225,8 +225,8 @@ fn by_marker(tree: &Tree<'_>, at: Position, markers: &[MarkerRole], otherwise: F
 /// though the wider default comes first; any other child is the key, then the value.
 fn property(tree: &Tree<'_>, at: Position, child: Kind, ordinal: Ordinal) -> Field {
     let defaulted = languages::children(tree.elements, parent(tree, at))
-        .any(|each| kind(tree, each) == Kind::Node(TypeScriptNode::AssignmentPattern));
-    if child == Kind::Node(TypeScriptNode::AssignmentPattern) {
+        .any(|each| kind(tree, each) == Kind::Node(Node::AssignmentPattern));
+    if child == Kind::Node(Node::AssignmentPattern) {
         Field::Value
     } else if defaulted {
         Field::Key
@@ -249,133 +249,133 @@ fn export_specifier(tree: &Tree<'_>, at: Position, ordinal: Ordinal) -> Field {
     clippy::too_many_lines,
     reason = "one arm for each kind of TypeScript-ESTree node: the table of the properties is the proof, and splitting it would split it"
 )]
-fn held(tree: &Tree<'_>, at: Position, holder: TypeScriptNode, child: Kind) -> Field {
+fn held(tree: &Tree<'_>, at: Position, holder: Node, child: Kind) -> Field {
     let Standing { ordinal, lastness } = place(tree, at);
     match holder {
-        TypeScriptNode::Program
-        | TypeScriptNode::BlockStatement
-        | TypeScriptNode::ClassBody
-        | TypeScriptNode::StaticBlock
-        | TypeScriptNode::TSInterfaceBody
-        | TypeScriptNode::TSModuleBlock => Field::Body,
-        TypeScriptNode::ArrayExpression | TypeScriptNode::ArrayPattern => Field::Elements,
-        TypeScriptNode::ObjectExpression | TypeScriptNode::ObjectPattern => Field::Properties,
-        TypeScriptNode::SequenceExpression => Field::Expressions,
-        TypeScriptNode::TSEnumBody | TypeScriptNode::TSTypeLiteral => Field::Members,
-        TypeScriptNode::TSTupleType => Field::ElementTypes,
-        TypeScriptNode::TSUnionType | TypeScriptNode::TSIntersectionType => Field::Types,
-        TypeScriptNode::TemplateLiteral => by_kind(
+        Node::Program
+        | Node::BlockStatement
+        | Node::ClassBody
+        | Node::StaticBlock
+        | Node::TSInterfaceBody
+        | Node::TSModuleBlock => Field::Body,
+        Node::ArrayExpression | Node::ArrayPattern => Field::Elements,
+        Node::ObjectExpression | Node::ObjectPattern => Field::Properties,
+        Node::SequenceExpression => Field::Expressions,
+        Node::TSEnumBody | Node::TSTypeLiteral => Field::Members,
+        Node::TSTupleType => Field::ElementTypes,
+        Node::TSUnionType | Node::TSIntersectionType => Field::Types,
+        Node::TemplateLiteral => by_kind(
             child,
-            &[kinded(TypeScriptNode::TemplateElement, Field::Quasis)],
+            &[kinded(Node::TemplateElement, Field::Quasis)],
             Field::Expressions,
         ),
-        TypeScriptNode::TSTemplateLiteralType => by_kind(
+        Node::TSTemplateLiteralType => by_kind(
             child,
-            &[kinded(TypeScriptNode::TemplateElement, Field::Quasis)],
+            &[kinded(Node::TemplateElement, Field::Quasis)],
             Field::Types,
         ),
-        TypeScriptNode::VariableDeclaration => Field::Declarations,
-        TypeScriptNode::SwitchStatement => by_kind(
+        Node::VariableDeclaration => Field::Declarations,
+        Node::SwitchStatement => by_kind(
             child,
-            &[kinded(TypeScriptNode::SwitchCase, Field::Cases)],
+            &[kinded(Node::SwitchCase, Field::Cases)],
             Field::Discriminant,
         ),
-        TypeScriptNode::SwitchCase => by_marker(tree, at, &[marked(COLON, Field::Consequent)], Field::Test),
-        TypeScriptNode::ImportDeclaration => by_kind(
+        Node::SwitchCase => by_marker(tree, at, &[marked(COLON, Field::Consequent)], Field::Test),
+        Node::ImportDeclaration => by_kind(
             child,
             &[
-                kinded(TypeScriptNode::ImportSpecifier, Field::Specifiers),
-                kinded(TypeScriptNode::ImportDefaultSpecifier, Field::Specifiers),
-                kinded(TypeScriptNode::ImportNamespaceSpecifier, Field::Specifiers),
-                kinded(TypeScriptNode::ImportAttribute, Field::Attributes),
+                kinded(Node::ImportSpecifier, Field::Specifiers),
+                kinded(Node::ImportDefaultSpecifier, Field::Specifiers),
+                kinded(Node::ImportNamespaceSpecifier, Field::Specifiers),
+                kinded(Node::ImportAttribute, Field::Attributes),
             ],
             Field::Source,
         ),
-        TypeScriptNode::ExportNamedDeclaration => by_kind(
+        Node::ExportNamedDeclaration => by_kind(
             child,
             &[
-                kinded(TypeScriptNode::ExportSpecifier, Field::Specifiers),
-                kinded(TypeScriptNode::ImportAttribute, Field::Attributes),
+                kinded(Node::ExportSpecifier, Field::Specifiers),
+                kinded(Node::ImportAttribute, Field::Attributes),
             ],
             by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Declaration),
         ),
-        TypeScriptNode::ExportAllDeclaration => by_kind(
+        Node::ExportAllDeclaration => by_kind(
             child,
-            &[kinded(TypeScriptNode::ImportAttribute, Field::Attributes)],
+            &[kinded(Node::ImportAttribute, Field::Attributes)],
             by_marker(tree, at, &[marked(FROM, Field::Source)], Field::Exported),
         ),
-        TypeScriptNode::ExportDefaultDeclaration => Field::Declaration,
-        TypeScriptNode::ChainExpression
-        | TypeScriptNode::Decorator
-        | TypeScriptNode::ExpressionStatement
-        | TypeScriptNode::JSXExpressionContainer
-        | TypeScriptNode::JSXSpreadChild
-        | TypeScriptNode::TSExportAssignment
-        | TypeScriptNode::TSExternalModuleReference
-        | TypeScriptNode::TSNonNullExpression
-        | TypeScriptNode::TSClassImplements
-        | TypeScriptNode::TSInterfaceHeritage
-        | TypeScriptNode::TSInstantiationExpression => Field::Expression,
-        TypeScriptNode::AwaitExpression
-        | TypeScriptNode::ReturnStatement
-        | TypeScriptNode::ThrowStatement
-        | TypeScriptNode::SpreadElement
-        | TypeScriptNode::RestElement
-        | TypeScriptNode::UnaryExpression
-        | TypeScriptNode::UpdateExpression
-        | TypeScriptNode::YieldExpression
-        | TypeScriptNode::JSXSpreadAttribute => Field::Argument,
-        TypeScriptNode::BreakStatement | TypeScriptNode::ContinueStatement => Field::Label,
-        TypeScriptNode::TSArrayType => Field::ElementType,
-        TypeScriptNode::TSOptionalType | TypeScriptNode::TSRestType | TypeScriptNode::TSTypeOperator | TypeScriptNode::TSTypeAnnotation => {
+        Node::ExportDefaultDeclaration => Field::Declaration,
+        Node::ChainExpression
+        | Node::Decorator
+        | Node::ExpressionStatement
+        | Node::JSXExpressionContainer
+        | Node::JSXSpreadChild
+        | Node::TSExportAssignment
+        | Node::TSExternalModuleReference
+        | Node::TSNonNullExpression
+        | Node::TSClassImplements
+        | Node::TSInterfaceHeritage
+        | Node::TSInstantiationExpression => Field::Expression,
+        Node::AwaitExpression
+        | Node::ReturnStatement
+        | Node::ThrowStatement
+        | Node::SpreadElement
+        | Node::RestElement
+        | Node::UnaryExpression
+        | Node::UpdateExpression
+        | Node::YieldExpression
+        | Node::JSXSpreadAttribute => Field::Argument,
+        Node::BreakStatement | Node::ContinueStatement => Field::Label,
+        Node::TSArrayType => Field::ElementType,
+        Node::TSOptionalType | Node::TSRestType | Node::TSTypeOperator | Node::TSTypeAnnotation => {
             Field::TypeAnnotation
         }
-        TypeScriptNode::TSLiteralType => Field::Literal,
-        TypeScriptNode::TSInferType => Field::TypeParameter,
-        TypeScriptNode::TSNamespaceExportDeclaration => Field::Id,
-        TypeScriptNode::TSParameterProperty => Field::Parameter,
-        TypeScriptNode::TSTypeReference => Field::TypeName,
-        TypeScriptNode::TSTypeQuery => Field::ExprName,
-        TypeScriptNode::JSXClosingElement => Field::Name,
-        TypeScriptNode::ImportDefaultSpecifier | TypeScriptNode::ImportNamespaceSpecifier => Field::Local,
-        TypeScriptNode::TSIndexSignature => Field::Parameters,
-        TypeScriptNode::TSPropertySignature => Field::Key,
-        TypeScriptNode::TSTypePredicate => Field::ParameterName,
-        TypeScriptNode::AssignmentExpression
-        | TypeScriptNode::BinaryExpression
-        | TypeScriptNode::LogicalExpression
-        | TypeScriptNode::AssignmentPattern
-        | TypeScriptNode::TSQualifiedName => nth(&[Field::Left, Field::Right], ordinal),
-        TypeScriptNode::ConditionalExpression | TypeScriptNode::IfStatement => {
+        Node::TSLiteralType => Field::Literal,
+        Node::TSInferType => Field::TypeParameter,
+        Node::TSNamespaceExportDeclaration => Field::Id,
+        Node::TSParameterProperty => Field::Parameter,
+        Node::TSTypeReference => Field::TypeName,
+        Node::TSTypeQuery => Field::ExprName,
+        Node::JSXClosingElement => Field::Name,
+        Node::ImportDefaultSpecifier | Node::ImportNamespaceSpecifier => Field::Local,
+        Node::TSIndexSignature => Field::Parameters,
+        Node::TSPropertySignature => Field::Key,
+        Node::TSTypePredicate => Field::ParameterName,
+        Node::AssignmentExpression
+        | Node::BinaryExpression
+        | Node::LogicalExpression
+        | Node::AssignmentPattern
+        | Node::TSQualifiedName => nth(&[Field::Left, Field::Right], ordinal),
+        Node::ConditionalExpression | Node::IfStatement => {
             nth(&[Field::Test, Field::Consequent, Field::Alternate], ordinal)
         }
-        TypeScriptNode::MemberExpression | TypeScriptNode::JSXMemberExpression => {
+        Node::MemberExpression | Node::JSXMemberExpression => {
             nth(&[Field::Object, Field::Property], ordinal)
         }
-        TypeScriptNode::WhileStatement => nth(&[Field::Test, Field::Body], ordinal),
-        TypeScriptNode::DoWhileStatement => nth(&[Field::Body, Field::Test], ordinal),
-        TypeScriptNode::WithStatement => nth(&[Field::Object, Field::Body], ordinal),
-        TypeScriptNode::LabeledStatement => nth(&[Field::Label, Field::Body], ordinal),
-        TypeScriptNode::ForInStatement | TypeScriptNode::ForOfStatement => {
+        Node::WhileStatement => nth(&[Field::Test, Field::Body], ordinal),
+        Node::DoWhileStatement => nth(&[Field::Body, Field::Test], ordinal),
+        Node::WithStatement => nth(&[Field::Object, Field::Body], ordinal),
+        Node::LabeledStatement => nth(&[Field::Label, Field::Body], ordinal),
+        Node::ForInStatement | Node::ForOfStatement => {
             nth(&[Field::Left, Field::Right, Field::Body], ordinal)
         }
-        TypeScriptNode::ImportSpecifier => nth(&[Field::Imported, Field::Local], ordinal),
-        TypeScriptNode::ExportSpecifier => export_specifier(tree, at, ordinal),
-        TypeScriptNode::Property => property(tree, at, child, ordinal),
-        TypeScriptNode::ImportAttribute
-        | TypeScriptNode::PropertyDefinition
-        | TypeScriptNode::AccessorProperty
-        | TypeScriptNode::TSAbstractPropertyDefinition
-        | TypeScriptNode::TSAbstractAccessorProperty => nth(&[Field::Key, Field::Value], ordinal),
-        TypeScriptNode::JSXAttribute => nth(&[Field::Name, Field::Value], ordinal),
-        TypeScriptNode::JSXNamespacedName => nth(&[Field::Namespace, Field::Name], ordinal),
-        TypeScriptNode::ImportExpression => nth(&[Field::Source, Field::Options], ordinal),
-        TypeScriptNode::VariableDeclarator => nth(&[Field::Id, Field::Init], ordinal),
-        TypeScriptNode::TSEnumMember => nth(&[Field::Id, Field::Initializer], ordinal),
-        TypeScriptNode::TSImportEqualsDeclaration => nth(&[Field::Id, Field::ModuleReference], ordinal),
-        TypeScriptNode::TSIndexedAccessType => nth(&[Field::ObjectType, Field::IndexType], ordinal),
-        TypeScriptNode::TSNamedTupleMember => nth(&[Field::Label, Field::ElementType], ordinal),
-        TypeScriptNode::TSConditionalType => nth(
+        Node::ImportSpecifier => nth(&[Field::Imported, Field::Local], ordinal),
+        Node::ExportSpecifier => export_specifier(tree, at, ordinal),
+        Node::Property => property(tree, at, child, ordinal),
+        Node::ImportAttribute
+        | Node::PropertyDefinition
+        | Node::AccessorProperty
+        | Node::TSAbstractPropertyDefinition
+        | Node::TSAbstractAccessorProperty => nth(&[Field::Key, Field::Value], ordinal),
+        Node::JSXAttribute => nth(&[Field::Name, Field::Value], ordinal),
+        Node::JSXNamespacedName => nth(&[Field::Namespace, Field::Name], ordinal),
+        Node::ImportExpression => nth(&[Field::Source, Field::Options], ordinal),
+        Node::VariableDeclarator => nth(&[Field::Id, Field::Init], ordinal),
+        Node::TSEnumMember => nth(&[Field::Id, Field::Initializer], ordinal),
+        Node::TSImportEqualsDeclaration => nth(&[Field::Id, Field::ModuleReference], ordinal),
+        Node::TSIndexedAccessType => nth(&[Field::ObjectType, Field::IndexType], ordinal),
+        Node::TSNamedTupleMember => nth(&[Field::Label, Field::ElementType], ordinal),
+        Node::TSConditionalType => nth(
             &[
                 Field::CheckType,
                 Field::ExtendsType,
@@ -384,56 +384,56 @@ fn held(tree: &Tree<'_>, at: Position, holder: TypeScriptNode, child: Kind) -> F
             ],
             ordinal,
         ),
-        TypeScriptNode::TSAsExpression | TypeScriptNode::TSSatisfiesExpression => {
+        Node::TSAsExpression | Node::TSSatisfiesExpression => {
             nth(&[Field::Expression, Field::TypeAnnotation], ordinal)
         }
-        TypeScriptNode::TSTypeAssertion => nth(&[Field::TypeAnnotation, Field::Expression], ordinal),
-        TypeScriptNode::TSTypeAliasDeclaration => nth(&[Field::Id, Field::TypeAnnotation], ordinal),
-        TypeScriptNode::CallExpression | TypeScriptNode::NewExpression => {
+        Node::TSTypeAssertion => nth(&[Field::TypeAnnotation, Field::Expression], ordinal),
+        Node::TSTypeAliasDeclaration => nth(&[Field::Id, Field::TypeAnnotation], ordinal),
+        Node::CallExpression | Node::NewExpression => {
             nth(&[Field::Callee, Field::Arguments], ordinal)
         }
-        TypeScriptNode::TaggedTemplateExpression => nth(&[Field::Tag, Field::Quasi], ordinal),
+        Node::TaggedTemplateExpression => nth(&[Field::Tag, Field::Quasi], ordinal),
         // A method's function is its last node: what comes before is its key.
-        TypeScriptNode::MethodDefinition | TypeScriptNode::TSAbstractMethodDefinition => match lastness {
+        Node::MethodDefinition | Node::TSAbstractMethodDefinition => match lastness {
             Lastness::Last => Field::Value,
             Lastness::NotLast => Field::Key,
         },
-        TypeScriptNode::TSModuleDeclaration => by_kind(
+        Node::TSModuleDeclaration => by_kind(
             child,
-            &[kinded(TypeScriptNode::TSModuleBlock, Field::Body)],
+            &[kinded(Node::TSModuleBlock, Field::Body)],
             Field::Id,
         ),
-        TypeScriptNode::TSEnumDeclaration => {
-            by_kind(child, &[kinded(TypeScriptNode::TSEnumBody, Field::Body)], Field::Id)
+        Node::TSEnumDeclaration => {
+            by_kind(child, &[kinded(Node::TSEnumBody, Field::Body)], Field::Id)
         }
-        TypeScriptNode::CatchClause => by_kind(
+        Node::CatchClause => by_kind(
             child,
-            &[kinded(TypeScriptNode::BlockStatement, Field::Body)],
+            &[kinded(Node::BlockStatement, Field::Body)],
             Field::Param,
         ),
-        TypeScriptNode::TryStatement => by_kind(
+        Node::TryStatement => by_kind(
             child,
-            &[kinded(TypeScriptNode::CatchClause, Field::Handler)],
+            &[kinded(Node::CatchClause, Field::Handler)],
             nth(&[Field::Block, Field::Finalizer], ordinal),
         ),
         // A `for` writes each of its three clauses only when it has one: the semicolons before a clause say which it is; its body is
         // its last node.
-        TypeScriptNode::ForStatement => match lastness {
+        Node::ForStatement => match lastness {
             Lastness::Last => Field::Body,
             Lastness::NotLast => nth(
                 &[Field::Init, Field::Test, Field::Update],
                 count_before(tree, at, SEMICOLON),
             ),
         },
-        TypeScriptNode::ArrowFunctionExpression => {
+        Node::ArrowFunctionExpression => {
             by_marker(tree, at, &[marked(ARROW, Field::Body)], Field::Params)
         }
-        TypeScriptNode::FunctionDeclaration
-        | TypeScriptNode::FunctionExpression
-        | TypeScriptNode::TSDeclareFunction
-        | TypeScriptNode::TSEmptyBodyFunctionExpression => by_kind(
+        Node::FunctionDeclaration
+        | Node::FunctionExpression
+        | Node::TSDeclareFunction
+        | Node::TSEmptyBodyFunctionExpression => by_kind(
             child,
-            &[kinded(TypeScriptNode::BlockStatement, Field::Body)],
+            &[kinded(Node::BlockStatement, Field::Body)],
             by_marker(
                 tree,
                 at,
@@ -441,40 +441,40 @@ fn held(tree: &Tree<'_>, at: Position, holder: TypeScriptNode, child: Kind) -> F
                 Field::Id,
             ),
         ),
-        TypeScriptNode::TSMethodSignature => by_marker(
+        Node::TSMethodSignature => by_marker(
             tree,
             at,
             &[marked(OPEN_PARENTHESIS, Field::Params)],
             Field::Key,
         ),
-        TypeScriptNode::TSCallSignatureDeclaration
-        | TypeScriptNode::TSConstructSignatureDeclaration
-        | TypeScriptNode::TSFunctionType
-        | TypeScriptNode::TSConstructorType
-        | TypeScriptNode::TSTypeParameterDeclaration
-        | TypeScriptNode::TSTypeParameterInstantiation => Field::Params,
-        TypeScriptNode::ClassDeclaration | TypeScriptNode::ClassExpression => by_kind(
+        Node::TSCallSignatureDeclaration
+        | Node::TSConstructSignatureDeclaration
+        | Node::TSFunctionType
+        | Node::TSConstructorType
+        | Node::TSTypeParameterDeclaration
+        | Node::TSTypeParameterInstantiation => Field::Params,
+        Node::ClassDeclaration | Node::ClassExpression => by_kind(
             child,
             &[
-                kinded(TypeScriptNode::ClassBody, Field::Body),
-                kinded(TypeScriptNode::TSClassImplements, Field::Implements),
+                kinded(Node::ClassBody, Field::Body),
+                kinded(Node::TSClassImplements, Field::Implements),
             ],
             by_marker(tree, at, &[marked(EXTENDS, Field::SuperClass)], Field::Id),
         ),
-        TypeScriptNode::TSInterfaceDeclaration => by_kind(
+        Node::TSInterfaceDeclaration => by_kind(
             child,
             &[
-                kinded(TypeScriptNode::TSInterfaceBody, Field::Body),
-                kinded(TypeScriptNode::TSInterfaceHeritage, Field::Extends),
+                kinded(Node::TSInterfaceBody, Field::Body),
+                kinded(Node::TSInterfaceHeritage, Field::Extends),
             ],
             Field::Id,
         ),
-        TypeScriptNode::TSImportType => by_kind(
+        Node::TSImportType => by_kind(
             child,
-            &[kinded(TypeScriptNode::ObjectExpression, Field::Options)],
+            &[kinded(Node::ObjectExpression, Field::Options)],
             by_marker(tree, at, &[marked(DOT, Field::Qualifier)], Field::Source),
         ),
-        TypeScriptNode::TSMappedType => by_marker(
+        Node::TSMappedType => by_marker(
             tree,
             at,
             &[
@@ -484,7 +484,7 @@ fn held(tree: &Tree<'_>, at: Position, holder: TypeScriptNode, child: Kind) -> F
             ],
             Field::Key,
         ),
-        TypeScriptNode::TSTypeParameter => by_marker(
+        Node::TSTypeParameter => by_marker(
             tree,
             at,
             &[
@@ -493,61 +493,61 @@ fn held(tree: &Tree<'_>, at: Position, holder: TypeScriptNode, child: Kind) -> F
             ],
             Field::Name,
         ),
-        TypeScriptNode::JSXElement => by_kind(
+        Node::JSXElement => by_kind(
             child,
             &[
-                kinded(TypeScriptNode::JSXOpeningElement, Field::OpeningElement),
-                kinded(TypeScriptNode::JSXClosingElement, Field::ClosingElement),
+                kinded(Node::JSXOpeningElement, Field::OpeningElement),
+                kinded(Node::JSXClosingElement, Field::ClosingElement),
             ],
             Field::Children,
         ),
-        TypeScriptNode::JSXFragment => by_kind(
+        Node::JSXFragment => by_kind(
             child,
             &[
-                kinded(TypeScriptNode::JSXOpeningFragment, Field::OpeningFragment),
-                kinded(TypeScriptNode::JSXClosingFragment, Field::ClosingFragment),
+                kinded(Node::JSXOpeningFragment, Field::OpeningFragment),
+                kinded(Node::JSXClosingFragment, Field::ClosingFragment),
             ],
             Field::Children,
         ),
-        TypeScriptNode::JSXOpeningElement => nth(&[Field::Name, Field::Attributes], ordinal),
-        TypeScriptNode::MetaProperty => nth(&[Field::Meta, Field::Property], ordinal),
+        Node::JSXOpeningElement => nth(&[Field::Name, Field::Attributes], ordinal),
+        Node::MetaProperty => nth(&[Field::Meta, Field::Property], ordinal),
         // Nodes with no child node a property holds besides the decorators and annotations `aside` settles.
-        TypeScriptNode::Identifier
-        | TypeScriptNode::PrivateIdentifier
-        | TypeScriptNode::Literal
-        | TypeScriptNode::Super
-        | TypeScriptNode::ThisExpression
-        | TypeScriptNode::TemplateElement
-        | TypeScriptNode::DebuggerStatement
-        | TypeScriptNode::EmptyStatement
-        | TypeScriptNode::JSXEmptyExpression
-        | TypeScriptNode::JSXIdentifier
-        | TypeScriptNode::JSXText
-        | TypeScriptNode::JSXOpeningFragment
-        | TypeScriptNode::JSXClosingFragment
-        | TypeScriptNode::TSThisType
-        | TypeScriptNode::TSAbstractKeyword
-        | TypeScriptNode::TSAnyKeyword
-        | TypeScriptNode::TSAsyncKeyword
-        | TypeScriptNode::TSBigIntKeyword
-        | TypeScriptNode::TSBooleanKeyword
-        | TypeScriptNode::TSDeclareKeyword
-        | TypeScriptNode::TSExportKeyword
-        | TypeScriptNode::TSIntrinsicKeyword
-        | TypeScriptNode::TSNeverKeyword
-        | TypeScriptNode::TSNullKeyword
-        | TypeScriptNode::TSNumberKeyword
-        | TypeScriptNode::TSObjectKeyword
-        | TypeScriptNode::TSPrivateKeyword
-        | TypeScriptNode::TSProtectedKeyword
-        | TypeScriptNode::TSPublicKeyword
-        | TypeScriptNode::TSReadonlyKeyword
-        | TypeScriptNode::TSStaticKeyword
-        | TypeScriptNode::TSStringKeyword
-        | TypeScriptNode::TSSymbolKeyword
-        | TypeScriptNode::TSUndefinedKeyword
-        | TypeScriptNode::TSUnknownKeyword
-        | TypeScriptNode::TSVoidKeyword => Field::None,
+        Node::Identifier
+        | Node::PrivateIdentifier
+        | Node::Literal
+        | Node::Super
+        | Node::ThisExpression
+        | Node::TemplateElement
+        | Node::DebuggerStatement
+        | Node::EmptyStatement
+        | Node::JSXEmptyExpression
+        | Node::JSXIdentifier
+        | Node::JSXText
+        | Node::JSXOpeningFragment
+        | Node::JSXClosingFragment
+        | Node::TSThisType
+        | Node::TSAbstractKeyword
+        | Node::TSAnyKeyword
+        | Node::TSAsyncKeyword
+        | Node::TSBigIntKeyword
+        | Node::TSBooleanKeyword
+        | Node::TSDeclareKeyword
+        | Node::TSExportKeyword
+        | Node::TSIntrinsicKeyword
+        | Node::TSNeverKeyword
+        | Node::TSNullKeyword
+        | Node::TSNumberKeyword
+        | Node::TSObjectKeyword
+        | Node::TSPrivateKeyword
+        | Node::TSProtectedKeyword
+        | Node::TSPublicKeyword
+        | Node::TSReadonlyKeyword
+        | Node::TSStaticKeyword
+        | Node::TSStringKeyword
+        | Node::TSSymbolKeyword
+        | Node::TSUndefinedKeyword
+        | Node::TSUnknownKeyword
+        | Node::TSVoidKeyword => Field::None,
     }
 }
 
@@ -565,18 +565,18 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: Position) -> Field {
     match child {
         Kind::Token(_) if operator_of(tree, holder) == Some(at) => Field::Operator,
         Kind::Token(_) | Kind::Extra(_) => Field::None,
-        Kind::Node(TypeScriptNode::Decorator) => Field::Decorators,
-        Kind::Node(TypeScriptNode::TSTypeAnnotation) if returning(node) == Returning::Returns => {
+        Kind::Node(Node::Decorator) => Field::Decorators,
+        Kind::Node(Node::TSTypeAnnotation) if returning(node) == Returning::Returns => {
             Field::ReturnType
         }
-        Kind::Node(TypeScriptNode::TSTypeAnnotation) => Field::TypeAnnotation,
-        Kind::Node(TypeScriptNode::TSTypeParameterDeclaration) => Field::TypeParameters,
-        Kind::Node(TypeScriptNode::TSTypeParameterInstantiation)
-            if matches!(node, TypeScriptNode::ClassDeclaration | TypeScriptNode::ClassExpression) =>
+        Kind::Node(Node::TSTypeAnnotation) => Field::TypeAnnotation,
+        Kind::Node(Node::TSTypeParameterDeclaration) => Field::TypeParameters,
+        Kind::Node(Node::TSTypeParameterInstantiation)
+            if matches!(node, Node::ClassDeclaration | Node::ClassExpression) =>
         {
             Field::SuperTypeArguments
         }
-        Kind::Node(TypeScriptNode::TSTypeParameterInstantiation) => Field::TypeArguments,
+        Kind::Node(Node::TSTypeParameterInstantiation) => Field::TypeArguments,
         Kind::Node(_) => held(tree, at, node, child),
     }
 }

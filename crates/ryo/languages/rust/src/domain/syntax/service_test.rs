@@ -1,7 +1,7 @@
 //! The `syntax` service's cases: the kinds, and what a question of a tree written by hand answers, in full.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Typeness;
 use crate::domain::tokens::types::Token;
 use ryo::languages::{self, KindBits, Position, Sample, Tree};
@@ -123,7 +123,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_child_is_found_by_its_kind"),
         word: Word::Succeeds,
-        input: || Question::Child("fn run() {}", Kind::Node(RustNode::Fn), Kind::Node(RustNode::Name)),
+        input: || Question::Child("fn run() {}", Kind::Node(Node::Fn), Kind::Node(Node::Name)),
         expect: Expect::Value(Answer::Found(true)),
     },
     Case {
@@ -132,8 +132,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             Question::Child(
                 "fn run() {}",
-                Kind::Node(RustNode::Fn),
-                Kind::Node(RustNode::RetType),
+                Kind::Node(Node::Fn),
+                Kind::Node(Node::RetType),
             )
         },
         expect: Expect::Value(Answer::Found(false)),
@@ -144,7 +144,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             Question::TypeAfter(
                 "fn run(value: u8) {}",
-                Kind::Node(RustNode::Param),
+                Kind::Node(Node::Param),
                 Kind::Token(Token::Colon),
             )
         },
@@ -153,22 +153,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_ancestors_run_up_to_the_root"),
         word: Word::Succeeds,
-        input: || Question::Above("fn run() {}", Kind::Node(RustNode::Name)),
+        input: || Question::Above("fn run() {}", Kind::Node(Node::Name)),
         expect: Expect::Value(Answer::Above(&[
-            Kind::Node(RustNode::Fn),
-            Kind::Node(RustNode::SourceFile),
+            Kind::Node(Node::Fn),
+            Kind::Node(Node::SourceFile),
         ])),
     },
     Case {
         name: CaseName("a_result_wrapper_is_not_a_type"),
         word: Word::Succeeds,
-        input: || Question::IsType("fn run() -> u8 { 0 }", Kind::Node(RustNode::RetType)),
+        input: || Question::IsType("fn run() -> u8 { 0 }", Kind::Node(Node::RetType)),
         expect: Expect::Value(Answer::Type(Typeness::NotType)),
     },
     Case {
         name: CaseName("what_a_result_wrapper_holds_is"),
         word: Word::Succeeds,
-        input: || Question::IsType("fn run() -> u8 { 0 }", Kind::Node(RustNode::PathType)),
+        input: || Question::IsType("fn run() -> u8 { 0 }", Kind::Node(Node::PathType)),
         expect: Expect::Value(Answer::Type(Typeness::Type)),
     },
     Case {

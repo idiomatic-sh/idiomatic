@@ -2,7 +2,7 @@
 
 use crate::domain::names::constants::REQUIRE;
 use crate::domain::names::service::{identifier, nodes, string, text, unknown};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{service::kind, types::Kind};
 use ryo::languages::{Position, Symbol, Symbols, Tree};
 
@@ -12,9 +12,9 @@ pub(crate) fn imports<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Ite
         matches!(
             kind(tree, *child),
             Kind::Node(
-                TypeScriptNode::ImportSpecifier
-                    | TypeScriptNode::ImportDefaultSpecifier
-                    | TypeScriptNode::ImportNamespaceSpecifier
+                Node::ImportSpecifier
+                    | Node::ImportDefaultSpecifier
+                    | Node::ImportNamespaceSpecifier
             )
         )
     };
@@ -25,12 +25,12 @@ pub(crate) fn imports<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Ite
 pub(crate) fn import_name(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
     if matches!(
         kind(tree, at),
-        Kind::Node(TypeScriptNode::ImportExpression | TypeScriptNode::CallExpression)
+        Kind::Node(Node::ImportExpression | Node::CallExpression)
     ) {
         return unknown();
     }
     nodes(tree, at)
-        .filter(|child| kind(tree, *child) == Kind::Node(TypeScriptNode::Identifier))
+        .filter(|child| kind(tree, *child) == Kind::Node(Node::Identifier))
         .last()
         .map_or_else(unknown, |name| identifier(tree, symbols, name))
 }
@@ -41,10 +41,10 @@ pub(crate) fn import_source(
     symbols: &mut Symbols,
     at: Position,
 ) -> Option<Symbol> {
-    if kind(tree, at) == Kind::Node(TypeScriptNode::CallExpression) {
+    if kind(tree, at) == Kind::Node(Node::CallExpression) {
         let mut parts = nodes(tree, at);
         let callee = parts.next()?;
-        if kind(tree, callee) != Kind::Node(TypeScriptNode::Identifier) || text(tree, callee).0 != REQUIRE {
+        if kind(tree, callee) != Kind::Node(Node::Identifier) || text(tree, callee).0 != REQUIRE {
             return None;
         }
         return Some(
@@ -54,7 +54,7 @@ pub(crate) fn import_source(
                 .unwrap_or_else(unknown),
         );
     }
-    if kind(tree, at) == Kind::Node(TypeScriptNode::ImportExpression) {
+    if kind(tree, at) == Kind::Node(Node::ImportExpression) {
         return Some(
             nodes(tree, at)
                 .next()

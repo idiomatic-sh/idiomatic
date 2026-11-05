@@ -2,7 +2,7 @@
 //! no ports.
 
 use crate::domain::declarations::service::imported;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::references::service::segments;
 use crate::domain::syntax::service::{ancestors, child, kind, last_descendant, name_text};
 use crate::domain::syntax::types::Kind;
@@ -15,7 +15,7 @@ pub(crate) fn plain_type_name(
     tree: &Tree<'_>,
     at: languages::Position,
 ) -> Option<languages::Symbol> {
-    let path = child(tree, at, Kind::Node(RustNode::Path))?;
+    let path = child(tree, at, Kind::Node(Node::Path))?;
     let (mut counted, mut only) = (0_i32, languages::NO_SYMBOL);
     segments(tree, path, &mut |segment| {
         counted += 1_i32;
@@ -32,36 +32,36 @@ fn binds(
     name: languages::Symbol,
 ) -> Option<languages::Position> {
     let named = |item: languages::Position| {
-        child(tree, item, Kind::Node(RustNode::Name)).and_then(|each| name_text(tree, each))
+        child(tree, item, Kind::Node(Node::Name)).and_then(|each| name_text(tree, each))
             == Some(name)
     };
     match kind(tree, scope) {
-        Kind::Node(RustNode::SourceFile | RustNode::ItemList | RustNode::StmtList) => {
+        Kind::Node(Node::SourceFile | Node::ItemList | Node::StmtList) => {
             languages::children(tree.elements, scope).find_map(|item| match kind(tree, item) {
                 Kind::Node(
-                    RustNode::Struct | RustNode::Enum | RustNode::Union | RustNode::TypeAlias | RustNode::Trait,
+                    Node::Struct | Node::Enum | Node::Union | Node::TypeAlias | Node::Trait,
                 ) => named(item).then_some(item),
-                Kind::Node(RustNode::Use) => (item.0 + 1..=last_descendant(tree, item).0)
+                Kind::Node(Node::Use) => (item.0 + 1..=last_descendant(tree, item).0)
                     .map(languages::Position)
                     .find(|each| {
-                        kind(tree, *each) == Kind::Node(RustNode::UseTree)
+                        kind(tree, *each) == Kind::Node(Node::UseTree)
                             && imported(tree, *each).is_some_and(|bound| bound.name == name)
                     }),
                 Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => None,
             })
         }
         Kind::Node(
-            RustNode::Fn
-            | RustNode::Struct
-            | RustNode::Enum
-            | RustNode::Union
-            | RustNode::Trait
-            | RustNode::TypeAlias
-            | RustNode::Impl,
+            Node::Fn
+            | Node::Struct
+            | Node::Enum
+            | Node::Union
+            | Node::Trait
+            | Node::TypeAlias
+            | Node::Impl,
         ) => {
-            let list = child(tree, scope, Kind::Node(RustNode::GenericParamList))?;
+            let list = child(tree, scope, Kind::Node(Node::GenericParamList))?;
             languages::children(tree.elements, list)
-                .find(|each| kind(tree, *each) == Kind::Node(RustNode::TypeParam) && named(*each))
+                .find(|each| kind(tree, *each) == Kind::Node(Node::TypeParam) && named(*each))
         }
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => None,
     }
@@ -88,15 +88,15 @@ pub(crate) fn holder(tree: &Tree<'_>, at: languages::Position) -> languages::Nod
                 matches!(
                     kind(tree, *each),
                     Kind::Node(
-                        RustNode::Struct
-                            | RustNode::Enum
-                            | RustNode::Union
-                            | RustNode::TypeAlias
-                            | RustNode::Fn
-                            | RustNode::Trait
-                            | RustNode::Impl
-                            | RustNode::Const
-                            | RustNode::Static
+                        Node::Struct
+                            | Node::Enum
+                            | Node::Union
+                            | Node::TypeAlias
+                            | Node::Fn
+                            | Node::Trait
+                            | Node::Impl
+                            | Node::Const
+                            | Node::Static
                     )
                 )
             })

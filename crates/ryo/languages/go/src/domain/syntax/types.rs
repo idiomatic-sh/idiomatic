@@ -2,7 +2,7 @@
 //! token is a node, a token or an extra, named in kebab case (`func-decl`, `lparen`, `whitespace`); the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
 /// What a node or a token of a Go syntax tree is: a node of `go/ast`, a token of `go/token`, or an extra they lack. The element table
@@ -10,7 +10,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
-    Node(GoNode),
+    Node(Node),
     /// A token.
     Token(Token),
     /// A kind the standard lacks.

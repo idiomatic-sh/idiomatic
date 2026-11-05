@@ -8,11 +8,11 @@ use ryo::languages::{self, Tree};
 use super::constants::{COMMENT_CLOSE, COMMENT_OPEN};
 use super::types::{Commentness, Field, Kind, Leaf, Level, Rootness, Text};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use strum::IntoEnumIterator as _;
 
-ryo::languages::kinds!(pub Kind { Node(MarkdownNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -148,7 +148,7 @@ pub(crate) fn code_value(
     at: languages::Position,
 ) -> languages::Symbol {
     let from = languages::begin_name(symbols);
-    if kind(tree, at) == Kind::Node(MarkdownNode::InlineCode) {
+    if kind(tree, at) == Kind::Node(Node::InlineCode) {
         if let Some(text) = languages::decoded_at(tree.elements, at) {
             languages::push_text(symbols, text);
         }
@@ -168,7 +168,7 @@ pub(crate) fn code_value(
 /// with their level. None for an element that is no heading.
 #[must_use]
 pub(crate) fn level_of(tree: &Tree<'_>, at: languages::Position) -> Option<Level> {
-    if kind(tree, at) != Kind::Node(MarkdownNode::Heading) {
+    if kind(tree, at) != Kind::Node(Node::Heading) {
         return None;
     }
     named_by(tree, at)
@@ -236,9 +236,9 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
         return Field::None;
     }
     match (kind(tree, parent(tree, at)), kind(tree, at)) {
-        (Kind::Node(MarkdownNode::Code), Kind::Token(Token::CodeFlowValue))
-        | (Kind::Node(MarkdownNode::Html), Kind::Token(Token::HtmlFlowData)) => Field::Value,
-        (Kind::Node(MarkdownNode::ListItem), Kind::Extra(Extra::TaskChecked | Extra::TaskUnchecked)) => {
+        (Kind::Node(Node::Code), Kind::Token(Token::CodeFlowValue))
+        | (Kind::Node(Node::Html), Kind::Token(Token::HtmlFlowData)) => Field::Value,
+        (Kind::Node(Node::ListItem), Kind::Extra(Extra::TaskChecked | Extra::TaskUnchecked)) => {
             Field::Checked
         }
         (

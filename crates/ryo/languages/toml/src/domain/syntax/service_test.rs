@@ -6,7 +6,7 @@ use super::service::{
 use super::types::Kind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::TomlNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
 /// What a row asks of the service.
@@ -65,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_inline_table_is_an_inline_mapping"),
         word: Word::Succeeds,
-        input: || Question::Value(Kind::Node(TomlNode::InlineTable)),
+        input: || Question::Value(Kind::Node(Node::InlineTable)),
         expect: Expect::Value("Some(InlineMapping)"),
     },
     Case {

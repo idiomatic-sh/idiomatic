@@ -2,7 +2,7 @@
 
 use super::super::interface::SyntaxPort;
 use super::super::types::SourceText;
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
@@ -20,7 +20,7 @@ impl SyntaxPort for SyntaxFake {
     ) {
         let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
         let start = languages::Offset(0);
-        languages::enter_node(builder, kind_bits(Kind::Node(TypeScriptNode::Program)), start);
+        languages::enter_node(builder, kind_bits(Kind::Node(Node::Program)), start);
         languages::token(
             builder,
             kind_bits(Kind::Token(Token::IdentifierToken)),

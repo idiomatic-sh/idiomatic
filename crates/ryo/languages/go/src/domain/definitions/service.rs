@@ -15,7 +15,7 @@ use crate::domain::names::service::{
     blankness, embedded_name, import_binding, name_of, string_token,
 };
 use crate::domain::names::types::Blankness;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::enclosing;
 use crate::domain::signatures::constants::{PARAMETER, RECEIVER, RESULT, VARIADIC};
 use crate::domain::signatures::service::{callable, listing, signature};
@@ -46,13 +46,13 @@ pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: Sign
 )]
 pub(crate) fn shape(tree: &Tree<'_>, at: Position) -> DeclarationShape {
     match kind(tree, at) {
-        Kind::Node(GoNode::FuncDecl) => DeclarationShape::Function,
-        Kind::Node(GoNode::TypeSpec) => DeclarationShape::Type,
-        Kind::Node(GoNode::ValueSpec) => DeclarationShape::Values,
-        Kind::Node(GoNode::ImportSpec) => DeclarationShape::Import,
-        Kind::Node(GoNode::Field) => DeclarationShape::Field,
-        Kind::Node(GoNode::AssignStmt | GoNode::RangeStmt) => DeclarationShape::Variables,
-        Kind::Node(GoNode::LabeledStmt) => DeclarationShape::Label,
+        Kind::Node(Node::FuncDecl) => DeclarationShape::Function,
+        Kind::Node(Node::TypeSpec) => DeclarationShape::Type,
+        Kind::Node(Node::ValueSpec) => DeclarationShape::Values,
+        Kind::Node(Node::ImportSpec) => DeclarationShape::Import,
+        Kind::Node(Node::Field) => DeclarationShape::Field,
+        Kind::Node(Node::AssignStmt | Node::RangeStmt) => DeclarationShape::Variables,
+        Kind::Node(Node::LabeledStmt) => DeclarationShape::Label,
         _ => DeclarationShape::Nothing,
     }
 }
@@ -60,7 +60,7 @@ pub(crate) fn shape(tree: &Tree<'_>, at: Position) -> DeclarationShape {
 /// The type declaration, or the file, that holds the element at `at`: what a member of a type is owned by.
 fn holder(tree: &Tree<'_>, at: Position) -> Position {
     ancestors(tree, at)
-        .find(|each| kind(tree, *each) == Kind::Node(GoNode::TypeSpec))
+        .find(|each| kind(tree, *each) == Kind::Node(Node::TypeSpec))
         .unwrap_or_else(|| enclosing(tree, at))
 }
 
@@ -90,7 +90,7 @@ pub(crate) fn function_declaration(tree: &Tree<'_>, at: Position) -> Option<Decl
 pub(crate) fn label_declaration(tree: &Tree<'_>, at: Position) -> Option<Declaration> {
     let name = nodes(tree, at)
         .next()
-        .filter(|each| kind(tree, *each) == Kind::Node(GoNode::Ident))
+        .filter(|each| kind(tree, *each) == Kind::Node(Node::Ident))
         .filter(|each| blankness(tree, *each) == Blankness::Named)?;
     Some(Declaration {
         defined: defined(DeclarationKind::Label, LABEL),
@@ -162,7 +162,7 @@ fn meaning(tree: &Tree<'_>, field: Position) -> Option<Meaning> {
     let listed = listing(tree, list)?;
     let function = || callable(tree, list).map(|each| each.callable);
     let variadic =
-        || type_of(tree, field).is_some_and(|each| kind(tree, each) == Kind::Node(GoNode::Ellipsis));
+        || type_of(tree, field).is_some_and(|each| kind(tree, each) == Kind::Node(Node::Ellipsis));
     let (kind, word, owner) = match listed {
         Listing::Members => (DeclarationKind::Property, FIELD, holder(tree, field)),
         Listing::Methods => (
@@ -179,7 +179,7 @@ fn meaning(tree: &Tree<'_>, field: Position) -> Option<Meaning> {
         Listing::Results => (DeclarationKind::Parameter, RESULT, function()?),
         Listing::TypeParameters => {
             let owner = parent(tree, list);
-            let owner = if kind(tree, owner) == Kind::Node(GoNode::FuncType) {
+            let owner = if kind(tree, owner) == Kind::Node(Node::FuncType) {
                 parent(tree, owner)
             } else {
                 owner
@@ -226,9 +226,9 @@ pub(crate) fn variable_declarations<'a>(
     at: Position,
 ) -> impl Iterator<Item = Declaration> + 'a {
     let declares = operator(tree, at).is_some_and(|each| each.token == Token::Define);
-    let word = if kind(tree, at) == Kind::Node(GoNode::RangeStmt) {
+    let word = if kind(tree, at) == Kind::Node(Node::RangeStmt) {
         RANGE_VARIABLE
-    } else if kind(tree, parent(tree, at)) == Kind::Node(GoNode::TypeSwitchStmt) {
+    } else if kind(tree, parent(tree, at)) == Kind::Node(Node::TypeSwitchStmt) {
         TYPE_SWITCH_VARIABLE
     } else {
         SHORT_VARIABLE
@@ -237,7 +237,7 @@ pub(crate) fn variable_declarations<'a>(
     left(tree, at)
         .filter(move |each| {
             declares
-                && kind(tree, *each) == Kind::Node(GoNode::Ident)
+                && kind(tree, *each) == Kind::Node(Node::Ident)
                 && blankness(tree, *each) == Blankness::Named
         })
         .map(move |named| Declaration {
@@ -263,7 +263,7 @@ pub(crate) fn annotations<'a>(
     tree: &'a Tree<'_>,
     at: Position,
 ) -> impl Iterator<Item = Annotation> + 'a {
-    let listed = (kind(tree, at) == Kind::Node(GoNode::Field))
+    let listed = (kind(tree, at) == Kind::Node(Node::Field))
         .then(|| listing(tree, parent(tree, at)))
         .flatten();
     let field_type = matches!(
@@ -272,7 +272,7 @@ pub(crate) fn annotations<'a>(
     )
     .then(|| type_of(tree, at))
     .flatten();
-    let spec_type = (kind(tree, at) == Kind::Node(GoNode::ValueSpec))
+    let spec_type = (kind(tree, at) == Kind::Node(Node::ValueSpec))
         .then(|| value_type(tree, at))
         .flatten();
     let fields = field_type.into_iter().flat_map(move |annotation| {
@@ -299,10 +299,10 @@ pub(crate) fn assignments<'a>(
 ) -> impl Iterator<Item = Assignment> + 'a {
     let plain =
         operator(tree, at).is_some_and(|each| matches!(each.token, Token::Assign | Token::Define));
-    let from_statement = (plain && kind(tree, at) == Kind::Node(GoNode::AssignStmt))
+    let from_statement = (plain && kind(tree, at) == Kind::Node(Node::AssignStmt))
         .then(|| left(tree, at).zip(right(tree, at)));
     let assign = token(tree, at, Token::Assign);
-    let from_spec = (kind(tree, at) == Kind::Node(GoNode::ValueSpec)).then(|| {
+    let from_spec = (kind(tree, at) == Kind::Node(Node::ValueSpec)).then(|| {
         spec_names(tree, at)
             .zip(nodes(tree, at).skip_while(move |each| assign.is_none_or(|assign| *each < assign)))
     });
@@ -311,7 +311,7 @@ pub(crate) fn assignments<'a>(
         .flatten()
         .chain(from_spec.into_iter().flatten())
         .filter(move |(binding, value)| {
-            kind(tree, *binding) == Kind::Node(GoNode::Ident) && string_token(tree, *value).is_some()
+            kind(tree, *binding) == Kind::Node(Node::Ident) && string_token(tree, *value).is_some()
         })
         .map(|(binding, value)| Assignment { binding, value })
 }

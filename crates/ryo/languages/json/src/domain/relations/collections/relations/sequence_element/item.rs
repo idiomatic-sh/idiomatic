@@ -2,7 +2,7 @@
 
 use crate::domain::model::service::{float, place, radix};
 use crate::domain::model::types::Model;
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{
     boolean, holder, integer, kind, kind_bits, parent, said, spanned, value_kind,
 };
@@ -21,11 +21,11 @@ ryo::reads! {
             Kind::Token(Token::True),
             Kind::Token(Token::False),
             Kind::Token(Token::Null),
-            Kind::Node(JsonNode::Object),
-            Kind::Node(JsonNode::Array),
+            Kind::Node(Node::Object),
+            Kind::Node(Node::Array),
         ] as kind_bits,
         given container = parent(tree, at);
-        require (kind(tree, container) == Kind::Node(JsonNode::Array));
+        require (kind(tree, container) == Kind::Node(Node::Array));
         given text = spanned(tree, symbols, at);
         given decoded = said(tree, symbols, at);
         given kind = value_kind(tree, at)?;

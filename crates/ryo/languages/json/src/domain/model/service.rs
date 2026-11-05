@@ -5,7 +5,7 @@ use super::constants::PLACE_OF_ELEMENT;
 use ryo::languages::{self, Tree};
 
 use super::types::{Counted, Model};
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::DECIMAL;
 use crate::domain::syntax::service::{is_value, kind, parent, value_kind, written};
 use crate::domain::syntax::types::NameWriter;
@@ -37,14 +37,14 @@ pub(crate) fn places(tree: &Tree<'_>, model: &mut Model) {
     );
     for container in languages::positions(tree.elements) {
         let counting = match kind(tree, container) {
-            Kind::Node(JsonNode::Object) => Counted::Members,
-            Kind::Node(JsonNode::Array) => Counted::Values,
-            Kind::Node(JsonNode::JsonText | JsonNode::Member) | Kind::Token(_) | Kind::Extra(_) => continue,
+            Kind::Node(Node::Object) => Counted::Members,
+            Kind::Node(Node::Array) => Counted::Values,
+            Kind::Node(Node::JsonText | Node::Member) | Kind::Token(_) | Kind::Extra(_) => continue,
         };
         let mut next = languages::Integer(0);
         for child in languages::children(tree.elements, container) {
             let counts = match counting {
-                Counted::Members => kind(tree, child) == Kind::Node(JsonNode::Member),
+                Counted::Members => kind(tree, child) == Kind::Node(Node::Member),
                 Counted::Values => is_value(kind(tree, child)) == Valueness::Value,
             };
             if counts && let Some(slot) = model.places.get_mut(index(child).0) {
@@ -67,7 +67,7 @@ pub(crate) fn mapping_ordinal(
     model: &Model,
     object: languages::Position,
 ) -> languages::Integer {
-    if kind(tree, parent(tree, object)) == Kind::Node(JsonNode::Array) {
+    if kind(tree, parent(tree, object)) == Kind::Node(Node::Array) {
         place(model, object)
     } else {
         languages::Integer(0)

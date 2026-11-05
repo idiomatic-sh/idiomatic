@@ -8,7 +8,7 @@ use super::types::{Adjacency, Blankness, Callee, Dottedness, Placement, Unresolv
 use crate::domain::constraints::service::{argument, kind_of, written as constraint_written};
 use crate::domain::constraints::types::SourceBytes as ConstraintText;
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{child, kind, nodes, parent, token, written};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::constants::{BLOCK_COMMENT_CLOSE, BLOCK_COMMENT_OPEN, LINE_COMMENT};
@@ -33,7 +33,7 @@ fn operand(tree: &Tree<'_>, at: Position) -> Option<Position> {
 fn selected(tree: &Tree<'_>, at: Position) -> Option<Position> {
     nodes(tree, at)
         .last()
-        .filter(|each| kind(tree, *each) == Kind::Node(GoNode::Ident))
+        .filter(|each| kind(tree, *each) == Kind::Node(Node::Ident))
 }
 
 /// Whether the expression at `at` writes a dotted name.
@@ -46,15 +46,15 @@ pub(crate) fn dottedness(tree: &Tree<'_>, at: Position) -> Dottedness {
     let mut at = at;
     loop {
         match kind(tree, at) {
-            Kind::Node(GoNode::Ident) => return Dottedness::Dotted,
-            Kind::Node(GoNode::SelectorExpr) if selected(tree, at).is_some() => {
+            Kind::Node(Node::Ident) => return Dottedness::Dotted,
+            Kind::Node(Node::SelectorExpr) if selected(tree, at).is_some() => {
                 match operand(tree, at) {
                     Some(value) => at = value,
                     None => return Dottedness::Other,
                 }
             }
             // A type list is an instantiation of a generic function or type; one index may be an index of a slice or a map.
-            Kind::Node(GoNode::IndexListExpr) => match operand(tree, at) {
+            Kind::Node(Node::IndexListExpr) => match operand(tree, at) {
                 Some(value) => at = value,
                 None => return Dottedness::Other,
             },
@@ -66,12 +66,12 @@ pub(crate) fn dottedness(tree: &Tree<'_>, at: Position) -> Dottedness {
 /// Adds the dotted name the expression at `at` writes to the name being made; the expression is known to write one.
 fn push_dotted(tree: &Tree<'_>, symbols: &mut languages::Symbols, at: Position) {
     match kind(tree, at) {
-        Kind::Node(GoNode::Ident) => {
+        Kind::Node(Node::Ident) => {
             if let Some(text) = languages::first_token_text(tree.elements, at) {
                 languages::push_name(symbols, tree.source, text);
             }
         }
-        Kind::Node(GoNode::SelectorExpr) => {
+        Kind::Node(Node::SelectorExpr) => {
             if let Some(value) = operand(tree, at) {
                 push_dotted(tree, symbols, value);
             }
@@ -80,7 +80,7 @@ fn push_dotted(tree: &Tree<'_>, symbols: &mut languages::Symbols, at: Position) 
                 push_dotted(tree, symbols, name);
             }
         }
-        Kind::Node(GoNode::IndexListExpr) => {
+        Kind::Node(Node::IndexListExpr) => {
             if let Some(value) = operand(tree, at) {
                 push_dotted(tree, symbols, value);
             }
@@ -98,7 +98,7 @@ pub(crate) fn dotted(
     if dottedness(tree, at) == Dottedness::Other {
         return None;
     }
-    if kind(tree, at) == Kind::Node(GoNode::Ident) {
+    if kind(tree, at) == Kind::Node(Node::Ident) {
         return languages::first_token_text(tree.elements, at);
     }
     let from = languages::begin_name(symbols);
@@ -128,7 +128,7 @@ pub(crate) fn string_or_unknown(
 /// Whether the string at `at` is an import specifier: the path of an `import` spec.
 #[must_use]
 pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
-    if kind(tree, parent(tree, at)) == Kind::Node(GoNode::ImportSpec) {
+    if kind(tree, parent(tree, at)) == Kind::Node(Node::ImportSpec) {
         languages::Flag::Raised
     } else {
         languages::Flag::Lowered
@@ -165,7 +165,7 @@ pub(crate) fn import_target(
 /// The name an identifier writes, as a name of the file: the text of its token.
 #[must_use]
 pub(crate) fn name_of(tree: &Tree<'_>, ident: Position) -> Option<Symbol> {
-    (kind(tree, ident) == Kind::Node(GoNode::Ident))
+    (kind(tree, ident) == Kind::Node(Node::Ident))
         .then(|| languages::first_token_text(tree.elements, ident))
         .flatten()
 }
@@ -189,7 +189,7 @@ pub(crate) fn blankness(tree: &Tree<'_>, ident: Position) -> Blankness {
 pub(crate) fn embedded_name(tree: &Tree<'_>, at: Position) -> Option<Symbol> {
     let at = base(tree, at)?;
     match kind(tree, at) {
-        Kind::Node(GoNode::SelectorExpr) => {
+        Kind::Node(Node::SelectorExpr) => {
             let each = nodes(tree, at).last()?;
             name_of(tree, each)
         }
@@ -202,7 +202,7 @@ fn base(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let mut at = at;
     while matches!(
         kind(tree, at),
-        Kind::Node(GoNode::StarExpr | GoNode::ParenExpr | GoNode::IndexExpr | GoNode::IndexListExpr)
+        Kind::Node(Node::StarExpr | Node::ParenExpr | Node::IndexExpr | Node::IndexListExpr)
     ) {
         at = nodes(tree, at).next()?;
     }
@@ -229,12 +229,12 @@ pub(crate) fn base_of(
 pub(crate) fn callee_of(tree: &Tree<'_>, callee: Position) -> Callee {
     match kind(tree, callee) {
         Kind::Node(
-            GoNode::ArrayType
-            | GoNode::MapType
-            | GoNode::ChanType
-            | GoNode::FuncType
-            | GoNode::StructType
-            | GoNode::InterfaceType,
+            Node::ArrayType
+            | Node::MapType
+            | Node::ChanType
+            | Node::FuncType
+            | Node::StructType
+            | Node::InterfaceType,
         ) => Callee::Conversion,
         _ if dottedness(tree, callee) == Dottedness::Dotted => Callee::Named,
         _ => Callee::Dynamic,
@@ -284,12 +284,12 @@ pub(crate) fn documentation(tree: &Tree<'_>, at: Position) -> languages::Flag {
         match kind(tree, next) {
             Kind::Token(Token::Comment) => last = next,
             Kind::Node(
-                GoNode::FuncDecl
-                | GoNode::GenDecl
-                | GoNode::TypeSpec
-                | GoNode::ValueSpec
-                | GoNode::ImportSpec
-                | GoNode::Field,
+                Node::FuncDecl
+                | Node::GenDecl
+                | Node::TypeSpec
+                | Node::ValueSpec
+                | Node::ImportSpec
+                | Node::Field,
             )
             | Kind::Token(Token::Package) => return languages::Flag::Raised,
             _ => return languages::Flag::Lowered,
@@ -369,11 +369,11 @@ pub(crate) fn passed(tree: &Tree<'_>, argument: Position) -> Symbol {
     let mut current = argument;
     loop {
         match kind(tree, current) {
-            Kind::Node(GoNode::Ident) => {
+            Kind::Node(Node::Ident) => {
                 return name_of(tree, current).unwrap_or(languages::NO_SYMBOL);
             }
-            Kind::Node(GoNode::ParenExpr | GoNode::StarExpr) => {}
-            Kind::Node(GoNode::UnaryExpr) if token(tree, current, Token::And).is_some() => {}
+            Kind::Node(Node::ParenExpr | Node::StarExpr) => {}
+            Kind::Node(Node::UnaryExpr) if token(tree, current, Token::And).is_some() => {}
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => return languages::NO_SYMBOL,
         }
         match nodes(tree, current).next() {

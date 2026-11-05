@@ -1,6 +1,6 @@
 //! Lexical scopes exclude ordinary value expressions.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 type Input = Kind;
 type Value = super::types::Scope;
@@ -9,19 +9,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_file_is_a_scope"),
         word: Word::Succeeds,
-        input: || Kind::Node(TypeScriptNode::Program),
+        input: || Kind::Node(Node::Program),
         expect: Expect::Value(super::types::Scope::Opens),
     },
     Case {
         name: CaseName("a_block_owns_lexical_bindings"),
         word: Word::Succeeds,
-        input: || Kind::Node(TypeScriptNode::BlockStatement),
+        input: || Kind::Node(Node::BlockStatement),
         expect: Expect::Value(super::types::Scope::Opens),
     },
     Case {
         name: CaseName("a_call_is_not_a_scope"),
         word: Word::Succeeds,
-        input: || Kind::Node(TypeScriptNode::CallExpression),
+        input: || Kind::Node(Node::CallExpression),
         expect: Expect::Value(super::types::Scope::Continues),
     },
 ];

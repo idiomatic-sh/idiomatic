@@ -3,7 +3,7 @@
 
 use crate::domain::model::service::mapping_at;
 use crate::domain::model::types::Model;
-use crate::domain::nodes::types::TomlNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -15,10 +15,10 @@ pub(crate) struct MappingItem;
 ryo::reads! {
     MappingItem => languages::Mapping, model(Model) |tree, model, at, symbols| {
         kinds: [
-            Kind::Node(TomlNode::Toml),
-            Kind::Node(TomlNode::StdTable),
-            Kind::Node(TomlNode::ArrayTable),
-            Kind::Node(TomlNode::InlineTable),
+            Kind::Node(Node::Toml),
+            Kind::Node(Node::StdTable),
+            Kind::Node(Node::ArrayTable),
+            Kind::Node(Node::InlineTable),
             Kind::Token(Token::UnquotedKey),
             Kind::Token(Token::BasicString),
             Kind::Token(Token::LiteralString),

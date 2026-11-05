@@ -3,7 +3,7 @@
 
 use crate::domain::names::service::{arguments_of, callee_of, passed};
 use crate::domain::names::types::Callee;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_bits, nodes};
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -13,7 +13,7 @@ pub(crate) struct CallArgumentItem;
 
 ryo::reads! {
     CallArgumentItem => languages::CallArgument |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::CallExpr)] as kind_bits,
+        kinds: [Kind::Node(Node::CallExpr)] as kind_bits,
         given callee = nodes(tree, at).next()?;
         require callee_of(tree, callee) != Callee::Conversion;
         each (arguments_of(tree, at)) as (position, argument) {

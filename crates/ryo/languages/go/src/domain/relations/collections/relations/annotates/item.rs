@@ -2,7 +2,7 @@
 //! `const` gives a type, as written; for what has no name (a result of a type alone), the type of the field.
 
 use crate::domain::definitions::service::annotations;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_bits, spanned};
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -12,7 +12,7 @@ pub(crate) struct AnnotatesItem;
 
 ryo::reads! {
     AnnotatesItem => languages::Annotates |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::Field), Kind::Node(GoNode::ValueSpec)] as kind_bits,
+        kinds: [Kind::Node(Node::Field), Kind::Node(Node::ValueSpec)] as kind_bits,
         each (annotations(tree, at)) as annotated {
             row {
                 occurrence: node(annotated.annotation),

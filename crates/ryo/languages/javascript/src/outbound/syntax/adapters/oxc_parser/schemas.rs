@@ -1,23 +1,23 @@
 //! Exhaustive typed Oxc AST mapping to `ESTree`. Parser wrappers are transparent; TypeScript kinds cannot occur in the selected JavaScript source modes; JSX kinds occur in `.js` and `.jsx`.
-use crate::domain::nodes::types::JavaScriptNode;
+use crate::domain::nodes::types::Node;
 use oxc_ast::{
     AstKind, AstType,
     ast::{ClassType, FunctionType},
 };
 
 /// The `ESTree` identity of a typed node, including declaration versus expression distinctions.
-pub(super) fn node_kind(node: AstKind<'_>) -> Option<JavaScriptNode> {
+pub(super) fn node_kind(node: AstKind<'_>) -> Option<Node> {
     NodeSchema(node).into()
 }
 /// The parser's typed node at the conversion boundary.
 pub(super) struct NodeSchema<'a>(pub AstKind<'a>);
-impl From<NodeSchema<'_>> for Option<JavaScriptNode> {
+impl From<NodeSchema<'_>> for Option<Node> {
     fn from(schema: NodeSchema<'_>) -> Self {
         let node = schema.0;
         if let AstKind::Function(function) = node {
             return match function.r#type {
-                FunctionType::FunctionDeclaration => Some(JavaScriptNode::FunctionDeclaration),
-                FunctionType::FunctionExpression => Some(JavaScriptNode::FunctionExpression),
+                FunctionType::FunctionDeclaration => Some(Node::FunctionDeclaration),
+                FunctionType::FunctionExpression => Some(Node::FunctionExpression),
                 FunctionType::TSDeclareFunction | FunctionType::TSEmptyBodyFunctionExpression => {
                     None
                 }
@@ -25,14 +25,14 @@ impl From<NodeSchema<'_>> for Option<JavaScriptNode> {
         }
         if let AstKind::Class(class) = node {
             return Some(match class.r#type {
-                ClassType::ClassDeclaration => JavaScriptNode::ClassDeclaration,
-                ClassType::ClassExpression => JavaScriptNode::ClassExpression,
+                ClassType::ClassDeclaration => Node::ClassDeclaration,
+                ClassType::ClassExpression => Node::ClassExpression,
             });
         }
         if let AstKind::FormalParameter(parameter) = node
             && parameter.initializer.is_some()
         {
-            return Some(JavaScriptNode::AssignmentPattern);
+            return Some(Node::AssignmentPattern);
         }
         node_type(node.ty())
     }
@@ -43,15 +43,15 @@ impl From<NodeSchema<'_>> for Option<JavaScriptNode> {
     clippy::too_many_lines,
     reason = "one exhaustive upstream vocabulary mapping keeps added variants a compile-time decision"
 )]
-pub(super) fn node_type(kind: AstType) -> Option<JavaScriptNode> {
+pub(super) fn node_type(kind: AstType) -> Option<Node> {
     match kind {
-        AstType::Program => Some(JavaScriptNode::Program),
+        AstType::Program => Some(Node::Program),
         AstType::IdentifierName
         | AstType::IdentifierReference
         | AstType::BindingIdentifier
-        | AstType::LabelIdentifier => Some(JavaScriptNode::Identifier),
-        AstType::ThisExpression => Some(JavaScriptNode::ThisExpression),
-        AstType::ArrayExpression => Some(JavaScriptNode::ArrayExpression),
+        | AstType::LabelIdentifier => Some(Node::Identifier),
+        AstType::ThisExpression => Some(Node::ThisExpression),
+        AstType::ArrayExpression => Some(Node::ArrayExpression),
         AstType::Elision
         | AstType::ParenthesizedExpression
         | AstType::Hashbang
@@ -137,97 +137,97 @@ pub(super) fn node_type(kind: AstType) -> Option<JavaScriptNode> {
         | AstType::JSDocNullableType
         | AstType::JSDocNonNullableType
         | AstType::JSDocUnknownType => None,
-        AstType::JSXElement => Some(JavaScriptNode::JSXElement),
-        AstType::JSXOpeningElement => Some(JavaScriptNode::JSXOpeningElement),
-        AstType::JSXClosingElement => Some(JavaScriptNode::JSXClosingElement),
-        AstType::JSXFragment => Some(JavaScriptNode::JSXFragment),
-        AstType::JSXOpeningFragment => Some(JavaScriptNode::JSXOpeningFragment),
-        AstType::JSXClosingFragment => Some(JavaScriptNode::JSXClosingFragment),
-        AstType::JSXNamespacedName => Some(JavaScriptNode::JSXNamespacedName),
-        AstType::JSXMemberExpression => Some(JavaScriptNode::JSXMemberExpression),
-        AstType::JSXExpressionContainer => Some(JavaScriptNode::JSXExpressionContainer),
-        AstType::JSXEmptyExpression => Some(JavaScriptNode::JSXEmptyExpression),
-        AstType::JSXAttribute => Some(JavaScriptNode::JSXAttribute),
-        AstType::JSXSpreadAttribute => Some(JavaScriptNode::JSXSpreadAttribute),
-        AstType::JSXIdentifier => Some(JavaScriptNode::JSXIdentifier),
-        AstType::JSXSpreadChild => Some(JavaScriptNode::JSXSpreadChild),
-        AstType::JSXText => Some(JavaScriptNode::JSXText),
-        AstType::ObjectExpression => Some(JavaScriptNode::ObjectExpression),
+        AstType::JSXElement => Some(Node::JSXElement),
+        AstType::JSXOpeningElement => Some(Node::JSXOpeningElement),
+        AstType::JSXClosingElement => Some(Node::JSXClosingElement),
+        AstType::JSXFragment => Some(Node::JSXFragment),
+        AstType::JSXOpeningFragment => Some(Node::JSXOpeningFragment),
+        AstType::JSXClosingFragment => Some(Node::JSXClosingFragment),
+        AstType::JSXNamespacedName => Some(Node::JSXNamespacedName),
+        AstType::JSXMemberExpression => Some(Node::JSXMemberExpression),
+        AstType::JSXExpressionContainer => Some(Node::JSXExpressionContainer),
+        AstType::JSXEmptyExpression => Some(Node::JSXEmptyExpression),
+        AstType::JSXAttribute => Some(Node::JSXAttribute),
+        AstType::JSXSpreadAttribute => Some(Node::JSXSpreadAttribute),
+        AstType::JSXIdentifier => Some(Node::JSXIdentifier),
+        AstType::JSXSpreadChild => Some(Node::JSXSpreadChild),
+        AstType::JSXText => Some(Node::JSXText),
+        AstType::ObjectExpression => Some(Node::ObjectExpression),
         AstType::ObjectProperty
         | AstType::AssignmentTargetPropertyIdentifier
         | AstType::AssignmentTargetPropertyProperty
-        | AstType::BindingProperty => Some(JavaScriptNode::Property),
-        AstType::TemplateLiteral => Some(JavaScriptNode::TemplateLiteral),
-        AstType::TaggedTemplateExpression => Some(JavaScriptNode::TaggedTemplateExpression),
-        AstType::TemplateElement => Some(JavaScriptNode::TemplateElement),
+        | AstType::BindingProperty => Some(Node::Property),
+        AstType::TemplateLiteral => Some(Node::TemplateLiteral),
+        AstType::TaggedTemplateExpression => Some(Node::TaggedTemplateExpression),
+        AstType::TemplateElement => Some(Node::TemplateElement),
         AstType::ComputedMemberExpression
         | AstType::StaticMemberExpression
-        | AstType::PrivateFieldExpression => Some(JavaScriptNode::MemberExpression),
-        AstType::CallExpression => Some(JavaScriptNode::CallExpression),
-        AstType::NewExpression => Some(JavaScriptNode::NewExpression),
-        AstType::ImportMeta | AstType::NewTarget => Some(JavaScriptNode::MetaProperty),
-        AstType::SpreadElement => Some(JavaScriptNode::SpreadElement),
-        AstType::UpdateExpression => Some(JavaScriptNode::UpdateExpression),
-        AstType::UnaryExpression => Some(JavaScriptNode::UnaryExpression),
-        AstType::BinaryExpression | AstType::PrivateInExpression => Some(JavaScriptNode::BinaryExpression),
-        AstType::LogicalExpression => Some(JavaScriptNode::LogicalExpression),
-        AstType::ConditionalExpression => Some(JavaScriptNode::ConditionalExpression),
-        AstType::AssignmentExpression => Some(JavaScriptNode::AssignmentExpression),
-        AstType::ArrayAssignmentTarget | AstType::ArrayPattern => Some(JavaScriptNode::ArrayPattern),
-        AstType::ObjectAssignmentTarget | AstType::ObjectPattern => Some(JavaScriptNode::ObjectPattern),
-        AstType::AssignmentTargetRest | AstType::BindingRestElement => Some(JavaScriptNode::RestElement),
+        | AstType::PrivateFieldExpression => Some(Node::MemberExpression),
+        AstType::CallExpression => Some(Node::CallExpression),
+        AstType::NewExpression => Some(Node::NewExpression),
+        AstType::ImportMeta | AstType::NewTarget => Some(Node::MetaProperty),
+        AstType::SpreadElement => Some(Node::SpreadElement),
+        AstType::UpdateExpression => Some(Node::UpdateExpression),
+        AstType::UnaryExpression => Some(Node::UnaryExpression),
+        AstType::BinaryExpression | AstType::PrivateInExpression => Some(Node::BinaryExpression),
+        AstType::LogicalExpression => Some(Node::LogicalExpression),
+        AstType::ConditionalExpression => Some(Node::ConditionalExpression),
+        AstType::AssignmentExpression => Some(Node::AssignmentExpression),
+        AstType::ArrayAssignmentTarget | AstType::ArrayPattern => Some(Node::ArrayPattern),
+        AstType::ObjectAssignmentTarget | AstType::ObjectPattern => Some(Node::ObjectPattern),
+        AstType::AssignmentTargetRest | AstType::BindingRestElement => Some(Node::RestElement),
         AstType::AssignmentTargetWithDefault | AstType::AssignmentPattern => {
-            Some(JavaScriptNode::AssignmentPattern)
+            Some(Node::AssignmentPattern)
         }
-        AstType::SequenceExpression => Some(JavaScriptNode::SequenceExpression),
-        AstType::Super => Some(JavaScriptNode::Super),
-        AstType::AwaitExpression => Some(JavaScriptNode::AwaitExpression),
-        AstType::ChainExpression => Some(JavaScriptNode::ChainExpression),
-        AstType::Directive | AstType::ExpressionStatement => Some(JavaScriptNode::ExpressionStatement),
-        AstType::BlockStatement | AstType::FunctionBody => Some(JavaScriptNode::BlockStatement),
-        AstType::VariableDeclaration => Some(JavaScriptNode::VariableDeclaration),
-        AstType::VariableDeclarator => Some(JavaScriptNode::VariableDeclarator),
-        AstType::EmptyStatement => Some(JavaScriptNode::EmptyStatement),
-        AstType::IfStatement => Some(JavaScriptNode::IfStatement),
-        AstType::DoWhileStatement => Some(JavaScriptNode::DoWhileStatement),
-        AstType::WhileStatement => Some(JavaScriptNode::WhileStatement),
-        AstType::ForStatement => Some(JavaScriptNode::ForStatement),
-        AstType::ForInStatement => Some(JavaScriptNode::ForInStatement),
-        AstType::ForOfStatement => Some(JavaScriptNode::ForOfStatement),
-        AstType::ContinueStatement => Some(JavaScriptNode::ContinueStatement),
-        AstType::BreakStatement => Some(JavaScriptNode::BreakStatement),
-        AstType::ReturnStatement => Some(JavaScriptNode::ReturnStatement),
-        AstType::WithStatement => Some(JavaScriptNode::WithStatement),
-        AstType::SwitchStatement => Some(JavaScriptNode::SwitchStatement),
-        AstType::SwitchCase => Some(JavaScriptNode::SwitchCase),
-        AstType::LabeledStatement => Some(JavaScriptNode::LabeledStatement),
-        AstType::ThrowStatement => Some(JavaScriptNode::ThrowStatement),
-        AstType::TryStatement => Some(JavaScriptNode::TryStatement),
-        AstType::CatchClause => Some(JavaScriptNode::CatchClause),
-        AstType::DebuggerStatement => Some(JavaScriptNode::DebuggerStatement),
-        AstType::ArrowFunctionExpression => Some(JavaScriptNode::ArrowFunctionExpression),
-        AstType::YieldExpression => Some(JavaScriptNode::YieldExpression),
-        AstType::ClassBody => Some(JavaScriptNode::ClassBody),
-        AstType::MethodDefinition => Some(JavaScriptNode::MethodDefinition),
-        AstType::PropertyDefinition => Some(JavaScriptNode::PropertyDefinition),
-        AstType::PrivateIdentifier => Some(JavaScriptNode::PrivateIdentifier),
-        AstType::StaticBlock => Some(JavaScriptNode::StaticBlock),
-        AstType::ImportExpression => Some(JavaScriptNode::ImportExpression),
-        AstType::ImportDeclaration => Some(JavaScriptNode::ImportDeclaration),
-        AstType::ImportSpecifier => Some(JavaScriptNode::ImportSpecifier),
-        AstType::ImportDefaultSpecifier => Some(JavaScriptNode::ImportDefaultSpecifier),
-        AstType::ImportNamespaceSpecifier => Some(JavaScriptNode::ImportNamespaceSpecifier),
-        AstType::ImportAttribute => Some(JavaScriptNode::ImportAttribute),
-        AstType::ExportNamedDeclaration => Some(JavaScriptNode::ExportNamedDeclaration),
-        AstType::ExportDefaultDeclaration => Some(JavaScriptNode::ExportDefaultDeclaration),
-        AstType::ExportAllDeclaration => Some(JavaScriptNode::ExportAllDeclaration),
-        AstType::ExportSpecifier => Some(JavaScriptNode::ExportSpecifier),
+        AstType::SequenceExpression => Some(Node::SequenceExpression),
+        AstType::Super => Some(Node::Super),
+        AstType::AwaitExpression => Some(Node::AwaitExpression),
+        AstType::ChainExpression => Some(Node::ChainExpression),
+        AstType::Directive | AstType::ExpressionStatement => Some(Node::ExpressionStatement),
+        AstType::BlockStatement | AstType::FunctionBody => Some(Node::BlockStatement),
+        AstType::VariableDeclaration => Some(Node::VariableDeclaration),
+        AstType::VariableDeclarator => Some(Node::VariableDeclarator),
+        AstType::EmptyStatement => Some(Node::EmptyStatement),
+        AstType::IfStatement => Some(Node::IfStatement),
+        AstType::DoWhileStatement => Some(Node::DoWhileStatement),
+        AstType::WhileStatement => Some(Node::WhileStatement),
+        AstType::ForStatement => Some(Node::ForStatement),
+        AstType::ForInStatement => Some(Node::ForInStatement),
+        AstType::ForOfStatement => Some(Node::ForOfStatement),
+        AstType::ContinueStatement => Some(Node::ContinueStatement),
+        AstType::BreakStatement => Some(Node::BreakStatement),
+        AstType::ReturnStatement => Some(Node::ReturnStatement),
+        AstType::WithStatement => Some(Node::WithStatement),
+        AstType::SwitchStatement => Some(Node::SwitchStatement),
+        AstType::SwitchCase => Some(Node::SwitchCase),
+        AstType::LabeledStatement => Some(Node::LabeledStatement),
+        AstType::ThrowStatement => Some(Node::ThrowStatement),
+        AstType::TryStatement => Some(Node::TryStatement),
+        AstType::CatchClause => Some(Node::CatchClause),
+        AstType::DebuggerStatement => Some(Node::DebuggerStatement),
+        AstType::ArrowFunctionExpression => Some(Node::ArrowFunctionExpression),
+        AstType::YieldExpression => Some(Node::YieldExpression),
+        AstType::ClassBody => Some(Node::ClassBody),
+        AstType::MethodDefinition => Some(Node::MethodDefinition),
+        AstType::PropertyDefinition => Some(Node::PropertyDefinition),
+        AstType::PrivateIdentifier => Some(Node::PrivateIdentifier),
+        AstType::StaticBlock => Some(Node::StaticBlock),
+        AstType::ImportExpression => Some(Node::ImportExpression),
+        AstType::ImportDeclaration => Some(Node::ImportDeclaration),
+        AstType::ImportSpecifier => Some(Node::ImportSpecifier),
+        AstType::ImportDefaultSpecifier => Some(Node::ImportDefaultSpecifier),
+        AstType::ImportNamespaceSpecifier => Some(Node::ImportNamespaceSpecifier),
+        AstType::ImportAttribute => Some(Node::ImportAttribute),
+        AstType::ExportNamedDeclaration => Some(Node::ExportNamedDeclaration),
+        AstType::ExportDefaultDeclaration => Some(Node::ExportDefaultDeclaration),
+        AstType::ExportAllDeclaration => Some(Node::ExportAllDeclaration),
+        AstType::ExportSpecifier => Some(Node::ExportSpecifier),
         AstType::BooleanLiteral
         | AstType::NullLiteral
         | AstType::NumericLiteral
         | AstType::StringLiteral
         | AstType::BigIntLiteral
-        | AstType::RegExpLiteral => Some(JavaScriptNode::Literal),
+        | AstType::RegExpLiteral => Some(Node::Literal),
     }
 }
 

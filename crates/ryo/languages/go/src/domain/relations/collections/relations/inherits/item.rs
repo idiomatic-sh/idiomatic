@@ -3,7 +3,7 @@
 
 use crate::domain::fields::service::{names, type_of};
 use crate::domain::names::service::base_of;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::signatures::service::listing;
 use crate::domain::signatures::types::Listing;
 use crate::domain::syntax::service::{ancestors, kind, kind_bits, parent};
@@ -17,13 +17,13 @@ pub(crate) struct InheritsItem;
 fn declaration(tree: &languages::Tree<'_>, field: languages::Position) -> languages::Position {
     let list = parent(tree, field);
     ancestors(tree, field)
-        .find(|each| kind(tree, *each) == Kind::Node(GoNode::TypeSpec))
+        .find(|each| kind(tree, *each) == Kind::Node(Node::TypeSpec))
         .unwrap_or_else(|| parent(tree, list))
 }
 
 ryo::reads! {
     InheritsItem => languages::Inherits |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::Field)] as kind_bits,
+        kinds: [Kind::Node(Node::Field)] as kind_bits,
         require matches!(listing(tree, parent(tree, at)), Some(Listing::Members | Listing::Methods));
         require names(tree, at).next().is_none();
         given base = type_of(tree, at)?;

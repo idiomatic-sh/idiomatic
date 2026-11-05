@@ -7,7 +7,7 @@ use ryo::languages::{self, Position, Tree};
 use super::constants::NAMESPACE;
 use super::types::Url;
 use crate::domain::nodes::service::category;
-use crate::domain::nodes::types::{Category, CssNode};
+use crate::domain::nodes::types::{Category, Node};
 use crate::domain::syntax::service::{is_root, kind, kind_bits, parent};
 use crate::domain::syntax::types::{Kind, Rootness};
 use crate::domain::tokens::types::Token;
@@ -32,7 +32,7 @@ pub(crate) fn url_token(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let found = kind(tree, at);
     let token = if found == Kind::Token(Token::Url) {
         at
-    } else if found == Kind::Node(CssNode::Function) {
+    } else if found == Kind::Node(Node::Function) {
         languages::child_of_kind(tree.elements, at, kind_bits(Kind::Token(Token::Function)))?
     } else {
         return None;
@@ -43,7 +43,7 @@ pub(crate) fn url_token(tree: &Tree<'_>, at: Position) -> Option<Position> {
 /// The token the adapter wrote what the `@import` at `at` imports on: its at-keyword-token.
 #[must_use]
 pub(crate) fn import_token(tree: &Tree<'_>, at: Position) -> Option<Position> {
-    if kind(tree, at) != Kind::Node(CssNode::AtRule) {
+    if kind(tree, at) != Kind::Node(Node::AtRule) {
         return None;
     }
     let keyword =
@@ -56,10 +56,10 @@ pub(crate) fn import_token(tree: &Tree<'_>, at: Position) -> Option<Position> {
 #[must_use]
 pub(crate) fn reference(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let mut place = parent(tree, at);
-    while kind(tree, place) != Kind::Node(CssNode::AtRule) && is_root(tree, place) == Rootness::Inner {
+    while kind(tree, place) != Kind::Node(Node::AtRule) && is_root(tree, place) == Rootness::Inner {
         place = parent(tree, place);
     }
-    let keyword = (kind(tree, place) == Kind::Node(CssNode::AtRule))
+    let keyword = (kind(tree, place) == Kind::Node(Node::AtRule))
         .then(|| {
             languages::child_of_kind(
                 tree.elements,

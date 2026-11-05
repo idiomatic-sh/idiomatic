@@ -9,7 +9,7 @@ use ryo::languages::contract::{Leafness, Walked};
 use strum::IntoEnumIterator as _;
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_bits, kind_name};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -17,7 +17,7 @@ use crate::domain::tokens::types::Token;
 /// The language's kind for the library's `kind`: the one named as the library names it, lower case, `-` for `_`.
 fn named(kind: SyntaxKind) -> Kind {
     let name = format!("{kind:?}").to_lowercase().replace('_', "-");
-    RustNode::iter()
+    Node::iter()
         .map(Kind::Node)
         .chain(Token::iter().map(Kind::Token))
         .find(|each| kind_name(*each).0 == name)

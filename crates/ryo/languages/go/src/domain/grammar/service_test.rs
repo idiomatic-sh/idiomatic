@@ -6,7 +6,7 @@ use super::service::{
 };
 use super::types::{ByteIndex, Concrete, Form, GoText, Index, Naming, Presence, Raw, Role};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
 /// What a row asks of the small tree below.
@@ -181,7 +181,7 @@ fn tree() -> Concrete<'static> {
                 at(Some(5), None, None, Some(7), None),
             ),
             raw(
-                Form::Node(GoNode::EmptyStmt),
+                Form::Node(Node::EmptyStmt),
                 None,
                 named,
                 (25, 30),

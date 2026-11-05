@@ -15,7 +15,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum RustNode {
+pub(crate) enum Node {
     /// The ABI string of an `extern "C"` item or function pointer.
     Abi,
     /// The parenthesised arguments of a call, `(a, b)`.

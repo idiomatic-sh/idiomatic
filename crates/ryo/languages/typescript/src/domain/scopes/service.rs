@@ -3,7 +3,7 @@ use super::types::{Declaredness, Scope};
 use crate::domain::names::constants::{OPEN_COMPUTED, OPEN_PARAMETERS, PROPERTY_SEPARATOR};
 use crate::domain::names::service::{identifier, name_before, nodes, token, unknown};
 use crate::domain::names::types::Spelling;
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{
     service::{kind, parent},
     types::Kind,
@@ -14,22 +14,22 @@ pub(crate) fn opens(kind: Kind) -> Scope {
     if matches!(
         kind,
         Kind::Node(
-            TypeScriptNode::Program
-                | TypeScriptNode::FunctionDeclaration
-                | TypeScriptNode::FunctionExpression
-                | TypeScriptNode::ArrowFunctionExpression
-                | TypeScriptNode::ClassDeclaration
-                | TypeScriptNode::ClassExpression
-                | TypeScriptNode::TSDeclareFunction
-                | TypeScriptNode::TSEmptyBodyFunctionExpression
-                | TypeScriptNode::TSModuleDeclaration
-                | TypeScriptNode::TSModuleBlock
-                | TypeScriptNode::BlockStatement
-                | TypeScriptNode::CatchClause
-                | TypeScriptNode::ForStatement
-                | TypeScriptNode::ForInStatement
-                | TypeScriptNode::ForOfStatement
-                | TypeScriptNode::StaticBlock
+            Node::Program
+                | Node::FunctionDeclaration
+                | Node::FunctionExpression
+                | Node::ArrowFunctionExpression
+                | Node::ClassDeclaration
+                | Node::ClassExpression
+                | Node::TSDeclareFunction
+                | Node::TSEmptyBodyFunctionExpression
+                | Node::TSModuleDeclaration
+                | Node::TSModuleBlock
+                | Node::BlockStatement
+                | Node::CatchClause
+                | Node::ForStatement
+                | Node::ForInStatement
+                | Node::ForOfStatement
+                | Node::StaticBlock
         )
     ) {
         Scope::Opens
@@ -54,12 +54,12 @@ pub(crate) fn owner(tree: &Tree<'_>, at: Position) -> languages::NodeId {
 /// and its value); every other function is an expression.
 pub(crate) fn function_form(tree: &Tree<'_>, at: Position) -> Declaredness {
     match kind(tree, at) {
-        Kind::Node(TypeScriptNode::FunctionDeclaration | TypeScriptNode::TSDeclareFunction) => Declaredness::Function,
-        Kind::Node(TypeScriptNode::FunctionExpression | TypeScriptNode::TSEmptyBodyFunctionExpression) => {
+        Kind::Node(Node::FunctionDeclaration | Node::TSDeclareFunction) => Declaredness::Function,
+        Kind::Node(Node::FunctionExpression | Node::TSEmptyBodyFunctionExpression) => {
             let holder = parent(tree, at);
             let method = match kind(tree, holder) {
-                Kind::Node(TypeScriptNode::MethodDefinition | TypeScriptNode::TSAbstractMethodDefinition) => true,
-                Kind::Node(TypeScriptNode::Property) => {
+                Kind::Node(Node::MethodDefinition | Node::TSAbstractMethodDefinition) => true,
+                Kind::Node(Node::Property) => {
                     token(tree, holder, Spelling(PROPERTY_SEPARATOR)).is_none()
                 }
                 Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => false,
@@ -71,7 +71,7 @@ pub(crate) fn function_form(tree: &Tree<'_>, at: Position) -> Declaredness {
                 token(tree, holder, Spelling(OPEN_COMPUTED)).is_none()
                     && matches!(
                         kind(tree, *key),
-                        Kind::Node(TypeScriptNode::Identifier | TypeScriptNode::PrivateIdentifier)
+                        Kind::Node(Node::Identifier | Node::PrivateIdentifier)
                     )
             });
             Declaredness::Method(key)

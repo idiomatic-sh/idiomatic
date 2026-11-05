@@ -1,7 +1,7 @@
 //! Lower the temporary canonical analysis graph; erase internal continuation cuts.
 use super::types::*;
 use crate::domain::{
-    file_program::types::{Node, NodeId, NodeInput, RequestGraph},
+    file_program::types::{FileProgramNode, NodeId, NodeInput, RequestGraph},
     operating::errors::OperatingError,
     operator::contract::{
         resources::ResourceProgram,
@@ -65,7 +65,7 @@ struct DraftRegion {
     inputs: Vec<NodeInput>,
     needs: Result<Vec<crate::domain::trust::types::RelationRead>, OperatingError>,
 }
-fn continuation(node: &Node) -> bool {
+fn continuation(node: &FileProgramNode) -> bool {
     node.schema_valid
         && node.contract.effects == Effects::Pure
         && matches!(node.contract.resources, ResourceProgram::None)

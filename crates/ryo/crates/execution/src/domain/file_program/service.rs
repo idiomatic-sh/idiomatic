@@ -3,7 +3,7 @@
 pub(crate) mod link;
 pub(crate) mod observations;
 
-use super::types::{Node, NodeId, NodeInput, ObservationRequest, RequestGraph};
+use super::types::{FileProgramNode, NodeId, NodeInput, ObservationRequest, RequestGraph};
 
 use ryo_values::domain::plan_parts::types::{Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
@@ -530,7 +530,7 @@ pub(crate) fn compile_prepared_observations(
         derived_sources,
         nodes: nodes
             .into_iter()
-            .map(|node| Node {
+            .map(|node| FileProgramNode {
                 regions: node.regions,
                 needs: node.needs,
                 phase: node.phase,

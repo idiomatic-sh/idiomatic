@@ -6,7 +6,7 @@ use ryo::languages::{self, Position, Tree};
 use super::types::{ImportNote, ImportSpelling, Note, Specifier};
 use crate::domain::names::constants::REQUIRE;
 use crate::domain::names::service::{nodes, text};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -36,13 +36,13 @@ fn string_at<'a>(tree: &'a Tree<'_>, at: Position) -> Option<languages::NameText
 fn import_of(tree: &Tree<'_>, at: Position) -> Option<ImportNote> {
     let holder = match kind(tree, at) {
         Kind::Node(
-            TypeScriptNode::ImportDeclaration
-            | TypeScriptNode::ExportAllDeclaration
-            | TypeScriptNode::ExportNamedDeclaration
-            | TypeScriptNode::ImportExpression,
+            Node::ImportDeclaration
+            | Node::ExportAllDeclaration
+            | Node::ExportNamedDeclaration
+            | Node::ImportExpression,
         ) => at,
-        Kind::Node(TypeScriptNode::TSImportEqualsDeclaration) => nodes(tree, at)
-            .find(|each| kind(tree, *each) == Kind::Node(TypeScriptNode::TSExternalModuleReference))?,
+        Kind::Node(Node::TSImportEqualsDeclaration) => nodes(tree, at)
+            .find(|each| kind(tree, *each) == Kind::Node(Node::TSExternalModuleReference))?,
         _ => return None,
     };
     let specifier = nodes(tree, holder).find_map(|each| string_at(tree, each))?;
@@ -82,20 +82,20 @@ pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
     let enclosing = parent(tree, at);
     let imports = match kind(tree, enclosing) {
         Kind::Node(
-            TypeScriptNode::ImportDeclaration
-            | TypeScriptNode::ExportAllDeclaration
-            | TypeScriptNode::ExportNamedDeclaration
-            | TypeScriptNode::ImportExpression
-            | TypeScriptNode::TSExternalModuleReference
-            | TypeScriptNode::TSImportType,
+            Node::ImportDeclaration
+            | Node::ExportAllDeclaration
+            | Node::ExportNamedDeclaration
+            | Node::ImportExpression
+            | Node::TSExternalModuleReference
+            | Node::TSImportType,
         ) => true,
-        Kind::Node(TypeScriptNode::TSLiteralType) => {
-            kind(tree, parent(tree, enclosing)) == Kind::Node(TypeScriptNode::TSImportType)
+        Kind::Node(Node::TSLiteralType) => {
+            kind(tree, parent(tree, enclosing)) == Kind::Node(Node::TSImportType)
         }
-        Kind::Node(TypeScriptNode::CallExpression) => {
+        Kind::Node(Node::CallExpression) => {
             let mut parts = nodes(tree, enclosing);
             parts.next().is_some_and(|callee| {
-                kind(tree, callee) == Kind::Node(TypeScriptNode::Identifier)
+                kind(tree, callee) == Kind::Node(Node::Identifier)
                     && text(tree, callee).0 == REQUIRE
             }) && parts.next() == Some(at)
         }

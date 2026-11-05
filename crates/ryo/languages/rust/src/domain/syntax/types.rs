@@ -4,7 +4,7 @@
 //! `whitespace`); the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
 /// What a node or a token of a Rust syntax tree is: a node or a token of rust-analyzer's parser, or an extra it lacks. The element table
@@ -12,7 +12,7 @@ use crate::domain::tokens::types::Token;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
-    Node(RustNode),
+    Node(Node),
     /// A token.
     Token(Token),
     /// A kind the standard lacks.

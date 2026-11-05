@@ -4,7 +4,7 @@ use ryo::languages::contract::KindSample;
 use ryo::languages::{KindName, Sample, SampleText, Why};
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::JavaScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::UNREAD_TEXT;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::domain::syntax::types::Kind;
@@ -51,97 +51,97 @@ pub(crate) const fn sample(kind: Kind) -> Sample {
     }
 }
 /// Semantic dispatch kinds have examples; syntax-only `ESTree` kinds are proved by complete adapter trees.
-const fn node_sample(node: JavaScriptNode) -> Sample {
+const fn node_sample(node: Node) -> Sample {
     match node {
-        JavaScriptNode::Program => Sample::Node(SampleText("")),
-        JavaScriptNode::Literal => Sample::Node(SampleText("const a = 1;")),
-        JavaScriptNode::FunctionDeclaration => Sample::Node(SampleText("function f(){return 1;}")),
-        JavaScriptNode::FunctionExpression => Sample::Node(SampleText("const f=function named(){};")),
-        JavaScriptNode::ArrowFunctionExpression => Sample::Node(SampleText("const f=(x)=>x+1;")),
-        JavaScriptNode::NewExpression => Sample::Node(SampleText("new Box(value);")),
-        JavaScriptNode::CallExpression => Sample::Node(SampleText("object.method(value);")),
-        JavaScriptNode::ImportDeclaration => Sample::Node(SampleText(
+        Node::Program => Sample::Node(SampleText("")),
+        Node::Literal => Sample::Node(SampleText("const a = 1;")),
+        Node::FunctionDeclaration => Sample::Node(SampleText("function f(){return 1;}")),
+        Node::FunctionExpression => Sample::Node(SampleText("const f=function named(){};")),
+        Node::ArrowFunctionExpression => Sample::Node(SampleText("const f=(x)=>x+1;")),
+        Node::NewExpression => Sample::Node(SampleText("new Box(value);")),
+        Node::CallExpression => Sample::Node(SampleText("object.method(value);")),
+        Node::ImportDeclaration => Sample::Node(SampleText(
             "import value, {named as local} from \"pkg\"; import * as ns from \"other\";",
         )),
-        JavaScriptNode::Identifier
-        | JavaScriptNode::PrivateIdentifier
-        | JavaScriptNode::ExpressionStatement
-        | JavaScriptNode::BlockStatement
-        | JavaScriptNode::EmptyStatement
-        | JavaScriptNode::DebuggerStatement
-        | JavaScriptNode::WithStatement
-        | JavaScriptNode::ReturnStatement
-        | JavaScriptNode::LabeledStatement
-        | JavaScriptNode::BreakStatement
-        | JavaScriptNode::ContinueStatement
-        | JavaScriptNode::IfStatement
-        | JavaScriptNode::SwitchStatement
-        | JavaScriptNode::SwitchCase
-        | JavaScriptNode::ThrowStatement
-        | JavaScriptNode::TryStatement
-        | JavaScriptNode::CatchClause
-        | JavaScriptNode::WhileStatement
-        | JavaScriptNode::DoWhileStatement
-        | JavaScriptNode::ForStatement
-        | JavaScriptNode::ForInStatement
-        | JavaScriptNode::ForOfStatement
-        | JavaScriptNode::VariableDeclaration
-        | JavaScriptNode::VariableDeclarator
-        | JavaScriptNode::ThisExpression
-        | JavaScriptNode::Super
-        | JavaScriptNode::ArrayExpression
-        | JavaScriptNode::ObjectExpression
-        | JavaScriptNode::Property
-        | JavaScriptNode::SequenceExpression
-        | JavaScriptNode::UnaryExpression
-        | JavaScriptNode::BinaryExpression
-        | JavaScriptNode::AssignmentExpression
-        | JavaScriptNode::UpdateExpression
-        | JavaScriptNode::LogicalExpression
-        | JavaScriptNode::ConditionalExpression
-        | JavaScriptNode::MemberExpression
-        | JavaScriptNode::YieldExpression
-        | JavaScriptNode::AwaitExpression
-        | JavaScriptNode::TemplateLiteral
-        | JavaScriptNode::TaggedTemplateExpression
-        | JavaScriptNode::TemplateElement
-        | JavaScriptNode::SpreadElement
-        | JavaScriptNode::RestElement
-        | JavaScriptNode::AssignmentPattern
-        | JavaScriptNode::ArrayPattern
-        | JavaScriptNode::ObjectPattern
-        | JavaScriptNode::ClassDeclaration
-        | JavaScriptNode::ClassExpression
-        | JavaScriptNode::ClassBody
-        | JavaScriptNode::MethodDefinition
-        | JavaScriptNode::PropertyDefinition
-        | JavaScriptNode::StaticBlock
-        | JavaScriptNode::MetaProperty
-        | JavaScriptNode::ImportSpecifier
-        | JavaScriptNode::ImportDefaultSpecifier
-        | JavaScriptNode::ImportNamespaceSpecifier
-        | JavaScriptNode::ImportExpression
-        | JavaScriptNode::ImportAttribute
-        | JavaScriptNode::ExportNamedDeclaration
-        | JavaScriptNode::ExportDefaultDeclaration
-        | JavaScriptNode::ExportAllDeclaration
-        | JavaScriptNode::ExportSpecifier
-        | JavaScriptNode::ChainExpression
-        | JavaScriptNode::JSXElement
-        | JavaScriptNode::JSXOpeningElement
-        | JavaScriptNode::JSXClosingElement
-        | JavaScriptNode::JSXFragment
-        | JavaScriptNode::JSXOpeningFragment
-        | JavaScriptNode::JSXClosingFragment
-        | JavaScriptNode::JSXNamespacedName
-        | JavaScriptNode::JSXMemberExpression
-        | JavaScriptNode::JSXExpressionContainer
-        | JavaScriptNode::JSXEmptyExpression
-        | JavaScriptNode::JSXAttribute
-        | JavaScriptNode::JSXSpreadAttribute
-        | JavaScriptNode::JSXIdentifier
-        | JavaScriptNode::JSXSpreadChild
-        | JavaScriptNode::JSXText => Sample::Unread(Why(
+        Node::Identifier
+        | Node::PrivateIdentifier
+        | Node::ExpressionStatement
+        | Node::BlockStatement
+        | Node::EmptyStatement
+        | Node::DebuggerStatement
+        | Node::WithStatement
+        | Node::ReturnStatement
+        | Node::LabeledStatement
+        | Node::BreakStatement
+        | Node::ContinueStatement
+        | Node::IfStatement
+        | Node::SwitchStatement
+        | Node::SwitchCase
+        | Node::ThrowStatement
+        | Node::TryStatement
+        | Node::CatchClause
+        | Node::WhileStatement
+        | Node::DoWhileStatement
+        | Node::ForStatement
+        | Node::ForInStatement
+        | Node::ForOfStatement
+        | Node::VariableDeclaration
+        | Node::VariableDeclarator
+        | Node::ThisExpression
+        | Node::Super
+        | Node::ArrayExpression
+        | Node::ObjectExpression
+        | Node::Property
+        | Node::SequenceExpression
+        | Node::UnaryExpression
+        | Node::BinaryExpression
+        | Node::AssignmentExpression
+        | Node::UpdateExpression
+        | Node::LogicalExpression
+        | Node::ConditionalExpression
+        | Node::MemberExpression
+        | Node::YieldExpression
+        | Node::AwaitExpression
+        | Node::TemplateLiteral
+        | Node::TaggedTemplateExpression
+        | Node::TemplateElement
+        | Node::SpreadElement
+        | Node::RestElement
+        | Node::AssignmentPattern
+        | Node::ArrayPattern
+        | Node::ObjectPattern
+        | Node::ClassDeclaration
+        | Node::ClassExpression
+        | Node::ClassBody
+        | Node::MethodDefinition
+        | Node::PropertyDefinition
+        | Node::StaticBlock
+        | Node::MetaProperty
+        | Node::ImportSpecifier
+        | Node::ImportDefaultSpecifier
+        | Node::ImportNamespaceSpecifier
+        | Node::ImportExpression
+        | Node::ImportAttribute
+        | Node::ExportNamedDeclaration
+        | Node::ExportDefaultDeclaration
+        | Node::ExportAllDeclaration
+        | Node::ExportSpecifier
+        | Node::ChainExpression
+        | Node::JSXElement
+        | Node::JSXOpeningElement
+        | Node::JSXClosingElement
+        | Node::JSXFragment
+        | Node::JSXOpeningFragment
+        | Node::JSXClosingFragment
+        | Node::JSXNamespacedName
+        | Node::JSXMemberExpression
+        | Node::JSXExpressionContainer
+        | Node::JSXEmptyExpression
+        | Node::JSXAttribute
+        | Node::JSXSpreadAttribute
+        | Node::JSXIdentifier
+        | Node::JSXSpreadChild
+        | Node::JSXText => Sample::Unread(Why(
             "An ESTree structure retained by syntax_tree and syntax_child; semantic readers dispatch on its enclosing construct.",
         )),
     }

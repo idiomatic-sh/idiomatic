@@ -2,7 +2,7 @@
 
 use super::service::{import_token, owner, reference, url_token};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -24,19 +24,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "@import \"a.css\"; @import url(b.css); @import url(\"c.css\");",
         expect: Expect::Value(&[
             (
-                Kind::Node(CssNode::AtRule),
+                Kind::Node(Node::AtRule),
                 Kind::Token(Token::AtKeyword),
-                Kind::Node(CssNode::Stylesheet),
+                Kind::Node(Node::Stylesheet),
             ),
             (
-                Kind::Node(CssNode::AtRule),
+                Kind::Node(Node::AtRule),
                 Kind::Token(Token::AtKeyword),
-                Kind::Node(CssNode::Stylesheet),
+                Kind::Node(Node::Stylesheet),
             ),
             (
-                Kind::Node(CssNode::AtRule),
+                Kind::Node(Node::AtRule),
                 Kind::Token(Token::AtKeyword),
-                Kind::Node(CssNode::Stylesheet),
+                Kind::Node(Node::Stylesheet),
             ),
         ]),
     },
@@ -48,12 +48,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             (
                 Kind::Token(Token::Url),
                 Kind::Token(Token::Url),
-                Kind::Node(CssNode::Declaration),
+                Kind::Node(Node::Declaration),
             ),
             (
-                Kind::Node(CssNode::Function),
+                Kind::Node(Node::Function),
                 Kind::Token(Token::Function),
-                Kind::Node(CssNode::Declaration),
+                Kind::Node(Node::Declaration),
             ),
         ]),
     },
@@ -62,9 +62,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || "@namespace url(a); @import url(b);",
         expect: Expect::Value(&[(
-            Kind::Node(CssNode::AtRule),
+            Kind::Node(Node::AtRule),
             Kind::Token(Token::AtKeyword),
-            Kind::Node(CssNode::Stylesheet),
+            Kind::Node(Node::Stylesheet),
         )]),
     },
 ];

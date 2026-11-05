@@ -7,10 +7,10 @@ use ryo::languages::{self, Tree};
 use super::constants::{DOC_OPEN, EMPTY_BLOCK, RECEIVER};
 use super::types::{Kind, Leaf};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
-ryo::languages::kinds!(pub Kind { Node(TypeScriptNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -90,8 +90,8 @@ pub(crate) fn documentation(tree: &Tree<'_>, at: languages::Position) -> languag
 #[must_use]
 pub(crate) fn parameter_kind(tree: &Tree<'_>, at: languages::Position) -> languages::ParameterKind {
     match kind(tree, at) {
-        Kind::Node(TypeScriptNode::RestElement) => languages::ParameterKind::VariadicPositional,
-        Kind::Node(TypeScriptNode::Identifier)
+        Kind::Node(Node::RestElement) => languages::ParameterKind::VariadicPositional,
+        Kind::Node(Node::Identifier)
             if written(tree, at)
                 .0
                 .strip_prefix(RECEIVER)

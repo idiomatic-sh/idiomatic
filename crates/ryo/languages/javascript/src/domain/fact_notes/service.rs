@@ -4,7 +4,7 @@
 use ryo::languages::{self, Position, Tree};
 
 use super::types::{ImportNote, Note, Specifier, Spelling};
-use crate::domain::nodes::types::JavaScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::REQUIRE;
 use crate::domain::syntax::service::{kind, nodes, parent, spelling};
 use crate::domain::syntax::types::Kind;
@@ -30,7 +30,7 @@ fn string_at<'a>(tree: &'a Tree<'_>, at: Position) -> Option<languages::NameText
 fn required(tree: &Tree<'_>, at: Position) -> Option<Position> {
     let mut parts = nodes(tree, at);
     let callee = parts.next()?;
-    (kind(tree, callee) == Kind::Node(JavaScriptNode::Identifier) && spelling(tree, callee).0 == REQUIRE)
+    (kind(tree, callee) == Kind::Node(Node::Identifier) && spelling(tree, callee).0 == REQUIRE)
         .then(|| parts.next())
         .flatten()
 }
@@ -45,12 +45,12 @@ pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
     let enclosing = parent(tree, at);
     let imports = match kind(tree, enclosing) {
         Kind::Node(
-            JavaScriptNode::ImportDeclaration
-            | JavaScriptNode::ExportAllDeclaration
-            | JavaScriptNode::ExportNamedDeclaration
-            | JavaScriptNode::ImportExpression,
+            Node::ImportDeclaration
+            | Node::ExportAllDeclaration
+            | Node::ExportNamedDeclaration
+            | Node::ImportExpression,
         ) => true,
-        Kind::Node(JavaScriptNode::CallExpression) => required(tree, enclosing) == Some(at),
+        Kind::Node(Node::CallExpression) => required(tree, enclosing) == Some(at),
         _ => false,
     };
     if imports {
@@ -69,12 +69,12 @@ pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
 fn import_of(tree: &Tree<'_>, at: Position) -> Option<ImportNote> {
     let specifier = match kind(tree, at) {
         Kind::Node(
-            JavaScriptNode::ImportDeclaration
-            | JavaScriptNode::ExportAllDeclaration
-            | JavaScriptNode::ExportNamedDeclaration
-            | JavaScriptNode::ImportExpression,
+            Node::ImportDeclaration
+            | Node::ExportAllDeclaration
+            | Node::ExportNamedDeclaration
+            | Node::ImportExpression,
         ) => nodes(tree, at).find_map(|each| string_at(tree, each))?,
-        Kind::Node(JavaScriptNode::CallExpression) => string_at(tree, required(tree, at)?)?,
+        Kind::Node(Node::CallExpression) => string_at(tree, required(tree, at)?)?,
         _ => return None,
     };
     let (start, end) = (

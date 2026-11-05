@@ -10,10 +10,10 @@ use super::constants::{
 };
 use super::types::{Containment, Gap, Kind, Leaf, Offspring, Rootness, Typeness};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
-ryo::languages::kinds!(pub(crate) Kind { Node(RustNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Other));
+ryo::languages::kinds!(pub(crate) Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Other));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -157,7 +157,7 @@ pub(crate) fn first_node(tree: &Tree<'_>, of: languages::Position) -> Option<lan
 #[must_use]
 pub(crate) fn first_body(tree: &Tree<'_>, of: languages::Position) -> Option<languages::Position> {
     languages::children(tree.elements, of).find(|each| {
-        (is_token(tree, *each) == Leaf::Node) && kind(tree, *each) != Kind::Node(RustNode::Attr)
+        (is_token(tree, *each) == Leaf::Node) && kind(tree, *each) != Kind::Node(Node::Attr)
     })
 }
 
@@ -324,7 +324,7 @@ pub(crate) fn token_text(tree: &Tree<'_>, at: languages::Position) -> languages:
 /// The name a `NAME` child of the element at `at` holds: its first token.
 #[must_use]
 pub(crate) fn named(tree: &Tree<'_>, at: languages::Position) -> Option<languages::Symbol> {
-    languages::first_token_text(tree.elements, child(tree, at, Kind::Node(RustNode::Name))?)
+    languages::first_token_text(tree.elements, child(tree, at, Kind::Node(Node::Name))?)
 }
 
 /// The name `text` as a name made after the file was read.
@@ -371,21 +371,21 @@ pub(crate) fn is_type(tree: &Tree<'_>, at: languages::Position) -> Typeness {
     if matches!(
         kind(tree, at),
         Kind::Node(
-            RustNode::ArrayType
-                | RustNode::DynTraitType
-                | RustNode::FnPtrType
-                | RustNode::ForType
-                | RustNode::ImplTraitType
-                | RustNode::InferType
-                | RustNode::MacroType
-                | RustNode::NeverType
-                | RustNode::ParenType
-                | RustNode::PathType
-                | RustNode::PatternType
-                | RustNode::PtrType
-                | RustNode::RefType
-                | RustNode::SliceType
-                | RustNode::TupleType
+            Node::ArrayType
+                | Node::DynTraitType
+                | Node::FnPtrType
+                | Node::ForType
+                | Node::ImplTraitType
+                | Node::InferType
+                | Node::MacroType
+                | Node::NeverType
+                | Node::ParenType
+                | Node::PathType
+                | Node::PatternType
+                | Node::PtrType
+                | Node::RefType
+                | Node::SliceType
+                | Node::TupleType
         )
     ) {
         Typeness::Type

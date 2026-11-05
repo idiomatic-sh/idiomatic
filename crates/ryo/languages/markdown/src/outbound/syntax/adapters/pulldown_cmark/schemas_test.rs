@@ -6,7 +6,7 @@ use super::super::types::Within;
 use super::{depth_of, event_kind, tag_kind};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_bits, kind_of};
 use crate::domain::syntax::types::Kind;
 use pulldown_cmark::{
@@ -68,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 attrs: Vec::new(),
             })
         },
-        expect: Expect::Value(Seen::Kind(Kind::Node(MarkdownNode::Heading))),
+        expect: Expect::Value(Seen::Kind(Kind::Node(Node::Heading))),
     },
     Case {
         name: CaseName("a_heading_carries_its_depth_as_text"),
@@ -80,25 +80,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_quote_with_an_alert_is_the_alert"),
         word: Word::Succeeds,
         input: || Given::One(|| Tag::BlockQuote(Some(BlockQuoteKind::Warning))),
-        expect: Expect::Value(Seen::Kind(Kind::Node(MarkdownNode::Blockquote))),
+        expect: Expect::Value(Seen::Kind(Kind::Node(Node::Blockquote))),
     },
     Case {
         name: CaseName("a_quote_without_one_is_a_quote"),
         word: Word::Succeeds,
         input: || Given::One(|| Tag::BlockQuote(None)),
-        expect: Expect::Value(Seen::Kind(Kind::Node(MarkdownNode::Blockquote))),
+        expect: Expect::Value(Seen::Kind(Kind::Node(Node::Blockquote))),
     },
     Case {
         name: CaseName("a_fenced_block_is_one_whatever_its_info"),
         word: Word::Succeeds,
         input: || Given::One(|| Tag::CodeBlock(CodeBlockKind::Fenced(CowStr::Borrowed("rust")))),
-        expect: Expect::Value(Seen::Kind(Kind::Node(MarkdownNode::Code))),
+        expect: Expect::Value(Seen::Kind(Kind::Node(Node::Code))),
     },
     Case {
         name: CaseName("a_numbered_list_is_ordered"),
         word: Word::Succeeds,
         input: || Given::One(|| Tag::List(Some(1))),
-        expect: Expect::Value(Seen::Kind(Kind::Node(MarkdownNode::List))),
+        expect: Expect::Value(Seen::Kind(Kind::Node(Node::List))),
     },
     Case {
         name: CaseName("front_matter_between_pluses_is_toml"),

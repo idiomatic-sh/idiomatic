@@ -5,7 +5,7 @@ use super::adapter::SyntaxPulldownCmarkAdapter;
 use super::fixtures::walk::{Shape, differences, dumped, shape};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_name, kind_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -207,35 +207,35 @@ fn mdast_name(kind: Kind) -> Option<String> {
 fn is_phrasing(elements: &Elements, at: Position) -> bool {
     match kind_of(languages::kind_at(elements, at)) {
         Kind::Node(
-            MarkdownNode::Text
-            | MarkdownNode::Emphasis
-            | MarkdownNode::Strong
-            | MarkdownNode::Delete
-            | MarkdownNode::Link
-            | MarkdownNode::LinkReference
-            | MarkdownNode::Image
-            | MarkdownNode::ImageReference
-            | MarkdownNode::InlineCode
-            | MarkdownNode::Break
-            | MarkdownNode::FootnoteReference,
+            Node::Text
+            | Node::Emphasis
+            | Node::Strong
+            | Node::Delete
+            | Node::Link
+            | Node::LinkReference
+            | Node::Image
+            | Node::ImageReference
+            | Node::InlineCode
+            | Node::Break
+            | Node::FootnoteReference,
         )
         | Kind::Extra(Extra::InlineMath)
         | Kind::Token(Token::LineEnding) => true,
-        Kind::Node(MarkdownNode::Html) => languages::flags_at(elements, at).0 & TOKEN.0 != 0,
+        Kind::Node(Node::Html) => languages::flags_at(elements, at).0 & TOKEN.0 != 0,
         Kind::Node(
-            MarkdownNode::Root
-            | MarkdownNode::Paragraph
-            | MarkdownNode::Heading
-            | MarkdownNode::Blockquote
-            | MarkdownNode::Code
-            | MarkdownNode::List
-            | MarkdownNode::ListItem
-            | MarkdownNode::FootnoteDefinition
-            | MarkdownNode::Table
-            | MarkdownNode::TableRow
-            | MarkdownNode::TableCell
-            | MarkdownNode::Definition
-            | MarkdownNode::ThematicBreak,
+            Node::Root
+            | Node::Paragraph
+            | Node::Heading
+            | Node::Blockquote
+            | Node::Code
+            | Node::List
+            | Node::ListItem
+            | Node::FootnoteDefinition
+            | Node::Table
+            | Node::TableRow
+            | Node::TableCell
+            | Node::Definition
+            | Node::ThematicBreak,
         )
         | Kind::Token(_)
         | Kind::Extra(_) => false,
@@ -253,12 +253,12 @@ fn project(elements: &Elements, at: Position, out: &mut Vec<Shape>) {
     // mdast keeps the alternative text of an image as a field, `alt`, and the text of front matter as `value`, not as nodes under them.
     if matches!(
         kind,
-        Kind::Node(MarkdownNode::Image | MarkdownNode::ImageReference) | Kind::Extra(Extra::Yaml | Extra::Toml)
+        Kind::Node(Node::Image | Node::ImageReference) | Kind::Extra(Extra::Yaml | Extra::Toml)
     ) {
         out.push(shape(&name, children));
         return;
     }
-    let wraps = matches!(kind, Kind::Node(MarkdownNode::ListItem | MarkdownNode::FootnoteDefinition));
+    let wraps = matches!(kind, Kind::Node(Node::ListItem | Node::FootnoteDefinition));
     let mut lines: Vec<Shape> = Vec::new();
     for each in held(elements, at) {
         let mut one = Vec::new();

@@ -3,7 +3,7 @@
 
 use crate::domain::model::service::owner;
 use crate::domain::model::types::Sections;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_bits, name_of, named_by};
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -14,10 +14,10 @@ pub(crate) struct ReferenceItem;
 ryo::reads! {
     ReferenceItem => languages::Reference, model(Sections) |tree, model, at, symbols| {
         kinds: [
-            Kind::Node(MarkdownNode::Link),
-            Kind::Node(MarkdownNode::LinkReference),
-            Kind::Node(MarkdownNode::Image),
-            Kind::Node(MarkdownNode::ImageReference),
+            Kind::Node(Node::Link),
+            Kind::Node(Node::LinkReference),
+            Kind::Node(Node::Image),
+            Kind::Node(Node::ImageReference),
         ] as kind_bits,
         given destination = named_by(tree, at)?;
         row {

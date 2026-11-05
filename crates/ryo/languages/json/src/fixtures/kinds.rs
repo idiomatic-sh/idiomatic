@@ -4,7 +4,7 @@ use ryo::languages::contract::KindSample;
 use ryo::languages::{KindName, Sample, SampleText, Why};
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{PUNCTUATION, THROUGH_PARTS, TRIVIA, UNREAD_TEXT};
 use crate::domain::syntax::service::{kind_bits, kinds};
 use crate::domain::syntax::types::Kind;
@@ -27,10 +27,10 @@ pub(super) fn shown() -> Vec<KindSample> {
 #[must_use]
 pub(crate) const fn sample(kind: Kind) -> Sample {
     match kind {
-        Kind::Node(JsonNode::JsonText) => Sample::Node(SampleText("")),
-        Kind::Node(JsonNode::Object) => Sample::Node(SampleText("{}")),
-        Kind::Node(JsonNode::Array) => Sample::Node(SampleText("[]")),
-        Kind::Node(JsonNode::Member) => Sample::Unread(Why(THROUGH_PARTS)),
+        Kind::Node(Node::JsonText) => Sample::Node(SampleText("")),
+        Kind::Node(Node::Object) => Sample::Node(SampleText("{}")),
+        Kind::Node(Node::Array) => Sample::Node(SampleText("[]")),
+        Kind::Node(Node::Member) => Sample::Unread(Why(THROUGH_PARTS)),
         Kind::Token(Token::String) => Sample::Token(SampleText("\"a\"")),
         Kind::Token(Token::Number) => Sample::Token(SampleText("1")),
         Kind::Token(Token::True) => Sample::Token(SampleText("true")),

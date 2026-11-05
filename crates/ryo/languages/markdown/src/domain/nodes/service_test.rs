@@ -1,7 +1,7 @@
 //! The `nodes` service's cases.
 
 use super::service::standard;
-use super::types::MarkdownNode;
+use super::types::Node;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Kind;
@@ -17,7 +17,7 @@ type Failure = ();
 #[derive(Clone, Copy, Debug)]
 enum Question {
     /// The name of a node, as the standard names it.
-    Name(MarkdownNode),
+    Name(Node),
     /// How many nodes there are.
     Count,
     /// The standard the names come from.
@@ -29,13 +29,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_node_is_named_as_the_type_of_the_standard"),
         word: Word::Succeeds,
-        input: || Question::Name(MarkdownNode::ListItem),
+        input: || Question::Name(Node::ListItem),
         expect: Expect::Value("list-item"),
     },
     Case {
         name: CaseName("the_node_of_the_whole_file_is_root"),
         word: Word::Succeeds,
-        input: || Question::Name(MarkdownNode::Root),
+        input: || Question::Name(Node::Root),
         expect: Expect::Value("root"),
     },
     Case {
@@ -55,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(question: Input) -> Value {
     match question {
         Question::Name(each) => kind_name(Kind::Node(each)).0,
-        Question::Count => Box::leak(MarkdownNode::COUNT.to_string().into_boxed_str()),
+        Question::Count => Box::leak(Node::COUNT.to_string().into_boxed_str()),
         Question::Standard => standard().0,
     }
 }

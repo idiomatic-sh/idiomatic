@@ -3,7 +3,7 @@
 
 use super::types::Declaring;
 use crate::domain::declarations::service::{imported, named_kind};
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{child, end, kind, parent, start};
 use crate::domain::syntax::types::Kind;
 use ryo::languages::{self, Tree};
@@ -16,7 +16,7 @@ pub(crate) fn visible<'a>(
 ) -> impl Iterator<Item = languages::Position> + 'a {
     let holder = parent(tree, at);
     let element = kind(tree, holder);
-    let used = element == Kind::Node(RustNode::Use);
+    let used = element == Kind::Node(Node::Use);
     let until = end(tree, holder);
     let leaves = languages::positions(tree.elements)
         .skip(if used {
@@ -28,9 +28,9 @@ pub(crate) fn visible<'a>(
         })
         .take_while(move |each| start(tree, *each) < until)
         .filter(move |each| {
-            kind(tree, *each) == Kind::Node(RustNode::UseTree) && imported(tree, *each).is_some()
+            kind(tree, *each) == Kind::Node(Node::UseTree) && imported(tree, *each).is_some()
         });
-    let own = (element != Kind::Node(RustNode::Use) && declares(tree, holder) == Declaring::Declares)
+    let own = (element != Kind::Node(Node::Use) && declares(tree, holder) == Declaring::Declares)
         .then_some(holder);
     own.into_iter().chain(leaves)
 }
@@ -38,14 +38,14 @@ pub(crate) fn visible<'a>(
 /// Whether the node at `at` is an item, a field or a variant that `defines` has a row for, known by its own node.
 fn declares(tree: &Tree<'_>, at: languages::Position) -> Declaring {
     let element = kind(tree, at);
-    let named = named_kind(element).is_some() || element == Kind::Node(RustNode::Fn);
+    let named = named_kind(element).is_some() || element == Kind::Node(Node::Fn);
     let declares = if named {
-        child(tree, at, Kind::Node(RustNode::Name)).is_some()
+        child(tree, at, Kind::Node(Node::Name)).is_some()
     } else {
-        element == Kind::Node(RustNode::TupleField)
-            || (element == Kind::Node(RustNode::ExternCrate)
-                && (child(tree, at, Kind::Node(RustNode::Rename)).is_some()
-                    || child(tree, at, Kind::Node(RustNode::NameRef)).is_some()))
+        element == Kind::Node(Node::TupleField)
+            || (element == Kind::Node(Node::ExternCrate)
+                && (child(tree, at, Kind::Node(Node::Rename)).is_some()
+                    || child(tree, at, Kind::Node(Node::NameRef)).is_some()))
     };
     if declares {
         Declaring::Declares

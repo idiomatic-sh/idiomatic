@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::service::{fields, role_of};
 use super::types::Field;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -65,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "x;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ExpressionStatement),
+                Kind::Node(Node::ExpressionStatement),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -79,8 +79,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a ? b : c;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ConditionalExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ConditionalExpression),
+                Kind::Node(Node::Identifier),
                 2,
             )
         },
@@ -93,8 +93,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "-x;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::UnaryExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::UnaryExpression),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -107,8 +107,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "f(a);",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::CallExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::CallExpression),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -121,8 +121,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"import a from "a" with { type: "json" };"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ImportDeclaration),
-                Kind::Node(TypeScriptNode::ImportAttribute),
+                Kind::Node(Node::ImportDeclaration),
+                Kind::Node(Node::ImportAttribute),
                 0,
             )
         },
@@ -135,8 +135,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "try {} finally {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TryStatement),
-                Kind::Node(TypeScriptNode::BlockStatement),
+                Kind::Node(Node::TryStatement),
+                Kind::Node(Node::BlockStatement),
                 0,
             )
         },
@@ -149,8 +149,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "while (a) {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::WhileStatement),
-                Kind::Node(TypeScriptNode::BlockStatement),
+                Kind::Node(Node::WhileStatement),
+                Kind::Node(Node::BlockStatement),
                 0,
             )
         },
@@ -163,8 +163,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "f(a);",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::CallExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::CallExpression),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -177,8 +177,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "switch (a) { case 1: }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::SwitchStatement),
-                Kind::Node(TypeScriptNode::SwitchCase),
+                Kind::Node(Node::SwitchStatement),
+                Kind::Node(Node::SwitchCase),
                 0,
             )
         },
@@ -191,8 +191,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T = A extends B ? C : D;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSConditionalType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSConditionalType),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -205,8 +205,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "<a><b /></a>;",
                 Dialect::Jsx,
-                Kind::Node(TypeScriptNode::JSXElement),
-                Kind::Node(TypeScriptNode::JSXElement),
+                Kind::Node(Node::JSXElement),
+                Kind::Node(Node::JSXElement),
                 0,
             )
         },
@@ -219,8 +219,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "<a></a>;",
                 Dialect::Jsx,
-                Kind::Node(TypeScriptNode::JSXElement),
-                Kind::Node(TypeScriptNode::JSXClosingElement),
+                Kind::Node(Node::JSXElement),
+                Kind::Node(Node::JSXClosingElement),
                 0,
             )
         },
@@ -233,8 +233,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "<></>;",
                 Dialect::Jsx,
-                Kind::Node(TypeScriptNode::JSXFragment),
-                Kind::Node(TypeScriptNode::JSXClosingFragment),
+                Kind::Node(Node::JSXFragment),
+                Kind::Node(Node::JSXClosingFragment),
                 0,
             )
         },
@@ -247,8 +247,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "if (a) b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::IfStatement),
-                Kind::Node(TypeScriptNode::ExpressionStatement),
+                Kind::Node(Node::IfStatement),
+                Kind::Node(Node::ExpressionStatement),
                 0,
             )
         },
@@ -261,8 +261,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T<A extends B> = A;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSTypeParameter),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSTypeParameter),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -275,8 +275,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "export const a = 1;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ExportNamedDeclaration),
-                Kind::Node(TypeScriptNode::VariableDeclaration),
+                Kind::Node(Node::ExportNamedDeclaration),
+                Kind::Node(Node::VariableDeclaration),
                 0,
             )
         },
@@ -289,8 +289,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a = 1;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::VariableDeclaration),
-                Kind::Node(TypeScriptNode::VariableDeclarator),
+                Kind::Node(Node::VariableDeclaration),
+                Kind::Node(Node::VariableDeclarator),
                 0,
             )
         },
@@ -303,8 +303,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "@d class A {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ClassDeclaration),
-                Kind::Node(TypeScriptNode::Decorator),
+                Kind::Node(Node::ClassDeclaration),
+                Kind::Node(Node::Decorator),
                 0,
             )
         },
@@ -317,8 +317,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T<A = B> = A;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSTypeParameter),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSTypeParameter),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -331,8 +331,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "switch (a) {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::SwitchStatement),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::SwitchStatement),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -345,8 +345,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: B[];",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSArrayType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSArrayType),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -359,8 +359,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: [B];",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSTupleType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSTupleType),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -373,8 +373,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "[a];",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ArrayExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ArrayExpression),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -387,8 +387,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "export { a as b };",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ExportSpecifier),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ExportSpecifier),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -401,8 +401,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: typeof b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSTypeQuery),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TSTypeQuery),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -415,8 +415,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ExpressionStatement),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ExpressionStatement),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -429,8 +429,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a, b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::SequenceExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::SequenceExpression),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -443,8 +443,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "interface A extends B {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSInterfaceDeclaration),
-                Kind::Node(TypeScriptNode::TSInterfaceHeritage),
+                Kind::Node(Node::TSInterfaceDeclaration),
+                Kind::Node(Node::TSInterfaceHeritage),
                 0,
             )
         },
@@ -457,8 +457,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T = A extends B ? C : D;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSConditionalType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSConditionalType),
+                Kind::Node(Node::TSTypeReference),
                 1,
             )
         },
@@ -471,8 +471,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T = A extends B ? C : D;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSConditionalType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSConditionalType),
+                Kind::Node(Node::TSTypeReference),
                 3,
             )
         },
@@ -485,8 +485,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "try {} finally {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TryStatement),
-                Kind::Node(TypeScriptNode::BlockStatement),
+                Kind::Node(Node::TryStatement),
+                Kind::Node(Node::BlockStatement),
                 1,
             )
         },
@@ -499,8 +499,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "try {} catch {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TryStatement),
-                Kind::Node(TypeScriptNode::CatchClause),
+                Kind::Node(Node::TryStatement),
+                Kind::Node(Node::CatchClause),
                 0,
             )
         },
@@ -513,8 +513,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "function f() {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::FunctionDeclaration),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::FunctionDeclaration),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -527,8 +527,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "class A implements B {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ClassDeclaration),
-                Kind::Node(TypeScriptNode::TSClassImplements),
+                Kind::Node(Node::ClassDeclaration),
+                Kind::Node(Node::TSClassImplements),
                 0,
             )
         },
@@ -541,8 +541,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"import { a as b } from "m";"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ImportSpecifier),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ImportSpecifier),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -555,8 +555,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: B[C];",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSIndexedAccessType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSIndexedAccessType),
+                Kind::Node(Node::TSTypeReference),
                 1,
             )
         },
@@ -569,8 +569,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a = 1;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::VariableDeclarator),
-                Kind::Node(TypeScriptNode::Literal),
+                Kind::Node(Node::VariableDeclarator),
+                Kind::Node(Node::Literal),
                 0,
             )
         },
@@ -583,8 +583,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "enum E { A = 1 }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSEnumMember),
-                Kind::Node(TypeScriptNode::Literal),
+                Kind::Node(Node::TSEnumMember),
+                Kind::Node(Node::Literal),
                 0,
             )
         },
@@ -597,8 +597,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "({ a: 1 });",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::Property),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::Property),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -611,8 +611,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a: for (;;) break a;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::BreakStatement),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::BreakStatement),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -625,8 +625,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a + b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::BinaryExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::BinaryExpression),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -639,8 +639,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: 1;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSLiteralType),
-                Kind::Node(TypeScriptNode::Literal),
+                Kind::Node(Node::TSLiteralType),
+                Kind::Node(Node::Literal),
                 0,
             )
         },
@@ -653,8 +653,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"import a from "m";"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ImportDefaultSpecifier),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ImportDefaultSpecifier),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -667,8 +667,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "enum E { A }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSEnumBody),
-                Kind::Node(TypeScriptNode::TSEnumMember),
+                Kind::Node(Node::TSEnumBody),
+                Kind::Node(Node::TSEnumMember),
                 0,
             )
         },
@@ -681,8 +681,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "import.meta;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::MetaProperty),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::MetaProperty),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -695,8 +695,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "function f() { new.target; }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::MetaProperty),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::MetaProperty),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -709,8 +709,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"import a = require("m");"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSImportEqualsDeclaration),
-                Kind::Node(TypeScriptNode::TSExternalModuleReference),
+                Kind::Node(Node::TSImportEqualsDeclaration),
+                Kind::Node(Node::TSExternalModuleReference),
                 0,
             )
         },
@@ -723,8 +723,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T<A> = A;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSTypeParameter),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TSTypeParameter),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -737,8 +737,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T = { [K in A as B]: C };",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSMappedType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSMappedType),
+                Kind::Node(Node::TSTypeReference),
                 1,
             )
         },
@@ -751,8 +751,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "<a:b />;",
                 Dialect::Jsx,
-                Kind::Node(TypeScriptNode::JSXNamespacedName),
-                Kind::Node(TypeScriptNode::JSXIdentifier),
+                Kind::Node(Node::JSXNamespacedName),
+                Kind::Node(Node::JSXIdentifier),
                 0,
             )
         },
@@ -765,8 +765,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a.b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::MemberExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::MemberExpression),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -779,8 +779,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: B[C];",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSIndexedAccessType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSIndexedAccessType),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -793,8 +793,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "<a></a>;",
                 Dialect::Jsx,
-                Kind::Node(TypeScriptNode::JSXElement),
-                Kind::Node(TypeScriptNode::JSXOpeningElement),
+                Kind::Node(Node::JSXElement),
+                Kind::Node(Node::JSXOpeningElement),
                 0,
             )
         },
@@ -807,8 +807,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "<></>;",
                 Dialect::Jsx,
-                Kind::Node(TypeScriptNode::JSXFragment),
-                Kind::Node(TypeScriptNode::JSXOpeningFragment),
+                Kind::Node(Node::JSXFragment),
+                Kind::Node(Node::JSXOpeningFragment),
                 0,
             )
         },
@@ -821,7 +821,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a + b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::BinaryExpression),
+                Kind::Node(Node::BinaryExpression),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -835,8 +835,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"import("m", { with: {} });"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ImportExpression),
-                Kind::Node(TypeScriptNode::ObjectExpression),
+                Kind::Node(Node::ImportExpression),
+                Kind::Node(Node::ObjectExpression),
                 0,
             )
         },
@@ -849,8 +849,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "try {} catch (e) {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::CatchClause),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::CatchClause),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -863,8 +863,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "class A { constructor(private a) {} }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSParameterProperty),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TSParameterProperty),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -877,8 +877,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "function f(a): a is B {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSTypePredicate),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TSTypePredicate),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -891,8 +891,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "interface A { [k: string]: B }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSIndexSignature),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TSIndexSignature),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -905,8 +905,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "function f(a) {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::FunctionDeclaration),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::FunctionDeclaration),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -919,8 +919,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "({ a });",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ObjectExpression),
-                Kind::Node(TypeScriptNode::Property),
+                Kind::Node(Node::ObjectExpression),
+                Kind::Node(Node::Property),
                 0,
             )
         },
@@ -933,8 +933,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a.b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::MemberExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::MemberExpression),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -947,8 +947,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"let a: import("m").B;"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSImportType),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TSImportType),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -961,8 +961,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "f`a`;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TaggedTemplateExpression),
-                Kind::Node(TypeScriptNode::TemplateLiteral),
+                Kind::Node(Node::TaggedTemplateExpression),
+                Kind::Node(Node::TemplateLiteral),
                 0,
             )
         },
@@ -975,8 +975,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "`a`;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TemplateLiteral),
-                Kind::Node(TypeScriptNode::TemplateElement),
+                Kind::Node(Node::TemplateLiteral),
+                Kind::Node(Node::TemplateElement),
                 0,
             )
         },
@@ -989,8 +989,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "function f(): A {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::FunctionDeclaration),
-                Kind::Node(TypeScriptNode::TSTypeAnnotation),
+                Kind::Node(Node::FunctionDeclaration),
+                Kind::Node(Node::TSTypeAnnotation),
                 0,
             )
         },
@@ -1003,8 +1003,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a + b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::BinaryExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::BinaryExpression),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -1017,8 +1017,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"import a from "m";"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ImportDeclaration),
-                Kind::Node(TypeScriptNode::Literal),
+                Kind::Node(Node::ImportDeclaration),
+                Kind::Node(Node::Literal),
                 0,
             )
         },
@@ -1031,8 +1031,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 r#"import a from "m";"#,
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ImportDeclaration),
-                Kind::Node(TypeScriptNode::ImportDefaultSpecifier),
+                Kind::Node(Node::ImportDeclaration),
+                Kind::Node(Node::ImportDefaultSpecifier),
                 0,
             )
         },
@@ -1045,8 +1045,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "class A extends B {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ClassDeclaration),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ClassDeclaration),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -1059,8 +1059,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "class A extends B<C> {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ClassDeclaration),
-                Kind::Node(TypeScriptNode::TSTypeParameterInstantiation),
+                Kind::Node(Node::ClassDeclaration),
+                Kind::Node(Node::TSTypeParameterInstantiation),
                 0,
             )
         },
@@ -1073,8 +1073,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "f`a`;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TaggedTemplateExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TaggedTemplateExpression),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1087,8 +1087,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "for (; a;) {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ForStatement),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ForStatement),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1101,8 +1101,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T = A extends B ? C : D;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSConditionalType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSConditionalType),
+                Kind::Node(Node::TSTypeReference),
                 2,
             )
         },
@@ -1115,8 +1115,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: B;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::Identifier),
-                Kind::Node(TypeScriptNode::TSTypeAnnotation),
+                Kind::Node(Node::Identifier),
+                Kind::Node(Node::TSTypeAnnotation),
                 0,
             )
         },
@@ -1129,8 +1129,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "f<A>();",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::CallExpression),
-                Kind::Node(TypeScriptNode::TSTypeParameterInstantiation),
+                Kind::Node(Node::CallExpression),
+                Kind::Node(Node::TSTypeParameterInstantiation),
                 0,
             )
         },
@@ -1143,8 +1143,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: B;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSTypeReference),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::TSTypeReference),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1157,8 +1157,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T<A> = A extends infer B ? B : A;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSInferType),
-                Kind::Node(TypeScriptNode::TSTypeParameter),
+                Kind::Node(Node::TSInferType),
+                Kind::Node(Node::TSTypeParameter),
                 0,
             )
         },
@@ -1171,8 +1171,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "function f<A>() {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::FunctionDeclaration),
-                Kind::Node(TypeScriptNode::TSTypeParameterDeclaration),
+                Kind::Node(Node::FunctionDeclaration),
+                Kind::Node(Node::TSTypeParameterDeclaration),
                 0,
             )
         },
@@ -1185,8 +1185,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "let a: B | C;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSUnionType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSUnionType),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -1199,8 +1199,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "for (;; a++) {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ForStatement),
-                Kind::Node(TypeScriptNode::UpdateExpression),
+                Kind::Node(Node::ForStatement),
+                Kind::Node(Node::UpdateExpression),
                 0,
             )
         },
@@ -1213,8 +1213,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "({ a: 1 });",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::Property),
-                Kind::Node(TypeScriptNode::Literal),
+                Kind::Node(Node::Property),
+                Kind::Node(Node::Literal),
                 0,
             )
         },
@@ -1227,8 +1227,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a => b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ArrowFunctionExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ArrowFunctionExpression),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -1241,8 +1241,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "a => b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ArrowFunctionExpression),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ArrowFunctionExpression),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1255,8 +1255,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "for (a;;) {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ForStatement),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ForStatement),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1269,8 +1269,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T = { [K in A]: C };",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSMappedType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSMappedType),
+                Kind::Node(Node::TSTypeReference),
                 0,
             )
         },
@@ -1283,8 +1283,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "type T = { [K in A]: C };",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSMappedType),
-                Kind::Node(TypeScriptNode::TSTypeReference),
+                Kind::Node(Node::TSMappedType),
+                Kind::Node(Node::TSTypeReference),
                 1,
             )
         },
@@ -1297,8 +1297,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "class A extends B {}",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ClassDeclaration),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ClassDeclaration),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1311,8 +1311,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "class A { m() {} }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::MethodDefinition),
-                Kind::Node(TypeScriptNode::FunctionExpression),
+                Kind::Node(Node::MethodDefinition),
+                Kind::Node(Node::FunctionExpression),
                 0,
             )
         },
@@ -1325,8 +1325,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "class A { m() {} }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::MethodDefinition),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::MethodDefinition),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1339,7 +1339,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "-x;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::UnaryExpression),
+                Kind::Node(Node::UnaryExpression),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -1353,7 +1353,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "(a) + b;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::BinaryExpression),
+                Kind::Node(Node::BinaryExpression),
                 Kind::Token(Token::Punctuator),
                 0,
             )
@@ -1367,8 +1367,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "switch (a) { case 1: b; }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::SwitchCase),
-                Kind::Node(TypeScriptNode::Literal),
+                Kind::Node(Node::SwitchCase),
+                Kind::Node(Node::Literal),
                 0,
             )
         },
@@ -1381,8 +1381,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "switch (a) { case 1: b; }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::SwitchCase),
-                Kind::Node(TypeScriptNode::ExpressionStatement),
+                Kind::Node(Node::SwitchCase),
+                Kind::Node(Node::ExpressionStatement),
                 0,
             )
         },
@@ -1395,8 +1395,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "({ a });",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::Property),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::Property),
+                Kind::Node(Node::Identifier),
                 1,
             )
         },
@@ -1409,8 +1409,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "interface A { m(): B }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSMethodSignature),
-                Kind::Node(TypeScriptNode::TSTypeAnnotation),
+                Kind::Node(Node::TSMethodSignature),
+                Kind::Node(Node::TSTypeAnnotation),
                 0,
             )
         },
@@ -1423,8 +1423,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "interface A { a: B }",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::TSPropertySignature),
-                Kind::Node(TypeScriptNode::TSTypeAnnotation),
+                Kind::Node(Node::TSPropertySignature),
+                Kind::Node(Node::TSTypeAnnotation),
                 0,
             )
         },
@@ -1437,8 +1437,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "export { a };",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::ExportSpecifier),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::ExportSpecifier),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },
@@ -1451,8 +1451,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "const { a = 1 } = o;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::Property),
-                Kind::Node(TypeScriptNode::AssignmentPattern),
+                Kind::Node(Node::Property),
+                Kind::Node(Node::AssignmentPattern),
                 0,
             )
         },
@@ -1465,8 +1465,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             edge(
                 "const { a = 1 } = o;",
                 Dialect::Plain,
-                Kind::Node(TypeScriptNode::Property),
-                Kind::Node(TypeScriptNode::Identifier),
+                Kind::Node(Node::Property),
+                Kind::Node(Node::Identifier),
                 0,
             )
         },

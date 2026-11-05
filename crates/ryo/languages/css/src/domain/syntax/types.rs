@@ -3,14 +3,14 @@
 //! does not name; the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
 /// What an element of a CSS syntax tree is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node of CSS Syntax Level 3's parsing results.
-    Node(CssNode),
+    Node(Node),
     /// A token of CSS Syntax Level 3's tokenizer.
     Token(Token),
     /// What the tree keeps so that its tokens spell the file, which the standard does not name.

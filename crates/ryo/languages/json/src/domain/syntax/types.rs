@@ -2,7 +2,7 @@
 //! and no inherent impl. A kind of node or token is a node, a token or an extra, named in kebab case; the element table holds its number.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use ryo::languages;
 
@@ -11,7 +11,7 @@ use ryo::languages;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     /// A node.
-    Node(JsonNode),
+    Node(Node),
     /// A token.
     Token(Token),
     /// A kind the standard lacks.

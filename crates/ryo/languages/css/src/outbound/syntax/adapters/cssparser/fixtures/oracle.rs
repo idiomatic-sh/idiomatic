@@ -13,14 +13,14 @@ use ryo::languages::contract::{Cell, OracleRows, Point, point_of};
 use super::super::constants::{BYTE_ORDER_MARK, CHARSET, CUSTOM_PROPERTY, IMPORT};
 use super::super::types::Body;
 use super::walk::body_of;
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_name;
 use crate::domain::syntax::types::Kind;
 
 /// What the library's parsers were called for, in the order of the file.
 struct Noted {
     /// Each rule and declaration: its kind and where it starts in the text read.
-    items: Vec<(CssNode, usize)>,
+    items: Vec<(Node, usize)>,
     /// What each `@import` imports.
     imports: Vec<String>,
     /// How many rules and declarations the library recovered from.
@@ -59,7 +59,7 @@ impl<'i> QualifiedRuleParser<'i> for Noted {
         input: &mut Parser<'i>,
     ) -> Result<(), ParseError<()>> {
         self.items
-            .push((CssNode::QualifiedRule, start.position().byte_index()));
+            .push((Node::QualifiedRule, start.position().byte_index()));
         self.body(input);
         Ok(())
     }
@@ -98,7 +98,7 @@ impl<'i> AtRuleParser<'i> for Noted {
         start: &ParserState,
     ) -> Result<(), ()> {
         self.items
-            .push((CssNode::AtRule, start.position().byte_index()));
+            .push((Node::AtRule, start.position().byte_index()));
         self.imports.extend(import);
         Ok(())
     }
@@ -110,7 +110,7 @@ impl<'i> AtRuleParser<'i> for Noted {
         input: &mut Parser<'i>,
     ) -> Result<(), ParseError<()>> {
         self.items
-            .push((CssNode::AtRule, start.position().byte_index()));
+            .push((Node::AtRule, start.position().byte_index()));
         self.imports.extend(import);
         match body {
             Body::Rules => self.body(input),
@@ -140,7 +140,7 @@ impl<'i> DeclarationParser<'i> for Noted {
             ));
         }
         self.items
-            .push((CssNode::Declaration, start.position().byte_index()));
+            .push((Node::Declaration, start.position().byte_index()));
         Ok(())
     }
 }
@@ -190,7 +190,7 @@ pub(crate) fn oracle(text: &str, rows: &OracleRows) -> Vec<String> {
         .collect();
     noted.errors += results.iter().filter(|each| !**each).count();
     let mut differences = Vec::new();
-    let structural = [CssNode::QualifiedRule, CssNode::AtRule, CssNode::Declaration]
+    let structural = [Node::QualifiedRule, Node::AtRule, Node::Declaration]
         .map(|kind| kind_name(Kind::Node(kind)).0);
     if noted.errors == 0 {
         let said: Vec<(String, Point)> = rows

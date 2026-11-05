@@ -12,7 +12,7 @@ use crate::domain::{
         types::{Targeting, Whose},
     },
     extras::types::Extra,
-    nodes::types::HtmlNode,
+    nodes::types::Node,
     syntax::{
         constants::{BASE, HREF, TARGET_PROPERTY},
         service::{kind_bits, property_id, property_node, url_valued},
@@ -81,7 +81,7 @@ fn end(span: Span) -> Offset {
 }
 
 /// Opens a node of `kind` at `span`, or one the parser implied, with no bytes of its own, when the span is the library's dummy.
-fn enter(builder: &mut languages::TableBuilder<'_>, kind: HtmlNode, span: Span) {
+fn enter(builder: &mut languages::TableBuilder<'_>, kind: Node, span: Span) {
     if span.is_dummy() {
         languages::enter_implied_node(builder, kind_bits(Kind::Node(kind)));
     } else {
@@ -135,7 +135,7 @@ fn base_href(children: &[Child]) -> Option<languages::WrittenTarget<'_>> {
 /// Writes an element: its name and namespace, its attributes, the first of each expanded name, a URL-valued one with its target
 /// resolved against `at`, its children and its template contents.
 fn element(builder: &mut languages::TableBuilder<'_>, value: &Element, at: &Targeting<'_>) {
-    enter(builder, HtmlNode::Element, value.span);
+    enter(builder, Node::Element, value.span);
     let namespace = value.namespace.to_string();
     properties(
         builder,
@@ -156,7 +156,7 @@ fn element(builder: &mut languages::TableBuilder<'_>, value: &Element, at: &Targ
         if !names.insert((attribute.namespace, attribute.name.clone())) {
             continue;
         }
-        enter(builder, HtmlNode::Attribute, attribute.span);
+        enter(builder, Node::Attribute, attribute.span);
         let attribute_namespace = attribute
             .namespace
             .map(|each| each.to_string())
@@ -213,7 +213,7 @@ fn element(builder: &mut languages::TableBuilder<'_>, value: &Element, at: &Targ
         child(builder, item, at);
     }
     if let Some(fragment) = &value.content {
-        enter(builder, HtmlNode::DocumentFragment, fragment.span);
+        enter(builder, Node::DocumentFragment, fragment.span);
         for item in &fragment.children {
             child(builder, item, at);
         }
@@ -343,10 +343,10 @@ impl SyntaxPort for SyntaxSwcHtmlParserAdapter {
         let document = parser.parse_document();
         let mut errors = parser.take_errors();
         drop(parser);
-        languages::enter_node(builder, kind_bits(Kind::Node(HtmlNode::SourceFile)), Offset(0));
+        languages::enter_node(builder, kind_bits(Kind::Node(Node::SourceFile)), Offset(0));
         match document {
             Ok(document) => {
-                enter(builder, HtmlNode::Document, document.span);
+                enter(builder, Node::Document, document.span);
                 properties(
                     builder,
                     &[PropertyValue {

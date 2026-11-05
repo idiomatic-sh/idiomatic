@@ -1,6 +1,6 @@
 //! The `decorates` relation of the language: an attribute of the declaration it is on, by the path it names and the arguments it passes, in its place.
 
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::references::service::{
     attribute_arguments, attribute_ordinal, attribute_target,
 };
@@ -15,7 +15,7 @@ pub(crate) struct DecoratesItem;
 
 ryo::reads! {
     DecoratesItem => languages::Decorates |tree, at, symbols| {
-        kinds: [Kind::Node(RustNode::Attr)] as kind_bits,
+        kinds: [Kind::Node(Node::Attr)] as kind_bits,
         given declaration = parent(tree, at);
         require is_nameless_function(tree, declaration) == Namelessness::Named;
         given target = attribute_target(tree, symbols, at)?;

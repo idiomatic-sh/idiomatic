@@ -8,7 +8,7 @@ use crate::domain::syntax::{
     service::kind_bits,
     types::{Goal, Kind},
 };
-use crate::domain::{extras::types::Extra, nodes::types::JavaScriptNode, tokens::types::Token};
+use crate::domain::{extras::types::Extra, nodes::types::Node, tokens::types::Token};
 use crate::outbound::syntax::{interface::SyntaxPort, types::SourceText};
 use oxc_allocator::Allocator;
 use oxc_ast::AstKind;
@@ -65,12 +65,12 @@ impl<'a> Visit<'a> for VisitorStack {
             let end = element.span.end;
             element.children = vec![
                 leaf(
-                    Kind::Node(JavaScriptNode::Identifier),
+                    Kind::Node(Node::Identifier),
                     Offset(start),
                     Offset(start + length),
                 ),
                 leaf(
-                    Kind::Node(JavaScriptNode::Identifier),
+                    Kind::Node(Node::Identifier),
                     Offset(start + length + 1),
                     Offset(end),
                 ),
@@ -81,7 +81,7 @@ impl<'a> Visit<'a> for VisitorStack {
             && let Some(index) = element
                 .children
                 .iter()
-                .position(|child| child.kind == Some(Kind::Node(JavaScriptNode::BlockStatement)))
+                .position(|child| child.kind == Some(Kind::Node(Node::BlockStatement)))
         {
             let block = element.children.remove(index);
             for returned in block.children {
@@ -97,9 +97,9 @@ impl<'a> Visit<'a> for VisitorStack {
             for child in &mut element.children {
                 if matches!(
                     child.kind,
-                    Some(Kind::Node(JavaScriptNode::Identifier | JavaScriptNode::ThisExpression))
+                    Some(Kind::Node(Node::Identifier | Node::ThisExpression))
                 ) {
-                    child.kind = Some(Kind::Node(JavaScriptNode::JSXIdentifier));
+                    child.kind = Some(Kind::Node(Node::JSXIdentifier));
                 }
             }
         }
@@ -195,7 +195,7 @@ fn insert(parent: &mut Element, leaf: Element) {
         insert(child, leaf);
     } else {
         let mut leaf = leaf;
-        if parent.kind == Some(Kind::Node(JavaScriptNode::JSXIdentifier))
+        if parent.kind == Some(Kind::Node(Node::JSXIdentifier))
             && matches!(
                 leaf.kind,
                 Some(Kind::Token(Token::Identifier | Token::Keyword))
@@ -215,7 +215,7 @@ fn emit(node: &mut Element, builder: &mut languages::TableBuilder<'_>) {
     match node.kind {
         Some(Kind::Node(_)) => {
             // Oxc reads a JSX spread child; the `ESTree` JSX extension (acorn-jsx) refuses one.
-            if node.kind == Some(Kind::Node(JavaScriptNode::JSXSpreadChild)) {
+            if node.kind == Some(Kind::Node(Node::JSXSpreadChild)) {
                 languages::diagnose(builder, languages::ReportText(SPREAD_CHILD), start, end);
             }
             languages::enter_node(

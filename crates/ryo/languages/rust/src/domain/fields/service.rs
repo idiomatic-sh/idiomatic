@@ -2,7 +2,7 @@
 //! kinds of the parent and the element and, where one kind plays two roles, from where the element stands among its siblings, as the
 //! labels of `rust.ungram` and the accessors of its typed syntax tree distinguish them.
 
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Position, Tree};
 use strum::IntoEnumIterator as _;
@@ -64,7 +64,7 @@ fn nodes_before(tree: &Tree<'_>, at: Position) -> Precedence {
     let before = languages::children(tree.elements, parent(tree, at))
         .take_while(|each| *each != at)
         .filter(|each| {
-            is_token(tree, *each) == Leaf::Node && kind(tree, *each) != Kind::Node(RustNode::Attr)
+            is_token(tree, *each) == Leaf::Node && kind(tree, *each) != Kind::Node(Node::Attr)
         })
         .count();
     if before == 0 {
@@ -83,34 +83,34 @@ fn positional_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Ki
     let what = category(element);
     match parent_kind {
         Kind::Node(
-            RustNode::SourceFile | RustNode::ItemList | RustNode::AssocItemList | RustNode::ExternItemList,
+            Node::SourceFile | Node::ItemList | Node::AssocItemList | Node::ExternItemList,
         ) => match what {
             Category::Item => Field::Items,
             _ => Field::None,
         },
-        Kind::Node(RustNode::StmtList) => match what {
+        Kind::Node(Node::StmtList) => match what {
             Category::Expression if closing(tree, at) == Closing::Last => Field::TailExpr,
             Category::Statement | Category::Item | Category::Expression => Field::Statements,
             _ => Field::None,
         },
-        Kind::Node(RustNode::BinExpr) if what == Category::Expression => match nodes_before(tree, at) {
+        Kind::Node(Node::BinExpr) if what == Category::Expression => match nodes_before(tree, at) {
             Precedence::Alone => Field::Lhs,
             Precedence::Preceded => Field::Rhs,
         },
-        Kind::Node(RustNode::IndexExpr) if what == Category::Expression => match nodes_before(tree, at)
+        Kind::Node(Node::IndexExpr) if what == Category::Expression => match nodes_before(tree, at)
         {
             Precedence::Alone => Field::Base,
             Precedence::Preceded => Field::Index,
         },
-        Kind::Node(RustNode::MethodCallExpr) if what == Category::Expression => Field::Receiver,
-        Kind::Node(RustNode::LetStmt) => match what {
+        Kind::Node(Node::MethodCallExpr) if what == Category::Expression => Field::Receiver,
+        Kind::Node(Node::LetStmt) => match what {
             Category::Pattern => Field::Pat,
             Category::Type => Field::Ty,
             Category::Expression => Field::Initializer,
             _ => Field::None,
         },
-        Kind::Node(RustNode::RangeExpr | RustNode::RangePat) if what != Category::Other => {
-            let marker = if parent_kind == Kind::Node(RustNode::RangeExpr)
+        Kind::Node(Node::RangeExpr | Node::RangePat) if what != Category::Other => {
+            let marker = if parent_kind == Kind::Node(Node::RangeExpr)
                 && after(tree, at, Kind::Token(Token::Dot2)) == Following::After
             {
                 Following::After
@@ -136,7 +136,7 @@ fn positional_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Ki
 fn branch_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
-        Kind::Node(RustNode::IfExpr) => match what {
+        Kind::Node(Node::IfExpr) => match what {
             Category::Expression
                 if after(tree, at, Kind::Token(Token::ElseKw)) == Following::After =>
             {
@@ -146,29 +146,29 @@ fn branch_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) 
             Category::Expression => Field::ThenBranch,
             _ => Field::None,
         },
-        Kind::Node(RustNode::WhileExpr) if what == Category::Expression => {
+        Kind::Node(Node::WhileExpr) if what == Category::Expression => {
             if closing(tree, at) == Closing::Last {
                 Field::LoopBody
             } else {
                 Field::Condition
             }
         }
-        Kind::Node(RustNode::LoopExpr) if element == Kind::Node(RustNode::BlockExpr) => Field::LoopBody,
-        Kind::Node(RustNode::ForExpr) => match what {
+        Kind::Node(Node::LoopExpr) if element == Kind::Node(Node::BlockExpr) => Field::LoopBody,
+        Kind::Node(Node::ForExpr) => match what {
             Category::Pattern => Field::Pat,
             Category::Expression if closing(tree, at) == Closing::Last => Field::LoopBody,
             Category::Expression => Field::Iterable,
             _ => Field::None,
         },
-        Kind::Node(RustNode::MatchExpr) if what == Category::Expression => Field::Expr,
-        Kind::Node(RustNode::MatchArm) => match what {
+        Kind::Node(Node::MatchExpr) if what == Category::Expression => Field::Expr,
+        Kind::Node(Node::MatchArm) => match what {
             Category::Pattern => Field::Pat,
             Category::Expression => Field::Expr,
-            _ if element == Kind::Node(RustNode::MatchGuard) => Field::Guard,
+            _ if element == Kind::Node(Node::MatchGuard) => Field::Guard,
             _ => Field::None,
         },
-        Kind::Node(RustNode::MatchArmList) if element == Kind::Node(RustNode::MatchArm) => Field::Arms,
-        Kind::Node(RustNode::MatchGuard) if what == Category::Expression => Field::Condition,
+        Kind::Node(Node::MatchArmList) if element == Kind::Node(Node::MatchArm) => Field::Arms,
+        Kind::Node(Node::MatchGuard) if what == Category::Expression => Field::Condition,
         _ => member_role(tree, at, parent_kind, element),
     }
 }
@@ -182,27 +182,27 @@ fn branch_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) 
 fn member_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
-        Kind::Node(RustNode::RecordExprFieldList) => match element {
-            Kind::Node(RustNode::RecordExprField) => Field::Fields,
+        Kind::Node(Node::RecordExprFieldList) => match element {
+            Kind::Node(Node::RecordExprField) => Field::Fields,
             _ if what == Category::Expression => Field::Spread,
             _ => Field::None,
         },
-        Kind::Node(RustNode::RecordFieldList) if element == Kind::Node(RustNode::RecordField) => {
+        Kind::Node(Node::RecordFieldList) if element == Kind::Node(Node::RecordField) => {
             Field::Fields
         }
-        Kind::Node(RustNode::TupleFieldList) if element == Kind::Node(RustNode::TupleField) => {
+        Kind::Node(Node::TupleFieldList) if element == Kind::Node(Node::TupleField) => {
             Field::Fields
         }
-        Kind::Node(RustNode::RecordPatFieldList) if element == Kind::Node(RustNode::RecordPatField) => {
+        Kind::Node(Node::RecordPatFieldList) if element == Kind::Node(Node::RecordPatField) => {
             Field::Fields
         }
-        Kind::Node(RustNode::VariantList) if element == Kind::Node(RustNode::Variant) => Field::Variants,
+        Kind::Node(Node::VariantList) if element == Kind::Node(Node::Variant) => Field::Variants,
         Kind::Node(
-            RustNode::TupleExpr
-            | RustNode::ArrayExpr
-            | RustNode::TuplePat
-            | RustNode::TupleType
-            | RustNode::TupleStructPat,
+            Node::TupleExpr
+            | Node::ArrayExpr
+            | Node::TuplePat
+            | Node::TupleType
+            | Node::TupleStructPat,
         ) if what != Category::Other => Field::Fields,
         _ => declaration_role(tree, at, parent_kind, element),
     }
@@ -217,48 +217,48 @@ fn member_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) 
 fn declaration_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
-        Kind::Node(RustNode::ArgList) if what == Category::Expression => Field::Args,
-        Kind::Node(RustNode::ParamList)
-            if matches!(element, Kind::Node(RustNode::Param | RustNode::SelfParam)) =>
+        Kind::Node(Node::ArgList) if what == Category::Expression => Field::Args,
+        Kind::Node(Node::ParamList)
+            if matches!(element, Kind::Node(Node::Param | Node::SelfParam)) =>
         {
             Field::Params
         }
-        Kind::Node(RustNode::GenericParamList)
+        Kind::Node(Node::GenericParamList)
             if matches!(
                 element,
-                Kind::Node(RustNode::TypeParam | RustNode::ConstParam | RustNode::LifetimeParam)
+                Kind::Node(Node::TypeParam | Node::ConstParam | Node::LifetimeParam)
             ) =>
         {
             Field::Params
         }
-        Kind::Node(RustNode::GenericArgList)
+        Kind::Node(Node::GenericArgList)
             if matches!(
                 element,
-                Kind::Node(RustNode::TypeArg | RustNode::ConstArg | RustNode::LifetimeArg | RustNode::AssocTypeArg)
+                Kind::Node(Node::TypeArg | Node::ConstArg | Node::LifetimeArg | Node::AssocTypeArg)
             ) =>
         {
             Field::Args
         }
-        Kind::Node(RustNode::WhereClause) if element == Kind::Node(RustNode::WherePred) => {
+        Kind::Node(Node::WhereClause) if element == Kind::Node(Node::WherePred) => {
             Field::Predicates
         }
-        Kind::Node(RustNode::TypeBoundList) if element == Kind::Node(RustNode::TypeBound) => Field::Bounds,
-        Kind::Node(RustNode::Fn) if element == Kind::Node(RustNode::BlockExpr) => Field::Body,
-        Kind::Node(RustNode::Const | RustNode::Static) => match what {
+        Kind::Node(Node::TypeBoundList) if element == Kind::Node(Node::TypeBound) => Field::Bounds,
+        Kind::Node(Node::Fn) if element == Kind::Node(Node::BlockExpr) => Field::Body,
+        Kind::Node(Node::Const | Node::Static) => match what {
             Category::Type => Field::Ty,
             Category::Expression => Field::Body,
             _ => Field::None,
         },
-        Kind::Node(RustNode::ClosureExpr) if what == Category::Expression => Field::Body,
-        Kind::Node(RustNode::MacroDef) if element == Kind::Node(RustNode::TokenTree) => {
-            if nodes_before_of_kind(tree, at, Kind::Node(RustNode::TokenTree)) == Precedence::Alone {
+        Kind::Node(Node::ClosureExpr) if what == Category::Expression => Field::Body,
+        Kind::Node(Node::MacroDef) if element == Kind::Node(Node::TokenTree) => {
+            if nodes_before_of_kind(tree, at, Kind::Node(Node::TokenTree)) == Precedence::Alone {
                 Field::Args
             } else {
                 Field::Body
             }
         }
-        Kind::Node(RustNode::MacroRules) if element == Kind::Node(RustNode::TokenTree) => Field::Body,
-        Kind::Node(RustNode::Impl) if what == Category::Type => {
+        Kind::Node(Node::MacroRules) if element == Kind::Node(Node::TokenTree) => Field::Body,
+        Kind::Node(Node::Impl) if what == Category::Type => {
             if after(tree, at, Kind::Token(Token::ForKw)) == Following::After
                 || child(tree, parent(tree, at), Kind::Token(Token::ForKw)).is_none()
             {
@@ -267,9 +267,9 @@ fn declaration_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: K
                 Field::Trait
             }
         }
-        Kind::Node(RustNode::TypeParam) if what == Category::Type => Field::DefaultType,
-        Kind::Node(RustNode::ConstParam) => match element {
-            Kind::Node(RustNode::ConstArg) => Field::DefaultVal,
+        Kind::Node(Node::TypeParam) if what == Category::Type => Field::DefaultType,
+        Kind::Node(Node::ConstParam) => match element {
+            Kind::Node(Node::ConstArg) => Field::DefaultVal,
             _ if what == Category::Type => Field::Ty,
             _ => Field::None,
         },
@@ -287,48 +287,48 @@ fn binding_role(parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
         Kind::Node(
-            RustNode::Param
-            | RustNode::SelfParam
-            | RustNode::RecordField
-            | RustNode::TupleField
-            | RustNode::TypeAlias
-            | RustNode::CastExpr
-            | RustNode::RefType
-            | RustNode::PtrType
-            | RustNode::SliceType
-            | RustNode::ArrayType
-            | RustNode::ParenType,
+            Node::Param
+            | Node::SelfParam
+            | Node::RecordField
+            | Node::TupleField
+            | Node::TypeAlias
+            | Node::CastExpr
+            | Node::RefType
+            | Node::PtrType
+            | Node::SliceType
+            | Node::ArrayType
+            | Node::ParenType,
         ) if what == Category::Type => Field::Ty,
         Kind::Node(
-            RustNode::Param | RustNode::RecordPatField | RustNode::RefPat | RustNode::BoxPat | RustNode::ParenPat,
+            Node::Param | Node::RecordPatField | Node::RefPat | Node::BoxPat | Node::ParenPat,
         ) if what == Category::Pattern => Field::Pat,
         Kind::Node(
-            RustNode::Variant
-            | RustNode::RecordExprField
-            | RustNode::FieldExpr
-            | RustNode::CallExpr
-            | RustNode::PrefixExpr
-            | RustNode::RefExpr
-            | RustNode::TryExpr
-            | RustNode::AwaitExpr
-            | RustNode::CastExpr
-            | RustNode::ParenExpr
-            | RustNode::ReturnExpr
-            | RustNode::BreakExpr
-            | RustNode::ExprStmt,
+            Node::Variant
+            | Node::RecordExprField
+            | Node::FieldExpr
+            | Node::CallExpr
+            | Node::PrefixExpr
+            | Node::RefExpr
+            | Node::TryExpr
+            | Node::AwaitExpr
+            | Node::CastExpr
+            | Node::ParenExpr
+            | Node::ReturnExpr
+            | Node::BreakExpr
+            | Node::ExprStmt,
         ) if what == Category::Expression => Field::Expr,
         Kind::Node(
-            RustNode::PathExpr
-            | RustNode::PathType
-            | RustNode::PathPat
-            | RustNode::TupleStructPat
-            | RustNode::RecordPat
-            | RustNode::RecordExpr
-            | RustNode::MacroCall
-            | RustNode::PathMeta
-            | RustNode::UseTree,
-        ) if element == Kind::Node(RustNode::Path) => Field::Path,
-        Kind::Node(RustNode::Path) if element == Kind::Node(RustNode::Path) => Field::Qualifier,
+            Node::PathExpr
+            | Node::PathType
+            | Node::PathPat
+            | Node::TupleStructPat
+            | Node::RecordPat
+            | Node::RecordExpr
+            | Node::MacroCall
+            | Node::PathMeta
+            | Node::UseTree,
+        ) if element == Kind::Node(Node::Path) => Field::Path,
+        Kind::Node(Node::Path) if element == Kind::Node(Node::Path) => Field::Qualifier,
         _ => Field::None,
     }
 }

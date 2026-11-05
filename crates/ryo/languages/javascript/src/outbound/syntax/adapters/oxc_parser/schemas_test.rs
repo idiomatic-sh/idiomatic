@@ -1,7 +1,7 @@
 //! The complete upstream kind census and explicit representative `ESTree` conversions.
 use super::node_type;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::JavaScriptNode;
+use crate::domain::nodes::types::Node;
 use oxc_ast::AstType;
 #[derive(Clone, Copy, Debug)]
 enum Given {
@@ -10,7 +10,7 @@ enum Given {
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Seen {
-    Kind(Option<JavaScriptNode>),
+    Kind(Option<Node>),
     Accounted(Vec<AstType>),
 }
 type Input = Given;
@@ -212,25 +212,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("program_has_standard_identity"),
         word: Word::Succeeds,
         input: || Given::One(AstType::Program),
-        expect: Expect::Value(Seen::Kind(Some(JavaScriptNode::Program))),
+        expect: Expect::Value(Seen::Kind(Some(Node::Program))),
     },
     Case {
         name: CaseName("binding_identifier_has_standard_identity"),
         word: Word::Succeeds,
         input: || Given::One(AstType::BindingIdentifier),
-        expect: Expect::Value(Seen::Kind(Some(JavaScriptNode::Identifier))),
+        expect: Expect::Value(Seen::Kind(Some(Node::Identifier))),
     },
     Case {
         name: CaseName("number_has_standard_literal_identity"),
         word: Word::Succeeds,
         input: || Given::One(AstType::NumericLiteral),
-        expect: Expect::Value(Seen::Kind(Some(JavaScriptNode::Literal))),
+        expect: Expect::Value(Seen::Kind(Some(Node::Literal))),
     },
     Case {
         name: CaseName("jsx_element_has_standard_identity"),
         word: Word::Succeeds,
         input: || Given::One(AstType::JSXElement),
-        expect: Expect::Value(Seen::Kind(Some(JavaScriptNode::JSXElement))),
+        expect: Expect::Value(Seen::Kind(Some(Node::JSXElement))),
     },
     Case {
         name: CaseName("typed_syntax_is_outside_javascript"),

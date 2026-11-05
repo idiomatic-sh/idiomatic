@@ -7,7 +7,7 @@ use super::service::{
 use super::types::{Blankness, Unresolved};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::language::constants::UNKNOWN_REASONS;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -122,13 +122,13 @@ fn subject(source: Input) -> Result<Value, Failure> {
     let mut names = Vec::new();
     let mut imports = Vec::new();
     for at in languages::positions(&elements) {
-        if kind(&tree, at) == Kind::Node(GoNode::CallExpr)
+        if kind(&tree, at) == Kind::Node(Node::CallExpr)
             && let Some(callee) = crate::domain::syntax::service::nodes(&tree, at).next()
             && let Some(name) = dotted(&tree, &mut file.symbols, callee)
         {
             names.push(text(&file.symbols, name));
         }
-        if kind(&tree, at) == Kind::Node(GoNode::ImportSpec)
+        if kind(&tree, at) == Kind::Node(Node::ImportSpec)
             && let Some(target) = import_target(&tree, &mut file.symbols, at)
         {
             imports.push(format!(
@@ -141,17 +141,17 @@ fn subject(source: Input) -> Result<Value, Failure> {
     let mut facts = Vec::new();
     for at in languages::positions(&elements) {
         match kind(&tree, at) {
-            Kind::Node(GoNode::CallExpr) => {
+            Kind::Node(Node::CallExpr) => {
                 if let Some(callee) = crate::domain::syntax::service::nodes(&tree, at).next() {
                     facts.push(format!("{:?}", callee_of(&tree, callee)));
                 }
             }
-            Kind::Node(GoNode::Ident) => {
+            Kind::Node(Node::Ident) => {
                 if blankness(&tree, at) == Blankness::Blank {
                     facts.push("blank".to_owned());
                 }
             }
-            Kind::Node(GoNode::Field) => {
+            Kind::Node(Node::Field) => {
                 if let Some(embedded) =
                     crate::domain::fields::service::type_of(&tree, at).filter(|_| {
                         crate::domain::fields::service::names(&tree, at)

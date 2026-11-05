@@ -5,7 +5,7 @@ use super::super::types::Piece;
 use super::piece_kind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind_bits, kind_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -39,13 +39,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_whole_file_is_the_root_node"),
         word: Word::Succeeds,
         input: || Given::One(Piece::File),
-        expect: Expect::Value(Seen::Kind(Kind::Node(JsonNode::JsonText))),
+        expect: Expect::Value(Seen::Kind(Kind::Node(Node::JsonText))),
     },
     Case {
         name: CaseName("an_object_a_member_and_an_array_are_nodes"),
         word: Word::Succeeds,
         input: || Given::One(Piece::Member),
-        expect: Expect::Value(Seen::Kind(Kind::Node(JsonNode::Member))),
+        expect: Expect::Value(Seen::Kind(Kind::Node(Node::Member))),
     },
     Case {
         name: CaseName("a_brace_is_the_begin_of_an_object"),

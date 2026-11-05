@@ -12,11 +12,11 @@ use super::constants::{
 };
 use super::types::{Anchor, Defined, Field, Kind, Property, Reference, Rootness, Section, Wording};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::HtmlNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use strum::IntoEnumIterator as _;
 
-ryo::languages::kinds!(pub Kind { Node(HtmlNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -112,7 +112,7 @@ pub(crate) fn value(
 #[must_use]
 pub(crate) fn section(tree: &Tree<'_>, at: languages::Position) -> Section {
     let matches = || {
-        kind(tree, at) == Kind::Node(HtmlNode::Element)
+        kind(tree, at) == Kind::Node(Node::Element)
             && matches!(
                 field(tree, at, Property::Name).0,
                 ARTICLE | ASIDE | NAV | SECTION
@@ -171,7 +171,7 @@ pub(crate) fn defined(tree: &Tree<'_>, at: languages::Position) -> Defined {
 #[must_use]
 fn title(tree: &Tree<'_>, at: languages::Position) -> Option<languages::Position> {
     languages::children(tree.elements, at).find_map(|child| {
-        if kind(tree, child) != Kind::Node(HtmlNode::Element)
+        if kind(tree, child) != Kind::Node(Node::Element)
             || section(tree, child) == Section::Section
         {
             return None;
@@ -204,7 +204,7 @@ fn words(
 ) {
     for child in languages::children(tree.elements, at) {
         match kind(tree, child) {
-            Kind::Node(HtmlNode::Text) => {
+            Kind::Node(Node::Text) => {
                 for word in field(tree, child, Property::Value).0.split_whitespace() {
                     if *any == Wording::Words {
                         languages::push_text(symbols, WORD_SPACE);
@@ -213,7 +213,7 @@ fn words(
                     *any = Wording::Words;
                 }
             }
-            Kind::Node(HtmlNode::Element) => words(tree, symbols, child, any),
+            Kind::Node(Node::Element) => words(tree, symbols, child, any),
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
     }
@@ -299,15 +299,15 @@ pub(crate) const fn property_id(property: Property) -> languages::PropertyId {
 
 /// The node a DOM scalar property is written as under the node it belongs to.
 #[must_use]
-pub(crate) const fn property_node(property: Property) -> HtmlNode {
+pub(crate) const fn property_node(property: Property) -> Node {
     match property {
-        Property::Name => HtmlNode::Name,
-        Property::Namespace => HtmlNode::Namespace,
-        Property::Prefix => HtmlNode::Prefix,
-        Property::Value => HtmlNode::Value,
-        Property::PublicId => HtmlNode::PublicId,
-        Property::SystemId => HtmlNode::SystemId,
-        Property::DocumentMode => HtmlNode::DocumentMode,
+        Property::Name => Node::Name,
+        Property::Namespace => Node::Namespace,
+        Property::Prefix => Node::Prefix,
+        Property::Value => Node::Value,
+        Property::PublicId => Node::PublicId,
+        Property::SystemId => Node::SystemId,
+        Property::DocumentMode => Node::DocumentMode,
     }
 }
 
@@ -337,22 +337,22 @@ pub(crate) fn fields() -> impl Iterator<Item = Field> {
 #[must_use]
 pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
     match kind(tree, at) {
-        Kind::Node(HtmlNode::Name) => Field::Name,
-        Kind::Node(HtmlNode::Namespace) => Field::Namespace,
-        Kind::Node(HtmlNode::Prefix) => Field::Prefix,
-        Kind::Node(HtmlNode::Value) => Field::Value,
-        Kind::Node(HtmlNode::PublicId) => Field::PublicId,
-        Kind::Node(HtmlNode::SystemId) => Field::SystemId,
-        Kind::Node(HtmlNode::DocumentMode) => Field::DocumentMode,
-        Kind::Node(HtmlNode::Attribute) => Field::Attribute,
+        Kind::Node(Node::Name) => Field::Name,
+        Kind::Node(Node::Namespace) => Field::Namespace,
+        Kind::Node(Node::Prefix) => Field::Prefix,
+        Kind::Node(Node::Value) => Field::Value,
+        Kind::Node(Node::PublicId) => Field::PublicId,
+        Kind::Node(Node::SystemId) => Field::SystemId,
+        Kind::Node(Node::DocumentMode) => Field::DocumentMode,
+        Kind::Node(Node::Attribute) => Field::Attribute,
         Kind::Node(
-            HtmlNode::SourceFile
-            | HtmlNode::Document
-            | HtmlNode::DocumentType
-            | HtmlNode::Element
-            | HtmlNode::Text
-            | HtmlNode::Comment
-            | HtmlNode::DocumentFragment,
+            Node::SourceFile
+            | Node::Document
+            | Node::DocumentType
+            | Node::Element
+            | Node::Text
+            | Node::Comment
+            | Node::DocumentFragment,
         )
         | Kind::Token(_)
         | Kind::Extra(_) => Field::None,

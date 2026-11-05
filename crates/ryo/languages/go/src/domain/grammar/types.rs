@@ -1,7 +1,7 @@
 //! The types of the `grammar` concept: plain data, public fields and derives, with no constructor and no inherent impl. The parser
 //! library's tree of a file is held in one table, each node knowing its parent, its first and last child and its next sibling.
 
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
 /// A place among the bytes of the text the library read, from zero.
@@ -48,7 +48,7 @@ pub(crate) enum Form {
     /// A keyword, an operator or a piece of punctuation `go/token` has no constant for.
     Unspelled,
     /// A node of `go/ast` over the same bytes.
-    Node(GoNode),
+    Node(Node),
     /// `func name(...)`: a `FuncDecl` with its `FuncType`.
     Function,
     /// `func (r T) name(...)`: a `FuncDecl` with its `FuncType`.

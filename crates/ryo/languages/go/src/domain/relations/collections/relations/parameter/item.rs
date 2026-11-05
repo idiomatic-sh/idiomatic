@@ -2,7 +2,7 @@
 //! and each of its named results, each in its place in its list. A parameter the declaration does not name has the unknown value of
 //! that for its name.
 
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::signatures::service::parameters;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -13,7 +13,7 @@ pub(crate) struct ParameterItem;
 
 ryo::reads! {
     ParameterItem => languages::Parameter |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::Field)] as kind_bits,
+        kinds: [Kind::Node(Node::Field)] as kind_bits,
         each (parameters(tree, at)) as parameter {
             given refinement = languages::intern_derived(symbols, tree.source, languages::NameText(parameter.word.0));
             row {

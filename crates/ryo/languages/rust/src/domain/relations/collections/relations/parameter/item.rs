@@ -2,7 +2,7 @@
 
 use crate::domain::bindings::service::{binding_of, parameters_of, spread};
 use crate::domain::bindings::types::Spread;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::refinements::service::{positional_name, receiver_name, variadic_name};
 use crate::domain::relations::constants::SELF_VALUE;
 use crate::domain::scopes::service::is_nameless_function;
@@ -16,12 +16,12 @@ pub(crate) struct ParameterItem;
 
 ryo::reads! {
     ParameterItem => languages::Parameter |tree, at, symbols| {
-        kinds: [Kind::Node(RustNode::Fn), Kind::Node(RustNode::ClosureExpr)] as kind_bits,
+        kinds: [Kind::Node(Node::Fn), Kind::Node(Node::ClosureExpr)] as kind_bits,
         require is_nameless_function(tree, at) == Namelessness::Named;
-        given list = child(tree, at, Kind::Node(RustNode::ParamList))?;
+        given list = child(tree, at, Kind::Node(Node::ParamList))?;
         each (parameters_of(tree, list)) as (ordinal, parameter) {
             when kind(tree, parameter) {
-                Kind::Node(RustNode::SelfParam) => {
+                Kind::Node(Node::SelfParam) => {
                     row {
                         id: node(parameter),
                         kind: value(languages::ParameterKind::Receiver),

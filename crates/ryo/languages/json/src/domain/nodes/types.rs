@@ -16,7 +16,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum JsonNode {
+pub(crate) enum Node {
     /// The whole file: the root rule of the grammar, a value with white space around it. `JSON-text`.
     JsonText,
     /// An object: a pair of braces around members. `object`.

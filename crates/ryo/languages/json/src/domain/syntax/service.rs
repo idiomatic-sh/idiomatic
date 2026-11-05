@@ -7,12 +7,12 @@ use ryo::languages::{self, Tree};
 use super::constants::{BLOCK_COMMENT_CLOSE, BLOCK_COMMENT_OPEN, LINE_COMMENT_OPEN};
 use super::types::{Field, Keyness, Kind, Leaf, Rootness, Text, Valueness};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::JsonNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use ryo::languages::ValueKind;
 use strum::IntoEnumIterator as _;
 
-ryo::languages::kinds!(pub Kind { Node(JsonNode), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
+ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Extra(Extra::Error));
 
 /// The kind of the element at `at`.
 #[must_use]
@@ -162,9 +162,9 @@ pub(crate) fn value_kind(tree: &Tree<'_>, at: languages::Position) -> Option<Val
         }),
         Kind::Token(Token::True | Token::False) => Some(ValueKind::Boolean),
         Kind::Token(Token::Null) => Some(ValueKind::Null),
-        Kind::Node(JsonNode::Array) => Some(ValueKind::Sequence),
-        Kind::Node(JsonNode::Object) => Some(ValueKind::InlineMapping),
-        Kind::Node(JsonNode::JsonText | JsonNode::Member)
+        Kind::Node(Node::Array) => Some(ValueKind::Sequence),
+        Kind::Node(Node::Object) => Some(ValueKind::InlineMapping),
+        Kind::Node(Node::JsonText | Node::Member)
         | Kind::Token(
             Token::BeginArray
             | Token::BeginObject
@@ -183,8 +183,8 @@ pub(crate) fn value_kind(tree: &Tree<'_>, at: languages::Position) -> Option<Val
 pub(crate) fn is_value(kind: Kind) -> Valueness {
     match kind {
         Kind::Token(Token::String | Token::Number | Token::True | Token::False | Token::Null)
-        | Kind::Node(JsonNode::Object | JsonNode::Array) => Valueness::Value,
-        Kind::Node(JsonNode::JsonText | JsonNode::Member)
+        | Kind::Node(Node::Object | Node::Array) => Valueness::Value,
+        Kind::Node(Node::JsonText | Node::Member)
         | Kind::Token(
             Token::BeginArray
             | Token::BeginObject
@@ -202,7 +202,7 @@ pub(crate) fn is_value(kind: Kind) -> Valueness {
 #[must_use]
 pub(crate) fn keyness(tree: &Tree<'_>, at: languages::Position) -> Keyness {
     let member = parent(tree, at);
-    if kind(tree, member) == Kind::Node(JsonNode::Member)
+    if kind(tree, member) == Kind::Node(Node::Member)
         && languages::child_of_kind(tree.elements, member, kind_bits(Kind::Token(Token::String)))
             == Some(at)
     {
@@ -229,12 +229,12 @@ pub(crate) fn value_of(
 pub(crate) fn holder(tree: &Tree<'_>, container: languages::Position) -> languages::Position {
     let above = parent(tree, container);
     match kind(tree, above) {
-        Kind::Node(JsonNode::JsonText) => above,
-        Kind::Node(JsonNode::Member) => {
+        Kind::Node(Node::JsonText) => above,
+        Kind::Node(Node::Member) => {
             languages::child_of_kind(tree.elements, above, kind_bits(Kind::Token(Token::String)))
                 .unwrap_or(container)
         }
-        Kind::Node(JsonNode::Object | JsonNode::Array) | Kind::Token(_) | Kind::Extra(_) => container,
+        Kind::Node(Node::Object | Node::Array) | Kind::Token(_) | Kind::Extra(_) => container,
     }
 }
 
@@ -243,7 +243,7 @@ pub(crate) fn holder(tree: &Tree<'_>, container: languages::Position) -> languag
 #[must_use]
 pub(crate) fn mapping_id(tree: &Tree<'_>, object: languages::Position) -> languages::Position {
     let above = parent(tree, object);
-    if kind(tree, above) == Kind::Node(JsonNode::JsonText) {
+    if kind(tree, above) == Kind::Node(Node::JsonText) {
         above
     } else {
         object
@@ -302,9 +302,9 @@ pub(crate) fn integer(tree: &Tree<'_>, at: languages::Position) -> languages::In
 #[must_use]
 pub(crate) fn mapping_kind(tree: &Tree<'_>, object: languages::Position) -> languages::MappingKind {
     match kind(tree, parent(tree, object)) {
-        Kind::Node(JsonNode::JsonText) => languages::MappingKind::Standard,
-        Kind::Node(JsonNode::Array) => languages::MappingKind::SequenceMember,
-        Kind::Node(JsonNode::Object | JsonNode::Member) | Kind::Token(_) | Kind::Extra(_) => {
+        Kind::Node(Node::JsonText) => languages::MappingKind::Standard,
+        Kind::Node(Node::Array) => languages::MappingKind::SequenceMember,
+        Kind::Node(Node::Object | Node::Member) | Kind::Token(_) | Kind::Extra(_) => {
             languages::MappingKind::Inline
         }
     }
@@ -348,7 +348,7 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
     }
     let holder = parent(tree, at);
     match kind(tree, holder) {
-        Kind::Node(JsonNode::Member) => {
+        Kind::Node(Node::Member) => {
             if keyness(tree, at) == Keyness::Key {
                 Field::Name
             } else if value_of(tree, holder) == Some(at) {
@@ -357,7 +357,7 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
                 Field::None
             }
         }
-        Kind::Node(JsonNode::Array | JsonNode::JsonText)
+        Kind::Node(Node::Array | Node::JsonText)
             if is_value(kind(tree, at)) == Valueness::Value =>
         {
             Field::Value

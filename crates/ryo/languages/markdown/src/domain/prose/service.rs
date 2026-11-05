@@ -3,7 +3,7 @@
 //! math and raw HTML are masked by a space, a break is a space, and the white space between words is one space.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use ryo::languages::{self, Tree};
 
@@ -15,25 +15,25 @@ use crate::domain::syntax::types::Kind;
 /// What an inline element of the kind `of` adds to a run.
 #[must_use]
 pub(crate) fn inline_of(of: Kind) -> Inline {
-    if of == Kind::Node(MarkdownNode::Text) {
+    if of == Kind::Node(Node::Text) {
         Inline::Words
     } else if matches!(
         of,
         Kind::Token(Token::LineEnding | Token::HtmlFlowData)
-            | Kind::Node(MarkdownNode::Break | MarkdownNode::InlineCode | MarkdownNode::Html)
+            | Kind::Node(Node::Break | Node::InlineCode | Node::Html)
             | Kind::Extra(Extra::InlineMath)
     ) {
         Inline::Mask
     } else if matches!(
         of,
         Kind::Node(
-            MarkdownNode::Emphasis
-                | MarkdownNode::Strong
-                | MarkdownNode::Delete
-                | MarkdownNode::Link
-                | MarkdownNode::LinkReference
-                | MarkdownNode::Image
-                | MarkdownNode::ImageReference
+            Node::Emphasis
+                | Node::Strong
+                | Node::Delete
+                | Node::Link
+                | Node::LinkReference
+                | Node::Image
+                | Node::ImageReference
         ) | Kind::Extra(Extra::Superscript | Extra::Subscript)
     ) {
         Inline::Holds
@@ -69,7 +69,7 @@ fn gather(
 ) {
     for child in languages::children(tree.elements, at) {
         let of = kind(tree, child);
-        let inline = if code == Code::Read && of == Kind::Node(MarkdownNode::InlineCode) {
+        let inline = if code == Code::Read && of == Kind::Node(Node::InlineCode) {
             Inline::Words
         } else {
             inline_of(of)
@@ -79,7 +79,7 @@ fn gather(
                 let text = written(tree, child).0;
                 // The code a code span holds: its text inside its backtick strings, one space of padding on each side
                 // left out when both are there and the code is not all spaces (CommonMark 6.1).
-                let text = if of == Kind::Node(MarkdownNode::InlineCode) {
+                let text = if of == Kind::Node(Node::InlineCode) {
                     let inner = text.trim_matches(CODE_FENCE);
                     inner
                         .strip_prefix(' ')

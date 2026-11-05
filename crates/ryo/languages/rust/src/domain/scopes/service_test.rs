@@ -1,6 +1,6 @@
 //! The `scopes` service's cases, on trees written by hand: each answers what the service said, in full.
 
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use ryo::languages::{self, Position, Tree};
 
 use super::service::{enclosing_function, is_nameless_function};
@@ -64,7 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 "fn f() { let x = 1; }",
-                Question::Enclosing(Kind::Node(RustNode::LetStmt)),
+                Question::Enclosing(Kind::Node(Node::LetStmt)),
             )
         },
         expect: Expect::Value(Answer::Enclosed(1)),
@@ -72,13 +72,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_function_is_not_enclosed_by_itself"),
         word: Word::Succeeds,
-        input: || ("fn f() {}", Question::Enclosing(Kind::Node(RustNode::Fn))),
+        input: || ("fn f() {}", Question::Enclosing(Kind::Node(Node::Fn))),
         expect: Expect::Value(Answer::Free),
     },
     Case {
         name: CaseName("a_function_with_a_name_is_not_nameless"),
         word: Word::Succeeds,
-        input: || ("fn f() {}", Question::Nameless(Kind::Node(RustNode::Fn))),
+        input: || ("fn f() {}", Question::Nameless(Kind::Node(Node::Fn))),
         expect: Expect::Value(Answer::Namelessness(Namelessness::Named)),
     },
 ];

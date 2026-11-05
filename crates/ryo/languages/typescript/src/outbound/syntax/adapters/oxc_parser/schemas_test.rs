@@ -2,7 +2,7 @@
 
 use super::node_kind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use oxc_allocator::Allocator;
 use oxc_ast::{AstKind, ast::Statement};
 use oxc_parser::Parser;
@@ -15,7 +15,7 @@ enum Given {
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Seen {
-    Kind(Option<TypeScriptNode>),
+    Kind(Option<Node>),
     Accounted(bool),
 }
 type Input = Given;
@@ -27,19 +27,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("function_declaration_keeps_its_identity"),
         word: Word::Succeeds,
         input: || Given::One("function run() {}"),
-        expect: Expect::Value(Seen::Kind(Some(TypeScriptNode::FunctionDeclaration))),
+        expect: Expect::Value(Seen::Kind(Some(Node::FunctionDeclaration))),
     },
     Case {
         name: CaseName("ambient_function_is_not_a_function_body"),
         word: Word::Succeeds,
         input: || Given::One("declare function run(): void;"),
-        expect: Expect::Value(Seen::Kind(Some(TypeScriptNode::TSDeclareFunction))),
+        expect: Expect::Value(Seen::Kind(Some(Node::TSDeclareFunction))),
     },
     Case {
         name: CaseName("class_declaration_keeps_its_identity"),
         word: Word::Succeeds,
         input: || Given::One("class Counter {}"),
-        expect: Expect::Value(Seen::Kind(Some(TypeScriptNode::ClassDeclaration))),
+        expect: Expect::Value(Seen::Kind(Some(Node::ClassDeclaration))),
     },
     Case {
         name: CaseName("every_kind_of_the_library_is_mapped_or_dropped"),

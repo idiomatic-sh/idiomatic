@@ -1,6 +1,6 @@
 //! A decorator's arguments are the text between the parentheses of its call, whatever comes between its callee and them.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::TypeScriptNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{
     service::kind,
     types::{Dialect, Kind},
@@ -71,7 +71,7 @@ fn subject(source: Input) -> Value {
         file: languages::FileId(0),
     };
     let at = languages::positions(&elements)
-        .find(|at| kind(&tree, *at) == Kind::Node(TypeScriptNode::Decorator))
+        .find(|at| kind(&tree, *at) == Kind::Node(Node::Decorator))
         .expect("case holds a decorator");
     let arguments = super::service::arguments(&tree, &mut symbols, at);
     languages::text_of(&symbols, bytes, arguments).map_or("", |text| {

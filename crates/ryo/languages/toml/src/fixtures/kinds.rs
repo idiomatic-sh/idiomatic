@@ -4,7 +4,7 @@ use ryo::languages::contract::KindSample;
 use ryo::languages::{KindName, Sample, SampleText, Why};
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::TomlNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{PUNCTUATION, THROUGH_PARTS, TRIVIA, UNREAD_TEXT};
 use crate::domain::syntax::service::{kind_bits, kinds};
 use crate::domain::syntax::types::Kind;
@@ -27,12 +27,12 @@ pub(super) fn shown() -> Vec<KindSample> {
 #[must_use]
 pub(crate) const fn sample(kind: Kind) -> Sample {
     match kind {
-        Kind::Node(TomlNode::Toml) => Sample::Node(SampleText("")),
-        Kind::Node(TomlNode::StdTable) => Sample::Node(SampleText("[package]")),
-        Kind::Node(TomlNode::ArrayTable) => Sample::Node(SampleText("[[bin]]")),
-        Kind::Node(TomlNode::Keyval | TomlNode::Key) => Sample::Unread(Why(THROUGH_PARTS)),
-        Kind::Node(TomlNode::Array) => Sample::Node(SampleText("a = [1]")),
-        Kind::Node(TomlNode::InlineTable) => Sample::Node(SampleText("a = {}")),
+        Kind::Node(Node::Toml) => Sample::Node(SampleText("")),
+        Kind::Node(Node::StdTable) => Sample::Node(SampleText("[package]")),
+        Kind::Node(Node::ArrayTable) => Sample::Node(SampleText("[[bin]]")),
+        Kind::Node(Node::Keyval | Node::Key) => Sample::Unread(Why(THROUGH_PARTS)),
+        Kind::Node(Node::Array) => Sample::Node(SampleText("a = [1]")),
+        Kind::Node(Node::InlineTable) => Sample::Node(SampleText("a = {}")),
         Kind::Token(Token::UnquotedKey | Token::Integer) => Sample::Token(SampleText("a = 1")),
         Kind::Token(Token::BasicString) => Sample::Token(SampleText("a = \"x\"")),
         Kind::Token(Token::LiteralString) => Sample::Token(SampleText("a = 'x'")),

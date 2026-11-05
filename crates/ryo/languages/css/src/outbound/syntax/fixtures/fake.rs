@@ -3,7 +3,7 @@
 use super::super::interface::SyntaxPort;
 use super::super::types::SourceText;
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
@@ -22,7 +22,7 @@ impl SyntaxPort for SyntaxFake {
     ) {
         let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
         let start = languages::Offset(0);
-        languages::enter_node(builder, kind_bits(Kind::Node(CssNode::Stylesheet)), start);
+        languages::enter_node(builder, kind_bits(Kind::Node(Node::Stylesheet)), start);
         languages::decoded_token(
             builder,
             kind_bits(Kind::Extra(Extra::Comment)),

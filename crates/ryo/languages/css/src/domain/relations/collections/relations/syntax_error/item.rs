@@ -1,7 +1,7 @@
 //! The `syntax_error` relation of the language: every error the parser recovered from, and every token its tokenizer could not
 //! read, kept beside the recovered tree.
 
-use crate::domain::nodes::types::CssNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{
     diagnostic_id, diagnostic_message, diagnostic_span, is_root, kind_bits,
 };
@@ -13,7 +13,7 @@ pub(crate) struct SyntaxErrorItem;
 
 ryo::reads! {
     SyntaxErrorItem => languages::SyntaxError |tree, at, symbols| {
-        kinds: [Kind::Node(CssNode::Stylesheet)] as kind_bits,
+        kinds: [Kind::Node(Node::Stylesheet)] as kind_bits,
         require (is_root(tree, at) == Rootness::Root);
         each (languages::diagnostics(tree.elements)) as (number, diagnostic) {
             given phase = languages::intern_derived(symbols, tree.source, languages::NameText("parse"));

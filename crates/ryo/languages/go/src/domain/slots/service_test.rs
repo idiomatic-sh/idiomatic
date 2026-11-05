@@ -2,7 +2,7 @@
 
 use super::service::{referencing, slot_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::fixtures::reading::{asked, of_kind, spans};
 
@@ -72,7 +72,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((source, query): Input) -> Value {
     let answer = asked(source, |tree| {
-        let named = of_kind(tree, Kind::Node(GoNode::Ident));
+        let named = of_kind(tree, Kind::Node(Node::Ident));
         match query {
             Query::Slots => named
                 .into_iter()
@@ -81,7 +81,7 @@ fn subject((source, query): Input) -> Value {
                 .join(" "),
             Query::References => {
                 let mut everything = named;
-                everything.extend(of_kind(tree, Kind::Node(GoNode::SelectorExpr)));
+                everything.extend(of_kind(tree, Kind::Node(Node::SelectorExpr)));
                 everything.sort();
                 everything
                     .into_iter()

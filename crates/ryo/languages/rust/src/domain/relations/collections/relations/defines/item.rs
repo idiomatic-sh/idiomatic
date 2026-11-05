@@ -5,7 +5,7 @@ use crate::domain::bindings::types::PossibleConstant;
 use crate::domain::declarations::service::{
     declaration, declaration_kind, declaration_span, identity, refined,
 };
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::relations::constants::{NAME_LIKE_CONSTANT, VARIABLE};
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
@@ -18,29 +18,29 @@ pub(crate) struct DefinesItem;
 ryo::reads! {
     DefinesItem => languages::Defines |tree, at, symbols| {
         kinds: [
-            Kind::Node(RustNode::Struct),
-            Kind::Node(RustNode::Enum),
-            Kind::Node(RustNode::Variant),
-            Kind::Node(RustNode::RecordField),
-            Kind::Node(RustNode::Trait),
-            Kind::Node(RustNode::Const),
-            Kind::Node(RustNode::Static),
-            Kind::Node(RustNode::Module),
-            Kind::Node(RustNode::TypeAlias),
-            Kind::Node(RustNode::Union),
-            Kind::Node(RustNode::MacroRules),
-            Kind::Node(RustNode::MacroDef),
-            Kind::Node(RustNode::TypeParam),
-            Kind::Node(RustNode::ConstParam),
-            Kind::Node(RustNode::LetStmt),
-            Kind::Node(RustNode::IdentPat),
-            Kind::Node(RustNode::Fn),
-            Kind::Node(RustNode::TupleField),
-            Kind::Node(RustNode::LifetimeParam),
-            Kind::Node(RustNode::UseTree),
-            Kind::Node(RustNode::ExternCrate),
-            Kind::Node(RustNode::Impl),
-            Kind::Node(RustNode::Label),
+            Kind::Node(Node::Struct),
+            Kind::Node(Node::Enum),
+            Kind::Node(Node::Variant),
+            Kind::Node(Node::RecordField),
+            Kind::Node(Node::Trait),
+            Kind::Node(Node::Const),
+            Kind::Node(Node::Static),
+            Kind::Node(Node::Module),
+            Kind::Node(Node::TypeAlias),
+            Kind::Node(Node::Union),
+            Kind::Node(Node::MacroRules),
+            Kind::Node(Node::MacroDef),
+            Kind::Node(Node::TypeParam),
+            Kind::Node(Node::ConstParam),
+            Kind::Node(Node::LetStmt),
+            Kind::Node(Node::IdentPat),
+            Kind::Node(Node::Fn),
+            Kind::Node(Node::TupleField),
+            Kind::Node(Node::LifetimeParam),
+            Kind::Node(Node::UseTree),
+            Kind::Node(Node::ExternCrate),
+            Kind::Node(Node::Impl),
+            Kind::Node(Node::Label),
         ] as kind_bits,
         when declaration(tree, symbols, at) {
             Some(declared) => {

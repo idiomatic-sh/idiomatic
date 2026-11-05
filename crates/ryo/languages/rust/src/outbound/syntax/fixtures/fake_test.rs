@@ -1,7 +1,7 @@
 //! The `syntax` port's fake makes the tree it was given, every element with its kind and the text it spans.
 
 use super::SyntaxFake;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::fixtures::contract::{Decoding, Made, Origin, Want, made_by};
@@ -10,14 +10,14 @@ use crate::outbound::syntax::fixtures::script::{node, space, text_of, token};
 #[test]
 fn succeeds() {
     let tree = node(
-        Kind::Node(RustNode::SourceFile),
+        Kind::Node(Node::SourceFile),
         vec![node(
-            Kind::Node(RustNode::Fn),
+            Kind::Node(Node::Fn),
             vec![
                 token(Kind::Token(Token::FnKw), "fn"),
                 space(" "),
                 node(
-                    Kind::Node(RustNode::Name),
+                    Kind::Node(Node::Name),
                     vec![token(Kind::Token(Token::Ident), "main")],
                 ),
             ],
@@ -32,11 +32,11 @@ fn succeeds() {
     assert_eq!(
         made,
         vec![
-            want(Kind::Node(RustNode::SourceFile), "fn main"),
-            want(Kind::Node(RustNode::Fn), "fn main"),
+            want(Kind::Node(Node::SourceFile), "fn main"),
+            want(Kind::Node(Node::Fn), "fn main"),
             want(Kind::Token(Token::FnKw), "fn"),
             want(Kind::Token(Token::Whitespace), " "),
-            want(Kind::Node(RustNode::Name), "main"),
+            want(Kind::Node(Node::Name), "main"),
             want(Kind::Token(Token::Ident), "main"),
         ]
     );

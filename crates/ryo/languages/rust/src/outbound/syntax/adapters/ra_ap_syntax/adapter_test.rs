@@ -2,7 +2,7 @@
 //! The `ra_ap_syntax` adapter of the syntax port: the port's contract rows run through it, then the cases specific to it.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::RustNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::EXPANDED_MACROS;
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::types::{Expanding, SourceText};
@@ -167,7 +167,7 @@ fn read(source: &str) -> (Elements, Symbols) {
 fn functions(source: &'static str) -> String {
     let (elements, symbols) = read(source);
     let functions: Vec<Position> = positions(&elements)
-        .filter(|position| kind_of_bits(&elements, *position) == Kind::Node(RustNode::Fn))
+        .filter(|position| kind_of_bits(&elements, *position) == Kind::Node(Node::Fn))
         .collect();
     let first = functions[0];
     let (start, end) = (start_at(&elements, first), end_at(&elements, first));
@@ -331,7 +331,7 @@ fn kind_of_bits(elements: &Elements, position: Position) -> Kind {
 fn broken(source: &'static str) -> String {
     let (elements, _) = read(source);
     positions(&elements)
-        .any(|position| kind_of_bits(&elements, position) == Kind::Node(RustNode::Fn))
+        .any(|position| kind_of_bits(&elements, position) == Kind::Node(Node::Fn))
         .to_string()
 }
 
@@ -351,8 +351,8 @@ const PROBES: &[&str] = &[
 /// The kinds the grammar defines and the parser never gives to a tree built from a file (their reasons are in `sample`).
 const UNPRODUCED: [Kind; 6] = [
     Kind::Extra(Extra::Other),
-    Kind::Node(RustNode::MacroItems),
-    Kind::Node(RustNode::MacroStmts),
+    Kind::Node(Node::MacroItems),
+    Kind::Node(Node::MacroStmts),
     Kind::Token(Token::Newline),
     Kind::Token(Token::BikeshedKw),
     Kind::Token(Token::NullKw),
@@ -648,7 +648,7 @@ fn origins(source: &'static str) -> String {
             expanded += 1_i32;
             let under_a_call =
                 crate::domain::syntax::service::kind_of(kind_at(&elements, call_site))
-                    == Kind::Node(RustNode::MacroCall);
+                    == Kind::Node(Node::MacroCall);
             if !under_a_call || call_site >= at {
                 return "an expansion not under its call".to_owned();
             }
@@ -689,7 +689,7 @@ fn subject(scenario: Input) -> Value {
 fn succeeds() {
     check(SyntaxRaApSyntaxAdapter::new);
     assert_eq!(
-        kind_bits(Kind::Node(RustNode::SourceFile)),
+        kind_bits(Kind::Node(Node::SourceFile)),
         kind_at(&read("fn f() {}").0, Position(0))
     );
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));

@@ -110,7 +110,7 @@ macro_rules! scripted_tree {
     };
     ($kind:ident { $($child:ident $body:tt),* $(,)? }) => {
         $crate::outbound::syntax::fixtures::script::node(
-            $crate::domain::syntax::types::Kind::Node($crate::domain::nodes::types::RustNode::$kind),
+            $crate::domain::syntax::types::Kind::Node($crate::domain::nodes::types::Node::$kind),
             vec![$($crate::scripted_tree!($child $body)),*],
         )
     };

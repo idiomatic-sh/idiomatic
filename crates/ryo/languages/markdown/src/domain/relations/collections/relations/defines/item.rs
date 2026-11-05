@@ -5,7 +5,7 @@ use crate::domain::labels::service::{anchors_in, defined};
 use crate::domain::labels::types::Defined;
 use crate::domain::model::service::owner;
 use crate::domain::model::types::Sections;
-use crate::domain::nodes::types::MarkdownNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::prose::service::section_name;
 use crate::domain::syntax::service::{kind_bits, kind_symbol, name_of};
 use crate::domain::syntax::types::Kind;
@@ -17,10 +17,10 @@ pub(crate) struct DefinesItem;
 ryo::reads! {
     DefinesItem => languages::Defines, model(Sections) |tree, model, at, symbols| {
         kinds: [
-            Kind::Node(MarkdownNode::Heading),
-            Kind::Node(MarkdownNode::FootnoteDefinition),
-            Kind::Node(MarkdownNode::Definition),
-            Kind::Node(MarkdownNode::Html),
+            Kind::Node(Node::Heading),
+            Kind::Node(Node::FootnoteDefinition),
+            Kind::Node(Node::Definition),
+            Kind::Node(Node::Html),
         ] as kind_bits,
         when defined(tree, at) {
             Defined::Section => {

@@ -6,10 +6,10 @@ use ryo::languages::{self, Tree};
 
 use super::types::{Kind, Leaf, Rootness, Spelled, Text};
 use crate::domain::extras::types::Extra;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 
-ryo::languages::kinds!(pub Kind { Node(GoNode), Token(Token), Extra(Extra) } unknown Kind::Token(Token::Illegal));
+ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra) } unknown Kind::Token(Token::Illegal));
 
 /// The kind of the element at `at`.
 #[must_use]

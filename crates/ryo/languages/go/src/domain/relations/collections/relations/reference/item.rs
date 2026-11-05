@@ -5,7 +5,7 @@
 
 use crate::domain::names::service::{dotted, unknown};
 use crate::domain::names::types::Unresolved;
-use crate::domain::nodes::types::GoNode;
+use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
 use crate::domain::slots::service::referencing;
 use crate::domain::slots::types::Referencing;
@@ -18,7 +18,7 @@ pub(crate) struct ReferenceItem;
 
 ryo::reads! {
     ReferenceItem => languages::Reference |tree, at, symbols| {
-        kinds: [Kind::Node(GoNode::Ident), Kind::Node(GoNode::SelectorExpr)] as kind_bits,
+        kinds: [Kind::Node(Node::Ident), Kind::Node(Node::SelectorExpr)] as kind_bits,
         when referencing(tree, at) {
             Referencing::Used => {
                 given target = dotted(tree, symbols, at)?;

@@ -16,7 +16,7 @@
 )]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u16)]
-pub(crate) enum GoNode {
+pub(crate) enum Node {
     /// `ast.ArrayType`.
     ArrayType,
     /// `ast.AssignStmt`.
