@@ -62,7 +62,9 @@ fn carrier(tree: &Tree<'_>, node: Position, symbols: &Symbols, source: &mut Stri
             languages::text_at(tree.elements, token),
         )?;
         // A complete ordinary string-token envelope excludes lexer recovery and nonstrings.
-        let _body = crate::domain::raw_format::service::body(spelling.0)?;
+        let _body = crate::domain::raw_format::service::body(
+            crate::domain::raw_format::types::RawFormatToken(spelling.0),
+        )?;
         source.try_reserve(spelling.0.len().checked_add(1)?).ok()?;
         source.push_str(spelling.0);
         source.push('\n');

@@ -26,9 +26,9 @@ pub(crate) struct FormatParseError {
     /// The stable error category.
     pub kind: FormatErrorKind,
     /// The character the parser reported, if the category has one.
-    pub character: Option<char>,
+    pub character: Option<FormatCharacter>,
     /// The error position in Unicode scalar units.
-    pub index: usize,
+    pub index: FormatScalarIndex,
 }
 
 /// Which argument a conversion consumes.
@@ -37,7 +37,7 @@ pub(crate) enum FormatArgument {
     /// A positional argument.
     Positional,
     /// A mapping item named by its spelling within the parser input.
-    Mapping(String),
+    Mapping(FormatMappingKey),
 }
 
 /// The mode for one width or precision modifier.
@@ -58,26 +58,26 @@ pub(crate) enum FormatQuantityMode {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FormatFlags {
     /// Prefix nonnegative numbers with a blank.
-    pub space_sign: bool,
+    pub space_sign: FormatProperty,
     /// Alternate numeric conversion form.
-    pub alternate_form: bool,
+    pub alternate_form: FormatProperty,
     /// Prefix nonnegative numbers with a plus sign.
-    pub sign: bool,
+    pub sign: FormatProperty,
     /// Left adjustment.
-    pub left_adjust: bool,
+    pub left_adjust: FormatProperty,
     /// Zero padding.
-    pub zero_pad: bool,
+    pub zero_pad: FormatProperty,
 }
 
 /// One parsed conversion field.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct FormatFieldValue {
     /// Its zero-based order among conversions.
-    pub ordinal: usize,
+    pub ordinal: FormatFieldOrdinal,
     /// Its argument selection.
     pub argument: FormatArgument,
     /// Its conversion character.
-    pub conversion: char,
+    pub conversion: FormatCharacter,
     /// Width consumption.
     pub width: FormatQuantityMode,
     /// Precision consumption.
@@ -90,13 +90,13 @@ pub(crate) struct FormatFieldValue {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FormatSummary {
     /// Positional values consumed by conversions and dynamic modifiers.
-    pub positional_consumption: usize,
+    pub positional_consumption: PositionalConsumption,
     /// Whether at least one conversion selects a mapping key.
-    pub mapping_present: bool,
+    pub mapping_present: FormatProperty,
     /// Whether at least one conversion consumes dynamic width.
-    pub dynamic_width: bool,
+    pub dynamic_width: FormatProperty,
     /// Whether at least one conversion consumes dynamic precision.
-    pub dynamic_precision: bool,
+    pub dynamic_precision: FormatProperty,
 }
 
 /// A successfully parsed format input.
@@ -132,9 +132,9 @@ pub(crate) struct FormatOccurrence {
     /// The source-tree node for this literal.
     pub node: ryo::languages::Position,
     /// The result in `FormatParseIndex::values`; absent means unknown or unavailable input.
-    pub cached: Option<usize>,
+    pub cached: Option<FormatResultIndex>,
     /// Whether the input was dynamic rather than unavailable parser data.
-    pub unknown_input: bool,
+    pub unknown_input: DynamicInput,
 }
 
 /// Current source occurrences and a separate byte-budgeted content memo.
@@ -143,7 +143,7 @@ pub(crate) struct FormatParseIndex {
     /// Budgeted previous-source grammar results; no source-node identities.
     pub memo: crate::domain::grammar_cache::types::Memo<FormatParseResult>,
     /// Input text to one cached result, avoiding duplicate grammar work.
-    pub by_input: indexmap::IndexMap<String, usize>,
+    pub by_input: indexmap::IndexMap<FormatCacheInput, FormatResultIndex>,
     /// Parsed or malformed results, one per distinct decoded input.
     pub values: Vec<CachedFormat>,
     /// Source occurrences and their cached values.
@@ -163,3 +163,128 @@ pub(crate) enum FormatParseState {
     /// A parser input or source occurrence could not be represented.
     Partial,
 }
+
+/// Exact parser/dialect identity, supplied by the selected grammar adapter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct GrammarIdentity(pub &'static str);
+
+/// Presence of one parsed flag or consumption property.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum FormatProperty {
+    #[default]
+    Absent,
+    Present,
+}
+impl From<bool> for FormatProperty {
+    fn from(value: bool) -> Self {
+        if value { Self::Present } else { Self::Absent }
+    }
+}
+impl From<FormatProperty> for bool {
+    fn from(value: FormatProperty) -> Self {
+        value == FormatProperty::Present
+    }
+}
+impl From<FormatProperty> for usize {
+    fn from(value: FormatProperty) -> Self {
+        usize::from(bool::from(value))
+    }
+}
+/// Recognition tells the grammar cursor whether to consume a flag character.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FlagRecognition {
+    Consumed,
+    Other,
+}
+/// One decoded Unicode scalar supplied to percent grammar operations.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FormatCharacter(pub char);
+/// Canonical spelling of a parsed flag combination.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FlagSpelling(pub &'static str);
+
+/// One result position in an owning format index.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct FormatResultIndex(pub usize);
+/// Exact grammar input used as a content lookup key.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct FormatCacheInput(pub String);
+impl From<String> for FormatCacheInput {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl std::borrow::Borrow<str> for FormatCacheInput {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+impl std::borrow::Borrow<String> for FormatCacheInput {
+    fn borrow(&self) -> &String {
+        &self.0
+    }
+}
+/// Whether dynamic input was observed for this source occurrence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DynamicInput {
+    NotObserved,
+    Observed,
+}
+impl From<bool> for DynamicInput {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::Observed
+        } else {
+            Self::NotObserved
+        }
+    }
+}
+impl From<DynamicInput> for bool {
+    fn from(value: DynamicInput) -> Self {
+        value == DynamicInput::Observed
+    }
+}
+
+/// Unicode scalar position in a decoded parser input.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FormatScalarIndex(pub usize);
+/// Source traversal order of a parsed conversion field.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FormatFieldOrdinal(pub usize);
+/// Number of positional operands consumed by one complete format.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PositionalConsumption(pub usize);
+impl std::ops::AddAssign<usize> for PositionalConsumption {
+    fn add_assign(&mut self, value: usize) {
+        self.0 += value;
+    }
+}
+/// The exact spelling of a mapping key in the decoded grammar input.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct FormatMappingKey(pub String);
+/// The selected grammar's borrowed input; no decoding or copying is implied.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FormatInput<'a>(pub &'a str);
+impl std::fmt::Display for FormatCharacter {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, formatter)
+    }
+}
+
+/// The caller-owned assembly buffer for decoded pieces.
+pub(crate) struct FormatScratch<'a>(pub &'a mut String);
+/// Static decoded input is distinct from a dynamic interpolation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DecodedInput {
+    Static,
+    Dynamic,
+}
+/// Whether a source node owns an original string occurrence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StringOccurrence {
+    String,
+    Other,
+}
+/// Existing cache admission charge for the owned result buffers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FormatOwnedBytes(pub usize);

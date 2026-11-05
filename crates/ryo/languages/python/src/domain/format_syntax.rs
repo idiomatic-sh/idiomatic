@@ -2,3 +2,5 @@
 pub(crate) mod interface;
 pub(crate) mod service;
 pub(crate) mod types;
+
+pub(crate) mod constants;

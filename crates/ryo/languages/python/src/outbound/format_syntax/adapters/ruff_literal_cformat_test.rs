@@ -3,7 +3,10 @@ use super::*;
 use crate::domain::format_syntax::service::flag_text;
 
 fn parsed(source: &str) -> ParsedFormat {
-    match RuffLiteralCFormat::parse(source, FormatDialect::PercentString) {
+    match RuffLiteralCFormat::parse(
+        crate::domain::format_syntax::types::FormatInput(source),
+        FormatDialect::PercentString,
+    ) {
         FormatParseResult::Parsed(parsed) => parsed,
         FormatParseResult::Malformed(_) | FormatParseResult::Unavailable => {
             panic!("expected parsed format for {source:?}, got a non-parsed result")
@@ -21,9 +24,9 @@ fn escaped_percent_is_a_valid_zero_field_format() {
 #[test]
 fn dynamic_width_and_precision_each_consume_positional_values() {
     let result = parsed("%*.*s");
-    assert_eq!(result.summary.positional_consumption, 3);
-    assert!(result.summary.dynamic_width);
-    assert!(result.summary.dynamic_precision);
+    assert_eq!(result.summary.positional_consumption.0, 3);
+    assert!(bool::from(result.summary.dynamic_width));
+    assert!(bool::from(result.summary.dynamic_precision));
     assert_eq!(result.fields[0].width, FormatQuantityMode::Star);
     assert_eq!(result.fields[0].precision, FormatQuantityMode::Star);
 }
@@ -34,33 +37,43 @@ fn repeated_mapping_keys_and_mixed_positional_fields_are_preserved() {
     assert_eq!(result.fields.len(), 3);
     assert_eq!(
         result.fields[0].argument,
-        FormatArgument::Mapping("name".to_owned())
+        FormatArgument::Mapping(crate::domain::format_syntax::types::FormatMappingKey(
+            "name".to_owned()
+        ))
     );
     assert_eq!(
         result.fields[1].argument,
-        FormatArgument::Mapping("name".to_owned())
+        FormatArgument::Mapping(crate::domain::format_syntax::types::FormatMappingKey(
+            "name".to_owned()
+        ))
     );
     assert_eq!(result.fields[2].argument, FormatArgument::Positional);
-    assert_eq!(result.summary.positional_consumption, 1);
-    assert!(result.summary.mapping_present);
+    assert_eq!(result.summary.positional_consumption.0, 1);
+    assert!(bool::from(result.summary.mapping_present));
 }
 
 #[test]
 fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
     assert_eq!(
-        RuffLiteralCFormat::parse("é%", FormatDialect::PercentString),
+        RuffLiteralCFormat::parse(
+            crate::domain::format_syntax::types::FormatInput("é%"),
+            FormatDialect::PercentString
+        ),
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::IncompleteFormat,
             character: None,
-            index: 2,
+            index: crate::domain::format_syntax::types::FormatScalarIndex(2),
         }),
     );
     assert_eq!(
-        RuffLiteralCFormat::parse("é%n", FormatDialect::PercentString),
+        RuffLiteralCFormat::parse(
+            crate::domain::format_syntax::types::FormatInput("é%n"),
+            FormatDialect::PercentString
+        ),
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::UnsupportedFormatCharacter,
-            character: Some('n'),
-            index: 2,
+            character: Some(crate::domain::format_syntax::types::FormatCharacter('n')),
+            index: crate::domain::format_syntax::types::FormatScalarIndex(2),
         }),
     );
 }
@@ -68,32 +81,44 @@ fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
 #[test]
 fn unmatched_mapping_and_overflow_are_diagnostics() {
     assert!(matches!(
-        RuffLiteralCFormat::parse("%(name", FormatDialect::PercentString),
+        RuffLiteralCFormat::parse(
+            crate::domain::format_syntax::types::FormatInput("%(name"),
+            FormatDialect::PercentString
+        ),
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::UnmatchedKeyParentheses,
             ..
         })
     ));
     assert!(matches!(
-        RuffLiteralCFormat::parse("%999999999999999999999s", FormatDialect::PercentString),
+        RuffLiteralCFormat::parse(
+            crate::domain::format_syntax::types::FormatInput("%999999999999999999999s"),
+            FormatDialect::PercentString
+        ),
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::WidthOrPrecisionTooLarge,
             ..
         })
     ));
     assert_eq!(
-        RuffLiteralCFormat::parse("%*", FormatDialect::PercentString),
+        RuffLiteralCFormat::parse(
+            crate::domain::format_syntax::types::FormatInput("%*"),
+            FormatDialect::PercentString
+        ),
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::IncompleteFormat,
             character: None,
-            index: 0,
+            index: crate::domain::format_syntax::types::FormatScalarIndex(0),
         }),
     );
     assert!(matches!(
-        RuffLiteralCFormat::parse("%b", FormatDialect::PercentString),
+        RuffLiteralCFormat::parse(
+            crate::domain::format_syntax::types::FormatInput("%b"),
+            FormatDialect::PercentString
+        ),
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::UnsupportedFormatCharacter,
-            character: Some('b'),
+            character: Some(crate::domain::format_syntax::types::FormatCharacter('b')),
             ..
         })
     ));
@@ -102,16 +127,16 @@ fn unmatched_mapping_and_overflow_are_diagnostics() {
 #[test]
 fn flags_are_preserved_without_reordering_the_grammar_or_applying_precedence() {
     let plain = parsed("%s");
-    assert_eq!(flag_text(plain.fields[0].flags), "");
+    assert_eq!(flag_text(plain.fields[0].flags).0, "");
     let combined = parsed("%0- +#10r");
-    assert_eq!(flag_text(combined.fields[0].flags), " #+-0");
+    assert_eq!(flag_text(combined.fields[0].flags).0, " #+-0");
     assert_eq!(combined.fields[0].width, FormatQuantityMode::Fixed);
     assert_eq!(combined.fields[0].precision, FormatQuantityMode::None);
     let repeated = parsed("%##00--++  r");
     assert_eq!(repeated.fields[0].flags, combined.fields[0].flags);
     assert_eq!(repeated.fields[0].width, FormatQuantityMode::None);
     let zero = parsed("%0s");
-    assert_eq!(flag_text(zero.fields[0].flags), "0");
+    assert_eq!(flag_text(zero.fields[0].flags).0, "0");
     assert_eq!(zero.fields[0].width, FormatQuantityMode::None);
     assert!(parsed("%%").fields.is_empty());
 }

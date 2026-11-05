@@ -1,5 +1,9 @@
 //! Parse preserved logical token spellings without decoding or concatenating bodies.
-use super::types::{RawFormatIndex, RawFormatOccurrence, RawFormatSegment};
+use super::types::{
+    RawCompleteness, RawFormatBody, RawFormatIndex, RawFormatOccurrence, RawFormatSegment,
+    RawFormatToken, RawSegmentIndex, RawTokenOrdinal,
+};
+use crate::domain::format_syntax::types::FormatResultIndex;
 use crate::domain::format_syntax::{
     interface::FormatSyntax,
     types::{FormatDialect, FormatParseResult, FormatParseState},
@@ -17,19 +21,20 @@ use crate::domain::{
 use ryo::languages::{self, Position, Symbols, Tree};
 use std::cell::Ref;
 
-/// Missing raw source knowledge must remain observable through partial relation reads.
-pub(crate) const INCOMPLETE: &str =
-    "raw-format parsing needs complete logical string-token spellings";
-
 /// Discard current source identities and bodies while retaining collection capacities.
 pub(crate) fn clear(index: &mut RawFormatIndex) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
     for (input, at) in index.by_input.drain(..) {
-        if let Some(value) = index.values.get_mut(at) {
+        if let Some(value) = index.values.get_mut(at.0) {
             let result = std::mem::replace(value, FormatParseResult::Unavailable);
             let bytes = crate::domain::format_parsing::service::owned_bytes(&result);
             if result != FormatParseResult::Unavailable {
-                crate::domain::grammar_cache::service::admit(&mut index.memo, input, result, bytes);
+                crate::domain::grammar_cache::service::admit(
+                    &mut index.memo,
+                    input.0,
+                    result,
+                    bytes,
+                );
             }
         }
     }
@@ -41,7 +46,8 @@ pub(crate) fn clear(index: &mut RawFormatIndex) {
 }
 
 /// Check the ordinary string-token envelope and borrow its raw body unchanged.
-pub(crate) fn body(token: &str) -> Option<&str> {
+pub(crate) fn body(token: RawFormatToken<'_>) -> Option<RawFormatBody<'_>> {
+    let token = token.0;
     let bytes = token.as_bytes();
     let prefix = usize::from(matches!(bytes.first(), Some(b'r' | b'R' | b'u' | b'U')));
     let quoted = token.get(prefix..)?;
@@ -68,14 +74,15 @@ pub(crate) fn body(token: &str) -> Option<&str> {
     {
         return None;
     }
-    quoted.get(width..end)
+    quoted.get(width..end).map(RawFormatBody)
 }
 
 /// Retain one grammar result for each distinct logical token body.
-fn cached<P>(index: &mut RawFormatIndex, body: &str) -> Option<usize>
+fn cached<P>(index: &mut RawFormatIndex, body: RawFormatBody<'_>) -> Option<FormatResultIndex>
 where
     P: FormatSyntax,
 {
+    let body = body.0;
     if let Some(cached) = index.by_input.get(body) {
         return Some(*cached);
     }
@@ -91,14 +98,20 @@ where
         reused
     } else {
         owned.push_str(body);
-        (owned, P::parse(body, FormatDialect::PercentString))
+        (
+            owned,
+            P::parse(
+                crate::domain::format_syntax::types::FormatInput(body),
+                FormatDialect::PercentString,
+            ),
+        )
     };
     if result == FormatParseResult::Unavailable {
         index.state = FormatParseState::Partial;
     }
-    let cached = index.values.len();
+    let cached = FormatResultIndex(index.values.len());
     index.values.push(result);
-    let previous = index.by_input.insert(owned, cached);
+    let previous = index.by_input.insert(owned.into(), cached);
     debug_assert!(
         previous.is_none(),
         "a previously absent raw body is inserted once"
@@ -112,7 +125,7 @@ fn occurrence<P>(
     index: &mut RawFormatIndex,
     node: Position,
     symbols: &Symbols,
-    source_complete: bool,
+    source_complete: RawCompleteness,
 ) where
     P: FormatSyntax,
 {
@@ -126,7 +139,7 @@ fn occurrence<P>(
     for token in below(tree, node).filter(|each| kind(tree, *each) == Kind::Token(Token::String)) {
         if index.segments.try_reserve(1).is_err() {
             index.state = FormatParseState::Partial;
-            complete = false;
+            complete = RawCompleteness::Partial;
             break;
         }
         let cached = languages::text_of(
@@ -134,41 +147,42 @@ fn occurrence<P>(
             tree.source,
             languages::text_at(tree.elements, token),
         )
-        .and_then(|text| body(text.0))
+        .and_then(|text| body(RawFormatToken(text.0)))
         .and_then(|body| cached::<P>(index, body));
         if cached
-            .and_then(|at| index.values.get(at))
+            .and_then(|at| index.values.get(at.0))
             .is_none_or(|result| *result == FormatParseResult::Unavailable)
         {
             index.state = FormatParseState::Partial;
-            complete = false;
+            complete = RawCompleteness::Partial;
         }
         let first_field = fields;
-        if let Some(FormatParseResult::Parsed(parsed)) = cached.and_then(|at| index.values.get(at))
+        if let Some(FormatParseResult::Parsed(parsed)) =
+            cached.and_then(|at| index.values.get(at.0))
         {
             if let Some(next) = fields.checked_add(parsed.fields.len()) {
                 fields = next;
             } else {
                 index.state = FormatParseState::Partial;
-                complete = false;
+                complete = RawCompleteness::Partial;
             }
         }
         index.segments.push(RawFormatSegment {
             token,
-            ordinal: index.segments.len() - first,
-            first_field,
+            ordinal: RawTokenOrdinal(index.segments.len() - first),
+            first_field: crate::domain::format_syntax::types::FormatFieldOrdinal(first_field),
             cached,
         });
     }
     let end = index.segments.len();
     if first == end {
         index.state = FormatParseState::Partial;
-        complete = false;
+        complete = RawCompleteness::Partial;
     }
     index.occurrences.push(RawFormatOccurrence {
         node,
-        first,
-        end,
+        first: RawSegmentIndex(first),
+        end: RawSegmentIndex(end),
         complete,
     });
 }
@@ -184,19 +198,21 @@ where
 {
     if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
         &model.raw_format.borrow().memo,
-        "python-percent-raw-v1",
+        P::RAW_GRAMMAR.0,
     ) {
         clear(&mut model.raw_format.borrow_mut());
     }
     if model.raw_format.borrow().state == FormatParseState::Fresh {
         let mut index = model.raw_format.borrow_mut();
-        crate::domain::grammar_cache::service::grammar::<P, _>(
-            &mut index.memo,
-            "python-percent-raw-v1",
-        );
-        let source_complete = !languages::has_incomplete_syntax(tree.elements)
-            && !languages::has_incomplete_lexical_stream(tree.elements);
-        index.state = if source_complete {
+        crate::domain::grammar_cache::service::grammar::<P, _>(&mut index.memo, P::RAW_GRAMMAR.0);
+        let source_complete = if !languages::has_incomplete_syntax(tree.elements)
+            && !languages::has_incomplete_lexical_stream(tree.elements)
+        {
+            RawCompleteness::Complete
+        } else {
+            RawCompleteness::Partial
+        };
+        index.state = if source_complete == RawCompleteness::Complete {
             FormatParseState::Complete
         } else {
             FormatParseState::Partial
@@ -224,7 +240,7 @@ pub(crate) fn segments<'a>(
 ) -> &'a [RawFormatSegment] {
     index
         .segments
-        .get(occurrence.first..occurrence.end)
+        .get(occurrence.first.0..occurrence.end.0)
         .unwrap_or_default()
 }
 
@@ -233,7 +249,7 @@ pub(crate) fn result<'a>(
     index: &'a RawFormatIndex,
     segment: &RawFormatSegment,
 ) -> Option<&'a FormatParseResult> {
-    index.values.get(segment.cached?)
+    index.values.get(segment.cached?.0)
 }
 
 /// Completeness reported by either demand-driven raw reader.

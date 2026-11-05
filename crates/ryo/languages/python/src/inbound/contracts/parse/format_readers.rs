@@ -1,6 +1,7 @@
 //! Static binding from the Python composition to its percent-format grammar adapter.
 
-use crate::domain::format_parsing::service::{INCOMPLETE, occurrences, prepare, result, state};
+use crate::domain::format_parsing::constants::INCOMPLETE;
+use crate::domain::format_parsing::service::{occurrences, prepare, result, state};
 use crate::domain::format_syntax::types::{
     FormatArgument, FormatErrorKind, FormatParseResult, FormatParseState, FormatQuantityMode,
     FormatSummary,
@@ -64,8 +65,8 @@ pub(super) fn error_parts(result: Option<&FormatParseResult>) -> (&'static str, 
         FormatErrorKind::UnsupportedFormatCharacter => "unsupported-format-character",
         FormatErrorKind::WidthOrPrecisionTooLarge => "width-or-precision-too-large",
     };
-    let character = error.character;
-    let index = i64::try_from(error.index).unwrap_or(i64::MAX);
+    let character = error.character.map(|character| character.0);
+    let index = i64::try_from(error.index.0).unwrap_or(i64::MAX);
     (category, character, index)
 }
 
@@ -100,7 +101,7 @@ ryo::reads! {
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             given parsed = result(&index, occurrence);
-            given summary = summary_of(parsed, occurrence.unknown_input);
+            given summary = summary_of(parsed, occurrence.unknown_input.into());
             given error_parts = error_parts(parsed);
             given dialect = intern(symbols, tree.source, "percent-string");
             given representation = intern(symbols, tree.source, "decoded-string");
@@ -108,8 +109,8 @@ ryo::reads! {
             given error_category = intern(symbols, tree.source, error_parts.0);
             given error_character = intern_character(symbols, tree.source, error_parts.1);
             given error_index = languages::Integer(error_parts.2);
-            given positional_consumption = languages::Integer(i64::try_from(summary.0.positional_consumption).unwrap_or(i64::MAX));
-            row { id: node(occurrence.node), dialect: value(dialect), representation: value(representation), outcome: value(outcome), error_category: value(error_category), error_character: value(error_character), error_index: value(error_index), positional_consumption: value(positional_consumption), mapping_present: value(flag(summary.0.mapping_present)), dynamic_width: value(flag(summary.0.dynamic_width)), dynamic_precision: value(flag(summary.0.dynamic_precision)), file: file, span: span(occurrence.node), }
+            given positional_consumption = languages::Integer(i64::try_from(summary.0.positional_consumption.0).unwrap_or(i64::MAX));
+            row { id: node(occurrence.node), dialect: value(dialect), representation: value(representation), outcome: value(outcome), error_category: value(error_category), error_character: value(error_character), error_index: value(error_index), positional_consumption: value(positional_consumption), mapping_present: value(flag(summary.0.mapping_present.into())), dynamic_width: value(flag(summary.0.dynamic_width.into())), dynamic_precision: value(flag(summary.0.dynamic_precision.into())), file: file, span: span(occurrence.node), }
         }
         when state(&index) {
             FormatParseState::Partial | FormatParseState::Fresh => { partial INCOMPLETE => languages::Missing::Any; }
@@ -128,11 +129,11 @@ ryo::reads! {
                 Some(FormatParseResult::Parsed(parsed)) => {
                     each (parsed.fields.iter()) as field {
                         given argument_kind = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "positional", FormatArgument::Mapping(_) => "mapping" });
-                        given mapping_key = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "", FormatArgument::Mapping(key) => key });
-                        given conversion = intern_character(symbols, tree.source, Some(field.conversion));
+                        given mapping_key = intern(symbols, tree.source, match &field.argument { FormatArgument::Positional => "", FormatArgument::Mapping(key) => key.0.as_str() });
+                        given conversion = intern_character(symbols, tree.source, Some(field.conversion.0));
                         given width = intern(symbols, tree.source, width_mode(field.width));
                         given precision = intern(symbols, tree.source, precision_mode(field.precision));
-                        given ordinal = languages::Integer(i64::try_from(field.ordinal).unwrap_or(i64::MAX));
+                        given ordinal = languages::Integer(i64::try_from(field.ordinal.0).unwrap_or(i64::MAX));
                         row { id: node(occurrence.node), ordinal: value(ordinal), argument_kind: value(argument_kind), mapping_key: value(mapping_key), conversion: value(conversion), width_mode: value(width), precision_mode: value(precision), file: file, span: span(occurrence.node), }
                     }
                 }

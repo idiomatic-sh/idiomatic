@@ -18,7 +18,15 @@ static MALFORMED_PARSES: AtomicUsize = AtomicUsize::new(0);
 struct CountingParser;
 
 impl FormatSyntax for CountingParser {
-    fn parse(_input: &str, _dialect: FormatDialect) -> FormatParseResult {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+    fn parse(
+        _input: crate::domain::format_syntax::types::FormatInput<'_>,
+        _dialect: FormatDialect,
+    ) -> FormatParseResult {
         let _previous_count = COUNTING_PARSES.fetch_add(1, Ordering::SeqCst);
         FormatParseResult::Parsed(ParsedFormat {
             fields: Vec::new(),
@@ -30,12 +38,20 @@ impl FormatSyntax for CountingParser {
 struct MalformedParser;
 
 impl FormatSyntax for MalformedParser {
-    fn parse(_input: &str, _dialect: FormatDialect) -> FormatParseResult {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+    fn parse(
+        _input: crate::domain::format_syntax::types::FormatInput<'_>,
+        _dialect: FormatDialect,
+    ) -> FormatParseResult {
         let _previous_count = MALFORMED_PARSES.fetch_add(1, Ordering::SeqCst);
         FormatParseResult::Malformed(FormatParseError {
             kind: FormatErrorKind::IncompleteFormat,
             character: None,
-            index: 0,
+            index: crate::domain::format_syntax::types::FormatScalarIndex(0),
         })
     }
 }
@@ -43,12 +59,19 @@ impl FormatSyntax for MalformedParser {
 struct UnavailableParser;
 
 impl FormatSyntax for UnavailableParser {
-    fn parse(_input: &str, _dialect: FormatDialect) -> FormatParseResult {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+    fn parse(
+        _input: crate::domain::format_syntax::types::FormatInput<'_>,
+        _dialect: FormatDialect,
+    ) -> FormatParseResult {
         FormatParseResult::Unavailable
     }
 }
 
-#[test]
 fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset() {
     COUNTING_PARSES.store(0, Ordering::SeqCst);
     let file = parsed(b"first = '%s'\nsecond = '%s'\n").expect("source parses");
@@ -106,7 +129,6 @@ fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset() {
     );
 }
 
-#[test]
 fn malformed_results_are_cached_and_unavailable_results_mark_partial() {
     MALFORMED_PARSES.store(0, Ordering::SeqCst);
     let file = parsed(b"first = '%*'\nsecond = '%*'\n").expect("source parses");
@@ -136,4 +158,30 @@ fn malformed_results_are_cached_and_unavailable_results_mark_partial() {
         &unavailable.values[0].result,
         &FormatParseResult::Unavailable
     );
+}
+
+use crate::cases::{Case, CaseName, Expect, Word, run};
+type Scenario = fn();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Scenario, (), Failure>] = &[
+    Case {
+        name: CaseName("duplicate_inputs_are_parsed_once_and_retained_until_source_reset"),
+        word: Word::Succeeds,
+        input: || duplicate_inputs_are_parsed_once_and_retained_until_source_reset as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("malformed_results_are_cached_and_unavailable_results_mark_partial"),
+        word: Word::Succeeds,
+        input: || malformed_results_are_cached_and_unavailable_results_mark_partial as fn(),
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Scenario) -> Result<(), Failure> {
+    scenario();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

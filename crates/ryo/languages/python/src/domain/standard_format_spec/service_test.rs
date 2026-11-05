@@ -1,7 +1,7 @@
 //! The observation describes the standard mini-language, not a custom value's `__format__`.
 use super::{StandardSpecOutcome as Outcome, recognize};
+use crate::domain::standard_format_spec::types::{FormatSpecText, PresentationCharacter};
 
-#[test]
 fn static_clauses_and_unicode_fill_are_recognized() {
     for spec in [
         "",
@@ -15,37 +15,88 @@ fn static_clauses_and_unicode_fill_are_recognized() {
         ".٢f",
     ] {
         assert_eq!(
-            recognize(spec, false, (3, 10)),
+            recognize(FormatSpecText(spec), false.into(), (3, 10).into()),
             Outcome::Recognized,
             "{spec}"
         );
     }
 }
 
-#[test]
 fn unsupported_type_is_distinct_from_other_structural_error() {
     for (spec, expected) in [
-        ("z", Outcome::InvalidType('z')),
-        ("*^30y", Outcome::InvalidType('y')),
-        ("}", Outcome::InvalidType('}')),
+        ("z", Outcome::InvalidType(PresentationCharacter('z'))),
+        ("*^30y", Outcome::InvalidType(PresentationCharacter('y'))),
+        ("}", Outcome::InvalidType(PresentationCharacter('}'))),
         (".2fa", Outcome::OtherError),
         ("ds", Outcome::OtherError),
         (".q", Outcome::OtherError),
-        ("٣q", Outcome::InvalidType('q')),
-        ("²d", Outcome::InvalidType('²')),
+        ("٣q", Outcome::InvalidType(PresentationCharacter('q'))),
+        ("²d", Outcome::InvalidType(PresentationCharacter('²'))),
     ] {
-        assert_eq!(recognize(spec, false, (3, 10)), expected, "{spec}");
+        assert_eq!(
+            recognize(FormatSpecText(spec), false.into(), (3, 10).into()),
+            expected,
+            "{spec}"
+        );
     }
 }
 
-#[test]
 fn dynamic_outer_is_deferred_but_nested_specs_can_be_observed_separately() {
-    assert_eq!(recognize(".{width}g", true, (3, 10)), Outcome::Dynamic);
-    assert_eq!(recognize("y", false, (3, 10)), Outcome::InvalidType('y'));
+    assert_eq!(
+        recognize(FormatSpecText(".{width}g"), true.into(), (3, 10).into()),
+        Outcome::Dynamic
+    );
+    assert_eq!(
+        recognize(FormatSpecText("y"), false.into(), (3, 10).into()),
+        Outcome::InvalidType(PresentationCharacter('y'))
+    );
 }
 
-#[test]
 fn zero_coercion_is_version_bound() {
-    assert_eq!(recognize("z.2f", false, (3, 10)), Outcome::InvalidType('z'));
-    assert_eq!(recognize("z.2f", false, (3, 11)), Outcome::Recognized);
+    assert_eq!(
+        recognize(FormatSpecText("z.2f"), false.into(), (3, 10).into()),
+        Outcome::InvalidType(PresentationCharacter('z'))
+    );
+    assert_eq!(
+        recognize(FormatSpecText("z.2f"), false.into(), (3, 11).into()),
+        Outcome::Recognized
+    );
+}
+
+use crate::cases::{Case, CaseName, Expect, Word, run};
+type Scenario = fn();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Scenario, (), Failure>] = &[
+    Case {
+        name: CaseName("static_clauses_and_unicode_fill_are_recognized"),
+        word: Word::Succeeds,
+        input: || static_clauses_and_unicode_fill_are_recognized as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unsupported_type_is_distinct_from_other_structural_error"),
+        word: Word::Succeeds,
+        input: || unsupported_type_is_distinct_from_other_structural_error as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("dynamic_outer_is_deferred_but_nested_specs_can_be_observed_separately"),
+        word: Word::Succeeds,
+        input: || dynamic_outer_is_deferred_but_nested_specs_can_be_observed_separately as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("zero_coercion_is_version_bound"),
+        word: Word::Succeeds,
+        input: || zero_coercion_is_version_bound as fn(),
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Scenario) -> Result<(), Failure> {
+    scenario();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

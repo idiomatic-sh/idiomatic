@@ -5,9 +5,10 @@
 //! nesting, summary counts and generic parser categories needed by Python brace-format readers.
 use crate::domain::brace_format::interface::BraceFormatSyntax;
 use crate::domain::brace_format::types::{
-    BraceFieldContext, BraceFormatError, BraceFormatField, BraceFormatResult, BraceSelector,
-    ParsedBraceFormat,
+    BraceArgumentIndex, BraceFieldContext, BraceFieldCount, BraceFormatError, BraceFormatField,
+    BraceFormatResult, BraceSelector, BraceSelectorText, BraceSpecText, ParsedBraceFormat,
 };
+use crate::domain::format_syntax::types::{FormatCharacter, FormatFieldOrdinal, FormatInput};
 
 /// The parser selected for decoded Python brace-format strings.
 pub(crate) struct RuffLiteralBraceFormat;
@@ -201,42 +202,48 @@ fn add_field(
     let ordinal = parsed.fields.len();
     let selector = match field_type {
         FieldType::Automatic => {
-            let index = parsed.automatic_count;
+            let index = parsed.automatic_count.0;
             parsed.automatic_count = parsed
                 .automatic_count
+                .0
                 .checked_add(1)
+                .map(BraceFieldCount)
                 .ok_or(BraceFormatError::UnmatchedBracket)?;
             BraceSelector::Automatic {
-                index,
-                overflow: i64::try_from(index).is_err(),
+                index: BraceArgumentIndex(index),
+                overflow: i64::try_from(index).is_err().into(),
             }
         }
         FieldType::Index(index, text) => {
             parsed.indexed_count = parsed
                 .indexed_count
+                .0
                 .checked_add(1)
+                .map(BraceFieldCount)
                 .ok_or(BraceFormatError::UnmatchedBracket)?;
             BraceSelector::Index {
-                index,
-                overflow: i64::try_from(index).is_err(),
-                text,
+                index: BraceArgumentIndex(index),
+                overflow: i64::try_from(index).is_err().into(),
+                text: BraceSelectorText(text),
             }
         }
         FieldType::Keyword(name) => {
             parsed.keyword_count = parsed
                 .keyword_count
+                .0
                 .checked_add(1)
+                .map(BraceFieldCount)
                 .ok_or(BraceFormatError::UnmatchedBracket)?;
-            BraceSelector::Keyword(name)
+            BraceSelector::Keyword(BraceSelectorText(name))
         }
     };
     parsed.fields.push(BraceFormatField {
-        ordinal,
+        ordinal: FormatFieldOrdinal(ordinal),
         context,
         selector,
-        format_spec,
-        selector_text: field_name.to_owned(),
-        conversion,
+        format_spec: format_spec.map(BraceSpecText),
+        selector_text: BraceSelectorText(field_name.to_owned()),
+        conversion: conversion.map(FormatCharacter),
     });
     Ok(ordinal)
 }
@@ -268,14 +275,16 @@ fn parse(input: &str) -> Result<ParsedBraceFormat, BraceFormatError> {
                 &mut parsed,
                 &nested_name,
                 BraceFieldContext::FormatSpec {
-                    parent_ordinal: parent,
+                    parent_ordinal: FormatFieldOrdinal(parent),
                 },
                 nested_spec,
                 nested_conversion,
             )?;
             parsed.nested_field_count = parsed
                 .nested_field_count
+                .0
                 .checked_add(1)
+                .map(BraceFieldCount)
                 .ok_or(BraceFormatError::UnmatchedBracket)?;
         }
     }
@@ -283,8 +292,11 @@ fn parse(input: &str) -> Result<ParsedBraceFormat, BraceFormatError> {
 }
 
 impl BraceFormatSyntax for RuffLiteralBraceFormat {
-    fn parse(input: &str) -> BraceFormatResult {
-        match parse(input) {
+    const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::brace_format::constants::GRAMMAR;
+
+    fn parse(input: FormatInput<'_>) -> BraceFormatResult {
+        match parse(input.0) {
             Ok(parsed) => BraceFormatResult::Parsed(parsed),
             Err(error) => BraceFormatResult::Malformed(error),
         }

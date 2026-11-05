@@ -6,9 +6,13 @@ use crate::domain::{
     },
     fields::service::field_of,
     format_parsing::service::decoded_into,
+    format_syntax::types::{DecodedInput, FormatScratch},
     labels::types::Field,
     nodes::types::Node,
-    standard_format_spec::{service::recognize, types::StandardSpecOutcome},
+    standard_format_spec::{
+        service::recognize,
+        types::{FormatSpecText, StandardSpecOutcome},
+    },
     syntax::{
         service::{kind, parent},
         types::Kind,
@@ -47,7 +51,7 @@ pub(crate) fn observe(
         }
         let Some(BraceFormatResult::Parsed(parsed)) = occurrence
             .cached
-            .and_then(|at| braces.values.get(at))
+            .and_then(|at| braces.values.get(at.0))
             .map(|value| &value.result)
         else {
             continue;
@@ -59,16 +63,16 @@ pub(crate) fn observe(
             let nested = parsed.fields.iter().any(|nested| matches!(nested.context, BraceFieldContext::FormatSpec { parent_ordinal } if parent_ordinal == field.ordinal));
             result.rows.push(Observation {
                 id: occurrence.node,
-                ordinal: field.ordinal,
+                ordinal: field.ordinal.0,
                 parent: match field.context {
                     BraceFieldContext::Literal => None,
-                    BraceFieldContext::FormatSpec { parent_ordinal } => Some(parent_ordinal),
+                    BraceFieldContext::FormatSpec { parent_ordinal } => Some(parent_ordinal.0),
                 },
                 origin: occurrence.node,
                 source_kind: "brace-string",
-                value: Some(spec.clone()),
-                outcome: recognize(spec, nested, target),
-                selector: field.selector_text.clone(),
+                value: Some(spec.0.clone()),
+                outcome: recognize(FormatSpecText(&spec.0), nested.into(), target.into()),
+                selector: field.selector_text.0.clone(),
                 conversion: field
                     .conversion
                     .map_or_else(String::new, |value| value.to_string()),
@@ -106,12 +110,12 @@ pub(crate) fn observe(
                 above = next;
             };
             let mut decoded = String::new();
-            let (value, outcome) = match decoded_into(tree, spec, &mut decoded) {
-                Ok(true) => {
-                    let outcome = recognize(&decoded, false, target);
+            let (value, outcome) = match decoded_into(tree, spec, FormatScratch(&mut decoded)) {
+                Ok(DecodedInput::Static) => {
+                    let outcome = recognize(FormatSpecText(&decoded), false.into(), target.into());
                     (Some(decoded), outcome)
                 }
-                Ok(false) => (None, StandardSpecOutcome::Dynamic),
+                Ok(DecodedInput::Dynamic) => (None, StandardSpecOutcome::Dynamic),
                 Err(()) => {
                     result.partial = true;
                     continue;

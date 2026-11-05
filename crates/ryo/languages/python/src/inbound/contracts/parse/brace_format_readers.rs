@@ -1,5 +1,6 @@
 //! Static binding from the Python composition to the independent brace-format parser.
-use crate::domain::brace_format::service::{INCOMPLETE, occurrences, prepare, result, state};
+use crate::domain::brace_format::constants::INCOMPLETE;
+use crate::domain::brace_format::service::{occurrences, prepare, result, state};
 use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceFormatState, BraceSelector,
 };
@@ -69,7 +70,7 @@ fn counts(result: Option<&BraceFormatResult>) -> [i64; 4] {
         parsed.keyword_count,
         parsed.nested_field_count,
     ]
-    .map(|value| i64::try_from(value).unwrap_or(i64::MAX))
+    .map(|value| i64::try_from(value.0).unwrap_or(i64::MAX))
 }
 
 ryo::reads! {
@@ -79,7 +80,7 @@ ryo::reads! {
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             given result = result(&index, occurrence);
-            given state = outcome(result, occurrence.unknown_input);
+            given state = outcome(result, occurrence.unknown_input.into());
             given counts = counts(result);
             given representation = intern(symbols, tree.source, "decoded-string");
             given outcome = intern(symbols, tree.source, state.0);
@@ -107,15 +108,15 @@ ryo::reads! {
                 Some(BraceFormatResult::Parsed(parsed)) => {
                     each (parsed.fields.iter()) as field {
                         given context = intern(symbols, tree.source, match field.context { BraceFieldContext::Literal => "literal", BraceFieldContext::FormatSpec { .. } => "format-spec" });
-                        given parent = match field.context { BraceFieldContext::Literal => -1_i64, BraceFieldContext::FormatSpec { parent_ordinal } => i64::try_from(parent_ordinal).unwrap_or(i64::MAX) };
+                        given parent = match field.context { BraceFieldContext::Literal => -1_i64, BraceFieldContext::FormatSpec { parent_ordinal } => i64::try_from(parent_ordinal.0).unwrap_or(i64::MAX) };
                         given parent_ordinal = languages::Integer(parent);
                         given selector_kind = intern(symbols, tree.source, match &field.selector { BraceSelector::Automatic { .. } => "automatic", BraceSelector::Index { .. } => "index", BraceSelector::Keyword(_) => "keyword" });
-                        given selector_index = languages::Integer(match &field.selector { BraceSelector::Automatic { index, .. } | BraceSelector::Index { index, .. } => i64::try_from(*index).unwrap_or(0), BraceSelector::Keyword(_) => 0 });
-                        given overflow = match &field.selector { BraceSelector::Automatic { overflow, .. } | BraceSelector::Index { overflow, .. } => *overflow, BraceSelector::Keyword(_) => false };
+                        given selector_index = languages::Integer(match &field.selector { BraceSelector::Automatic { index, .. } | BraceSelector::Index { index, .. } => i64::try_from(index.0).unwrap_or(0), BraceSelector::Keyword(_) => 0 });
+                        given overflow = match &field.selector { BraceSelector::Automatic { overflow, .. } | BraceSelector::Index { overflow, .. } => bool::from(*overflow), BraceSelector::Keyword(_) => false };
                         given index_overflow = flag(overflow);
-                        given selector_name_text = match &field.selector { BraceSelector::Automatic { .. } => "", BraceSelector::Index { text, .. } => text.as_str(), BraceSelector::Keyword(name) => name.as_str() };
+                        given selector_name_text = match &field.selector { BraceSelector::Automatic { .. } => "", BraceSelector::Index { text, .. } => text.0.as_str(), BraceSelector::Keyword(name) => name.0.as_str() };
                         given selector_name = intern(symbols, tree.source, selector_name_text);
-                        given ordinal = languages::Integer(i64::try_from(field.ordinal).unwrap_or(i64::MAX));
+                        given ordinal = languages::Integer(i64::try_from(field.ordinal.0).unwrap_or(i64::MAX));
                         row { id: node(occurrence.node), ordinal: value(ordinal), context: value(context), parent_ordinal: value(parent_ordinal), selector_kind: value(selector_kind), selector_index: value(selector_index), index_overflow: value(index_overflow), selector_name: value(selector_name), file: file, span: span(occurrence.node), }
                     }
                 }

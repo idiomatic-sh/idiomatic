@@ -8,6 +8,10 @@
 use crate::domain::format_syntax::interface::FormatSyntax;
 use crate::domain::format_syntax::service::insert_flag;
 use crate::domain::format_syntax::types::{
+    FlagRecognition, FormatCharacter, FormatFieldOrdinal, FormatInput, FormatMappingKey,
+    FormatProperty, FormatScalarIndex,
+};
+use crate::domain::format_syntax::types::{
     FormatArgument, FormatDialect, FormatErrorKind, FormatFieldValue, FormatFlags,
     FormatParseError, FormatParseResult, FormatQuantityMode, FormatSummary, ParsedFormat,
 };
@@ -80,8 +84,8 @@ enum Failure {
 fn error(kind: FormatErrorKind, index: usize, character: Option<char>) -> FormatParseError {
     FormatParseError {
         kind,
-        character,
-        index,
+        character: character.map(FormatCharacter),
+        index: FormatScalarIndex(index),
     }
 }
 
@@ -151,10 +155,9 @@ fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, F
     let key = mapping_key(cursor)?;
 
     let mut flags = FormatFlags::default();
-    while cursor
-        .peek()
-        .is_some_and(|character| insert_flag(&mut flags, character.value))
-    {
+    while cursor.peek().is_some_and(|character| {
+        insert_flag(&mut flags, FormatCharacter(character.value)) == FlagRecognition::Consumed
+    }) {
         let _flag = cursor.next();
     }
 
@@ -216,9 +219,11 @@ fn parse_field(cursor: &mut Cursor<'_>, ordinal: usize) -> Result<ParsedField, F
 
     Ok(ParsedField {
         field: FormatFieldValue {
-            ordinal,
-            argument: key.map_or(FormatArgument::Positional, FormatArgument::Mapping),
-            conversion: conversion.value,
+            ordinal: FormatFieldOrdinal(ordinal),
+            argument: key.map_or(FormatArgument::Positional, |key| {
+                FormatArgument::Mapping(FormatMappingKey(key))
+            }),
+            conversion: FormatCharacter(conversion.value),
             width,
             precision,
             flags,
@@ -248,17 +253,17 @@ fn parse_percent_string(input: &str) -> Result<ParsedFormat, Failure> {
         }
         let parsed = parse_field(&mut cursor, fields.len())?;
         if matches!(parsed.field.argument, FormatArgument::Mapping(_)) {
-            summary.mapping_present = true;
+            summary.mapping_present = FormatProperty::Present;
         } else {
             summary.positional_consumption += 1;
         }
         if parsed.field.width == FormatQuantityMode::Star {
             summary.positional_consumption += 1;
-            summary.dynamic_width = true;
+            summary.dynamic_width = FormatProperty::Present;
         }
         if parsed.field.precision == FormatQuantityMode::Star {
             summary.positional_consumption += 1;
-            summary.dynamic_precision = true;
+            summary.dynamic_precision = FormatProperty::Present;
         }
         if fields.try_reserve(1).is_err() {
             return Err(Failure::Unavailable);
@@ -269,9 +274,14 @@ fn parse_percent_string(input: &str) -> Result<ParsedFormat, Failure> {
 }
 
 impl FormatSyntax for RuffLiteralCFormat {
-    fn parse(input: &str, dialect: FormatDialect) -> FormatParseResult {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::constants::DECODED_GRAMMAR;
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::constants::RAW_GRAMMAR;
+
+    fn parse(input: FormatInput<'_>, dialect: FormatDialect) -> FormatParseResult {
         match dialect {
-            FormatDialect::PercentString => match parse_percent_string(input) {
+            FormatDialect::PercentString => match parse_percent_string(input.0) {
                 Ok(parsed) => FormatParseResult::Parsed(parsed),
                 Err(Failure::Malformed(error)) => FormatParseResult::Malformed(error),
                 Err(Failure::Unavailable) => FormatParseResult::Unavailable,

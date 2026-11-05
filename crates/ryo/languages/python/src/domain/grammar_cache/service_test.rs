@@ -175,7 +175,7 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
             .borrow()
             .by_input
             .keys()
-            .all(|key| key.len() < 100)
+            .all(|key| key.0.len() < 100)
     );
     assert!(
         model
@@ -183,7 +183,7 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
             .borrow()
             .by_input
             .keys()
-            .all(|key| key.len() < 100)
+            .all(|key| key.0.len() < 100)
     );
     assert!(
         model
@@ -191,7 +191,7 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
             .borrow()
             .by_input
             .keys()
-            .all(|key| key.len() < 100)
+            .all(|key| key.0.len() < 100)
     );
     assert!(
         model
@@ -220,7 +220,15 @@ fn completed_active_results_are_invalidated_when_parser_implementation_changes()
     use ryo::languages::{self, ByteSlice, Symbols, Tree};
     struct ParsedGrammar;
     impl FormatSyntax for ParsedGrammar {
-        fn parse(_: &str, _: FormatDialect) -> FormatParseResult {
+        const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+            crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+        const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+            crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+        fn parse(
+            _: crate::domain::format_syntax::types::FormatInput<'_>,
+            _: FormatDialect,
+        ) -> FormatParseResult {
             FormatParseResult::Parsed(ParsedFormat {
                 fields: Vec::new(),
                 summary: FormatSummary::default(),
@@ -229,11 +237,19 @@ fn completed_active_results_are_invalidated_when_parser_implementation_changes()
     }
     struct RejectedGrammar;
     impl FormatSyntax for RejectedGrammar {
-        fn parse(_: &str, _: FormatDialect) -> FormatParseResult {
+        const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+            crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+        const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+            crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+        fn parse(
+            _: crate::domain::format_syntax::types::FormatInput<'_>,
+            _: FormatDialect,
+        ) -> FormatParseResult {
             FormatParseResult::Malformed(FormatParseError {
                 kind: FormatErrorKind::IncompleteFormat,
                 character: None,
-                index: 0,
+                index: crate::domain::format_syntax::types::FormatScalarIndex(0),
             })
         }
     }
@@ -266,14 +282,19 @@ fn memo_admission_prefers_source_insertion_order_when_budget_is_full() {
         let mut index = FormatParseIndex::default();
         for name in ["first", "second", "third"] {
             assert!(service::reserve(&mut index.by_input));
-            let previous = index.by_input.insert(name.to_owned(), index.values.len());
+            let previous = index.by_input.insert(
+                name.to_owned().into(),
+                crate::domain::format_syntax::types::FormatResultIndex(index.values.len()),
+            );
             assert!(previous.is_none());
             index.values.push(CachedFormat {
                 result: FormatParseResult::Parsed(ParsedFormat {
                     fields: vec![FormatFieldValue {
-                        ordinal: 0,
-                        argument: FormatArgument::Mapping("x".repeat(3000)),
-                        conversion: 's',
+                        ordinal: crate::domain::format_syntax::types::FormatFieldOrdinal(0),
+                        argument: FormatArgument::Mapping(
+                            crate::domain::format_syntax::types::FormatMappingKey("x".repeat(3000)),
+                        ),
+                        conversion: crate::domain::format_syntax::types::FormatCharacter('s'),
                         flags: Default::default(),
                         width: FormatQuantityMode::None,
                         precision: FormatQuantityMode::None,

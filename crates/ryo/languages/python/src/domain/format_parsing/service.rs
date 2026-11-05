@@ -1,12 +1,13 @@
 //! Lazily cache the decoded grammar result once per distinct source string.
+use crate::domain::format_syntax::types::FormatResultIndex;
 use std::cell::{Ref, RefCell};
 
 use ryo::languages::{self, Position, Symbols, Tree};
 
 use super::super::format_syntax::interface::FormatSyntax;
 use super::super::format_syntax::types::{
-    CachedFormat, FormatDialect, FormatOccurrence, FormatParseIndex, FormatParseResult,
-    FormatParseState,
+    CachedFormat, DecodedInput, FormatDialect, FormatOccurrence, FormatOwnedBytes,
+    FormatParseIndex, FormatParseResult, FormatParseState, FormatScratch, StringOccurrence,
 };
 use super::super::model::types::Declarations;
 use super::super::nodes::types::Node;
@@ -15,19 +16,20 @@ use super::super::syntax::service::{below, interpolation, kind, literal, standin
 use super::super::syntax::types::{Interpolation, Kind, Literal, Standing};
 use super::super::tokens::types::Token;
 
-/// Why the format relations are only partly known.
-pub(crate) const INCOMPLETE: &str =
-    "format parsing needs complete decoded string inputs and source syntax";
-
 /// Reset current identities and admit small, content-only results for one following source.
 pub(crate) fn clear(index: &mut FormatParseIndex) {
     crate::domain::grammar_cache::service::empty(&mut index.memo);
     for (input, at) in index.by_input.drain(..) {
-        if let Some(value) = index.values.get_mut(at) {
+        if let Some(value) = index.values.get_mut(at.0) {
             let result = std::mem::replace(&mut value.result, FormatParseResult::Unavailable);
             let bytes = owned_bytes(&result);
             if result != FormatParseResult::Unavailable {
-                crate::domain::grammar_cache::service::admit(&mut index.memo, input, result, bytes);
+                crate::domain::grammar_cache::service::admit(
+                    &mut index.memo,
+                    input.0,
+                    result,
+                    bytes,
+                );
             }
         }
     }
@@ -38,17 +40,27 @@ pub(crate) fn clear(index: &mut FormatParseIndex) {
 }
 
 /// Whether this is one original visible string-literal node.
-pub(crate) fn is_string_occurrence(tree: &Tree<'_>, at: Position) -> bool {
-    matches!(kind(tree, at), Kind::Node(Node::JoinedStr))
+pub(crate) fn is_string_occurrence(tree: &Tree<'_>, at: Position) -> StringOccurrence {
+    if matches!(kind(tree, at), Kind::Node(Node::JoinedStr))
         || (kind(tree, at) == Kind::Node(Node::Constant) && literal(tree, at) == Literal::String)
+    {
+        StringOccurrence::String
+    } else {
+        StringOccurrence::Other
+    }
 }
 
 /// Concatenate parser-decoded string pieces. Dynamic interpolations are known unknown inputs;
 /// missing decoded parser payload is unavailable and must make the relation partial.
-pub(crate) fn decoded_into(tree: &Tree<'_>, at: Position, text: &mut String) -> Result<bool, ()> {
+pub(crate) fn decoded_into(
+    tree: &Tree<'_>,
+    at: Position,
+    text: FormatScratch<'_>,
+) -> Result<DecodedInput, ()> {
+    let text = text.0;
     text.clear();
     if interpolation(tree, at) == Interpolation::Interpolates {
-        return Ok(false);
+        return Ok(DecodedInput::Dynamic);
     }
     for token in below(tree, at).filter(|each| {
         matches!(
@@ -64,13 +76,13 @@ pub(crate) fn decoded_into(tree: &Tree<'_>, at: Position, text: &mut String) -> 
         }
         text.push_str(piece.0);
     }
-    Ok(true)
+    Ok(DecodedInput::Static)
 }
 
 /// Owned child capacity of a grammar result, excluding its inline representation.
 #[must_use]
-pub(crate) fn owned_bytes(result: &FormatParseResult) -> usize {
-    match result {
+pub(crate) fn owned_bytes(result: &FormatParseResult) -> FormatOwnedBytes {
+    FormatOwnedBytes(match result {
         FormatParseResult::Parsed(parsed) => parsed
             .fields
             .capacity()
@@ -83,14 +95,14 @@ pub(crate) fn owned_bytes(result: &FormatParseResult) -> usize {
                     .iter()
                     .map(|field| match &field.argument {
                         crate::domain::format_syntax::types::FormatArgument::Mapping(key) => {
-                            key.capacity()
+                            key.0.capacity()
                         }
                         crate::domain::format_syntax::types::FormatArgument::Positional => 0,
                     })
                     .sum::<usize>(),
             ),
         FormatParseResult::Malformed(_) | FormatParseResult::Unavailable => 0,
-    }
+    })
 }
 
 /// Add one occurrence, sharing a prior parse when its decoded value has already appeared.
@@ -99,9 +111,9 @@ where
     P: FormatSyntax,
 {
     let mut decoded = std::mem::take(&mut index.memo.scratch);
-    match decoded_into(tree, at, &mut decoded) {
-        Ok(true) => {}
-        Ok(false) => {
+    match decoded_into(tree, at, FormatScratch(&mut decoded)) {
+        Ok(DecodedInput::Static) => {}
+        Ok(DecodedInput::Dynamic) => {
             crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
             if index.occurrences.try_reserve(1).is_err() {
                 index.state = FormatParseState::Partial;
@@ -110,7 +122,7 @@ where
             index.occurrences.push(FormatOccurrence {
                 node: at,
                 cached: None,
-                unknown_input: true,
+                unknown_input: true.into(),
             });
             return;
         }
@@ -121,7 +133,7 @@ where
                 index.occurrences.push(FormatOccurrence {
                     node: at,
                     cached: None,
-                    unknown_input: false,
+                    unknown_input: false.into(),
                 });
             }
             return;
@@ -137,7 +149,7 @@ where
         index.occurrences.push(FormatOccurrence {
             node: at,
             cached: Some(cached),
-            unknown_input: false,
+            unknown_input: false.into(),
         });
         return;
     }
@@ -155,19 +167,22 @@ where
         crate::domain::grammar_cache::service::scratch(&mut index.memo, decoded);
         (key, result)
     } else {
-        let parsed = P::parse(&decoded, FormatDialect::PercentString);
+        let parsed = P::parse(
+            crate::domain::format_syntax::types::FormatInput(&decoded),
+            FormatDialect::PercentString,
+        );
         (decoded, parsed)
     };
     if parsed == FormatParseResult::Unavailable {
         index.state = FormatParseState::Partial;
     }
-    let cached = index.values.len();
+    let cached = FormatResultIndex(index.values.len());
     index.values.push(CachedFormat { result: parsed });
-    let _prior = index.by_input.insert(decoded, cached);
+    let _prior = index.by_input.insert(decoded.into(), cached);
     index.occurrences.push(FormatOccurrence {
         node: at,
         cached: Some(cached),
-        unknown_input: false,
+        unknown_input: false.into(),
     });
 }
 
@@ -182,7 +197,7 @@ where
 {
     if !crate::domain::grammar_cache::service::is_grammar::<P, _>(
         &model.format_parsing.borrow().memo,
-        "python-percent-decoded-v1",
+        P::DECODED_GRAMMAR.0,
     ) {
         clear(&mut model.format_parsing.borrow_mut());
     }
@@ -191,7 +206,7 @@ where
         let mut index = held.borrow_mut();
         crate::domain::grammar_cache::service::grammar::<P, _>(
             &mut index.memo,
-            "python-percent-decoded-v1",
+            P::DECODED_GRAMMAR.0,
         );
         if languages::has_incomplete_syntax(tree.elements)
             || languages::has_incomplete_lexical_stream(tree.elements)
@@ -202,7 +217,7 @@ where
         }
         let positions = super::super::semantic_syntax::service::positions(tree);
         for at in positions {
-            if !is_string_occurrence(tree, at)
+            if is_string_occurrence(tree, at) != StringOccurrence::String
                 || standing(tree, at) != Standing::Own
                 || super::super::semantic_syntax::service::visibility(tree, model, at, symbols)
                     != Visibility::Visible
@@ -236,6 +251,6 @@ pub(crate) fn result<'a>(
 ) -> Option<&'a FormatParseResult> {
     index
         .values
-        .get(occurrence.cached?)
+        .get(occurrence.cached?.0)
         .map(|cached| &cached.result)
 }

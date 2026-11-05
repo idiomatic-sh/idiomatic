@@ -17,7 +17,6 @@ use crate::outbound::format_syntax::adapters::{
 use ryo::languages::{self, ByteSlice, Symbols, Tree};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-#[test]
 fn raw_format_envelopes_borrow_exact_bodies() {
     for (token, expected) in [
         ("''", Some("")),
@@ -38,20 +37,31 @@ fn raw_format_envelopes_borrow_exact_bodies() {
         ("t'%d'", None),
         ("rr'%d'", None),
     ] {
-        assert_eq!(body(token), expected, "{token:?}");
+        assert_eq!(
+            body(crate::domain::raw_format::types::RawFormatToken(token)).map(|body| body.0),
+            expected,
+            "{token:?}"
+        );
     }
 }
 
 static PARSES: AtomicUsize = AtomicUsize::new(0);
 struct Counting;
 impl FormatSyntax for Counting {
-    fn parse(input: &str, dialect: FormatDialect) -> FormatParseResult {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+    fn parse(
+        input: crate::domain::format_syntax::types::FormatInput<'_>,
+        dialect: FormatDialect,
+    ) -> FormatParseResult {
         let _previous_count = PARSES.fetch_add(1, Ordering::SeqCst);
         RuffLiteralCFormat::parse(input, dialect)
     }
 }
 
-#[test]
 fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     PARSES.store(0, Ordering::SeqCst);
     let mut file = parsed(b"'\\x25+d' '%+d'\n'%+d'\n").expect("source parses");
@@ -72,7 +82,7 @@ fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     assert_ne!(index.segments[1].token, index.segments[2].token);
     assert_eq!(index.segments[1].cached, index.segments[2].cached);
     assert!(matches!(result(&index, &index.segments[1]),
-        Some(FormatParseResult::Parsed(parsed)) if flag_text(parsed.fields[0].flags) == "+"));
+        Some(FormatParseResult::Parsed(parsed)) if flag_text(parsed.fields[0].flags).0 == "+"));
     assert_eq!(model.format_parsing.borrow().state, FormatParseState::Fresh);
     assert_eq!(model.brace_format.borrow().state, BraceFormatState::Fresh);
     drop(index);
@@ -109,7 +119,6 @@ fn raw_format_cache_is_lazy_shared_and_reset_independently() {
     assert_eq!(PARSES.load(Ordering::SeqCst), 3);
 }
 
-#[test]
 fn raw_format_is_not_demanded_by_decoded_or_brace_readers() {
     let mut file = parsed(b"'%s'\n'{name}'\n").expect("source");
     let tree = Tree {
@@ -133,7 +142,6 @@ fn raw_format_is_not_demanded_by_decoded_or_brace_readers() {
     assert_eq!(model.raw_format.borrow().state, FormatParseState::Fresh);
 }
 
-#[test]
 fn raw_format_malformed_segments_are_atomic_and_success_order_is_flattened() {
     let mut file = parsed(b"'%s' '%d%q' '%x%*.*d'\n").expect("source");
     let tree = Tree {
@@ -152,21 +160,29 @@ fn raw_format_malformed_segments_are_atomic_and_success_order_is_flattened() {
         Some(FormatParseResult::Malformed(_))
     ));
     assert_eq!(
-        pieces[2].first_field, 1,
+        pieces[2].first_field.0, 1,
         "valid prefix in malformed segment contributes no fields"
     );
     let Some(FormatParseResult::Parsed(last)) = result(&index, &pieces[2]) else {
         panic!("valid last segment")
     };
     assert_eq!(last.fields.len(), 2);
-    assert_eq!(last.summary.positional_consumption, 4);
-    assert!(index.occurrences[0].complete);
+    assert_eq!(last.summary.positional_consumption.0, 4);
+    assert!(bool::from(index.occurrences[0].complete));
 }
 
 struct Unavailable;
 impl FormatSyntax for Unavailable {
-    fn parse(input: &str, dialect: FormatDialect) -> FormatParseResult {
-        if input == "%s" {
+    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
+    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
+        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
+
+    fn parse(
+        input: crate::domain::format_syntax::types::FormatInput<'_>,
+        dialect: FormatDialect,
+    ) -> FormatParseResult {
+        if input.0 == "%s" {
             FormatParseResult::Unavailable
         } else {
             RuffLiteralCFormat::parse(input, dialect)
@@ -174,7 +190,6 @@ impl FormatSyntax for Unavailable {
     }
 }
 
-#[test]
 fn raw_format_unavailable_segment_withholds_precise_global_order() {
     let mut file = parsed(b"'%s' '%d'\n").expect("source");
     let tree = Tree {
@@ -186,7 +201,7 @@ fn raw_format_unavailable_segment_withholds_precise_global_order() {
     initialize_model(&tree, &mut model);
     let index = prepare::<Unavailable>(&tree, &model, &mut file.symbols);
     assert_eq!(index.state, FormatParseState::Partial);
-    assert!(!index.occurrences[0].complete);
+    assert!(!bool::from(index.occurrences[0].complete));
     assert!(matches!(
         result(&index, &index.segments[0]),
         Some(FormatParseResult::Unavailable)
@@ -197,7 +212,6 @@ fn raw_format_unavailable_segment_withholds_precise_global_order() {
     ));
 }
 
-#[test]
 fn raw_format_missing_token_text_is_not_an_empty_valid_body() {
     let file = parsed(b"'%d'\n").expect("source");
     let tree = Tree {
@@ -210,6 +224,56 @@ fn raw_format_missing_token_text_is_not_an_empty_valid_body() {
     let index = prepare::<RuffLiteralCFormat>(&tree, &model, &mut Symbols::default());
     assert_eq!(index.state, FormatParseState::Partial);
     assert!(index.values.is_empty());
-    assert!(!index.occurrences[0].complete);
+    assert!(!bool::from(index.occurrences[0].complete));
     assert!(index.segments[0].cached.is_none());
+}
+
+use crate::cases::{Case, CaseName, Expect, Word, run};
+type Scenario = fn();
+type Failure = std::convert::Infallible;
+const CASES: &[Case<Scenario, (), Failure>] = &[
+    Case {
+        name: CaseName("raw_format_envelopes_borrow_exact_bodies"),
+        word: Word::Succeeds,
+        input: || raw_format_envelopes_borrow_exact_bodies as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_cache_is_lazy_shared_and_reset_independently"),
+        word: Word::Succeeds,
+        input: || raw_format_cache_is_lazy_shared_and_reset_independently as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_is_not_demanded_by_decoded_or_brace_readers"),
+        word: Word::Succeeds,
+        input: || raw_format_is_not_demanded_by_decoded_or_brace_readers as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_malformed_segments_are_atomic_and_success_order_is_flattened"),
+        word: Word::Succeeds,
+        input: || raw_format_malformed_segments_are_atomic_and_success_order_is_flattened as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_unavailable_segment_withholds_precise_global_order"),
+        word: Word::Succeeds,
+        input: || raw_format_unavailable_segment_withholds_precise_global_order as fn(),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("raw_format_missing_token_text_is_not_an_empty_valid_body"),
+        word: Word::Succeeds,
+        input: || raw_format_missing_token_text_is_not_an_empty_valid_body as fn(),
+        expect: Expect::Value(()),
+    },
+];
+fn subject(scenario: Scenario) -> Result<(), Failure> {
+    scenario();
+    Ok(())
+}
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
