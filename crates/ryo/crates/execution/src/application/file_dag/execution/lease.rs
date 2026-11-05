@@ -76,6 +76,37 @@ pub(in crate::application::file_dag) fn evaluate(
     context: &mut OperatorContext<'_>,
     emit: &mut dyn Emit,
 ) -> Result<(), OperatingError> {
+    if resources.inputs.partitioned_closure.is_none() {
+        return evaluate_once(
+            operators, contract, permit, operation, input, resources, workspace, context, emit,
+        );
+    }
+    loop {
+        let available = resources
+            .inputs
+            .partitioned_closure
+            .as_mut()
+            .ok_or(OperatingError::NotRun)?
+            .advance()?;
+        if !available {
+            return Ok(());
+        }
+        evaluate_once(
+            operators, contract, permit, operation, input, resources, workspace, context, emit,
+        )?;
+    }
+}
+fn evaluate_once(
+    operators: &dyn PrimitiveExecutor,
+    contract: &OperatorContract,
+    permit: &super::super::program::admission::KernelPermit<'_>,
+    operation: &ryo_values::domain::plans::types::Operation,
+    input: PreparedInputs<'_>,
+    resources: &mut InvocationResources<'_>,
+    workspace: &mut InvocationWorkspace,
+    context: &mut OperatorContext<'_>,
+    emit: &mut dyn Emit,
+) -> Result<(), OperatingError> {
     #[cfg(feature = "diagnostic-row-progress")]
     let _progress_invocation =
         crate::application::file_dag::route_counts::resume(workspace.progress_origin);

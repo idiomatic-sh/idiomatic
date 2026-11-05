@@ -35,13 +35,15 @@ impl PrimitiveResources for InvocationInputs<'_> {
     fn cycles(&self) -> Result<Option<&CycleGraph>, OperatingError> {
         InvocationResources::cycles_view(self.cycles.as_ref())
     }
-    fn closure(&self) -> crate::domain::operator::contract::views::ClosureViews<'_> {
-        match &self.partitioned_closure {
+    fn closure(
+        &self,
+    ) -> Result<crate::domain::operator::contract::views::ClosureViews<'_>, OperatingError> {
+        Ok(match &self.partitioned_closure {
             Some(parts) => {
-                crate::domain::operator::contract::views::ClosureViews::One(parts.current())
+                crate::domain::operator::contract::views::ClosureViews::One(parts.current()?)
             }
             None => crate::domain::operator::contract::views::ClosureViews::Many(&self.closure),
-        }
+        })
     }
     fn ordered(&self) -> Result<Option<&OrderedMatching>, OperatingError> {
         InvocationResources::ordered_view(self.ordered.as_ref())

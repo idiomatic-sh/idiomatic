@@ -500,3 +500,127 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
         "a consumer cannot relabel the two-rule provider result"
     );
 }
+
+#[test]
+fn closure_runs_every_partition_and_empty_input_through_the_owner() {
+    use ryo_values::domain::hosted::types::{
+        HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
+    };
+    use ryo_values::domain::plan_parts::types::HostedNumber;
+    use ryo_values::domain::records::types::Cell as HostCell;
+    for populated in [false, true] {
+        let engine = engine();
+        let mut input = authored_request(1);
+        input.plans[0].steps = vec![
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Hosted {
+                    relation: HostedNumber(0),
+                },
+            },
+            PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Closure {
+                    edges: Input::Step(StepId(0)),
+                    keys: vec![ColumnIndex(2)],
+                    source: ColumnIndex(0),
+                    destination: ColumnIndex(1),
+                },
+            },
+        ];
+        input.plans[0].emit.step = StepId(1);
+        input.hosted = vec![HostRelation {
+            name: HostName("partitioned-edges".into()),
+            columns: ["from", "to", "key"]
+                .into_iter()
+                .map(|name| HostColumn {
+                    name: HostColumnName(name.into()),
+                    kind: HostKind::Number,
+                })
+                .collect(),
+            rows: if populated {
+                [[1, 2, 5], [9, 10, 7], [2, 3, 5], [10, 11, 7]]
+                    .into_iter()
+                    .map(|row| {
+                        HostRow(
+                            row.into_iter()
+                                .map(|n| HostCell::Number(Integer(n)))
+                                .collect(),
+                        )
+                    })
+                    .collect()
+            } else {
+                vec![]
+            },
+        }];
+        let program = engine.prepare(input).expect("closure plan");
+        let corpus = corpus();
+        let request = engine.begin(&program, &corpus);
+        let elements = ryo_language::domain::elements::types::Elements::default();
+        let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
+        for delivery in [false, true] {
+            let mut symbols = Symbols::default();
+            let mut file = request
+                .open_file(
+                    FileInput {
+                        language: SourceLanguage::Recognized,
+                        resident_stability: facts::ResidentStability::Stable,
+                        file: FileId(0),
+                        evaluation: &[],
+                        publication: &[],
+                        demanded: &[true],
+                        source: b"abc",
+                        elements: &elements,
+                        read: &read,
+                        semantic: None,
+                        kinds: None,
+                    },
+                    &mut symbols,
+                )
+                .expect("closure file");
+            let mut cells = Vec::new();
+            if delivery {
+                file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
+                    cells.extend_from_slice(row);
+                    Ok(())
+                })
+                .expect("delivered closure rows");
+            } else {
+                let RootOutcome::Complete(table) = file
+                    .rule(RuleIndex(0), demand(), &mut symbols)
+                    .expect("closure run")
+                    .emit
+                else {
+                    panic!("complete closure required")
+                };
+                assert_eq!(table.kinds, vec![CellKind::Number; 3]);
+                assert_eq!(table.count, RowCount(if populated { 6 } else { 0 }));
+                cells = table.cells;
+            }
+            assert_eq!(cells.len() % 3, 0, "no incomplete published row");
+            let mut rows: Vec<_> = cells.chunks_exact(3).map(|row| row.to_vec()).collect();
+            rows.sort_unstable();
+            let expected: Vec<Vec<_>> = if populated {
+                [
+                    [5, 1, 2],
+                    [5, 1, 3],
+                    [5, 2, 3],
+                    [7, 9, 10],
+                    [7, 9, 11],
+                    [7, 10, 11],
+                ]
+                .into_iter()
+                .map(|row| row.into_iter().map(|n| Value::Number(Integer(n))).collect())
+                .collect()
+            } else {
+                vec![]
+            };
+            assert_eq!(
+                rows, expected,
+                "every key partition, both public output forms"
+            );
+            file.finish().expect("closure releases the file owner");
+        }
+        request.finish();
+    }
+}

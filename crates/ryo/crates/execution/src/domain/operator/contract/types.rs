@@ -242,7 +242,7 @@ pub(crate) trait PrimitiveResources {
     fn cycles(
         &self,
     ) -> Result<Option<&ryo_derived::domain::contract::types::CycleGraph>, OperatingError>;
-    fn closure(&self) -> super::views::ClosureViews<'_>;
+    fn closure(&self) -> Result<super::views::ClosureViews<'_>, OperatingError>;
     fn ordered(
         &self,
     ) -> Result<Option<&ryo_derived::domain::contract::types::OrderedMatching>, OperatingError>;

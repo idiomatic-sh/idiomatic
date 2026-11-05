@@ -125,7 +125,7 @@ impl OperatorsItem for JoinItem {
                     .take()
                     .ok_or(OperatingError::NotRun)?;
                 let result = (|| {
-                    for partition in lease.views.resources.closure() {
+                    for partition in lease.views.resources.closure()? {
                         let partition = partition?;
                         for source in partition.sources() {
                             // Bind partition/source before traversal whenever the logical key names them.

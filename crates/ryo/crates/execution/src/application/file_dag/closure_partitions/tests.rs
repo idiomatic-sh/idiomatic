@@ -47,7 +47,7 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
     let mut maximum_live = 0;
     let mut maximum_reserved = 0;
     while cursor.advance().unwrap() {
-        let part = cursor.current();
+        let part = cursor.current().unwrap();
         assert_eq!(part.table().count.0, 3);
         assert_eq!(part.table().cells.len(), 6);
         assert_eq!(part.key().len(), 1);
@@ -98,8 +98,8 @@ fn separate_keys_never_share_edges() {
     let mut observed = Vec::new();
     while cursor.advance().unwrap() {
         observed.push((
-            cursor.current().key().to_vec(),
-            cursor.current().table().cells.clone(),
+            cursor.current().unwrap().key().to_vec(),
+            cursor.current().unwrap().table().cells.clone(),
         ));
     }
     assert_eq!(observed.len(), 2);
@@ -208,7 +208,9 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     )
     .unwrap();
     let mut empty = cursor;
+    assert!(matches!(empty.current(), Err(crate::domain::operating::errors::OperatingError::NotRun)));
     assert!(!empty.advance().unwrap());
+    assert!(matches!(empty.current(), Err(crate::domain::operating::errors::OperatingError::NotRun)));
     assert!(matches!(
         empty.take_current(),
         Err(crate::domain::operating::errors::OperatingError::NotRun)

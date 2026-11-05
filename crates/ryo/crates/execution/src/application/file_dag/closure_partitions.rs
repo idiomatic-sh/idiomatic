@@ -114,6 +114,7 @@ impl<'f> PartitionedClosure<'f> {
             return Err(OperatingError::WrongOperation);
         };
         let Some(&first) = order.get(self.cursor) else {
+            self.current = None;
             return Ok(false);
         };
         let ViewRequest::PartitionOrder { keys } = &self.partition_plan.request else {
@@ -164,24 +165,21 @@ impl<'f> PartitionedClosure<'f> {
     ) -> Result<AcquiredView, OperatingError> {
         self.current.take().ok_or(OperatingError::NotRun)
     }
-    pub(crate) fn current(&self) -> &ClosurePartition {
-        let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(current) = self
-            .current
-            .as_ref()
-            .expect("advanced current partition")
-            .view()
-            .expect("validated current partition")
-        else {
-            unreachable!("prepared closure adjacency")
-        };
-        current
+    pub(crate) fn current(&self) -> Result<&ClosurePartition, OperatingError> {
+        let current = self.current.as_ref().ok_or(OperatingError::NotRun)?;
+        match current.view()? {
+            ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(partition) => {
+                Ok(partition)
+            }
+            _ => Err(OperatingError::WrongOperation),
+        }
     }
 
     /// All live Value payload cells owned by this cursor, not only adjacency rows.
     #[cfg(test)]
     pub(crate) fn working_cells(&self) -> usize {
         self.current.as_ref().map_or(0, |_| {
-            let current = self.current();
+            let current = self.current().expect("live partition view");
             current.table().cells.len() + current.key().len() + current.sources().len()
         }) + self.key.len()
             + self.scratch.row.len()
@@ -190,7 +188,7 @@ impl<'f> PartitionedClosure<'f> {
     #[cfg(test)]
     pub(crate) fn working_capacity(&self) -> usize {
         self.current.as_ref().map_or(0, |_| {
-            let current = self.current();
+            let current = self.current().expect("live partition view");
             let (keys, sources) = current.capacities();
             current.table().cells.capacity() + keys + sources
         }) + self.key.capacity()
@@ -203,7 +201,7 @@ impl<'f> PartitionedClosure<'f> {
             .saturating_mul(size_of::<RowIndex>())
             .saturating_add(self.working_capacity().saturating_mul(size_of::<Value>()));
         if self.current.is_some() {
-            let current = self.current();
+            let current = self.current().expect("live partition view");
             let [rows, hashes, heads, links, sorted, pairs, runs] = current.index().capacities();
             bytes = bytes
                 .saturating_add(current.table().kinds.capacity() * size_of::<CellKind>())

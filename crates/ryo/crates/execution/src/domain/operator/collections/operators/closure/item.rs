@@ -36,7 +36,7 @@ impl OperatorsItem for ClosureItem {
         {
             return Err(OperatingError::WrongOperation);
         }
-        let partitions = lease.views.resources.closure();
+        let partitions = lease.views.resources.closure()?;
         let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = (|| {
             for partition in partitions {
