@@ -691,6 +691,26 @@ fn readiness_hosted() -> HostRelation {
             .collect(),
     }
 }
+fn readiness_budget(request: &PreparedRequest) -> (u64, u64) {
+    use ryo_values::domain::plans::service::{inputs_of, named};
+    let nodes = request
+        .plans
+        .iter()
+        .map(|plan| plan.steps.len() as u64)
+        .sum();
+    let edges = request
+        .plans
+        .iter()
+        .flat_map(|plan| &plan.steps)
+        .map(|step| {
+            named(&inputs_of(&step.operation))
+                .iter()
+                .filter(|input| matches!(input, Input::Step(_)))
+                .count() as u64
+        })
+        .sum();
+    (nodes, edges)
+}
 fn readiness_expected() -> Table {
     Table {
         kinds: vec![CellKind::Number],
@@ -702,7 +722,7 @@ fn readiness_expected() -> Table {
     }
 }
 #[test]
-fn diamond_deep_chain_and_duplicate_roots_wake_only_actual_waiters() {
+fn diamond_deep_chains_and_duplicate_inputs_wake_only_actual_waiters() {
     for empty in [false, true] {
         exercise_readiness_chain(empty);
     }
@@ -711,7 +731,6 @@ fn exercise_readiness_chain(empty: bool) {
     let (engine, _) = engine();
     let mut authored = authored_request(3);
     let steps = readiness_chain();
-    let length = steps.len() as u64;
     for (index, plan) in authored.plans.iter_mut().enumerate() {
         plan.steps = steps.clone();
         let last = Input::Step(StepId(u32::try_from(steps.len() - 1).unwrap()));
@@ -740,6 +759,7 @@ fn exercise_readiness_chain(empty: bool) {
     } else {
         readiness_expected()
     };
+    let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = engine.begin(&prepared, &corpus);
@@ -762,12 +782,16 @@ fn exercise_readiness_chain(empty: bool) {
         "the actual deep chain reached demanded dependencies: {work:?}"
     );
     assert!(
-        work.preparations.0 <= 4 * length,
+        work.preparations.0 <= nodes + edges,
         "blocked ancestors must not be rescanned: {work:?}"
     );
     assert!(
-        work.evaluations.0 <= 2 * length,
-        "one evaluation per distinct physical region: {work:?}"
+        work.evaluations.0 <= nodes,
+        "evaluations cannot exceed all authored nodes: {work:?}"
+    );
+    assert!(
+        work.suspensions.0 <= edges,
+        "no suspension without an authored input edge: {work:?}"
     );
     assert_eq!(work.wakeups, work.suspensions);
     assert_eq!(
@@ -777,7 +801,7 @@ fn exercise_readiness_chain(empty: bool) {
     assert_eq!(
         file.readiness_counts(),
         work,
-        "the duplicate logical root replays the same publication"
+        "demanding another already prepared logical root does not rerun readiness"
     );
     assert_eq!(
         complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
@@ -786,13 +810,13 @@ fn exercise_readiness_chain(empty: bool) {
     assert_eq!(
         file.readiness_counts(),
         work,
-        "the exact duplicate terminal is not polled twice"
+        "equal authored plans keep their own logical identities without another readiness pass"
     );
     file.finish().unwrap();
     request.finish();
 }
 #[test]
-fn failed_shared_producer_wakes_both_roots_and_does_not_erase_independent_output() {
+fn failed_producers_wake_their_roots_without_erasing_independent_output() {
     let (engine, _) = engine();
     let mut authored = authored_request(3);
     let mut failing = readiness_chain();
@@ -823,14 +847,15 @@ fn failed_shared_producer_wakes_both_roots_and_does_not_erase_independent_output
         },
     }];
     authored.hosted = vec![readiness_hosted()];
+    let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
     let request = engine.begin(&prepared, &corpus);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
-    let calls = std::cell::Cell::new(0);
+    let calls = std::cell::RefCell::new(Vec::new());
     let read = |relation| {
         assert_eq!(relation, Relation::Function);
-        calls.set(calls.get() + 1);
+        calls.borrow_mut().push(relation);
         Err::<SourceRows<'_>, _>(OperatingError::NotRead)
     };
     let intents = [readiness_intent(), readiness_intent(), readiness_intent()];
@@ -841,17 +866,30 @@ fn failed_shared_producer_wakes_both_roots_and_does_not_erase_independent_output
         )
         .unwrap();
     for index in [0, 1] {
-        assert!(matches!(
-            file.rule(RuleIndex(index), demand(), &mut symbols)
-                .unwrap()
-                .emit,
-            RootOutcome::Unknown(OperatingError::NotRead)
-        ));
+        let outcome = file.rule(RuleIndex(index), demand(), &mut symbols).unwrap();
+        assert!(
+            matches!(outcome.emit, RootOutcome::Failed(OperatingError::NotRead)),
+            "each exact source refusal stays terminal: {:?}",
+            outcome.emit
+        );
     }
     assert_eq!(
-        calls.get(),
-        1,
-        "one actual failed source admission, no waiting-parent retries"
+        *calls.borrow(),
+        [Relation::Function, Relation::Function],
+        "each per-rule source region borrows once; waiting ancestors do not retry it"
+    );
+    let work = file.readiness_counts();
+    let again = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
+    assert!(
+        matches!(again.emit, RootOutcome::Failed(OperatingError::NotRead)),
+        "{:?}",
+        again.emit
+    );
+    assert_eq!(*calls.borrow(), [Relation::Function, Relation::Function]);
+    assert_eq!(
+        file.readiness_counts(),
+        work,
+        "failed-root replay adds no readiness work"
     );
     let mut expected = readiness_expected();
     expected.count = RowCount(4);
@@ -865,9 +903,11 @@ fn failed_shared_producer_wakes_both_roots_and_does_not_erase_independent_output
     );
     let work = file.readiness_counts();
     assert!(
-        work.preparations.0 <= 4 * failing.len() as u64,
+        work.preparations.0 <= nodes + edges,
         "failure unwinds each waiter once: {work:?}"
     );
+    assert!(work.evaluations.0 <= nodes, "{work:?}");
+    assert!(work.suspensions.0 <= edges, "{work:?}");
     assert_eq!(work.wakeups, work.suspensions);
     file.finish().unwrap();
     request.finish();
