@@ -1,0 +1,142 @@
+{
+  "identity": {
+    "scope": "matched tiny valid file, full413; diagnostic only, not Django acceptance",
+    "baseline_source": "164e3258c2ef6cec16b0960c76066800688e4a64",
+    "candidate_source": "a57cc5450962300e2444b6a36ef48fdde726abf8",
+    "request_sha256": "4c87a20faa765742983d2fbcbb21287c41e5b0fdbe23fe36c097ae8e9e698279",
+    "changed_keys": [
+      "cache"
+    ],
+    "workers": {
+      "baseline": "f1b5ffe0b16a9936e5da72b5eb94d542b9c6d46a2c0fb3223b74484254c53b4a",
+      "candidate": "ca2dfe247c0ec9f764bc457d0c7cb930d26bab84eac4e703c33a1dd48e77c5cf",
+      "collector": "ca34dfa520dc47f874bd8c3151252f1689a54a149d9db36c698dc76fb50c53a3"
+    }
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "label": "baseline",
+      "collector_exit": 0,
+      "status": 0,
+      "signal": null,
+      "wall_seconds": 9.968492764,
+      "cpu_seconds": 9.963669,
+      "rss_bytes": 1236938752,
+      "report_exactly_matches_baseline": true,
+      "coverage": {
+        "selected": 413,
+        "evaluated": 413,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    },
+    {
+      "trial": 1,
+      "label": "candidate",
+      "collector_exit": 0,
+      "status": 0,
+      "signal": null,
+      "wall_seconds": 9.690632193999999,
+      "cpu_seconds": 9.686677,
+      "rss_bytes": 1237159936,
+      "report_exactly_matches_baseline": true,
+      "coverage": {
+        "selected": 413,
+        "evaluated": 413,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    },
+    {
+      "trial": 2,
+      "label": "baseline",
+      "collector_exit": 0,
+      "status": 0,
+      "signal": null,
+      "wall_seconds": 9.996517081,
+      "cpu_seconds": 9.984342999999999,
+      "rss_bytes": 1236103168,
+      "report_exactly_matches_baseline": true,
+      "coverage": {
+        "selected": 413,
+        "evaluated": 413,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    },
+    {
+      "trial": 2,
+      "label": "candidate",
+      "collector_exit": 0,
+      "status": 0,
+      "signal": null,
+      "wall_seconds": 9.759366496,
+      "cpu_seconds": 9.755974,
+      "rss_bytes": 1237385216,
+      "report_exactly_matches_baseline": true,
+      "coverage": {
+        "selected": 413,
+        "evaluated": 413,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    },
+    {
+      "trial": 3,
+      "label": "baseline",
+      "collector_exit": 0,
+      "status": 0,
+      "signal": null,
+      "wall_seconds": 10.105895038,
+      "cpu_seconds": 10.101786,
+      "rss_bytes": 1235914752,
+      "report_exactly_matches_baseline": true,
+      "coverage": {
+        "selected": 413,
+        "evaluated": 413,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    },
+    {
+      "trial": 3,
+      "label": "candidate",
+      "collector_exit": 0,
+      "status": 0,
+      "signal": null,
+      "wall_seconds": 10.024589053,
+      "cpu_seconds": 10.021523,
+      "rss_bytes": 1237045248,
+      "report_exactly_matches_baseline": true,
+      "coverage": {
+        "selected": 413,
+        "evaluated": 413,
+        "skipped": 0,
+        "unknown_or_unread": 0
+      }
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "wall_seconds": 9.996517081,
+      "cpu_seconds": 9.984342999999999,
+      "rss_bytes": 1236103168
+    },
+    "candidate": {
+      "wall_seconds": 9.759366496,
+      "cpu_seconds": 9.755974,
+      "rss_bytes": 1237159936
+    },
+    "reductions_percent": {
+      "wall_seconds": 2.372332114059439,
+      "cpu_seconds": 2.2872711804872825,
+      "rss_bytes": -0.08549189318152184
+    }
+  },
+  "limits": [
+    "One valid file, all 413 rules; not full-Django acceptance.",
+    "All six full reports match the frozen control exactly; zero skipped or unknown rules.",
+    "Whole execution suite still has 19 failures and public boundary suite one failure on b675; later glob fixture repair is unexecuted."
+  ]
+}
