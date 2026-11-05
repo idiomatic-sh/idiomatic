@@ -4,7 +4,12 @@ use crate::outbound::engine::interface::EnginePort;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 /// No variable input: this contract probes one fixed malformed request.
-type Input = ();
+type Input = Scenario;
+#[derive(Clone, Copy)]
+pub enum Scenario {
+    NoQueries,
+    Loaded,
+}
 /// Successful completion has no payload.
 type Value = ();
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,12 +21,20 @@ pub enum Refusal {
     Unexpected,
 }
 /// Named observations every implementation must satisfy.
-pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("missing candidate rules refuse evaluation"),
-    word: Word::Refuses,
-    input: || (),
-    expect: Expect::Error(Failure::NoQueries),
-}];
+pub const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("missing candidate rules refuse evaluation"),
+        word: Word::Refuses,
+        input: || Scenario::NoQueries,
+        expect: Expect::Error(Failure::NoQueries),
+    },
+    Case {
+        name: CaseName("loaded session owns rules through execution"),
+        word: Word::Succeeds,
+        input: || Scenario::Loaded,
+        expect: Expect::Value(()),
+    },
+];
 /// Run the shared observations against the supplied implementation.
 ///
 /// # Panics
@@ -33,10 +46,8 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
 )]
 pub fn check(adapter: &impl EnginePort) {
     let temporary = tempfile::tempdir().expect("rules directory");
-    let subject = |()| {
-        adapter
-            .run(
-                WorkerRequest {
+    let subject = |scenario| {
+        let request = WorkerRequest {
                     performance: Default::default(),
                     selected_rules: None,
                     rule_observations: None,
@@ -54,12 +65,62 @@ pub fn check(adapter: &impl EnginePort) {
                     source_language: None,
                     files: vec![ryo::linter::RelativePath("input.txt".into())],
                     state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
-                },
-                crate::outbound::engine::types::PreparedMissingInputs {
-                    selected_missing: std::collections::BTreeSet::new(),
-                    selected_rules: Vec::new(),
-                },
-            )
+                };
+        if matches!(scenario, Scenario::Loaded) {
+            let mut request = request;
+            let id = ryo::linter::RuleId::try_from("R1").expect("rule identity");
+            std::fs::create_dir(temporary.path().join("R1")).expect("rule directory");
+            std::fs::write(temporary.path().join("R1/query.ryoql"), "let missing = select path as file, span from \"filesystem.read-failure\"; emit missing subject file key(file);").expect("query");
+            let boundary = temporary.path().join("snapshot");
+            request.context_manifest = Some(
+                crate::outbound::context::adapters::local::adapter::materialize(
+                    &boundary,
+                    &ryo_benchmark_contracts::domain::context::types::CaseContext {
+                        logical_root: "project".into(),
+                        auxiliary_files: Default::default(),
+                        missing: vec!["project/missing.py".into()],
+                    },
+                    &Default::default(),
+                )
+                .expect("sealed absence"),
+            );
+            request.project_context_mode = ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
+            request.root = boundary.join("project");
+            request.files = vec![ryo::linter::RelativePath("missing.py".into())];
+            request.selected_rules = Some(vec![id.clone()]);
+            let mut session = adapter.load(&request).map_err(|_| Failure::Unexpected)?;
+            assert_eq!(session.rules_mut().len(), 1);
+            assert!(session.frontend_rule().is_none());
+            assert!(
+                session
+                    .configuration_files()
+                    .map_err(|_| Failure::Unexpected)?
+                    .is_empty()
+            );
+            std::fs::remove_file(temporary.path().join("R1/query.ryoql")).expect("loaded snapshot");
+            let inputs = crate::outbound::engine::types::EngineConfiguration {
+                selected_missing: request.files.iter().cloned().collect(),
+                selected_rules: [id.clone()].into_iter().collect(),
+                selected_pairs: 1,
+                hosted: Vec::new(),
+            };
+            let report = session.execute(inputs).map_err(|_| Failure::Unexpected)?;
+            assert_eq!(report.files, request.files);
+            assert_eq!(
+                report.diagnostics,
+                vec![
+                    ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
+                        rule: id,
+                        file: request.files[0].clone(),
+                        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+                        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0)
+                    }
+                ]
+            );
+            return Ok(());
+        }
+        adapter
+            .load(&request)
             .map(|_| ())
             .map_err(|error| match error {
                 Error::Invalid(message) if message == "no candidate queries" => Failure::NoQueries,
@@ -68,7 +129,8 @@ pub fn check(adapter: &impl EnginePort) {
                 }
             })
     };
-    run(CASES, Word::Refuses, subject);
+    run(CASES, Word::Refuses, &subject);
+    run(CASES, Word::Succeeds, subject);
 }
 
 /// Classified engine refusal.

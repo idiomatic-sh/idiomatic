@@ -19,33 +19,9 @@ fn subject(_: Input) -> Result<Value, Failure> {
         ryo::linter::Languages::default(),
         None,
     ));
-    #[cfg(unix)]
-    frontend_scope_uses_literal_missing_paths_not_glob_patterns();
     Ok(())
 }
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[cfg(unix)]
-fn frontend_scope_uses_literal_missing_paths_not_glob_patterns() {
-    let missing = r"pkg/missing[1]*?{x}é\name.py";
-    let readable = r"pkg/missing1anythingQxé\name.py";
-    let exclusions =
-        super::adapter::frontend_exclusions(&[ryo::linter::RelativePath(missing.into())].into())
-            .unwrap();
-    assert_eq!(
-        exclusions.len(),
-        1,
-        "neither readable nor unrequested paths are exempted"
-    );
-    let matcher = globset::GlobBuilder::new(exclusions[0].as_ref())
-        .literal_separator(true)
-        .build()
-        .unwrap()
-        .compile_matcher();
-    assert!(matcher.is_match(missing));
-    assert!(!matcher.is_match(readable));
-    assert!(!matcher.is_match("pkg/missing1anythingQxéname.py"));
 }

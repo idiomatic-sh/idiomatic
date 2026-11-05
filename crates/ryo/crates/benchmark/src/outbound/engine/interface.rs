@@ -1,18 +1,22 @@
-//! Execute the candidate through the public SDK.
-use super::types::PreparedMissingInputs;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
-/// Execute candidate rules through the public SDK.
+//! Request-scoped access to the public SDK engine.
+use super::types::loaded_engine_session::value::LoadedEngineSession;
+use ryo_benchmark_contracts::domain::{
+    reports::errors::ReportsError as Error, requests::types::WorkerRequest,
+};
+/// Open one SDK invocation; only the application can prepare the opaque loaded handle.
+///
+/// An external composition may forward the genuine handle without replacing its state.
+/// ```no_run
+/// use ryo_benchmark::outbound::engine::{interface::EnginePort, types::loaded_engine_session::value::LoadedEngineSession};
+/// use ryo_benchmark_contracts::domain::{requests::types::WorkerRequest, reports::errors::ReportsError};
+/// struct Forward<T>(T);
+/// impl<T: EnginePort> EnginePort for Forward<T> {
+///     fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, ReportsError> { self.0.load(request) }
+/// }
+/// ```
 pub trait EnginePort {
-    /// Evaluate a worker request and return its complete canonical report.
-    ///
+    /// Validate physical inputs, establish diagnostics and load queries once.
     /// # Errors
-    ///
-    /// Returns an error when inputs, rule evaluation or the resulting report are invalid.
-    fn run(
-        &self,
-        request: WorkerRequest,
-        prepared: PreparedMissingInputs,
-    ) -> Result<RunReport, Error>;
+    /// Refuses invalid physical context or query inputs before execution.
+    fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, Error>;
 }

@@ -22,7 +22,14 @@ impl<T: EnginePort + ?Sized> PreparedEngine for T {
         request: WorkerRequest,
     ) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error> {
         let prepared = ryo_benchmark::application::worker_request::service::prepare(request)?;
-        EnginePort::run(self, prepared.request, prepared.missing)
+        {
+            let session = self.load(&prepared.request)?;
+            let configured = ryo_benchmark::application::worker_request::service::configure(
+                &prepared.request,
+                session,
+            )?;
+            configured.execute()
+        }
     }
 }
 

@@ -13,6 +13,10 @@ use std::collections::BTreeSet;
 /// # Errors
 /// Refuses a mismatched mode, source seal, or requested path inventory.
 pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
+    let missing = classify(&request)?;
+    Ok(PreparedRequest { request, missing })
+}
+fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
     crate::domain::suite::service::validate_selected_rules(request.selected_rules.as_deref())?;
     let selected_rules = request
         .selected_rules
@@ -83,11 +87,61 @@ pub fn prepare(request: WorkerRequest) -> Result<PreparedRequest, Error> {
             return Err(Error::Invalid(constants::CONTEXT_MODE_MISMATCH.into()));
         }
     };
-    Ok(PreparedRequest {
-        request,
-        missing: PreparedMissingInputs {
-            selected_missing,
-            selected_rules,
-        },
+    Ok(PreparedMissingInputs {
+        selected_missing,
+        selected_rules,
     })
+}
+
+/// Configure the single loaded SDK rule map through pure domain policy.
+///
+/// # Errors
+/// Refuses missing selected/producers, invalid frontend scope or invalid rule context.
+pub fn configure<'a>(
+    expected: &WorkerRequest,
+    mut session: crate::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession<
+        'a,
+    >,
+) -> Result<
+    crate::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession<'a>,
+    Error,
+> {
+    use crate::domain::candidate_rules::service as candidate_rules;
+    let request = session.request();
+    if !std::ptr::eq(expected, request) {
+        return Err(Error::Invalid(
+            "loaded engine session belongs to another received request".into(),
+        ));
+    }
+    let missing = classify(request)?;
+    let frontend = session.frontend_rule().cloned();
+    let diagnostic_rules = {
+        let rules = session.rules_mut();
+        candidate_rules::retain_producers(&missing.selected_rules, frontend.as_ref(), rules)?
+    };
+    if let Some(frontend) = &frontend {
+        {
+            let rules = session.rules_mut();
+            candidate_rules::exclude_missing(rules, frontend, &missing.selected_missing)?;
+        }
+        let configuration_files = session.configuration_files()?;
+        let rules = session.rules_mut();
+        candidate_rules::exclude_configuration(rules, frontend, &configuration_files)?;
+    }
+    let mut selected_rules = diagnostic_rules.clone();
+    if let Some(frontend) = frontend {
+        selected_rules.insert(frontend);
+    }
+    let configured = {
+        let rules = session.rules_mut();
+        let selected_pairs = diagnostic_rules.len().saturating_mul(request.files.len());
+        candidate_rules::project(request, rules, selected_pairs)?
+    };
+    let context = crate::outbound::engine::types::EngineConfiguration {
+        selected_missing: missing.selected_missing,
+        selected_rules,
+        selected_pairs: configured.selected_pairs,
+        hosted: configured.hosted,
+    };
+    Ok(crate::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession::new(session, context))
 }

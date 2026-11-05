@@ -1,6 +1,7 @@
 //! Receive, engine and response failures stop the pipeline at the failed boundary.
 use super::{interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
 use crate::outbound::{
     engine::interface::EnginePort,
     worker::fixtures::{data::request, fake::WorkerFake},
@@ -15,14 +16,20 @@ use std::sync::{
 #[derive(Clone, Copy, Debug)]
 enum Stage {
     Complete,
+    Forward,
+    Retarget,
     Receive,
     Engine,
+    Load,
+    Configure,
     Respond,
 }
 type Input = Stage;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Trace {
     received: usize,
+    loaded: usize,
+    closed: usize,
     evaluated: usize,
     responded: usize,
     published: bool,
@@ -32,17 +39,76 @@ type Value = Trace;
 enum Refusal {
     Receive(Trace),
     Engine(Trace),
+    Load(Trace),
+    Configure(Trace),
     Respond(Trace),
+    Association(Trace),
     Unexpected,
 }
 type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("genuine externally forwarded loaded handle executes the received request"),
+        word: Word::Succeeds,
+        input: || Stage::Forward,
+        expect: Expect::Value(Trace {
+            received: 1,
+            loaded: 1,
+            closed: 1,
+            evaluated: 1,
+            responded: 1,
+            published: true,
+        }),
+    },
+    Case {
+        name: CaseName(
+            "forwarding a handle loaded for another request refuses before execute or respond",
+        ),
+        word: Word::Fails,
+        input: || Stage::Retarget,
+        expect: Expect::Error(Refusal::Association(Trace {
+            received: 1,
+            loaded: 1,
+            closed: 1,
+            evaluated: 0,
+            responded: 0,
+            published: false,
+        })),
+    },
+    Case {
+        name: CaseName("load refusal prevents configuration execution and response"),
+        word: Word::Fails,
+        input: || Stage::Load,
+        expect: Expect::Error(Refusal::Load(Trace {
+            received: 1,
+            loaded: 1,
+            closed: 0,
+            evaluated: 0,
+            responded: 0,
+            published: false,
+        })),
+    },
+    Case {
+        name: CaseName("configuration refusal closes the session without SDK execution"),
+        word: Word::Fails,
+        input: || Stage::Configure,
+        expect: Expect::Error(Refusal::Configure(Trace {
+            received: 1,
+            loaded: 1,
+            closed: 1,
+            evaluated: 0,
+            responded: 0,
+            published: false,
+        })),
+    },
     Case {
         name: CaseName("receive engine respond publishes the actual report"),
         word: Word::Succeeds,
         input: || Stage::Complete,
         expect: Expect::Value(Trace {
             received: 1,
+            loaded: 1,
+            closed: 1,
             evaluated: 1,
             responded: 1,
             published: true,
@@ -54,6 +120,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Stage::Receive,
         expect: Expect::Error(Refusal::Receive(Trace {
             received: 1,
+            loaded: 0,
+            closed: 0,
             evaluated: 0,
             responded: 0,
             published: false,
@@ -65,6 +133,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Stage::Engine,
         expect: Expect::Error(Refusal::Engine(Trace {
             received: 1,
+            loaded: 1,
+            closed: 1,
             evaluated: 1,
             responded: 0,
             published: false,
@@ -76,6 +146,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Stage::Respond,
         expect: Expect::Error(Refusal::Respond(Trace {
             received: 1,
+            loaded: 1,
+            closed: 1,
             evaluated: 1,
             responded: 1,
             published: false,
@@ -85,23 +157,74 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 #[derive(Debug)]
 struct Engine {
     calls: AtomicUsize,
-    refuses: bool,
+    loaded: AtomicUsize,
+    closed: AtomicUsize,
+    stage: Stage,
+}
+struct Session<'a> {
+    engine: &'a Engine,
+    request: &'a WorkerRequest,
+}
+impl Drop for Session<'_> {
+    fn drop(&mut self) {
+        self.engine.closed.fetch_add(1, Ordering::SeqCst);
+    }
 }
 impl EnginePort for Engine {
-    fn run(
-        &self,
-        request: WorkerRequest,
-        _prepared: crate::outbound::engine::types::PreparedMissingInputs,
+    fn load<'a>(
+        &'a self,
+        request: &'a WorkerRequest,
+    ) -> Result<
+        crate::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession<'a>,
+        Error,
+    > {
+        self.loaded.fetch_add(1, Ordering::SeqCst);
+        if matches!(self.stage, Stage::Load) {
+            return Err(Error::Invalid("fixture load failure".into()));
+        }
+        let rules = if matches!(self.stage, Stage::Configure) {
+            Default::default()
+        } else {
+            crate::outbound::engine::fixtures::fake::loaded_rules(request)?
+        };
+        Ok(
+            crate::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession::new(
+                request,
+                rules,
+                None,
+                Box::new(Session {
+                    engine: self,
+                    request,
+                }),
+            ),
+        )
+    }
+}
+impl EngineExecution for Session<'_> {
+    fn configuration_files(&self) -> Result<Vec<ryo::linter::RelativePath>, Error> {
+        Ok(vec![])
+    }
+    fn execute(
+        self: Box<Self>,
+        _rules: std::collections::BTreeMap<ryo::linter::RuleId, ryo::linter::Rule>,
+        configured: crate::outbound::engine::types::EngineConfiguration,
     ) -> Result<RunReport, Error> {
-        let _previous = self.calls.fetch_add(1, Ordering::SeqCst);
-        if self.refuses {
+        assert_eq!(
+            self.engine.closed.load(Ordering::SeqCst),
+            0,
+            "session stays live throughout SDK execution"
+        );
+        self.engine.calls.fetch_add(1, Ordering::SeqCst);
+        if matches!(self.engine.stage, Stage::Engine) {
             return Err(Error::Invalid("fixture engine failure".into()));
         }
+        assert_eq!(configured.selected_pairs, 1);
+        assert!(configured.hosted.is_empty());
         Ok(RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context: None,
-            files: request.files,
+            files: self.request.files.clone(),
             skipped: Vec::new(),
             coverage: Some(
                 ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
@@ -115,6 +238,24 @@ impl EnginePort for Engine {
         })
     }
 }
+// This wrapper uses only the public EnginePort contract: it cannot inspect or mutate the handle.
+struct ForwardingPort {
+    inner: Arc<Engine>,
+    other: WorkerRequest,
+    retarget: bool,
+}
+impl EnginePort for ForwardingPort {
+    fn load<'a>(
+        &'a self,
+        request: &'a WorkerRequest,
+    ) -> Result<
+        crate::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession<'a>,
+        Error,
+    > {
+        self.inner
+            .load(if self.retarget { &self.other } else { request })
+    }
+}
 fn subject(stage: Input) -> Result<Value, Failure> {
     let mut transport = WorkerFake::new(request());
     transport.refuse_receive = matches!(stage, Stage::Receive);
@@ -122,15 +263,26 @@ fn subject(stage: Input) -> Result<Value, Failure> {
     let transport = Arc::new(transport);
     let engine = Arc::new(Engine {
         calls: AtomicUsize::new(0),
-        refuses: matches!(stage, Stage::Engine),
+        loaded: AtomicUsize::new(0),
+        closed: AtomicUsize::new(0),
+        stage,
     });
-    let result = RunRyoUseCaseImpl::new(
-        Arc::<Engine>::clone(&engine),
-        Arc::<WorkerFake>::clone(&transport),
-    )
-    .run_ryo();
+    let port: Arc<dyn EnginePort> = if matches!(stage, Stage::Forward | Stage::Retarget) {
+        let mut other = request();
+        other.files = vec![ryo::linter::RelativePath("other.txt".into())];
+        Arc::new(ForwardingPort {
+            inner: Arc::clone(&engine),
+            other,
+            retarget: matches!(stage, Stage::Retarget),
+        })
+    } else {
+        Arc::clone(&engine) as Arc<dyn EnginePort>
+    };
+    let result = RunRyoUseCaseImpl::new(port, Arc::<WorkerFake>::clone(&transport)).run_ryo();
     let trace = Trace {
         received: transport.receive_calls(),
+        loaded: engine.loaded.load(Ordering::SeqCst),
+        closed: engine.closed.load(Ordering::SeqCst),
         evaluated: engine.calls.load(Ordering::SeqCst),
         responded: transport.respond_calls(),
         published: transport.reports()
@@ -152,8 +304,19 @@ fn subject(stage: Input) -> Result<Value, Failure> {
             }],
     };
     result.map(|()| trace).map_err(|error| match error {
+        Error::Invalid(message)
+            if message == "loaded engine session belongs to another received request" =>
+        {
+            Refusal::Association(trace)
+        }
         Error::Invalid(message) if message == "fixture receive failure" => Refusal::Receive(trace),
         Error::Invalid(message) if message == "fixture engine failure" => Refusal::Engine(trace),
+        Error::Invalid(message) if message == "fixture load failure" => Refusal::Load(trace),
+        Error::Invalid(message)
+            if message.starts_with("selected or required producer has no registered query:") =>
+        {
+            Refusal::Configure(trace)
+        }
         Error::Io(error) if error.kind() == std::io::ErrorKind::BrokenPipe => {
             Refusal::Respond(trace)
         }

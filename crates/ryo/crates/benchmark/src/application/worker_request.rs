@@ -5,3 +5,6 @@ mod constants;
 
 #[cfg(test)]
 mod service_test;
+
+#[cfg(test)]
+mod fixtures;

@@ -1,5 +1,5 @@
 //! Selected missing inputs are prepared once before the SDK adapter receives the request.
-use super::service::prepare;
+use super::service::{configure, prepare};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
@@ -15,11 +15,20 @@ enum Scenario {
     UndeclaredMissing,
     WrongMode,
     ActualSdk,
+    TraceSessions,
 }
 type Input = Scenario;
 type Value = usize;
 type Failure = &'static str;
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "actual trace guards survive loading configuration SDK errors and abandonment",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::TraceSessions,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("only selected sealed absences are passed to the SDK adapter"),
         word: Word::Succeeds,
@@ -48,6 +57,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(scenario: Input) -> Result<Value, Failure> {
+    if matches!(scenario, Scenario::TraceSessions) {
+        super::fixtures::trace_sessions();
+        return Ok(1);
+    }
     if matches!(scenario, Scenario::ActualSdk) {
         actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread();
         return Ok(1);
@@ -188,7 +201,9 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
         prepared.missing.selected_missing,
         request.files.iter().cloned().collect()
     );
-    let report = engine.run(prepared.request, prepared.missing).unwrap();
+    let session = engine.load(&prepared.request).unwrap();
+    let configured = configure(&prepared.request, session).unwrap();
+    let report = configured.execute().unwrap();
     assert_eq!(report.diagnostics.len(), 1);
     assert_eq!(report.diagnostics[0].file, request.files[0]);
     assert_eq!(report.diagnostics[0].start.0, 0);
@@ -213,9 +228,11 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     readable.files = vec![ryo::linter::RelativePath("input.txt".into())];
     let prepared = prepare(readable).unwrap();
     assert!(prepared.missing.selected_missing.is_empty());
+    let session = engine.load(&prepared.request).unwrap();
+    let configured = configure(&prepared.request, session).unwrap();
     assert!(
-        engine
-            .run(prepared.request, prepared.missing)
+        configured
+            .execute()
             .unwrap_err()
             .to_string()
             .contains("incomplete candidate"),

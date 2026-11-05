@@ -1,4 +1,5 @@
 //! Project declared configuration data into existing SDK hosted inputs and exact rule exclusions.
+use super::types::CandidateConfiguration;
 use ryo::linter::{
     Cell, Glob, HostColumn, HostColumnName, HostKind, HostRelation, HostRelationName, HostRow,
     HostText, Rule, RuleId,
@@ -7,19 +8,13 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Data only: the common engine still owns matching, scheduling, storage and lifetime.
-pub(super) struct Configured {
-    pub hosted: Vec<HostRelation>,
-    pub selected_pairs: usize,
-}
-
-pub(super) fn project(
+pub(crate) fn project(
     request: &WorkerRequest,
     rules: &mut BTreeMap<RuleId, Rule>,
     selected_pairs: usize,
-) -> Result<Configured, Error> {
+) -> Result<CandidateConfiguration, Error> {
     let Some(prepared) = &request.rule_context else {
-        return Ok(Configured {
+        return Ok(CandidateConfiguration {
             hosted: Vec::new(),
             selected_pairs,
         });
@@ -72,7 +67,7 @@ pub(super) fn project(
         .iter()
         .map(|prefix| HostRow(vec![Cell::Text(HostText(prefix.as_str().into()))]))
         .collect();
-    Ok(Configured {
+    Ok(CandidateConfiguration {
         selected_pairs: crate::domain::suite::rule_context::selected_pairs(
             prepared,
             selected,
@@ -103,7 +98,7 @@ pub(super) fn project(
 
 /// Resolve diagnostic selection separately from explicit producer dependencies.
 /// The SDK remains responsible for output/schema validation and cycle rejection.
-pub(super) fn retain_producers(
+pub(crate) fn retain_producers(
     declared: &[RuleId],
     frontend: Option<&RuleId>,
     rules: &mut BTreeMap<RuleId, Rule>,
@@ -131,4 +126,56 @@ pub(super) fn retain_producers(
         }
     }
     Ok(selected)
+}
+
+/// Restrict automatic syntax projection to literal declared missing paths.
+pub(crate) fn exclude_missing(
+    rules: &mut BTreeMap<RuleId, Rule>,
+    frontend: &RuleId,
+    missing: &BTreeSet<ryo::linter::RelativePath>,
+) -> Result<(), Error> {
+    let rule = rules
+        .get_mut(frontend)
+        .ok_or_else(|| Error::Invalid("frontend projection was not registered".into()))?;
+    rule.exclude = frontend_exclusions(missing)?;
+    Ok(())
+}
+
+/// Provider-reported configuration files do not receive source-syntax diagnostics.
+pub(crate) fn exclude_configuration(
+    rules: &mut BTreeMap<RuleId, Rule>,
+    frontend: &RuleId,
+    files: &[ryo::linter::RelativePath],
+) -> Result<(), Error> {
+    let rule = rules
+        .get_mut(frontend)
+        .ok_or_else(|| Error::Invalid("frontend projection was not registered".into()))?;
+    for file in files {
+        #[cfg(unix)]
+        let literal = file.0.replace('\\', "\\\\");
+        #[cfg(not(unix))]
+        let literal = file.0.to_string();
+        rule.exclude.push(
+            Glob::try_from(globset::escape(&literal).as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+        );
+    }
+    Ok(())
+}
+
+/// Escape exactly one literal path rather than admitting a caller glob.
+pub(super) fn frontend_exclusions(
+    missing: &BTreeSet<ryo::linter::RelativePath>,
+) -> Result<Vec<Glob>, Error> {
+    missing
+        .iter()
+        .map(|file| {
+            #[cfg(unix)]
+            let literal = file.0.replace('\\', "\\\\");
+            #[cfg(not(unix))]
+            let literal = file.0.to_string();
+            Glob::try_from(globset::escape(&literal).as_str())
+                .map_err(|error| Error::Invalid(error.to_string()))
+        })
+        .collect()
 }

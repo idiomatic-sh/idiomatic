@@ -10,3 +10,18 @@ pub struct PreparedMissingInputs {
     /// Requested paths observed absent by the sealed context; they have no source or metadata.
     pub selected_missing: BTreeSet<RelativePath>,
 }
+
+/// Plain projected inputs; these alone do not permit SDK execution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EngineConfiguration {
+    pub selected_missing: BTreeSet<RelativePath>,
+    pub selected_rules: BTreeSet<ryo::linter::RuleId>,
+    pub selected_pairs: usize,
+    pub hosted: Vec<ryo::linter::HostRelation>,
+}
+
+/// The concrete loaded request and its private SDK effect binding.
+pub mod loaded_engine_session;
+
+/// A checked consuming SDK execution handle.
+pub mod configured_engine_session;

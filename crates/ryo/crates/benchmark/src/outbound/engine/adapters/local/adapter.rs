@@ -1,13 +1,16 @@
 //! Query loading, compilation and SDK startup occur inside the measured child.
 use super::constants;
-use crate::domain::suite::service::relative_path;
 use crate::outbound::engine::factory::FrontendDiagnosticProjection;
-use crate::outbound::engine::types::PreparedMissingInputs;
+use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
+use crate::outbound::engine::types::{
+    EngineConfiguration, loaded_engine_session::value::LoadedEngineSession,
+};
 use ryo::linter::{
     self, Cache, CaseSource, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule,
     RuleApplicability, RuleId, Slot, SourceText, WorkerPool, Workers,
 };
 use ryo::query::RyoQlQuery;
+use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
@@ -196,14 +199,9 @@ impl EngineLocalAdapter {
     }
 }
 impl EnginePort for EngineLocalAdapter {
-    fn run(
-        &self,
-        request: WorkerRequest,
-        prepared: PreparedMissingInputs,
-    ) -> Result<RunReport, Error> {
-        let selected_missing = prepared.selected_missing;
-        validate_context(&request)?;
-        let _trace = if let Some(path) = &self.trace {
+    fn load<'a>(&'a self, request: &'a WorkerRequest) -> Result<LoadedEngineSession<'a>, Error> {
+        validate_context(request)?;
+        let trace = if let Some(path) = &self.trace {
             let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().file(path).build();
             tracing::subscriber::set_global_default(
                 tracing_subscriber::registry()
@@ -222,42 +220,62 @@ impl EnginePort for EngineLocalAdapter {
         } else {
             None
         };
-        let mut rules = Self::load_rules(
+        let rules = Self::load_rules(
             &request.rules,
             &request.query_modules,
             &request.rule_applicability,
             self.frontend_diagnostic.clone(),
             request.rule_observations.as_ref(),
         )?;
-        let diagnostic_rules = rule_context::retain_producers(
-            &prepared.selected_rules,
+        Ok(LoadedEngineSession::new(
+            request,
+            rules,
             self.frontend_diagnostic
                 .as_ref()
-                .map(|projection| &projection.rule),
-            &mut rules,
-        )?;
-        if let Some(projection) = &self.frontend_diagnostic {
-            let frontend = rules
-                .get_mut(&projection.rule)
-                .ok_or_else(|| Error::Invalid("frontend projection was not registered".into()))?;
-            frontend.exclude = frontend_exclusions(&selected_missing)?;
-            frontend
-                .exclude
-                .extend(project_input_exclusions(&request, &self.languages)?);
-        }
-        let mut selected_rules = diagnostic_rules.clone();
-        if let Some(projection) = &self.frontend_diagnostic {
-            selected_rules.insert(projection.rule.clone());
-        }
-        let selected_pairs = diagnostic_rules.len().saturating_mul(request.files.len());
-        let configured = rule_context::project(&request, &mut rules, selected_pairs)?;
-        let selected_pairs = configured.selected_pairs;
+                .map(|projection| projection.rule.clone()),
+            Box::new(LocalEngineSession {
+                adapter: self,
+                request,
+                _trace: trace,
+            }),
+        ))
+    }
+}
+
+/// One loaded SDK invocation, never stored back into the reusable adapter.
+struct LocalEngineSession<'a> {
+    adapter: &'a EngineLocalAdapter,
+    request: &'a WorkerRequest,
+    // Last field: abandonment drops loaded rules before flushing the trace.
+    _trace: Option<tracing_chrome::FlushGuard>,
+}
+impl EngineExecution for LocalEngineSession<'_> {
+    fn configuration_files(&self) -> Result<Vec<linter::RelativePath>, Error> {
+        configuration_files(self.request, &self.adapter.languages)
+    }
+    fn execute(
+        self: Box<Self>,
+        rules: BTreeMap<RuleId, Rule>,
+        prepared: EngineConfiguration,
+    ) -> Result<RunReport, Error> {
+        // Keep the named guard until this function returns, including SDK/report errors.
+        let LocalEngineSession {
+            adapter,
+            request,
+            _trace,
+        } = *self;
+        let crate::outbound::engine::types::EngineConfiguration {
+            selected_missing,
+            selected_rules,
+            selected_pairs,
+            hosted,
+        } = prepared;
         let (sources, accepted) = source_inputs(&request, &selected_missing)?;
         let pool = WorkerPool::from(Workers(NonZeroUsize::MIN));
-        let cache = match request.state {
+        let cache = match &request.state {
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh => Cache::None,
             ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
-                Cache::At(path)
+                Cache::At(path.clone())
             }
         };
         let (corpus, beside) = match request.project_context_mode {
@@ -268,9 +286,13 @@ impl EnginePort for EngineLocalAdapter {
                 (Corpus::Listed(request.files.clone()), sources)
             }
         };
-        let engine =
-            linter::Linter::new(self.languages.clone(), pool, MemoryBudget::Machine, cache)
-                .with_execution(request.performance.execution);
+        let engine = linter::Linter::new(
+            adapter.languages.clone(),
+            pool,
+            MemoryBudget::Machine,
+            cache,
+        )
+        .with_execution(request.performance.execution);
         let report = linter::lint_with(
             &engine,
             LintRequest {
@@ -286,7 +308,7 @@ impl EnginePort for EngineLocalAdapter {
                 given_project_inventory: request.given_project_inventory.clone(),
                 rules,
                 files: vec![],
-                hosted: configured.hosted,
+                hosted,
                 corpus,
                 beside,
             },
@@ -306,12 +328,12 @@ impl EnginePort for EngineLocalAdapter {
             )));
         }
         let input_files: std::collections::BTreeSet<_> = accepted.iter().cloned().collect();
-        Self::validate_skips(
+        EngineLocalAdapter::validate_skips(
             &report.skipped,
             &selected_rules,
             &request.rule_applicability,
             &input_files,
-            self.frontend_diagnostic.is_some(),
+            adapter.frontend_diagnostic.is_some(),
         )?;
         let skips_count = report.skipped.len();
         let project_context = request
@@ -360,7 +382,7 @@ fn query_modules(
     for (id, relative) in registry {
         let _module = ryo::query::QueryModuleSource::try_new(id, "module source")
             .map_err(|error| Error::Invalid(error.to_string()))?;
-        relative_path(relative)?;
+        RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
         for component in relative.components() {
             current.push(component);
@@ -421,7 +443,7 @@ fn source_inputs(
     let mut sources = Vec::new();
     let mut accepted = std::collections::BTreeSet::new();
     for file in &request.files {
-        relative_path(file.0.as_ref())?;
+        RelativeArtifactPath::try_from(Path::new(file.0.as_ref()))?;
         if !accepted.insert(file.clone()) {
             return Err(Error::Invalid(
                 crate::domain::diagnostics::constants::DUPLICATE_INPUT.into(),
@@ -502,30 +524,11 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
     }
 }
 
-/// The auto frontend projection governs only declared readable inputs. Authored rules still
-/// govern the complete primary inventory; an absence seal is not a statement about syntax.
-pub(super) fn frontend_exclusions(
-    selected_missing: &std::collections::BTreeSet<linter::RelativePath>,
-) -> Result<Vec<linter::Glob>, Error> {
-    selected_missing
-        .iter()
-        .map(|file| {
-            #[cfg(unix)]
-            let literal = file.0.replace('\\', "\\\\");
-            #[cfg(not(unix))]
-            let literal = file.0.to_string();
-            let pattern = globset::escape(&literal);
-            linter::Glob::try_from(pattern.as_str())
-                .map_err(|error| Error::Invalid(error.to_string()))
-        })
-        .collect()
-}
-
 /// Syntax diagnostics apply to source inputs; provider-declared project inputs have their own reader.
-fn project_input_exclusions(
+fn configuration_files(
     request: &WorkerRequest,
     languages: &Languages,
-) -> Result<Vec<linter::Glob>, Error> {
+) -> Result<Vec<linter::RelativePath>, Error> {
     let matching: Vec<_> = match request.source_language.as_deref() {
         Some(selected) => languages
             .0
@@ -542,22 +545,13 @@ fn project_input_exclusions(
             "explicit primary-role provider is missing or ambiguous".into(),
         ));
     };
-    request
+    Ok(request
         .files
         .iter()
         .filter(|file| {
             language.primary_role(ryo::languages::SourcePath(&file.0))
                 == ryo::languages::PrimaryFileRole::Configuration
         })
-        .map(|file| {
-            #[cfg(unix)]
-            let literal = file.0.replace('\\', "\\\\");
-            #[cfg(not(unix))]
-            let literal = file.0.to_string();
-            linter::Glob::try_from(globset::escape(&literal).as_str())
-                .map_err(|error| Error::Invalid(error.to_string()))
-        })
-        .collect()
+        .cloned()
+        .collect())
 }
-#[path = "rule_context.rs"]
-mod rule_context;
