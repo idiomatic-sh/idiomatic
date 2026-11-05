@@ -38,7 +38,7 @@ fn mixed_program(engine: &ExecutionUseCaseImpl, relation: Relation) -> PreparedP
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
                 comparisons: vec![],
-                kept: vec![ColumnIndex(file_column)],
+                kept: vec![ColumnIndex(u32::try_from(file_column).unwrap())],
             },
         },
         PlanStep {
@@ -103,8 +103,8 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
                     language: SourceLanguage::Recognized,
                     resident_stability: facts::ResidentStability::Stable,
                     file: FileId(0),
-                    evaluation: &[],
-                    publication: &[],
+                    evaluation: &partials,
+                    publication: &partials,
                     demanded: &[true],
                     source: b"abc",
                     elements: &elements,
@@ -205,12 +205,13 @@ fn project_relations_defer_at_file_scope_and_join_real_captured_rows_once() {
             .expect("admit real file frontier and project facts");
         assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
         assert_eq!(project.reads.load(Ordering::SeqCst), 1);
+        let partials = Partials::default();
         let mut run = request
             .open_project(
                 ProjectInput {
                     scope: &scope,
-                    evaluation: &[],
-                    publication: &[],
+                    evaluation: &partials,
+                    publication: &partials,
                     ordinary,
                     bound: &[],
                     arenas: &[],
