@@ -1,5 +1,5 @@
 //! A destination receives exactly the borrowed observations authorized by the workflow.
-use super::value::Publication;
+use super::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::measurements::types::{
     Measurement, PublicationSample, ResourceObservation, SampleName,
 };
@@ -35,7 +35,7 @@ fn payload_view_retains_exact_nonempty_slice_and_observation_identity() {
             measurement: &second,
         },
     ];
-    let publication = Publication::checked(&observations);
+    let publication = MeasuredPublication::checked(&observations);
     assert!(std::ptr::eq(publication.samples(), observations.as_slice()));
     assert_eq!(publication.samples().len(), 2);
     assert!(std::ptr::eq(publication.samples()[0].measurement, &first));

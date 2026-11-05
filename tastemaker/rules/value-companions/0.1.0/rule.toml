@@ -32,3 +32,30 @@ scenario = "The implementation has no proof."
 given.files.'src/types/token.rs' = ''
 given.files.'src/types/token/value.rs' = ''
 then.findings = [{ path = 'src/types/token/value.rs' }]
+
+[[scenarios]]
+id = "missing-module"
+scenario = "An implementation and proof cannot silently omit their module."
+given.files.'src/types/token/value.rs' = ''
+given.files.'src/types/token/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token/value.rs' }]
+[[scenarios]]
+id = "missing-body"
+scenario = "A module and proof need their actual implementation."
+given.files.'src/types/token.rs' = ''
+given.files.'src/types/token/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token.rs' }, { path = 'src/types/token/value_test.rs' }]
+[[scenarios]]
+id = "orphan-proof"
+scenario = "A proof with no implementation is not a value."
+given.files.'src/types/token/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token/value_test.rs' }]
+[[scenarios]]
+id = "other-value-proof-does-not-count"
+scenario = "A different value's proof cannot satisfy the missing proof."
+given.files.'src/types/token.rs' = ''
+given.files.'src/types/token/value.rs' = ''
+given.files.'src/types/other.rs' = ''
+given.files.'src/types/other/value.rs' = ''
+given.files.'src/types/other/value_test.rs' = ''
+then.findings = [{ path = 'src/types/token/value.rs' }]

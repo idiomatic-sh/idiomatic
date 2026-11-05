@@ -19,14 +19,14 @@ templates = [
   { alias = "collection-module", template = "idiomatic.arch/collection@0.1.0", file = "collections/{collection}.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "One collection of the part: its interface and its items in order." },
 ]
 rules = [
-  { rule = "value-companions", include = ["types/**"], description = "Every behavior value has its module, implementation and adjacent proof; arbitrary helpers remain closed." },
+  { rule = "idiomatic.arch/value-companions@0.1.0", include = ["types/**"], description = "Every behavior value has its module, implementation and adjacent proof; arbitrary helpers remain closed." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the concept is a module the crate reaches: a file its module files do not declare is never compiled." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },
   { rule = "service-has-fn", include = ["service.rs"], description = "A service declares at least one free function: a concept that declares none has no service.rs." },
   { rule = "fns-only-in-service", include = ["types.rs", "errors.rs"], description = "A concept declares its functions in service.rs, so one that declares a function has a service and its test." },
   { rule = "service-shape", include = ["service.rs"], description = "A concept's service is free functions only: no struct, enum, union, trait or impl." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
-  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs"], description = "A part's types.rs declares at least one type." },
+  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs", "types/*.rs", "types/*/value.rs"], description = "A part owns a nominal type directly or through its declared canonical behavior value." },
   { rule = "idiomatic.arch/public-fields@0.1.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
@@ -1643,8 +1643,8 @@ given.files.'src/domain/greeting/types/token/value.rs' = '''
 //! One value: its declaration and its hand-written impls, trait impls included.
 pub struct Token(String);
 '''
-then.only = ['idiomatic.arch/concept/value-companions']
-then.findings = [{ rule = 'idiomatic.arch/concept/value-companions', path = 'src/domain/greeting/types/token/value.rs' }]
+then.only = ['idiomatic.arch/value-companions']
+then.findings = [{ rule = 'idiomatic.arch/value-companions', path = 'src/domain/greeting/types/token/value.rs' }]
 
 [[scenarios]]
 id = 'declared-service-test-group'

@@ -84,7 +84,9 @@ fn subject(scenario: Input) -> Result<serde_json::Value, Failure> {
         .map(SampleInput::publication)
         .collect::<Vec<_>>();
     let publication =
-        crate::outbound::evidence::types::publication::value::Publication::checked(&observations);
+        crate::outbound::evidence::types::measured_publication::value::MeasuredPublication::checked(
+            &observations,
+        );
     let bytes = schemas::encode(&publication).map_err(|error| {
         use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
         match error {

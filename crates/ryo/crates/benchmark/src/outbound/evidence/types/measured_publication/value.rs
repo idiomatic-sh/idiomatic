@@ -12,19 +12,19 @@ use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
 /// ```
 /// External code cannot turn its own raw flags into workflow-issued permission.
 /// ```compile_fail,E0624
-/// use ryo_benchmark::outbound::evidence::types::publication::value::Publication;
-/// let forged=Publication::checked(&[]);
+/// use ryo_benchmark::outbound::evidence::types::measured_publication::value::MeasuredPublication;
+/// let forged=MeasuredPublication::checked(&[]);
 /// ```
 /// An issued permission cannot be retargeted to different observations.
 /// ```compile_fail,E0616
-/// use ryo_benchmark::outbound::evidence::types::publication::value::Publication;
-/// fn replace(permission:&mut Publication<'_>) { permission.samples=&[]; }
+/// use ryo_benchmark::outbound::evidence::types::measured_publication::value::MeasuredPublication;
+/// fn replace(permission:&mut MeasuredPublication<'_>) { permission.samples=&[]; }
 /// ```
 #[derive(Debug)]
-pub struct Publication<'a> {
+pub struct MeasuredPublication<'a> {
     samples: &'a [PublicationSample<'a>],
 }
-impl<'a> Publication<'a> {
+impl<'a> MeasuredPublication<'a> {
     /// The application calls this only after validating original issued samples.
     pub(crate) fn checked(samples: &'a [PublicationSample<'a>]) -> Self {
         Self { samples }

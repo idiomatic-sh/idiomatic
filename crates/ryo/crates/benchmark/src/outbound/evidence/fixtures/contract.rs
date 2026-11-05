@@ -112,7 +112,7 @@ pub fn check(adapter: &impl EvidencePort) {
             .map(SampleInput::publication)
             .collect::<Vec<_>>();
         let publication =
-            crate::outbound::evidence::types::publication::value::Publication::checked(
+            crate::outbound::evidence::types::measured_publication::value::MeasuredPublication::checked(
                 &observations,
             );
         adapter

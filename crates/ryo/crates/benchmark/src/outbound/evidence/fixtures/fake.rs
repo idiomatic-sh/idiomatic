@@ -1,13 +1,13 @@
 //! The fake of the `evidence` port: publication acceptance without external effects.
 use super::super::interface::EvidencePort;
-use crate::outbound::evidence::types::publication::value::Publication;
+use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// A deterministic publication stand-in for application tests.
 #[derive(Debug, Clone, Copy)]
 pub struct EvidenceFake;
 impl EvidencePort for EvidenceFake {
-    fn publish(&self, publication: &Publication<'_>) -> Result<(), Error> {
+    fn publish(&self, publication: &MeasuredPublication<'_>) -> Result<(), Error> {
         let samples = publication.samples();
         if samples.is_empty()
             || samples.iter().any(|sample| {

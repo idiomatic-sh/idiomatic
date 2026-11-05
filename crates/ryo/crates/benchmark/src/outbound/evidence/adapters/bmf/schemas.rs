@@ -1,5 +1,5 @@
 //! Only this boundary knows the BMF field and metric names.
-use crate::outbound::evidence::types::publication::value::Publication;
+use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::measurements::types::PublicationSample;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Serialize;
@@ -48,7 +48,7 @@ impl<'a> From<&'a PublicationSample<'_>> for ObservationSchema<'a> {
     }
 }
 /// Serialize exact resource samples into grouped median and extrema metrics.
-pub(super) fn encode(publication: &Publication<'_>) -> Result<Vec<u8>, Error> {
+pub(super) fn encode(publication: &MeasuredPublication<'_>) -> Result<Vec<u8>, Error> {
     let samples = publication.samples();
     if samples.is_empty() {
         return Err(Error::Invalid("no measured evidence".into()));

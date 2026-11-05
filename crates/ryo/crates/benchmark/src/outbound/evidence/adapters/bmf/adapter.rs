@@ -1,7 +1,7 @@
 //! Atomic document encoding precedes writing to the injected destination.
 use super::{connection::EvidenceBmfConnection, constants, schemas};
 use crate::outbound::evidence::interface::EvidencePort;
-use crate::outbound::evidence::types::publication::value::Publication;
+use crate::outbound::evidence::types::measured_publication::value::MeasuredPublication;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::io::Write as _;
 
@@ -18,7 +18,7 @@ impl EvidenceBmfAdapter {
     }
 }
 impl EvidencePort for EvidenceBmfAdapter {
-    fn publish(&self, publication: &Publication<'_>) -> Result<(), Error> {
+    fn publish(&self, publication: &MeasuredPublication<'_>) -> Result<(), Error> {
         let bytes = schemas::encode(publication)?;
         let mut output = self
             .connection
