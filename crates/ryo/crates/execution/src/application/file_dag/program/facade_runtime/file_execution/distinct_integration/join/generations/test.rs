@@ -1,5 +1,5 @@
 //! File-generation freshness under one immutable prepared request and service set.
-use super::super::direct::{request, schema_column, simple};
+use super::super::direct::test::{request, schema_column, simple};
 use super::super::*;
 #[test]
 fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload() {

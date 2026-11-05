@@ -180,7 +180,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
             _ => Err(OperatingError::NotRead),
         }
     };
-    let kernels = KernelSession::new(&engine, &prepared, Rc::clone(&owner), &read, None);
+    let kernels = KernelSession::new(engine.as_ref(), &prepared, Rc::clone(&owner), &read, None);
     let mut observed = std::collections::HashMap::new();
     let mut sources = super::super::super::SourceInputs {
         execution: &execution,

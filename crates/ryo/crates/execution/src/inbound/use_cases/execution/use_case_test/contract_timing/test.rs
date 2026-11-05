@@ -62,7 +62,7 @@ fn project(column: u32) -> Operation {
     }
 }
 /// Advertise the real catalog schema; only the malformed case truncates physical storage.
-fn functions(malformed: bool, symbol: ryo_relations::domain::relations::types::Symbol) -> Table {
+fn functions(malformed: bool, symbol: ryo_relations::domain::terms::types::Symbol) -> Table {
     use ryo_relations::domain::relations::{
         service::kinds,
         types::{Flag, Offset, Span},

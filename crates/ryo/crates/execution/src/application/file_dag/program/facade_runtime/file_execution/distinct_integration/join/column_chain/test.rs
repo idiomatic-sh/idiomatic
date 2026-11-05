@@ -1,5 +1,5 @@
 //! The real compiler chooses the selected-cut/Join/filter/Project alternative.
-use super::super::capability::Witness;
+use super::super::capability::test::Witness;
 use super::super::*;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::terms::types::NameText;
