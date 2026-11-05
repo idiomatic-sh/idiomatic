@@ -21,11 +21,6 @@ pub(crate) struct PlanLayout {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct StepPlace(pub usize);
 
-/// How many steps read a step.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg(test)]
-pub(crate) struct ReadCount(pub usize);
-
 /// A plan, by where it is: the same plan has the same identity in every file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct PlanIdentity(pub usize);

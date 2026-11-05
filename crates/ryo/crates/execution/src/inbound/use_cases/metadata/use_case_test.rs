@@ -220,6 +220,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let metadata = MetadataUseCaseImpl;
     match scenario {
         Scenario::Catalog => {
+            let described = super::fixtures::contract::check(&metadata);
+            assert_eq!(described, metadata.operators().len());
             let mut unknown_relations = 0;
             for operator in metadata.operators() {
                 let description = metadata.describe(*operator);

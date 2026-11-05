@@ -229,9 +229,6 @@ impl<T: Default> std::ops::DerefMut for LazyScratch<T> {
 /// Cheap row buffers and lazy heavy groups owned only by the current rule.
 #[derive(Debug, Default)]
 pub(crate) struct OperatorScratch {
-    /// Measurements copied from real engine-owned invocation resources in tests.
-    #[cfg(test)]
-    pub observation: crate::domain::operating::types::ExecutionObservationSlot,
     /// The cells of a row that a comparison reads, by their place in the row.
     pub needed: ColumnPlaces,
 

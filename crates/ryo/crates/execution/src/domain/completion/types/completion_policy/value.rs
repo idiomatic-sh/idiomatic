@@ -35,10 +35,6 @@ impl CompletionPolicy {
     pub(crate) fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
         Self::file_inputs(rule, file, partials, partials)
     }
-    #[cfg(test)]
-    pub(crate) fn project(rule: RuleIndex, partials: &Partials) -> Self {
-        Self::project_inputs(rule, partials, partials)
-    }
     pub(crate) fn file_inputs(
         rule: RuleIndex,
         file: FileId,

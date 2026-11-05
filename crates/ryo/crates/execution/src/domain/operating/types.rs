@@ -192,45 +192,4 @@ pub(crate) struct ExecutionObservation {
     pub file_owner_released: bool,
 }
 
-/// Optional test telemetry is dormant until a real execution publishes observations.
-#[cfg(test)]
-#[derive(Debug, Default)]
-pub(crate) struct ExecutionObservationSlot(Option<Box<ExecutionObservation>>);
-#[cfg(test)]
-impl std::ops::Deref for ExecutionObservationSlot {
-    type Target = ExecutionObservation;
-    fn deref(&self) -> &Self::Target {
-        const ZERO: ExecutionObservation = ExecutionObservation {
-            native_positions: 0,
-            registered_calls: 0,
-            regexes: 0,
-            globs: 0,
-            owners_initialized: 0,
-            row_capacity: 0,
-            other_capacity: 0,
-            index_rows: 0,
-            index_representation: None,
-            index_cells: 0,
-            index_capacity: 0,
-            closure_partition_rows: 0,
-            closure_partition_capacity: 0,
-            closure_visited: 0,
-            dfs_expanded: 0,
-            dfs_examined: 0,
-            dfs_adjacency_len: 0,
-            dfs_frames_len: 0,
-            dfs_visited_len: 0,
-            traversal_queue_len: 0,
-            file_owner_released: false,
-        };
-        self.0.as_deref().unwrap_or(&ZERO)
-    }
-}
-#[cfg(test)]
-impl std::ops::DerefMut for ExecutionObservationSlot {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.get_or_insert_with(Default::default)
-    }
-}
-
 use ryo_values::domain::rows::types::{RowCount, Table};

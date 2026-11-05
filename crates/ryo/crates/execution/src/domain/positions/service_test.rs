@@ -13,9 +13,7 @@ use ryo_relations::domain::terms::types::NameText;
 
 use super::service::{count, in_tree, row, value};
 use super::types::{Keeps, Keys, Positions, Slots};
-use crate::domain::lowering::types::{
-    Counting, ElementPart, LoweredColumn, LoweredShape, Lowering, RowPosition, RowWidth,
-};
+use crate::domain::lowering::types::{ElementPart, RowWidth};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
@@ -61,25 +59,6 @@ pub(crate) fn rows_over(elements: &Elements) -> TreeRows<'_> {
         elements,
         file: FileId(0),
         form: TreeForm::Elements,
-    }
-}
-
-/// A lowering of steps each answering one column of this field.
-pub(crate) fn lowering_of(fields: &[ElementPart]) -> Lowering {
-    Lowering {
-        shapes: fields
-            .iter()
-            .map(|field| {
-                Some(LoweredShape {
-                    width: RowWidth(1),
-                    columns: vec![LoweredColumn {
-                        slot: RowPosition(0),
-                        field: *field,
-                    }],
-                })
-            })
-            .collect(),
-        counting: vec![Counting::DoesNotCount; fields.len()],
     }
 }
 
