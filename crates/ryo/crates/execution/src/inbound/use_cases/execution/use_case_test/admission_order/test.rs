@@ -310,7 +310,7 @@ fn stored_prefix_keeps_static_error_order_and_source_identity() {
             assert_eq!(relation, Relation::Function);
             reads.set(reads.get() + 1);
             Ok(SourceRows::Stored(ColumnsView {
-                kinds: &table.kinds,
+                kinds: kinds(Relation::Function),
                 columns: &columns,
             }))
         };
