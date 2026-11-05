@@ -1,5 +1,6 @@
 //! File execution and named observation lifecycle.
 use super::*;
+use crate::domain::executable_program::types::InputSource;
 
 pub(super) struct FileRoot {
     pub(super) readiness: Option<ryo_values::domain::observations::types::ProducerReadiness>,

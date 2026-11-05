@@ -69,12 +69,6 @@ pub enum DiagnosticDelivery {
     Forwarded,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DiagnosticDelivery {
-    Disabled,
-    Collected,
-    Forwarded,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationDemand {
     Required,
     NotRequired,
