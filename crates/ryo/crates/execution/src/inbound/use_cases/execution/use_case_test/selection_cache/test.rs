@@ -268,7 +268,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             1,
             "the actual owner inspects the backing before declining optional selection"
         );
-        assert_eq!(fixture.snapshot().counts.builds, 0);
+        assert_eq!(fixture.snapshot(None).counts.builds, 0);
         return Ok(1);
     }
     if matches!(scenario, Scenario::EmptyColumns) {
