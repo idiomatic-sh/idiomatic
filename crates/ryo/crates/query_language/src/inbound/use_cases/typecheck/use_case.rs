@@ -81,7 +81,7 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             .map_err(|error| TypecheckError::Catalog {
                 reason: error.to_string(),
             })?;
-        crate::domain::validation::observations::validate_inputs(
+        crate::domain::observation_inputs::service::validate_inputs(
             &relations.0,
             &request.hosted,
             &request.observations,
