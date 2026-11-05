@@ -21,9 +21,13 @@ pub(crate) fn demand(
     supplies: &[crate::domain::operating::types::Supply],
 ) -> DemandProgram {
     let mut actions = Vec::new();
-    match mode.schema_boundary {
-        SchemaBoundary::BeforeDemand => actions.push(DemandAction::ValidateBeforeInputs),
-        SchemaBoundary::FirstApplicableRow => actions.push(DemandAction::ValidateFirstRow),
+    // Collected preflight is ordered after actual admission and empty gates.
+    // Its schema/resource precedence is interpreted by the invocation owner.
+    if mode.evaluation == crate::domain::operator::contract::types::EvaluationMode::Streaming {
+        match mode.schema_boundary {
+            SchemaBoundary::BeforeDemand => actions.push(DemandAction::ValidateBeforeInputs),
+            SchemaBoundary::FirstApplicableRow => actions.push(DemandAction::ValidateFirstRow),
+        }
     }
     match mode.demand {
         DemandOrder::None => {}

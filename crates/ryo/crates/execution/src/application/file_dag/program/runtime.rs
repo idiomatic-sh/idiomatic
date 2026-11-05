@@ -614,19 +614,6 @@ impl ProgramExecution {
                     input.with_coverage(completion.blocked_coverage()),
                 ));
             }
-            if matches!(delivery, Delivery::Retain) {
-                for instruction in region.instructions.iter().rev() {
-                    if instruction.contract.collected.schema_boundary
-                        == crate::domain::operator::contract::types::SchemaBoundary::BeforeDemand
-                    {
-                        instruction
-                            .contract
-                            .collected_kinds
-                            .as_ref()
-                            .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
-                    }
-                }
-            }
             if let Some(shape) = &region.ordered_existence {
                 let source = inputs
                     .admit(
@@ -665,6 +652,9 @@ impl ProgramExecution {
                     &mut crate::domain::replay::types::Collect(&mut rows),
                 )?;
                 if matches!(outcome, StrategyOutcome::Executed) {
+                    output_kinds
+                        .as_ref()
+                        .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     completion.filter_rows(
                         region
                             .last_operation()
@@ -712,7 +702,10 @@ impl ProgramExecution {
                             .admit(InputSource::Region(shape.left()), &self.partition, context)
                             .map_err(InvocationFailure::Semantic)?;
                         let right = if inputs
-                            .is_empty(&left)
+                            .is_empty(
+                                &left,
+                                crate::domain::operator::contract::types::EmptyRepresentation::Any,
+                            )
                             .map_err(InvocationFailure::Semantic)?
                         {
                             None
@@ -744,7 +737,10 @@ impl ProgramExecution {
                     ));
                 };
                 if inputs
-                    .is_empty(&left)
+                    .is_empty(
+                        &left,
+                        crate::domain::operator::contract::types::EmptyRepresentation::Any,
+                    )
                     .map_err(InvocationFailure::Semantic)?
                 {
                     let published = inputs
@@ -776,6 +772,9 @@ impl ProgramExecution {
                 self.record_column(shape, &counters)
                     .map_err(InvocationFailure::Semantic)?;
                 if matches!(outcome?, StrategyOutcome::Executed) {
+                    output_kinds
+                        .as_ref()
+                        .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     completion.filter_rows(
                         region
                             .last_operation()
@@ -819,11 +818,14 @@ impl ProgramExecution {
                     }
                     DemandAction::EmptyGate(InputId(at)) => {
                         if inputs
-                            .is_empty(admitted.get(at).ok_or_else(|| {
-                                InvocationFailure::Semantic(OperatingError::MissingInput {
-                                    position: at + 1,
-                                })
-                            })?)
+                            .is_empty(
+                                admitted.get(at).ok_or_else(|| {
+                                    InvocationFailure::Semantic(OperatingError::MissingInput {
+                                        position: at + 1,
+                                    })
+                                })?,
+                                crate::domain::operator::contract::types::EmptyRepresentation::Any,
+                            )
                             .map_err(InvocationFailure::Semantic)?
                         {
                             let published = inputs
@@ -867,7 +869,70 @@ impl ProgramExecution {
                     }
                     DemandAction::AxisInputs => {
                         admitted = admit_axis(region, first, inputs, &self.partition, context)
-                            .map_err(InvocationFailure::Semantic)?
+                            .map_err(InvocationFailure::Semantic)?;
+                        if admitted.len() == 1 {
+                            // A held empty primary never demands its side populations.
+                            if matches!(delivery, Delivery::Forward(_)) && !region.publishes {
+                                return Ok(InvocationOutcome::Forwarded(
+                                    completion.coverage(needs),
+                                ));
+                            }
+                            let gate = first
+                                .contract
+                                .collected_empty
+                                .iter()
+                                .find(|gate| gate.input == 0)
+                                .ok_or(InvocationFailure::Semantic(
+                                    OperatingError::WrongOperation,
+                                ))?;
+                            let publication = inputs
+                                .publish_empty(
+                                    super::admission::ProducerRoot::Region(id),
+                                    &self.partition,
+                                    &admitted,
+                                    gate.kinds.clone(),
+                                )
+                                .map_err(InvocationFailure::Semantic)?;
+                            return Ok(InvocationOutcome::Published(
+                                publication.with_coverage(completion.coverage(needs)),
+                            ));
+                        }
+                    }
+                }
+            }
+            if evaluation == crate::domain::operator::contract::types::EvaluationMode::Collected {
+                for gate in &first.contract.collected_empty {
+                    let input = admitted.get(gate.input).ok_or(InvocationFailure::Semantic(
+                        OperatingError::MissingInput {
+                            position: gate.input + 1,
+                        },
+                    ))?;
+                    if inputs
+                        .is_empty(input, gate.representation)
+                        .map_err(InvocationFailure::Semantic)?
+                    {
+                        let publication = inputs
+                            .publish_empty(
+                                super::admission::ProducerRoot::Region(id),
+                                &self.partition,
+                                &admitted,
+                                gate.kinds.clone(),
+                            )
+                            .map_err(InvocationFailure::Semantic)?;
+                        return Ok(InvocationOutcome::Published(
+                            publication.with_coverage(completion.coverage(needs)),
+                        ));
+                    }
+                }
+                for instruction in region.instructions.iter().rev() {
+                    if instruction.contract.collected.preflight
+                        == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
+                    {
+                        instruction
+                            .contract
+                            .collected_kinds
+                            .as_ref()
+                            .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     }
                 }
             }
@@ -959,13 +1024,10 @@ impl ProgramExecution {
                 }
                 delivery => {
                     let mut rows = ryo_values::domain::rows::types::Table::default();
-                    ryo_values::domain::rows::service::reset(
-                        &mut rows,
-                        last.contract
-                            .collected_kinds
-                            .as_ref()
-                            .map_err(|error| InvocationFailure::Semantic(error.clone()))?,
-                    );
+                    let output_kinds = &last.contract.collected_kinds;
+                    if let Ok(kinds) = output_kinds {
+                        ryo_values::domain::rows::service::reset(&mut rows, kinds);
+                    }
                     match delivery {
                         Delivery::Retain => {
                             let mut output = crate::domain::replay::types::Collect(&mut rows);
@@ -992,6 +1054,9 @@ impl ProgramExecution {
                                 frames,
                                 &mut collect,
                             )?;
+                            output_kinds
+                                .as_ref()
+                                .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                             completion.filter_rows(
                                 region
                                     .last_operation()
@@ -1029,6 +1094,9 @@ impl ProgramExecution {
                             result?;
                         }
                     }
+                    output_kinds
+                        .as_ref()
+                        .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
                     completion.filter_rows(
                         region
                             .last_operation()
@@ -1264,7 +1332,10 @@ fn admit_join(
             }
             HeldJoinOrder::LeftWithEmptyGate => {
                 let left = inputs.admit(source(0)?, partition, context)?;
-                if inputs.is_empty(&left)? {
+                if inputs.is_empty(
+                    &left,
+                    crate::domain::operator::contract::types::EmptyRepresentation::Any,
+                )? {
                     return Ok(vec![left]);
                 }
                 let right = inputs.admit(source(1)?, partition, context)?;
@@ -1284,21 +1355,39 @@ fn admit_axis(
     partition: &Partition,
     context: &mut OperatorContext<'_>,
 ) -> Result<Vec<AdmittedInput>, OperatingError> {
-    // The explicit ordinal contract is preserved even when a producer is supplied as a stream.
-    let mut admitted = Vec::with_capacity(instruction.input_delivery.len());
-    for at in 0..instruction.input_delivery.len() {
-        admitted.push(
-            inputs.admit(
-                *region
-                    .inputs
-                    .get(at)
-                    .ok_or(OperatingError::MissingInput { position: at + 1 })?,
-                partition,
-                context,
-            )?,
-        );
+    use crate::domain::operating::types::Supply;
+    let mut delivery = Vec::with_capacity(3);
+    for input in 0..3 {
+        delivery.push(*instruction.input_delivery.get(input).ok_or(
+            OperatingError::MissingInput {
+                position: input + 1,
+            },
+        )?);
     }
-    Ok(admitted)
+    let source = |at: usize| {
+        region
+            .inputs
+            .get(at)
+            .copied()
+            .ok_or(OperatingError::MissingInput { position: at + 1 })
+    };
+    if delivery.as_slice() == [Supply::Streamed, Supply::AtHand, Supply::AtHand] {
+        let edges = inputs.admit(source(1)?, partition, context)?;
+        let domain = inputs.admit(source(2)?, partition, context)?;
+        let primary = inputs.admit(source(0)?, partition, context)?;
+        Ok(vec![primary, edges, domain])
+    } else {
+        let primary = inputs.admit(source(0)?, partition, context)?;
+        if inputs.is_empty(
+            &primary,
+            crate::domain::operator::contract::types::EmptyRepresentation::Any,
+        )? {
+            return Ok(vec![primary]);
+        }
+        let edges = inputs.admit(source(1)?, partition, context)?;
+        let domain = inputs.admit(source(2)?, partition, context)?;
+        Ok(vec![primary, edges, domain])
+    }
 }
 
 struct Tee<'a> {

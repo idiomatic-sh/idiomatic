@@ -354,9 +354,16 @@ impl Inputs for SourceInputs<'_, '_> {
             }
         }
     }
-    fn is_empty(&self, input: &AdmittedInput) -> Result<bool, OperatingError> {
+    fn is_empty(
+        &self,
+        input: &AdmittedInput,
+        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+    ) -> Result<bool, OperatingError> {
         let rows = input.rows(&self.owner, self.read)?;
-        Ok(count_of(&rows).0 == 0)
+        Ok(count_of(&rows).0 == 0
+            && (representation
+                == crate::domain::operator::contract::types::EmptyRepresentation::Any
+                || matches!(rows, Rows::Computed(_))))
     }
     fn publish(
         &mut self,

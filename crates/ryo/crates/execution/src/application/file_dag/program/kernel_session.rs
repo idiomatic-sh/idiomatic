@@ -491,6 +491,16 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         }
                     }
                     let views: Vec<_> = originals.iter().map(BorrowedRows::from).collect();
+                    if mode == EvaluationMode::Collected
+                        && contract.collected.preflight
+                            == crate::domain::operator::contract::types::PreflightOrder::SchemaFirst
+                    {
+                        contract
+                            .collected_kinds
+                            .as_ref()
+                            .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
+                    }
+
                     workspace.capture_admitted(publications.clone());
                     let meaning = match mode {
                         EvaluationMode::Streaming => &contract.streaming,
@@ -509,6 +519,12 @@ impl KernelInvocation for KernelSession<'_, '_> {
                         .map_err(InvocationFailure::Semantic)?,
                     )
                 };
+                    if mode == EvaluationMode::Collected {
+                        contract
+                            .collected_kinds
+                            .as_ref()
+                            .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
+                    }
                     if mode == EvaluationMode::Collected
                         && matches!(
                             permit.native_join_eligibility(),

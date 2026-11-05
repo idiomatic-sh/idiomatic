@@ -213,12 +213,19 @@ impl Inputs for TestInputs {
             super::super::super::admission::Readiness::Complete,
         )
     }
-    fn is_empty(&self, input: &AdmittedInput) -> Result<bool, OperatingError> {
+    fn is_empty(
+        &self,
+        input: &AdmittedInput,
+        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+    ) -> Result<bool, OperatingError> {
         let publication = input.publication(&self.owner)?;
         let rows = self
             .owner
             .resolve(publication.as_ref(), &|relation| self.read(relation))?;
-        Ok(matches!(rows, Rows::Computed(table) if table.count.0 == 0))
+        Ok(crate::domain::table_model::service::count_of(&rows).0 == 0
+            && (representation
+                == crate::domain::operator::contract::types::EmptyRepresentation::Any
+                || matches!(rows, Rows::Computed(_))))
     }
     fn publish(
         &mut self,

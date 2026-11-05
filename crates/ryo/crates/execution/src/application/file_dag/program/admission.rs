@@ -74,7 +74,11 @@ pub(super) trait Inputs {
         partition: &Partition,
         context: &mut crate::domain::operating::types::OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError>;
-    fn is_empty(&self, input: &AdmittedInput) -> Result<bool, OperatingError>;
+    fn is_empty(
+        &self,
+        input: &AdmittedInput,
+        representation: crate::domain::operator::contract::types::EmptyRepresentation,
+    ) -> Result<bool, OperatingError>;
     fn publish(
         &mut self,
         root: ProducerRoot,
