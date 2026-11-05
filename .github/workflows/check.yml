@@ -58,6 +58,19 @@ jobs:
           done
           python3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"
 
+  ownership-contracts:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Require every matrix contract and executed control
+        run: python3 -I ci/scripts/checks/ownership_matrix.py --root "$GITHUB_WORKSPACE"
+
   changes:
     runs-on: ubuntu-26.04
     permissions:
@@ -217,7 +230,7 @@ jobs:
   # The product gate also requires the independent speed and Ruff authoring guards. The strict full inventory records parity
   # separately and remains a release acceptance requirement while rules are still being implemented.
   gate:
-    needs: [changes, root, check, speed, ruff-candidates, contract-review]
+    needs: [changes, root, check, speed, ruff-candidates, contract-review, ownership-contracts]
     if: always()
     runs-on: ubuntu-26.04
     steps:
