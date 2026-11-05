@@ -239,7 +239,133 @@ fn lookup_of_term_text_returns_only_the_file_symbol() -> usize {
 }
 
 /// The rows of this part's cases.
+/// Late source admission must not reinterpret an existing derived symbol's offsets.
+fn interleaved_source_and_derived_names_keep_text_and_retention() -> usize {
+    let source = ByteSlice(b"x.Z");
+    let mut symbols = Symbols::default();
+    let derived = intern_derived(&mut symbols, source, NameText("x.A"));
+    let original = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(text_of(&symbols, source, derived), Some(NameText("x.A")));
+    assert_eq!(text_of(&symbols, source, original), Some(NameText("x.Z")));
+    assert_eq!(
+        find_hashed(
+            &symbols,
+            source,
+            ByteSlice(b"x.A"),
+            hash_of(ByteSlice(b"x.A"))
+        ),
+        Some(derived)
+    );
+    assert_eq!(
+        find_hashed(
+            &symbols,
+            source,
+            ByteSlice(b"x.Z"),
+            hash_of(ByteSlice(b"x.Z"))
+        ),
+        Some(original)
+    );
+    let mut arena = Bytes::default();
+    let mut places = Vec::new();
+    let retained = name_of(
+        &symbols,
+        source,
+        derived,
+        FileId(0),
+        WorkerNumber(0),
+        &mut arena,
+        &mut places,
+    )
+    .expect("derived name remains retainable");
+    assert_eq!(retained.hash, hash_of(ByteSlice(b"x.A")));
+    assert_eq!(arena.0, b"x.A");
+    assert_eq!(
+        place_of(retained, &places, &symbols)
+            .expect("retained place")
+            .origin,
+        Origin::Derived(WorkerNumber(0))
+    );
+    let retained_source = name_of(
+        &symbols,
+        source,
+        original,
+        FileId(0),
+        WorkerNumber(0),
+        &mut arena,
+        &mut places,
+    )
+    .expect("source remains retainable");
+    assert_eq!(retained_source.hash, hash_of(ByteSlice(b"x.Z")));
+    assert_eq!(
+        place_of(retained_source, &places, &symbols)
+            .expect("source place")
+            .origin,
+        Origin::Source
+    );
+    assert_eq!(arena.0, b"x.A", "source retention does not copy bytes");
+    1
+}
+
+/// Finding a derived name from source bytes must retain that symbol's original storage.
+fn a_source_alias_does_not_reclassify_existing_derived_storage() -> usize {
+    let source = ByteSlice(b"x.A");
+    let mut symbols = Symbols::default();
+    let prefix = intern_derived(&mut symbols, source, NameText("prefix"));
+    let derived = intern_derived(&mut symbols, source, NameText("x.A"));
+    let alias = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(alias, derived);
+    assert_eq!(text_of(&symbols, source, prefix), Some(NameText("prefix")));
+    assert_eq!(text_of(&symbols, source, derived), Some(NameText("x.A")));
+    assert_eq!(name_count(&symbols), Count(2));
+    1
+}
+
+/// Composed names and reused pools obey the same storage identity as ordinary lookup.
+fn interleaved_names_compose_and_clear_without_changing_storage() -> usize {
+    use super::service::{begin_name, clear, end_name, push_name};
+    let source = ByteSlice(b"x.Z");
+    let mut symbols = Symbols::default();
+    let derived = intern_derived(&mut symbols, source, NameText("x.A"));
+    let original = intern(&mut symbols, source, Offset(0), Offset(3));
+    let start = begin_name(&symbols);
+    push_name(&mut symbols, source, derived);
+    push_name(&mut symbols, source, original);
+    let composed = end_name(&mut symbols, source, start);
+    assert_eq!(
+        text_of(&symbols, source, composed),
+        Some(NameText("x.Ax.Z"))
+    );
+    assert_eq!(
+        intern_derived(&mut symbols, source, NameText("x.Ax.Z")),
+        composed
+    );
+    clear(&mut symbols);
+    assert_eq!(name_count(&symbols), Count(0));
+    let original = intern(&mut symbols, source, Offset(0), Offset(3));
+    assert_eq!(text_of(&symbols, source, original), Some(NameText("x.Z")));
+    assert!(derived_of(&symbols).0.is_empty());
+    1
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("interleaved_source_and_derived_names_keep_text_and_retention"),
+        word: Word::Succeeds,
+        input: || interleaved_source_and_derived_names_keep_text_and_retention,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_source_alias_does_not_reclassify_existing_derived_storage"),
+        word: Word::Succeeds,
+        input: || a_source_alias_does_not_reclassify_existing_derived_storage,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("interleaved_names_compose_and_clear_without_changing_storage"),
+        word: Word::Succeeds,
+        input: || interleaved_names_compose_and_clear_without_changing_storage,
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("query_interning_keeps_source_and_comment_origins"),
         word: Word::Succeeds,
