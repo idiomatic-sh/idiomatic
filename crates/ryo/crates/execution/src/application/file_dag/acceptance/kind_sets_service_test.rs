@@ -85,6 +85,7 @@ fn finds_the_elements_of_a_named_kind() -> Result<Value, OperatingError> {
     let mut found = |comparisons: Vec<Comparison>| -> Result<Vec<Cell>, OperatingError> {
         let mut out = Table::default();
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
@@ -159,6 +160,7 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -201,6 +203,7 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
     }
     index_kinds(&mut built_elements);
     let mut built_context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -262,6 +265,7 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
         let (elements, mut symbols) = tree_of(names, token_kind);
         let mut out = Table::default();
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,

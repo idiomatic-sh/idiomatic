@@ -137,6 +137,7 @@ fn streamed_count_left_and_held_count_right_join_under_one_owner() {
         let mut scratch = OperatorScratch::default();
         let mut memo = Vec::new();
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_matchers: None,
             prepared_kinds: None,
@@ -352,6 +353,7 @@ fn dag_root_and_recursive_child_use_injected_executor() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,

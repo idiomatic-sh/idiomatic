@@ -172,6 +172,7 @@ fn joins_on_the_stretch(stretch_first: bool) -> Result<Table, OperatingError> {
     };
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

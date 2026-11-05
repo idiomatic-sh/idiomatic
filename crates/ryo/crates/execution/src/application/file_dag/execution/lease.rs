@@ -215,6 +215,7 @@ fn evaluate_once(
         );
     }
     let views = PrimitiveViews {
+        phase: context.phase,
         resources: &resources.inputs,
         semantic: context.semantic,
         paths: context.paths,

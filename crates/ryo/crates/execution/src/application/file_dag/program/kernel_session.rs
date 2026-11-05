@@ -88,6 +88,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         output: &mut dyn Emit,
     ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
         let mut rebound = OperatorContext {
+            phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
             prepared_kinds: context.prepared_kinds,
@@ -176,6 +177,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
             return Ok(None);
         }
         let mut rebound = OperatorContext {
+            phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
             prepared_kinds: context.prepared_kinds,
@@ -306,6 +308,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
             return Ok(None);
         }
         let mut rebound = OperatorContext {
+            phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
             prepared_kinds: context.prepared_kinds,
@@ -356,6 +359,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         rows: &mut ryo_values::domain::rows::types::Table,
     ) -> Result<super::runtime::StrategyOutcome, InvocationFailure> {
         let mut rebound = OperatorContext {
+            phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
             prepared_kinds: context.prepared_kinds,
@@ -465,6 +469,7 @@ impl KernelInvocation for KernelSession<'_, '_> {
         output: &mut dyn Emit,
     ) -> Result<(), InvocationFailure> {
         let mut rebound = OperatorContext {
+            phase: context.phase,
             semantic: context.semantic,
             prepared_matchers: context.prepared_matchers,
             prepared_kinds: context.prepared_kinds,

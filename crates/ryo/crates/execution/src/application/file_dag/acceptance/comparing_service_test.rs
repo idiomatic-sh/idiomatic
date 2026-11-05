@@ -78,6 +78,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
         };
         let mut out = Table::default();
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
@@ -132,6 +133,7 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
     let mut memo = Vec::new();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -202,6 +204,7 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
         }
         let mut out = Table::default();
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
@@ -249,6 +252,7 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
         origin: None,
     }];
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -285,6 +289,7 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
     };
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -315,6 +320,7 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
         place: PlaceNumber(99),
     });
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

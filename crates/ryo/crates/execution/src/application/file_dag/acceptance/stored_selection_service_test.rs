@@ -63,6 +63,7 @@ use crate::domain::stored_selection::fixtures::program;
 fn baseline(source: ColumnsView<'_>, program: &Selector) -> Result<Table, Failure> {
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -154,6 +155,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -357,6 +359,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -392,6 +395,7 @@ fn symbol_discriminator_preserves_text_equality_with_term_aliases() -> Result<()
     );
     drop(context);
     let mut ordinary = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -509,6 +513,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -566,6 +571,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     drop(context);
     for (selector, result) in selectors.iter().zip(actual) {
         let mut ordinary = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
@@ -599,6 +605,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
     )?;
     constrained.limit_to_metadata();
     let mut budget_context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -634,6 +641,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         source.kinds,
     )?;
     let mut empty_context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -681,6 +689,7 @@ fn literal_fanout_routes_aliases_once_and_refuses_incomplete_inputs() -> Result<
         source.kinds,
     )?;
     let mut partial_context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -748,6 +757,7 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -777,6 +787,7 @@ fn absent_symbol_literal_preserves_ordered_errors() -> Result<(), Failure> {
     ));
     drop(context);
     let mut ordinary = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -852,6 +863,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -876,6 +888,7 @@ fn empty_literal_preserves_malformed_symbol_fallback() -> Result<(), Failure> {
     );
     drop(context);
     let mut ordinary = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -1013,6 +1026,7 @@ fn distinct_projections_preserve_rows_and_predicate_cache() -> Result<(), Failur
     )?;
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

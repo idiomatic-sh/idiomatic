@@ -197,6 +197,7 @@ fn subject_with_counting(
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -231,6 +232,7 @@ fn subject_with_counting(
         )?;
         {
             let mut actual = OperatorContext {
+                phase: context.phase,
                 semantic: None,
                 prepared_kinds: None,
                 prepared_matchers: None,
@@ -318,6 +320,7 @@ fn subject_with_counting(
     let selection_before_refusal = frame.borrow().relations.derived.selection_counts();
     let refused = {
         let mut actual = OperatorContext {
+            phase: context.phase,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,

@@ -21,6 +21,7 @@ fn files(count: u32) -> Table {
 fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
     let mut symbols = Symbols::default();
     run(&mut OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

@@ -49,6 +49,7 @@ pub(super) fn acquire(
     }
     let (population, _) = proof.identity(owner)?;
     let mut rebound = OperatorContext {
+        phase: context.phase,
         semantic: context.semantic,
         prepared_matchers: context.prepared_matchers,
         prepared_kinds: context.prepared_kinds,

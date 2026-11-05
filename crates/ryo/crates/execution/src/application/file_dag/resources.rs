@@ -1,9 +1,5 @@
 //! Engine-owned acquisition at declared invocation boundaries.
-use crate::domain::operating::{
-    errors::OperatingError,
-    service::minted,
-    types::{AfterTheFiles, OperatorContext},
-};
+use crate::domain::operating::{errors::OperatingError, service::minted, types::OperatorContext};
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
 use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_relations::domain::terms::types::NameText;
@@ -21,14 +17,10 @@ pub(crate) fn appended_values(
         bindings,
         symbols,
         source,
-        arenas,
+        phase,
         ..
     } = context;
-    let after = if arenas.is_empty() {
-        AfterTheFiles::Before
-    } else {
-        AfterTheFiles::After
-    };
+    let after = *phase;
     appended.clear();
     for operand in values {
         appended.push(match operand {

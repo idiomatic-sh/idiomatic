@@ -17,6 +17,7 @@ use {
 };
 
 pub(super) struct RunContext<'a> {
+    phase: crate::domain::operating::types::AfterTheFiles,
     request: Arc<RequestIdentity>,
     source: &'a [u8],
     symbols: TransportPermit,
@@ -40,6 +41,7 @@ impl<'a> RunContext<'a> {
             symbols: transport_permit(symbols),
             semantic,
             kinds,
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             arenas: &[],
             memo: Vec::new(),
             scratch: Default::default(),
@@ -56,6 +58,7 @@ impl<'a> RunContext<'a> {
             symbols,
             semantic: None,
             kinds: None,
+            phase: crate::domain::operating::types::AfterTheFiles::After,
             arenas,
             memo: Vec::new(),
             scratch: Default::default(),
@@ -71,6 +74,7 @@ impl<'a> RunContext<'a> {
             return Err(OperatingError::NotRead);
         }
         Ok(OperatorContext {
+            phase: self.phase,
             semantic: self.semantic,
             prepared_kinds: self.kinds.as_deref(),
             prepared_matchers: Some(program.matchers().as_ref()),

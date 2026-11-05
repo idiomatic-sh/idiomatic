@@ -93,6 +93,7 @@ fn context<'a>(
     memo: &'a mut Vec<crate::domain::operating::types::Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

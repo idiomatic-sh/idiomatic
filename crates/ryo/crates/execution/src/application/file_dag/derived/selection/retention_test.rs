@@ -49,6 +49,7 @@ fn retained_selections_keep_spare_owner_capacity_and_bounded_reacquisition() -> 
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -237,6 +238,7 @@ fn selecting_never_prepares_an_unknown_selector_identity() -> Result<(), Failure
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -424,6 +426,7 @@ fn empty_retention_counts_no_position_slots_and_invalid_group_is_not_allocation_
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

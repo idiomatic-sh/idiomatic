@@ -38,6 +38,7 @@ fn class_context<'a>(
     memo: &'a mut Vec<Memo>,
 ) -> OperatorContext<'a> {
     OperatorContext {
+        phase: base.phase,
         semantic: base.semantic,
         prepared_kinds: base.prepared_kinds,
         prepared_matchers: base.prepared_matchers,

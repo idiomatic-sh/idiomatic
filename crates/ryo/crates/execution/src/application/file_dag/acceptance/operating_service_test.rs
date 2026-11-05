@@ -41,6 +41,7 @@ fn antijoin(
     }
     let mut symbols = Symbols::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

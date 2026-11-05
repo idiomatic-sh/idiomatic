@@ -2,7 +2,6 @@
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::minted;
-use crate::domain::operating::types::AfterTheFiles;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
@@ -55,11 +54,7 @@ impl OperatorsItem for WordsItem {
         let mut text = std::mem::take(&mut lease.workspace.text);
         text.clear();
         text.push_str(value.0);
-        let after = if lease.views.arenas.is_empty() {
-            AfterTheFiles::Before
-        } else {
-            AfterTheFiles::After
-        };
+        let after = lease.views.phase;
         let mut captured = std::mem::take(&mut lease.workspace.captured);
         captured.clear();
         let width = 1;

@@ -203,6 +203,7 @@ pub(crate) trait PrimitiveResources {
 /// Only row-varying context is assembled at row delivery. Acquired resources
 /// remain in the invocation and are reached through a borrowed reader.
 pub(crate) struct PrimitiveViews<'a> {
+    pub phase: crate::domain::operating::types::AfterTheFiles,
     pub resources: &'a dyn PrimitiveResources,
     pub semantic: Option<&'a dyn crate::domain::operating::types::SemanticLookup>,
     pub paths: &'a [ryo_language::domain::files::types::FilePath],

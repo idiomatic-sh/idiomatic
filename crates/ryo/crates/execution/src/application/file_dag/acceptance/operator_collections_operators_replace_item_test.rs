@@ -46,6 +46,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         replacement: LiteralText(input.replacement.into()),
     };
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

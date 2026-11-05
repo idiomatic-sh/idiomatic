@@ -2,7 +2,6 @@
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::minted;
-use crate::domain::operating::types::AfterTheFiles;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
@@ -76,11 +75,7 @@ impl OperatorsItem for ReplaceItem {
             NameText(&changed),
         );
         lease.workspace.text = changed;
-        let after = if lease.views.arenas.is_empty() {
-            AfterTheFiles::Before
-        } else {
-            AfterTheFiles::After
-        };
+        let after = lease.views.phase;
         let appended = minted(lease.derived.as_ref(), made, after);
         let mut joined = std::mem::take(&mut lease.workspace.row);
         let result = lease

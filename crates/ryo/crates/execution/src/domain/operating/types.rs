@@ -54,6 +54,8 @@ pub(crate) enum Family {
 /// names; language fact readers alone own source-name interning.
 #[derive(Debug)]
 pub(crate) struct OperatorContext<'a> {
+    /// Execution phase supplied by the owner, independent of available text arenas.
+    pub phase: AfterTheFiles,
     /// The current file's application-owned semantic session, when available.
     pub semantic: Option<&'a dyn SemanticLookup>,
     /// Finite authored literal matchers owned by this worker's prepared request.

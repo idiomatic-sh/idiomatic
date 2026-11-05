@@ -60,6 +60,7 @@ fn digests(input: &Table, bindings: &[ParameterBinding]) -> Result<Table, Operat
         over: column(1),
     };
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -121,6 +122,7 @@ fn digesting_without_an_input() -> Result<Value, OperatingError> {
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -148,6 +150,7 @@ fn digesting_a_column_the_input_lacks() -> Result<Value, OperatingError> {
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

@@ -170,6 +170,7 @@ fn dag_preserves_all_bulk_routes_with_and_without_optional_retention() {
             };
             let (mut memo, mut scratch) = (vec![], OperatorScratch::default());
             let mut context = OperatorContext {
+                phase: crate::domain::operating::types::AfterTheFiles::Before,
                 semantic: None,
                 prepared_matchers: None,
                 prepared_kinds: None,
@@ -294,6 +295,7 @@ fn supplied_compact_is_published_once_then_retired_or_latched_refused() {
         let (mut symbols, mut scratch, mut memo) =
             (Symbols::default(), OperatorScratch::default(), vec![]);
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_matchers: None,
             prepared_kinds: None,

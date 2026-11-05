@@ -88,6 +88,7 @@ pub(crate) fn evaluate_plans(
     let mut operator_scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -263,6 +264,7 @@ fn different_kind_errors_keep_the_first_source_row() {
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -313,6 +315,7 @@ fn an_empty_next_file_has_no_stale_native_publication() {
     let mut operator_scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -459,6 +462,7 @@ fn with_context<T>(symbols: &mut Symbols, run: impl FnOnce(&mut OperatorContext<
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     run(&mut OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

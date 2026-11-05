@@ -3,7 +3,6 @@
 use super::super::interface::OperatorsItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::minted;
-use crate::domain::operating::types::AfterTheFiles;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
@@ -90,11 +89,7 @@ impl OperatorsItem for RenderSyntaxItem {
                     });
                 }
             }
-            let after = if lease.views.arenas.is_empty() {
-                AfterTheFiles::Before
-            } else {
-                AfterTheFiles::After
-            };
+            let after = lease.views.phase;
             for (position, answer) in answers.into_iter().enumerate() {
                 let text = match answer {
                     RenderOutcome::Known(text) => text,

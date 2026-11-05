@@ -34,6 +34,7 @@ fn collect(operation: &Operation, tables: &[Table]) -> Result<Table, OperatingEr
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,

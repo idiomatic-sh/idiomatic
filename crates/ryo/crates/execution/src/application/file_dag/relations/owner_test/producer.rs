@@ -65,6 +65,7 @@ fn exercise_real_selector(limit: usize) {
     let (mut symbols, mut memo, mut scratch) =
         (Symbols::default(), Vec::new(), OperatorScratch::default());
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

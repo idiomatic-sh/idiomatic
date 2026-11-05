@@ -361,15 +361,11 @@ impl Inputs for SourceInputs<'_, '_> {
                     .hosted()
                     .get(relation.0 as usize)
                     .ok_or(OperatingError::NotRun)?;
-                let phase = match partition {
-                    Partition::Project(_) => crate::domain::operating::types::AfterTheFiles::After,
-                    _ => crate::domain::operating::types::AfterTheFiles::Before,
-                };
                 let table = crate::domain::hosted::service::table_of_query(
                     hosted,
                     crate::domain::hosted::types::NumberedFiles(context.paths),
                     &mut context.symbols,
-                    phase,
+                    context.phase,
                 );
                 let publication = self.owner.computed(table)?;
                 admit_published(&self.owner, publication, source, &actual_partition)

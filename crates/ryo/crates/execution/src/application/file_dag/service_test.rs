@@ -104,6 +104,7 @@ fn context<'a>(
     scratch: &'a mut OperatorScratch,
 ) -> OperatorContext<'a> {
     OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_matchers: None,
         prepared_kinds: None,

@@ -74,6 +74,7 @@ fn compute(
     let mut symbols = Symbols::default();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -172,6 +173,7 @@ fn services_held(test: Test, left: Operand, right: Operand) -> Result<Value, Ope
     }
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -276,6 +278,7 @@ fn selected_columns_match_full_row_selection_with_duplicates_and_partial_source(
         let mut symbols = Symbols::default();
         let mut out = Table::default();
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,

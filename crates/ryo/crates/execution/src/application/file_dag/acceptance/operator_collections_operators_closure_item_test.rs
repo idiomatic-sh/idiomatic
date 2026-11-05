@@ -67,6 +67,7 @@ fn compute_with_scratch(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

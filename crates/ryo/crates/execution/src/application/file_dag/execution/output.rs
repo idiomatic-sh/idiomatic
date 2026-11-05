@@ -10,6 +10,7 @@ use ryo_language::domain::symbols::{service::query_reborrow, types::QuerySymbols
 use ryo_relations::domain::relations::types::Value;
 
 pub(super) struct Headers<'a> {
+    phase: crate::domain::operating::types::AfterTheFiles,
     pub(super) prepared_matchers:
         Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) prepared_kinds: Option<&'a crate::domain::kind_sets::types::PreparedVocabulary>,
@@ -21,6 +22,7 @@ pub(super) struct Headers<'a> {
 impl<'a> Headers<'a> {
     pub(super) fn from_context(context: &OperatorContext<'a>) -> Self {
         Self {
+            phase: context.phase,
             prepared_matchers: context.prepared_matchers,
             prepared_kinds: context.prepared_kinds,
             bindings: context.bindings,
@@ -38,6 +40,7 @@ impl<'a> Headers<'a> {
         row: &[Value],
     ) -> Result<(), OperatingError> {
         let mut downstream = OperatorContext {
+            phase: self.phase,
             semantic: None,
             prepared_matchers: self.prepared_matchers,
             prepared_kinds: self.prepared_kinds,

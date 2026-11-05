@@ -1,6 +1,6 @@
 //! Request parameter rows, interpreted without scheduling or cache capabilities.
 use super::super::interface::OperatorsItem;
-use crate::domain::operating::{errors::OperatingError, service::minted, types::AfterTheFiles};
+use crate::domain::operating::{errors::OperatingError, service::minted};
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
@@ -35,11 +35,7 @@ fn tables_rows(
         | ParameterBinding::Texts(_)
         | ParameterBinding::TextSets(_) => return Err(OperatingError::WrongBinding),
     };
-    let after = if lease.views.arenas.is_empty() {
-        AfterTheFiles::Before
-    } else {
-        AfterTheFiles::After
-    };
+    let after = lease.views.phase;
     for table in tables {
         row.clear();
         for key in keys {

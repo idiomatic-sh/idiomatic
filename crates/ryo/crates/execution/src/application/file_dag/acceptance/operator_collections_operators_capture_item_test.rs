@@ -40,6 +40,7 @@ fn compute(
     let rows: Vec<Rows<'_>> = inputs.iter().map(|table| Rows::Computed(table)).collect();
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -81,6 +82,7 @@ fn captures_the_module_of_a_path() -> Result<Value, OperatingError> {
     };
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -128,6 +130,7 @@ fn a_starred_slot_crosses_directories() -> Result<Value, OperatingError> {
     };
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
@@ -185,6 +188,7 @@ fn every_split_of_a_path_is_a_row() -> Result<Value, OperatingError> {
     };
     let mut out = Table::default();
     let mut context = OperatorContext {
+        phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,

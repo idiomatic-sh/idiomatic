@@ -213,6 +213,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
         let mut memo = Vec::new();
         let mut output = Table::default();
         let mut context = OperatorContext {
+            phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: None,
             prepared_matchers: None,
