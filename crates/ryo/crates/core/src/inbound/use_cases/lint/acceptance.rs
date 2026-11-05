@@ -99,7 +99,7 @@ fn runs(world: &mut Behavior) {
             Arc::new(LanguageFake::default());
         let analysis_memory: Arc<dyn ryo_core::outbound::memory::interface::MemoryPort> =
             Arc::new(MemoryFake::default());
-        let analysis_digest: Arc<dyn ryo_core::outbound::digest::interface::DigestPort> =
+        let analysis_digest: Arc<dyn ryo_execution::inbound::use_cases::execution::types::digest::DigestPort> =
             Arc::new(DigestFake);
         LintUseCaseImpl::new(
             ryo_core::application::file_analysis::service::FileAnalysis::new(
