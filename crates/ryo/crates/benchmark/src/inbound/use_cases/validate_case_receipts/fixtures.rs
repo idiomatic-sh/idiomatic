@@ -1,7 +1,6 @@
 //! The shared producer fixture crosses the real injected filesystem receipt boundary.
-use super::{interface::ValidateCaseReceiptsUseCase, use_case::ValidateCaseReceiptsUseCaseImpl};
+use super::interface::ValidateCaseReceiptsUseCase;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use std::sync::Arc;
 #[derive(Clone, Copy)]
 pub enum Scenario {
     Complete,
@@ -10,7 +9,10 @@ pub enum Scenario {
     Artifacts,
 }
 
-pub fn exercise(field: Scenario) -> Result<usize, &'static str> {
+pub fn exercise(
+    use_case: &dyn ValidateCaseReceiptsUseCase,
+    field: Scenario,
+) -> Result<usize, &'static str> {
     let mut registration: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../tests/fixtures/registrations/receipt_only/registration.json"
     ))
@@ -45,9 +47,6 @@ pub fn exercise(field: Scenario) -> Result<usize, &'static str> {
         include_str!("../../../../tests/fixtures/registrations/receipt_only/observations.jsonl"),
     )
     .expect("write actual side observations");
-    let use_case = ValidateCaseReceiptsUseCaseImpl::new(Arc::new(
-        crate::outbound::inventory::factory::local(),
-    ));
     match use_case.validate_case_receipts(&registration_path, &receipts) {
         Ok(audit) => {
             assert!(audit.errors.is_empty(), "{:?}", audit.errors);

@@ -1,6 +1,10 @@
 //! Receipt-only wire admission preserves all original success and missing-field controls.
-use super::fixtures::{Scenario, exercise};
+use super::{
+    fixtures::{Scenario, exercise},
+    use_case::ValidateCaseReceiptsUseCaseImpl,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use std::sync::Arc;
 
 type Input = Scenario;
 type Value = usize;
@@ -34,7 +38,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject(field: Input) -> Result<Value, Failure> {
-    exercise(field)
+    let use_case = ValidateCaseReceiptsUseCaseImpl::new(Arc::new(
+        crate::outbound::inventory::factory::local(),
+    ));
+    exercise(&use_case, field)
 }
 
 #[test]
