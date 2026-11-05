@@ -75,20 +75,6 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     }
 }
 
-impl ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase
-    for PrimitiveSemanticsBridge<'_>
-{
-    fn operators(
-        &self,
-        call: ryo_operators::inbound::use_cases::operators::interface::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer,
-        ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault,
-    > {
-        PrimitiveSemantics::operators(self, call)
-    }
-}
-
 impl std::fmt::Debug for PrimitiveSemanticsBridge<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter

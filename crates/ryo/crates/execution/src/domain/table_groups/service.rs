@@ -2,13 +2,12 @@
 use super::types::{CountRoom, Group, Hashes, SetDigest};
 use crate::domain::{
     operating::errors::OperatingError,
-    operator::contract::types::written_result,
+    operator::contract::types::{PrimitiveSemantics, written_result},
     table_texts::{
         service::datum,
         types::{Datum, Texts},
     },
 };
-use crate::outbound::operators::interface::OperatorsPort;
 use ryo_derived::domain::contract::types::On;
 use ryo_operators::inbound::use_cases::operators::interface::{
     DigestDatum, DigestValues, GroupColumns, GroupOutput, OperatorCall,
@@ -41,7 +40,7 @@ pub(crate) fn count_groups(
     on: On<'_>,
     distinct: Option<ColumnIndex>,
     room: &mut CountRoom<'_>,
-    operators: &dyn OperatorsPort,
+    operators: &dyn PrimitiveSemantics,
 ) -> Result<(), OperatingError> {
     let answer = operators.operators(OperatorCall::ReduceCount {
         table,
@@ -79,7 +78,7 @@ pub(crate) fn digest_groups(
     texts: &Texts<'_>,
     room: &mut CountRoom<'_>,
     hashes: &mut Hashes,
-    operators: &dyn OperatorsPort,
+    operators: &dyn PrimitiveSemantics,
 ) -> Result<(), OperatingError> {
     let hasher = ResolvedValues(texts);
     let answer = operators.operators(OperatorCall::ReduceDigest {

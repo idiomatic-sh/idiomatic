@@ -29,7 +29,7 @@ pub(super) fn groups(
     contract: &OperatorContract,
     mode: EvaluationMode,
     admitted: &super::super::workspace::InputAdmissions<'_, '_>,
-    semantics: &dyn crate::outbound::operators::interface::OperatorsPort,
+    semantics: &crate::application::file_dag::execution::PrimitiveSemanticsBridge<'_>,
 ) -> Result<Vec<Group>, OperatingError> {
     // The original collected contract checks the reduction operand before its grouping keys.
     if let Some(column) = digest.or(distinct) {

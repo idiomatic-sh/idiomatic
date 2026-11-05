@@ -126,14 +126,14 @@ impl<'f> InvocationResources<'f> {
         })
     }
 
-    pub(crate) fn prepare(
+    pub(in crate::application::file_dag) fn prepare(
         contract: &OperatorContract,
         inputs: &[BorrowedRows<'f>],
         context: &mut OperatorContext<'_>,
         mode: EvaluationMode,
         originals: &[crate::domain::table_model::types::Rows<'f>],
         admission: &super::workspace::InvocationWorkspace,
-        semantics: &dyn crate::outbound::operators::interface::OperatorsPort,
+        semantics: &super::execution::PrimitiveSemanticsBridge<'_>,
     ) -> Result<Self, OperatingError> {
         let mut resources = Self {
             cached_graph: None,
