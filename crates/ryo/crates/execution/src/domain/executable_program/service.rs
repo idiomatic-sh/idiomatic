@@ -14,7 +14,12 @@ use ryo_values::domain::{
 };
 
 /// Explicit validation and fault points remain code, not implicit runtime defaults.
-pub(crate) fn demand(mode: ModeContract, used: usize, join: HeldJoinOrder) -> DemandProgram {
+pub(crate) fn demand(
+    mode: ModeContract,
+    used: usize,
+    join: HeldJoinOrder,
+    supplies: &[crate::domain::operating::types::Supply],
+) -> DemandProgram {
     let mut actions = Vec::new();
     match mode.schema_boundary {
         SchemaBoundary::BeforeDemand => actions.push(DemandAction::ValidateBeforeInputs),
@@ -34,7 +39,15 @@ pub(crate) fn demand(mode: ModeContract, used: usize, join: HeldJoinOrder) -> De
         DemandOrder::JoinTransport => actions.push(DemandAction::JoinInputs { held: join }),
         DemandOrder::AxisTransport => actions.push(DemandAction::AxisInputs),
     }
-    if mode.publication == Publication::AfterSuccess {
+    use crate::domain::operating::types::Supply;
+    let publication = if mode.demand == DemandOrder::AxisTransport
+        && supplies != [Supply::Streamed, Supply::AtHand, Supply::AtHand]
+    {
+        mode.held_publication
+    } else {
+        mode.publication
+    };
+    if publication == Publication::AfterSuccess {
         actions.push(DemandAction::PublishAfterSuccess);
     }
     DemandProgram {
@@ -188,8 +201,18 @@ pub(crate) fn compile(
             logical: LogicalInstruction(logical),
             producer: rule,
             operation: node.operation,
-            streaming_demand: demand(node.contract.streaming, node.contract.inputs.used.0, join),
-            collected_demand: demand(node.contract.collected, node.contract.inputs.used.0, join),
+            streaming_demand: demand(
+                node.contract.streaming,
+                node.contract.inputs.used.0,
+                join,
+                &node.input_supply,
+            ),
+            collected_demand: demand(
+                node.contract.collected,
+                node.contract.inputs.used.0,
+                join,
+                &node.input_supply,
+            ),
             partition,
             input_delivery: node.input_supply.into_boxed_slice(),
             inputs: if fuse.is_some() {

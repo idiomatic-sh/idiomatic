@@ -84,11 +84,13 @@ pub(super) fn compile_unions(
                                 contract.streaming,
                                 2,
                                 HeldJoinOrder::LeftWithEmptyGate,
+                                &[Supply::AtHand, Supply::AtHand],
                             ),
                             collected_demand: super::service::demand(
                                 contract.collected,
                                 2,
                                 HeldJoinOrder::LeftWithEmptyGate,
+                                &[Supply::AtHand, Supply::AtHand],
                             ),
                             partition,
                         }]

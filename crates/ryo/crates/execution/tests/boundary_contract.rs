@@ -806,3 +806,5 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
 }
 
 mod union_rows;
+
+mod publication;
