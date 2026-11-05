@@ -210,20 +210,24 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
         };
         let left_reads = Cell::new(0);
         let right_reads = Cell::new(0);
-        let read = |relation| match relation {
-            Relation::Function => {
-                left_reads.set(left_reads.get() + 1);
-                if left_refuses {
-                    Err(OperatingError::WrongBinding)
-                } else {
-                    Ok(SourceRows::Computed(&empty))
+        let read_order = std::cell::RefCell::new(Vec::new());
+        let read = |relation| {
+            read_order.borrow_mut().push(relation);
+            match relation {
+                Relation::Function => {
+                    left_reads.set(left_reads.get() + 1);
+                    if left_refuses {
+                        Err(OperatingError::WrongBinding)
+                    } else {
+                        Ok(SourceRows::Computed(&empty))
+                    }
                 }
+                Relation::SemanticChild => {
+                    right_reads.set(right_reads.get() + 1);
+                    Err(OperatingError::NotRead)
+                }
+                _ => Err(OperatingError::WrongOperation),
             }
-            Relation::SemanticChild => {
-                right_reads.set(right_reads.get() + 1);
-                Err(OperatingError::NotRead)
-            }
-            _ => Err(OperatingError::WrongOperation),
         };
         let mut symbols = Symbols::default();
         let mut file = request
@@ -255,13 +259,37 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
         } else {
             matches!(result.emit, RootOutcome::Failed(OperatingError::NotRead))
         });
-        assert_eq!(left_reads.get(), 1);
+        {
+            let order = read_order.borrow();
+            if left_refuses {
+                assert_eq!(left_reads.get(), 1, "a failed source is not retried");
+                assert_eq!(order.as_slice(), &[Relation::Function]);
+            } else {
+                // Accepted publications may resolve the pinned borrowed view more
+                // than once. Those borrows must all precede the right refusal.
+                assert!(left_reads.get() > 0);
+                assert_eq!(order.last(), Some(&Relation::SemanticChild));
+                let preceding = &order[..order.len() - 1];
+                assert!(!preceding.is_empty());
+                assert!(
+                    preceding
+                        .iter()
+                        .all(|relation| *relation == Relation::Function)
+                );
+            }
+        }
         assert_eq!(
             right_reads.get(),
             usize::from(!left_refuses),
-            "left failure wins; empty success still demands the right side"
+            "left failure wins; empty success still demands the right side exactly once"
         );
+        let reads_before_finish = read_order.borrow().len();
         file.finish().expect("release refused Union");
+        assert_eq!(
+            read_order.borrow().len(),
+            reads_before_finish,
+            "release never demands a failed source again"
+        );
         request.finish();
     }
 }
