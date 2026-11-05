@@ -760,15 +760,26 @@ impl ProgramExecution {
                 context,
                 Delivery::Retain,
                 None,
-            )? {
-                InvocationOutcome::Suspended(dependency) => {
+            ) {
+                Ok(InvocationOutcome::Suspended(dependency)) => {
                     if pending.contains(&dependency) {
-                        return Err(OperatingError::NotRun);
+                        {
+                            let mut slots = self.slots.borrow_mut();
+                            let slot = slots.get_mut(current.0).ok_or(OperatingError::NotRun)?;
+                            slot.state = State::Failed(OperatingError::NotRun);
+                            slot.admission = AdmissionProgress::default();
+                        }
+                        self.release_inputs(current)?;
+                        pending.pop();
+                        continue;
                     }
                     pending.push(dependency);
                 }
-                InvocationOutcome::Ready => return Err(OperatingError::NotRun),
-                _ => {
+                Ok(InvocationOutcome::Ready) => return Err(OperatingError::NotRun),
+                // A producer failure is consumed by its waiting parent at the
+                // same suspended admission action. Unwind through every parent
+                // so each records terminal failure and settles its obligations.
+                Ok(_) | Err(_) => {
                     pending.pop();
                 }
             }
