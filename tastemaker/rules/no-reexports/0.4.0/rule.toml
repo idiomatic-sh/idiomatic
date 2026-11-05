@@ -1558,7 +1558,13 @@ then.findings = [
 
 [[scenarios]]
 id = 'inbound-signature-type'
-scenario = 'The canonical inbound contract may forward one private domain signature type.'
+scenario = 'The canonical inbound contract may forward nominal private domain signature types.'
+given.files.'src/domain/contract/types.rs' = '''
+pub struct OperatorCall { pub ordinal: u8 }
+'''
+given.files.'src/domain/capture/types.rs' = '''
+pub struct CaptureOutput { pub ordinal: u8 }
+'''
 given.files.'src/inbound/use_cases/operators/interface.rs' = '''
 pub use crate::domain::contract::types::OperatorCall;
 pub use crate::domain::capture::types::CaptureOutput;
