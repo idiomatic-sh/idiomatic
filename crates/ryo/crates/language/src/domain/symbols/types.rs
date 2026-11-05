@@ -4,7 +4,7 @@
 use hashbrown::HashTable;
 
 use ryo_relations::domain::relations::types::{
-    Bytes, Count, NameNote, NamePlace, Offset, TextHash, Words,
+    Bytes, NameNote, NamePlace, Offset, TextHash, Words,
 };
 use ryo_relations::domain::terms::types::Symbol;
 
@@ -65,13 +65,22 @@ impl AsRef<Symbols> for QuerySymbols<'_> {
     }
 }
 
+/// The immutable byte owner of one interned symbol, independent of insertion order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SymbolStorage {
+    /// Offsets refer to the file's source bytes.
+    Source,
+    /// Offsets refer to the symbol pool's derived bytes.
+    Derived,
+}
+
 /// The names of one file as the engine keeps them: where each is, its hash, the index that finds it, the derived text, the notes, the
 /// vocabulary and the places of the names that left their file.
 #[derive(Debug, Default)]
 pub(crate) struct SymbolsEngine {
     /// Changes on clear, so a transport key cannot outlive a file generation.
     pub transport_generation: std::sync::Arc<()>,
-    /// Where each name starts: in the file's bytes, or in `derived` from `sources` on.
+    /// Where each name starts, interpreted using its corresponding storage owner.
     pub start: Vec<Offset>,
     /// Where each name ends.
     pub end: Vec<Offset>,
@@ -79,8 +88,8 @@ pub(crate) struct SymbolsEngine {
     pub hash: Vec<TextHash>,
     /// The symbols by the hash of their text, so a name is found without a string key.
     pub index: HashTable<Symbol>,
-    /// How many of the symbols are in the file's bytes; the ones after them are derived.
-    pub sources: Count,
+    /// The byte owner for each symbol; source and derived names may be interleaved.
+    pub storage: Vec<SymbolStorage>,
     /// The text of the derived names.
     pub derived: Bytes,
     /// What readers noted while reading the file.

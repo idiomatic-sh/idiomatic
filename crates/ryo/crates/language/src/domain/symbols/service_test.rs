@@ -6,7 +6,7 @@ use super::service::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::{QuerySymbols, Symbols, SymbolsEngine};
+use crate::domain::symbols::types::{QuerySymbols, SymbolStorage, Symbols, SymbolsEngine};
 use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
 };
@@ -104,7 +104,12 @@ fn query_interning_keeps_source_and_comment_origins() -> usize {
             && source_origin
             && text_of(&symbols, source, comment).map(|text| text.0) == Some(" noqa: W605")
             && text_of(&symbols, source, captured).map(|text| text.0) == Some("new")
-            && symbols.as_ref().sources == Count(1)
+            && symbols.as_ref().storage
+                == [
+                    SymbolStorage::Source,
+                    SymbolStorage::Derived,
+                    SymbolStorage::Derived,
+                ]
             && name_count(&symbols) == Count(3),
     )
 }
@@ -151,24 +156,42 @@ fn a_name_leaves_its_file_as_a_place_and_a_made_name_as_a_copy() -> usize {
 
 /// Two texts that hash alike, in one file, stay two names: a hit on the hash is the name only when its text is the text.
 fn two_texts_of_one_hash_in_one_file_are_two_symbols() -> usize {
-    let mut symbols = SymbolsEngine {
-        sources: Count(2),
-        ..SymbolsEngine::default()
-    };
+    let mut symbols = SymbolsEngine::default();
     let source = ByteSlice(b"leftright");
     let hash = TextHash(7);
-    let left = find_or_add_hashed(&mut symbols, source, ByteSlice(b"left"), hash, |_| Span {
-        start: Offset(0),
-        end: Offset(4),
-    });
-    let right = find_or_add_hashed(&mut symbols, source, ByteSlice(b"right"), hash, |_| Span {
-        start: Offset(4),
-        end: Offset(9),
-    });
-    let left_again = find_or_add_hashed(&mut symbols, source, ByteSlice(b"left"), hash, |_| Span {
-        start: Offset(0),
-        end: Offset(4),
-    });
+    let left = find_or_add_hashed(
+        &mut symbols,
+        source,
+        ByteSlice(b"left"),
+        hash,
+        SymbolStorage::Source,
+        |_| Span {
+            start: Offset(0),
+            end: Offset(4),
+        },
+    );
+    let right = find_or_add_hashed(
+        &mut symbols,
+        source,
+        ByteSlice(b"right"),
+        hash,
+        SymbolStorage::Source,
+        |_| Span {
+            start: Offset(4),
+            end: Offset(9),
+        },
+    );
+    let left_again = find_or_add_hashed(
+        &mut symbols,
+        source,
+        ByteSlice(b"left"),
+        hash,
+        SymbolStorage::Source,
+        |_| Span {
+            start: Offset(0),
+            end: Offset(4),
+        },
+    );
     let unchanged = left != right
         && left == left_again
         && symbols.start.len() == 2
@@ -277,7 +300,8 @@ fn interleaved_source_and_derived_names_keep_text_and_retention() -> usize {
         &mut places,
     )
     .expect("derived name remains retainable");
-    assert_eq!(retained.hash, hash_of(ByteSlice(b"x.A")));
+    let retained_hash = retained.hash;
+    assert_eq!(retained_hash, hash_of(ByteSlice(b"x.A")));
     assert_eq!(arena.0, b"x.A");
     assert_eq!(
         place_of(retained, &places, &symbols)
@@ -295,7 +319,8 @@ fn interleaved_source_and_derived_names_keep_text_and_retention() -> usize {
         &mut places,
     )
     .expect("source remains retainable");
-    assert_eq!(retained_source.hash, hash_of(ByteSlice(b"x.Z")));
+    let retained_source_hash = retained_source.hash;
+    assert_eq!(retained_source_hash, hash_of(ByteSlice(b"x.Z")));
     assert_eq!(
         place_of(retained_source, &places, &symbols)
             .expect("source place")
@@ -322,7 +347,7 @@ fn a_source_alias_does_not_reclassify_existing_derived_storage() -> usize {
 
 /// Composed names and reused pools obey the same storage identity as ordinary lookup.
 fn interleaved_names_compose_and_clear_without_changing_storage() -> usize {
-    use super::service::{begin_name, clear, end_name, push_name};
+    use super::service::{begin_name, clear_symbols, end_name, push_name};
     let source = ByteSlice(b"x.Z");
     let mut symbols = Symbols::default();
     let derived = intern_derived(&mut symbols, source, NameText("x.A"));
@@ -339,7 +364,7 @@ fn interleaved_names_compose_and_clear_without_changing_storage() -> usize {
         intern_derived(&mut symbols, source, NameText("x.Ax.Z")),
         composed
     );
-    clear(&mut symbols);
+    clear_symbols(&mut symbols);
     assert_eq!(name_count(&symbols), Count(0));
     let original = intern(&mut symbols, source, Offset(0), Offset(3));
     assert_eq!(text_of(&symbols, source, original), Some(NameText("x.Z")));

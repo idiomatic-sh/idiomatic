@@ -9,8 +9,8 @@ use hashbrown::hash_table::OccupiedEntry;
 use rustc_hash::FxHasher;
 
 use crate::domain::symbols::types::ByteSlice;
-use crate::domain::symbols::types::SymbolsEngine;
 use crate::domain::symbols::types::{NameStart, Noted, QuerySymbols, Symbols};
+use crate::domain::symbols::types::{SymbolStorage, SymbolsEngine};
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::{
     Bits, Bytes, CROSS_FILE, CROSS_PLACE, Count, FileId, KindBits, Name, NameNote, NamePlace,
@@ -28,7 +28,7 @@ pub fn clear_symbols(symbols: &mut Symbols) {
     symbols.end.clear();
     symbols.hash.clear();
     symbols.index.clear();
-    symbols.sources = Count(0);
+    symbols.storage.clear();
     symbols.derived.0.clear();
     symbols.vocabulary.clear();
     symbols.places.clear();
@@ -71,10 +71,9 @@ pub(crate) fn bytes_of<'a>(
         usize::try_from(symbols.start.get(at)?.0).unwrap_or(usize::MAX),
         usize::try_from(symbols.end.get(at)?.0).unwrap_or(usize::MAX),
     );
-    let holder = if usize::try_from(symbol.0).unwrap_or(usize::MAX) < symbols.sources.0 {
-        source
-    } else {
-        ByteSlice(&symbols.derived.0)
+    let holder = match symbols.storage.get(at)? {
+        SymbolStorage::Source => source,
+        SymbolStorage::Derived => ByteSlice(&symbols.derived.0),
     };
     holder.0.get(start..end).map(ByteSlice)
 }
@@ -139,9 +138,10 @@ fn find_or_add(
     symbols: &mut SymbolsEngine,
     source: ByteSlice<'_>,
     text: ByteSlice<'_>,
+    storage: SymbolStorage,
     add: impl FnOnce(&mut SymbolsEngine) -> Span,
 ) -> Symbol {
-    find_or_add_hashed(symbols, source, text, hash_of(text), add)
+    find_or_add_hashed(symbols, source, text, hash_of(text), storage, add)
 }
 
 /// Finds an already-interned file or derived symbol by hash and exact bytes, without adding a name.
@@ -178,14 +178,26 @@ pub(crate) fn find_or_add_hashed(
     source: ByteSlice<'_>,
     text: ByteSlice<'_>,
     hash: TextHash,
+    storage: SymbolStorage,
     add: impl FnOnce(&mut SymbolsEngine) -> Span,
 ) -> Symbol {
     let known = &*symbols;
     if let Some(found) = find_hashed_in(known, source, text, hash) {
         return found;
     }
-    let symbol = Symbol(u32::try_from(symbols.start.len()).unwrap_or(u32::MAX));
     let place = add(symbols);
+    insert_name(symbols, place, hash, storage)
+}
+
+/// Append the complete identity together: no insertion path may omit its byte owner.
+fn insert_name(
+    symbols: &mut SymbolsEngine,
+    place: Span,
+    hash: TextHash,
+    storage: SymbolStorage,
+) -> Symbol {
+    let symbol = Symbol(u32::try_from(symbols.start.len()).unwrap_or(u32::MAX));
+    symbols.storage.push(storage);
     symbols.start.push(place.start);
     symbols.end.push(place.end);
     symbols.hash.push(hash);
@@ -209,9 +221,10 @@ pub fn intern(symbols: &mut Symbols, source: ByteSlice<'_>, start: Offset, end: 
             )
             .unwrap_or(&[]),
     );
-    let symbol = find_or_add(symbols, source, text, |_| Span { start, end });
-    symbols.sources = Count(symbols.start.len());
-    symbol
+    find_or_add(symbols, source, text, SymbolStorage::Source, |_| Span {
+        start,
+        end,
+    })
 }
 
 /// The symbol for a name that is not in the file's bytes: its text is kept in the derived text.
@@ -259,14 +272,20 @@ pub fn query_intern_derived(
 /// The symbol for a name that is not in the file's bytes, in the names as the engine keeps them: its text is kept in the derived text.
 fn derive(symbols: &mut SymbolsEngine, source: ByteSlice<'_>, text: NameText<'_>) -> Symbol {
     let text = text.0;
-    find_or_add(symbols, source, ByteSlice(text.as_bytes()), |symbols| {
-        let start = Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX));
-        symbols.derived.0.extend_from_slice(text.as_bytes());
-        Span {
-            start,
-            end: Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX)),
-        }
-    })
+    find_or_add(
+        symbols,
+        source,
+        ByteSlice(text.as_bytes()),
+        SymbolStorage::Derived,
+        |symbols| {
+            let start = Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX));
+            symbols.derived.0.extend_from_slice(text.as_bytes());
+            Span {
+                start,
+                end: Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX)),
+            }
+        },
+    )
 }
 
 /// The name numbered `number` in a language's vocabulary, made from `text` the first time a file
@@ -340,18 +359,17 @@ pub fn push_name(symbols: &mut Symbols, source: ByteSlice<'_>, symbol: Symbol) {
         usize::try_from(start.0).unwrap_or(usize::MAX),
         usize::try_from(end.0).unwrap_or(usize::MAX),
     );
-    if usize::try_from(symbol.0).unwrap_or(usize::MAX) < symbols.sources.0 {
-        push_bytes(
+    match symbols.storage.get(at) {
+        Some(SymbolStorage::Source) => push_bytes(
             symbols,
             source,
             Offset(u32::try_from(start).unwrap_or(u32::MAX)),
             Offset(u32::try_from(end).unwrap_or(u32::MAX)),
-        );
-        return;
-    }
-    // A derived name's text is in the derived text, unless what was pushed of it was taken back.
-    if end <= symbols.derived.0.len() {
-        symbols.derived.0.extend_from_within(start..end);
+        ),
+        Some(SymbolStorage::Derived) if end <= symbols.derived.0.len() => {
+            symbols.derived.0.extend_from_within(start..end);
+        }
+        Some(SymbolStorage::Derived) | None => {}
     }
 }
 
@@ -372,19 +390,11 @@ pub fn end_name(symbols: &mut Symbols, source: ByteSlice<'_>, from: NameStart) -
         symbols.derived.0.truncate(from.0);
         return found;
     }
-    let symbol = Symbol(u32::try_from(symbols.start.len()).unwrap_or(u32::MAX));
-    symbols
-        .start
-        .push(Offset(u32::try_from(from.0).unwrap_or(u32::MAX)));
-    symbols.end.push(Offset(
-        u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX),
-    ));
-    symbols.hash.push(hash);
-    let hashes = &symbols.hash;
-    let _: OccupiedEntry<'_, Symbol> = symbols.index.insert_unique(hash.0, symbol, |symbol| {
-        symbol_in(hashes, *symbol).copied().unwrap_or_default().0
-    });
-    symbol
+    let place = Span {
+        start: Offset(u32::try_from(from.0).unwrap_or(u32::MAX)),
+        end: Offset(u32::try_from(symbols.derived.0.len()).unwrap_or(u32::MAX)),
+    };
+    insert_name(symbols, place, hash, SymbolStorage::Derived)
 }
 
 /// The name a symbol of `file` becomes when it leaves the file, its place pushed onto `places`. A derived name's text is copied
@@ -403,7 +413,11 @@ pub fn name_of(
     let bytes = bytes_of(symbols, source, symbol)?;
     let hash = hash_of_symbol(symbols, symbol)?;
     let place = PlaceNumber(u32::try_from(places.len()).ok()?); // a file of more than 2^32 names has no number for the next one: it is not placed
-    if usize::try_from(symbol.0).unwrap_or(usize::MAX) < symbols.sources.0 {
+    if symbols
+        .storage
+        .get(usize::try_from(symbol.0).unwrap_or(usize::MAX))
+        == Some(&SymbolStorage::Source)
+    {
         let (start, end) = (
             *symbols
                 .start
