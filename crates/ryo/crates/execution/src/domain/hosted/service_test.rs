@@ -56,9 +56,14 @@ fn subject(scenario: Input) -> Value {
         Scenario::Rows => {
             let files = [FilePath("a.rs".into()), FilePath("b.rs".into())];
             let mut symbols = Symbols::default();
-            table_of_query(&relation, NumberedFiles(&files), &mut (&mut symbols).into())
-                .count
-                .0
+            table_of_query(
+                &relation,
+                NumberedFiles(&files),
+                &mut (&mut symbols).into(),
+                crate::domain::operating::types::AfterTheFiles::Before,
+            )
+            .count
+            .0
         }
     }
 }

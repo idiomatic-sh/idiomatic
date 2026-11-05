@@ -53,16 +53,18 @@ pub(crate) fn table_of_query(
     relation: &HostRelation,
     files: NumberedFiles<'_>,
     symbols: &mut QuerySymbols<'_>,
+    phase: crate::domain::operating::types::AfterTheFiles,
 ) -> Table {
     table_with(relation, files, |text| {
-        query_intern_derived(symbols, ByteSlice(&[]), NameText(text))
+        let symbol = query_intern_derived(symbols, ByteSlice(&[]), NameText(text));
+        crate::domain::operating::service::minted(symbols.as_ref(), symbol, phase)
     })
 }
 
 fn table_with(
     relation: &HostRelation,
     files: NumberedFiles<'_>,
-    mut symbol: impl FnMut(&str) -> ryo_relations::domain::terms::types::Symbol,
+    mut text_value: impl FnMut(&str) -> Value,
 ) -> Table {
     let mut table = Table::default();
     let kinds: Vec<CellKind> = relation
@@ -81,7 +83,7 @@ fn table_with(
                     };
                     Value::File(FileId(u32::try_from(place).unwrap_or(u32::MAX)))
                 }
-                Cell::Text(text) => Value::Symbol(symbol(text)),
+                Cell::Text(text) => text_value(text),
                 Cell::Number(number) => Value::Number(*number),
                 // No column the host declares holds a span: the SDK refuses one, and a row that still has one is no row.
                 Cell::Span(_) => continue 'rows,
