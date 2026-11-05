@@ -52,7 +52,7 @@ pub(crate) fn escape_frame(
     arena: Arena<'_>,
 ) -> Result<Vec<NamePlace>, super::types::PublicationReason> {
     use super::types::PublicationReason;
-    use ryo_language::domain::symbols::service::{derived_of, hash_in, hash_of, places_of};
+    use ryo_language::domain::symbols::service::{derived_of, hash_of, places_of};
     use ryo_relations::domain::relations::types::{CROSS_FILE, CROSS_PLACE, PlaceNumber};
     use ryo_relations::domain::terms::types::Symbol;
 
@@ -64,7 +64,7 @@ pub(crate) fn escape_frame(
         let Value::Name(name) = *value else { continue };
         if name.place.0 & CROSS_PLACE != 0 {
             let symbol = Symbol(name.place.0 & !CROSS_PLACE);
-            if hash_in(leaving.symbols, symbol) != Some(name.hash) {
+            if name_made_across(leaving.symbols, symbol).map(|made| made.hash) != Some(name.hash) {
                 return Err(PublicationReason::CrossNameMismatch);
             }
             *value = Value::Symbol(symbol);
