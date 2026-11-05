@@ -1,0 +1,116 @@
+[
+  {
+    "rule": "PLE1142",
+    "case": "authored-nested-lambda-in-generator",
+    "executable": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "version": "ruff 0.16.5",
+    "command": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/PLE1142/39-state/ruff",
+      "--select",
+      "PLE1142",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/PLE1142/39",
+    "environment_overrides": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "status": 0,
+    "stdout": "[]",
+    "stderr": "",
+    "actual": {
+      "files": [
+        "case.py"
+      ],
+      "diagnostics": [],
+      "skipped": []
+    },
+    "matches_sealed_reference": true,
+    "sealed_identity": {
+      "tool": "ruff",
+      "version": "0.16.5",
+      "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "profile-sha256": "f19c8e406a4f20cded8d61490ec7708c24c89f3cfae399e0a8b9d2ca42530153",
+      "settings-sha256": "a9006b40499cd60097b29c3b3026fa4e5d398d45c24ac411623b1d648b8851d7",
+      "source-sha256": "9cf780dbbd473b1f69f7f117b683f71e59f92781a7cf1a48315736fbb1ef3711",
+      "reference-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a",
+      "intended-output-sha256": "58b66c0b9f2ce6301aa9a85f0c744f2534eed11a1dac562f3783f420eaf06290"
+    },
+    "normalized_settings": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "PLE1142",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "directory": "$ROOT",
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated",
+      "performance": {
+        "node_result_reuse": "disabled",
+        "column_kernel": false,
+        "diagnostics": {
+          "execution": false,
+          "lifecycle_memory": false,
+          "resource_routes": false,
+          "row_progress": false,
+          "steps": false,
+          "joins": false,
+          "prefixes": false,
+          "subplans": false,
+          "selection_detail": false
+        }
+      }
+    },
+    "settings_sha256": "a9006b40499cd60097b29c3b3026fa4e5d398d45c24ac411623b1d648b8851d7",
+    "legacy_settings_sha256": "709fc65214da150a00dd42aa465f6e32066cebcc4cb19639a520cb2db471e0ea",
+    "settings_match": true,
+    "legacy_settings_match": false,
+    "evidence": [
+      {
+        "path": "evidence/cpython-3.10.19.json",
+        "sha256": "e7e70b50276dc6b7fba4f824516756186551b399bc1e0fbba401b21d00755eab",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "Exact authored source, compile(dont_inherit=True); CPython3.10.19 matches target3.10, with independent3.13.5 corroboration. Compiler rejects the exact await/yield-from construct in its actual lexical evaluation scope; paired legal controls are retained."
+      },
+      {
+        "path": "evidence/cpython-3.13.5.json",
+        "sha256": "41599009810e4a8c1f354a85414349fda2ddf28e21eab426e366fba071295ed9",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.13.5",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "Exact authored source, compile(dont_inherit=True); CPython3.10.19 matches target3.10, with independent3.13.5 corroboration. Compiler rejects the exact await/yield-from construct in its actual lexical evaluation scope; paired legal controls are retained."
+      }
+    ],
+    "profile_before_sha256": "f19c8e406a4f20cded8d61490ec7708c24c89f3cfae399e0a8b9d2ca42530153",
+    "profile_after_sha256": "85ec39079844b2dfac5fb5429605bac1c75e6a830dd5372845a597e4dec7eff9",
+    "profile_change": {
+      "project-context-mode": {
+        "before": "implicit isolated",
+        "after": "explicit isolated"
+      }
+    }
+  }
+]

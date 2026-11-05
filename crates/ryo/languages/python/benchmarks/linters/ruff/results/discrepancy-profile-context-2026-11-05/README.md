@@ -1,0 +1,9 @@
+# Explicit isolated profile context
+
+This is a reference-only replay of all 77 certified discrepancy cases across the 13 registrations refused in full-inventory run79. The canonical profiles had implicit isolated context. Native singleton staging made the same context explicit, changing the raw TOML identity while leaving effective invocation settings unchanged.
+
+The [migration record](profile-migration.json) enumerates all 13 before/after profile identities, changed case-file hashes and raw reference record hashes. Each rule subdirectory's `reference.json` contains the actual pinned Ruff process captures and exact diagnostic comparisons. All 77 outputs and normalized settings matched existing seals before the profile identities were updated. Each existing independently produced language-evidence file was hashed and validated by the unchanged discrepancy validator. The new profile bytes exactly match run79's staged profile bytes.
+
+Reference: Ruff 0.16.5, executable SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`, isolated context, target py310, selected singleton rule and `RAYON_NUM_THREADS=1`. Every case's original named files were written unchanged to an isolated temporary directory; the raw argv retains that directory and cache location. UTF-8 offsets were derived with the existing authoring location converter. Normalized settings include the existing typed default performance settings and compare exactly to the sealed settings digest.
+
+Only explicit profile context and each discrepancy certificate's raw profile identity changed. No validator, query, finding expectation, evidence artifact or tool pin changed. No candidate, Rust compiler, or independent-language interpreter was run for this audit; grouped candidate runtime verification remains required.

@@ -6,7 +6,7 @@ import tempfile
 import tomllib
 import unittest
 
-from authoring import case_records, profile_config, profile_proofs, rule_registration
+from authoring import case_records, profile_config, profile_proofs, reference_discrepancies, rule_registration
 
 
 class InventorySettingsTests(unittest.TestCase):
@@ -48,6 +48,45 @@ class InventorySettingsTests(unittest.TestCase):
                 self.assertEqual(registration['native_settings'], expected)
                 self.assertEqual(registration['native_descriptor_sha256'], profile_config.sha256(profile_config.NATIVE_DESCRIPTOR_FILE))
                 self.assertTrue(case_records.profile_case_inventory(stage))
+
+    def test_certified_singletons_have_explicit_context_and_keep_exact_profile_identity(self):
+        rules = ('FURB122', 'FURB129', 'PLE0643', 'PLE1142', 'PLE1700', 'PLW2101',
+                 'RUF007', 'RUF028', 'SIM113', 'UP008', 'UP012', 'UP045', 'UP050')
+        certified = 0
+        with tempfile.TemporaryDirectory(prefix='ryo-certified-singletons-') as temporary:
+            for rule in rules:
+                with self.subTest(rule=rule):
+                    source_profile = profile_config.RUFF_DIR / 'profiles' / rule / 'benchmark.toml'
+                    source_cases = profile_config.RUFF_DIR / 'rules' / rule / 'cases.toml'
+                    self.assertEqual(tomllib.loads(source_profile.read_text())['project-context-mode'], 'isolated')
+                    stage, _ = rule_registration.stage_full_inventory_rule(
+                        rule, Path(temporary), self.base, self.phases, self.manifest, self.native)
+                    self.assertEqual((stage / 'benchmark.toml').read_bytes(), source_profile.read_bytes())
+                    self.assertEqual((stage / 'rules' / rule / 'cases.toml').read_bytes(), source_cases.read_bytes())
+                    cases = tomllib.loads(source_cases.read_text())['cases']
+                    for case in cases:
+                        if 'reference-discrepancy' in case:
+                            certificate = reference_discrepancies.validate_reference_discrepancy(stage, case, rule)
+                            self.assertEqual(certificate['identity']['profile-sha256'], profile_config.sha256(stage / 'benchmark.toml'))
+                            certified += 1
+        self.assertEqual(certified, 77)
+
+    def test_certified_staging_refuses_an_implicit_or_changed_context_identity(self):
+        rule = 'UP050'
+        with tempfile.TemporaryDirectory(prefix='ryo-stale-context-') as temporary:
+            stage, _ = rule_registration.stage_full_inventory_rule(
+                rule, Path(temporary), self.base, self.phases, self.manifest, self.native)
+            cases = tomllib.loads((stage / 'rules' / rule / 'cases.toml').read_text())['cases']
+            case = next(case for case in cases if 'reference-discrepancy' in case)
+            profile = stage / 'benchmark.toml'
+            explicit = profile.read_text()
+            for replacement in ('', 'project-context-mode = "listed-disk"\n'):
+                with self.subTest(context=replacement):
+                    profile.write_text(explicit.replace('project-context-mode = "isolated"\n', replacement))
+                    with self.assertRaisesRegex(ValueError, 'stale discrepancy tool/profile identity'):
+                        reference_discrepancies.validate_reference_discrepancy(stage, case, rule)
+            profile.write_text(explicit)
+            self.assertIsNotNone(reference_discrepancies.validate_reference_discrepancy(stage, case, rule))
 
     def test_unknown_rules_keep_the_declared_context_and_strict_missing_context_refusal(self):
         listed = {**self.base, 'project-context-mode': 'listed-disk'}

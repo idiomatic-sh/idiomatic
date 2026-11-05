@@ -63,3 +63,12 @@ result = zip(xs[2147483647:], xs[2147483648:])
 - Intended: RUF007 case.py:9–12. Pinned Ruff observed: none.
 - Basis: Python accepts the exact consecutive slice starts across signed 32-bit range; the pinned reference omits the idiom at its integer conversion boundary. Primary evidence: [cpython310-observation.json](../../profiles/RUF007/evidence/cpython310-observation.json).
 - Reproduce: use the [profile](../../profiles/RUF007/benchmark.toml), exact named source in [cases.toml](cases.toml), and [raw receipt](../../results/full-inventory-current/raw-receipts.tar.gz); the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
+
+
+## Explicit profile context replay (2026-11-05)
+
+The canonical profile now states `project-context-mode = "isolated"` explicitly. Full-inventory staging had already selected this same isolated context; adding it changed the raw profile digest and caused strict certificate admission to refuse the prior implicit-default profile identity.
+
+All 4 certified discrepancy cases were rerun against the approved Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`). Their complete reference diagnostic multisets and normalized invocation settings match their existing seals exactly. The [raw reference captures](../../results/discrepancy-profile-context-2026-11-05/RUF007/reference.json) retain argv, environment overrides, exit status, stdout, stderr, observed findings, settings and original certificate identities. The [migration record](../../results/discrepancy-profile-context-2026-11-05/profile-migration.json) binds the old and explicit-context profile hashes.
+
+Only the certificate's `profile-sha256` changed. Source bytes, intended and reference expectations, executable pin, settings identity, and independent language-evidence artifacts remain unchanged; those artifact hashes were revalidated. No candidate execution or fresh independent-language execution is claimed by this reference-only replay, and no upstream bug status is inferred.
