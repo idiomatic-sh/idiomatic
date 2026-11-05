@@ -920,7 +920,7 @@ impl FileRun<'_> {
             &kernels,
             &completion,
             context,
-            Delivery::Forward(&mut output),
+            Delivery::Forward(rule, &mut output),
         )? {
             InvocationOutcome::Published(input) => input.coverage()?,
             InvocationOutcome::Forwarded(coverage) => coverage,

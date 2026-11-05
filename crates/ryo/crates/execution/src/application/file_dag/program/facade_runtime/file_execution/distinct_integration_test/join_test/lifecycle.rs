@@ -253,7 +253,7 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
             &kernels,
             &completion,
             &mut context,
-            Delivery::Forward(&mut sink),
+            Delivery::Forward(RuleIndex(0), &mut sink),
         );
         drop(sink);
         drop(each);

@@ -135,7 +135,7 @@ fn downstream_error_restores_frame_and_allows_same_scope_retry() {
             &probe,
             &policy,
             &mut context,
-            Delivery::Forward(&mut fail)
+            Delivery::Forward(RuleIndex(0), &mut fail)
         ),
         Err(OperatingError::WrongBinding)
     ));
@@ -155,7 +155,7 @@ fn downstream_error_restores_frame_and_allows_same_scope_retry() {
             &probe,
             &policy,
             &mut context,
-            Delivery::Forward(&mut accept)
+            Delivery::Forward(RuleIndex(0), &mut accept)
         ),
         Ok(InvocationOutcome::Published(_))
     ));

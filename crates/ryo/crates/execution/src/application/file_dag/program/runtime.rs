@@ -19,7 +19,7 @@ enum Retirement<'a> {
 }
 pub(super) enum Delivery<'a> {
     Retain,
-    Forward(&'a mut dyn Emit),
+    Forward(crate::domain::coverage::types::RuleIndex, &'a mut dyn Emit),
 }
 pub(super) enum InvocationFailure {
     Semantic(OperatingError),
@@ -219,7 +219,7 @@ struct Slot {
     admission: AdmissionProgress,
     mode: Option<crate::domain::operator::contract::types::EvaluationMode>,
     failed_prefix: Option<Arc<ryo_values::domain::rows::types::Table>>,
-    prefix_delivered: bool,
+    prefix_delivered: Vec<crate::domain::coverage::types::RuleIndex>,
     fed: Box<[crate::domain::operator::types::RowsFed]>,
     remaining: usize,
     dependencies_consumed: bool,
@@ -277,7 +277,7 @@ impl ProgramExecution {
                 admission: AdmissionProgress::default(),
                 mode: None,
                 failed_prefix: None,
-                prefix_delivered: false,
+                prefix_delivered: Vec::new(),
                 fed: vec![
                     crate::domain::operator::types::RowsFed::default();
                     region.instructions.len()
@@ -730,7 +730,7 @@ impl ProgramExecution {
         loop {
             let next = match &mut delivery {
                 Delivery::Retain => Delivery::Retain,
-                Delivery::Forward(output) => Delivery::Forward(&mut **output),
+                Delivery::Forward(consumer, output) => Delivery::Forward(*consumer, &mut **output),
             };
             match self.poll(id, inputs, kernels, completion, context, next, None)? {
                 InvocationOutcome::Suspended(dependency) => {
@@ -819,19 +819,28 @@ impl ProgramExecution {
                 State::Running => return Err(OperatingError::NotRun),
                 State::Failed(error) => {
                     let error = error.clone();
-                    let prefix = if slot.prefix_delivered {
+                    let consumer = match &delivery {
+                        Delivery::Forward(consumer, _) => Some(*consumer),
+                        Delivery::Retain => None,
+                    };
+                    let prefix = if consumer
+                        .is_some_and(|consumer| slot.prefix_delivered.contains(&consumer))
+                    {
                         None
                     } else {
                         slot.failed_prefix.clone()
                     };
                     drop(slots);
-                    if let (Some(prefix), Delivery::Forward(output)) = (prefix, delivery) {
+                    if let (Some(prefix), Delivery::Forward(consumer, output)) = (prefix, delivery)
+                    {
                         let width = prefix.kinds.len();
                         for row in 0..prefix.count.0 {
                             let start = row * width;
                             output.row(context, &prefix.cells[start..start + width])?;
                         }
-                        self.slots.borrow_mut()[id.0].prefix_delivered = true;
+                        self.slots.borrow_mut()[id.0]
+                            .prefix_delivered
+                            .push(consumer);
                     }
                     return Err(error);
                 }
@@ -840,7 +849,7 @@ impl ProgramExecution {
                     drop(slots);
                     return match delivery {
                         Delivery::Retain => Ok(InvocationOutcome::Published(input)),
-                        Delivery::Forward(output) => {
+                        Delivery::Forward(_, output) => {
                             inputs.replay(&input, context, output)?;
                             Ok(InvocationOutcome::Forwarded(input.coverage()?))
                         }
@@ -869,7 +878,7 @@ impl ProgramExecution {
                     Delivery::Retain => {
                         crate::domain::operator::contract::types::EvaluationMode::Collected
                     }
-                    Delivery::Forward(_) => {
+                    Delivery::Forward(_, _) => {
                         crate::domain::operator::contract::types::EvaluationMode::Streaming
                     }
                 })
@@ -885,6 +894,7 @@ impl ProgramExecution {
             terminal: Terminal::Retry,
             admission: None,
             failed_prefix: None,
+            delivered_consumer: None,
         };
         let first = region.instructions.first().ok_or(OperatingError::NotRun)?;
         let needs = region.needs.as_ref().map_err(Clone::clone)?;
@@ -989,7 +999,7 @@ impl ProgramExecution {
                         .map_err(InvocationFailure::Semantic)?
                         .with_coverage(coverage)
                         .with_coverage(completion.coverage(needs));
-                    if let Delivery::Forward(output) = delivery {
+                    if let Delivery::Forward(_, output) = delivery {
                         inputs
                             .replay(&publication, context, output)
                             .map_err(InvocationFailure::Delivery)?;
@@ -1376,7 +1386,7 @@ impl ProgramExecution {
                 }
             }
             match delivery {
-                Delivery::Forward(output)
+                Delivery::Forward(_, output)
                     if !region.publishes
                         && completion.row_retention()
                             == crate::domain::completion::types::RowRetention::Unnecessary
@@ -1449,7 +1459,7 @@ impl ProgramExecution {
                             }
                             result?;
                         }
-                        Delivery::Forward(output)
+                        Delivery::Forward(_, output)
                             if completion.row_retention()
                                 == crate::domain::completion::types::RowRetention::Required
                                 || after_success =>
@@ -1483,7 +1493,7 @@ impl ProgramExecution {
                                     .map_err(InvocationFailure::Delivery)?;
                             }
                         }
-                        Delivery::Forward(output) => {
+                        Delivery::Forward(consumer, output) => {
                             let mut output = Tee {
                                 rows: &mut rows,
                                 output,
@@ -1501,6 +1511,10 @@ impl ProgramExecution {
                             );
                             if let Some(error) = output.error {
                                 return Err(InvocationFailure::Delivery(error));
+                            }
+                            if matches!(&result, Err(InvocationFailure::Semantic(_))) {
+                                cleanup.failed_prefix = Some(Arc::new(std::mem::take(&mut rows)));
+                                cleanup.delivered_consumer = Some(consumer);
                             }
                             result?;
                         }
@@ -1678,6 +1692,7 @@ struct Invocation<'a> {
     terminal: Terminal,
     admission: Option<AdmissionProgress>,
     failed_prefix: Option<Arc<ryo_values::domain::rows::types::Table>>,
+    delivered_consumer: Option<crate::domain::coverage::types::RuleIndex>,
 }
 impl Drop for Invocation<'_> {
     fn drop(&mut self) {
@@ -1686,6 +1701,9 @@ impl Drop for Invocation<'_> {
             slot.scratch = self.scratch.take().unwrap_or_default();
             if let Some(prefix) = self.failed_prefix.take() {
                 slot.failed_prefix = Some(prefix);
+            }
+            if let Some(consumer) = self.delivered_consumer {
+                slot.prefix_delivered.push(consumer);
             }
             slot.admission = match self.terminal {
                 Terminal::Suspended | Terminal::Ready => self.admission.take().unwrap_or_default(),

@@ -198,7 +198,7 @@ fn forward<'a, 'service, 'facts>(
         &kernels,
         &completion,
         &mut context,
-        Delivery::Forward(sink),
+        Delivery::Forward(rule, sink),
     )
 }
 fn exercise(scenario: Scenario) -> Result<Vec<u64>, OperatingError> {
