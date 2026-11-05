@@ -208,8 +208,7 @@ impl TryFrom<RyoReportSchema> for RunReport {
                 })
                 .collect::<Result<_, Error>>()?,
         };
-        crate::domain::diagnostics::service::require_complete_execution(&report)
-            .map_err(|error| Error::Invalid(error.into()))?;
+        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
         Ok(report)
     }
 }

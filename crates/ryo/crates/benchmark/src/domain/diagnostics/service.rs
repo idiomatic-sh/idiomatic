@@ -1,45 +1,11 @@
 //! Independent diagnostic and execution evidence; unknown metadata is never a clean execution.
+use ryo_benchmark_contracts::domain::reports::service::require_complete_execution;
 use ryo_benchmark_contracts::domain::reports::types::Comparison;
 use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
 use ryo_benchmark_contracts::domain::reports::types::Difference;
 use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
 use ryo_benchmark_contracts::domain::reports::types::ReportComparison;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-
-/// Validate explicitly complete candidate execution without inferring skipped work from diagnostics.
-///
-/// # Errors
-/// Refuses missing capability/coverage, unknown work, inconsistent counts and invalid or duplicated skips.
-pub fn require_complete_execution(report: &RunReport) -> Result<(), &'static str> {
-    if report.execution_metadata != ExecutionMetadata::Complete {
-        return Err("candidate execution metadata is not explicitly complete");
-    }
-    let coverage = report
-        .coverage
-        .ok_or("complete execution metadata lacks coverage")?;
-    let files = report
-        .files
-        .iter()
-        .collect::<std::collections::BTreeSet<_>>();
-    if files.is_empty()
-        || files.len() != report.files.len()
-        || coverage.selected < files.len()
-        || coverage.unknown_or_unread != 0
-        || coverage.evaluated.checked_add(coverage.skipped) != Some(coverage.selected)
-        || coverage.skipped != report.skipped.len()
-    {
-        return Err("candidate execution coverage is incomplete or inconsistent");
-    }
-    let mut pairs = std::collections::BTreeSet::new();
-    for skip in &report.skipped {
-        if !report.files.contains(&skip.path)
-            || !pairs.insert((skip.rule.as_ref(), skip.path.0.as_ref()))
-        {
-            return Err("candidate execution contains invalid or duplicate skipped pairs");
-        }
-    }
-    Ok(())
-}
 
 /// Compare only authored diagnostic expectations and exact submitted files, not execution claims.
 ///

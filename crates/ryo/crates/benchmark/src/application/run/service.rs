@@ -270,10 +270,9 @@ pub fn verify_shard(
                         continue;
                     }
                     if name == super::constants::CANDIDATE {
-                        crate::domain::diagnostics::service::require_complete_execution(
+                        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(
                             &result.report,
-                        )
-                        .map_err(|error| Error::Invalid(error.into()))?;
+                        )?;
                     }
                     if case.comparison
                         == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule

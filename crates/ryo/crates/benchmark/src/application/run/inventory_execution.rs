@@ -98,8 +98,8 @@ pub(super) fn compare(
             return Err("process failure has no complete-report execution accounting".into());
         }
         let candidate = report(candidate)?;
-        crate::domain::diagnostics::service::require_complete_execution(&candidate)
-            .map_err(str::to_owned)?;
+        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&candidate)
+            .map_err(|error| error.to_string())?;
         return Ok(Comparison::Incomparable);
     }
     let reference = report(reference)?;

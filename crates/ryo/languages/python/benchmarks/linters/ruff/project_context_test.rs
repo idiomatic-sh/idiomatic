@@ -109,7 +109,7 @@ fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), 
             case,
             &scratch.path().join(format!("cache-{}", case.name.0)),
         ))?;
-        ryo_benchmark::domain::diagnostics::service::require_complete_execution(&result)
+        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&result)
             .map_err(|message| Error::Invalid(format!("{}:{message}", case.name.0)))?;
         // Authored expectations declare diagnostics, not observed execution metadata.
         ryo_benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &result)

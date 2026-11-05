@@ -65,8 +65,7 @@ fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() -> Result<(
             files: case.request.files.clone(),
             state: WorkerState::Fresh,
         })?;
-        ryo_benchmark::domain::diagnostics::service::require_complete_execution(&report)
-            .map_err(|message| Error::Invalid(message.into()))?;
+        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
         ryo_benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &report)
             .map_err(|difference| Error::Invalid(format!("{}: {difference:?}", case.name.0)))?;
         assert_eq!(report.files, case.request.files);

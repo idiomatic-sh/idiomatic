@@ -182,7 +182,7 @@ fn known_execution_difference_fails_even_when_diagnostic_multisets_match() {
 
 #[test]
 fn skipped_pairs_must_be_unique_and_belong_to_the_reported_files() {
-    use super::service::require_complete_execution;
+    use ryo_benchmark_contracts::domain::reports::service::require_complete_execution;
     let (_, mut candidate) = matching();
     let skip = ryo::linter::Skipped {
         rule: ryo::linter::RuleId::try_from("A").expect("fixture rule"),

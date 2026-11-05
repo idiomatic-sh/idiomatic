@@ -242,7 +242,7 @@ pub(super) fn complete(
         return Ok(());
     }
     if (candidate
-        && crate::domain::diagnostics::service::require_complete_execution(report).is_err())
+        && ryo_benchmark_contracts::domain::reports::service::require_complete_execution(report).is_err())
         || !report.skipped.is_empty()
         || report.coverage.is_some_and(|coverage| {
             coverage.selected == 0
