@@ -378,6 +378,13 @@ fn cross_file_names_require_derived_storage() -> usize {
     let mut symbols = Symbols::default();
     let from_source = intern(&mut symbols, source, Offset(0), Offset(3));
     assert_eq!(name_made_across(&symbols, from_source), None);
+    let forged = ryo_relations::domain::relations::types::Name {
+        hash: hash_of(ByteSlice(b"x.A")),
+        place: ryo_relations::domain::relations::types::PlaceNumber(
+            ryo_relations::domain::relations::types::CROSS_PLACE | from_source.0,
+        ),
+    };
+    assert_eq!(place_of(forged, &[], &symbols), None);
     let from_derived = intern_derived(&mut symbols, source, NameText("x.Z"));
     let retained =
         name_made_across(&symbols, from_derived).expect("derived names can leave the pool");

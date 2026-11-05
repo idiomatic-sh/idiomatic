@@ -99,6 +99,9 @@ pub fn place_of(name: Name, places: &[NamePlace], across: &Symbols) -> Option<Na
     let number = name.place;
     if number.0 & CROSS_PLACE != 0 {
         let at = usize::try_from(number.0 & !CROSS_PLACE).unwrap_or(usize::MAX);
+        if AsRef::<SymbolsEngine>::as_ref(across).storage.get(at) != Some(&SymbolStorage::Derived) {
+            return None;
+        }
         return Some(NamePlace {
             origin: Origin::Derived(CROSS_FILE),
             file: FileId(u32::MAX),
