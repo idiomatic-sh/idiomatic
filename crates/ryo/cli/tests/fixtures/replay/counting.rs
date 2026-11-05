@@ -197,7 +197,7 @@ pub(crate) fn lint_observing<T>(
             ),
             ryo_core::application::cross_file::service::CrossFile::new(Arc::clone(
                 &analysis_corpus,
-            )),
+            ), std::sync::Arc::new(ryo_core::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(facts::factory::memory()),
             Arc::clone(&analysis_language),

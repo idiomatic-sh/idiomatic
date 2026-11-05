@@ -208,9 +208,15 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     )
     .unwrap();
     let mut empty = cursor;
-    assert!(matches!(empty.current(), Err(crate::domain::operating::errors::OperatingError::NotRun)));
+    assert!(matches!(
+        empty.current(),
+        Err(crate::domain::operating::errors::OperatingError::NotRun)
+    ));
     assert!(!empty.advance().unwrap());
-    assert!(matches!(empty.current(), Err(crate::domain::operating::errors::OperatingError::NotRun)));
+    assert!(matches!(
+        empty.current(),
+        Err(crate::domain::operating::errors::OperatingError::NotRun)
+    ));
     assert!(matches!(
         empty.take_current(),
         Err(crate::domain::operating::errors::OperatingError::NotRun)

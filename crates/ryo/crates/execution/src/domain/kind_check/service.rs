@@ -8,7 +8,6 @@ use crate::domain::kind_check::types::{
     AskedKind, KindMatch, KindRefusal, LanguageList, RulePlace, UnknownKind,
 };
 use crate::domain::kind_sets::service::satisfies;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::types::Relation;
@@ -17,6 +16,7 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, ComparisonOriginId, Input, Operand, ParameterId, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The place of the kind among the columns of the syntax tree.
 const KIND_COLUMN: ColumnIndex = ColumnIndex(1);

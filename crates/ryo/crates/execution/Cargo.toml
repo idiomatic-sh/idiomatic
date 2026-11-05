@@ -39,6 +39,13 @@ tempfile.workspace = true
 
 [dev-dependencies]
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2", features = ["fixtures"] }
+cargo_metadata.workspace = true
+cucumber.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
 
 [features]
 fixtures = []

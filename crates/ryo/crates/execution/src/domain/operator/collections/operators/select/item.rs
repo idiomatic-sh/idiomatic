@@ -5,7 +5,7 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::types::{Verdict};
+use crate::domain::table_model::types::Verdict;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
 pub(crate) struct SelectItem;
 impl OperatorsItem for SelectItem {
@@ -66,4 +66,4 @@ impl OperatorsItem for SelectItem {
     }
 }
 
-use ryo_values::domain::query_bindings::types::{ParameterBinding};
+use ryo_values::domain::query_bindings::types::ParameterBinding;

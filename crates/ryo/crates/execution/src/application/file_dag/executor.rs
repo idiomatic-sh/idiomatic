@@ -1,7 +1,9 @@
 //! One required semantic invocation contract for ordinary and physical kernels.
 //! It has no owner, dependency resolver, publication or cache acquisition API.
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::inbound::use_cases::operators::interface::{OperatorAnswer, PortableOperatorFault};
+use ryo_operators::inbound::use_cases::operators::interface::{
+    OperatorAnswer, PortableOperatorFault,
+};
 
 pub(crate) enum KernelCall<'call, 'resources, 'invocation> {
     Registered {

@@ -1,5 +1,31 @@
 //! Borrowed publication storage belongs to the execution invocation.
 use ryo_language::domain::symbols::types::Symbols;
+
+/// The exact failed portability invariant; control flow never compares diagnostic text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PublicationReason {
+    ReservedArena,
+    CrossNameMismatch,
+    PlaceUnrepresentable,
+    PlaceMissing,
+    SourceTextMissing,
+    StartUnrepresentable,
+    EndUnrepresentable,
+    LocalRangeMissing,
+    LocalHashMismatch,
+    LocalTextInvalid,
+    NormalizedIdentityMismatch,
+    InheritedArenaUnrepresentable,
+    InheritedRangeMissing,
+    InheritedTextMismatch,
+    PortablePlaceLogFull,
+    ProducerSymbolUnescaped,
+    CrossPlaceUnescaped,
+    EscapedPlaceUnrepresentable,
+    EscapedPlaceMissing,
+    EscapedArenaUnstable,
+}
+
 use ryo_relations::domain::relations::types::{FileId, NamePlace, WorkerNumber};
 use ryo_values::domain::files::types::SourceView;
 /// Where the names of a file's rows are read, and who they leave as: the file's names and bytes, the file, and the worker that

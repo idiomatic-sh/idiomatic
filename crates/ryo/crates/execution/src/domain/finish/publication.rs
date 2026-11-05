@@ -1,10 +1,8 @@
 //! Make a cross-stage table portable before its producer-local symbol table is released.
 use super::{
-    errors::FinishError,
     service::escape,
-    types::{Arena, Leaves, Leaving, Retained},
+    types::{Arena, Leaves, Leaving, PublicationReason, Retained},
 };
-use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::{
     service::{derived_of, hash_in, hash_of, intern_derived, places_of},
     types::{ByteSlice, Symbols},
@@ -15,6 +13,7 @@ use ryo_relations::domain::{
     },
     terms::types::{NameText, Symbol},
 };
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::collections::BTreeMap;
@@ -28,11 +27,9 @@ pub(crate) fn escape_cross_publication(
     worker: WorkerNumber,
     arena: &mut ArenaBytes,
     places: &mut Vec<NamePlace>,
-) -> Result<(), FinishError> {
+) -> Result<(), PublicationReason> {
     if worker == CROSS_FILE || !places.is_empty() {
-        return Err(refused(
-            "cross publication requires an ordinary arena slot and fresh place log",
-        ));
+        return Err(refused(PublicationReason::ReservedArena));
     }
     let previous = places_of(producer).to_vec();
     let mut remapped = BTreeMap::new();
@@ -46,7 +43,7 @@ pub(crate) fn escape_cross_publication(
         if name_place.0 & CROSS_PLACE != 0 {
             let symbol = Symbol(name_place.0 & !CROSS_PLACE);
             if hash_in(producer, symbol) != Some(name_hash) {
-                return Err(refused("cross name does not match its producer symbol"));
+                return Err(refused(PublicationReason::CrossNameMismatch));
             }
             *value = Value::Symbol(symbol);
             continue;
@@ -54,52 +51,52 @@ pub(crate) fn escape_cross_publication(
         let old = previous
             .get(
                 usize::try_from(name_place.0)
-                    .map_err(|_| refused("name place is not representable"))?,
+                    .map_err(|_| refused(PublicationReason::PlaceUnrepresentable))?,
             )
-            .ok_or_else(|| refused("name place is absent from producer"))?;
+            .ok_or_else(|| refused(PublicationReason::PlaceMissing))?;
         let Origin::Derived(origin) = old.origin else {
-            return Err(refused(
-                "source-backed cross name has no retained source text",
-            ));
+            return Err(refused(PublicationReason::SourceTextMissing));
         };
         let range = usize::try_from(old.start.0)
-            .map_err(|_| refused("name start is not representable"))?
-            ..usize::try_from(old.end.0).map_err(|_| refused("name end is not representable"))?;
+            .map_err(|_| refused(PublicationReason::StartUnrepresentable))?
+            ..usize::try_from(old.end.0)
+                .map_err(|_| refused(PublicationReason::EndUnrepresentable))?;
         if origin == CROSS_FILE {
             // End the immutable derived-text borrow before interning mutably into the same Symbols.
             let owned = derived_of(producer)
                 .0
                 .get(range)
-                .ok_or_else(|| refused("local cross name range is unavailable"))?
+                .ok_or_else(|| refused(PublicationReason::LocalRangeMissing))?
                 .to_vec();
             if hash_of(ByteSlice(&owned)) != name_hash {
-                return Err(refused("local cross name hash changed"));
+                return Err(refused(PublicationReason::LocalHashMismatch));
             }
             let text = std::str::from_utf8(&owned)
-                .map_err(|_| refused("local cross name is not UTF-8"))?;
+                .map_err(|_| refused(PublicationReason::LocalTextInvalid))?;
             let symbol = intern_derived(producer, ByteSlice(&[]), NameText(text));
             if hash_in(producer, symbol) != Some(name_hash) {
-                return Err(refused("normalized cross name changed identity"));
+                return Err(refused(PublicationReason::NormalizedIdentityMismatch));
             }
             *value = Value::Symbol(symbol);
         } else {
             let bytes = inherited
                 .get(
                     usize::try_from(origin.0)
-                        .map_err(|_| refused("inherited arena is not representable"))?,
+                        .map_err(|_| refused(PublicationReason::InheritedArenaUnrepresentable))?,
                 )
                 .and_then(|arena| arena.0.get(range))
-                .ok_or_else(|| refused("inherited name arena or range is unavailable"))?;
+                .ok_or_else(|| refused(PublicationReason::InheritedRangeMissing))?;
             if hash_of(ByteSlice(bytes)) != name_hash || std::str::from_utf8(bytes).is_err() {
-                return Err(refused("inherited name does not match its retained text"));
+                return Err(refused(PublicationReason::InheritedTextMismatch));
             }
             let at = if let Some(at) = remapped.get(&name_place) {
                 *at
             } else {
                 let at = u32::try_from(places.len())
-                    .ok()
-                    .filter(|at| *at < CROSS_PLACE)
-                    .ok_or_else(|| refused("portable place log is full"))?;
+                    .map_err(|_| refused(PublicationReason::PortablePlaceLogFull))?;
+                if at >= CROSS_PLACE {
+                    return Err(refused(PublicationReason::PortablePlaceLogFull));
+                }
                 let at = PlaceNumber(at);
                 places.push(*old);
                 remapped.insert(name_place, at);
@@ -127,20 +124,20 @@ pub(crate) fn escape_cross_publication(
     );
     for value in &table.cells {
         match value {
-            Value::Symbol(_) => return Err(refused("a producer-local symbol did not escape")),
+            Value::Symbol(_) => return Err(refused(PublicationReason::ProducerSymbolUnescaped)),
             Value::Name(name) => {
                 let name_place = name.place;
                 if name_place.0 & CROSS_PLACE != 0 {
-                    return Err(refused("a local cross place escaped"));
+                    return Err(refused(PublicationReason::CrossPlaceUnescaped));
                 }
                 let place = places
                     .get(
                         usize::try_from(name_place.0)
-                            .map_err(|_| refused("escaped place is not representable"))?,
+                            .map_err(|_| refused(PublicationReason::EscapedPlaceUnrepresentable))?,
                     )
-                    .ok_or_else(|| refused("escaped place is missing"))?;
+                    .ok_or_else(|| refused(PublicationReason::EscapedPlaceMissing))?;
                 if !matches!(place.origin, Origin::Derived(origin) if origin != CROSS_FILE) {
-                    return Err(refused("escaped name has no stable ordinary arena"));
+                    return Err(refused(PublicationReason::EscapedArenaUnstable));
                 }
             }
             Value::Node(_)
@@ -152,8 +149,6 @@ pub(crate) fn escape_cross_publication(
     }
     Ok(())
 }
-fn refused(reason: &str) -> FinishError {
-    FinishError::Publication {
-        reason: reason.into(),
-    }
+fn refused(reason: PublicationReason) -> PublicationReason {
+    reason
 }

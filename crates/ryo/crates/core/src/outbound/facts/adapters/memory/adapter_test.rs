@@ -2,8 +2,8 @@
 
 use super::adapter::FactsMemoryAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use crate::outbound::facts::fixtures::contract::check;
+use ryo_execution::inbound::use_cases::execution::types::facts::FactsError;
 use ryo_execution::inbound::use_cases::execution::types::facts::FactsPort as _;
 use ryo_relations::domain::relations::types::Relation;
 

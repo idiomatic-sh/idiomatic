@@ -5,7 +5,6 @@ use super::types::{
     ClassWork, Eligibility, KindCount, RowRead, RuleActivity, WalkWork,
     prepared_walk::value::{ClassCount, NativeBatch, PreparedWalk},
 };
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::{
     comparing::service::holds_some,
     coverage::types::RuleIndex,
@@ -35,6 +34,7 @@ use ryo_language::domain::{
     symbols::service::{name_count, query_reborrow},
 };
 use ryo_relations::domain::relations::types::{CellKind, Position, Value};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::RowIndex;
 
 fn class_context<'a>(

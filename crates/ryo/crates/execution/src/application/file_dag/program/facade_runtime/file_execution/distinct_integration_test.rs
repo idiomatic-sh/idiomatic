@@ -355,3 +355,5 @@ mod operation_routes_test;
 mod route_controls_test;
 
 mod ordered_dfs_test;
+
+mod closure_abort_test;

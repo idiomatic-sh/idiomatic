@@ -1,12 +1,15 @@
 Feature: metadata
 
-  Rule: metadata answers what its caller sees
+  Rule: Pure metadata decisions expose checked request facts
 
     @succeeds
-    Scenario Outline: metadata succeeds
-      Given <input>
+    Scenario: The feature catalog is available
+      Given a metadata request "catalog"
       When metadata runs
-      Then <expected> is answered
+      Then metadata answers "catalogued"
 
-      Examples:
-        | name | input | expected |
+    @refuses
+    Scenario: A foreign affected file is refused
+      Given a metadata request "foreign file"
+      When metadata runs
+      Then metadata answers "refused"

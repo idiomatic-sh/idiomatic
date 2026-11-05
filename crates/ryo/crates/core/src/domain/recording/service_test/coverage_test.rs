@@ -59,7 +59,11 @@ fn rejected_syntax_coverage_ignores_partials_for_gated_rules_after_mask_restore(
     assert!(worker.covered.is_empty());
 }
 
-const CASES: &[Case<(), (), ()>] = &[Case {
+type Input = ();
+type Value = ();
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("rejected_syntax_preserves_always_applicable_coverage"),
     word: Word::Succeeds,
     input: || (),

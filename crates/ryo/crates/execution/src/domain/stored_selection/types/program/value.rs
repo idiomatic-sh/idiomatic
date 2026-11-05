@@ -1,12 +1,12 @@
 //! Derivation of ordered stored predicates and physical output maps from a compiled plan.
 
 use crate::domain::stored_selection::types::{PreparedPlan, Selector};
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, Operand, ParameterId, RepeatedRows, Test,
 };
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
 /// A plan's static stored selectors; no file population, provider or mutable symbols is accepted.

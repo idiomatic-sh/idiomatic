@@ -251,7 +251,11 @@ fn invalid_last_bucket_is_rejected_for_file_worker_and_arena_underflow() {
     }
 }
 
-const CASES: &[Case<fn(), (), ()>] = &[
+type Input = fn();
+type Value = ();
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
             "prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership",

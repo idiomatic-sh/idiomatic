@@ -5,6 +5,7 @@
 
 /// The globset matching adapter, from what the edge passes.
 #[must_use]
-pub fn globset() -> impl ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort {
+pub fn globset() -> impl ryo_execution::inbound::use_cases::execution::types::matching::MatchingPort
+{
     super::adapters::globset::adapter::MatchingGlobsetAdapter
 }

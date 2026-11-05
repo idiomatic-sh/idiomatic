@@ -52,7 +52,12 @@ impl InvocationResources<'_> {
             })
             .sum();
         if let Some(parts) = &self.inputs.partitioned_closure {
-            rows = parts.current().expect("observed active partition").table().count.0;
+            rows = parts
+                .current()
+                .expect("observed active partition")
+                .table()
+                .count
+                .0;
             capacity = parts.working_capacity();
         }
         if !self.inputs.closure.is_empty() || self.inputs.partitioned_closure.is_some() {

@@ -2,6 +2,8 @@
 mod coordinator;
 mod inputs;
 pub(crate) mod publication;
+#[cfg(test)]
+mod publication_test;
 pub mod service;
 #[cfg(test)]
 mod service_test;

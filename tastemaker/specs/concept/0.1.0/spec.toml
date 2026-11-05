@@ -10,6 +10,7 @@ templates = [
   { template = "idiomatic.arch/value-test@0.1.0", file = "types/{value}/value_test.rs", count = { min = 0 }, description = "Every behavior-owning value has its independent adjacent proof." },
   { template = "service", file = "service.rs", count = { min = 0 }, description = "The concept's service: free functions named by verb over the domain's types, with no port and no IO." },
   { template = "idiomatic.arch/unit-test@0.1.0", file = "service_test.rs", count = { when = { condition = "has-service" }, then = 1, else = 0 }, params = { kind = "concept" }, description = "The proof of the concept's service, on values alone." },
+  { template = "idiomatic.arch/unit-test@0.1.0", file = "service_test/{group}_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A declared behavioral group of the service's cases, with its own case rows and runners." },
   { template = "concept-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The concept's test support, when its tests or the tests of the concepts that read through it need more than literals: declared by the module file under the `fixtures` gate." },
   { template = "idiomatic.arch/types@0.1.0", file = "types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The part's own plain types when it has any (a command's or an entry's: the dependencies its composition is given)." },
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The error the part produces, when it has one." },
@@ -1644,3 +1645,160 @@ pub struct Token(String);
 '''
 then.only = ['idiomatic.arch/concept/value-companions']
 then.findings = [{ rule = 'idiomatic.arch/concept/value-companions', path = 'src/domain/greeting/types/token/value.rs' }]
+
+[[scenarios]]
+id = 'declared-service-test-group'
+scenario = 'A service may declare a nested behavioral test group with its own real cases and runner.'
+given.files.'src/domain/polite/service_test.rs' = '''
+//! What the `polite` service promises, on values alone.
+
+mod coverage_test;
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase that opens politely",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/domain/polite/service_test/coverage_test.rs' = '''
+//! A declared group of the `polite` service cases, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase in the coverage group",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/orphan-rust-files']
+
+[[scenarios]]
+id = 'undeclared-service-test-group'
+scenario = 'A nested test group without its normal parent module declaration remains orphaned.'
+given.files.'src/domain/polite/service_test.rs' = '''
+//! What the `polite` service promises, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase that opens politely",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/domain/polite/service_test/coverage_test.rs' = '''
+//! A declared group of the `polite` service cases, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase in the coverage group",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.only = ['idiomatic.arch/orphan-rust-files']
+then.findings = [{ rule = 'idiomatic.arch/orphan-rust-files', path = 'src/domain/polite/service_test/coverage_test.rs' }]

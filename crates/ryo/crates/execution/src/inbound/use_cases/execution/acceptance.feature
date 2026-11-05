@@ -1,12 +1,15 @@
 Feature: execution
 
-  Rule: execution answers what its caller sees
+  Rule: A request owns preparation and completion
 
     @succeeds
-    Scenario Outline: execution succeeds
-      Given <input>
+    Scenario: An empty request begins and finishes
+      Given an execution request "empty"
       When execution runs
-      Then <expected> is answered
+      Then execution answers "complete"
 
-      Examples:
-        | name | input | expected |
+    @refuses
+    Scenario: A binding without its rule is refused
+      Given an execution request "mismatched bindings"
+      When execution runs
+      Then execution answers "refused"

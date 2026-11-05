@@ -10,6 +10,16 @@ pub(in crate::application::file_dag) struct IndexObservation {
     pub reuses: u64,
 }
 impl DerivedOwner {
+    #[cfg(test)]
+    pub(in crate::application::file_dag) fn scoped_observation(
+        &self,
+    ) -> (usize, Weak<DerivedStorage>) {
+        (
+            self.next_scope.get(),
+            self.last_scoped_storage.borrow().clone(),
+        )
+    }
+
     pub(in crate::application::file_dag) fn selector_work(
         &self,
     ) -> Result<crate::domain::operator::types::RowsFed, OperatingError> {

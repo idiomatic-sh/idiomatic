@@ -4,8 +4,8 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// No upstream scheduler, cache owner or retained state is a primitive capability.
 pub(crate) trait OperatorsItem: Sync {

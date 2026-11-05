@@ -4,9 +4,9 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_operators::inbound::use_cases::operators::interface::SetKind;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 pub(crate) struct AntijoinItem;
 impl OperatorsItem for AntijoinItem {
     fn prepare(

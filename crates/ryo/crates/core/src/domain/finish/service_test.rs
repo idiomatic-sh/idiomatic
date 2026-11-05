@@ -33,6 +33,8 @@ enum Scenario {
     ShownUnknown,
     /// Shows the retained text of a name carried from project facts.
     CarriedShown,
+    /// A complete observation with no table is a refusal, not an empty table.
+    MissingPublicationTable,
 }
 
 /// What a row of the cases does.
@@ -186,6 +188,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CarriedShown => Ok(shown_carried_name()),
         Scenario::ShownUnknown => Ok(shown_unknown()),
         Scenario::Shown => Ok(shown_source_name()),
+        Scenario::MissingPublicationTable => Err(super::service::missing_publication_table()),
     }
 }
 
@@ -227,6 +230,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Findings(7),
         expect: Expect::Refusal(|error| selects(matches!(error, FinishError::Table(..)))),
     },
+    Case {
+        name: CaseName("a_complete_observation_without_rows_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::MissingPublicationTable,
+        expect: Expect::Refusal(|error| selects(matches!(error, FinishError::Publication { .. }))),
+    },
 ];
 
 #[test]
@@ -237,6 +246,11 @@ fn succeeds() {
 #[test]
 fn fails() {
     run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};

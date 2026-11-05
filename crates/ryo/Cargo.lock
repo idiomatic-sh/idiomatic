@@ -1454,6 +1454,8 @@ name = "idiomatic-sh-ryo-execution"
 version = "0.1.2"
 dependencies = [
  "blake3",
+ "cargo_metadata",
+ "cucumber",
  "dhat",
  "hashbrown 0.17.1",
  "heck",
@@ -1474,6 +1476,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "thiserror 2.0.20",
+ "tokio",
  "tracing",
  "unicode-width",
 ]

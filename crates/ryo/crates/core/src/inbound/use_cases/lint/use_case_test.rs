@@ -497,7 +497,7 @@ fn scheduled_world_with_query_kernel(
                 Arc::clone(&analysis_memory),
             )
             .with_column_kernel(column_kernel),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus)),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(given.facts),
             Arc::clone(&analysis_language),
@@ -1928,7 +1928,7 @@ fn succeeds() {
                 Arc::clone(&analysis_digest),
                 Arc::clone(&analysis_memory),
             ),
-            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus)),
+            crate::application::cross_file::service::CrossFile::new(Arc::clone(&analysis_corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())))),
             Arc::clone(&analysis_corpus),
             Arc::new(FactsFake::default()),
             Arc::clone(&analysis_language),

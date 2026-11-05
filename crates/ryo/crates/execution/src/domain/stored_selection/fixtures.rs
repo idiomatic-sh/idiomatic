@@ -1,10 +1,10 @@
 //! Pure immutable selector fixture shared by domain and application tests.
 use crate::domain::stored_selection::types::Selector;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Operand, ParameterId, Test, WholeNumber,
 };
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 /// A predicate and a duplicate output map, with only its referenced bound value.
 pub(crate) fn program(value: i64) -> Arc<Selector> {

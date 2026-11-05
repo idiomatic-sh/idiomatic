@@ -1,6 +1,4 @@
 //! Explicitly enabled compiled-prefix evidence; this observes plans and never executes or caches them.
-use ryo_values::domain::rule_requests::types::RuleSpec;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::{
@@ -8,6 +6,8 @@ use ryo_values::domain::plan_parts::{
     types::{ColumnIndex, Comparison, Input, RepeatedRows},
 };
 use ryo_values::domain::plans::types::{Operation, Plan, StepScope};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// A relation identity, ordered predicates over its original columns, and a composed output projection.
 type Prefix = (Relation, Vec<Comparison>, Vec<ColumnIndex>);

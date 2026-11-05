@@ -16,6 +16,7 @@ use crate::domain::render::types::{
 use crate::domain::reporting::service::order_found;
 use crate::domain::rules::service::failed;
 use crate::outbound::corpus::interface::CorpusPort;
+use crate::outbound::publication::interface::PublicationPort;
 use ryo_execution::inbound::use_cases::execution::interface::{
     ExecutionRequest, PreparedExecution,
 };
@@ -48,6 +49,7 @@ use std::sync::Arc;
 pub struct CrossFile {
     /// Reads back the files the findings name.
     corpus: Arc<dyn CorpusPort>,
+    publication: Arc<dyn PublicationPort>,
 }
 
 impl std::fmt::Debug for CrossFile {
@@ -60,8 +62,11 @@ impl std::fmt::Debug for CrossFile {
 impl CrossFile {
     /// Bind source access once at composition.
     #[must_use]
-    pub fn new(corpus: Arc<dyn CorpusPort>) -> Self {
-        Self { corpus }
+    pub fn new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationPort>) -> Self {
+        Self {
+            corpus,
+            publication,
+        }
     }
     /// Evaluate, place and render one cross-file rule without publishing it.
     /// Diagnostic-only entry; demanded observation phases require the explicit reserved-slot entry.
@@ -202,6 +207,7 @@ impl CrossFile {
                 cross,
                 crossing.arenas,
                 worker,
+                self.publication.as_ref(),
             ))
         };
         let mut publications = evaluated.publications;

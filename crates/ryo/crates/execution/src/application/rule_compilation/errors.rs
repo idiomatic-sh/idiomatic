@@ -1,6 +1,6 @@
 //! Refusals owned by rule compilation before file evaluation can begin.
-use ryo_values::domain::rule_requests::errors::RulesError;
 use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_values::domain::rule_requests::errors::RulesError;
 
 /// A malformed program, rule identity, or parameter binding.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

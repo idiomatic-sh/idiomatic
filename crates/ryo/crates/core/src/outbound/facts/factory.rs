@@ -11,13 +11,16 @@ pub fn memory() -> impl ryo_execution::inbound::use_cases::execution::types::fac
 
 /// The facts adapter that keeps the words the files leave for the cross-file finish in a file of `directory`, not in memory.
 #[must_use]
-pub fn spill(directory: std::path::PathBuf) -> impl ryo_execution::inbound::use_cases::execution::types::facts::FactsPort {
+pub fn spill(
+    directory: std::path::PathBuf,
+) -> impl ryo_execution::inbound::use_cases::execution::types::facts::FactsPort {
     super::adapters::spill::adapter::FactsSpillAdapter::new(directory)
 }
 
 /// The facts adapter that keeps the words the files leave for the cross-file finish in a file of the system's temporary directory,
 /// for a run that keeps nothing: the file is removed from it as soon as it is open.
 #[must_use]
-pub fn spill_scratch() -> impl ryo_execution::inbound::use_cases::execution::types::facts::FactsPort {
+pub fn spill_scratch() -> impl ryo_execution::inbound::use_cases::execution::types::facts::FactsPort
+{
     super::adapters::spill::adapter::FactsSpillAdapter::in_scratch()
 }

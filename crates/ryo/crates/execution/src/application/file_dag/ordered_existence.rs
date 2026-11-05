@@ -113,7 +113,9 @@ pub(super) fn evaluate(
         return Err(error);
     }
     match result {
-        Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written) => Ok(()),
+        Ok(ryo_operators::inbound::use_cases::operators::interface::OperatorAnswer::Written) => {
+            Ok(())
+        }
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(error) => Err(portable_fault(error)),
     }

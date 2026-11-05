@@ -4,7 +4,6 @@ use crate::domain::operating::{
     service::minted,
     types::{AfterTheFiles, OperatorContext},
 };
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
 use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_relations::domain::terms::types::NameText;
@@ -12,6 +11,7 @@ use ryo_values::domain::plan_parts::{
     service::parameter_in,
     types::{FlagState, Operand, QueryLiteral},
 };
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 pub(crate) fn appended_values(
     values: &[Operand],
     context: &mut OperatorContext<'_>,

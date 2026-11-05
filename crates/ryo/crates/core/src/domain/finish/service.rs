@@ -15,6 +15,13 @@ use ryo_relations::domain::terms::service::unknown_reason;
 use ryo_values::domain::files::types::SourceView;
 
 use super::errors::FinishError;
+
+/// A complete producer must carry its actual table; absence is never an empty result.
+pub(crate) fn missing_publication_table() -> FinishError {
+    FinishError::Publication {
+        reason: super::constants::MISSING_PUBLICATION_TABLE.into(),
+    }
+}
 use super::types::{ColumnNumber, FileLine, FoundRow, LineStarts, Loaded, Point, Resolving};
 use {
     ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in,

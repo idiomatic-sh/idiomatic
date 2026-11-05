@@ -1,9 +1,20 @@
-Feature: Portable producer publication
-  Scenario: Numeric rows retain their values without allocating name storage
-    Given a complete numeric producer row
-    When the publication is normalized
-    Then the row and prior arena bytes are unchanged
-  Scenario: Reserved worker identifiers cannot name portable arena storage
-    Given the reserved cross-file worker identifier
-    When the publication is normalized
-    Then publication is refused before mutating its output
+Feature: publication
+
+  Rule: Producer names become portable before their symbols are released
+
+    @succeeds
+    Scenario Outline: Complete producer values remain readable
+      Given a producer row "<input>"
+      When publication runs
+      Then publication answers "<expected>"
+
+      Examples:
+        | input | expected |
+        | numeric | portable numeric |
+        | symbol | portable symbol |
+
+    @refuses
+    Scenario: A reserved arena cannot publish
+      Given a producer row "reserved"
+      When publication runs
+      Then publication answers "refused unchanged"

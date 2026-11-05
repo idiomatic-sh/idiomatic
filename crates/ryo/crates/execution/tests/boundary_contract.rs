@@ -558,7 +558,7 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         let request = engine.begin(&program, &corpus);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-        for delivery in [false, true] {
+        for delivery in [0, 1, 2] {
             let mut symbols = Symbols::default();
             let mut file = request
                 .open_file(
@@ -579,7 +579,23 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 )
                 .expect("closure file");
             let mut cells = Vec::new();
-            if delivery {
+            if delivery == 2 {
+                let mut callbacks = 0;
+                let result = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
+                    callbacks += 1;
+                    Err(OperatingError::WrongBinding)
+                });
+                if populated {
+                    assert!(matches!(result, Err(OperatingError::WrongBinding)));
+                    assert_eq!(callbacks, 1, "stop at the first output refusal");
+                } else {
+                    assert!(result.is_ok());
+                    assert_eq!(callbacks, 0);
+                }
+                file.finish().expect("release closure after sink refusal");
+                continue;
+            }
+            if delivery == 1 {
                 file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
                     cells.extend_from_slice(row);
                     Ok(())
@@ -598,16 +614,15 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
                 cells = table.cells;
             }
             assert_eq!(cells.len() % 3, 0, "no incomplete published row");
-            let mut rows: Vec<_> = cells.chunks_exact(3).map(|row| row.to_vec()).collect();
-            rows.sort_unstable();
+            let rows: Vec<_> = cells.chunks_exact(3).map(|row| row.to_vec()).collect();
             let expected: Vec<Vec<_>> = if populated {
                 [
-                    [5, 1, 2],
-                    [5, 1, 3],
-                    [5, 2, 3],
                     [7, 9, 10],
                     [7, 9, 11],
                     [7, 10, 11],
+                    [5, 1, 2],
+                    [5, 1, 3],
+                    [5, 2, 3],
                 ]
                 .into_iter()
                 .map(|row| row.into_iter().map(|n| Value::Number(Integer(n))).collect())

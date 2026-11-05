@@ -107,6 +107,8 @@ struct State {
 pub(crate) struct DerivedOwner {
     semantic: Arc<dyn crate::outbound::derived::interface::DerivedPort>,
     next_scope: std::cell::Cell<usize>,
+    #[cfg(test)]
+    last_scoped_storage: RefCell<Weak<DerivedStorage>>,
     ledger: std::rc::Rc<RefCell<super::ledger::Ledger>>,
     backend: RefCell<Option<CacheBackend>>,
     file_prepared: std::cell::Cell<bool>,
@@ -148,6 +150,8 @@ impl DerivedOwner {
         Self {
             semantic,
             next_scope: std::cell::Cell::new(0),
+            #[cfg(test)]
+            last_scoped_storage: RefCell::new(Weak::new()),
             ledger: std::rc::Rc::new(RefCell::new(super::ledger::Ledger::default())),
             state: RefCell::new(State::default()),
             backend: RefCell::new(None),

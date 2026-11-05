@@ -20,7 +20,11 @@ impl MatchingPort for MatchingGlobsetAdapter {
             .map_err(matching_error)?;
         Ok(GlobsMatcher {
             matches: Arc::new(move |path: MatchCandidate<'_>, hits: &mut Hits| {
-                MatchingUseCaseImpl::new().match_globs(&compiled, std::path::Path::new(path.0), &mut hits.0);
+                MatchingUseCaseImpl::new().match_globs(
+                    &compiled,
+                    std::path::Path::new(path.0),
+                    &mut hits.0,
+                );
             }),
         })
     }

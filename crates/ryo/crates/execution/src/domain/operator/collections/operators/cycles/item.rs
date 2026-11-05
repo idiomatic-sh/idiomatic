@@ -5,10 +5,10 @@ use crate::domain::operator::contract::graph::CycleMarks;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_scratch::types::{EdgePlace, EntityNumber, WalkStep};
 use ryo_derived::domain::contract::types::CycleGraph;
 use ryo_values::domain::plans::types::{Operation, OperationKind};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 /// Walks every node once, and marks in `room.found` those of a component of more than one or with an edge to themselves.
 #[expect(
     clippy::indexing_slicing,

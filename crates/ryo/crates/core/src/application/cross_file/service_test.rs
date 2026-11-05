@@ -511,7 +511,7 @@ fn refuses() {
 fn service() -> CrossFile {
     CrossFile::new(std::sync::Arc::new(
         crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ))
+    ), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))))
 }
 fn source_text(bytes: &[u8], fails: bool) -> String {
     use crate::outbound::corpus::fixtures::fake::CorpusFake;
@@ -532,7 +532,7 @@ fn source_text(bytes: &[u8], fails: bool) -> String {
         reads: std::sync::Arc::default(),
         outside: Vec::new(),
     };
-    let service = CrossFile::new(std::sync::Arc::new(corpus));
+    let service = CrossFile::new(std::sync::Arc::new(corpus), std::sync::Arc::new(crate::outbound::publication::factory::execution(std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))));
     let files = [CorpusEntry {
         executable: Default::default(),
         path: FilePath("source".into()),
