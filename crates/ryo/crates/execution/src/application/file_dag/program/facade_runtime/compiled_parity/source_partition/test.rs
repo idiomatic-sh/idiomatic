@@ -215,7 +215,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     } else {
         &scope
     };
-    let result = sources.admit(
+    let result = sources.admit_source(
         crate::domain::executable_program::types::InputSource::Relation(relation),
         requested,
         &mut context,

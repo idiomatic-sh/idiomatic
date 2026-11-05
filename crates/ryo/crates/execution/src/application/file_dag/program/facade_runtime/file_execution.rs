@@ -368,7 +368,7 @@ impl FileRun<'_> {
                     == crate::domain::completion::types::ObservationAdmission::Ready
                 {
                     root.source.clone().and_then(|source| {
-                        sources.admit(
+                        sources.admit_source(
                             source,
                             &Partition::File(self.generation.clone()),
                             &mut context,
@@ -501,7 +501,11 @@ impl FileRun<'_> {
                     == crate::domain::completion::types::ObservationAdmission::Ready
                 {
                     root.source.clone().and_then(|source| {
-                        sources.admit(source, &Partition::File(self.generation.clone()), context)
+                        sources.admit_source(
+                            source,
+                            &Partition::File(self.generation.clone()),
+                            context,
+                        )
                     })
                 } else {
                     Err(OperatingError::ObservationIncomplete {
@@ -614,8 +618,11 @@ impl FileRun<'_> {
             }
             let input = InputNumber(index);
             let outcome = (|| {
-                let admitted =
-                    inputs.admit(source?, &Partition::File(self.generation.clone()), context)?;
+                let admitted = inputs.admit_source(
+                    source?,
+                    &Partition::File(self.generation.clone()),
+                    context,
+                )?;
                 let coverage = crate::domain::completion::service::file_frontier_coverage(
                     admitted.coverage()?,
                     file,

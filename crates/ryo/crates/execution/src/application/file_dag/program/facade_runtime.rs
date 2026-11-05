@@ -2,8 +2,8 @@
 //! or project phase. Kernel code receives borrowed rows only after admission.
 use super::{
     admission::{
-        AdmittedInput, ApplicabilityProof, ApplicabilityReason, FileGeneration, Inputs, Partition,
-        ProducerRoot, Readiness, RequiredPartitions,
+        AdmittedInput, ApplicabilityProof, ApplicabilityReason, AvailableInput, FileGeneration,
+        Inputs, Partition, ProducerRoot, Readiness, RequiredPartitions,
     },
     facade::{
         ApplicabilityRefusal, CaptureContext, CaptureIntent, CapturedFrontier, DiagnosticDelivery,

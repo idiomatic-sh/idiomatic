@@ -207,3 +207,6 @@ mod selection_cache;
 
 #[cfg(test)]
 mod contract_timing;
+
+#[cfg(test)]
+mod admission_order;

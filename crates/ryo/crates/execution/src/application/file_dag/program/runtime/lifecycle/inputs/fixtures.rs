@@ -191,29 +191,33 @@ impl TestInputs {
     }
 }
 impl Inputs for TestInputs {
-    fn admit(
+    fn supply(
         &mut self,
         source: InputSource,
         partition: &Partition,
         _: &mut OperatorContext<'_>,
-    ) -> Result<AdmittedInput, OperatingError> {
+    ) -> Result<super::super::super::super::admission::AvailableInput, OperatingError> {
         self.admitted.push(source);
         let InputSource::Relation(relation) = source else {
             return Err(OperatingError::NotRead);
         };
         let rows = self.read(relation)?;
         let publication = self.owner.source(relation, &rows)?;
-        let proof = self
-            .owner
-            .admit(publication.as_ref(), BorrowedRows::from(&rows))?;
-        AdmittedInput::from_publication(
+        super::super::super::super::admission::AvailableInput::source(
             Rc::clone(&self.owner),
-            publication.clone(),
-            &proof,
+            publication,
             super::super::super::super::admission::ProducerRoot::Input(source),
             partition.clone(),
-            super::super::super::super::admission::Readiness::Complete,
+            crate::domain::completion::types::CoverageState::Complete,
         )
+    }
+    fn admit(
+        &mut self,
+        input: &super::super::super::super::admission::AvailableInput,
+        partition: &Partition,
+        _: &mut OperatorContext<'_>,
+    ) -> Result<AdmittedInput, OperatingError> {
+        input.admit(&self.owner, partition, &|relation| self.read(relation))
     }
     fn is_empty(
         &self,
