@@ -22,3 +22,6 @@ pub const OUTPUT: &str = "output";
 
 /// A constant matching pattern.
 pub const PATTERN: &str = "pattern";
+
+/// The query operator that selects relation rows, also a grammar keyword.
+pub const SELECT: &str = "select";

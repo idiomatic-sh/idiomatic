@@ -38,9 +38,6 @@ pub(crate) const OPERATORS: [QueryOperator; 25] = [
     QueryOperator::Cycles,
 ];
 
-/// The text a query writes for the `select` operator, which is also its keyword.
-pub(crate) const SELECT: &str = "select";
-
 /// The text a query writes for an operator.
 #[must_use]
 pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
@@ -53,7 +50,7 @@ pub(crate) fn operator_name(operator: QueryOperator) -> &'static str {
         QueryOperator::Replace => "replace",
         QueryOperator::OrderedMatch => "ordered-match",
         QueryOperator::OrderedDfs => "ordered-dfs",
-        QueryOperator::Select => SELECT,
+        QueryOperator::Select => ryo_values::domain::descriptions::constants::SELECT,
         QueryOperator::Project => "project",
         QueryOperator::Extend => "extend",
         QueryOperator::Join => "join",
