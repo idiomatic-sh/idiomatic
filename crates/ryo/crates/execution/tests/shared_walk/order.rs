@@ -867,11 +867,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         .unwrap();
     for index in [0, 1] {
         let outcome = file.rule(RuleIndex(index), demand(), &mut symbols).unwrap();
-        assert!(
-            matches!(outcome.emit, RootOutcome::Failed(OperatingError::NotRead)),
-            "each exact source refusal stays terminal: {:?}",
-            outcome.emit
-        );
+        failed(outcome, OperatingError::NotRead);
     }
     assert_eq!(
         *calls.borrow(),
@@ -880,11 +876,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
     );
     let work = file.readiness_counts();
     let again = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-    assert!(
-        matches!(again.emit, RootOutcome::Failed(OperatingError::NotRead)),
-        "{:?}",
-        again.emit
-    );
+    failed(again, OperatingError::NotRead);
     assert_eq!(*calls.borrow(), [Relation::Function, Relation::Function]);
     assert_eq!(
         file.readiness_counts(),
