@@ -349,3 +349,9 @@ mod execution_boundary_test;
 use crate::application::file_dag::program::facade;
 
 mod independent_roots_test;
+
+mod operation_routes_test;
+
+mod route_controls_test;
+
+mod ordered_dfs_test;

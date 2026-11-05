@@ -23,7 +23,6 @@ pub(crate) mod operator_collections_operators_group_count_item_test;
 pub(crate) mod operator_collections_operators_group_digest_item_test;
 pub(crate) mod operator_collections_operators_intersection_item_test;
 pub(crate) mod operator_collections_operators_join_item_test;
-pub(crate) mod operator_collections_operators_ordered_dfs_item_test;
 pub(crate) mod operator_collections_operators_ordered_match_item_test;
 pub(crate) mod operator_collections_operators_project_item_test;
 pub(crate) mod operator_collections_operators_rank_item_test;
