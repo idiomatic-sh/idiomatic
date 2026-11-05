@@ -33,7 +33,7 @@ pub(crate) fn clear(index: &mut RawFormatIndex) {
                     &mut index.memo,
                     input.0,
                     result,
-                    bytes,
+                    bytes.0,
                 );
             }
         }

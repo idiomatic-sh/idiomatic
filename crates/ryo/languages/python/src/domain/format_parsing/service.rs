@@ -28,7 +28,7 @@ pub(crate) fn clear(index: &mut FormatParseIndex) {
                     &mut index.memo,
                     input.0,
                     result,
-                    bytes,
+                    bytes.0,
                 );
             }
         }

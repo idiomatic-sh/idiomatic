@@ -24,7 +24,7 @@ pub(crate) fn clear(index: &mut BraceFormatIndex) {
                     &mut index.memo,
                     input.0,
                     result,
-                    bytes,
+                    bytes.0,
                 );
             }
         }
