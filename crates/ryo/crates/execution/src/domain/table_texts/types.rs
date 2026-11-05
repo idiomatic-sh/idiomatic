@@ -54,5 +54,4 @@ pub(crate) struct Texts<'a> {
 }
 
 /// The bytes of a file, borrowed: what the text of its names is read from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SourceView<'a>(pub &'a [u8]);
+

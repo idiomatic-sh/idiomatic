@@ -1,7 +1,8 @@
 //! The `spelling` service: whether the names the files handed over are spelled alike, with no IO and no ports.
 
 use super::errors::SpellingError;
-use crate::domain::finish::types::Resolving;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 use ryo_language::domain::symbols::service::{derived_of, place_of, places_of};
 use ryo_relations::domain::relations::types::{CROSS_FILE, Origin, TextHash, Value};
@@ -15,7 +16,8 @@ use ryo_relations::domain::relations::types::{CROSS_FILE, Origin, TextHash, Valu
 #[cfg(test)]
 pub(crate) fn check_spellings<'a>(
     tables: impl IntoIterator<Item = &'a Table>,
-    resolving: &Resolving<'_>,
+    symbols: &Symbols,
+    arenas: &[ArenaBytes],
 ) -> Result<(), SpellingError> {
     check_name_spellings(
         tables.into_iter().flat_map(|table| {
@@ -24,19 +26,21 @@ pub(crate) fn check_spellings<'a>(
                 _ => None,
             })
         }),
-        resolving,
+        symbols,
+        arenas,
     )
 }
 
 /// The same spelling invariant over compact admission's names; no row table is required.
 pub(crate) fn check_name_spellings(
     names: impl IntoIterator<Item = ryo_relations::domain::relations::types::Name>,
-    resolving: &Resolving<'_>,
+    symbols: &Symbols,
+    arenas: &[ArenaBytes],
 ) -> Result<(), SpellingError> {
     let mut seen: hashbrown::HashMap<TextHash, &[u8], rustc_hash::FxBuildHasher> =
         hashbrown::HashMap::default();
     for name in names {
-        let Some(place) = place_of(name, places_of(resolving.cross), resolving.cross) else {
+        let Some(place) = place_of(name, places_of(symbols), symbols) else {
             continue;
         };
         let (start, end) = (
@@ -45,11 +49,9 @@ pub(crate) fn check_name_spellings(
         );
         let bytes = match place.origin {
             Origin::Derived(worker) if worker == CROSS_FILE => {
-                derived_of(resolving.cross).0.get(start..end)
+                derived_of(symbols).0.get(start..end)
             }
-            Origin::Derived(worker) => resolving
-                .arenas
-                .0
+            Origin::Derived(worker) => arenas
                 .get(usize::try_from(worker.0).unwrap_or(usize::MAX))
                 .and_then(|arena| arena.0.get(start..end)),
             Origin::Source => None,

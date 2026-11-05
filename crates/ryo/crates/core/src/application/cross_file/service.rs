@@ -9,7 +9,7 @@ use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::service::{
     column_cell, founds, line_cell, place_all, shown_cell, source_of,
 };
-use crate::domain::finish::types::{Arenas, FoundRow, HeldFile, Loaded, Resolving, RuleNumber};
+use {crate::domain::finish::types::Arenas, crate::domain::finish::types::FoundRow, crate::domain::finish::types::HeldFile, crate::domain::finish::types::Loaded, crate::domain::finish::types::Resolving, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::ordering::service::{order_alike, sort_findings};
 use crate::domain::placement::service::{governs, place};
 use crate::domain::placement::types::{Governing, Mask};
@@ -20,8 +20,8 @@ use crate::domain::render::types::{
 use crate::domain::reporting::service::order_found;
 use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::rules::service::failed;
-use crate::domain::table_model::service::cell;
-use crate::domain::table_texts::types::SourceView;
+use ryo_values::domain::rows::service::cell;
+use {ryo_values::domain::files::types::SourceView};
 use crate::outbound::corpus::interface::CorpusPort;
 use ryo_language::domain::symbols::service::file_in;
 use ryo_language::domain::symbols::types::Symbols;

@@ -136,8 +136,8 @@ impl Aggregation {
 mod tests {
     use super::super::service_test::OPERATORS;
     use super::*;
-    use crate::domain::table_model::errors::TableModelError;
-    use crate::domain::table_texts::types::SourceView;
+    use ryo_values::domain::rows::errors::TableModelError;
+    use {ryo_values::domain::files::types::SourceView};
     use ryo_language::domain::symbols::types::Symbols;
     use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::plan_parts::types::ColumnIndex;

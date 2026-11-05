@@ -23,7 +23,7 @@ pub(crate) mod render;
 pub(crate) mod reporting;
 pub(crate) mod repository;
 pub(crate) mod rules;
-pub(crate) mod spelling;
+
 pub(crate) mod storing;
 pub(crate) mod value_cells;
 pub(crate) mod visit;

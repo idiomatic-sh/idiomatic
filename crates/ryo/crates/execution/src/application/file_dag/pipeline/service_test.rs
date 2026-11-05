@@ -1,7 +1,7 @@
 //! The `pipeline` service's cases: it walks a plan through the operators, the per-file steps on one
 //! file's rows and the cross-file steps on the rows the files handed over.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;

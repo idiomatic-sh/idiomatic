@@ -15,7 +15,7 @@ use crate::domain::stored_graph::{
     types::traversal::value::GraphTraversal,
     types::{GraphWalk, Orientation},
 };
-use crate::domain::table_model::{service::cell, types::Rows};
+use {ryo_values::domain::rows::service::cell, crate::domain::table_model::types::Rows};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 

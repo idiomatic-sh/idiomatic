@@ -30,7 +30,7 @@ use crate::domain::recording::service::{
 };
 use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use crate::domain::table_words::service::pack_onto;
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::workers::types::{Replaying, Tables};

@@ -18,8 +18,15 @@ Treat missing mappings or enforcement as failures, not exemptions.
 3. Keep scheduling, cache identity, invalidation, data acquisition, publication,
    and lifetime under the execution engine. Semantic crates must not depend on
    the engine or mint its authority.
+   Preserve the [approved shared file-walk plan](../../crates/ryo/docs/contracts/execution-plan.md):
+   compile rules request-wide; one demand-driven walk reuses file facts and
+   derived work across rules before explicit project and semantic stages.
+   Never regress to rule-by-rule full-file execution or duplicate pipelines.
 4. Use Rust visibility and crate dependencies to make forbidden execution
-   paths inaccessible. Use narrow engine-issued capabilities for supported calls.
+   paths inaccessible. The main engine imports each contract crate's inbound
+   use cases through explicit typed signatures and injected ports, never a
+   parallel facade or domain/application/outbound implementation export.
+   Use narrow engine-issued capabilities for supported calls.
 5. Keep use cases as readable ordered steps. Put cohesive semantics in domains,
    effects in adapters, and owned orchestration state in application services.
    Do not optimize for line counts or move a giant function into a giant service.
@@ -33,9 +40,11 @@ Treat missing mappings or enforcement as failures, not exemptions.
 - Add authorized and forbidden compiler controls for privacy and dependency
   guarantees, plus positive and negative runtime controls for behavior,
   ownership, refusal, sharing, readiness, and release where applicable.
-- The normal CI contract gate must cover the whole matrix inventory and every
-  declared route. Missing, stale, or unexecuted enforcement is red. A failed
-  build is missing proof, never a successful forbidden-call negative control.
+- Put durable positive and negative tests at production inbound APIs and run
+  actual TM, Rust boundary and runtime suites in normal CI. Missing suites or
+  zero tests are red; a failed build is never forbidden-call proof.
+- During the parallel crate move, author controls before the grouped build.
+  Remove migration-only scaffolds and test executors as the real boundary lands.
 - Update only the existing matrix with the exact source checkpoint and proof
   status, including unexecuted controls. Keep unchecked guarantees unchecked
   until their controls pass.

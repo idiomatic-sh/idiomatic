@@ -101,7 +101,7 @@ fn refused(result: Result<(), OperatingError>) {
         matches!(
             &result,
             Err(OperatingError::Table(
-                crate::domain::table_model::errors::TableModelError::NoSuchColumn {
+                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn {
                     index: REFUSAL
                 }
             ))
@@ -674,7 +674,7 @@ fn native_pipeline_case(strategy: crate::domain::operator::types::TreeSteps, rig
         matches!(
             &result,
             Err(OperatingError::Table(
-                crate::domain::table_model::errors::TableModelError::NoSuchColumn {
+                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn {
                     index: REFUSAL
                 }
             ))

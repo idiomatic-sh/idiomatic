@@ -6,7 +6,7 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_model::types::Rows;
 
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::QuerySymbols;

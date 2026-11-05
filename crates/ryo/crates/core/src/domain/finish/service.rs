@@ -1,7 +1,7 @@
 //! The `finish` service: free functions named by verb that turn the rows a query emits into
 //! findings, with no IO and no ports. A finding is numbers until a report is written.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::derived_of;
 use ryo_language::domain::symbols::service::places_of;
 use ryo_language::domain::symbols::service::{file_in, place_of, text_of};
@@ -16,7 +16,7 @@ use ryo_relations::domain::terms::service::unknown_reason;
 
 use super::errors::FinishError;
 use super::types::{ColumnNumber, FileLine, FoundRow, LineStarts, Loaded, Point, Resolving};
-use crate::domain::table_model::service::{cell, column_in, positions, row_in};
+use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in, crate::domain::table_model::service::positions, crate::domain::table_model::service::row_in};
 
 use crate::domain::value_cells::service::unknown_cell;
 use ryo_values::domain::plans::types::Emit;

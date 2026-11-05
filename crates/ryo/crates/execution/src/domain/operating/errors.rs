@@ -1,11 +1,13 @@
 //! The `operating` concept's failures.
 
-use crate::domain::table_model::errors::TableModelError;
+use ryo_values::domain::rows::errors::TableModelError;
 use ryo_language::domain::semantics::types::RenderError;
 
 /// Why an operator could not compute its rows.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum OperatingError {
+    #[error(transparent)]
+    Spelling(#[from] crate::domain::spelling::errors::SpellingError),
     /// Request declaration errors are preserved before any file is read.
     #[error(transparent)]
     ObservationConfiguration(#[from] crate::domain::file_program::errors::ObservationError),

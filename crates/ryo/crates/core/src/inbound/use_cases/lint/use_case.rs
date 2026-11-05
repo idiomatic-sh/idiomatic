@@ -55,9 +55,7 @@ use crate::domain::storing::service::{
     decide as reuse_of, later_from, made_again, records_from, skipped_from, stored_of,
     unknowns_from, with_fresh,
 };
-use crate::domain::storing::types::{
-    Decision, HandedAgain, MadeAgain, ReadAlone, Reuse, Reused, ToKeep,
-};
+use {crate::domain::storing::types::Decision, crate::domain::storing::types::HandedAgain, ryo_values::domain::stores::types::MadeAgain, crate::domain::storing::types::ReadAlone, ryo_values::domain::stores::types::Reuse, crate::domain::storing::types::Reused, crate::domain::storing::types::ToKeep};
 use crate::domain::table_model::constants::{column_heading, line_heading};
 use crate::domain::table_model::types::Frontier;
 use crate::domain::trust::service::{project_unknowns, scoped_needs};

@@ -27,6 +27,8 @@ Record HEAD/status before and after; discard source-mutating passes.
 Check source/evidence hashes; reuse only proven-identical executed postimages.
 A bounded review never closes wider architecture categories.
 ## Adversarial pass
+- Prioritize correctness and authority findings with a concrete falsifier and owner; batch mechanical TM fixes without waiving findings.
+- Verify affected matrix rows and the current checkpoint against frozen source and evidence each batch; the author edits them and the independent reviewer verifies the result.
 - Trace shared layers through real imports and dependency edges.
 - Enumerate all callers, bypasses, fallbacks, and alternate routes.
 - Prove mandatory scheduling, cache identity/invalidation, ownership, and lifetime.
@@ -42,6 +44,7 @@ A bounded review never closes wider architecture categories.
 - Require `tm check` on each implementation pass and resolution of findings in scope; asset changes also require `tm validate`. Route recurring structural gaps to the specialist.
 - Audit callable execution, publication, cache-acquisition and permit-construction APIs. Require access controls and unforgeable engine-issued capabilities that prevent callers bypassing the owner; compliant current call sites are insufficient.
 - Require compile-fail bypass examples and passing authorized examples; runtime tests must prove admission, sharing, readiness and release. State the exact boundary proved.
+- Require durable tests of the production inbound API and direct normal-CI execution of TM, Rust boundary and runtime suites. Missing or zero-test suites fail; a failed unrelated build cannot prove a forbidden call was rejected. Reject receipt or checkbox certification in place of execution and remove migration-only test executors.
 - For recurring findings, enumerate the class and all instances; require authors to reuse, strengthen, or create TM rules/specs/templates and scaffolds using [nu-hex](../../tastemaker/specs/nu-hex/0.2.0/spec.toml).
 - Require actual enforcement with failing bad and passing good fixtures; missing enforceable guards block architectural closure, not become future TODOs.
 - Require Rust types/privacy for impossible states and behavioral tests where TM cannot prove guarantees; state those limits explicitly.

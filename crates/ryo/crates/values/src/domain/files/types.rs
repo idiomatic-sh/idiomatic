@@ -140,3 +140,7 @@ impl<F: Fn(MatchCandidate<'_>, &mut Hits) + Send + Sync> Matching for F {
         self(path, hits);
     }
 }
+
+/// Borrowed immutable bytes, without execution authority.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SourceView<'a>(pub &'a [u8]);

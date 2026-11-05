@@ -45,7 +45,7 @@ pub(crate) fn settle(
     later: &mut Rendered,
     fed: &mut [Vec<RowsFed>],
     unknowns: &mut Vec<crate::domain::coverage::types::Unknown>,
-) -> Option<crate::domain::crossing::types::CrossPublicationTransfer> {
+) -> Option<ryo_values::domain::records::types::CrossPublicationTransfer> {
     let Crossed {
         rendered: here,
         fed: more,

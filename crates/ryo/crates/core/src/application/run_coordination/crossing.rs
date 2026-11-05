@@ -5,14 +5,7 @@ use super::{
     settings::CrossingInput,
 };
 use crate::application::cross_file::types::{FrontierInput, PreparedFrontiers};
-use crate::domain::{
-    answering::types::Todo,
-    coverage::types::Partials,
-    crossing::service::{partials_for, partials_for_reads},
-    finish::types::{Arenas, Resolving},
-    rules::{errors::RulesError, service::failed},
-    spelling::service::check_name_spellings,
-};
+use {crate::domain::answering::types::Todo, crate::domain::coverage::types::Partials, crate::domain::crossing::service::partials_for, crate::domain::crossing::service::partials_for_reads, crate::domain::finish::types::Arenas, crate::domain::finish::types::Resolving, ryo_values::domain::rule_requests::errors::RulesError, crate::domain::rules::service::failed, crate::domain::spelling::service::check_name_spellings};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Name, Value};
 

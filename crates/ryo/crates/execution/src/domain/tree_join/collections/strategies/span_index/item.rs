@@ -7,7 +7,7 @@ use ryo_relations::domain::relations::types::{Position, Value};
 use super::super::interface::StrategiesItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::TreeRows;
-use crate::domain::table_model::service::cell;
+use ryo_values::domain::rows::service::cell;
 use crate::domain::tree_join::collections::strategies::types::Fitting;
 use ryo_derived::domain::contract::types::Finding;
 

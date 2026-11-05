@@ -8,7 +8,7 @@ use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
 
-use crate::domain::table_model::service::cell;
+use ryo_values::domain::rows::service::cell;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::service::query_intern_derived;

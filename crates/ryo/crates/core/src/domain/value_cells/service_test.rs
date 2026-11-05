@@ -1,6 +1,6 @@
 //! The `value_cells` service's cases, on values alone.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::{intern, places_mut};
 use ryo_language::domain::symbols::types::ByteSlice;

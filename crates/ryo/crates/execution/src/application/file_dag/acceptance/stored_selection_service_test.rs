@@ -10,7 +10,7 @@ use crate::domain::stored_selection::types::Selector;
 use crate::domain::table_model::service::materialize;
 use crate::domain::table_model::types::{Rows, SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;

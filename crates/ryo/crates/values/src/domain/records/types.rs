@@ -384,3 +384,21 @@ pub enum FrontierRefusalReason {
 
 /// Canonical read-only retention measurements over portable payloads.
 pub mod retention;
+
+/// A portable named output. Readiness and words agree: only Complete carries words.
+#[derive(Clone, Debug)]
+pub struct PackedObservedRoot {
+    pub output: crate::domain::observations::types::ObservationIndex,
+    pub words: Option<crate::domain::stored_facts::types::KeptWords>,
+    pub readiness: crate::domain::observations::types::ProducerReadiness,
+    /// Every arena actually referenced by encoded places, including inherited re-exports.
+    pub arenas: Vec<ryo_relations::domain::relations::types::WorkerNumber>,
+}
+/// One closure owns its reserved arena and returns only owned bytes/words.
+#[derive(Clone, Debug)]
+pub struct CrossPublicationTransfer {
+    pub worker: ryo_relations::domain::relations::types::WorkerNumber,
+    pub arena: ArenaBytes,
+    pub roots: Vec<PackedObservedRoot>,
+}
+

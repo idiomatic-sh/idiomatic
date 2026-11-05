@@ -91,7 +91,7 @@ pub(crate) struct PlanIdentity(pub usize);
 
 /// How the steps that read only the tree run.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum TreeSteps {
+pub enum TreeSteps {
     /// Over the positions of the tree.
     #[default]
     Lowered,

@@ -22,7 +22,7 @@ use crate::domain::operator::collections::operators::select::item::SelectItem;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::{SourceView, TextView};
+use {ryo_values::domain::files::types::SourceView, crate::domain::table_texts::types::TextView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;

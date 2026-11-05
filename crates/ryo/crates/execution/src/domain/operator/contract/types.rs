@@ -3,7 +3,7 @@ use super::views::{BorrowedRows, IndexedRows};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::InputPlace;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::Inputs;
@@ -353,7 +353,7 @@ pub(crate) fn portable_fault(
     match error {
         PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
         PortableOperatorFault::NoSuchColumn { index } => {
-            crate::domain::table_model::errors::TableModelError::NoSuchColumn { index }.into()
+            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index }.into()
         }
         PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
         PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
@@ -466,7 +466,7 @@ impl<'a> PrimitiveLease<'a> {
             Err(ryo_operators::inbound::use_cases::operators::interface::PortableOperatorFault::NoSuchColumn {
                 index,
             }) => Err(
-                crate::domain::table_model::errors::TableModelError::NoSuchColumn { index }.into(),
+                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index }.into(),
             ),
             _ => Err(OperatingError::WrongOperation),
         }

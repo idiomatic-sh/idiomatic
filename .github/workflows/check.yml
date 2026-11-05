@@ -58,6 +58,52 @@ jobs:
           done
           python3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"
 
+  ownership-contracts:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - name: Install declared check tools
+        run: uv run --script tools/install.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Check placed architecture and rule definitions
+        run: |
+          tm validate --root crates/ryo
+          tm check --root crates/ryo
+      - name: Run real crate contract suites
+        run: |
+          set -euo pipefail
+          required_suite() {
+            listing=$(mktemp)
+            "$@" -- --include-ignored --list | tee "$listing"
+            if ! grep -Eq ': test$' "$listing"; then
+              echo "required suite has no tests: $*" >&2
+              exit 1
+            fi
+            "$@" -- --include-ignored
+          }
+          required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --test boundary_contract
+          required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --lib inbound::use_cases::execution
+          required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-operators --doc
+          cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --all-targets
+          cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc
+
   changes:
     runs-on: ubuntu-26.04
     permissions:
@@ -217,7 +263,7 @@ jobs:
   # The product gate also requires the independent speed and Ruff authoring guards. The strict full inventory records parity
   # separately and remains a release acceptance requirement while rules are still being implemented.
   gate:
-    needs: [changes, root, check, speed, ruff-candidates, contract-review]
+    needs: [changes, root, check, speed, ruff-candidates, contract-review, ownership-contracts]
     if: always()
     runs-on: ubuntu-26.04
     steps:

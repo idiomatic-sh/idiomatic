@@ -3,7 +3,7 @@
 use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
 use crate::domain::reading::service::buckets_of;
-use crate::domain::storing::types::{HandedAgain, MadeAgain, Reuse};
+use {crate::domain::storing::types::HandedAgain, ryo_values::domain::stores::types::MadeAgain, ryo_values::domain::stores::types::Reuse};
 use crate::outbound::lint_store::interface::ReadStore;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::records::types::Record;

@@ -4,9 +4,9 @@ use ryo_values::domain::plans::service::kind_of;
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::service::registered;
-use crate::domain::table_model::{errors::TableModelError, types::Rows};
+use {ryo_values::domain::rows::errors::TableModelError, crate::domain::table_model::types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::node_id,

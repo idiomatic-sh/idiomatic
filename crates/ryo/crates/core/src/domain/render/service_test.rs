@@ -1,6 +1,6 @@
 //! The `render` service's cases, on values alone.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern;
@@ -20,7 +20,7 @@ use super::types::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use crate::domain::finish::types::{LineStarts, RuleNumber};
+use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::table_model::service::push_row;
 
 use crate::domain::value_cells::types::Scene;

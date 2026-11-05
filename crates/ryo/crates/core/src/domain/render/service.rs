@@ -17,9 +17,9 @@ use crate::domain::finish::errors::FinishError;
 use crate::domain::finish::service::{
     column_cell, fill_line_starts, line_cell, offset_of, place_in,
 };
-use crate::domain::finish::types::{ColumnNumber, FileLine, LineStarts, Point, RuleNumber};
+use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, crate::domain::finish::types::LineStarts, crate::domain::finish::types::Point, ryo_values::domain::runs::types::RuleNumber};
 
-use crate::domain::table_model::service::{cell, positions, row_in};
+use {ryo_values::domain::rows::service::cell, crate::domain::table_model::service::positions, crate::domain::table_model::service::row_in};
 use crate::domain::value_cells::service::value_cell;
 use crate::domain::value_cells::types::Scene;
 use ryo_values::domain::plan_parts::types::Heading;

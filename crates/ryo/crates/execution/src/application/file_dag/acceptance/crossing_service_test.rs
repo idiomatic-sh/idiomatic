@@ -438,16 +438,7 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     use crate::application::file_dag::{
         execution::CommonOperatorEngine, executor::PrimitiveExecutor, feed::Feed,
     };
-    use crate::domain::{
-        operating::{
-            errors::OperatingError,
-            types::{OperatorContext, Room},
-        },
-        operator::contract::types::{OperatorContract, RequestOperators},
-        table_model::types::Rows,
-        table_scratch::types::OperatorScratch,
-        table_texts::types::SourceView,
-    };
+    use {crate::domain::operating::errors::OperatingError, crate::domain::operating::types::OperatorContext, crate::domain::operating::types::Room, crate::domain::operator::contract::types::OperatorContract, crate::domain::operator::contract::types::RequestOperators, crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
     use ryo_values::domain::{
         observations::types::{
             ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,

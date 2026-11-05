@@ -949,6 +949,63 @@ def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
         assert contract_review_problems(changed)
 
 
+def ownership_contract_problems(workflow: dict) -> list[str]:
+    tm_script = "tm validate --root crates/ryo\ntm check --root crates/ryo"
+    rust_script = """set -euo pipefail
+required_suite() {
+  listing=$(mktemp)
+  "$@" -- --include-ignored --list | tee "$listing"
+  if ! grep -Eq ': test$' "$listing"; then
+    echo "required suite has no tests: $*" >&2
+    exit 1
+  fi
+  "$@" -- --include-ignored
+}
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --test boundary_contract
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-execution --lib inbound::use_cases::execution
+required_suite cargo test --locked --manifest-path crates/ryo/Cargo.toml -p idiomatic-sh-ryo-operators --doc
+cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --all-targets
+cargo test --locked --manifest-path crates/ryo/Cargo.toml --workspace --doc"""
+    jobs = workflow["jobs"]
+    job = jobs.get("ownership-contracts", {})
+    steps = job.get("steps", [])
+    gate = jobs.get("gate", {})
+    allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
+    if (
+        job.get("runs-on") != "ubuntu-26.04"
+        or job.get("if") is not None
+        or job.get("continue-on-error") is not None
+        or len(steps) != 9
+        or any(step.get("if") is not None or step.get("continue-on-error") is not None for step in steps)
+        or steps[-2].get("run", "").strip() != tm_script
+        or steps[-1].get("run", "").strip() != rust_script
+        or "ownership-contracts" not in needs(gate)
+        or "ownership-contracts" in allowed
+    ):
+        return ["real ownership TM and Rust suites must run unconditionally in the required gate"]
+    return []
+
+
+def test_real_ownership_contract_suites_are_required() -> None:
+    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
+    assert not ownership_contract_problems(workflow)
+    for mutate in (
+        lambda w: w["jobs"].pop("ownership-contracts"),
+        lambda w: w["jobs"]["gate"]["needs"].remove("ownership-contracts"),
+        lambda w: w["jobs"]["ownership-contracts"].update({"continue-on-error": True}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "true"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": "true"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-2].update({"run": "tm validate --root crates/ryo || true\ntm check --root crates/ryo"}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("set -euo pipefail\n", "")}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("--include-ignored", "")}),
+        lambda w: w["jobs"]["ownership-contracts"]["steps"][-1].update({"run": w["jobs"]["ownership-contracts"]["steps"][-1]["run"].replace("required_suite cargo test --locked", "# required_suite cargo test --locked", 1)}),
+        lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "ownership-contracts"}),
+    ):
+        changed = deepcopy(workflow)
+        mutate(changed)
+        assert ownership_contract_problems(changed)
+
+
 @pytest.mark.parametrize("dispatch", [False, True])
 def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp_path: Path, dispatch: bool) -> None:
     import os

@@ -15,7 +15,7 @@ use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::rules::service::failed;
 use crate::domain::table_model::types::Frontier;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use crate::domain::trust::service::matters;
 use crate::domain::trust::types::Bearing;
 use ryo_relations::domain::relations::types::CellKind;

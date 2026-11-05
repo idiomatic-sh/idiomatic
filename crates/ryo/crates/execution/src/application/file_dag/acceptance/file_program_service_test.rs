@@ -8,13 +8,7 @@ use crate::application::file_dag::{
     },
     testing::FileScope,
 };
-use crate::domain::{
-    file_program::service::compile_prepared,
-    operating::{errors::OperatingError, types::OperatorContext},
-    operator::{service::pool_for, types::PreparedPool},
-    table_scratch::types::OperatorScratch,
-    table_texts::types::SourceView,
-};
+use {crate::domain::file_program::service::compile_prepared, crate::domain::operating::errors::OperatingError, crate::domain::operating::types::OperatorContext, crate::domain::operator::service::pool_for, crate::domain::operator::types::PreparedPool, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, FileId, Relation, Value,

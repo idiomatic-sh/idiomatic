@@ -70,14 +70,11 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, KeptWords};
 use crate::application::file_dag::settings::VisitSetting;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use crate::domain::coverage::types::{Recovery, RuleIndex};
-use crate::domain::finish::types::{ColumnNumber, FileLine, RuleNumber};
+use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::lowering::types::Counting;
 use crate::domain::operator::types::TreeSteps;
 use crate::domain::placement::types::{PlacedScopes, ScopePlacement};
-use crate::domain::reading::service::{
-    begin, capture_frontier, engine_asked, first_buckets, frontier_bucket, prepare_frontier,
-    settle, start_partials,
-};
+use {crate::domain::reading::service::begin, crate::domain::reading::service::capture_frontier, crate::domain::reading::service::engine_asked, crate::domain::reading::service::first_buckets, ryo_values::domain::stored_facts::service::frontier_bucket, crate::domain::reading::service::prepare_frontier, crate::domain::reading::service::settle, crate::domain::reading::service::start_partials};
 use crate::domain::reading::types::EngineRows;
 use crate::domain::render::types::{RowNumber, RowOrder};
 use ryo_values::domain::rule_requests::errors::RulesError;

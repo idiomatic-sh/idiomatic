@@ -17,7 +17,7 @@ use crate::domain::table_cells::service::{
     kind_name_at, ordinal_number_at, read_tree_cells, span_at,
 };
 use crate::domain::table_cells::types::{CellsRead, TreeForm, TreeRows};
-use crate::domain::table_model::errors::TableModelError;
+use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::{count_of, kinds_of, read_row};
 use crate::domain::table_model::types::{Rows, Verdict};
 use crate::domain::table_scratch::types::{ElementIndex, KindsBy};

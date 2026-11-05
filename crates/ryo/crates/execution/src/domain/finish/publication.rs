@@ -4,7 +4,7 @@ use super::{
     service::escape,
     types::{Arena, Leaves, Leaving, Retained},
 };
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::{
     service::{derived_of, hash_in, hash_of, intern_derived, places_of},
     types::{ByteSlice, Symbols},

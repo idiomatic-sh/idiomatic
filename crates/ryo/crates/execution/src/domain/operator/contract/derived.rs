@@ -20,7 +20,7 @@ pub(crate) fn portable_fault(
     match fault {
         DerivedFault::MissingInput { position } => OperatingError::MissingInput { position },
         DerivedFault::NoSuchColumn { column } => {
-            crate::domain::table_model::errors::TableModelError::NoSuchColumn { index: column.0 }
+            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: column.0 }
                 .into()
         }
         DerivedFault::DuplicateOrder => OperatingError::DuplicateOrder,

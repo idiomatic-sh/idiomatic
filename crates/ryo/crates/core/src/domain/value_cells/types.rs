@@ -1,6 +1,6 @@
 //! The types of the `value_cells` concept: the file a row's values are read in. Plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;

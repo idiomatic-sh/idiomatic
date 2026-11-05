@@ -13,7 +13,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::types::{PlanIdentity, StepPlace};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_relations::domain::relations::types::ColumnsView;
 
 /// What a row of the cases does.

@@ -7,10 +7,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::{
     derived::portable_fault, failure::FailureLatch, views::BorrowedRows,
 };
-use crate::domain::table_texts::{
-    service::{datum, name_text, symbol_text},
-    types::{Datum, SourceView, Texts},
-};
+use {crate::domain::table_texts::service::datum, crate::domain::table_texts::service::name_text, crate::domain::table_texts::service::symbol_text, crate::domain::table_texts::types::Datum, ryo_values::domain::files::types::SourceView, crate::domain::table_texts::types::Texts};
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::{self as semantic, RowCells};
 use ryo_language::domain::symbols::{

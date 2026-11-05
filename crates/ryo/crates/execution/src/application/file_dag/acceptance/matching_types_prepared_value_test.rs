@@ -7,7 +7,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};

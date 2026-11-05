@@ -100,7 +100,7 @@ fn check_rows(input: &Rows<'_>, expected: &[Vec<Value>]) {
                 CellRead::Value(*wanted)
             );
             assert_eq!(
-                crate::domain::table_model::service::cell_at(input, RowIndex(at), at_column),
+                ryo_values::domain::rows::service::cell_at(input, RowIndex(at), at_column),
                 Some(*wanted)
             );
         }

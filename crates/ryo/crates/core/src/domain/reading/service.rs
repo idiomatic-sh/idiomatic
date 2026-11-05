@@ -5,7 +5,7 @@ use crate::domain::coverage::service::partial_of;
 use crate::domain::coverage::types::Recovery;
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::finish::service::escape;
-use crate::domain::finish::types::{Arena, Leaves, Leaving, Retained, RuleNumber};
+use {crate::domain::finish::types::Arena, crate::domain::finish::types::Leaves, crate::domain::finish::types::Leaving, crate::domain::finish::types::Retained, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::service::{emitted, pool_for};
 use crate::domain::operator::types::RuleWorkspace;
@@ -18,7 +18,7 @@ use ryo_values::domain::rule_requests::errors::RulesError;
 use crate::domain::rules::service::{failed, id_at};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use crate::domain::table_words::service::{encode_table, pack_onto};
 use crate::domain::table_words::types::WordSlice;
 use crate::domain::trust::types::Needs;

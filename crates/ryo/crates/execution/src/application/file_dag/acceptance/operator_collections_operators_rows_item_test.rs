@@ -11,7 +11,7 @@ use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::collections::operators::rows::item::RowsItem;
 use crate::domain::table_model::types::{};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::{ParameterId, TableKey};
 use ryo_values::domain::plans::types::Operation;

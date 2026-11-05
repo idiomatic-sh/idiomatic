@@ -290,7 +290,7 @@ fn raw_order() -> (
     (prepared, port, payload)
 }
 
-use crate::domain::table_model::{errors::TableModelError, types::Rows};
+use {ryo_values::domain::rows::errors::TableModelError, crate::domain::table_model::types::Rows};
 use ryo_derived::domain::contract::types::KeyIndex;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::RowIndex};
@@ -318,7 +318,7 @@ impl ryo_derived::domain::contract::types::RowCells for SemanticRows<'_> {
         crate::domain::table_model::service::count_of(&self.0).0
     }
     fn cell(&self, row: usize, column: ColumnIndex) -> Option<Cell> {
-        crate::domain::table_model::service::cell_at(&self.0, RowIndex(row), column)
+        ryo_values::domain::rows::service::cell_at(&self.0, RowIndex(row), column)
     }
 }
 pub(crate) fn prepared_payload(

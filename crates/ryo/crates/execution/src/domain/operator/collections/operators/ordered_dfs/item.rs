@@ -4,7 +4,7 @@ use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::service::{cell, column_in, row_in};
+use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in, crate::domain::table_model::service::row_in};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_reach::{
     service::{begin_ordered, next_ordered},

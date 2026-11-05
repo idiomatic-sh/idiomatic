@@ -6,13 +6,9 @@ use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::traversal::value::TraversalShape;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::{
-    errors::TableModelError,
-    service::{kinds_of, push_row},
-    types::Rows,
-};
+use {ryo_values::domain::rows::errors::TableModelError, crate::domain::table_model::service::kinds_of, crate::domain::table_model::service::push_row, crate::domain::table_model::types::Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::{
     service::{enter_node, leave_node, table_builder, token},
     types::Elements,

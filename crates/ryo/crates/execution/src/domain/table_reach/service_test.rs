@@ -9,7 +9,7 @@ use super::types::{Edges, Walk};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::operator::contract::views::{BorrowedRows, IndexedRows};
 use crate::domain::positions::service_test::prepared_index;
-use crate::domain::table_model::errors::TableModelError;
+use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::Rows;
 

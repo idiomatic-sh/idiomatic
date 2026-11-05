@@ -1,6 +1,6 @@
 //! The `axis` item's cases.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::LiteralText;

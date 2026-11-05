@@ -5,7 +5,7 @@ use ryo_relations::domain::relations::types::Value;
 use crate::domain::functions::service::apply;
 use crate::domain::functions::types::MadeText;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::service::cell;
+use ryo_values::domain::rows::service::cell;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, TextView, Texts};

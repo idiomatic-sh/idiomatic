@@ -11,7 +11,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 use super::errors::SpellingError;
 use super::service::check_spellings;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
-use crate::domain::finish::types::{Arenas, Resolving};
+
 use crate::domain::table_model::service::push_row;
 
 /// What a row of the cases does.
@@ -51,17 +51,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 };
                 push_row(&mut table, &[Cell::Name(name)]);
             }
-            let (paths, arenas) = (Vec::new(), vec![ArenaBytes(arena)]);
-            check_spellings(
-                [&table],
-                &Resolving {
-                    unknown: &[],
-                    paths: &paths,
-                    arenas: Arenas(&arenas),
-                    cross: &cross,
-                },
-            )
-            .map(|()| 1)
+            let arenas = vec![ArenaBytes(arena)];
+            check_spellings([&table], &cross, &arenas).map(|()| 1)
         }
     }
 }

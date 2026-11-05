@@ -2,7 +2,7 @@
 
 use crate::domain::coverage::types::{Covered, Partial, Unknown};
 use crate::domain::finish::types::LineStarts;
-use crate::domain::operator::types::{PreparedPool, RowsFed};
+use ryo_execution::inbound::use_cases::execution::types::{RowsFed, PreparedVocabulary};
 use crate::domain::placement::types::{Mask, PlacedScopes};
 use crate::domain::render::types::{Answering, Rendered};
 use crate::domain::trust::types::Needs;
@@ -100,8 +100,10 @@ pub(crate) struct Tables {
     pub words: Words,
     /// The words of the table being handed over, packed as they are kept.
     pub packed: PackedWords,
-    /// The tables the rules compute in.
-    pub pool: PreparedPool,
+    /// Actual work totals returned by the execution owner.
+    pub fed: Vec<Vec<RowsFed>>,
+    /// The active immutable vocabulary; no operator/cache owner is held here.
+    pub kind_vocabulary: Option<std::sync::Arc<PreparedVocabulary>>,
     /// Where the lines of the file start.
     pub starts: LineStarts,
     /// The text the names of the files made.

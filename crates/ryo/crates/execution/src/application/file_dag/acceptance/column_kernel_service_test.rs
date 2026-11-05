@@ -10,7 +10,7 @@ use crate::domain::operator::service::pool_for;
 use crate::domain::operator::types::{Pool, PreparedPool};
 use crate::domain::table_model::service::take_read_row_counts;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::{node_id, to_bits};
@@ -288,7 +288,7 @@ fn selected_stored_chain_matches_executor_and_reduces_full_row_reads() -> Result
             matches!(
                 run_with_port(&plan, &read, &mut symbols, &[], strategy, &refusing),
                 Err(OperatingError::Table(
-                    crate::domain::table_model::errors::TableModelError::NoSuchColumn {
+                    ryo_values::domain::rows::errors::TableModelError::NoSuchColumn {
                         index: 60001
                     }
                 ))

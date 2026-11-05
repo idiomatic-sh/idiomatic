@@ -5,10 +5,7 @@ use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operator::contract::types::{
     OperatorContract, PreparedInputs, PrimitiveLease, RowSink,
 };
-use crate::domain::table_model::{
-    service::cell,
-    types::{Addition },
-};
+use {ryo_values::domain::rows::service::cell, crate::domain::table_model::types::Addition};
 use crate::domain::table_reach::{service::reach_all, types::Edges};
 use crate::domain::tree_join::service::source_column;
 use ryo_relations::domain::relations::types::Value;

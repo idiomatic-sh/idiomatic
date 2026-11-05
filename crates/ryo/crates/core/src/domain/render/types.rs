@@ -3,7 +3,7 @@
 
 use ryo_relations::domain::relations::types::Offset;
 
-use crate::domain::finish::types::{ColumnNumber, FileLine, RuleNumber};
+use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, ryo_values::domain::runs::types::RuleNumber};
 
 use crate::domain::value_cells::types::Scene;
 use ryo_values::domain::plan_parts::types::Heading;

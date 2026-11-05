@@ -354,7 +354,7 @@ impl PreparedProgram {
         ),
         OperatingError,
     > {
-        use crate::domain::storing::types::{MadeAgain, Reuse};
+        use {ryo_values::domain::stores::types::MadeAgain, ryo_values::domain::stores::types::Reuse};
         let Some(named) = &self.observations else {
             return Ok((again, vec![]));
         };
@@ -418,6 +418,9 @@ impl PreparedProgram {
             Reuse::Cross(MadeAgain::These(selected)),
             buckets.into_iter().collect(),
         ))
+    }
+    pub(crate) fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
+        match &self.schedule { RuleSchedule::Independent => None, RuleSchedule::Dependencies { batches, .. } => Some(batches) }
     }
     pub(crate) fn rule_count(&self) -> usize {
         self.rules.len()

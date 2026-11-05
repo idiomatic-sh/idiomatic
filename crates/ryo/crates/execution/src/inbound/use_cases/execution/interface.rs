@@ -6,6 +6,14 @@ use ryo_values::domain::{
 };
 pub trait ExecutionUseCase {
     fn prepare(&self, request: PreparedRequest) -> Result<PreparedProgram, OperatingError>;
+    fn prepare_compiled(
+        &self,
+        queries: CompiledQueries,
+        rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
+        digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
+        hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
+        observations: ObservationIdentity,
+    ) -> Result<PreparedProgram, OperatingError>;
     fn begin(&self, program: &PreparedProgram, corpus: &[CorpusInput]) -> RequestExecution;
 }
 pub trait ExecutionRequest {
@@ -86,6 +94,7 @@ pub trait ProjectStage {
 
 /// Read-only request metadata; no mutable program, permit or population escapes.
 pub trait PreparedExecution {
+    fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]>;
     fn rule_count(&self) -> usize;
     fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_;
     fn demanded_rules(&self, governs: impl Fn(usize) -> bool) -> Vec<bool>;
@@ -134,13 +143,6 @@ pub trait ExecutionCompilation {
 pub trait PreparedQueries {
     fn plans(&self) -> &[ryo_values::domain::plans::types::Plan];
     fn bindings(&self) -> &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>];
-    fn into_request(
-        self,
-        rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
-        digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
-        hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
-        observations: ObservationIdentity,
-    ) -> PreparedRequest;
 }
 
 pub trait ObservationExecution {
@@ -169,6 +171,24 @@ pub trait ObservationExecution {
 }
 
 pub trait ObservationPublication {
-    fn install(&mut self, rule: RuleIndex, slot: PublicationSlot, transfer: CrossPublicationTransfer, publications: Vec<(ryo_values::domain::observations::types::ObservationIndex, ObservedPublication)>) -> Result<(), OperatingError>;
-    fn restore_frontiers(&mut self, facts: &dyn facts::FactsFinish, corpus: &[CorpusInput], covered: &[Covered], skipped: &[Skipped], readiness: &[FileObservationReadiness], first_bucket: &[Bucket], selected: &[bool]) -> Result<(), OperatingError>;
+    fn install(
+        &mut self,
+        rule: RuleIndex,
+        slot: PublicationSlot,
+        transfer: CrossPublicationTransfer,
+        publications: Vec<(
+            ryo_values::domain::observations::types::ObservationIndex,
+            ObservedPublication,
+        )>,
+    ) -> Result<(), OperatingError>;
+    fn restore_frontiers(
+        &mut self,
+        facts: &dyn facts::FactsFinish,
+        corpus: &[CorpusInput],
+        covered: &[Covered],
+        skipped: &[Skipped],
+        readiness: &[FileObservationReadiness],
+        first_bucket: &[Bucket],
+        selected: &[bool],
+    ) -> Result<(), OperatingError>;
 }

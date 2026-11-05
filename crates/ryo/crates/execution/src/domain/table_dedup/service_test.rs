@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
 use super::service::distinct;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::table_model::errors::TableModelError;
+use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::push_row;
 
 /// A scenario: what a row asks of the part.

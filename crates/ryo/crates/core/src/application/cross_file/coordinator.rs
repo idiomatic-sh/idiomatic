@@ -8,16 +8,7 @@ use crate::application::file_dag::{
     observations::cross::{CrossPublications, frontier_complete, frontier_readiness},
     settings::CrossingInput,
 };
-use crate::domain::{
-    answering::{
-        service::settle,
-        types::{Answered, Todo},
-    },
-    coverage::types::RuleIndex,
-    file_program::types::ObservationRequest,
-    operating::errors::OperatingError,
-    reading::service::frontier_bucket,
-};
+use {crate::domain::answering::service::settle, crate::domain::answering::types::Answered, crate::domain::answering::types::Todo, crate::domain::coverage::types::RuleIndex, crate::domain::file_program::types::ObservationRequest, crate::domain::operating::errors::OperatingError, ryo_values::domain::stored_facts::service::frontier_bucket};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     plan_parts::types::Input, plans::types::StepScope, stored_facts::types::ArenaBytes,

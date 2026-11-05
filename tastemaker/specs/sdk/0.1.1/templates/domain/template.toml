@@ -1,0 +1,40 @@
+description = "The SDK's own domain: one module per concept whose values more than one of its functions shares."
+why = "A value two functions of the SDK hand a caller or take from one (a relation's name, a file nothing read, the threads a run reads on) is declared once, as the SDK's one edge copy of its concept, below the functions that use it: a function imports it from `crate::domain`, never from a sibling function or from the resource above it, and its resource module exposes it. The concepts are the ones the SDK places, so a concept that exists is declared, and none that does not."
+content = '''
+//! The SDK's own values that more than one of its entries hands a caller or takes from one, one module per concept: each is the SDK's
+//! one edge copy of its concept, and a resource module exposes it.
+{#- The concepts are told by the concept files the product places, in path order: one `pub(crate) mod` for each. #}
+{% for name in captures.concept | default([]) %}
+pub(crate) mod {{ name }};
+{%- endfor %}
+'''
+
+[given]
+file = 'sdk/src/domain.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'sdk/src/domain.rs' = '''
+//! The SDK's own values that more than one of its entries hands a caller or takes from one, one module per concept: each is the SDK's
+//! one edge copy of its concept, and a resource module exposes it.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'sdk/src/domain.rs' = '''
+//! The SDK's own values that more than one of its entries hands a caller or takes from one, one module per concept: each is the SDK's
+//! one edge copy of its concept, and a resource module exposes it.
+
+pub(crate) mod relation;
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'domain#count', path = '.' },
+]

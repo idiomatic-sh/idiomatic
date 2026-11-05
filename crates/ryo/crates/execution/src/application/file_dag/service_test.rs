@@ -5,7 +5,7 @@ use crate::application::file_dag::pipeline::service::{evaluate_file, evaluate_fi
 use crate::domain::operating::types::OperatorContext;
 use crate::domain::operator::{service::pool_for, types::PreparedPool};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},

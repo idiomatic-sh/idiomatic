@@ -10,10 +10,7 @@ use crate::domain::operating::{
 use crate::domain::operator::contract::{
     context::with_primitive_context, types::*, views::BorrowedRows,
 };
-use crate::domain::table_model::{
-    service::{cell, reset},
-    types::Verdict,
-};
+use {ryo_values::domain::rows::service::cell, crate::domain::table_model::service::reset, crate::domain::table_model::types::Verdict};
 use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::{
     service::datum,

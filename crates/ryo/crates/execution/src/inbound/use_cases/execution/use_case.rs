@@ -29,20 +29,23 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
             request.bindings,
             &request.rules,
         )?;
-        let inner = facade::prepare(
+        self.finish_preparation(
             compiled,
-            &request.rules,
-            &request.digests,
-            &request.hosted,
-            Arc::clone(&self.derived),
+            request.rules,
+            request.digests,
+            request.hosted,
             request.observations,
-        )?;
-        let kernels = Arc::new(CommonOperatorEngine::new(Arc::clone(&self.operators)));
-        Ok(PreparedProgram {
-            inner,
-            kernels,
-            derived: Arc::clone(&self.derived),
-        })
+        )
+    }
+    fn prepare_compiled(
+        &self,
+        queries: CompiledQueries,
+        rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
+        digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
+        hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
+        observations: ObservationIdentity,
+    ) -> Result<PreparedProgram, OperatingError> {
+        self.finish_preparation(queries.inner, rules, digests, hosted, observations)
     }
     fn begin(&self, program: &PreparedProgram, corpus: &[CorpusInput]) -> RequestExecution {
         RequestExecution {
@@ -94,7 +97,7 @@ impl ExecutionRequest for RequestExecution {
             input.project_symbols,
             symbols,
             &input.scope.required,
-            crate::application::file_dag::frontiers::service::PreparationPolicy::Diagnostic,
+            match input.demand { FrontierDemand::Diagnostic => crate::application::file_dag::frontiers::service::PreparationPolicy::Diagnostic, FrontierDemand::Observations { ready } => crate::application::file_dag::frontiers::service::PreparationPolicy::Observations { ready } },
         )
     }
     fn finish(self) {
@@ -202,7 +205,10 @@ impl FileExecution for FileSession<'_, '_> {
             file: self.file,
             rule_digest: self.program.rule_digest(rule)?,
             worker: capture.worker,
-            retained: capture.retained,
+            retained: crate::domain::finish::types::Retained {
+                arena: crate::domain::finish::types::Arena(capture.arena),
+                places: capture.places,
+            },
             words: capture.words,
         };
         self.inner
@@ -279,6 +285,9 @@ fn source_rows<'a, 'facts: 'a>(
 }
 
 impl PreparedExecution for PreparedProgram {
+    fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
+        self.inner.observation_batches()
+    }
     fn rule_count(&self) -> usize {
         self.inner.rule_count()
     }
@@ -336,15 +345,17 @@ impl PreparedExecution for PreparedProgram {
 }
 
 /// Query compilation is a preparation use case, not a second execution pipeline.
-pub struct CompilationUseCaseImpl;
+pub struct CompilationUseCaseImpl {
+    inner: crate::application::rule_compilation::service::RuleCompilation,
+}
 impl CompilationUseCaseImpl {
-    pub fn new(compiler: Arc<dyn query_language::QueryLanguagePort>) -> CompilationSession {
-        CompilationSession {
+    pub fn new(compiler: Arc<dyn query_language::QueryLanguagePort>) -> Self {
+        Self {
             inner: crate::application::rule_compilation::service::RuleCompilation::new(compiler),
         }
     }
 }
-impl ExecutionCompilation for CompilationSession {
+impl ExecutionCompilation for CompilationUseCaseImpl {
     fn compiling_into(self, cache: CompiledPlans) -> Self {
         Self {
             inner: self.inner.compiling_into(cache),
@@ -356,7 +367,7 @@ impl ExecutionCompilation for CompilationSession {
         hosted: &[ryo_values::domain::hosted::types::HostRelation],
     ) -> Result<CompiledQueries, RuleCompilationError> {
         self.inner
-            .compile(rules, hosted)
+            .prepare(rules, hosted)
             .map(|inner| CompiledQueries { inner })
     }
     fn identify(
@@ -384,22 +395,6 @@ impl PreparedQueries for CompiledQueries {
     }
     fn bindings(&self) -> &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>] {
         &self.inner.bindings
-    }
-    fn into_request(
-        self,
-        rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
-        digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
-        hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
-        observations: ObservationIdentity,
-    ) -> PreparedRequest {
-        PreparedRequest {
-            plans: self.inner.plans,
-            bindings: self.inner.bindings,
-            rules,
-            digests,
-            hosted,
-            observations,
-        }
     }
 }
 
@@ -457,39 +452,66 @@ impl ObservationExecution for ObservationStage<'_> {
 }
 
 impl ObservationPublication for ObservationStage<'_> {
-    fn install(&mut self, rule: RuleIndex, slot: PublicationSlot, transfer: CrossPublicationTransfer, publications: Vec<(ryo_values::domain::observations::types::ObservationIndex, ObservedPublication)>) -> Result<(), OperatingError> {
-        self.publications.install(rule, slot, transfer, publications)
+    fn install(
+        &mut self,
+        rule: RuleIndex,
+        slot: PublicationSlot,
+        transfer: CrossPublicationTransfer,
+        publications: Vec<(
+            ryo_values::domain::observations::types::ObservationIndex,
+            ObservedPublication,
+        )>,
+    ) -> Result<(), OperatingError> {
+        self.publications
+            .install(rule, slot, transfer, publications)
     }
-    fn restore_frontiers(&mut self, facts: &dyn facts::FactsFinish, corpus: &[CorpusInput], covered: &[Covered], skipped: &[Skipped], frames: &[FileObservationReadiness], first_bucket: &[Bucket], selected: &[bool]) -> Result<(), OperatingError> {
-        use crate::application::file_dag::{observations::cross::{frontier_readiness, PreparedFrontier}, completion::CoverageState};
-        let metadata = self.request.program.observation_metadata().ok_or(OperatingError::NotRun)?;
-        let files = (0..corpus.len()).map(|file| u32::try_from(file).map(ryo_relations::domain::relations::types::FileId).map_err(|_| OperatingError::NotRun)).collect::<Result<Vec<_>,_>>()?;
-        let readiness = match frontier_readiness(metadata, &files, frames) {
-            Ok(readiness) => readiness,
-            Err(OperatingError::ObservationIncomplete { .. }) => return Ok(()),
-            Err(error) => return Err(error),
-        };
-        let mut physical = std::collections::BTreeMap::<Bucket, Result<PreparedFrontier,OperatingError>>::new();
-        for (slot, root) in metadata.frontiers.iter().enumerate() {
-            let needed = metadata.outputs.get(root.producer.0).and_then(|outputs| outputs.get(root.output.0 as usize)).ok_or(OperatingError::NotRun)?.consumers.iter().any(|consumer| selected.get(*consumer).copied().unwrap_or(false));
-            if !needed { continue; }
-            let first = *first_bucket.get(root.producer.0).ok_or(OperatingError::NotRun)?;
-            let bucket = ryo_values::domain::stored_facts::service::frontier_bucket(first, root.frontier);
-            if let std::collections::btree_map::Entry::Vacant(entry) = physical.entry(bucket) {
-                let required = facade_runtime::required_partitions(&self.request.program, root.producer, corpus, covered, skipped, &self.request.services)?;
-                let payload = facts.kept(bucket).map_err(|error| OperatingError::ObservationIncomplete { reason: error.to_string() })?;
-                let restored = facade::validate_restored_frontier(&self.request.program, root.producer, root.frontier, first, bucket, &required, payload, &self.publication).and_then(|token| {
-                    if !matches!(token.coverage(), CoverageState::Complete) { return Err(OperatingError::ObservationIncomplete { reason: "named producer frontier has incomplete physical coverage".into() }); }
-                    self.publications.prepare_frontier(token)
-                });
-                entry.insert(restored);
-            }
-            match physical.get(&bucket).ok_or(OperatingError::NotRun)? {
-                Ok(prepared) => self.publications.install_frontier(slot, prepared, &readiness)?,
-                Err(OperatingError::ObservationIncomplete { .. }) => (),
-                Err(error) => return Err(error.clone()),
-            }
-        }
-        Ok(())
+    fn restore_frontiers(
+        &mut self,
+        facts: &dyn facts::FactsFinish,
+        corpus: &[CorpusInput],
+        covered: &[Covered],
+        skipped: &[Skipped],
+        frames: &[FileObservationReadiness],
+        first_bucket: &[Bucket],
+        selected: &[bool],
+    ) -> Result<(), OperatingError> {
+        crate::application::file_dag::observations::cross::restore_frontiers(
+            &mut self.publications,
+            &self.request.program,
+            &self.request.services,
+            &self.publication,
+            facts,
+            corpus,
+            covered,
+            skipped,
+            frames,
+            first_bucket,
+            selected,
+        )
+    }
+}
+
+impl ExecutionUseCaseImpl {
+    fn finish_preparation(
+        &self,
+        compiled: crate::domain::prepared_request::types::Compiled,
+        rules: Vec<ryo_values::domain::rule_requests::types::RuleSpec>,
+        digests: Vec<ryo_values::domain::stored_facts::types::Digest>,
+        hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
+        identity: ObservationIdentity,
+    ) -> Result<PreparedProgram, OperatingError> {
+        let inner = facade::prepare(
+            compiled,
+            &rules,
+            &digests,
+            &hosted,
+            Arc::clone(&self.derived),
+            identity,
+        )?;
+        Ok(PreparedProgram {
+            inner,
+            kernels: Arc::new(CommonOperatorEngine::new(Arc::clone(&self.operators))),
+            derived: Arc::clone(&self.derived),
+        })
     }
 }

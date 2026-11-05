@@ -22,7 +22,7 @@ pub(crate) struct Crossed {
     /// The findings, as typed cells.
     pub rendered: Option<Rendered>,
     /// Owned named-root publication bytes, never user diagnostics.
-    pub observations: Option<crate::domain::crossing::types::CrossPublicationTransfer>,
+    pub observations: Option<ryo_values::domain::records::types::CrossPublicationTransfer>,
     /// The rows each step of the plan was fed.
     pub fed: Vec<RowsFed>,
 }

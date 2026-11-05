@@ -19,7 +19,7 @@ use crate::domain::operands::service::resolve;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::family_of;
 use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount, OperatorContext};
-use crate::domain::table_model::service::{cell, column_in};
+use {ryo_values::domain::rows::service::cell, ryo_values::domain::rows::service::column_in};
 use crate::domain::table_model::types::{Verdict};
 use crate::domain::table_scratch::types::{
     ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,

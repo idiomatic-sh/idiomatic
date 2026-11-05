@@ -2,11 +2,7 @@
 use super::indexes::LIMIT;
 use super::*;
 use crate::application::file_dag::{interface::DagExecution, types::FileDagExecution};
-use crate::domain::{
-    file_program::service::compile_prepared, operating::types::OperatorContext,
-    operator::contract::types::RequestOperators, table_model::types::Rows,
-    table_scratch::types::OperatorScratch, table_texts::types::SourceView,
-};
+use {crate::domain::file_program::service::compile_prepared, crate::domain::operating::types::OperatorContext, crate::domain::operator::contract::types::RequestOperators, crate::domain::table_model::types::Rows, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},

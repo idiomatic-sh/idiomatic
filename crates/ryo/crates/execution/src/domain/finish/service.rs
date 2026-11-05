@@ -1,6 +1,6 @@
 //! Normalize producer-local names at the owner-controlled publication boundary.
 use super::types::{Arena, Leaves, Leaving, Retained};
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::{
     service::{intern_derived, name_made_across, name_of, text_of},
     types::{ByteSlice, Symbols},

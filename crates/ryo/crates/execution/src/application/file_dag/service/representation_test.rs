@@ -9,7 +9,7 @@ use crate::domain::table_model::collections::representations::{
 };
 use crate::domain::table_model::types::{SelectedRows, StoredSelection};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::{
     elements::{
         service::{enter_node, leave_node, table_builder, token},

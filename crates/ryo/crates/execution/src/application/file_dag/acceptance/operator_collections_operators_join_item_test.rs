@@ -26,7 +26,7 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{kinds_of, push_row, row_in};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Comparison, Input as PlanInput, JoinColumn, LiteralText, Operand, QueryLiteral,
     Side, Test,
@@ -1525,7 +1525,7 @@ fn separate_rule_rooms_reuse_one_index_and_still_read_the_provider_before_hits()
         matches!(
             invalid_prepared,
             Err(OperatingError::Table(
-                crate::domain::table_model::errors::TableModelError::NoSuchColumn { index: 99 }
+                ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 99 }
             ))
         ),
         "prepared invalid join answered {invalid_prepared:?}"

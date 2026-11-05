@@ -3,7 +3,7 @@ use super::*;
 use crate::application::file_dag::executor::PrimitiveExecutor;
 use crate::domain::operating::types::Room;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::to_bits,

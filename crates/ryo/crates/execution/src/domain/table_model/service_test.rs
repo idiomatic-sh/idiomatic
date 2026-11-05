@@ -15,8 +15,8 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_relations::domain::terms::types::NameText;
 
-use super::errors::TableModelError;
-use super::service::{cell, count_of, kinds_of, matching, push_row, read_row, reset};
+use ryo_values::domain::rows::errors::TableModelError;
+use {ryo_values::domain::rows::service::cell, super::service::count_of, super::service::kinds_of, super::service::matching, super::service::push_row, super::service::read_row, super::service::reset};
 use super::types::Rows;
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 use crate::domain::positions::service_test::prepared_index;

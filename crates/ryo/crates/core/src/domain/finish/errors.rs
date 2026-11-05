@@ -1,6 +1,6 @@
 //! The `finish` concept's failures.
 
-use super::super::table_model::errors::TableModelError;
+use ryo_values::domain::rows::errors::TableModelError;
 
 /// Why the rows of a query cannot be read as findings.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

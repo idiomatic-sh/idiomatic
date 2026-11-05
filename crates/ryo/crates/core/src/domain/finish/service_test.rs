@@ -1,6 +1,6 @@
 //! The `finish` service's cases, on values alone.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::service::{intern, intern_derived, places_mut};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{
@@ -17,7 +17,7 @@ use super::types::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run, selects};
 
-use crate::domain::table_model::errors::TableModelError;
+use ryo_values::domain::rows::errors::TableModelError;
 use crate::domain::table_model::service::{push_row, row_in};
 
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};

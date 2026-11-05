@@ -26,7 +26,7 @@ use crate::domain::replay::types::Pipe;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use fixtures::{SOURCE, fixture};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::{

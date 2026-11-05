@@ -22,7 +22,7 @@ use ryo_relations::domain::relations::types::{
     Bits, CellKind, ColumnsView, Flag, Integer, Position, Relation, Value,
 };
 
-use super::errors::TableModelError;
+use ryo_values::domain::rows::errors::TableModelError;
 use super::types::Rows;
 use crate::domain::coverage::types::Partial;
 use crate::domain::table_cells::service::{edge_of, element_of};
@@ -30,23 +30,6 @@ use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_derived::domain::contract::key::hash_key;
 use ryo_derived::domain::contract::types::{ChainLink, KeyIndex, On};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-
-/// The one of `items` that the column `index` names, when there is one: the one conversion between a column number and a place.
-#[must_use]
-pub(crate) fn column_in<T>(items: &[T], index: ColumnIndex) -> Option<&T> {
-    items.get(usize::try_from(index.0).unwrap_or(usize::MAX))
-}
-
-/// The value of the column at `index` in `row`.
-///
-/// # Errors
-///
-/// `NoSuchColumn` when the row is shorter.
-pub(crate) fn cell(row: &[Value], index: ColumnIndex) -> Result<Value, TableModelError> {
-    column_in(row, index)
-        .copied()
-        .ok_or(TableModelError::NoSuchColumn { index: index.0 })
-}
 
 /// The row at `index`, when the table has that many rows.
 #[must_use]

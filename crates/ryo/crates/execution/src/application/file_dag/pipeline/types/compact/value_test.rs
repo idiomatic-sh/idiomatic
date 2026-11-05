@@ -48,7 +48,7 @@ fn subject_with_counting(
     use crate::domain::operating::types::OperatorContext;
     use crate::domain::operator::service::pool_for;
     use crate::domain::table_scratch::types::OperatorScratch;
-    use crate::domain::table_texts::types::SourceView;
+    use {ryo_values::domain::files::types::SourceView};
     use ryo_language::domain::symbols::service::intern_derived;
     use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
     use ryo_relations::domain::relations::service::{node_id, to_bits};

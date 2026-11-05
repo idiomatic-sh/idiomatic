@@ -1,0 +1,36 @@
+description = "A resource's own types: the plain types its module exposes, with nothing else asked."
+why = "A resource that exposes a type of its own (the opaque handle a linked language is) keeps it in `types.rs` beside its module, and the module declares it `mod types;`, so a type is found by the file's name like every other part's. The template is open: it asks that the file exist and states its role, and the types are its author's."
+content = '''
+//! The types of the `{{ resource }}` resource.
+'''
+
+[params]
+resource = { type = "identifier", description = "The resource, captured from its path." }
+
+[given]
+file = 'sdk/src/resources/greeting/types.rs'
+params = { resource = 'greeting' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'sdk/src/resources/greeting/types.rs' = '''
+//! The types of the `greeting` resource.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'sdk/src/resources/greeting/types.rs' = '''
+//! The types of the `greeting` resource.
+
+/// A thing the template does not ask for.
+pub struct Extra;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'resource-types#count', path = '.' },
+]

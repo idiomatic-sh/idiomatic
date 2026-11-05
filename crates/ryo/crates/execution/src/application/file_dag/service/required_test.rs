@@ -5,7 +5,7 @@ use crate::domain::file_program::service::compile_prepared;
 use crate::domain::operator::contract::types::RequestOperators;
 use crate::domain::replay::types::Collect;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},

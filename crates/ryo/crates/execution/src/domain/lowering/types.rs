@@ -42,7 +42,7 @@ pub(crate) enum ColumnFollowing {
 
 /// Whether a step counts the rows of a lowered step.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum Counting {
+pub enum Counting {
     /// It makes no positions, and passes its counts on as values.
     Counts,
     /// It does not.

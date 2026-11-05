@@ -7,9 +7,8 @@ use super::types::{
     VisitSetting, WorkersMet,
 };
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::finish::types::{LineStarts, RuleNumber};
-use crate::domain::lowering::types::Counting;
-use crate::domain::operator::types::{PreparedPool, RowsFed, TreeSteps};
+use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
+use ryo_execution::inbound::use_cases::execution::types::RowsFed;
 use crate::domain::placement::service::{governed, governs, place};
 use crate::domain::placement::types::{Governing, Mask};
 use crate::domain::render::types::Rendered;
@@ -27,9 +26,6 @@ use ryo_values::domain::stored_facts::types::{ArenaBytes, FileNotes};
 pub(crate) fn tables_for(
     number: WorkerNumber,
     metadata: &[RuleMetadata],
-    matchers: std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    unlowered: TreeSteps,
-    counting: Counting,
 ) -> Tables {
     Tables {
         current_observations: None,
@@ -43,16 +39,8 @@ pub(crate) fn tables_for(
         hits: Hits::default(),
         words: Words::default(),
         packed: PackedWords::default(),
-        pool: PreparedPool {
-            matchers,
-            fed: metadata
-                .iter()
-                .map(|rule| vec![RowsFed::default(); rule.steps.len()])
-                .collect(),
-            unlowered,
-            counting,
-            ..PreparedPool::default()
-        },
+        fed: metadata.iter().map(|rule| vec![RowsFed::default(); rule.steps.len()]).collect(),
+        kind_vocabulary: None,
         starts: LineStarts(Vec::new()),
         arena: ArenaBytes::default(),
         places: Vec::new(),
@@ -127,7 +115,7 @@ pub(crate) fn gathering(metadata: &[RuleMetadata]) -> WorkersMet {
 
 /// Takes what one worker made into what the workers made together.
 pub(crate) fn absorb(met: &mut WorkersMet, tables: Tables) {
-    for (slots, fed) in met.fed.iter_mut().zip(&tables.pool.fed) {
+    for (slots, fed) in met.fed.iter_mut().zip(&tables.fed) {
         for (slot, more) in slots.iter_mut().zip(fed) {
             add_fed(slot, more);
         }

@@ -26,7 +26,7 @@ pub(crate) fn open_project<'a>(
     program: &'a Arc<PreparedProgram>,
     required: RequiredPartitions,
     partials: ScopePartials<'a>,
-    frontiers: ProjectFrontiers<'a>,
+    mut frontiers: ProjectFrontiers<'a>,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
     services: Arc<ProgramServices>,
@@ -37,6 +37,23 @@ pub(crate) fn open_project<'a>(
     frontiers
         .ordinary
         .validate_scope(program.program(), &required)?;
+    crate::domain::spelling::service::check_name_spellings(
+        frontiers.ordinary.rows.iter().flat_map(|input| -> Box<dyn Iterator<Item = ryo_relations::domain::relations::types::Name> + '_> {
+            match input {
+                crate::application::file_dag::frontiers::types::FrontierInput::Decoded { frontier, .. } => Box::new(frontier.table.cells.iter().filter_map(|value| match value { ryo_relations::domain::relations::types::Value::Name(name) => Some(*name), _ => None })),
+                crate::application::file_dag::frontiers::types::FrontierInput::Compact { spelling, .. } => Box::new(spelling.iter().copied()),
+            }
+        }), symbols, arenas,
+    )?;
+    for input in &mut frontiers.ordinary.rows {
+        if let crate::application::file_dag::frontiers::types::FrontierInput::Compact {
+            spelling,
+            ..
+        } = input
+        {
+            spelling.clear();
+        }
+    }
     let scope = frontiers.publication;
     scope.validate_request(&services, &required)?;
     let transport = scope.claim_symbols(symbols)?;

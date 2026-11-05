@@ -1,0 +1,34 @@
+description = "A resource's contract: what an implementation of the traits the resource re-exports runs, one function per trait, compiled only under the `fixtures` feature."
+why = "Gives a trait an SDK exposes its contract in the same place the trait is named, so the author of an implementation runs one function from `<product>::<resource>::contract` and tests nothing the product did not agree. Test-only: the resource module declares it behind the `fixtures` feature."
+content = '''
+//! The contract of the `{{ resource }}` traits an implementation runs.
+'''
+
+[params]
+resource = { type = "identifier", description = "The resource, captured from its path." }
+
+[given]
+file = 'sdk/src/resources/greeting/contract.rs'
+params = { resource = 'greeting' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'sdk/src/resources/greeting/contract.rs' = '''
+//! The contract of the `greeting` traits an implementation runs.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'sdk/src/resources/greeting/contract.rs' = '''
+//! The contract of the `greeting` traits an implementation runs.
+pub const EXTRA: u8 = 1;
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'contract#count', path = '.' },
+]

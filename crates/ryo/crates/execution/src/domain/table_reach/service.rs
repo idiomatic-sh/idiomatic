@@ -3,7 +3,7 @@
 use ryo_relations::domain::relations::types::Value;
 
 use super::types::{Edges, Walk};
-use crate::domain::table_model::service::{column_in, matching, row_in};
+use {ryo_values::domain::rows::service::column_in, crate::domain::table_model::service::matching, crate::domain::table_model::service::row_in};
 
 use ryo_derived::domain::contract::types::On;
 
@@ -114,7 +114,7 @@ pub(crate) fn next_ordered(
         let ordinal = walk.ordinal.ok_or(OperatingError::DfsOrdinalOverflow)?;
         walk.ordinal = ordinal.checked_add(1);
         walk.examined += 1;
-        walk.pending = Some(crate::domain::table_model::service::cell(
+        walk.pending = Some(ryo_values::domain::rows::service::cell(
             row_in(edges.table, at).unwrap_or_default(),
             edges.to,
         )?);

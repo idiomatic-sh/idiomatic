@@ -1,8 +1,8 @@
 //! The live tree-walk shape helpers used by prepared traversal and schema validation.
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::table_model::errors::TableModelError;
-use crate::domain::table_model::service::{column_in, reset};
+use ryo_values::domain::rows::errors::TableModelError;
+use {ryo_values::domain::rows::service::column_in, crate::domain::table_model::service::reset};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 use ryo_values::domain::rows::types::Table;

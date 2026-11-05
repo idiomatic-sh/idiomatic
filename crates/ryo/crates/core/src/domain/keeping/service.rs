@@ -11,7 +11,7 @@ use ryo_relations::domain::relations::types::{Bits, NamePlace, Offset, Origin, V
 use super::types::{Configuration, DigestInput, DigestPart, Remap};
 
 use crate::domain::finish::service::{column_cell, line_cell};
-use crate::domain::finish::types::{ColumnNumber, FileLine, Point, RuleNumber};
+use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, crate::domain::finish::types::Point, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::render::service::{finding_parts, key_count, row_cells};
 use crate::domain::render::types::{KeyCount, Rendered, RowNumber, RowOrder};
 use crate::domain::table_words::service::unpacked;

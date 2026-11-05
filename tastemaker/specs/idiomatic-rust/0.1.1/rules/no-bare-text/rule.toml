@@ -1,0 +1,654 @@
+description = "No field, parameter, return type or generic argument is bare text: not a `String`, a `&str`, a `Box<str>`, an `Rc<str>`, an `Arc<str>` or a `Cow<str>`; text is a named type."
+why = "A bare string says it is text and nothing about what the text is: `fn open(path: &str, name: &str)` can be called with its arguments swapped and the compiler agrees, and `Collected { rows: Vec<Vec<String>> }` is a table nobody can read without the code that made it. A named type (`struct RuleId(Box<str>)`, `struct Heading(String)`) is defined once in the part that owns the text and is the one place the bare text is held. Found from the types written in these positions of the files the entry includes: the fields of a struct, a tuple struct of two or more fields and an enum variant, the parameters and the return type of a function, the arguments of a generic at any depth, and what a reference or a slice holds. Allowed: the one inner field of a newtype (a tuple struct of exactly one unnamed field), where the bare type gets its name; the files the entry's `allowed-paths` name (names, errors, schemas, the command line's edge, tests, fixtures, benches). Not seen: the parameters of a closure handed straight to a library, whose signature fixes them (minijinja's `add_filter(name, |value: &str| ..)`): a closure that is itself an argument of a call or a method call in a file that imports one of the entry's `libraries`, which a placement keeps to adapters, factories and compositions (`client-at-adapter`). A method's receiver has no type in the syntax, so in such a file a closure handed to any call is taken as the library's; a closure of our own, bound to a `let`, a field or a call of a file that imports no library, is seen. a method of a trait impl (`impl Trait for X`), whose signature the trait fixes; an alias, a `let` or a `const` in a body, and a macro's tokens."
+
+query = '''
+param allowed-paths: set<string>;
+param libraries: set<string>;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let idents = select * from tree-tokens where kind = "ident";
+let path-types = select * from tree-nodes where kind = "path-type";
+let fields = select * from tree-nodes where glob_any(kind, "{record-field,tuple-field}");
+let signatures = select * from tree-nodes where glob_any(kind, "{param,ret-type}");
+let sites = union(left=fields, right=signatures);
+let all-fns = select * from tree-nodes where kind = "fn";
+let all-returns = select * from tree-nodes where kind = "ret-type";
+let all-lists = select * from tree-nodes where kind = "param-list";
+let all-params = select * from tree-nodes where kind = "param";
+let impls = select * from tree-nodes where kind = "impl";
+let for-tokens = select * from tree-tokens where kind = "for-kw";
+let impl-kids = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "child" from impls as l join "syntax-child" as r on l."id" = r."parent";
+let trait-impls = select l."id" as "id", l."file" as "file", l."span" as "span" from impl-kids as l join for-tokens as r on l."child" = r."id";
+let impl-fns = axis(from=trait-impls, relation="syntax-child", direction=descendant, domain=all-fns);
+let method-ids = select l."related" as "id" from impl-fns as l join all-fns as r on l."related" = r."id";
+let method-kids = select l."id" as "method", r."child" as "child" from method-ids as l join "syntax-child" as r on l."id" = r."parent";
+let method-returns = select r."id" as "id" from method-kids as l join all-returns as r on l."child" = r."id";
+let method-lists = select r."id" as "list" from method-kids as l join all-lists as r on l."child" = r."id";
+let list-kids = select l."list" as "list", r."child" as "child" from method-lists as l join "syntax-child" as r on l."list" = r."parent";
+let method-params = select r."id" as "id" from list-kids as l join all-params as r on l."child" = r."id";
+let closures = select * from tree-nodes where kind = "closure-expr";
+let arg-lists = select * from tree-nodes where kind = "arg-list";
+let callers = select * from tree-nodes where glob_any(kind, "{call-expr,method-call-expr}");
+let closure-holders = select l."id" as "closure", l."file" as "file", r."parent" as "list" from closures as l join "syntax-child" as r on l."id" = r."child";
+let argued = select l."closure" as "closure", l."file" as "file", l."list" as "list" from closure-holders as l join arg-lists as r on l."list" = r."id";
+let argued-calls = select l."closure" as "closure", l."file" as "file", r."parent" as "call" from argued as l join "syntax-child" as r on l."list" = r."child";
+let call-arguments = select l."closure" as "closure", l."file" as "file" from argued-calls as l join callers as r on l."call" = r."id";
+let library-imports = select * from "static-import" where glob_any(target, $libraries);
+let library-files = group-count(from=library-imports, keys=["file"], count="imports", distinct="occurrence");
+let handed = select l."closure" as "id" from call-arguments as l join library-files as r on l."file" = r."file";
+let closure-kids = select l."id" as "closure", r."child" as "child" from handed as l join "syntax-child" as r on l."id" = r."parent";
+let closure-lists = select r."id" as "list" from closure-kids as l join all-lists as r on l."child" = r."id";
+let closure-list-kids = select l."list" as "list", r."child" as "child" from closure-lists as l join "syntax-child" as r on l."list" = r."parent";
+let closure-params = select r."id" as "id" from closure-list-kids as l join all-params as r on l."child" = r."id";
+let method-fixed = union(left=method-returns, right=method-params);
+let fixed = union(left=method-fixed, right=closure-params);
+let open-sites = antijoin(left=sites, right=fixed, left-on=["id"], right-on=["id"]);
+let inner = axis(from=open-sites, relation="syntax-child", direction=descendant, domain=path-types);
+let types = select l."id" as "site", r."id" as "type", r."file" as "file", r."span" as "span", r."id" as "node" from inner as l join path-types as r on l."related" = r."id";
+let p0-c = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from types as l join "syntax-child" as r on l."node" = r."parent";
+let p0 = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span", r."id" as "node" from p0-c as l join paths as r on l."node" = r."id";
+let p1-c = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from p0 as l join "syntax-child" as r on l."node" = r."parent";
+let p1 = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span", r."id" as "node" from p1-c as l join segments as r on l."node" = r."id";
+let p2-c = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from p1 as l join "syntax-child" as r on l."node" = r."parent";
+let p2 = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span", r."id" as "node" from p2-c as l join name-refs as r on l."node" = r."id";
+let ident-edges = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span", r."child" as "node" from p2 as l join "syntax-child" as r on l."node" = r."parent";
+let hits = select * from idents where glob_any(text, "{String,str}");
+let found = select l."site" as "site", l."type" as "type", l."file" as "file", l."span" as "span" from ident-edges as l join hits as r on l."node" = r."id";
+let tuple-fields = select * from tree-nodes where kind = "tuple-field";
+let lists = select * from tree-nodes where kind = "tuple-field-list";
+let structs = select * from tree-nodes where kind = "struct";
+let field-parents = select l."id" as "field", r."parent" as "list" from tuple-fields as l join "syntax-child" as r on l."id" = r."child";
+let in-lists = select l."field" as "field", l."list" as "list" from field-parents as l join lists as r on l."list" = r."id";
+let list-sizes = group-count(from=in-lists, keys=["list"], count="size", distinct="field");
+let single-lists = select * from list-sizes where size = 1;
+let list-owners = select l."list" as "list", r."parent" as "owner" from single-lists as l join "syntax-child" as r on l."list" = r."child";
+let struct-lists = select l."list" as "list" from list-owners as l join structs as r on l."owner" = r."id";
+let newtype-fields = select l."field" as "field" from in-lists as l join struct-lists as r on l."list" = r."list";
+let kept = antijoin(left=found, right=newtype-fields, left-on=["site"], right-on=["field"]);
+let allowed = select * from kept where glob_any(file, $allowed-paths);
+let reported = antijoin(left=kept, right=allowed, left-on=["type"], right-on=["type"]);
+let spans = project(from=reported, columns=["file", "span"]);
+emit spans subject "file" key("span");
+'''
+
+[params.libraries]
+type = "set<string>"
+description = "The libraries of the product's adapters, each a path glob of the crate as code writes it (`minijinja::*`): a closure handed to a call in a file that imports one has its parameters fixed by that library."
+
+[params.allowed-paths]
+type = "set<string>"
+description = "Globs of the files that may hold this shape: the files that map an enum to its outside text, the error messages, the edges and the tests."
+
+[diagnostic]
+primary = "span"
+message = "this is a bare text type"
+help = "For this value, make a new named type; never reuse one that means something else. Name the text: a newtype defined once in the concept that owns it (`struct RuleId(Box<str>)`), and use that type here; the bare text stays only in the newtype's own inner field."
+
+[[scenarios]]
+id = 'string-in-a-field'
+scenario = 'A bare string in field position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: String,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'string-in-a-pair'
+scenario = 'A bare string in pair position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Pair(pub String, pub String);
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'string-in-a-param'
+scenario = 'A bare string in param position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn put(v: String) {
+    let _ = v;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'string-in-a-return'
+scenario = 'A bare string in return position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn get() -> String {
+    loop {}
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'string-in-a-nested'
+scenario = 'A bare string in nested position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Rows {
+    pub v: Vec<Option<String>>,
+}
+
+pub fn put(v: Vec<Vec<String>>) {
+    let _ = v;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+  { path = 'src/lib.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'string-in-a-variant'
+scenario = 'A bare string in variant position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub enum Value {
+    One(String),
+    Many { v: String },
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+  { path = 'src/lib.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'str-reference-in-a-field'
+scenario = 'A bare str-reference in field position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: &'static str,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'str-reference-in-a-param'
+scenario = 'A bare str-reference in param position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn put(v: &'static str) {
+    let _ = v;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'boxed-str-in-a-field'
+scenario = 'A bare boxed-str in field position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: Box<str>,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'boxed-str-in-a-param'
+scenario = 'A bare boxed-str in param position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn put(v: Box<str>) {
+    let _ = v;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'rc-str-in-a-field'
+scenario = 'A bare rc-str in field position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: std::rc::Rc<str>,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'rc-str-in-a-param'
+scenario = 'A bare rc-str in param position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn put(v: std::rc::Rc<str>) {
+    let _ = v;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'arc-str-in-a-field'
+scenario = 'A bare arc-str in field position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: std::sync::Arc<str>,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'arc-str-in-a-param'
+scenario = 'A bare arc-str in param position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn put(v: std::sync::Arc<str>) {
+    let _ = v;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'cow-str-in-a-field'
+scenario = 'A bare cow-str in field position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: std::borrow::Cow<'static, str>,
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'newtype-of-string'
+scenario = 'The newtype that names the string holds it and is used in every position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+/// What it is.
+pub struct Name(pub String);
+
+pub struct Row {
+    pub v: Name,
+}
+
+pub fn put(v: Name) -> Name {
+    v
+}
+'''
+
+[[scenarios]]
+id = 'string-in-an-allowed-file'
+scenario = 'A bare string in an allowed file.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/constants.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: String,
+}
+'''
+
+[[scenarios]]
+id = 'string-in-a-body-only'
+scenario = 'A bare string in a local is not a position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn run() {
+    let v: String = Default::default();
+    let _ = v;
+}
+'''
+
+[[scenarios]]
+id = 'newtype-of-boxed-str'
+scenario = 'The newtype that names the boxed-str holds it and is used in every position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+/// What it is.
+pub struct Name(pub Box<str>);
+
+pub struct Row {
+    pub v: Name,
+}
+
+pub fn put(v: Name) -> Name {
+    v
+}
+'''
+
+[[scenarios]]
+id = 'boxed-str-in-an-allowed-file'
+scenario = 'A bare boxed-str in an allowed file.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/constants.rs' = '''
+//! Cell.
+
+pub struct Row {
+    pub v: Box<str>,
+}
+'''
+
+[[scenarios]]
+id = 'boxed-str-in-a-body-only'
+scenario = 'A bare boxed-str in a local is not a position.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub fn run() {
+    let v: Box<str> = Default::default();
+    let _ = v;
+}
+'''
+
+[[scenarios]]
+id = 'trait-impl-method-text'
+scenario = 'A method of a trait impl whose signature the trait fixes.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct W(pub String);
+
+impl std::fmt::Write for W {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        self.0.push_str(text);
+        Ok(())
+    }
+}
+'''
+
+[[scenarios]]
+id = 'inherent-method-text'
+scenario = 'An inherent method is not fixed by a trait.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct W(pub String);
+
+impl W {
+    pub fn put(&mut self, text: &str) {
+        self.0.push_str(text);
+    }
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'closure-of-our-own'
+scenario = 'A closure of our own takes a bare &str parameter.'
+given.include = ['**/*.rs']
+given.params = { libraries = [], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+pub struct Name(pub String);
+
+pub fn each(values: Vec<Name>) -> Vec<Name> {
+    let wrap = |x: &str| Name(x.to_owned());
+    values.into_iter().map(|value| wrap(value.0)).collect()
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'closure-handed-to-a-library'
+scenario = 'A closure handed straight to a library takes the parameter the library fixes.'
+given.include = ['**/*.rs']
+given.params = { libraries = ['minijinja::*'], allowed-paths = ['**/constants.rs', '**/errors.rs'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+//! Cell.
+
+use minijinja::Environment;
+
+pub struct Name(pub String);
+
+pub fn filters(environment: &mut Environment<'_>) {
+    environment.add_filter("wrap", |x: &str| {
+        let _ = Name(x.to_owned());
+    });
+}
+'''

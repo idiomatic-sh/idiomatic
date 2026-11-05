@@ -14,7 +14,7 @@ use crate::domain::operator::collections::operators::group_digest::item::GroupDi
 use crate::domain::table_model::service::{push_row, row_in};
 use crate::domain::table_model::types::{Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
@@ -203,7 +203,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || digesting_a_column_the_input_lacks,
         expect: Expect::Error(OperatingError::Table(
-            crate::domain::table_model::errors::TableModelError::NoSuchColumn { index: 9 },
+            ryo_values::domain::rows::errors::TableModelError::NoSuchColumn { index: 9 },
         )),
     },
 ];

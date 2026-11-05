@@ -11,6 +11,36 @@ pub struct PreparedRequest {
     pub hosted: Vec<ryo_values::domain::hosted::types::HostRelation>,
     pub observations: ObservationIdentity,
 }
+/// The implementation layers are unavailable to callers.
+///
+/// ```compile_fail,E0603
+/// use ryo_execution::application::file_dag::execution::CommonOperatorEngine;
+/// ```
+/// ```compile_fail,E0603
+/// use ryo_execution::domain::executable_program::service::compile;
+/// ```
+/// ```compile_fail,E0603
+/// use ryo_execution::application::file_dag::relations::RelationOwner;
+/// ```
+/// Public prepared handles can be accepted and inspected through the inbound contract.
+/// ```
+/// use ryo_execution::inbound::use_cases::execution::{
+///     interface::PreparedExecution, types::PreparedProgram,
+/// };
+/// fn count(program: &PreparedProgram) -> usize { program.rule_count() }
+/// ```
+/// They cannot be minted by a caller.
+/// ```compile_fail,E0451
+/// use ryo_execution::inbound::use_cases::execution::types::PreparedProgram;
+/// let _ = PreparedProgram { inner: panic!(), kernels: panic!(), derived: panic!() };
+/// ```
+/// ```compile_fail,E0451
+/// use ryo_execution::inbound::use_cases::execution::types::FileSession;
+/// let _ = FileSession {
+///     inner: panic!(), program: panic!(), file: panic!(),
+///     elements: panic!(), read: panic!(),
+/// };
+/// ```
 pub struct PreparedProgram {
     pub(super) kernels: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send>,
     pub(super) derived: Arc<dyn DerivedPort>,
@@ -104,7 +134,12 @@ pub struct ProjectSession<'a> {
 pub struct FileFinished {
     pub readiness: Option<Arc<ryo_values::domain::records::types::FrontierReadiness>>,
 }
+pub enum FrontierDemand<'a> {
+    Diagnostic,
+    Observations { ready: &'a [bool] },
+}
 pub struct FrontierRequest<'a> {
+    pub demand: FrontierDemand<'a>,
     pub scope: &'a ProjectScope,
     pub rule: RuleIndex,
     pub first: ryo_values::domain::stored_facts::types::Bucket,
@@ -129,9 +164,7 @@ pub use crate::application::rule_compilation::{
 pub struct CompiledQueries {
     pub(super) inner: crate::domain::prepared_request::types::Compiled,
 }
-pub struct CompilationSession {
-    pub(super) inner: crate::application::rule_compilation::service::RuleCompilation,
-}
+
 pub struct PreparedRuleIdentities {
     pub rules: Vec<ryo_values::domain::stores::types::StoredRule>,
     pub observations: ObservationIdentity,
@@ -150,11 +183,15 @@ pub use crate::application::file_dag::program::facade::ObservedPublication;
 /// Output storage only; source file and rule digest come from the bound session.
 pub struct CaptureContext<'a> {
     pub worker: ryo_relations::domain::relations::types::WorkerNumber,
-    pub retained: crate::domain::finish::types::Retained<'a>,
+    pub arena: &'a mut Vec<u8>,
+    pub places: &'a mut Vec<ryo_relations::domain::relations::types::NamePlace>,
     pub words: &'a mut ryo_relations::domain::relations::types::Words,
 }
-pub use crate::domain::crossing::types::CrossPublicationTransfer;
 pub use crate::domain::coverage::types::FileObservationReadiness;
+pub use ryo_values::domain::records::types::CrossPublicationTransfer;
 
-pub use crate::domain::crossing::types::PackedObservedRoot;
 pub use crate::domain::operator::types::RowsFed;
+pub use ryo_values::domain::records::types::PackedObservedRoot;
+
+pub use crate::domain::operator::types::TreeSteps;
+pub use crate::domain::lowering::types::Counting;

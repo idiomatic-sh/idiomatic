@@ -1,5 +1,5 @@
 //! Borrowed publication storage belongs to the execution invocation.
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, NamePlace, WorkerNumber};
 /// Where the names of a file's rows are read, and who they leave as: the file's names and bytes, the file, and the worker that

@@ -49,3 +49,5 @@ pub(crate) mod step_classes;
 pub(crate) mod stored_graph;
 pub(crate) mod text_gate;
 pub(crate) mod tree_walk;
+
+pub(crate) mod spelling;

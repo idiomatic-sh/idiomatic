@@ -217,7 +217,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     use crate::domain::operation_schema::{service::schema_of, types::InputShape};
     use crate::domain::table_model::types::Rows;
     use crate::domain::table_scratch::types::OperatorScratch;
-    use crate::domain::table_texts::types::SourceView;
+    use {ryo_values::domain::files::types::SourceView};
     use ryo_language::domain::symbols::{
         service::intern_derived,
         types::{ByteSlice, Symbols},

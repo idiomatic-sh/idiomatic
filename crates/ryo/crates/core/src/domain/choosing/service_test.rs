@@ -3,7 +3,7 @@
 use super::service::chosen;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use crate::domain::finish::types::{ColumnNumber, FileLine, RuleNumber};
+use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::render::service::{end_row, key_count, lent_row};
 use crate::domain::render::types::{KeyCount, Rendered, RowNumber, RowOrder};
 use ryo_language::domain::files::types::FilePath;

@@ -1,6 +1,6 @@
 //! The `ordering` service's cases, on values alone.
 
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -11,7 +11,7 @@ use super::service::{append, offer, sort_findings};
 use super::types::{Ordered, Turn};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::finish::errors::FinishError;
-use crate::domain::finish::types::{ColumnNumber, FileLine, LineStarts, RuleNumber};
+use {crate::domain::finish::types::ColumnNumber, crate::domain::finish::types::FileLine, crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::RuleNumber};
 use crate::domain::render::service::{end_row, key_count, lent_row, render_rows, row_cells};
 use crate::domain::render::types::{
     FindingRule, KeyCount, RenderInput, Rendered, RowLayout, RowLimit, RowNumber, RowOrder, Shown,

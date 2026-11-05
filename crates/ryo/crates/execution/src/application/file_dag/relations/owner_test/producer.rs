@@ -3,17 +3,7 @@ use super::{
     RelationOwner,
     fixtures::{columns, read},
 };
-use crate::domain::{
-    operating::types::OperatorContext,
-    operator::contract::views::BorrowedRows,
-    stored_selection::types::Selector,
-    table_model::{
-        collections::representations::types::PhysicalShape,
-        types::{Rows, SelectionIdentity},
-    },
-    table_scratch::types::OperatorScratch,
-    table_texts::types::SourceView,
-};
+use {crate::domain::operating::types::OperatorContext, crate::domain::operator::contract::views::BorrowedRows, crate::domain::stored_selection::types::Selector, crate::domain::table_model::collections::representations::types::PhysicalShape, crate::domain::table_model::types::Rows, crate::domain::table_model::types::SelectionIdentity, crate::domain::table_scratch::types::OperatorScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,

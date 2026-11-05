@@ -1,10 +1,6 @@
 //! Borrow comparison state and count actual visits around the mandatory predicate item.
 use super::*;
-use crate::domain::{
-    comparing::service::holds_bound, operating::types::Memo,
-    operator::contract::types::PredicateProgram, table_scratch::types::SelectScratch,
-    table_texts::types::SourceView,
-};
+use {crate::domain::comparing::service::holds_bound, crate::domain::operating::types::Memo, crate::domain::operator::contract::types::PredicateProgram, crate::domain::table_scratch::types::SelectScratch, ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_values::domain::{plan_parts::types::Comparison, stored_facts::types::ArenaBytes};
 struct Decision<'a> {

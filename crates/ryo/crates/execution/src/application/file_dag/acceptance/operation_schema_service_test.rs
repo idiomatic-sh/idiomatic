@@ -3,13 +3,13 @@
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::KnownSyntax;
 use crate::application::file_dag::cross_execution::compute;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::features::service::{catalog, kind_of};
+use {crate::domain::features::service::catalog, ryo_values::domain::plans::service::kind_of};
 use crate::domain::operating::{errors::OperatingError, types::OperatorContext};
 use crate::domain::operation_schema::service::schema_of;
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_language::domain::symbols::{
     service::intern_derived,

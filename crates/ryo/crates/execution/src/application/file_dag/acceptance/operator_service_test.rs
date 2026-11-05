@@ -16,7 +16,7 @@ use crate::domain::operator::collections::operators::project::item::ProjectItem;
 use crate::domain::table_model::service::push_row;
 use crate::domain::table_model::types::{Frontier, Rows};
 use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::table_texts::types::SourceView;
+use {ryo_values::domain::files::types::SourceView};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::Operand;

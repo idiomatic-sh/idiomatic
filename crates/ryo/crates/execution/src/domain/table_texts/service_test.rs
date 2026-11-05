@@ -8,8 +8,8 @@ use ryo_relations::domain::relations::types::{FileId, Offset, Value as Cell};
 
 use super::service::datum;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::table_model::errors::TableModelError;
-use crate::domain::table_texts::types::{Datum, SourceView, TextView, Texts};
+use ryo_values::domain::rows::errors::TableModelError;
+use {crate::domain::table_texts::types::Datum, ryo_values::domain::files::types::SourceView, crate::domain::table_texts::types::TextView, crate::domain::table_texts::types::Texts};
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
