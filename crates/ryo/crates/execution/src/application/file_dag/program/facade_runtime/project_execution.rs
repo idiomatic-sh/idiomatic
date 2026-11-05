@@ -186,9 +186,16 @@ impl ProjectRun<'_> {
                 let result = if completion.observation_admission(&root.reads)
                     == crate::domain::completion::types::ObservationAdmission::Ready
                 {
-                    root.source
-                        .clone()
-                        .and_then(|source| sources.admit(source, &partition, context))
+                    root.source.clone().and_then(|source| {
+                        self.execution.admit_root(
+                            rule,
+                            source,
+                            &mut sources,
+                            &kernels,
+                            &completion,
+                            context,
+                        )
+                    })
                 } else {
                     Err(OperatingError::ObservationIncomplete {
                         reason: "physical source facts are incomplete".into(),

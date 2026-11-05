@@ -717,6 +717,31 @@ impl ProgramExecution {
             _ => Ok(None),
         }
     }
+    /// Observation and frontier aliases enter the same dynamic interpreter only
+    /// after their caller's completeness gate has authorized this root.
+    pub(in crate::application::file_dag::program) fn admit_root(
+        &self,
+        rule: crate::domain::coverage::types::RuleIndex,
+        source: crate::domain::executable_program::types::InputSource,
+        inputs: &mut dyn Inputs,
+        kernels: &dyn KernelInvocation,
+        completion: &crate::domain::completion::types::completion_policy::value::CompletionPolicy,
+        context: &mut OperatorContext<'_>,
+    ) -> Result<AdmittedInput, OperatingError> {
+        inputs.bind_rule(rule);
+        if let Some(dependency) = inputs.dependency(source)? {
+            self.invoke(
+                dependency,
+                inputs,
+                kernels,
+                completion,
+                context,
+                Delivery::Retain,
+            )?;
+            inputs.bind_rule(rule);
+        }
+        inputs.admit(source, &self.partition, context)
+    }
     pub(in crate::application::file_dag::program) fn invoke(
         &self,
         id: RegionId,
@@ -1324,13 +1349,13 @@ impl ProgramExecution {
             progress.preflight_done = true;
             let permit = super::admission::KernelPermit::admitted(self, id, &admitted, evaluation)
                 .map_err(InvocationFailure::Semantic)?;
+            if !progress.ready {
+                kernels
+                    .ready(&ReadySelection { permit: &permit }, &admitted, context)
+                    .map_err(InvocationFailure::Semantic)?;
+                progress.ready = true;
+            }
             if prepare_mode.is_some() {
-                if !progress.ready {
-                    kernels
-                        .ready(&ReadySelection { permit: &permit }, &admitted, context)
-                        .map_err(InvocationFailure::Semantic)?;
-                    progress.ready = true;
-                }
                 return Ok(InvocationOutcome::Ready);
             }
             let frames = cleanup
